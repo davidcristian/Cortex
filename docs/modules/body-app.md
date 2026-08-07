@@ -374,6 +374,12 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   on the `pass` side because the element-type guard above answers it one layer up. A hold is
   `stopPropagation` and never `preventDefault`, so select-all, copy, paste, undo and those two caret
   jumps are untouched. The delete confirm is deliberately outside the rule, holding no text to lose.
+  **And the hold is silent by decision** (ADR-0035 addendum, 2026-08-07), which is why nothing here
+  writes to the live region: the branch is reached by every chord, not by the four the overlay binds,
+  and measured, seven of nine presses through it do something in the field anyway (`Ctrl+Z` undoes
+  the whole edit), so a sentence raised here would be false at most of its doors. Nothing a hold
+  touches is destroyed either, the input's name, value and selection reading identically across the
+  press, which is the test the region's contract sets.
 - **A section the reader closes hands the caret to its anchor** (`overlay/sectionCaret.ts` +
   `components/SessionList.tsx` + `components/ChatView.tsx`, ADR-0035 addendum, 2026-08-07). The third
   landing, and the one the two rules above leave: no conversation arrives and no row moves, the whole

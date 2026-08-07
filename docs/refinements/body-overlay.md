@@ -8,9 +8,9 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 are the historical record of what each deferral became, and the index at
 [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** 12. Multi-turn-within-one-stream + proto `Cancel`, streamed
+**Open items:** 11. Multi-turn-within-one-stream + proto `Cancel`, streamed
 brain status (its producer landed 2026-07-18; only the push RPC remains), `Ctrl+K` toggling a
-section nobody can see, a held chord saying nothing about being held, the liquid edge's
+section nobody can see, the liquid edge's
 backdrop blur,
 the two bounds the panel's section budget leaves behind it
 (a section's own frame being under no cap, and the room a closing section hands back in one frame),
@@ -22,10 +22,12 @@ width a mid-stream resize cannot move, and kerning inside the letter boxes under
 font; its drain-growth entry landed the same day it was filed, and the console outliving a new
 chat landed 2026-08-03). **Walked entry by entry on 2026-08-07 rather than counted, which is the
 lesson below applied to this line's own arithmetic**, and the twelve names it held were the twelve
-entries the file holds open. One swap since: a list the reader opens leaving the caret behind closed
-the same day, with the caret declined and a sentence landed in its place, and `Ctrl+K` toggling a
-section nobody can see opened behind it, so the count is twelve by one out and one in rather than
-twelve untouched. **Corrected 2026-08-06, and the shape of the error is worth more than the
+entries the file holds open. Two moves since, both the same day and both worth reading as one
+sitting: a list the reader opens leaving the caret behind closed with the caret declined and a
+sentence landed in its place, and `Ctrl+K` toggling a section nobody can see opened behind it, which
+is twelve by one out and one in rather than twelve untouched; then a held chord saying nothing was
+declined outright, on the measurement that the editor holds every chord there is and that seven of
+the nine measured do something anyway, which is eleven by one out and none in. **Corrected 2026-08-06, and the shape of the error is worth more than the
 fix.** This line was wrong twice in opposite directions. It still named the two motions the
 switcher's list once made in one frame, which landed 2026-08-03 and took the count 15 to 14 as one
 entry, and it had never picked up the row gestures, which opened 2026-08-06 behind the caret
@@ -1817,6 +1819,63 @@ on it before the close is dispatched.
     than in the region, as an `aria-describedby` line the input carries while a chord is pending, so
     the explanation sits with the thing the reader is standing in and is re-readable instead of
     spoken once. Still open, still blocking nothing.
+  - **DECLINED 2026-08-07, all four shapes, and the deciding fact is not the one either doc was
+    arguing about** ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)). Measured first, in
+    headless Chromium at 900x900 against the demo bridge, standing in the editor on "Everything
+    about model swaps" with `a brand new name` typed and the caret parked at offset 6: the
+    accessibility node of whatever holds the caret, the value and the selection before and after
+    each press, a `MutationObserver` on every live-region-shaped node, and a `window` keydown
+    listener recording whether the press got past the editor.
+    **The entry's own reading reproduced exactly.** The focused node reads `textbox`, named
+    "New chat name", valued `a brand new name`, with no description and no `aria-describedby`,
+    identically before and after `Ctrl+N`, `Ctrl+K`, `Ctrl+↑` and `Ctrl+↓`; all four raise zero
+    mutations in any live region and leave the editor open. **The instrument is not why it reads
+    clean**, which a decline has to show rather than assume: the same observer catches
+    `Chat deleted. 2 chats left.` on a delete, and the same window listener records `Control`, `n`
+    for `Ctrl+N` pressed in the composer and over an open delete confirm, the two surfaces that pass
+    chords by design.
+    **What neither doc had is that the hold is not four keys. It is every chord there is**, which is
+    this chain's undercount lesson arriving for the fifth entry running and in its sharpest form,
+    because here the undercount is what decides the entry. `fieldKey` asks whether a press is
+    modified and nothing else, deliberately, so that "what counts as a chord" has one definition on
+    both sides of the window listener. Nine presses measured through that one branch, every one of
+    them stopped from reaching the window: `Ctrl+N` and `Ctrl+K` did nothing at all, `Ctrl+↑` and
+    `Ctrl+↓` moved the caret 6 to 0 and 6 to 16, `Ctrl+A` selected all sixteen characters, `Ctrl+←`
+    and `Ctrl+→` moved it 6 to 2 and 6 to 7, `Ctrl+Backspace` deleted a word (`a brand new name` to
+    `a d new name`), and `Ctrl+Z` undid the whole edit back to `Everything about model swaps`.
+    **Seven of the nine did something anyway, two of them changing the text.**
+    **So the region is refused because the sentence would be false at most of its doors.** Raised at
+    the `hold` branch it fires on all nine, so a reader who pressed `Ctrl+Z` and watched their name
+    come back would be told the editor is waiting. Making it true means teaching `fieldKeys.ts`
+    which chords the overlay binds, which is exactly the coupling the hold rule removed by deciding
+    about the text rather than about the key, and which goes stale the day a fifth chord is bound.
+    **The `role="status"` line is refused** for that and for the region-inside-a-section defect the
+    shrink close already measured one surface over: the editor is unmounted by Enter and by Escape,
+    so a region inside it leaves in the commit after the sentence it would carry, and it would be a
+    second region competing for the reader's speech queue besides. **The description is refused**
+    because an accurate one is the key table in the markup: "shortcuts wait until the name is saved"
+    misdescribes a field where seven of nine chords do not wait, and the accurate version enumerates
+    the bound three and is spoken on every rename to serve a press most readers never make.
+    **And the silence passes the test the region's own contract sets.** The shrink close earned its
+    place by what a gesture DESTROYS, a deleted row being out of the tree and unre-readable. A held
+    chord destroys nothing, measured to the attribute, so everything a reader might want is still
+    there to be read; the editor announces itself when it opens (the tree reading `textbox` named
+    "New chat name", valued with the title it stands for, all twenty eight characters selected) and
+    again when it closes, measured this session: Escape lands the caret on
+    `button[Rename Everything about model swaps]` and Enter on `button[Rename a brand new name]`, so
+    the way out reads back the name that was settled. A key that did nothing, in a field that is
+    exactly as it was, is not news.
+    **The repeat policy is left unanswered rather than answered**, a rule that raises no sentence
+    needing no latch. It was measured anyway, since the next thing that speaks per keydown inherits
+    it: thirty `keydown` events carrying `repeat: true` dispatched at the editor were all seen by
+    its handler, twenty nine of them carrying `repeat: true`, nothing in the path filtering one. CDP
+    does not synthesise platform autorepeat, so what is measured is the absent guard rather than the
+    repeat itself.
+    Nothing opened behind it. What only a real reader can settle is already filed at
+    [host/overlay-screen-reader.md](../host/overlay-screen-reader.md), whose table has carried this
+    press as "nothing, deliberately" since the sitting was written; if a reader there cannot tell a
+    held chord from a dead application, that finding reopens this as a rule about the overlay's
+    whole key table rather than about one field.
 - **A list that shrinks says nothing, where a chat arriving speaks.** Opened 2026-08-06 by the caret
   rule further above, which is named rather than pointed at now that its chord entry and that
   entry's own two successors stand between them. The caret's landings all put focus on a control
