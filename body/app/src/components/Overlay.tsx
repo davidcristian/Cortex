@@ -2,6 +2,7 @@ import { useEffect } from "react";
 
 import type { EdgeStyle } from "../edge/edges";
 import type { MarkStyle } from "../mark/marks";
+import { chord } from "../overlay/fieldKeys";
 import { latestReply } from "../overlay/overlayState";
 import type { OverlayController } from "../overlay/useOverlay";
 import { Announcer } from "./Announcer";
@@ -65,7 +66,10 @@ export function Overlay({
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      const mod = event.ctrlKey || event.metaKey;
+      // What counts as a chord is asked of `overlay/fieldKeys.ts` rather than restated here,
+      // because the fields that stand in front of this listener answer the same question and the
+      // two must not drift into disagreeing about one key.
+      const mod = chord(event);
       if (event.key === "Escape") {
         // One press out of the console, whichever tab is up: it is one view now, not a settings
         // sheet stacked on a shortcut sheet, so nothing is left behind to press Esc at again.

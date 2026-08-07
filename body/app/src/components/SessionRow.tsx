@@ -1,4 +1,5 @@
 import type { SessionSummary } from "../bridge/types";
+import { fieldKey } from "../overlay/fieldKeys";
 import { caretKey } from "../overlay/rowCaret";
 import { CheckIcon, CloseIcon, PencilIcon, PinIcon, TrashIcon } from "./icons";
 import { relativeTime } from "./relativeTime";
@@ -63,8 +64,12 @@ export function SessionRow({
             value={draft}
             onChange={(event) => onDraft(event.currentTarget.value)}
             onKeyDown={(event) => {
-              if (event.key === "Escape") {
-                event.stopPropagation();
+              const answer = fieldKey(event);
+              if (answer === "pass") {
+                return;
+              }
+              event.stopPropagation();
+              if (answer === "cancel") {
                 onCancelRename();
               }
             }}

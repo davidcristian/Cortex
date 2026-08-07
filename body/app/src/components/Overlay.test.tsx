@@ -177,6 +177,20 @@ describe("Overlay", () => {
     expect(controller.cyclePrev).toHaveBeenCalledOnce();
   });
 
+  it("all four chords still reach the overlay from the composer, whose text survives them", () => {
+    const controller = fakeController("panel");
+    renderOverlay(controller);
+    const composer = screen.getByLabelText("Message");
+    fireEvent.keyDown(composer, { key: "n", ctrlKey: true });
+    fireEvent.keyDown(composer, { key: "k", ctrlKey: true });
+    fireEvent.keyDown(composer, { key: "ArrowUp", ctrlKey: true });
+    fireEvent.keyDown(composer, { key: "ArrowDown", ctrlKey: true });
+    expect(controller.newChat).toHaveBeenCalledOnce();
+    expect(controller.toggleSwitcher).toHaveBeenCalledOnce();
+    expect(controller.cyclePrev).toHaveBeenCalledOnce();
+    expect(controller.cycleNext).toHaveBeenCalledOnce();
+  });
+
   it("routes a card answer to the controller's respondConfirm", () => {
     const controller = fakeController("panel", [], {
       pendingConfirm: {

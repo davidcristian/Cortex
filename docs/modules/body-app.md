@@ -333,8 +333,22 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   usually does not exist yet when the gesture fires. Two neighbours came with it: **both of a row's
   overlays keep a cancelling Escape to themselves**, the window listener having dismissed the whole
   panel on the same press, and **the `?` guard asks about `HTMLInputElement` too**, that key having
-  opened the console out from under a half-typed rename. Modified chords still reach the overlay from
-  inside an editor, which is a deferral rather than a decision made here.
+  opened the console out from under a half-typed rename.
+- **A field holds the chords it would lose text to** (`overlay/fieldKeys.ts` +
+  `components/SessionRow.tsx` + `components/Overlay.tsx`, ADR-0035 addendum, 2026-08-07). The rule
+  the two neighbours above left open, answered about the TEXT rather than about the key: **a chord
+  passes through a field whose text the overlay keeps and is held by a field whose text it would
+  throw away.** The composer keeps every keystroke under the chat it was typed into, so `Ctrl+N`,
+  `Ctrl+K` and the cycle keys all still work from where a summon lands; the switcher's rename editor
+  keeps nothing, so it holds the press until Enter or Escape has settled the name, both one press and
+  both leaving the caret on the pencil. Measured before it: all four chords discarded a typed name
+  with no undo behind it, and two of them are not the overlay's to take at all, `Ctrl+↑` and `Ctrl+↓`
+  being a single-line input's own start-of-text and end-of-text jumps. `chord(press)` is the one
+  definition of a modified press and the global handler asks it too, so the two sides cannot drift;
+  `fieldKey(press)` answers `cancel`, `hold` or `pass` for a field that would lose its text, with `?`
+  on the `pass` side because the element-type guard above answers it one layer up. A hold is
+  `stopPropagation` and never `preventDefault`, so select-all, copy, paste, undo and those two caret
+  jumps are untouched. The delete confirm is deliberately outside the rule, holding no text to lose.
 - **The empty line waits for a row and yields to one, and a row the list moves travels there**
   (`components/SessionList.tsx` + `overlay/useTravel.ts`, ADR-0035 addendum, 2026-08-03). The empty
   line is asked of `sessions` rather than of the rendered rows, so deleting the last chat puts it up
