@@ -8,9 +8,8 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 are the historical record of what each deferral became, and the index at
 [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** 11. Multi-turn-within-one-stream + proto `Cancel`, streamed
-brain status (its producer landed 2026-07-18; only the push RPC remains), `Ctrl+K` toggling a
-section nobody can see, the liquid edge's
+**Open items:** 10. Multi-turn-within-one-stream + proto `Cancel`, streamed
+brain status (its producer landed 2026-07-18; only the push RPC remains), the liquid edge's
 backdrop blur,
 the two bounds the panel's section budget leaves behind it
 (a section's own frame being under no cap, and the room a closing section hands back in one frame),
@@ -135,6 +134,17 @@ Two things the closed entry had wrong are worth carrying up here, both of the sh
 learning: the switcher does not close four ways but thirteen, ten of which already answered, and the
 header's chats button, which the entry wanted a rule for, needs none, its own press putting the caret
 on it before the close is dispatched.
+
+**Moved 2026-08-07, eleven to ten, one out and none in, and walked rather than counted.** Every
+top-level entry in this file was read again and asked which one carries a landing, and the eleven
+names the line held were exactly the ones left, the index cell agreeing with them one for one.
+**`Ctrl+K` toggling a section nobody can see** then closed, as a rule for the whole key table rather
+than for the one key it was filed about: a global key aimed at one of the panel's surfaces puts that
+surface on screen, and off the chat it opens rather than toggling. Nothing was deferred behind it.
+The entry's own count is the thing to carry up here, since it is the sixth in a row to be short: it
+named one key and the table has two, `?` mounting the console behind a panel that is not on screen
+in exactly the way `Ctrl+K` mounted the list, so a rule written for one key would have left the
+other. The whole table is six keys, and four of them already landed where they act.
 
 **Body / overlay in Slice 8 ([ADR-0011](../adr/ADR-0011-body-v1.md)):**
 - **Multi-turn-within-one-stream + an explicit proto `Cancel` event.** One turn per `Converse`
@@ -1781,6 +1791,88 @@ on it before the close is dispatched.
   the overlay's keys mean while it is tucked, which reaches the whole key table rather than this one
   key, and that is why it is here rather than in the close above. Wants the same trace across a
   summon that lands on an already open list. Nothing blocks it.
+  - **LANDED 2026-08-07 as the first of the three shapes, and the entry named one key where the
+    measurement found two** ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)). The rule
+    is that a global key aimed at one of the panel's surfaces puts that surface on screen, and that
+    off the chat the press OPENS rather than toggling, because what a reader can see is a shut
+    switcher and a shut console whatever the flags say.
+    **The key table, enumerated from the code rather than from the entry.** The overlay owns exactly
+    six global keys, all six on one `window` keydown listener in `components/Overlay.tsx`: `Escape`,
+    `?`, `Ctrl+N`, `Ctrl+K`, `Ctrl+↑` and `Ctrl+↓`. The summon is not among them, being a host
+    hotkey that arrives as the `cortex:activate` event (`overlay/activation.ts`), and every other
+    key in the overlay belongs to a field or a control that has to be reached first. Four of the six
+    already had an answer for a surface nobody can see. `Ctrl+N` and the two cycle keys set
+    `mode: "panel"` and clear the console on their way through, which `sessionState.ts` argues in
+    those exact terms, and `Escape` acts on whatever is topmost and is a no-op with nothing up.
+    **Two did not, and the entry counted one of them.** `Ctrl+K` is the one it names. `?` has the
+    same defect in the tucked case: measured at 900x900 over the demo bridge, pressing it from a
+    tucked panel mounted the console and took the chat view `inert` and `aria-hidden` behind a panel
+    that was not on screen, with `document.activeElement` still on `body`. It is the undercount
+    lesson for the sixth entry running, and this time the sixth of a table of six.
+    **Before, measured in headless Chromium at 900x900 against the demo bridge**, each press taken
+    from a fresh page in one of four setups, reading the panel's visibility, the switcher's mounted
+    rows, `aria-expanded` on the chats button, whether the console is up, the chat pane's `inert`
+    and `aria-hidden`, `document.activeElement` and the live region's text.
+
+    | key | on the chat | tucked | behind the console | behind the console, list open |
+    | --- | --- | --- | --- | --- |
+    | `Escape` | dismisses, caret to `body` | nothing | console leaves, caret to composer | console leaves, caret to composer |
+    | `?` | nothing, the caret being in the composer where it is a character | **console mounts, chat pane goes `inert`, panel not on screen, caret on `body`** | console leaves | console leaves |
+    | `Ctrl+N` | fresh chat, announced | summons, caret to composer, announced | console leaves, fresh chat, announced | console and list leave, fresh chat, announced |
+    | `Ctrl+K` | list opens, `aria-expanded` true, `Recent chats open. 3 chats.` | **3 rows mount and `aria-expanded` turns true with the panel off screen, silent, caret on `body`** | **3 rows mount and `aria-expanded` turns true behind the `inert` pane, silent, console stays up** | **the list shuts behind the console, silent** |
+    | `Ctrl+↑` | nothing | nothing | nothing | nothing |
+    | `Ctrl+↓` | swaps chat, announced | summons, swaps, announced | console leaves, swaps, announced | console and list leave, swaps, announced |
+
+    `Ctrl+↑` doing nothing anywhere is not a fifth invisible door and is measured rather than
+    assumed: `cycleTarget` does not wrap (`overlay/sessionState.ts`), the demo's restored chat is at
+    the newest end, and an out of range target reads back as null, so the key means "the previous
+    chat" and there is not one. It mounts nothing where nobody can see it, which is the property
+    this entry is about, so it is left exactly as it is.
+    **The argument for summoning rather than refusing or leaving it.** The tucked press is a request
+    to come back: a reader who presses the chats key while the overlay is away is asking for their
+    chats, which is what `Ctrl+N` already means one key over, and refusing it would make this the
+    one key on the table that is live and inert at the same time. The console case decides itself on
+    the precedent already written into `openSession`, where the cycle keys loading a conversation
+    behind a standing console is called a surprise and answered by taking the console off; the
+    switcher's list is a part of the chat view, so a key that opens it is aimed at the chat and
+    lands there. And doing nothing was refused because the cost is not one press to shut: the state
+    it leaves is a flag the screen disagrees with, which is what made the announcement stand down in
+    the first place and what would keep making every later rule ask a second question.
+    **What shipped is nine lines in `overlay/chromeState.ts`.** One helper lands the state on the
+    chat (`mode: "panel"`, `consoleTab: null`, `touched: true`, the last of them for the reason the
+    summon sets it, so a cold start adoption cannot replace what a key just put up), and both
+    toggles read their "already showing" against the screen instead of the flag. `onChat` is not
+    retired by this and changes job: it decided whether the sentence would be true, and now decides
+    whether the press is a toggle or a request, which is the same question asked one step earlier.
+    The announcement's own guard is gone with the state it guarded, since the arm cannot open a list
+    off the chat any more, and `Ctrl+K` from a tucked panel now speaks the sentence truthfully.
+    **After, same instrument, same four setups.** The whole first column is bit identical, which is
+    the part worth checking first: on the chat nothing about any of the six keys moved.
+
+    | key | tucked | behind the console | behind the console, list open |
+    | --- | --- | --- | --- |
+    | `?` | panel summons, console up, caret on the selected tab | console leaves | console leaves |
+    | `Ctrl+K` | panel summons with 3 rows on it, `aria-expanded` true, caret to composer, `Recent chats open. 3 chats.` | console leaves, list opens, caret to composer, announced | console leaves, the list is still open, caret to composer |
+    | `Ctrl+N` | unchanged | unchanged | unchanged |
+    | `Ctrl+↑` / `Ctrl+↓` | unchanged | unchanged | unchanged |
+    | `Escape` | unchanged | unchanged | unchanged |
+
+    The last cell is the "summon that lands on an already open list" trace the entry asked for, and
+    it is the open-rather-than-toggle rule paying for itself: the old code shut that list, so a
+    reader who could not see it lost it to the press meant to show it.
+    **The mutation proof.** Five mutations, five distinct rednesses, nothing else in the 673 test
+    suite moving under any of them: stopping the helper from setting `mode` reddens three cases (the
+    two tucked ones and the existing open-then-shut case, which the key can only satisfy by
+    summoning); letting it leave `consoleTab` alone reddens the behind-the-console case; restoring
+    the bare `!state.switcherOpen` flip reddens the open-rather-than-toggle case; asking the console
+    toggle for the flag alone rather than the flag and the mode reddens the `?` case; and dropping
+    `touched` reddens both tucked cases.
+    One property is worth writing down rather than filing: on the real Win32 body a window that is
+    not shown receives no keys at all, so the tucked half of this table is reachable through the orb
+    and the preview, which are modes with the window up and the panel away, and through a dismissed
+    overlay whose window the shell still holds. That is true of `Ctrl+N` and the cycle keys exactly
+    as it is of these two, so it is a property of the whole table and not of this change. Nothing
+    was deferred behind this.
 - **A held chord says nothing about being held.** Opened 2026-08-07 by the chord entry above, whose
   answer is deliberately silent: the press is stopped, the editor stays exactly as it was, and the
   overlay makes no sound about why the key a reader just pressed did nothing. For a sighted reader
