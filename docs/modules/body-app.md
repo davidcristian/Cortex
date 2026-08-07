@@ -47,9 +47,10 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   keeps them there, spending `overlay/logRide.ts` on a section rolling open, whether in the middle
   of the log or in the chrome beside it, ADR-0033/ADR-0034), the overlay state
   machine (`overlay/overlayState.ts` is a pure reducer over a `Mode` = hidden/panel/orb/preview,
-  with two halves split off for the line cap and re-exported from it, so components import one
-  module: the session-switching helpers in `overlay/sessionState.ts`, and the turn fold, meaning
-  what a `Message` is and how one `Converse` turn's events apply, in `overlay/turnState.ts`),
+  with three halves split off for the line cap and re-exported from it, so components import one
+  module: the session-switching helpers in `overlay/sessionState.ts`, the turn fold, meaning
+  what a `Message` is and how one `Converse` turn's events apply, in `overlay/turnState.ts`, and
+  the panel's own sections, the switcher list and the console's tabs, in `overlay/chromeState.ts`),
   and the controller hook (`overlay/useOverlay.ts`, which likewise hands the chat catalog to
   `overlay/useSessionCatalog.ts` and spreads it back in, keeping one flat controller).
   Components (`components/`) depend only on the
@@ -262,14 +263,15 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   application-wide cycle rather than movement inside a list; what they say when they swap the chat
   is the next bullet.
 - **One live region says what happened to the panel: the chat that arrived, the list that shrank,
-  or both** (`overlay/notice.ts` + `components/Announcer.tsx`, ADR-0035 addenda, 2026-08-04 and
-  2026-08-07). The overlay keeps one polite region, `role="status"` at the overlay's ROOT rather
+  the list the reader opened, or several of them in one sentence** (`overlay/notice.ts` +
+  `components/Announcer.tsx`, ADR-0035 addenda, 2026-08-04 and 2026-08-07). The overlay keeps one
+  polite region, `role="status"` at the overlay's ROOT rather
   than in the panel, because a dismissed panel is `inert` and the cycle keys are global, so a press
   can open the panel and swap the chat in one commit and a region inside it would enter the
   accessibility tree with the words it wants read. `overlay/notice.ts` holds **everything the region
   may carry**: `speak` counts the announcements and joins what it was given, and `arrived`,
-  `chatDeleted` and `reminderDismissed` build the sentences, so the question of what may go in the
-  region has one file for an answer. `OverlayState.notice` is `{ text, count }` and `Announcer`
+  `chatDeleted`, `reminderDismissed` and `switcherOpened` build the sentences, so the question of
+  what may go in the region has one file for an answer. `OverlayState.notice` is `{ text, count }` and `Announcer`
   renders the text as given rather than composing a prefix.
   **A swap** is announced by the gesture rather than by the transition, so `openSession` and
   `newChat` carry an `announce` flag set at the door: one arm serves a switcher row and a cycle key
@@ -287,9 +289,19 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   two regions mutating together leave which is spoken, and in what order, to the reader's own speech
   queue, which no accessibility tree can observe. `NO_OTHER_CHATS` is exported here and rendered by
   `SessionList`, so the switcher's empty line and the sentence about an emptied switcher are one
-  string. The notice carries a count that keys the region's child, since a live region reports a
-  mutation rather than a value and two announcements can read alike. Where focus goes is the next
-  bullet.
+  string, and `RECENT_CHATS` the same way for the header control, the list's own label and the
+  sentence below.
+  **A list the reader OPENED** says what it holds (`Recent chats open. 3 chats.`, and the empty
+  line's own words when it holds none), carried by `chromeState.ts`'s toggle arm with the door
+  deciding as a swap's does: `Ctrl+K` speaks, the header's chats button does not, since it carries
+  `aria-expanded` under the caret that pressed it. It is the CONTENTS and not the toggle, so the
+  closing direction has no mirror: a close is answered by the caret landing on that same button
+  (`overlay/sectionCaret.ts`), and what an opening reader wants is the one fact walking cannot give
+  them, the empty line not being a tab stop at all. The arm stays silent while the chat is not the
+  view on screen, both chords being live from a tucked panel and from behind an open console, where
+  the list opens for nobody. The notice carries a count that keys the region's child, since a live
+  region reports a mutation rather than a value and two announcements can read alike. Where focus
+  goes is the next bullet.
 - **A chat arriving on the panel takes the caret with it** (`OverlayState.arrival` +
   `components/Composer.tsx`, ADR-0035 addendum, 2026-08-06). Every gesture that replaces the
   conversation puts focus in the composer, which is where a summon already puts it, so the reader is

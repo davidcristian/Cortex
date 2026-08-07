@@ -1,7 +1,7 @@
 import { type RefObject, useRef, useState } from "react";
 
 import type { SessionSummary } from "../bridge/types";
-import { NO_OTHER_CHATS } from "../overlay/notice";
+import { NO_OTHER_CHATS, RECENT_CHATS } from "../overlay/notice";
 import { caretKey, heir, useRowCaret } from "../overlay/rowCaret";
 import { useSectionCaret } from "../overlay/sectionCaret";
 import { usePresence } from "../overlay/usePresence";
@@ -111,7 +111,7 @@ export function SessionList({
   };
 
   return (
-    <ul className="switcher" aria-label="Recent chats" ref={card}>
+    <ul className="switcher" aria-label={RECENT_CHATS} ref={card}>
       {stack.entries.map(({ key, item: session, leaving }) => (
         <li key={key} className="switcher-slot" {...withdrawn(leaving)}>
           <Collapse open={!leaving} onClosed={() => stack.released(key)}>

@@ -86,7 +86,9 @@ export function Overlay({
         newChat(true);
       } else if (mod && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        toggleSwitcher();
+        // Announced, for the reason the fresh chat's own two doors differ by: a key names nothing
+        // and moves nothing, so an opened list would arrive in silence (`overlay/notice.ts`).
+        toggleSwitcher(true);
       } else if (mod && event.key === "ArrowUp") {
         event.preventDefault();
         cyclePrev();
@@ -131,7 +133,9 @@ export function Overlay({
         onStop={stop}
         onDismiss={dismiss}
         onNewChat={() => newChat(false)}
-        onToggleSwitcher={toggleSwitcher}
+        // Silent: the chats button carries `aria-expanded`, and the caret that pressed it is
+        // standing on it, so the state is read back where the reader already is.
+        onToggleSwitcher={() => toggleSwitcher(false)}
         onSelectSession={openSession}
         onRenameSession={renameSession}
         onDeleteSession={deleteSession}

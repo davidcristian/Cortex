@@ -2,6 +2,7 @@ import { type RefObject, useEffect, useRef } from "react";
 
 import type { MarkStyle } from "../mark/marks";
 import { chatFloorRef } from "../overlay/measured";
+import { RECENT_CHATS } from "../overlay/notice";
 import { type ConsoleTab, type OverlayState, draftOf, isTurnActive } from "../overlay/overlayState";
 import { handOff } from "../overlay/sectionCaret";
 import { useLogScroll } from "../overlay/useLogScroll";
@@ -96,7 +97,7 @@ export function ChatView({
           className="hbtn"
           ref={chatsButton}
           onClick={onToggleSwitcher}
-          aria-label="Recent chats"
+          aria-label={RECENT_CHATS}
           aria-expanded={state.switcherOpen}
           type="button"
         >

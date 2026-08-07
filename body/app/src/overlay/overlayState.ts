@@ -6,6 +6,7 @@ import type {
   TransportError,
   TurnEvent,
 } from "../bridge/types";
+import { closeConsole, openConsole, toggleConsole, toggleSwitcher } from "./chromeState";
 import { type Drafts, parkDraft } from "./drafts";
 import {
   INITIAL_LINK,
@@ -130,7 +131,13 @@ export type Action =
   | { readonly kind: "linkProbing" }
   | { readonly kind: "linkObserved"; readonly status: LinkStatus }
   | { readonly kind: "linkProbeEnded" }
-  | { readonly kind: "toggleSwitcher" }
+  | {
+      readonly kind: "toggleSwitcher";
+      /** Whether the opened list says what it holds: true for Ctrl+K, false for the header's
+       *  chats button, which carries `aria-expanded` under the caret that pressed it
+       *  (`chromeState.ts`). */
+      readonly announce: boolean;
+    }
   | { readonly kind: "openConsole"; readonly tab: ConsoleTab }
   | { readonly kind: "toggleConsole"; readonly tab: ConsoleTab }
   | { readonly kind: "closeConsole" };
@@ -235,17 +242,12 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
         : { ...state, reminders, notice: speak(state.notice, [reminderDismissed(reminders.length)]) };
     }
     case "toggleSwitcher":
-      return { ...state, switcherOpen: !state.switcherOpen };
+      return toggleSwitcher(state, action.announce);
     case "openConsole":
-      // What the tab strip does, so it is idempotent: clicking the tab already showing leaves it
-      // showing. Switching tabs is a view change (Panel routes on the tab), so the panel morphs.
-      return { ...state, consoleTab: action.tab };
+      return openConsole(state, action.tab);
     case "toggleConsole":
-      // What an OPENER does: the hint strip's sliders and its ?, and the ? key, each own one tab,
-      // so pressing the one you are already on closes the console and the other one switches.
-      return { ...state, consoleTab: state.consoleTab === action.tab ? null : action.tab };
+      return toggleConsole(state, action.tab);
     case "closeConsole":
-      // Esc and the header's chevron: out in one press, whichever tab is up.
-      return { ...state, consoleTab: null };
+      return closeConsole(state);
   }
 }

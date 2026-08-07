@@ -9,8 +9,8 @@ are the historical record of what each deferral became, and the index at
 [index.md](index.md) carries the recommended pickup order.
 
 **Open items:** 12. Multi-turn-within-one-stream + proto `Cancel`, streamed
-brain status (its producer landed 2026-07-18; only the push RPC remains), a list the reader opens
-leaving the caret behind, a held chord saying nothing about being held, the liquid edge's
+brain status (its producer landed 2026-07-18; only the push RPC remains), `Ctrl+K` toggling a
+section nobody can see, a held chord saying nothing about being held, the liquid edge's
 backdrop blur,
 the two bounds the panel's section budget leaves behind it
 (a section's own frame being under no cap, and the room a closing section hands back in one frame),
@@ -20,7 +20,12 @@ it), and the whisper's three follow-ups (a pickable voice
 row in the console, the wrap
 width a mid-stream resize cannot move, and kerning inside the letter boxes under a changed
 font; its drain-growth entry landed the same day it was filed, and the console outliving a new
-chat landed 2026-08-03). **Corrected 2026-08-06, and the shape of the error is worth more than the
+chat landed 2026-08-03). **Walked entry by entry on 2026-08-07 rather than counted, which is the
+lesson below applied to this line's own arithmetic**, and the twelve names it held were the twelve
+entries the file holds open. One swap since: a list the reader opens leaving the caret behind closed
+the same day, with the caret declined and a sentence landed in its place, and `Ctrl+K` toggling a
+section nobody can see opened behind it, so the count is twelve by one out and one in rather than
+twelve untouched. **Corrected 2026-08-06, and the shape of the error is worth more than the
 fix.** This line was wrong twice in opposite directions. It still named the two motions the
 switcher's list once made in one frame, which landed 2026-08-03 and took the count 15 to 14 as one
 entry, and it had never picked up the row gestures, which opened 2026-08-06 behind the caret
@@ -1689,6 +1694,91 @@ on it before the close is dispatched.
   the reader who wants a row can Shift+Tab once from the composer if the DOM order earns it. Wants
   the same trace, `document.activeElement` sampled across the opening roll, plus a tab order walk
   written down. Nothing blocks it.
+  - **CLOSED 2026-08-07 with the caret DECLINED and a sentence landed in its place**
+    ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)). The trace and the walk came first,
+    in headless Chromium at 900x900 against the demo bridge, `document.activeElement` sampled every
+    animation frame for 800ms across thirteen doors, the accessibility tree read for what the header
+    control itself says, and a `MutationObserver` on every live-region-shaped node.
+    **The entry's central claim held and every number in it was wrong.** The caret is untouched by
+    an opening list at all thirteen doors, and the composer's half typed sentence keeps its text and
+    its offset through one. But the distance is not a property of the design. Walked with the
+    keyboard rather than counted from the markup, the six Shift+Tab presses are **ten** on the empty
+    state, the walk crossing two example chips, the mark button and three reminder rows before the
+    last row's pin; and in a chat that has messages, where none of those are on screen, they are
+    **two**. Forward it is nine either way, the walk leaving the document at the hint strip and
+    re-entering at the header. Only the headline figure survived: from the chats button, Tab passes
+    theme, new chat and dismiss, and the fourth press is the first row's title.
+    **And the doors are thirteen where the entry counted two**, this chain's lesson arriving for the
+    fourth entry running. The switcher has one opening arm, which is what the entry counted; what a
+    rule has to answer is where the caret is standing when it fires, and that is the composer with
+    and without a draft, the chats button by pointer and by Enter, `Ctrl+K` from the chats button,
+    from the header's theme button, from a reminder's ack, from an example chip, from a hint strip
+    opener, from a pending confirm's Deny, from behind an open console, from a tucked panel, and
+    onto an empty list.
+    **The caret is declined, for three measured reasons.** The first decides it: a guard is not
+    optional, because `Ctrl+K` is pressed as often from the composer as from the list, so the rule
+    would have to be the mirror of the close rule's, "only when the caret is on the anchor", and the
+    anchor is the chats button, whose `aria-expanded` already reports the change under the caret
+    that pressed it. Everything the guard lets through is the one door already answered. The second:
+    it cannot answer an empty list, there being no row to hand the caret to. The third: it would
+    have to choose a row without one being obviously right, since the open chat frequently has no
+    row at all, a fresh chat being unlisted until it is written to. **The header reorder is declined
+    too**, buying three Tab presses at that same already-answered door by moving the control that
+    opens the list to the end of a cluster whose last button is Dismiss, which is a visual change
+    made for a reading-order fact.
+    **What the measurement found instead is that an opening list is inaudible**, and that is what
+    landed. Eleven of the thirteen doors move no caret, change no control the reader is standing on,
+    and raise nothing in any live region: the only channel carrying the fact is `aria-expanded` on a
+    button the reader is not on, which carries no `aria-controls` and no description either. On an
+    empty list the tab order cannot help at all, the line reading `No other chats yet` being text
+    inside the `<ul>` rather than a tab stop, so Tab from the chats button walks the header's
+    remaining three buttons and leaves the list entirely.
+    **So a list the reader opens says what it holds**: `Recent chats open. 3 chats.`, and the
+    switcher's own words when it holds none. It is the CONTENTS and not the toggle, which is why
+    there is no mirror for closing: a close is answered by the caret landing on the chats button,
+    and announcing it as well would say the same fact twice at every close made from inside the
+    list. The door decides rather than the arm, as the arriving-chat arms already do, so `Ctrl+K`
+    speaks and the header's button does not. And a list that opened where nobody could see it says
+    nothing: measured, both chords open the switcher from a tucked panel and from behind an open
+    console, its rows mounting where the reader can neither see nor reach them.
+    **What it cost**: `overlay/chromeState.ts`, 66 lines holding the switcher's toggle and the
+    console's three tab arms, which is the third half split off `overlayState.ts` and for the same
+    reason as the other two, that file having stood at 291 lines against a 300-line cap;
+    `switcherOpened` in `overlay/notice.ts`, sharing its plural helper with the tally a shrinking
+    list reports; `RECENT_CHATS` exported beside `NO_OTHER_CHATS` so the header control, the list's
+    own label and the sentence are three renderings of one name; and the flag through
+    `useOverlay.toggleSwitcher` to the two doors.
+    **After, measured the same way, every door.** The nine keyed doors on the chat now produce
+    exactly one `childList` mutation on `.announcer` and nothing anywhere else, the empty list
+    reading `Recent chats open. No other chats yet.`; the two button doors and the two doors where
+    the chat is not on screen stay silent; and the caret is unmoved on all thirteen, the traces
+    frame for frame what they were. Three open-and-close rounds in one page produced three
+    announcements, each replacing the region's child with identical text, and the three closes
+    between them raised nothing, which is the count key doing its job. The full before and after
+    tables are in the addendum.
+    **The mutation proof.** Neutering the sentence reddens the reducer's case and the end to end
+    one; dropping the door's flag reddens four, the button's silence, the close, the carried notice
+    and the end to end case; dropping the on-screen guard reddens the tucked and behind-the-console
+    case alone; announcing the close as well reddens the close case alone; counting an empty list
+    instead of borrowing the line's words reddens the empty case and the reducer's; and making the
+    key's door silent reddens the key's own case and the end to end one. Six mutations, six distinct
+    rednesses, nothing else in the 670 test suite moving under any of them.
+    One thing opened behind it, below.
+- **`Ctrl+K` toggles a section nobody can see.** Opened 2026-08-07 by the close above, which
+  measured the door and declined to answer it there. The chords are deliberately live while the
+  panel is not on screen, which is right for the ones that summon it (`Ctrl+N` and the cycle keys
+  set `mode: "panel"` on their way through), and `toggleSwitcher` sets no mode at all: measured at
+  900x900, `Ctrl+K` from a tucked panel mounts the list with its three rows and turns the chats
+  button's `aria-expanded` true with nothing on screen, and pressed with the console up it does the
+  same behind a chat view that is `inert` and `aria-hidden`. The next summon, or the next Escape out
+  of the console, then finds the list open without anybody having opened it in front of them. The
+  announcement rule above stands down for both, so the overlay no longer claims otherwise, but the
+  toggle itself is untouched. The shapes are for the key to summon the panel the way `Ctrl+N` does,
+  for it to be refused while the chat is not the view on screen, or for nothing at all on the
+  argument that a section found already open costs one press to shut. Each is a decision about what
+  the overlay's keys mean while it is tucked, which reaches the whole key table rather than this one
+  key, and that is why it is here rather than in the close above. Wants the same trace across a
+  summon that lands on an already open list. Nothing blocks it.
 - **A held chord says nothing about being held.** Opened 2026-08-07 by the chord entry above, whose
   answer is deliberately silent: the press is stopped, the editor stays exactly as it was, and the
   overlay makes no sound about why the key a reader just pressed did nothing. For a sighted reader

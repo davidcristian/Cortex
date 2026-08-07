@@ -23,9 +23,26 @@ export function arrived(title: string): string {
  *  header-and-switcher lesson one surface down: two renderings of one fact are one string. */
 export const NO_OTHER_CHATS = "No other chats yet";
 
-/** How many rows a list has left, in its own words: `2 chats left`, `1 chat left`. */
+/** What the chat list is called, in the one place both renderings of the name read it from: the
+ *  header control that opens it, the list element itself, and the sentence below that names it to a
+ *  reader who cannot see either. Same rule as the empty line above. */
+export const RECENT_CHATS = "Recent chats";
+
+/** How many rows a list holds, in its own words: `2 chats`, `1 chat`. */
+function count(rows: number, noun: string): string {
+  return `${rows} ${noun}${rows === 1 ? "" : "s"}`;
+}
+
+/** How many rows a list has left, which is what a list that just shrank under the reader reports. */
 function tally(left: number, noun: string): string {
-  return `${left} ${noun}${left === 1 ? "" : "s"} left.`;
+  return `${count(left, noun)} left.`;
+}
+
+/** The chat list, opened, and what it holds. */
+export function switcherOpened(chats: number): string {
+  return chats === 0
+    ? `${RECENT_CHATS} open. ${NO_OTHER_CHATS}.`
+    : `${RECENT_CHATS} open. ${count(chats, "chat")}.`;
 }
 
 /** A chat left the switcher, and what the list holds now. */
