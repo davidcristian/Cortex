@@ -20,25 +20,36 @@ class VramBudgetPlacer:
 
     ``soft_cap_gb`` is the policy budget (not free VRAM); ``cortex_reservation_gb`` is the resident
     cortex's measured footprint. Their difference is the whole subagent GPU allowance, and the live
-    ``_placed_gb`` ledger tracks what is placed against it (a cortex at or above the cap yields no
+    ``_placed_gb`` ledger tracks what is placed against it (a resident at or above the cap yields no
     headroom, so every subagent overflows to CPU -- a valid degenerate state, not an error). Both
     values are validated at the composition root (pydantic ``gt``/``ge``), so this stays a trusting
     policy object like ``SingleResidentModelManager``.
+
+    Which resident is charged is not a constant, and that is what ``charge_handoff`` /
+    ``charge_standing`` exist for (ADR-0030 handoff-window addendum). A handoff evicts the cortex
+    and puts a ~19 GB deep model on the same card, so a fit-test against the cortex's reservation
+    during that window describes a machine that does not exist: it credits room the deep model has
+    taken and reserves room for a model that has left. The window is written by the residency
+    scope, the only thing that knows when the card changed hands.
     """
 
     def __init__(self, *, soft_cap_gb: float, cortex_reservation_gb: float) -> None:
         self._soft_cap_gb = soft_cap_gb
         self._cortex_reservation_gb = cortex_reservation_gb
+        # What the model holding the card costs right now. The cortex outside a handoff, the deep
+        # model inside one; a separate field from the reservation above precisely so the standing
+        # figure survives the window and can be charged again on the way out.
+        self._resident_gb = cortex_reservation_gb
         self._placed_gb = 0.0
 
     def place(self, request: PlacementRequest) -> Placement:
         """Reserve on GPU when it fits the headroom, else spill to CPU (reserving nothing).
 
-        Headroom is ``soft_cap - cortex_reservation - placed``; the boundary is inclusive, so a
-        spawn that exactly fills the remaining headroom still lands on GPU. Whole-model only --
-        never a partial GPU+CPU straddle for a 2-4B (verified worst-of-both-worlds, ADR-0012).
+        Headroom is ``soft_cap - resident - placed``; the boundary is inclusive, so a spawn that
+        exactly fills the remaining headroom still lands on GPU. Whole-model only -- never a
+        partial GPU+CPU straddle for a 2-4B (verified worst-of-both-worlds, ADR-0012).
         """
-        headroom = self._soft_cap_gb - self._cortex_reservation_gb - self._placed_gb
+        headroom = self._soft_cap_gb - self._resident_gb - self._placed_gb
         if request.vram_gb <= headroom:
             self._placed_gb += request.vram_gb
             return Placement(target=PlacementTarget.GPU, reserved_gb=request.vram_gb)
@@ -50,3 +61,30 @@ class VramBudgetPlacer:
         Must pair exactly once with a ``place`` -- ``SubagentRunner`` does so in a ``finally``.
         """
         self._placed_gb -= placement.reserved_gb
+
+    def charge_handoff(self, *, resident_gb: float) -> None:
+        """Charge the deep model a handoff swapped in, in place of the cortex it evicted.
+
+        Written by the residency scope at the moment the swap begins, which is before the deep
+        model's weights are allocated: charging early is the safe direction, since the load is the
+        allocation and a spawn admitted against room that is about to be taken is the exact
+        failure this exists to prevent.
+
+        ``resident_gb`` is the deployment's own measured figure for that tier
+        (``CORTEX_SWAP_BRAIN_VRAM_MIB``), the same number the swap's fit check compares against
+        what the card reports free immediately before the load. So it is not a fresh reading and
+        does not pretend to be: it is a declared cost that a real reading has to clear at swap-in
+        for the handoff to happen at all, which is what makes it worth charging here, where
+        reading the card would put a network call inside a synchronous fit-test.
+
+        The ledger is untouched: spawns already placed keep their reservation across the edge.
+        """
+        self._resident_gb = resident_gb
+
+    def charge_standing(self) -> None:
+        """Charge the cortex again, once the standing residency is genuinely back.
+
+        Idempotent and safe to call when no handoff ever charged anything, which is what the
+        residency scope's exit does on every path it can take.
+        """
+        self._resident_gb = self._cortex_reservation_gb

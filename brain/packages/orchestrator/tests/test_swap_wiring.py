@@ -42,6 +42,7 @@ import asyncio
 import os
 import signal
 import socket
+from collections.abc import Callable
 from dataclasses import replace
 from http import HTTPStatus
 from typing import cast
@@ -62,6 +63,7 @@ from cortex_core import (
     ModelHostState,
     ScriptedModelHost,
     Sleeper,
+    SubagentPlacer,
     SwappingModelManager,
     SystemClock,
 )
@@ -396,14 +398,19 @@ async def test_health_tells_the_truth_about_residency_through_the_whole_wiring(
     built: list[SwapRuntime] = []
     real = build_swap_runtime
 
-    def recording(
+    def recording(  # noqa: PLR0913 -- mirrors the builder it stands in for
         swap: SwapConfig,
         runtime: BrainRuntimeConfig,
         inference: InferenceConfig,
         clock: Clock,
         sleeper: Sleeper,
+        handoff_store_factory: Callable[[str], RedisHandoffStore] = RedisHandoffStore.from_url,
+        placer: SubagentPlacer | None = None,
     ) -> SwapRuntime | None:
-        made = real(swap, runtime, inference, clock, sleeper)
+        # The placer is forwarded rather than dropped: the root hands the pool's own object here
+        # so the residency scope can recharge it during a handoff, and a double that swallowed it
+        # would hide a root that stopped passing it.
+        made = real(swap, runtime, inference, clock, sleeper, handoff_store_factory, placer)
         assert made is not None  # escalation is on in this test's env
         built.append(made)
         return made
@@ -453,14 +460,16 @@ async def test_a_boot_that_could_not_settle_the_cortex_leaves_the_seam_saying_so
     monkeypatch.setattr(Redis, "from_url", fake_from_url)
     real = build_swap_runtime
 
-    def stuck(
+    def stuck(  # noqa: PLR0913 -- mirrors the builder it stands in for
         swap: SwapConfig,
         runtime: BrainRuntimeConfig,
         inference: InferenceConfig,
         clock: Clock,
         sleeper: Sleeper,
+        handoff_store_factory: Callable[[str], RedisHandoffStore] = RedisHandoffStore.from_url,
+        placer: SubagentPlacer | None = None,
     ) -> SwapRuntime | None:
-        made = real(swap, runtime, inference, clock, sleeper)
+        made = real(swap, runtime, inference, clock, sleeper, handoff_store_factory, placer)
         assert made is not None  # escalation is on in this test's env
         never_ready = ScriptedModelHost(
             status_override={made.plan.cortex_model: ModelHostState.LOADING}

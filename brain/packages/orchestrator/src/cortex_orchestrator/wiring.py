@@ -101,7 +101,16 @@ async def run_from_env(
     # is the default: nothing below changes shape for a deployment that never escalates. When it
     # is on, the inference backend must lease through the very manager the residency scope swaps
     # under, so it is built first and handed in.
-    swap = build_swap_runtime(swap_config, runtime, inference, clock, AsyncioSleeper())
+    # One placer for the process: the subagent pool places against it, and the residency scope
+    # tells it which model holds the card while a handoff runs, so the two must be one object
+    # (ADR-0030 handoff-window addendum).
+    placer = VramBudgetPlacer(
+        soft_cap_gb=runtime.vram_soft_cap_gb,
+        cortex_reservation_gb=runtime.cortex_reservation_gb,
+    )
+    swap = build_swap_runtime(
+        swap_config, runtime, inference, clock, AsyncioSleeper(), placer=placer
+    )
     backend, close_backend = build_inference_backend(
         inference, runtime.cortex_model, manager=None if swap is None else swap.manager
     )
@@ -126,10 +135,7 @@ async def run_from_env(
         ),
         runtime.redis_url,
         clock,
-        placer=VramBudgetPlacer(
-            soft_cap_gb=runtime.vram_soft_cap_gb,
-            cortex_reservation_gb=runtime.cortex_reservation_gb,
-        ),
+        placer=placer,
     )
     schedules, close_schedules = build_schedule(schedule_config, runtime.redis_url)
     # The built-in set is confirmer-independent, so it is assembled once (ADR-0025 d7);

@@ -573,3 +573,21 @@ and an argument about the cap rather than about the placer, exactly as the item 
 the deep model loads, which belongs to the tier-scale swap items and needs the overlay that answers
 a confirm card. And the spawn came from the live delegation suite invoking the spawn tool directly
 as the cortex would, which is the method that item named for itself.
+
+## Addendum (2026-08-07): `SubagentPlacer` learns which residency it is fit-testing against
+
+Decision 2 fixed this port's arithmetic to `soft_cap - cortex_reservation - placed`, which describes
+the machine truthfully except during a brain handoff, when the cortex has been evicted and a deep
+model holds the card. The port therefore grows two verbs, `charge_handoff(resident_gb=)` and
+`charge_standing()`, and `VramBudgetPlacer` fit-tests against a resident term they set rather than
+against the constructor's cortex figure. The whole argument, the ordering against the swap's own fit
+check, and the live numbers are recorded where the handoff lives, at
+[ADR-0030](ADR-0030-brain-handoff.md)'s handoff-window addendum; what belongs here is the port
+change itself and its cost, which is that a `SubagentPlacer` implementation now owes two more
+methods (a no-op pair is the honest degenerate form for one with no notion of a resident) and that
+the protocol moved into `ports_placement.py` for the line cap, re-exported from `ports.py` so no
+call site moved.
+
+The sibling this does **not** touch is the admission wall: `SubagentScheduler.admit` still charges
+every spawn its full `cpus`/`memory_gb` regardless of placement, and the placement-aware charge stays
+declined on the admission-wall addendum's own reasoning, reopening on a second GPU-capable executor.

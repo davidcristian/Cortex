@@ -213,6 +213,18 @@ Measured on this card the same day, with the cortex resident and the desktop qui
 The sidecar's figure matched the host's own `nvidia-smi` exactly (14905 of 24463 on both sides),
 which is the check worth running first if a refusal ever looks wrong.
 
+**A handoff also changes what the subagent placer will admit, from the same declared figure.**
+Since 2026-08-07 the residency scope charges `CORTEX_SWAP_BRAIN_VRAM_MIB` against
+`CORTEX_VRAM_SOFT_CAP_GB` for the length of a handoff, in place of `CORTEX_VRAM_CORTEX_GB`, so a
+GPU-placed spawn during a co-resident handoff is fit-tested against the card as it actually is.
+On this card, with the cap raised to 23 GiB, that is 4.32 GiB of headroom during the window against
+11.7 GiB outside it, so the shipped 5.5 GiB subagent ask overflows to the CPU server while the deep
+model is resident and is GPU-placed again once the cortex is back. The operator-visible effects:
+delegated work through a co-resident handoff may be slower than the same work outside one, and a
+restore that gave up (`could not restore the cortex after a model swap`) keeps every spawn on the
+CPU until the process is restarted, deliberately, because nothing then knows what is on the card.
+With `CORTEX_SWAP_BRAIN_VRAM_MIB` unset there is no charge and the placer behaves as it always did.
+
 **Read the refusal as "there was not room", never the pass as "it fitted".** The check is blind
 to a figure declared too low, and blind to memory taken while a load runs, and both of those end
 in the silent spill above: two tiers reporting `ready`, `nvidia-smi` reading like a fit, and the

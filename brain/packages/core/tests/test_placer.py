@@ -66,3 +66,43 @@ def test_releasing_a_cpu_placement_is_a_no_op() -> None:
 def test_a_cortex_at_the_cap_leaves_no_gpu_headroom() -> None:
     placer = _placer(soft_cap_gb=11.0, cortex_reservation_gb=11.0)  # headroom 0.0
     assert placer.place(_request(1.0)).target is PlacementTarget.CPU
+
+
+def test_charging_a_handoff_fit_tests_against_the_deep_model_instead_of_the_cortex() -> None:
+    """The window's arithmetic: the resident term names what actually holds the card."""
+    placer = _placer(soft_cap_gb=23.0, cortex_reservation_gb=11.3)  # headroom 11.7
+    assert placer.place(_request(2.81)).target is PlacementTarget.GPU
+    placer.release(Placement(target=PlacementTarget.GPU, reserved_gb=2.81))
+    placer.charge_handoff(resident_gb=18.68)  # the measured 19125 MiB deep tier
+    # 23.0 - 18.68 = 4.32 left, which is the ~0.9 GB the card really had free beside the peer
+    # once the arithmetic stops crediting an evicted cortex; a second peer no longer fits.
+    assert placer.place(_request(2.81)).target is PlacementTarget.GPU
+    assert placer.place(_request(2.81)).target is PlacementTarget.CPU
+
+
+def test_charging_the_standing_residency_restores_the_cortex_s_own_reservation() -> None:
+    """The reversal puts back the constructor's figure, not the last thing charged."""
+    placer = _placer(soft_cap_gb=23.0, cortex_reservation_gb=11.3)
+    placer.charge_handoff(resident_gb=18.68)
+    assert placer.place(_request(9.0)).target is PlacementTarget.CPU
+    placer.charge_standing()
+    assert placer.place(_request(9.0)).target is PlacementTarget.GPU
+
+
+def test_charging_the_standing_residency_with_no_handoff_first_changes_nothing() -> None:
+    """Idempotent, because the residency scope's exit owes it on every path it can take."""
+    placer = _placer()  # headroom 3.0
+    placer.charge_standing()
+    placer.charge_standing()
+    assert placer.place(_request(3.0)).target is PlacementTarget.GPU
+
+
+def test_a_handoff_charge_does_not_disturb_what_is_already_placed() -> None:
+    """A spawn's VRAM did not move because the card changed hands, so its ledger entry stands."""
+    placer = _placer(soft_cap_gb=23.0, cortex_reservation_gb=11.3)
+    placed = placer.place(_request(4.0))
+    placer.charge_handoff(resident_gb=18.0)
+    placer.charge_standing()
+    placer.release(placed)  # credits exactly the 4.0 it debited, no more
+    assert placer.place(_request(11.7)).target is PlacementTarget.GPU
+    assert placer.place(_request(0.1)).target is PlacementTarget.CPU

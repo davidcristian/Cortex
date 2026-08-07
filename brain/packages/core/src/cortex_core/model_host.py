@@ -27,6 +27,12 @@ DEFAULT_SWAP_DRAIN_TIMEOUT_S = 60.0
 # second-scale poll costs nothing and keeps the gate's own latency below the noise floor.
 DEFAULT_HEALTH_POLL_INTERVAL_S = 1.0
 
+# What one of this repo's VRAM knobs means in the unit every instrument here reports. ``nvidia-smi``
+# and the plan's own ``brain_vram_mib`` speak MiB, while the placer's budget knobs
+# (``CORTEX_VRAM_SOFT_CAP_GB``, ``CORTEX_VRAM_CORTEX_GB``) speak the gibibyte that divides it, which
+# is the same unit those knobs were measured in (ADR-0012, ADR-0030 co-residency addendum).
+_MIB_PER_GB = 1024.0
+
 
 class ModelHostState(Enum):
     """What one logical model's process is doing, as its host reports it (ADR-0030 decision 3).
@@ -102,6 +108,17 @@ class ResidencyPlan:
     drain_timeout_s: float = DEFAULT_SWAP_DRAIN_TIMEOUT_S
     load_timeout_s: float = DEFAULT_SWAP_LOAD_TIMEOUT_S
     poll_interval_s: float = DEFAULT_HEALTH_POLL_INTERVAL_S
+
+    @property
+    def brain_vram_gb(self) -> float:
+        """The same declared cost in the unit the subagent placer's budget is written in.
+
+        One conversion in one place, because the two halves of this arithmetic were measured with
+        different instruments: the fit check compares MiB against what the card reports, and the
+        placer's handoff charge compares gibibytes against a soft cap the deployment set. Zero
+        stays zero, which is the "nothing declared" case both readers test for.
+        """
+        return self.brain_vram_mib / _MIB_PER_GB
 
     def __post_init__(self) -> None:
         if self.brain_vram_mib < 0:

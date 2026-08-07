@@ -3,9 +3,10 @@
 Method bodies are one-line ``...`` stubs. Protocols carry contracts, never behavior.
 Failures cross these boundaries exclusively as the typed errors in ``errors.py``.
 The six state-store ports (session, memory, task, schedule, handoff, preference) live in
-``ports_stores.py`` and the three model-lifecycle ports (``ModelHost``, ``ResidencyController``,
-``ResidencyReporter``) in ``ports_models.py``; both sets are re-exported here, so
-``from cortex_core.ports import SessionStore`` keeps resolving.
+``ports_stores.py``, the three model-lifecycle ports (``ModelHost``, ``ResidencyController``,
+``ResidencyReporter``) in ``ports_models.py``, and ``SubagentPlacer`` in ``ports_placement.py``;
+all three sets are re-exported here, so ``from cortex_core.ports import SessionStore`` keeps
+resolving.
 """
 
 from collections.abc import AsyncGenerator, AsyncIterator, Sequence
@@ -18,8 +19,9 @@ from cortex_core.conversation import Message
 from cortex_core.events import TurnEvent
 from cortex_core.inference import GenerationBounds, InferenceEvent, JsonSchema
 from cortex_core.model import ModelLease
-from cortex_core.placement import Placement, PlacementRequest
+from cortex_core.placement import PlacementRequest
 from cortex_core.ports_models import ModelHost, ResidencyController, ResidencyReporter
+from cortex_core.ports_placement import SubagentPlacer
 from cortex_core.ports_stores import (
     HandoffStore,
     MemoryStore,
@@ -31,10 +33,10 @@ from cortex_core.ports_stores import (
 from cortex_core.ranking import RecallAudit
 from cortex_core.tools import ConfirmationRequest, ToolCall, ToolInvocation, ToolResult, ToolSpec
 
-# The six state-store ports live in ``ports_stores.py`` and the three model-lifecycle ports in
-# ``ports_models.py`` (line-cap splits); the explicit export list re-exports them alongside the
-# ports defined here, so every existing ``from cortex_core.ports import ...`` and the
-# ``cortex_core`` barrel keep resolving unchanged.
+# The six state-store ports live in ``ports_stores.py``, the three model-lifecycle ports in
+# ``ports_models.py`` and ``SubagentPlacer`` in ``ports_placement.py`` (line-cap splits); the
+# explicit export list re-exports them alongside the ports defined here, so every existing
+# ``from cortex_core.ports import ...`` and the ``cortex_core`` barrel keep resolving unchanged.
 __all__ = [
     "BodyGateway",
     "Clock",
@@ -102,23 +104,6 @@ class ModelManager(Protocol):
     """
 
     def acquire(self, model: str) -> AbstractAsyncContextManager[ModelLease]: ...
-
-
-class SubagentPlacer(Protocol):
-    """Fit-tests a subagent onto the GPU under the VRAM soft cap, else CPU (ADR-0012).
-
-    ``place(request)`` decides where one subagent runs: it reserves ``request.vram_gb`` and returns
-    a GPU ``Placement`` when it fits the live headroom (``soft_cap - cortex_reservation - placed``),
-    else a CPU ``Placement`` reserving nothing (the whole model on one target, never a straddle).
-    ``release(placement)`` returns the reserved VRAM to the ledger. Both are sync (a fit-test, not
-    a wait) and must pair exactly once, which ``SubagentRunner`` does in a ``finally``. It
-    is the GPU/VRAM contract, kept separate from the ``ModelManager``'s exclusive lease and the
-    ``SubagentScheduler``'s CPU/RAM budget; the three compose at the runner (ADR-0010 decision 6).
-    """
-
-    def place(self, request: PlacementRequest) -> Placement: ...
-
-    def release(self, placement: Placement) -> None: ...
 
 
 class Embedder(Protocol):

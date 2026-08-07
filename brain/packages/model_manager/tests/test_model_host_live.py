@@ -44,9 +44,13 @@ from cortex_core import (
     AsyncioSleeper,
     ModelHostError,
     ModelHostState,
+    Placement,
+    PlacementRequest,
+    PlacementTarget,
     ResidencyPlan,
     SwapFailedError,
     SwappingModelManager,
+    VramBudgetPlacer,
     await_model_ready,
 )
 from cortex_core.residency_moves import swap_in
@@ -67,6 +71,10 @@ _ARM_TIMEOUT_S = 5.0
 # The control plane's own deadline, matching the brain's CORTEX_MODELHOST_TIMEOUT_S default: a stop
 # answers only once the child is reaped, so this must clear the sidecar's grace plus reap bounds.
 _CONTROL_TIMEOUT_S = 60.0
+# The deep tier's measured cost and the shipped subagent ask, both in the units their own knobs
+# use (CORTEX_SWAP_BRAIN_VRAM_MIB, CORTEX_SUBAGENTS_VRAM_GB).
+_DEEP_TIER_MIB = 19125
+_SPAWN_GB = 5.5
 
 
 class _SystemClock:
@@ -376,6 +384,80 @@ async def test_a_swap_refuses_the_load_the_card_has_no_room_for_and_allows_the_o
         else:
             await host.stop(target)
         await client.aclose()
+
+
+@pytest.mark.integration
+async def test_a_real_swap_charges_the_placer_for_the_model_that_holds_the_card() -> None:
+    """The handoff window's arithmetic, against a real residency change and a real card reading.
+
+    Everything but the tier's size is the shipped path: the real sidecar, the real
+    ``SwappingModelManager``, the real ``VramBudgetPlacer``, and a plan declaring the deep tier's
+    measured 19125 MiB. What is deliberately not real is which artifact gets started: the cheap
+    peer tier stands in for the deep model, because loading 19 GB proves nothing here that a
+    seconds-long load does not, and the fit check passes either way once the cortex is evicted,
+    there being that much room. So this asserts the mechanism and publishes the card's own
+    numbers beside it; the deep tier's cost is a measurement, recorded in the runbook's table.
+
+    The spawn asked for is the shipped ``CORTEX_SUBAGENTS_VRAM_GB`` of 5.5 GiB, against a soft cap
+    a deployment on this card would raise to 23 GiB. It fits beside the cortex and does not fit
+    beside the deep model, which is the flip nothing in the gated suite can prove is grounded in
+    real free memory.
+    """
+    endpoint = os.environ.get("CORTEX_MODELHOST_ENDPOINT")
+    if not endpoint:
+        pytest.skip("set CORTEX_MODELHOST_ENDPOINT to a running model-host sidecar")
+    standing = os.environ.get("CORTEX_MODEL_CORTEX", "cortex")
+    target = os.environ.get("CORTEX_MODELHOST_LIVE_FIT_MODEL", "subagent-gpu")
+    client = httpx.AsyncClient(timeout=httpx.Timeout(_CONTROL_TIMEOUT_S))
+    host = HttpModelHost(endpoint, client)
+    placer = VramBudgetPlacer(soft_cap_gb=23.0, cortex_reservation_gb=11.3)
+    plan = ResidencyPlan(
+        cortex_model=standing,
+        brain_model=target,
+        coresident=True,
+        brain_vram_mib=_DEEP_TIER_MIB,
+        load_timeout_s=300.0,
+    )
+    manager = SwappingModelManager(
+        host,
+        {standing: "http://127.0.0.1:8080", target: "http://127.0.0.1:8083"},
+        plan,
+        _SystemClock(),
+        AsyncioSleeper(),
+        placer,
+    )
+    try:
+        try:
+            await host.status(target)
+        except ModelHostError as err:
+            pytest.skip(f"the sidecar does not host {target!r}: {err}")
+        await host.start(standing)
+        assert await _settled(host, standing) is ModelHostState.READY
+        before = await host.device_memory()
+        if before is None:
+            pytest.skip("this model-host container can see no GPU, so no charge can be grounded")
+        assert placer.place(_spawn()).target is PlacementTarget.GPU
+        placer.release(Placement(target=PlacementTarget.GPU, reserved_gb=_SPAWN_GB))
+        async with manager.swap_scope(target):
+            inside = await host.device_memory()
+            assert inside is not None
+            print(  # noqa: T201 -- the raw numbers are the point of a live run
+                f"\nfree before the swap: {before.free_mib} of {before.total_mib} MiB"
+                f"\nfree inside the window: {inside.free_mib} MiB"
+                f"\ncharged: {plan.brain_vram_gb:.2f} GiB, headroom "
+                f"{23.0 - plan.brain_vram_gb:.2f} GiB against a {_SPAWN_GB} GiB ask"
+            )
+            assert placer.place(_spawn()).target is PlacementTarget.CPU
+        assert placer.place(_spawn()).target is PlacementTarget.GPU
+    finally:
+        await host.stop(target)
+        await host.start(standing)
+        await client.aclose()
+
+
+def _spawn() -> PlacementRequest:
+    """One spawn asking for the shipped subagent VRAM budget."""
+    return PlacementRequest("subagent", vram_gb=_SPAWN_GB, cpus=1.0, memory_gb=2.0)
 
 
 def _fit_plan(target: str, needed_mib: int) -> ResidencyPlan:
