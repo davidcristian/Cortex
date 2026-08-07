@@ -66,7 +66,7 @@ entries from it never added the two it opened, and there the count did move and 
 | [tools-mcp.md](tools-mcp.md) | Dispatch budget/cost/salience, spawn batch cap, MCP registries (ADR-0009/0010) | 6 |
 | [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028), a quoted injection replayed by the plain history window, obeyed 2 of 10 on a bare turn and 0 of 10 behind either standing rule, the plain one landed for the tool-less turn (ADR-0013/0038) | 12 |
 | [memory.md](memory.md) | Store, scoping, rerank/MMR, the ranked `select` and its recall trail, and the judge's default now that bounding its request made it twenty times cheaper at the same ranking and a 41-note corpus across six categories found it worse nowhere and better on two, plus the two the ranked-recall close opened and neither this cell nor the area header picked up until 2026-08-06, a cross-encoder rank and an audit of the candidates a rank drops, and, since the judge learned to decline on 2026-08-07, the gap that close named rather than the one it shut: the shipped geometric policies still hand a turn their nearest misses on a question memory cannot answer (ADR-0008/0038) | 10 |
-| [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status, whose disable-thinking and token-cap halves now reach every pass that discards its own deliberation, leaving the user-facing reply as the whole of that entry and the count unmoved for a narrowing (ADR-0007/0020/0038), and, since co-residency closed 2026-08-07 on a card that could finally test it, the two that close opened: a co-resident deployment's fit asserted by a flag and checked by nothing, and the placer's budget still naming a cortex the handoff evicted (ADR-0030) | 8 |
+| [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status, whose disable-thinking and token-cap halves now reach every pass that discards its own deliberation, leaving the user-facing reply as the whole of that entry and the count unmoved for a narrowing (ADR-0007/0020/0038), and, since co-residency closed 2026-08-07 on a card that could finally test it, the two that close opened, of which the first closed hours later the same day: the co-resident deployment's fit is now measured against the card at the one instant it can be, immediately before the load, which leaves the placer's budget still naming a cortex the handoff evicted and opens the half a room check cannot see, a handoff that spilled anyway and whose only witness is decode rate (ADR-0030) | 8 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018), and, since the delegated tool step was declined 2026-08-07, nothing left on the outcome path but the record of why a delegated activity is never settled (ADR-0029) | 2 |
 | [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), the reserved scrollbar rail's assumed width and spent card inset, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), `Ctrl+K` toggling a section nobody can see, the liquid edge's backdrop blur, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit and the switcher's, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, the chat floor's frozen measurement of the empty state, the console tab strip's missing keyboard half, the switcher's disputed listbox role, the two motions its list still made in one frame, and a Thoughts trace opening a reply off the bottom of a full history all landed 2026-08-03, the last of them opening the chrome-side entry that landed 2026-08-04 on the same ride, alongside the cycle keys' silent swap, which opened the focus entry that landed 2026-08-06 as the caret following the conversation into the composer and opened two entries behind it, both landed the same day: the draft named below, and the row gestures that swap nothing, answered by the caret staying in the list and opening the chord and the silent-shrink entries above; the composer's move on a clamped shrink closed 2026-08-06 as moot, its mechanism having been deleted the day it was filed, and the retarget-and-resize pair landed 2026-08-06 as the panel measuring itself in fractional pixels, opening the roll entry that took its place, which landed hours later the same day as the section measuring itself the way the panel does, both published numbers reproducing first and the step at every roll boundary reading 0.000px after, and which opened the whisper-bubble target named above; the composer's draft belonging to no chat landed 2026-08-06 too, the same day it was opened and the same day the user answered it, as unsent text keyed by session id in the reducer, which was the last entry anywhere waiting on a decision rather than on work; the modified chord landed 2026-08-07 as a rule about the text a field would lose rather than about what a chord is, opening the two entries named above, the closing-list caret and the silence of a held chord, and reading this file's entries against its header that day turned up the liquid edge's blur, open here since 2026-07-21, carried in the running record below the whole time and named by no count either doc has published since; and the silent shrink landed 2026-08-07 as the region reporting a list that shrank as well as a conversation that arrived, one out and none in, its chord sibling read alongside it and deliberately left open, and the part only a real screen reader can settle sent to [host/overlay-screen-reader.md](../host/overlay-screen-reader.md); and the whisper bubble's rounded roll target closed 2026-08-07, measured before it was touched as its own text demanded: the published number sat exactly half a pixel under the height the box stands on, no frame of a reply showed the panel moving without the bubble moving it, and what the trace found instead was the prediction doubling as the panel's pinned edge on a summon that lands inside the roll, 316.59375px where the measured height centres at 316.34375px, so the roll now publishes the number its own box carries; and a list the reader closes dropping the caret closed 2026-08-07 as a rule about a section closing rather than about a key, the switcher turning out to close thirteen ways of which ten already answered, opening the mirror entry that closed hours later the same day, with the caret DECLINED on three measured reasons and a sentence landed in its place, the switcher opening thirteen ways of which eleven were inaudible, and opening the key toggling an unseen section named above; and its chord sibling was DECLINED outright 2026-08-07, all four of its shapes, on the measurement that the rename editor holds every chord there is and that seven of the nine measured do something in the field anyway, `Ctrl+Z` undoing the whole edit, so a sentence raised where the hold is decided would be false at most of its doors) | 11 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam, the generated title's empty-reply half closed 2026-08-06 by bounding its request (ADR-0021/0038) | 2 |
@@ -1583,6 +1583,31 @@ nowhere, which was moot while the pool was drained and is exactly what co-reside
 ([inference-model-manager.md](inference-model-manager.md),
 [ADR-0030](../adr/ADR-0030-brain-handoff.md), [ADR-0004](../adr/ADR-0004-model-lineup.md)).
 
+The first of that pair closed the same day, hours later, and the count stayed at **8**: one out,
+one in. **What made it buildable was the instrument warning, not the flag.** The entry asked for a
+check "at wiring time or at swap-in", and reading its own text against the measurement rules out
+the first half: a card's free memory changes by the gigabyte while the machine runs, and at boot
+the cortex is resident, which is not the residency the deep model loads into. The same measurement
+rules out reading the card *after* the load too, since that is the reading a fit and a 4676 MiB
+spill agree on. **Free memory is evidence at exactly one instant**, before the allocation and after
+everything the handoff means to unload is gone, which is inside `swap_in` between the last `stop`
+and the `start`, and that is where the refusal went. The sidecar answers `device_memory()` off its
+existing `GET /health` over an `nvidia-smi` seam (any failure, and any second visible GPU, reported
+as no reading rather than a guess), the deployment declares the deep tier's cost as
+`CORTEX_SWAP_BRAIN_VRAM_MIB`, and a card that is short, or a host that can see none at all, fails
+the handoff closed with the standing residency untouched. `CORTEX_SWAP_CORESIDENT` without that
+figure is now a boot failure on the real supervisor, which catches the constant half of the claim
+where it is constant. Live, on the same card as the morning's measurement: **14905 MiB free of
+24463 with the cortex resident refused a declared 19125 MiB in 0.03 s and started nothing**, and
+the same call with the cortex evicted passed and loaded the deep model to `ready` in 69.24 s with
+3579 MiB to spare. The entry's own price is corrected in its close: the brain still does not depend
+on the sidecar answering at wiring time, so the stop-bounds entry's objection never applied. What
+opened in its place is the honest residue, and it is the instrument lesson from the other side: a
+declared figure nobody verified, or a gigabyte taken by the desktop during the load, both spill
+past a check that already answered, and **the only witness of a spill is decode rate, which nothing
+in the brain watches** ([inference-model-manager.md](inference-model-manager.md),
+[ADR-0030](../adr/ADR-0030-brain-handoff.md)).
+
 ## Recommended order
 
 Ordered by what unblocks the most value soonest. Before starting any item, verify its claims
@@ -2487,8 +2512,7 @@ host item, two not) is resolved by the move: none of them counts here now.
 What stays here despite needing the host's hardware to *observe* or *judge*, because the work
 itself is code and belongs with its area: unbalanced COM initialization on the blocking pool
 ([body-gateway.md](body-gateway.md)), the spontaneous-pick nudge's live uptake
-([subagents.md](subagents.md)), co-residency
-([inference-model-manager.md](inference-model-manager.md)),
+([subagents.md](subagents.md)),
 and the NPU as a third placement target
 ([resource-governance.md](resource-governance.md)); the model passes behind history
 summarization left this list on 2026-08-06 by being built, and reranking's own left it the same
@@ -2739,7 +2763,16 @@ the same spec seam ([subagents.md](subagents.md)); checking the sidecar's stop b
 deadline instead of only documenting the pairing, joined on 2026-07-18 with the audit round that
 found the pairing had a third term and added the `GET /health` reporting that would make the check
 possible, whose trigger is either side's timing being tuned or a handoff aborting on an eviction
-that in fact completed ([inference-model-manager.md](inference-model-manager.md)); the three exceptions the commit-body
+that in fact completed, and whose stated price (that the brain would then have to depend on the
+sidecar answering at wiring time) was quoted by the co-residency fit entry on 2026-08-07 and turned
+out not to transfer, that check having landed at the swap instead
+([inference-model-manager.md](inference-model-manager.md)); noticing a handoff that spilled
+anyway, joined on 2026-08-07 the moment the fit check landed, because a check taken before the
+load cannot see a figure the deployment under-declared nor a gigabyte the desktop takes during it,
+and the spill it leaves reports `ready` on both tiers and reads like a fit on `nvidia-smi`, so the
+trigger is a deep phase that is slow rather than absent and the fix is the deep phase watching
+llama.cpp's own `timings.predicted_per_second`, which the backend currently discards
+([inference-model-manager.md](inference-model-manager.md)); the three exceptions the commit-body
 wrap gate did not ship, which replaced their own parent here on 2026-07-19 when the wrap check
 itself landed, because the exemption that shipped is a property of the longest **word** rather
 than of the line's **kind**, so a pasted command, a fenced code block, and a `BREAKING CHANGE:`

@@ -9,6 +9,7 @@ from starlette.applications import Starlette
 from cortex_model_manager.api import build_app
 from cortex_model_manager.children import AsyncioChildProcesses
 from cortex_model_manager.config import ModelHostConfig
+from cortex_model_manager.device_memory import NvidiaSmiMemory
 from cortex_model_manager.probe import HttpHealthProbe
 from cortex_model_manager.supervisor import ModelSupervisor
 
@@ -37,7 +38,12 @@ def build_model_host(config: ModelHostConfig) -> Starlette:
         config.cortex_model,
         extra={"models": list(supervisor.models), "boot_model": config.cortex_model},
     )
-    return build_app(supervisor, boot_model=config.cortex_model, close=client.aclose)
+    return build_app(
+        supervisor,
+        boot_model=config.cortex_model,
+        close=client.aclose,
+        device=NvidiaSmiMemory(config.nvidia_smi, config.probe_timeout_s),
+    )
 
 
 def main() -> None:

@@ -41,17 +41,33 @@ way, serving the cortex as the always-on `llama-cortex` service used to.
 
 Other knobs: `CORTEX_MODEL_BRAIN` (the deep tier's logical id, default `brain`),
 `CORTEX_SWAP_EVICT_MODELS` (further hosted tiers a swap stops first, comma separated),
+`CORTEX_SWAP_BRAIN_VRAM_MIB` (0, the deep tier's measured VRAM cost, see below),
 `CORTEX_SWAP_DRAIN_TIMEOUT_S` (60 s), `CORTEX_SWAP_LOAD_TIMEOUT_S` (300 s),
-`CORTEX_MODELHOST_TIMEOUT_S` (60 s, one control call's deadline).
+`CORTEX_MODELHOST_TIMEOUT_S` (60 s, one control call's deadline). On the sidecar,
+`CORTEX_MODELHOST_NVIDIA_SMI` (`nvidia-smi`) names the binary it reads the card with.
 
 **`CORTEX_SWAP_CORESIDENT` is the one knob that changes what a handoff does to the machine, and
 it is off.** Set it and a swap stops the cortex and nothing else, every `CORTEX_SWAP_EVICT_MODELS`
 tier keeps serving beside the deep model, and the subagent pool is never quiesced, so delegated
-work runs through the handoff and the deep phase may spawn. **Only set it if you have measured the
-fit on your own card**, because nothing checks it and the failure is silent: see the co-residency
-section below for what a card that cannot hold the pair does instead of refusing. Nothing else
-changes, and the swap back still starts every listed tier, which is a no-op against one that never
-stopped and a heal for one that died on its own.
+work runs through the handoff and the deep phase may spawn. Nothing else changes, and the swap
+back still starts every listed tier, which is a no-op against one that never stopped and a heal
+for one that died on its own.
+
+**Setting it also requires `CORTEX_SWAP_BRAIN_VRAM_MIB`, and the brain refuses to boot without
+it.** That figure is how much free device memory the deep tier needs, measured on your own card
+(the procedure is the co-residency section below; on this stack's card it is 19125 MiB). The
+sidecar reports what the card has free on `GET /health`, and a swap reads it **after the
+evictions and before the load**, which is the only instant the number means anything. Short of
+the figure, the handoff is refused with both numbers in the log and in the reply's note, the deep
+model is never started, and the standing residency is put back. A model host that can see no card
+at all refuses the same way, because a deployment that asked to be checked and cannot be must not
+run unchecked. Set the figure generously if the machine shares its card with a desktop: this one's
+idle floor moves by about a gigabyte, and the check cannot see memory taken **during** a load that
+runs for a minute or more. What the check still cannot tell you is whether the figure itself is
+right, or whether a load spilled anyway; for that, measure decode, exactly as below.
+
+The same figure is honoured with co-residency off, where it is optional: it then guards the
+ordinary handoff on a card too small for the deep tier at all.
 
 **One pairing to keep, because nothing validates it for you.** The sidecar's `stop` answers only
 once the child is dead and reaped, so it can legitimately take `CORTEX_MODELHOST_STOP_GRACE_S`
@@ -180,6 +196,29 @@ To reproduce, layer `docker/docker-compose.modelhost-loopback.yml`, name all thr
 drive `POST /models/{id}/start` by hand with the cortex stopped first. The live suite has it as
 `test_a_coresident_scope_leaves_its_peer_serving_beside_the_deep_model`
 (`just brain-modelhost-live`), which skips unless the sidecar hosts all three tiers.
+
+### The fit check, and what it is worth
+
+Since 2026-08-07 the sidecar answers `curl -s http://127.0.0.1:9300/health` with
+`device_free_mib` and `device_total_mib` beside the roster and the stop bounds, read with
+`nvidia-smi` inside the container that holds the GPU reservation, and a swap compares
+`CORTEX_SWAP_BRAIN_VRAM_MIB` against the free figure between its last eviction and its load.
+Measured on this card the same day, with the cortex resident and the desktop quiet:
+
+| What was resident | `/health` free | Declared need | Outcome |
+|---|---|---|---|
+| cortex (text only) | 14905 MiB of 24463 | 19125 MiB | **refused in 0.03 s**, nothing started |
+| nothing (cortex evicted, as a handoff evicts it) | about 22.8 GB | 19125 MiB | loaded, `ready` in 69.24 s, 3579 MiB left free |
+
+The sidecar's figure matched the host's own `nvidia-smi` exactly (14905 of 24463 on both sides),
+which is the check worth running first if a refusal ever looks wrong.
+
+**Read the refusal as "there was not room", never the pass as "it fitted".** The check is blind
+to a figure declared too low, and blind to memory taken while a load runs, and both of those end
+in the silent spill above: two tiers reporting `ready`, `nvidia-smi` reading like a fit, and the
+deep model decoding at half its rate. When a co-resident deep phase feels slow, do not read
+memory. Read `timings.predicted_per_second` off a completion on each tier and compare it against
+the solo rates in the table above.
 
 ## Failure modes, each observed rather than reasoned about
 

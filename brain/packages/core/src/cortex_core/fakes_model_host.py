@@ -4,7 +4,7 @@ import asyncio
 from collections.abc import Iterable, Mapping
 
 from cortex_core.errors import ModelHostError
-from cortex_core.model_host import ModelHostState
+from cortex_core.model_host import DeviceMemory, ModelHostState
 
 
 class ScriptedModelHost:
@@ -18,8 +18,10 @@ class ScriptedModelHost:
         fail: Mapping[tuple[str, str], str] | None = None,
         fail_once: Mapping[tuple[str, str], str] | None = None,
         pause_at: Iterable[tuple[str, str]] = (),
+        device_memory: DeviceMemory | None = None,
     ) -> None:
         self.running: set[str] = set(running)
+        self.device: DeviceMemory | None = device_memory
         self.calls: list[tuple[str, str]] = []
         self.reached: dict[tuple[str, str], asyncio.Event] = {
             key: asyncio.Event() for key in pause_at
@@ -57,6 +59,12 @@ class ScriptedModelHost:
         if model not in self.running:
             return ModelHostState.STOPPED
         return self._override.get(model, ModelHostState.READY)
+
+    async def device_memory(self) -> DeviceMemory | None:
+        """What the card beside this twin reports, or ``None`` for a host that sees none."""
+        self._check("device_memory", "")
+        await self._pause("device_memory", "")
+        return self.device
 
     def _check(self, op: str, model: str) -> None:
         """Log the operation, then raise whatever failure was scripted for it."""

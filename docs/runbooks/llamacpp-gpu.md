@@ -495,7 +495,11 @@ safety default.
   overcommit, at the price of the deep model's decode falling to 14.80 to 17.29 tok/s. A memory
   reading cannot tell those last two apart; decode can. Full table and procedure:
   [model-swap.md](model-swap.md), argument in the
-  [ADR-0030](../adr/ADR-0030-brain-handoff.md) co-residency addendum.
+  [ADR-0030](../adr/ADR-0030-brain-handoff.md) co-residency addendum. Since 2026-08-07 the
+  model-host sidecar reports the card's free and total MiB on `GET /health` (its own `nvidia-smi`,
+  matched against the host's to the megabyte), and a swap refuses to load the deep tier when what
+  is free will not clear `CORTEX_SWAP_BRAIN_VRAM_MIB`. That guards the room, not the outcome: a
+  spill still shows only in decode.
 - **Swap latency (ROADMAP assumption 2):** load is ~mount-read bound (~150-180 MB/s off
   the Windows bind mount). Measured through the real supervisor at small scale on the 8 GB dev
   card, a 0.8B stand-in health-gates in ~11 s and a 2B in ~18 s, while the eviction half is

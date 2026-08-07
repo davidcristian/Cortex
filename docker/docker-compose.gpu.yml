@@ -42,6 +42,7 @@ services:
       CORTEX_MODELHOST_STOP_GRACE_S: "${CORTEX_MODELHOST_STOP_GRACE_S:-10}"
       CORTEX_MODELHOST_REAP_TIMEOUT_S: "${CORTEX_MODELHOST_REAP_TIMEOUT_S:-30}"
       CORTEX_MODELHOST_PROBE_TIMEOUT_S: "${CORTEX_MODELHOST_PROBE_TIMEOUT_S:-5}"
+      CORTEX_MODELHOST_NVIDIA_SMI: "${CORTEX_MODELHOST_NVIDIA_SMI:-nvidia-smi}"
     volumes:
       # Models stay on the Windows drive, mounted read-only (ADR-0004 d3). Forward slashes
       # work in Docker Desktop on Windows; override the source with CORTEX_MODELS_DIR.

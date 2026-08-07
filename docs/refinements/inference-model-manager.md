@@ -7,14 +7,17 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 historical record of what each deferral became, and the index at [index.md](index.md) carries the
 recommended pickup order.
 
-**Open items:** 8. Resume a crashed handoff from its record; fence the single-handoff claim across
-processes; reconverge the brain's residency when the sidecar restarts under it; check the sidecar's
-stop bounds against the brain's control deadline; MTP model variants; disable-thinking /
-token-budget capping, **narrowed rather than closed on 2026-08-06**; and the two this area's
-oldest entry opened on the day it closed, **2026-08-07**, a co-resident deployment's fit being
-asserted and checked by nothing, and the placer's budget describing the standing residency rather
-than the handoff window. **Model-manager co-residency is closed**, so the count went 7 to 8 rather
-than 7 to 6: one out, two in, which is what this list is for.
+**Open items:** 8, counted by reading the entries below rather than by adding to yesterday's
+number. Resume a crashed handoff from its record; fence the single-handoff claim across processes;
+reconverge the brain's residency when the sidecar restarts under it; check the sidecar's stop
+bounds against the brain's control deadline; MTP model variants; disable-thinking / token-budget
+capping, **narrowed rather than closed on 2026-08-06**; the placer's budget describing the standing
+residency rather than the handoff window; and, new on **2026-08-07**, noticing a handoff that
+spilled, which is what a fit check cannot see. Two entries closed on 2026-08-07 and this area's
+oldest was one of them: **model-manager co-residency**, which opened two in its place, and hours
+later **the fit its flag asserted**, which closed as a real check and opened one. So the count went
+7 to 8 in the morning and has stayed 8: two out across the two sittings and three in, and every
+arrival is something a landing made reachable rather than something it broke.
 
 On the narrowing of the capping entry, which is the one the count deliberately did not move
 for: the lever shipped on 2026-08-06 as `GenerationBounds` on `InferenceBackend.stream`, and
@@ -91,6 +94,49 @@ fix-when-it-bites bucket, so nobody picks it up expecting to build a lever that 
   VRAM reading taken at wiring time is stale by the time a handoff runs. **Trigger:** any report of
   a deep phase that is inexplicably slow on a co-resident deployment, or a second machine adopting
   the flag without redoing the measurement.
+  **Closed 2026-08-07**, hours after it was opened
+  ([ADR-0030](../adr/ADR-0030-brain-handoff.md) fit-check addendum), and the shape it landed in is
+  not quite the one above, for a reason the entry's own text contains. The proposed check was "at
+  wiring time or at swap-in", and only the second is honest: what a card has free changes by the
+  gigabyte while the machine runs, and at boot the cortex is resident, which is not the residency
+  the deep model loads into. **Free memory is evidence at one instant only, before the allocation
+  and after everything the handoff means to unload is gone**, which is inside `swap_in` between the
+  last `stop` and the `start`. That placement is what makes the check possible at all, since the
+  same figure read after the load cannot tell a fit from a spill. What landed: `ModelHost` gains a
+  fourth verb, `device_memory()`, answered off the sidecar's existing `GET /health` (a
+  `DeviceMemoryProbe` seam over `nvidia-smi`, with every failure and any second visible GPU
+  reported as no reading rather than a guess); the deployment declares the deep tier's cost as
+  `CORTEX_SWAP_BRAIN_VRAM_MIB`; `swap_in` refuses with `SwapFailedError` when the card is short or
+  when there is no reading at all; and `CORTEX_SWAP_CORESIDENT=1` without that figure is a boot
+  failure on the real supervisor, which is the constant half of the claim caught where it is
+  constant. The entry's own cost line is **wrong about the price**: the brain still does not depend
+  on the sidecar answering at wiring time, because nothing asks it anything until a swap runs, so
+  the stop-bounds entry's objection does not transfer. Measured live rather than argued: with the
+  cortex resident the sidecar reported **14905 MiB free of 24463**, the declared 19125 MiB did not
+  clear it, and the swap refused in **0.03 s** having started nothing; with the cortex evicted the
+  same call passed and loaded the deep model to `ready` in **69.24 s**, leaving 3579 MiB free. What
+  it does **not** detect is recorded as this area's newest entry, and it is the same instrument
+  lesson from the other side: a declared figure nobody verified, and a spill that has already
+  happened.
+- **Notice a handoff that spilled, since a fit check can only see the room beforehand.** Opened
+  2026-08-07 by the fit check's own landing
+  ([ADR-0030](../adr/ADR-0030-brain-handoff.md) fit-check addendum). The check compares the deep
+  tier's declared cost against what the card reports free immediately before the load, which is the
+  only instant at which free memory means anything. Two things stay invisible to it. A deployment
+  that **under-declares** passes the check and spills anyway, because nothing here measures a
+  model. And memory taken **during** the load (this machine's idle floor moved between 1529 and
+  2836 MiB inside one session, Windows owning the difference) can turn a fit into a spill after the
+  check has already answered. In both cases the outcome is the measured one: both tiers report
+  `ready`, `nvidia-smi` reads about 23.6 GB used and about 0.5 GB free exactly as a genuine fit
+  does, and the deep model decodes at **14.80 to 17.29 tok/s** against **25.07 to 33.28** with the
+  card to itself. **The only witness is decode rate, and nothing in the brain watches it.** What
+  would close it: the deep phase reading llama.cpp's own `timings.predicted_per_second` off the
+  completion it already streams, comparing it against a rate the deployment measured for that tier
+  (the same shape as the VRAM figure, and the same honest limitation), and saying so loudly once
+  per handoff when it collapses. The cost is a backend that surfaces its own timings, which
+  `LlamaCppBackend` today discards, so it is a port question and not a one-line read. **Trigger:**
+  any report of a deep phase that is slow rather than absent, on a deployment whose fit check
+  passed.
 - **Give the placer a model of the handoff window, instead of one that describes the standing
   residency.** *Fix when it bites.* Opened 2026-08-07 by the same landing. `VramBudgetPlacer`
   fit-tests every GPU-placed spawn against `soft_cap_gb - cortex_reservation_gb - placed_gb`

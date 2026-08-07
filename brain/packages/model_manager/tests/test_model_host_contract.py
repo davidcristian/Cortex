@@ -9,7 +9,7 @@ import pytest
 from model_host_contract import CONTRACT_MODELS, HostUnderTest
 from process_fakes import FakeChildProcesses, FakeProbe
 
-from cortex_core import ModelHostState, ScriptedModelHost
+from cortex_core import DeviceMemory, ModelHostState, ScriptedModelHost
 from cortex_model_manager import (
     HttpModelHost,
     ModelSpec,
@@ -43,6 +43,19 @@ def contract_roster() -> dict[str, ModelSpec]:
     )
 
 
+class _FakeCard:
+    """The daemon's device seam, standing in for a GPU the gated suite may not touch."""
+
+    def __init__(self) -> None:
+        self._reading: DeviceMemory | None = None
+
+    def set(self, reading: DeviceMemory | None) -> None:
+        self._reading = reading
+
+    async def read(self) -> DeviceMemory | None:
+        return self._reading
+
+
 def _scripted_subject() -> HostUnderTest:
     """The core's scriptable twin: the world's conditions are its status overrides."""
     host = ScriptedModelHost()
@@ -53,7 +66,10 @@ def _scripted_subject() -> HostUnderTest:
     def die(model: str) -> None:
         host.set_status(model, ModelHostState.FAILED)
 
-    return HostUnderTest(host=host, serving=serving, die=die, aclose=nothing_to_close)
+    def card(reading: DeviceMemory | None) -> None:
+        host.device = reading
+
+    return HostUnderTest(host=host, serving=serving, die=die, card=card, aclose=nothing_to_close)
 
 
 def _supervisor_subject() -> HostUnderTest:
@@ -64,7 +80,8 @@ def _supervisor_subject() -> HostUnderTest:
     supervisor = ModelSupervisor(roster, processes, probe, stop_grace_s=1.0, reap_timeout_s=1.0)
     # ASGITransport speaks only the http scope, so the app's lifespan (and therefore its boot
     # start and its shutdown stop) never runs here; test_api.py drives that half directly.
-    app = build_app(supervisor, boot_model=model_host_contract.CORTEX)
+    device = _FakeCard()
+    app = build_app(supervisor, boot_model=model_host_contract.CORTEX, device=device)
     client = httpx.AsyncClient(transport=httpx.ASGITransport(app))
 
     def serving(model: str, *, serving: bool) -> None:
@@ -74,7 +91,11 @@ def _supervisor_subject() -> HostUnderTest:
         processes.last_for(roster[model].port).exit(1)
 
     return HostUnderTest(
-        host=HttpModelHost(_ENDPOINT, client), serving=serving, die=die, aclose=client.aclose
+        host=HttpModelHost(_ENDPOINT, client),
+        serving=serving,
+        die=die,
+        card=device.set,
+        aclose=client.aclose,
     )
 
 

@@ -19,11 +19,17 @@ one hard rule's whole premise: every model instance is stateless and disposable.
 Everything importable from `cortex_model_manager` (`__all__` is the API).
 
 **The adapter (brain side).** `HttpModelHost(endpoint: str, client: httpx.AsyncClient)` is a
-`ModelHost`: `start`/`stop`/`status`, taking a logical model id and nothing else.
+`ModelHost`: `start`/`stop`/`status`, taking a logical model id and nothing else, plus
+`device_memory()`, which takes none.
 
 - `start(model)` POSTs `/models/{id}/start`, `stop(model)` POSTs `/models/{id}/stop`, and
   `status(model)` GETs `/models/{id}` and returns the `ModelHostState` the body names. The id is
   percent-escaped, so an id is a name and never a path fragment.
+- `device_memory()` GETs `/health` and returns `DeviceMemory(free_mib, total_mib)`, or `None`
+  when either figure is missing or is not an integer, which is what a daemon with no card
+  reports and also what one too old to carry the fields says. Deliberately that route: it takes
+  no per-model lock, and a swap asks this between an eviction and a load, where queueing behind
+  a stop would add that stop's whole grace to the answer.
 - Every failure crosses as `ModelHostError` with its cause chained, and **nothing is retried
   here**: a transport failure, a 404, a 503, a body that will not decode, and a state word this
   version does not know all mean "the model host did not answer the question", which is for the
@@ -33,19 +39,32 @@ Everything importable from `cortex_model_manager` (`__all__` is the API).
 - The client is injected, and unlike the generation clients it must carry a real read deadline: a
   control call that hung would hang a swap step under no bound at all.
 
-**The control API (sidecar side).** `build_app(supervisor, *, boot_model, close=nothing_to_close)`
-returns the Starlette app; `model_host_lifespan(supervisor, boot_model, close)` is its lifespan.
-Four routes and no more:
+**The control API (sidecar side).**
+`build_app(supervisor, *, boot_model, close=nothing_to_close, device=None)` returns the Starlette
+app; `model_host_lifespan(supervisor, boot_model, close)` is its lifespan. `device` is the
+`DeviceMemoryProbe` the health route reads the card through, defaulting to `NoDeviceMemory`, which
+answers that this daemon has none. Four routes and no more:
 
 | Route | Meaning |
 |---|---|
-| `GET /health` | the daemon is up, the roster it serves, and the stop bounds it was wired with (`{"status": "ok", "models": [...], "stop_grace_s": 10.0, "reap_timeout_s": 30.0}`). An operator's first question, and the only way to read what a running daemon actually got, since the pairing rule below is enforced nowhere. |
+| `GET /health` | the daemon is up, the roster it serves, the stop bounds it was wired with, and how much of the card is free (`{"status": "ok", "models": [...], "stop_grace_s": 10.0, "reap_timeout_s": 30.0, "device_free_mib": 22484, "device_total_mib": 24463}`). An operator's first question, and the only way to read what a running daemon actually got, since the pairing rule below is enforced nowhere. The two device figures are `null` on a daemon that can see no card, and they are what the brain's fit check compares against (ADR-0030's fit-check addendum). |
 | `GET /models/{id}` | `{"model", "state", "detail"}`, `state` being `stopped`/`loading`/`ready`/`failed`. |
 | `POST /models/{id}/start` | begin loading it (idempotent), answering the state it left behind. |
 | `POST /models/{id}/stop` | end it, returning once the child is reaped (idempotent). |
 
 An id outside the roster is **404**; a supervisor failure is **503**. Both become
 `ModelHostError`, but the runbook sends them to different halves of itself.
+
+**The device seam.** `DeviceMemoryProbe` is `read() -> DeviceMemory | None`, with two
+implementations: `NoDeviceMemory` (always `None`, the default and what a CPU-only stack truthfully
+has) and `NvidiaSmiMemory(binary, timeout_s)`, one bounded
+`nvidia-smi --query-gpu=memory.free,memory.total --format=csv,noheader,nounits`. The binary comes
+from `CORTEX_MODELHOST_NVIDIA_SMI` and the bound from `CORTEX_MODELHOST_PROBE_TIMEOUT_S`, both
+control-plane reads a swap step waits on. **Every way it can go wrong is "no reading", never an
+exception**: a missing binary (the normal case where no GPU is reserved, since the container
+toolkit injects it alongside the driver), a non-zero exit, a body that will not parse, and **more
+than one visible GPU**, because nothing downstream knows which card a model would land on, so this
+declines to pick a row.
 
 **The supervisor.** `ModelSupervisor(roster, processes, probe, *, stop_grace_s, reap_timeout_s)`
 over the two seams `ChildProcesses` (`spawn(argv) -> ChildProcess`) and `HealthProbe`
@@ -180,10 +199,10 @@ which is the whole point of decision 3. The consequences worth knowing before ch
   **both** implementations (`tests/test_model_host_contract.py`): the core's `ScriptedModelHost`,
   and the real `HttpModelHost` talking to a real `ModelSupervisor` through a real Starlette app over
   `httpx.ASGITransport`. Only the OS spawn and the health socket are faked. The port's vocabulary
-  needs two conditions of the world no verb can create (a model not serving yet, and a process
-  dying unasked), so each fixture supplies them as knobs: that is the honest widening of the
-  contract, since "`start` only begins loading" is unobservable in an implementation where nothing
-  can be mid-load.
+  needs three conditions of the world no verb can create (a model not serving yet, a process dying
+  unasked, and what the card reports), so each fixture supplies them as knobs: that is the honest
+  widening of the contract, since "`start` only begins loading" is unobservable in an
+  implementation where nothing can be mid-load, and neither implementation may invent a GPU.
 - 100% line + branch, with no process spawned and no socket opened. Every distrust-green mutation
   is recorded with its **measured** package-wide failure count in the suites' own docstrings.
 - `integration`-marked live tests (`tests/test_model_host_live.py`, excluded from CI and the
@@ -193,14 +212,18 @@ which is the whole point of decision 3. The consequences worth knowing before ch
   the dev GPU with two small artifacts standing in for the tiers: real processes started,
   health-gated, evicted, swapped, killed under the daemon, and restarted over their own corpses,
   with the exact commands, timings and VRAM readings in
-  [runbooks/model-swap.md](../runbooks/model-swap.md). **Tier scale is not and cannot be validated
-  here** (the 8 GB dev GPU cannot hold the real cortex beside a deep model), so that half stays
-  host-side.
+  [runbooks/model-swap.md](../runbooks/model-swap.md). The fit check has its own two live cases,
+  added 2026-08-07 and run on the 24 GB card: that a real sidecar reports a card at all (which no
+  gated test can reach, the brain container having none), and that one call refuses a megabyte more
+  than the card has free while the same call for exactly what is free goes through and really
+  loads. **Tier scale was validated 2026-08-07** on that card and is written up in the same
+  runbook; the earlier mechanism runs were on an 8 GB dev GPU that could not hold the real cortex
+  beside a deep model.
 
 ## Dependencies
 
 cortex-core (the `ModelHostState` enum, shared by both halves so the wire's four words cannot
-drift, and `ModelHostError` for the adapter), httpx (the control client and the health probe),
+drift, `DeviceMemory` for the same reason, and `ModelHostError` for the adapter), httpx (the control client and the health probe),
 starlette + uvicorn (the control API), pydantic-settings (the env surface). The brain's composition
 root (`cortex_orchestrator.swap_builders`) injects the endpoint and a bounded `httpx.AsyncClient`;
 the sidecar's own root is `server.build_model_host`.

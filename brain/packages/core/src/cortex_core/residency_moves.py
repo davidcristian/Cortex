@@ -21,6 +21,7 @@ async def swap_in(host: ModelHost, plan: ResidencyPlan, model: str, gate: Readin
         if not plan.coresident:
             for evicted in plan.evict_models:
                 await host.stop(evicted)
+        await _refuse_a_load_the_card_cannot_hold(host, plan, model)
         await host.start(model)
         state = await gate(model)
     except ModelHostError as err:
@@ -29,6 +30,52 @@ async def swap_in(host: ModelHost, plan: ResidencyPlan, model: str, gate: Readin
     if state is not ModelHostState.READY:
         msg = f"model {model!r} did not become ready in time (last state: {state.value})"
         raise SwapFailedError(msg)
+
+
+async def _refuse_a_load_the_card_cannot_hold(
+    host: ModelHost, plan: ResidencyPlan, model: str
+) -> None:
+    """Fail the swap before the load when the free device memory is short of the plan's figure."""
+    if plan.brain_vram_mib <= 0:
+        return
+    memory = await host.device_memory()
+    if memory is None:
+        msg = (
+            f"the model host reports no device memory, so there is no way to tell whether "
+            f"{model!r} fits in the {plan.brain_vram_mib} MiB it was declared to need; the "
+            "handoff is refused rather than run unchecked"
+        )
+        _logger.error(msg, extra={"model": model, "needed_mib": plan.brain_vram_mib})
+        raise SwapFailedError(msg)
+    if memory.free_mib < plan.brain_vram_mib:
+        msg = (
+            f"{model!r} needs {plan.brain_vram_mib} MiB of free device memory and only "
+            f"{memory.free_mib} of {memory.total_mib} MiB is free, so it was not started; a "
+            "load that does not fit is paged to system memory rather than refused, at roughly "
+            "half the decode rate (docs/runbooks/model-swap.md)"
+        )
+        _logger.error(
+            msg,
+            extra={
+                "model": model,
+                "needed_mib": plan.brain_vram_mib,
+                "free_mib": memory.free_mib,
+                "total_mib": memory.total_mib,
+            },
+        )
+        raise SwapFailedError(msg)
+    _logger.info(
+        "the card has room for the deep model: model=%s needed_mib=%d free_mib=%d",
+        model,
+        plan.brain_vram_mib,
+        memory.free_mib,
+        extra={
+            "model": model,
+            "needed_mib": plan.brain_vram_mib,
+            "free_mib": memory.free_mib,
+            "total_mib": memory.total_mib,
+        },
+    )
 
 
 async def restore_standing(

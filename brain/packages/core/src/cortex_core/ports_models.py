@@ -3,7 +3,7 @@
 from contextlib import AbstractAsyncContextManager
 from typing import Protocol
 
-from cortex_core.model_host import ModelHostState
+from cortex_core.model_host import DeviceMemory, ModelHostState
 from cortex_core.residency_state import ResidencyReport
 
 
@@ -15,6 +15,8 @@ class ModelHost(Protocol):
     async def stop(self, model: str) -> None: ...
 
     async def status(self, model: str) -> ModelHostState: ...
+
+    async def device_memory(self) -> DeviceMemory | None: ...
 
 
 class ResidencyController(Protocol):

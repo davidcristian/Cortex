@@ -25,6 +25,14 @@ class ModelHostState(Enum):
 
 
 @dataclass(frozen=True, slots=True)
+class DeviceMemory:
+    """How much of the GPU is free right now, and how big it is, as the host's own card reports."""
+
+    free_mib: int
+    total_mib: int
+
+
+@dataclass(frozen=True, slots=True)
 class ResidencyPlan:
     """Which models share the one GPU, and the bounds a swap between them respects (ADR-0030)."""
 
@@ -32,11 +40,15 @@ class ResidencyPlan:
     brain_model: str
     evict_models: tuple[str, ...] = ()
     coresident: bool = False
+    brain_vram_mib: int = 0
     drain_timeout_s: float = DEFAULT_SWAP_DRAIN_TIMEOUT_S
     load_timeout_s: float = DEFAULT_SWAP_LOAD_TIMEOUT_S
     poll_interval_s: float = DEFAULT_HEALTH_POLL_INTERVAL_S
 
     def __post_init__(self) -> None:
+        if self.brain_vram_mib < 0:
+            msg = f"ResidencyPlan.brain_vram_mib must be >= 0, got {self.brain_vram_mib}"
+            raise ValueError(msg)
         if self.drain_timeout_s < 0:
             msg = f"ResidencyPlan.drain_timeout_s must be >= 0, got {self.drain_timeout_s}"
             raise ValueError(msg)
