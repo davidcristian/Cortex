@@ -1945,3 +1945,102 @@ read as a defect in the capture path and sent the next reader to rewrite the lad
 The three records for this re-read are [docs/refinements/vision.md](../refinements/vision.md), its
 line and its bucket entry on [docs/refinements/index.md](../refinements/index.md), and this
 addendum. The area count deliberately does not move: the entry was confirmed, not closed.
+
+## Addendum (2026-08-07): a delegated step stays unsettled, and the wire had to stop promising otherwise
+
+The capture-dot addendum above ends by saying that the outcome "does not reach delegated work" and
+that a field joins the seam with a consumer or not at all. That paragraph opened a deferral, which
+has now been read against the tree and **declined on merits**. What the reading found is that the
+decline was right and the way it had been written down was not: three of the records a body-side
+reader consults state the pairing as a property of the stream, which is a thing the stream does not
+do.
+
+### The gap is exactly what the entry said, and it is one line of code rather than three
+
+Driving the real `converse` over a real `SpawnSubagentsTool`, a real `SubagentRunner` and a real
+subagent `ToolDispatcher`, with the delegate calling one tool that succeeds and one that fails, the
+wire carries `tool_activity spawn_subagents`, `status delegating`, `tool_activity read`,
+`tool_activity boom`, `tool_outcome spawn_subagents ok=True`, the reply, and the completion. Three
+activities, one outcome. The turn's own spawn dispatch is settled; both delegated steps are
+announced and never are, the failing one exactly like the succeeding one.
+
+The entry priced the reversal at three lines, "widen `ProgressEvent`, one arm in
+`subagent_attempt.py`, one in the sink". The sink needs nothing: `SeamProgressSink` is constructed
+with `to_wire=to_server_event`, the same mapper the turn's own events go through, and that function
+already has a `DomainToolOutcome` arm because the turn's own outcomes use it. So the reversal is
+the type alias and one `elif`, which is smaller than the entry claimed and does not change the
+answer.
+
+### Why it stays declined, in three reasons the entry had one of
+
+**Nothing reads it, and nothing could.** The only consumer of a `ToolOutcome` anywhere in the tree
+is the overlay reducer's `toolOutcome` arm, which returns the state untouched unless the name is
+`capture_screen` and `ok` is true. `capture_screen` is a built-in, `build_builtin_tools` feeds only
+`build_cortex_tools`, and a subagent's dispatcher comes from `build_subagent_tools`, which wraps
+the MCP registry alone. A delegated outcome therefore could not carry the one name the one consumer
+reads, by construction rather than by accident. That is the `GetVolume` decline's sharper test:
+not only does nothing read it, nothing could be made to without a different feature first.
+
+**There is no consent to surface.** The outcome exists because `capture_screen` ships ungated and
+the user is owed a plain statement of what happened. A subagent is handed the gated-stripped
+subset (`UngatedToolRegistry` hides gated specs from advertisement and refuses invoking them, and
+the dispatcher keeps `confirmer=None`), so nothing a delegate can call is outbound or irreversible.
+A failing delegated step is not a privacy fact the user must be told; it is plumbing, and it
+already reaches the one party who can act on it, since the runner degrades a failed subagent to an
+`ok=False` `SubagentResult` whose detail `spawn.py` feeds back into the cortex's context as
+`[subagent i] FAILED: ...`, and the user reads the answer that came out of that.
+
+**The channel cannot keep the promise anyway**, which is new and is the reason the entry could not
+have reached this verdict from its own text. `SeamProgressSink.emit` returns without queuing when
+`self._credits.locked()`, deliberately, so a delegating turn drops cosmetic progress rather than
+stalling the subagent behind it, while the turn's own events block on `await
+self._credits.acquire()` in `_run_turn` and are never dropped. Forwarding an outcome through the
+sink would therefore buy an event that no surface reads and a pairing that a saturated buffer can
+still break in either direction. Two lines cannot make 1:1 true across a lossy channel.
+
+### The falsehood was in the contract, and it is on the body's side of the seam
+
+The brain's own records had this right already: `docs/modules/brain-orchestrator.md` said plainly
+that a delegated step carries no outcome. The body's did not. `proto/body.proto` said the brain
+"emits exactly one outcome per activity it emitted on the turn's own stream", and a delegated
+activity **is** emitted on the turn's own stream; `body/crates/core/src/transport/turn.rs` repeated
+the sentence, and `docs/modules/body-core.md` shortened it to "one per activity". Read as written,
+all three are false, and the run above is the proof. The body is precisely the side that cannot
+notice: a delegated activity is a byte-identical `ToolActivity`, so nothing downstream can
+distinguish the paired kind from the unpaired one, and a future body-side surface built on the
+guarantee would have been built on nothing.
+
+All three now say the pairing covers the dispatches the turn itself made, name the delegated
+activity as the ordinary unsettled case, and say why the side channel cannot be promised into the
+claim. The core `ToolOutcome` docstring, `progress.py`'s `ProgressEvent` alias (the type whose
+narrowness is the decision) and the drop site in `subagent_attempt.py` carry the same correction,
+the alias holding the argument because that is the line a future reader would widen.
+
+### The asymmetry is pinned rather than described
+
+`test_a_delegated_step_reaches_the_wire_announced_and_unsettled` drives the same real path the
+measurement did and asserts the wire's activities are `["spawn_subagents", "read"]` against
+outcomes of `["spawn_subagents"]`. Adding the `StepOutcome` arm to `subagent_attempt.py` reddens
+it (`assert ['read', 'spawn_subagents'] == ['spawn_subagents']`), which is the point: the reversal
+is cheap enough that it could land as a tidy-up, and it would make three published contracts wrong
+in the same commit. The test is the thing that says so out loud.
+
+### What this does not do, and what would reopen it
+
+It does not claim a subagent's failures are invisible. It claims they are the spawning model's
+business and the answer's, not a chip's. It does not touch the delegated `ToolActivity`, which
+keeps surfacing exactly as it did, and it does not change the gating decision or any rendered
+pixel.
+
+It reopens on a surface that renders how a tool step ended for its own sake rather than as a
+capture claim: a per-step settled or failed state on the activity chip, or a delegated-work panel
+that lists a batch's steps and their endings. On the day such a surface exists the two lines land
+with it, and the lossy-channel problem lands with them, since a surface that must show an ending
+cannot be fed by a channel that drops one. The honest version then is either a credit-blocking
+emit for outcomes alone or a surface that treats a missing ending the way the capture ring already
+treats one, by leaving the claim where the announcement put it.
+
+The three records for this decline are
+[docs/refinements/subagents.md](../refinements/subagents.md), its row and its bucket entry on
+[docs/refinements/index.md](../refinements/index.md), and this addendum. The area count moves 3 to
+2: a decline is a close.

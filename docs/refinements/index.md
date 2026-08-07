@@ -67,7 +67,7 @@ entries from it never added the two it opened, and there the count did move and 
 | [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028), a quoted injection replayed by the plain history window, obeyed 2 of 10 on a bare turn and 0 of 10 behind either standing rule, the plain one landed for the tool-less turn (ADR-0013/0038) | 12 |
 | [memory.md](memory.md) | Store, scoping, rerank/MMR, the ranked `select` and its recall trail, and the judge's default now that bounding its request made it twenty times cheaper at the same ranking and a 41-note corpus across six categories found it worse nowhere and better on two, plus the two the ranked-recall close opened and neither this cell nor the area header picked up until 2026-08-06, a cross-encoder rank and an audit of the candidates a rank drops, and, since the judge learned to decline on 2026-08-07, the gap that close named rather than the one it shut: the shipped geometric policies still hand a turn their nearest misses on a question memory cannot answer (ADR-0008/0038) | 10 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status, whose disable-thinking and token-cap halves now reach every pass that discards its own deliberation, leaving the user-facing reply as the whole of that entry and the count unmoved for a narrowing (ADR-0007/0020/0038) | 7 |
-| [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018) | 3 |
+| [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018), and, since the delegated tool step was declined 2026-08-07, nothing left on the outcome path but the record of why a delegated activity is never settled (ADR-0029) | 2 |
 | [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), the reserved scrollbar rail's assumed width and spent card inset, the rounded roll target the whisper's bubble publishes while its own height carries a decimal, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), a modified chord still reaching the overlay from inside a row's rename editor, a list that shrinks saying nothing where a chat arriving speaks, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit and the switcher's, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, the chat floor's frozen measurement of the empty state, the console tab strip's missing keyboard half, the switcher's disputed listbox role, the two motions its list still made in one frame, and a Thoughts trace opening a reply off the bottom of a full history all landed 2026-08-03, the last of them opening the chrome-side entry that landed 2026-08-04 on the same ride, alongside the cycle keys' silent swap, which opened the focus entry that landed 2026-08-06 as the caret following the conversation into the composer and opened two entries behind it, both landed the same day: the draft named below, and the row gestures that swap nothing, answered by the caret staying in the list and opening the chord and the silent-shrink entries above; the composer's move on a clamped shrink closed 2026-08-06 as moot, its mechanism having been deleted the day it was filed, and the retarget-and-resize pair landed 2026-08-06 as the panel measuring itself in fractional pixels, opening the roll entry that took its place, which landed hours later the same day as the section measuring itself the way the panel does, both published numbers reproducing first and the step at every roll boundary reading 0.000px after, and which opened the whisper-bubble target named above; the composer's draft belonging to no chat landed 2026-08-06 too, the same day it was opened and the same day the user answered it, as unsent text keyed by session id in the reducer, which was the last entry anywhere waiting on a decision rather than on work) | 12 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam, the generated title's empty-reply half closed 2026-08-06 by bounding its request (ADR-0021/0038) | 2 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 5 |
@@ -1400,6 +1400,42 @@ refusal belongs to the judge alone until a relevance floor gives geometry one, a
 threshold that survives changing the embedding model ([memory.md](memory.md),
 [ADR-0038](../adr/ADR-0038-ranked-recall.md)).
 
+Subagents went **3 to 2 on 2026-08-07** when the delegated tool step announced and never settled
+closed as **declined on merits**, and the decline is worth reading for what it repaired rather than
+for what it refused. The entry's account of the code held where it mattered: a real delegating
+`converse` stream, driven over a real `SpawnSubagentsTool`, a real `SubagentRunner` and a real
+subagent dispatcher with the delegate calling one tool that succeeds and one that fails, carried
+three `tool_activity` events and one `tool_outcome`, so both delegated steps were announced and
+neither was settled and the failing one looked exactly like the other. Three of its claims did not
+hold. The cost is **two** lines, not three, because `SeamProgressSink` is built with
+`to_wire=to_server_event` and that mapper already carries the `ToolOutcome` arm the turn's own
+events use, so the sink needs nothing. The consumer question is harder than the entry framed it and
+lands on the `GetVolume` side of the line rather than the merely-unbuilt side: the one reader of a
+`ToolOutcome` anywhere is the overlay reducer's arm, which changes nothing unless the name is
+`capture_screen` and `ok` is true, and that tool is a built-in `build_builtin_tools` gives to
+`build_cortex_tools` alone while a subagent's dispatcher is `build_subagent_tools` over the MCP
+registry, so a delegated outcome could never carry the one name the one reader reads. And the fix
+could not deliver the invariant it was filed to protect, which is the finding the entry could not
+have reached from its own text: `emit` returns without queuing on a saturated buffer while the
+turn's own events block on `acquire`, so a delegated activity can arrive with its outcome dropped,
+and two lines cannot make 1:1 true across a lossy channel. On the hard question the entry named
+last, a subagent's failures are already the spawning model's business by the route that can act on
+them, the runner degrading a failed delegate to an `ok=False` result fed back as
+`[subagent i] FAILED: ...`, and there is no consent to surface because nothing in the
+gated-stripped subset a subagent holds is outbound or irreversible.
+**What was actually broken was the contract, and on the side that cannot notice.** `proto/body.proto`
+said the brain emits one outcome per activity "it emitted on the turn's own stream", and the
+delegated activity is emitted on exactly that stream; `body/crates/core/src/transport/turn.rs`
+repeated it and `docs/modules/body-core.md` shortened it to "one per activity", while
+`docs/modules/brain-orchestrator.md` had it right from the day it landed. A delegated activity is a
+byte-identical `ToolActivity`, so nothing downstream can tell the paired kind from the unpaired one,
+and a body-side surface built on that guarantee would have been built on nothing. All three now say
+the pairing covers the dispatches the turn itself made, and
+`test_a_delegated_step_reaches_the_wire_announced_and_unsettled` reddens under the very `elif` the
+entry proposed, which is the point of pinning it: the reversal is cheap enough to land as a tidy-up
+and would make three published contracts wrong in one commit
+([subagents.md](subagents.md), [ADR-0029](../adr/ADR-0029-vision-screen-capture.md)).
+
 ## Recommended order
 
 Ordered by what unblocks the most value soonest. Before starting any item, verify its claims
@@ -1481,14 +1517,13 @@ against the code (the warning above); the entry text tells you which seams it ex
   same day, its finding being that the shipped placeholders and not the card are why nothing was
   ever GPU-placed.
 - **A delegated tool step is announced and never settled** ([subagents.md](subagents.md)), opened
-  2026-08-06 by the capture indicator's outcome landing. The turn's own dispatches are paired now,
-  one `ToolOutcome` per `ToolActivity` on every path out of the dispatch; a subagent's step is not,
-  because it reaches the overlay through the progress sink and its outcome is dropped there. That
-  is deliberate (the outcome exists for a consent surface over a cortex-only built-in, and a seam
-  field joins with a consumer or not at all), and it is written down because the day any surface
-  renders how a delegated step ended, the pairing becomes a claim one of the two paths does not
-  keep. Three lines of code plus the question that is actually hard, which is whether a subagent's
-  failures are the user's business at all.
+  2026-08-06 by the capture indicator's outcome landing and **closed 2026-08-07 as declined on
+  merits**, its reopening trigger recorded on the dead-until-a-consumer list below. The gap was
+  real and reproduced on the first run (three `tool_activity` events against one `tool_outcome` on
+  a real delegating stream), and the entry was wrong about the cost, about the consumer test, and
+  about what the fix would buy. What the pass actually repaired is the contract: the proto, the
+  body's `TurnEvent` and `docs/modules/body-core.md` all stated the pairing as a property of the
+  stream, which the delegated activity riding that same stream makes false.
 - **The spontaneous-pick nudge's live uptake** ([subagents.md](subagents.md)), whose fix stays
   fix-when-it-bites but whose *observation* is runnable here: a resident cortex at 4K with the
   CPU roster up, given a prose-only ask carrying independent subtasks, either reaches for distinct
@@ -2351,6 +2386,29 @@ day, having been run and measured against the real cortex in Docker
   call on the record path for no safety gain. Reopens only inside a general memory-compaction
   feature (ADR-0008/0014), and even there the summary stays tainted and its input is fenced to the
   summarizer, not the safety win the entry imagined ([untrusted-content.md](untrusted-content.md))
+- **A delegated tool step announced and never settled**: declined 2026-08-07 on three findings, the
+  sibling of the `ToolActivity` `phase` field two lines below and the same design space. The gap is
+  real and was reproduced before anything was decided (a real delegating `converse` stream carried
+  three `tool_activity` events and one `tool_outcome`, the delegate's failing step announced exactly
+  like its succeeding one). **Nothing could read a delegated outcome**, which is the `GetVolume`
+  decline's sharper test rather than the usual want of a reader: the only consumer anywhere is the
+  overlay reducer's `toolOutcome` arm, which returns the state untouched unless the name is
+  `capture_screen` and `ok` is true, and that tool is a built-in `build_builtin_tools` feeds to
+  `build_cortex_tools` alone while a subagent's dispatcher comes from `build_subagent_tools` over
+  the MCP registry. **There is no consent to surface**, since a subagent is handed the
+  gated-stripped subset and nothing it can call is outbound or irreversible, while its failures
+  already reach the cortex as an `ok=False` result fed back as `[subagent i] FAILED: ...`. **And
+  the fix could not deliver the pairing**: `SeamProgressSink.emit` drops on a saturated buffer where
+  the turn's own events block for a credit, so an outcome could be lost while its activity got
+  through. The entry's cost was wrong too, two lines rather than three (the sink's
+  `to_wire=to_server_event` already maps a `ToolOutcome`). What the pass repaired instead is the
+  contract, on the body's side, where a delegated activity is byte-identical to the turn's own:
+  the proto, `body/crates/core/src/transport/turn.rs` and `docs/modules/body-core.md` all stated
+  the pairing as a property of the stream and now state it of the turn's own dispatches, with
+  `test_a_delegated_step_reaches_the_wire_announced_and_unsettled` pinning the asymmetry. Reopens
+  on a surface that renders how a step ended for its own sake (a settled or failed state on the
+  activity chip, a delegated-work panel listing a batch's steps), which reopens the lossy channel
+  with it ([subagents.md](subagents.md), [ADR-0029](../adr/ADR-0029-vision-screen-capture.md))
 - The per-role escape hatch: unimplemented by design, no role justifies it
   ([subagents.md](subagents.md))
 - Per-task caller-supplied subagent schema: revisited only for a structured

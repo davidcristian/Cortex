@@ -28,6 +28,16 @@ from cortex_core.events import StatusUpdate, ToolActivity
 # The two ephemeral event kinds a sink carries: an audited tool step surfaced as activity, and a
 # brain-authored progress line as status. Never a ``TextDelta`` (progress is not reply text) nor a
 # ``TurnCompleted`` (a turn ends through its own generator, not this side channel).
+#
+# And deliberately never a ``ToolOutcome`` (ADR-0029 delegated-pairing addendum), which is why a
+# delegated step is announced here and never settled. Three reasons, none of them cost: the one
+# consumer of an outcome reads a single tool name (``capture_screen``) and that tool is a built-in
+# the subagent dispatcher is never handed, so every forwarded outcome would be discarded by
+# construction rather than by accident; a subagent's tools are the ungated subset, so no delegated
+# step carries a consent decision for a surface to report; and ``emit`` below drops on a saturated
+# buffer while the turn's own events block for a credit, so a pairing promised across this channel
+# would still not be one. The widening is two lines and waits for a surface that renders how a
+# delegated step ended.
 type ProgressEvent = ToolActivity | StatusUpdate
 
 

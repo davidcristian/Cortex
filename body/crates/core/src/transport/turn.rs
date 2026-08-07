@@ -41,9 +41,17 @@ pub enum TurnEvent {
     },
     /// How an announced dispatch ENDED, arriving after it resolves (proto `ToolOutcome`,
     /// ADR-0029 outcome addendum). The settling half of [`TurnEvent::ToolActivity`]: the
-    /// brain emits exactly one per activity it emitted on the turn's own stream, on every
-    /// path out of the dispatch, so a surface lit by an activity has something honest to
+    /// brain emits exactly one per activity the turn itself dispatched, on every
+    /// path out of that dispatch, so a surface lit by such an activity has something honest to
     /// settle it with. Non-terminal.
+    ///
+    /// **The pairing is not a property of this stream**, and nothing on this side may count it
+    /// as one (ADR-0029 delegated-pairing addendum). A delegating turn also surfaces its
+    /// subagents' tool steps as [`TurnEvent::ToolActivity`], through a best-effort side channel
+    /// that carries no outcome and drops an event on a full buffer, and they are
+    /// indistinguishable here from the turn's own. So an activity that is never settled is
+    /// ordinary, and a consumer must be written to leave such a surface where the activity put
+    /// it rather than to wait for an ending that may never come.
     ///
     /// It exists for the overlay's screen-capture indicator, which is one of the consent
     /// surfaces that let capture ship without an approval card. **It may only ever strengthen

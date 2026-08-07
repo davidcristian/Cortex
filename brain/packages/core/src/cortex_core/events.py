@@ -45,8 +45,13 @@ class ToolActivity:
 class ToolOutcome:
     """How an announced dispatch ended (proto ``ToolOutcome``), emitted after it resolves
     (ADR-0029 outcome addendum). The settling half of ``ToolActivity``: exactly one rides the
-    turn's stream per activity the turn emitted, on every path out of the dispatch, so a
-    surface lit by the activity has something honest to settle it with.
+    turn's stream per activity the turn itself dispatched, on every path out of that dispatch,
+    so a surface lit by such an activity has something honest to settle it with.
+
+    The pairing covers the turn's own dispatches and not the stream (ADR-0029 delegated-pairing
+    addendum). A delegating turn also puts a ``ToolActivity`` on the same stream for each of its
+    subagents' tool steps, through the ``ProgressSink`` side channel, and those carry no
+    outcome, so an unsettled activity is ordinary on the wire.
 
     ``tool_name`` is the same registry-authored name the activity carried. ``ok`` is the audit
     trail's own verdict, so the consent surface and the audit log agree by construction. It may
