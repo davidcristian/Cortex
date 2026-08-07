@@ -152,6 +152,18 @@ async def test_a_delegating_turn_surfaces_subagent_progress_on_the_wire() -> Non
     assert any(e.WhichOneof("event") == "turn_complete" for e in events)
 
 
+async def test_a_delegated_step_reaches_the_wire_announced_and_unsettled() -> None:
+    """The outcome pairing covers the turn's own dispatches and not this stream (ADR-0029)."""
+    events = await _collect(converse(_delegating_factory(), _events_from(_user_turn("delegate"))))
+    activities = [
+        e.tool_activity.tool_name for e in events if e.WhichOneof("event") == "tool_activity"
+    ]
+    outcomes = [e.tool_outcome.tool_name for e in events if e.WhichOneof("event") == "tool_outcome"]
+    # The turn's own dispatch is the spawn, and it is settled exactly once.
+    assert activities == ["spawn_subagents", "read"]
+    assert outcomes == ["spawn_subagents"]
+
+
 class _AccountThenReply:
     """Cortex backend for the fold test: an account first, then the answer.
 

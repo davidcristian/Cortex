@@ -7,13 +7,14 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 are the historical record of what each deferral became, and the index at
 [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** 3. The per-role escape hatch (on the dead-until-a-consumer list), the
+**Open items:** 2. The per-role escape hatch (on the dead-until-a-consumer list) and the
 spontaneous-pick nudge's live uptake (fix when it bites, recorded at the end, and **observed live
 on 2026-08-04** without closing: the run found the probe's own premise false, so the entry stays
-open with a sharper trigger), and a delegated tool step announced and never settled. **The third
-was added to this line 2026-08-06**, later than the entry itself, which was written at the end of
-this doc the same day the capture dispatch's outcome landed; the index cell counted 3 from the
-start, so the header was the wrong side and the correction belongs here rather than there.
+open with a sharper trigger). **Count corrected 2026-08-06 from 2 to 3** when a delegated tool step
+announced and never settled was found written up at the end of this doc and counted on the index
+but never named here, and **back to 2 on 2026-08-07** when that entry closed as declined on merits.
+The header was the wrong side both times, and both corrections belong here rather than on the
+index, whose cell counted the entry from the day it opened.
 Subagent progress
 reporting **landed 2026-07-16** as one side channel with the tool-step chip surfacing entry from
 [email-confirmer.md](email-confirmer.md) (annotated in place below). The spawn-spec tuning for
@@ -170,3 +171,45 @@ deferral is the same way an open item gets lost as a count moved for a half-clos
   the progress path does not keep. The work is three lines (widen `ProgressEvent`, one arm in
   `subagent_attempt.py`, one in the sink) plus deciding whether a subagent's failures are the
   user's business at all, which is the real question and is not a small one.
+  **Declined on merits 2026-08-07**, and the pass that declined it found the claim the entry was
+  filed to protect already stated as a falsehood on the wire
+  ([ADR-0029 delegated-pairing addendum](../adr/ADR-0029-vision-screen-capture.md)). The gap itself
+  reproduced exactly: driving the real `converse` over a real `SpawnSubagentsTool`, a real
+  `SubagentRunner` and a real subagent dispatcher, with the delegate calling one tool that
+  succeeded and one that failed, the wire carried three `tool_activity` events and one
+  `tool_outcome`, the failing delegated step announced exactly like the succeeding one.
+  Three things the entry had wrong or did not have. The cost is **two** lines rather than three:
+  the sink needs no change at all, because `SeamProgressSink` is built with
+  `to_wire=to_server_event` and that mapper already carries a `ToolOutcome` arm for the turn's own
+  events, so only the `ProgressEvent` alias and one `elif` in `subagent_attempt.py` are in the way.
+  The consumer test is harder than "no surface renders it yet": the only reader of a `ToolOutcome`
+  anywhere is the overlay reducer's arm, which returns the state untouched unless the name is
+  `capture_screen` and `ok` is true, and `capture_screen` is a built-in that `build_builtin_tools`
+  feeds to `build_cortex_tools` alone, while a subagent's dispatcher comes from
+  `build_subagent_tools` over the MCP registry, so a delegated outcome could never carry the one
+  name the one reader reads. That is the `GetVolume` decline's sharper form, where nothing *could*
+  read it. And the reversal could not deliver the pairing anyway: `SeamProgressSink.emit` returns
+  without queuing when `self._credits.locked()`, while the turn's own events block on
+  `await self._credits.acquire()`, so a delegated outcome can be dropped while its activity got
+  through. Two lines cannot make 1:1 true across a lossy channel.
+  On the real question the entry named, a subagent's failures already reach the party who can act
+  on them: the runner degrades a failed subagent to an `ok=False` `SubagentResult` whose detail
+  `spawn.py` feeds back into the cortex's context as `[subagent i] FAILED: ...`, and the user reads
+  the answer shaped by it. There is no consent to surface either, since a subagent is handed the
+  gated-stripped subset and nothing it can call is outbound or irreversible.
+  **What was actually broken was the contract**, and on the body's side, which is the side that
+  cannot notice, a delegated activity being a byte-identical `ToolActivity`. `proto/body.proto`
+  said the brain emits one outcome per activity "it emitted on the turn's own stream", and a
+  delegated activity is emitted on exactly that stream;
+  `body/crates/core/src/transport/turn.rs` repeated the sentence, and `docs/modules/body-core.md`
+  shortened it to "one per activity", while `docs/modules/brain-orchestrator.md` had it right all
+  along. All three now say the pairing covers the dispatches the turn itself made and name the
+  unsettled delegated activity as the ordinary case. The asymmetry is pinned by
+  `test_a_delegated_step_reaches_the_wire_announced_and_unsettled`, which reddens under the very
+  `elif` the entry proposed, because the reversal is cheap enough to land as a tidy-up and would
+  make three published contracts wrong in one commit.
+  It reopens on a surface that renders how a step ended for its own sake rather than as a capture
+  claim (a settled or failed state on the activity chip, a delegated-work panel listing a batch's
+  steps), and the lossy channel reopens with it: a surface that must show an ending cannot be fed
+  by one that drops endings, so the honest version is a credit-blocking emit for outcomes alone or
+  a surface that leaves its claim where the announcement put it.

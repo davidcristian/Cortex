@@ -39,9 +39,14 @@ classification behind the overlay's connection indicator (ADR-0011 addendum), an
 - `TurnEvent` is the typed core mirror of the proto `ServerEvent`, streamed by `converse`
   (`Clone`, `Eq`, `Debug`): `Delta(String)` (assistant text) | `ToolActivity { tool_name,
   summary }` | `ToolOutcome { tool_name, ok }` (how an announced dispatch ended, ADR-0029
-  outcome addendum; **non-terminal**, one per activity, and it may only strengthen what a
+  outcome addendum; **non-terminal**, one per activity **the turn itself dispatched**, and it may
+  only strengthen what a
   surface claims, so `ok: false` means the brain cannot say the tool reached anything rather
-  than that nothing happened) | `Status { state, detail }` | `ConfirmRequest { confirm_id, tool_name,
+  than that nothing happened; the pairing is not a property of the stream and this side must not
+  read it as one, since a delegating turn surfaces its subagents' tool steps as `ToolActivity`
+  through a best-effort side channel that carries no outcome and drops on a full buffer, and they
+  arrive here indistinguishable from the turn's own, so an activity nothing settles is ordinary,
+  ADR-0029 delegated-pairing addendum) | `Status { state, detail }` | `ConfirmRequest { confirm_id, tool_name,
   arguments_json, reason }` (a gated tool call awaits the user's approval, ADR-0022;
   **non-terminal**, answered via the `decisions` stream) | `ConfirmResolved { confirm_id,
   outcome }` (the brain stopped waiting on one, so a surface showing it can close it;

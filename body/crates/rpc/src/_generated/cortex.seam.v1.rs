@@ -78,11 +78,20 @@ pub struct ToolActivity {
 }
 /// How one announced dispatch ENDED, emitted after it resolves (ADR-0029 outcome addendum).
 /// ToolActivity says a tool is about to run and ToolOutcome says how it went, so the pair is
-/// one dispatch seen twice: the brain emits exactly one outcome per activity it emitted on the
-/// turn's own stream, on every path out of the dispatch including the gate denials and the
-/// tool's own failures. It exists for the overlay's screen-capture indicator, which is one of
+/// one dispatch seen twice: the brain emits exactly one outcome per activity THE TURN ITSELF
+/// DISPATCHED, on every path out of that dispatch including the gate denials and the tool's own
+/// failures. It exists for the overlay's screen-capture indicator, which is one of
 /// the consent surfaces that let capture ship without an approval card, and which could
 /// otherwise only say the assistant ASKED to look at the screen.
+///
+/// The pairing is a property of the turn's own dispatches and NOT of this stream, and a reader
+/// must not count it as one (ADR-0029 delegated-pairing addendum). A turn that delegates also
+/// surfaces its subagents' tool steps here, as ToolActivity through the progress side channel
+/// (ADR-0010 progress addendum), and those arrive unsettled: the one surface an outcome feeds is
+/// over a built-in no subagent can be handed, and the side channel is best effort and drops an
+/// event on a full buffer, so pairing across it could not be promised anyway. An activity with
+/// no outcome behind it is therefore ordinary, and the proto3 default below is what makes it
+/// safe: a surface that never hears how a step ended keeps the weaker claim it already made.
 ///
 /// `ok` is the audit trail's own verdict (`ToolInvocation.ok`, the negation of the result's
 /// is_error), so the consent surface and the audit log cannot disagree about the same dispatch.

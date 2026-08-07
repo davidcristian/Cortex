@@ -534,7 +534,10 @@ The service:
   suspended inside the spawn dispatch (its generator cannot yield), best-effort and
   credit-balanced so a stalled consumer drops them. A delegated step carries **no** outcome: the
   pairing above is about the turn's own dispatches, and the surface the outcome feeds is over a
-  cortex-only built-in a subagent cannot call.
+  cortex-only built-in a subagent cannot call. Declined rather than merely unbuilt, and the wire's
+  own contract now says so (ADR-0029 delegated-pairing addendum);
+  `test_a_delegated_step_reaches_the_wire_announced_and_unsettled` pins the asymmetry, since the
+  body cannot tell a delegated activity from the turn's own.
   `UserTurn.images` are **still ignored**: vision arrived as a model-initiated capture
   (ADR-0029), and the user-attached image path is a recorded deferral
   (`docs/refinements/vision.md`) rather than a promise about a coming slice.
