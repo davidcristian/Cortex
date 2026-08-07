@@ -3,6 +3,7 @@ import { type RefObject, useRef, useState } from "react";
 import type { SessionSummary } from "../bridge/types";
 import { NO_OTHER_CHATS } from "../overlay/notice";
 import { caretKey, heir, useRowCaret } from "../overlay/rowCaret";
+import { useSectionCaret } from "../overlay/sectionCaret";
 import { usePresence } from "../overlay/usePresence";
 import { useTravel } from "../overlay/useTravel";
 import { withdrawn } from "../overlay/withdrawn";
@@ -12,10 +13,18 @@ import { type RowShape, SessionRow } from "./SessionRow";
 interface SessionListProps {
   readonly sessions: readonly SessionSummary[];
   readonly currentId: string;
+  /** Whether the switcher is open. The list is mounted for the length of its closing roll, so it
+   *  hears the close with its own rows still on the page, and a close the reader made under the
+   *  caret hands the caret to the anchor below (`overlay/sectionCaret.ts`). */
+  readonly open: boolean;
+  /** `OverlayState.arrival`, for the same rule: most of the ways this list closes are chat swaps,
+   *  and a caret that a conversation is arriving for belongs to the composer (`Composer`). */
+  readonly arrival: number;
   /** Where the caret goes when this list has no row left to hand it to, which is the chat the
    *  reader just deleted their last other one from: the header control that opened the list. It
    *  is still on screen, it is what closes the list again, and it is the one control whose whole
-   *  job is this list (`overlay/rowCaret.ts`). */
+   *  job is this list (`overlay/rowCaret.ts`). The same control answers for the list CLOSING, so
+   *  the two things this list cannot keep the caret through land in one place. */
   readonly anchor: RefObject<HTMLElement | null>;
   readonly onSelect: (sessionId: string) => void;
   /** Rename a chat (ADR-0021 management addendum): submit a new label, or an empty one to
@@ -38,6 +47,8 @@ interface SessionListProps {
 export function SessionList({
   sessions,
   currentId,
+  open,
+  arrival,
   anchor,
   onSelect,
   onRename,
@@ -71,6 +82,13 @@ export function SessionList({
   // anything is focused inside it; neither cares, focus moving nothing and `preventScroll` keeping
   // it that way, and the order is the one that stays right if either ever does.
   const caret = useRowCaret(card, anchor);
+  // AND THE LIST CLOSING IS THE THIRD WAY THE CARET CAN BE LEFT NOWHERE. The rule above answers the
+  // list reshaping under the reader; this one answers it going away under them, which `Ctrl+K` does
+  // from anywhere and the header's chats button does from the header (`overlay/sectionCaret.ts`
+  // carries the rule, the guard and the measurements). Same anchor as the emptied list above, and
+  // the same list element to ask about, so the caret is only ever moved for a reader who was
+  // standing in here.
+  useSectionCaret(card, anchor, open, arrival);
 
   const startRename = (session: SessionSummary): void => {
     setRenamingId(session.sessionId);

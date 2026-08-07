@@ -3,6 +3,7 @@ import { type RefObject, useEffect, useRef } from "react";
 import type { MarkStyle } from "../mark/marks";
 import { chatFloorRef } from "../overlay/measured";
 import { type ConsoleTab, type OverlayState, draftOf, isTurnActive } from "../overlay/overlayState";
+import { handOff } from "../overlay/sectionCaret";
 import { useLogScroll } from "../overlay/useLogScroll";
 import { BubbleMark } from "./BubbleMark";
 import { CaptureDot } from "./CaptureDot";
@@ -87,6 +88,11 @@ export function ChatView({
   // control that opened it and would close it again. Ack the last reminder and the stack goes with
   // it, delivery being over, and what is left is the conversation underneath, whose caret has one
   // home: the field a summon already lands in.
+  //
+  // The chats button answers twice over, for the list emptying and for the list CLOSING
+  // (`overlay/sectionCaret.ts`), which is the same reader left in the same place by two different
+  // things happening to the same list. The field answers twice as well: for the stack's last ack,
+  // and for an example chip below, whose press takes the whole empty state away.
   const chatsButton = useRef<HTMLButtonElement>(null);
   const field = useRef<HTMLTextAreaElement>(null!);
 
@@ -139,6 +145,11 @@ export function ChatView({
         <SessionList
           sessions={state.sessions}
           currentId={state.sessionId}
+          // The list answers for its own closing as well as for its own rows, and both answers are
+          // the anchor below (`overlay/sectionCaret.ts`); `arrival` is how it stands down for the
+          // closings that are really chat swaps.
+          open={state.switcherOpen}
+          arrival={state.arrival}
           anchor={chatsButton}
           // Silent: the row IS the chat's name, so announcing would read the label back.
           onSelect={(sessionId) => onSelectSession(sessionId, false)}
@@ -199,12 +210,22 @@ export function ChatView({
                 <BubbleMark style={mark} size={54} idPrefix="empty" animated={!reduced} />
               </button>
               <p className="empty-line">Ask me anything</p>
+              {/* A chip is a control its own press unmounts, the empty state going with the first
+                  message, and it is the one such control that is not in a list with an heir to
+                  hand the caret to: measured at 900x900, pressing one left `document.activeElement`
+                  on `<body>` at 39ms, taking the reminder stack above it away in the same commit.
+                  It hands the caret to the field, which is where the answer to the prompt it just
+                  sent gets written and where the composer's own send leaves it
+                  (`overlay/sectionCaret.ts`). */}
               <div className="empty-chips">
                 {EXAMPLE_PROMPTS.map((prompt) => (
                   <button
                     key={prompt}
                     className="echip"
-                    onClick={() => onSubmit(prompt)}
+                    onClick={() => {
+                      onSubmit(prompt);
+                      handOff(field);
+                    }}
                     type="button"
                   >
                     {prompt}

@@ -154,6 +154,70 @@ describe("App", () => {
     expect(document.activeElement).not.toBe(screen.getByLabelText("Message"));
   });
 
+  it("hands the caret to the chats button when the reader closes the list from inside it", async () => {
+    // The third landing, and the whole path to it: nothing arrives and no row moves, the section
+    // the caret is standing in simply goes. Measured at 900x900 before the rule, the caret rode the
+    // 300ms roll on the pencil and read `<body>` at 353ms, one Tab from the top of the document.
+    const bridge = new FakeBridge();
+    bridge.sessions = [
+      { sessionId: "s1", title: "About cats", preview: "p1", lastActivityUnixMs: 2, pinned: false },
+      { sessionId: "s2", title: "About swaps", preview: "p2", lastActivityUnixMs: 1, pinned: false },
+    ];
+    await renderApp(bridge);
+    activate();
+    await act(async () => {});
+    fireEvent.click(screen.getByLabelText("Recent chats"));
+    const pencil = screen.getByLabelText("Rename About swaps");
+    pencil.focus();
+    fireEvent.keyDown(window, { key: "k", ctrlKey: true });
+    await act(async () => {});
+    expect(pencil).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(screen.getByLabelText("Recent chats"));
+    // And the caret came back out of the list, not into the conversation: the composer is the
+    // arrival rule's landing and nothing arrived here.
+    expect(document.activeElement).not.toBe(screen.getByLabelText("Message"));
+  });
+
+  it("hands the caret to the field when an example prompt takes the empty state away", async () => {
+    // The same rule reached from the other side: a chip is a control its own press unmounts, and it
+    // is in no list, so there is no heir and nothing to look inside afterwards. Measured at 900x900
+    // before it, the caret read `<body>` at 39ms, the reminder stack leaving in the same commit.
+    const bridge = new FakeBridge();
+    await renderApp(bridge);
+    activate();
+    await act(async () => {});
+    const chip = screen.getByText("Summarize my unread email");
+    chip.focus();
+    expect(document.activeElement).toBe(chip);
+    fireEvent.click(chip);
+    await act(async () => {});
+    expect(bridge.calls).toEqual([{ sessionId: "s1", text: "Summarize my unread email" }]);
+    expect(chip).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(screen.getByLabelText("Message"));
+  });
+
+  it("closes the list under a half-typed sentence without touching the caret in it", async () => {
+    // The other half of that rule. Ctrl+K is a global key, so it is pressed as often from the
+    // composer as from the list, and a reader who is writing must not be pulled out of the sentence
+    // to be told that a list they were not standing in has gone.
+    const bridge = new FakeBridge();
+    bridge.sessions = [
+      { sessionId: "s1", title: "About cats", preview: "p1", lastActivityUnixMs: 2, pinned: false },
+    ];
+    await renderApp(bridge);
+    activate();
+    await act(async () => {});
+    fireEvent.click(screen.getByLabelText("Recent chats"));
+    const field = screen.getByLabelText("Message") as HTMLTextAreaElement;
+    fireEvent.change(field, { target: { value: "half a question" } });
+    field.focus();
+    field.setSelectionRange(4, 4);
+    fireEvent.keyDown(window, { key: "k", ctrlKey: true });
+    await act(async () => {});
+    expect(document.activeElement).toBe(field);
+    expect([field.selectionStart, field.selectionEnd]).toEqual([4, 4]);
+  });
+
   it("keeps each chat's half-typed question with the chat it was typed into", async () => {
     // The whole path, end to end: the field, the controller, the reducer and a real swap through
     // the bridge. Before this, the composer held one text for the overlay and every door carried

@@ -3825,3 +3825,185 @@ the bubble one for one until the history has given up its slack: the trace shows
 its job and is not a defect, but it does mean the ride-along's prediction of the panel's height is
 approximate for reasons far larger than a rounding whenever the floor is still giving. Nothing reads
 that prediction on the ordinary path, which is why it costs nothing today.
+
+## Addendum, 2026-08-07: a section the reader closes hands the caret to its anchor
+
+Three rules now say where the caret is after the panel changes under it. A conversation arriving
+takes it to the composer. A list that reshapes under the hand keeps it among its own rows. A field
+holds a chord it would lose text to. None of them reaches a section the reader simply CLOSES, which
+is what `Ctrl+K` does to the switcher: no chat arrives, no row moves, the whole section goes and
+takes every control in it, and the caret goes with it to `<body>`.
+
+### What was measured before
+
+Headless Chromium 1228 at 900x900 against the demo bridge, `document.activeElement` read once per
+animation frame for 800ms and reported as runs rather than as samples, so a caret that rides a roll
+and is dropped at its end is legible as such. Twenty three doors, each from a fresh page.
+
+The switcher's own thirteen doors, which is where the entry filed four, several of them measured
+from more than one caret position and so standing on more than one row:
+
+| Door | Caret before | Trace | Landing |
+| --- | --- | --- | --- |
+| `Ctrl+K` | `button[Rename Summarize my unread email]` | pencil 1..337ms | `body` 353ms |
+| `Ctrl+K` | `button.switcher-item` | title 6..304ms | `body` 320ms |
+| `Ctrl+K`, a confirm open | `button[Cancel delete]` | cancel 2..337ms | `body` 354ms |
+| `Ctrl+K` | `textarea[Message]`, draft caret at 4 | field 2..802ms | `textarea[Message]`, caret 4 |
+| `Ctrl+K` | `button[Recent chats]` | button 5..804ms | `button[Recent chats]` |
+| chats button, pointer | `button[Rename …]` | pencil 12..29ms | `button[Recent chats]` 45ms |
+| chats button, Enter | `button[Recent chats]` | button 13..813ms | `button[Recent chats]` |
+| a switcher row | `button.switcher-item` | row 5..22ms | `textarea[Message]` 39ms |
+| `Ctrl+N` | `button[Rename …]` | none | `textarea[Message]` 8ms |
+| the header's pencil | `button[Rename …]` | pencil 2..35ms | `textarea[Message]` 52ms |
+| `Ctrl+↑` | `button[Rename …]` | not frame sampled | `textarea[Message]` |
+| `Ctrl+↓` | `button[Rename …]` | none | `textarea[Message]` 10ms |
+| a reminder's open chat | `button.reminder-open` | control 2..36ms | `textarea[Message]` 52ms |
+| a delete confirm on the open chat | `button[Cancel delete]` | cancel 16..33ms | `textarea[Message]` 50ms |
+| Escape | `button[Rename …]` | pencil 7..22ms | `body` 39ms |
+| the tuck button | `button[Rename …]` | pencil 3..37ms | `body` 71ms |
+| `?` | `button[Rename …]` | none | `button.tab` 26ms |
+| the hint strip's opener | `button[Rename …]` | pencil 1..35ms | `button.tab` 60ms |
+
+And the reminder stack's own, plus the two controls that close it from outside:
+
+| Door | Caret before | Trace | Landing |
+| --- | --- | --- | --- |
+| ack a middle reminder | `button[Dismiss reminder]{ack:demo-r1}` | ack 6..23ms | `{ack:demo-r2}` 40ms |
+| ack the last reminder | `{ack:demo-r3}` | ack 3..37ms | `textarea[Message]` 53ms |
+| an example chip | `button.echip` | chip 5..22ms | `body` 39ms |
+| Escape | `{ack:demo-r1}` | ack 1..17ms | `body` 34ms |
+| `?` | `{ack:demo-r1}` | none | `button.tab` 20ms |
+| a reminder's open chat | `button.reminder-open` | control 2..36ms | `textarea[Message]` 52ms |
+
+Four readings out of that, three of which the entry did not have.
+
+- **The switcher leaves the reader's reach thirteen ways and ten of them already answered**, by
+  three mechanisms rather than by one. Seven are chat swaps and the arrival rule owns them. Two are
+  the console arriving over the chat, where `ConsoleView`'s own layout effect puts the caret on the
+  selected tab, so a section going inert under the caret was answered a layer up before this
+  question was asked. One is the header's chats button, which needs no rule at all: the pointer's
+  press moves the caret onto it before the close is dispatched, and the keyboard can only press a
+  button the caret is already on. Two are the panel being dismissed, where `<body>` is the correct
+  landing because nothing is on screen to hold a caret.
+- **The loss happens at the unmount, not at the gesture.** `Collapse` keeps its child mounted for
+  the closing roll, so the caret sits on a live control for 300ms and then falls to `<body>` when
+  React removes the rows. That is why the rule can read "is the caret inside this section" straight
+  off the DOM in the commit that closes it.
+- **The hazard the entry named is a hazard and not a defect**, which is worth stating because an
+  unguarded rule would have created it: `Ctrl+K` pressed from a composer holding `half a question`
+  with the caret parked at offset 4 leaves both exactly as they were.
+- **The reminder stack has the same gap and it is not the stack's own control.** Its three closings
+  are the last ack (answered by `useRowCaret`'s anchor), a swap (answered by the arrival rule), and
+  the first message landing, which is reached from the composer, where the caret already is, and
+  from an example chip, which is in no list, has no heir, and unmounts the whole empty state under
+  itself.
+
+### The decision
+
+**A section the reader closes hands the caret to its anchor, and only when the caret is inside the
+section.**
+
+The anchor is the control the section already carries for its emptied case, so the two ways a
+section can fail to keep the caret have one answer: the header's chats button for the switcher, the
+composer's field for a section whose work is over. The composer was weighed for the switcher and
+refused. Nothing arrived, the reader is in the conversation they were already in, and a close that
+lands in the text field makes `Ctrl+K` a way into the composer, which is both larger than the
+gesture asked for and the arrival rule's landing rather than this one's. The chats button also says
+what happened: it carries `aria-expanded`, which is now `false`, and pressing it again undoes the
+close.
+
+**The guard is the rule, not a detail of it.** `Ctrl+K` is global, so it is pressed as often from a
+half typed sentence as from inside the list, and it is what makes the header's own button need no
+case: by the time the close is decided the caret is on the anchor, so the rule looks and finds
+nothing to do.
+
+**And it stands down when a conversation arrived in the same commit**, said in code rather than left
+to effect ordering. The composer's focus is a passive effect and this is a layout effect, so the
+composer would win the race anyway; but the caret would touch the chats button on the way, and a
+second focus event is a second thing a screen reader may read whichever of the two the browser
+paints.
+
+### How it is built
+
+`overlay/sectionCaret.ts`, 91 lines. `handOff(anchor)` is the focus itself, with `preventScroll` and
+its reason in one place; `useSectionCaret(section, anchor, open, arrival)` watches a section's own
+state, fires on the true to false edge alone, defers to a changed `arrival`, and asks
+`section.contains(document.activeElement)` before it moves anything. A null section and a caret on
+`<body>` are both "no" through the same optional chain rather than through cases of their own.
+
+Two call sites, and the difference between them is what the section does with its children. The
+switcher is decided **at the transition**: `SessionList` gains `open` and `arrival` and calls the
+hook with the `<ul>` it already holds for `useTravel` and `useRowCaret`, hearing its own close while
+its rows are still mounted. The empty state's chips are decided **at the gesture**: that section is
+unmounted in the very commit that submits, so by layout time the caret is already on `<body>` and
+there is nothing left to look inside; the chip calls `handOff` on the field it is about to leave the
+reader with. The reminder stack is deliberately not wired to the hook, every closing it has being
+answered elsewhere, and a rule with nothing to do is not a rule this repo wants wired.
+
+### What it measures now
+
+Same instrument, same twenty three doors.
+
+| Door | Before | After |
+| --- | --- | --- |
+| `Ctrl+K` from a row's pencil | `body` 353ms | `button[Recent chats]` 6..802ms |
+| `Ctrl+K` from a row's title | `body` 320ms | `button[Recent chats]` 18ms |
+| `Ctrl+K` from a confirm's cancel | `body` 354ms | `button[Recent chats]` 18ms |
+| an example chip | `body` 39ms | `textarea[Message]` 40ms |
+| `Ctrl+K` from the composer | field, caret 4 | field, caret 4 |
+| `Ctrl+K` from the chats button | `button[Recent chats]` | `button[Recent chats]` |
+| the chats button, pointer | `button[Recent chats]` 45ms | `button[Recent chats]` 39ms |
+| the seven swap doors | `textarea[Message]` | `textarea[Message]` |
+| `?` and the hint strip | `button.tab` | `button.tab` |
+| Escape and the tuck button | `body` | `body` |
+| the stack's two acks | heir, then the field | heir, then the field |
+
+The swap doors are worth reading closely, because they are where the deferral is visible: a switcher
+row goes `button.switcher-item` 7..23ms straight to `textarea[Message]` at 40ms, with no frame on
+the chats button in between.
+
+**And the panel does not notice the caret moving under it.** The same close traced at 60Hz twice,
+once with the handoff and once with it neutered, distinguished by reading the landing at the end of
+each run: 49 frames each, the top edge easing 108 to 139 over the roll with a largest single frame
+of 8.02px and back to 108 over the 130ms after it, the height 518 to 487 and back, seventeen
+distinct boxes, and every `panel.scrollTop` and history `scrollTop` 0 throughout. The one 31px step
+in that trace is the frame at 322ms reading the unanimated layout at the handover, the
+`requestAnimationFrame` artefact this ADR already documents, and it is in both runs identically.
+
+### The mutation proof
+
+`overlay/sectionCaret.test.tsx` (six cases) and three cases in `App.test.tsx` that drive the whole
+path: the key, the controller, the reducer, the roll and the caret.
+
+Neutering the handoff reddens the hook's own case and the end to end one, the latter with the defect
+restated as an assertion (`expected <body> to be <button class="hbtn" …>`).
+
+Dropping the arrival guard reddens the stand down case, which is the composition with the arrival
+rule pinned rather than assumed.
+
+Dropping the inside the section guard, so every close moves the caret, reddens both the unit case
+and the half typed sentence.
+
+Removing the chip's `handOff` reddens the chip case alone, which is what keeps the two call sites
+independently pinned.
+
+Nothing else in the suite moves under any of the four.
+
+### What this does not do
+
+**A list the reader OPENS is exactly as it was.** `Ctrl+K` from the composer opens the switcher and
+leaves the caret in the field, six Shift+Tab presses from a row; the header's chats button leaves it
+on the button, three Tab presses of header ahead of the first row. That is the mirror question and
+it is a decision rather than a line, since moving the caret into an opening list would pull a reader
+out of a half typed sentence, would have to choose a row, and would have to answer an empty list.
+Filed in [refinements/body-overlay.md](../refinements/body-overlay.md).
+
+**A dismissed panel still drops the caret on `<body>`**, and that is a decline rather than a
+deferral. Escape and the tuck button take the whole panel out of the tree's reach with `inert`,
+which blurs what it contains; there is nothing on screen to hold a caret, and the next summon puts
+it back in the composer.
+
+**And the close says nothing in the live region.** The landing is a control whose accessible name
+and `aria-expanded` state say what just happened, which is the same argument the caret rule made for
+its own landings, so the region keeps its contract of reporting what happened to the panel's content
+rather than to its sections.
