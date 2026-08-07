@@ -13,7 +13,8 @@ from cortex_core.errors import (
 from cortex_core.health_gate import await_model_ready
 from cortex_core.model import ModelLease
 from cortex_core.model_host import ModelHostState, ResidencyPlan
-from cortex_core.ports import Clock, ModelHost, Sleeper
+from cortex_core.ports import Clock, ModelHost, Sleeper, SubagentPlacer
+from cortex_core.residency_charge import charge_handoff, charge_standing
 from cortex_core.residency_claim import HandoffClaim
 from cortex_core.residency_moves import restore_standing, swap_in
 from cortex_core.residency_restore import restore_uninterruptibly
@@ -45,12 +46,14 @@ class SwappingModelManager:
         plan: ResidencyPlan,
         clock: Clock,
         sleeper: Sleeper,
+        placer: SubagentPlacer | None = None,
     ) -> None:
         self._host = host
         self._endpoints = dict(endpoints)
         self._plan = plan
         self._clock = clock
         self._sleeper = sleeper
+        self._placer = placer
         # The GPU lease, with v1's discipline unchanged: one holder, waiters queue on the lock.
         self._lock = asyncio.Lock()
         # Residency bookkeeping, and the queue of acquires waiting for a scope to end. Separate
@@ -153,6 +156,9 @@ class SwappingModelManager:
         """
         async with self._lock:
             await self._set_resident(None, RESIDENCY_LOADING)
+            # Before the move, not after it: the fit check inside ``swap_in`` reads what the card
+            # has free, and a spawn placed between that reading and the load would spend it.
+            charge_handoff(self._placer, self._plan)
             await swap_in(self._host, self._plan, model, self._gate)
             await self._set_resident(model, RESIDENCY_DEEP)
 
@@ -168,6 +174,10 @@ class SwappingModelManager:
             for attempt in range(1, _RESTORE_ATTEMPTS + 1):
                 if await restore_standing(self._host, self._plan, model, self._gate):
                     await self._set_resident(cortex, RESIDENCY_SERVING)
+                    # Only here, where the cortex is genuinely serving again. A restore that gave
+                    # up leaves the handoff's charge standing, so spawns keep overflowing to the
+                    # CPU rather than being admitted onto a card nobody can describe.
+                    charge_standing(self._placer)
                     return
                 _logger.warning(
                     "restoring the cortex failed; retrying",

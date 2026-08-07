@@ -72,7 +72,13 @@ async def run_from_env(
     # The settings record rides the same Redis the conversation state does: durable for the same
     # reason (append-only + a named volume), so a choice outlives a body reinstall.
     stores = RedisStores.open(runtime.redis_url, store_factory, preference_factory)
-    swap = build_swap_runtime(swap_config, runtime, inference, clock, AsyncioSleeper())
+    placer = VramBudgetPlacer(
+        soft_cap_gb=runtime.vram_soft_cap_gb,
+        cortex_reservation_gb=runtime.cortex_reservation_gb,
+    )
+    swap = build_swap_runtime(
+        swap_config, runtime, inference, clock, AsyncioSleeper(), placer=placer
+    )
     backend, close_backend = build_inference_backend(
         inference, runtime.cortex_model, manager=None if swap is None else swap.manager
     )
@@ -90,10 +96,7 @@ async def run_from_env(
         ),
         runtime.redis_url,
         clock,
-        placer=VramBudgetPlacer(
-            soft_cap_gb=runtime.vram_soft_cap_gb,
-            cortex_reservation_gb=runtime.cortex_reservation_gb,
-        ),
+        placer=placer,
     )
     schedules, close_schedules = build_schedule(schedule_config, runtime.redis_url)
     capture, sight, close_vision = build_vision(inference, body_config, body)

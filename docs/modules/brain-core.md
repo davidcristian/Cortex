@@ -774,7 +774,8 @@ unchanged):
   window.
 - `SubagentPlacer` has `place(request) -> Placement`, `release(placement) -> None` (both sync): the
   VRAM-budget accountant (ADR-0012). `place` fit-tests `request.vram_gb` against the live headroom
-  (`soft_cap − cortex_reservation − placed`), reserving it on GPU or spilling to CPU; `release`
+  (`soft_cap − resident − placed`, the resident being the cortex outside a handoff and the deep
+  model's declared cost inside one), reserving it on GPU or spilling to CPU; `release`
   frees it. The GPU/VRAM contract, separate from `ModelManager`'s lease and `SubagentScheduler`'s
   budget. The three compose at `SubagentRunner`.
 - `SubagentScheduler` (`admit(request) -> AbstractAsyncContextManager[None]`,
@@ -1595,6 +1596,13 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   and nothing is allocated yet. Under a plan with `brain_vram_mib` set, a card short of that
   figure, or a host that can see no card at all, raises `SwapFailedError` there with both figures
   in the message and starts nothing; with the figure at zero the host is never asked.
+  The optional `placer` the manager takes is not asked anything either: it is **told**, at the same
+  two edges, which model holds the card, so its fit-test stops naming a cortex the handoff evicted
+  (`residency_charge.py`, ADR-0030 handoff-window addendum). The handoff charge is written before
+  `swap_in` runs, so it holds while the fit check reads the card and while the weights load; the
+  reversal fires only once the cortex is genuinely serving again, so a restore that gave up keeps
+  spawning on the CPU. With `brain_vram_mib` at zero there is no honest figure and the window is
+  never entered, which is the shipped behaviour.
 - `ScriptedModelHost(*, running=(), status_override=None, fail=None, fail_once=None,
   pause_at=(), device_memory=None)` is the `ModelHost` twin (ADR-0030 decision 3, in `fakes_model_host.py`): a set
   of running models plus exactly the scripting the swap's named failure modes need.
@@ -1659,8 +1667,11 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   conductor's composition tests can stage admission without staging budgets.
 - `VramBudgetPlacer(*, soft_cap_gb, cortex_reservation_gb)` is the `SubagentPlacer` v1 (ADR-0012):
   pure GPU-first policy, no I/O. `place` returns a GPU `Placement` (reserving `vram_gb`) when the ask
-  fits `soft_cap − cortex_reservation − placed`, else a CPU one (reserving nothing); `release` credits
-  it back. Sync and lock-free (single-threaded asyncio atomicity), so the concurrent batch races the
+  fits `soft_cap − resident − placed`, else a CPU one (reserving nothing); `release` credits
+  it back. The resident term is the cortex's reservation outside a handoff and the deep model's
+  declared cost inside one: `charge_handoff(resident_gb=)` and `charge_standing()` are written by
+  the residency scope at the swap's two edges (ADR-0030 handoff-window addendum), leave the placed
+  ledger untouched, and are idempotent. Sync and lock-free (single-threaded asyncio atomicity), so the concurrent batch races the
   ledger correctly. The ledger is live-resource state, rebuilt from zero. It is never durable state.
 - `ResourceBudgetScheduler(cpu_budget, mem_budget_gb)` is `SubagentScheduler` v2 (ADR-0012): pure
   policy over an `asyncio.Condition`. `admit(request)` reserves the request's `cpus`/`memory_gb` while

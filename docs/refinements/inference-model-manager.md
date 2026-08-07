@@ -7,17 +7,19 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 historical record of what each deferral became, and the index at [index.md](index.md) carries the
 recommended pickup order.
 
-**Open items:** 8, counted by reading the entries below rather than by adding to yesterday's
-number. Resume a crashed handoff from its record; fence the single-handoff claim across processes;
+**Open items:** 7, counted by reading the entries below rather than by adjusting the last number.
+Resume a crashed handoff from its record; fence the single-handoff claim across processes;
 reconverge the brain's residency when the sidecar restarts under it; check the sidecar's stop
 bounds against the brain's control deadline; MTP model variants; disable-thinking / token-budget
-capping, **narrowed rather than closed on 2026-08-06**; the placer's budget describing the standing
-residency rather than the handoff window; and, new on **2026-08-07**, noticing a handoff that
-spilled, which is what a fit check cannot see. Two entries closed on 2026-08-07 and this area's
-oldest was one of them: **model-manager co-residency**, which opened two in its place, and hours
-later **the fit its flag asserted**, which closed as a real check and opened one. So the count went
-7 to 8 in the morning and has stayed 8: two out across the two sittings and three in, and every
-arrival is something a landing made reachable rather than something it broke.
+capping, **narrowed rather than closed on 2026-08-06**; and noticing a handoff that spilled, which
+is what a fit check cannot see. Three entries closed on 2026-08-07 and this area's oldest was one
+of them: **model-manager co-residency**, which opened two in its place, then **the fit its flag
+asserted**, which closed as a real check and opened one, and then **the placer's budget describing
+the standing residency rather than the handoff window**, which closed as a placement epoch and
+opened nothing. So the count went 7 to 8 in the morning and back to 7 by the end of the day: three
+out across three sittings and three in, every arrival something a landing made reachable rather
+than something it broke, and the one that closed on the day it opened did so because its own
+trigger turned out to be a setting a deployment can already turn.
 
 On the narrowing of the capping entry, which is the one the count deliberately did not move
 for: the lever shipped on 2026-08-06 as `GenerationBounds` on `InferenceBackend.stream`, and
@@ -157,6 +159,48 @@ fix-when-it-bites bucket, so nobody picks it up expecting to build a lever that 
   executor. **Trigger:** a co-resident deployment whose peer tier is started per spawn rather than
   standing (which would allocate), or a second GPU-placed tier, at which point the ledger stops
   being decorative.
+  **Closed 2026-08-07**, the same day it opened
+  ([ADR-0030](../adr/ADR-0030-brain-handoff.md) handoff-window addendum, with the port half at the
+  [ADR-0012 handoff-window addendum](../adr/ADR-0012-resource-governance.md)), taken rather than
+  left on its trigger because the trigger is a machine setting, not a code change: any deployment
+  that raises `CORTEX_VRAM_SOFT_CAP_GB` far enough to admit a GPU-placed spawn at all reaches it,
+  and the entry's own "fix when it bites" was written when nothing could bite. Two of its claims
+  were checked against the code first and both held: `place` really does fit-test
+  `soft_cap - cortex_reservation - placed`, and the port really did have to change, which this
+  area's index warns is the claim entries get wrong. It landed as the placement epoch this text
+  proposed, in the shape the text proposed it, and the naming is the only departure: the verbs are
+  `charge_handoff(resident_gb=...)` and `charge_standing()` on `SubagentPlacer` (moved to
+  `ports_placement.py` for the line cap and re-exported, so no call site moved), written by the
+  residency scope at the two edges of the swap
+  ([residency_charge.py](../../brain/packages/core/src/cortex_core/residency_charge.py)). What is
+  charged is the deployment's declared `CORTEX_SWAP_BRAIN_VRAM_MIB`, converted once through
+  `ResidencyPlan.brain_vram_gb`, and **not** a fresh reading through the `device_memory()` verb the
+  fit check added, for a reason worth keeping: `place` is synchronous and lock-free by design, so a
+  reading there would put an HTTP call to the sidecar inside every spawn's fit-test and would buy
+  accuracy the swap has already bought, since the fit check compares that same declared figure
+  against the real card at the one instant a reading is evidence. The two therefore compose in one
+  direction: the charge is written **before** `swap_in` runs, so it is in force while the check
+  reads the card and while the weights load, which closes the gap the check cannot see on its own,
+  a spawn admitted into the very room the reading just measured. The reversal waits for the far
+  edge and fires only once the cortex is genuinely serving again, so a restore that gave up loudly
+  keeps charging the deep model and keeps spawning on the CPU rather than admitting GPU work onto a
+  card nobody can describe. **Off unless the deployment declared a figure:** with
+  `brain_vram_mib` at its shipped zero the window is never entered, because charging nothing would
+  be worse than today, crediting the evicted cortex's 11.3 GB back while the deep model holds the
+  card. Measured live rather than argued, through the real sidecar and a real residency change on
+  the 24 GB card: 15061 MiB free of 24463 with the cortex resident, 19553 MiB free inside the
+  window, the charge 18.68 GiB and the headroom 4.32 GiB against the shipped 5.5 GiB ask, so the
+  same spawn lands on the GPU outside the window and on the CPU inside it and on the GPU again
+  after the restore (`test_a_real_swap_charges_the_placer_for_the_model_that_holds_the_card`, which
+  declares the deep tier's measured cost and starts the cheap peer tier in its place, since what a
+  19 GB load would add is minutes rather than evidence). **What this does not do**, stated as
+  narrowly as the fit check states its own limit: it charges a declared number, so a deployment
+  that under-declares is admitted against room it does not have, which is the sibling entry above
+  and the same instrument lesson; and a spawn onto an already-resident tier still allocates nothing
+  (23639 MiB generating against 23642 idle), so refusing it costs decode speed rather than
+  correctness, and the ledger charging per spawn for a standing tier is the older modelling gap
+  this entry never claimed to close. Placement-aware charging stays declined-as-recorded in
+  [resource-governance.md](resource-governance.md), on the same second-GPU-executor trigger.
 - **Resume a crashed handoff from its record, instead of failing it.** Opened 2026-07-17 with the
   brain-handoff conductor sub-slice ([ADR-0030](../adr/ADR-0030-brain-handoff.md) decision 4),
   which names it as the recorded refinement. Boot recovery marks any handoff a crash interrupted

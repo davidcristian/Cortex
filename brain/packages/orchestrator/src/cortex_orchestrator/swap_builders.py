@@ -12,6 +12,7 @@ from cortex_core import (
     ResidencyPlan,
     ScriptedModelHost,
     Sleeper,
+    SubagentPlacer,
     SwappingModelManager,
 )
 from cortex_model_manager import HttpModelHost
@@ -32,13 +33,14 @@ class SwapRuntime:
     close: Callable[[], Awaitable[None]]
 
 
-def build_swap_runtime(
+def build_swap_runtime(  # noqa: PLR0913 -- one more injected collaborator than the DI ceiling
     swap: SwapConfig,
     runtime: BrainRuntimeConfig,
     inference: InferenceConfig,
     clock: Clock,
     sleeper: Sleeper,
     handoff_store_factory: Callable[[str], RedisHandoffStore] = RedisHandoffStore.from_url,
+    placer: SubagentPlacer | None = None,
 ) -> SwapRuntime | None:
     """Everything a handoff needs at process scope, or None when escalation is off."""
     if not swap.escalation:
@@ -49,7 +51,7 @@ def build_swap_runtime(
     handoffs = handoff_store_factory(runtime.redis_url)
     return SwapRuntime(
         host=host,
-        manager=SwappingModelManager(host, endpoints, plan, clock, sleeper),
+        manager=SwappingModelManager(host, endpoints, plan, clock, sleeper, placer),
         handoffs=handoffs,
         plan=plan,
         close=_release_both(handoffs.aclose, close_host),

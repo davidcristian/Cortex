@@ -14,6 +14,8 @@ DEFAULT_SWAP_DRAIN_TIMEOUT_S = 60.0
 # second-scale poll costs nothing and keeps the gate's own latency below the noise floor.
 DEFAULT_HEALTH_POLL_INTERVAL_S = 1.0
 
+_MIB_PER_GB = 1024.0
+
 
 class ModelHostState(Enum):
     """What one logical model's process is doing, as its host reports it (ADR-0030 decision 3)."""
@@ -44,6 +46,11 @@ class ResidencyPlan:
     drain_timeout_s: float = DEFAULT_SWAP_DRAIN_TIMEOUT_S
     load_timeout_s: float = DEFAULT_SWAP_LOAD_TIMEOUT_S
     poll_interval_s: float = DEFAULT_HEALTH_POLL_INTERVAL_S
+
+    @property
+    def brain_vram_gb(self) -> float:
+        """The same declared cost in the unit the subagent placer's budget is written in."""
+        return self.brain_vram_mib / _MIB_PER_GB
 
     def __post_init__(self) -> None:
         if self.brain_vram_mib < 0:
