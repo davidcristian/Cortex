@@ -388,10 +388,14 @@ These are recorded in [refinements/](../refinements/index.md) and stay there, be
 design decision with a code cost and moving it would split it from its area. They are listed here
 only so a sitting on the host's hardware knows what it could also settle:
 
-- **Co-residency** ([inference-model-manager.md](../refinements/inference-model-manager.md)):
+- ~~**Co-residency** ([inference-model-manager.md](../refinements/inference-model-manager.md)):
   keeping CPU subagents serving through a swap, or a tiny GPU subagent beside the deep model. The
   brain-runs-alone rule is a v1 constraint of the 24 GB budget, first testable on a card that fits
-  the tiers it would keep alive.
+  the tiers it would keep alive.~~ **Settled 2026-08-07 by the agent, in Docker against the real
+  tiers**, so it was never host work in the end: `CORTEX_SWAP_CORESIDENT` landed off by default,
+  the cortex and the deep model measured as not co-fitting (and, under WSL2, as silently paging
+  rather than failing), and the deep model and the shipped subagent tier measured as fitting with
+  908 MiB to spare (ADR-0030's co-residency addendum).
 - **The Intel NPU as a third placement target**
   ([resource-governance.md](../refinements/resource-governance.md)): a feasibility pass, whose
   likely blocker is reachability from the dockerized WSL2 brain.

@@ -196,6 +196,9 @@ def test_the_residency_plan_carries_the_tier_ids_and_both_bounds() -> None:
     assert (plan.cortex_model, plan.brain_model) == ("cortex", "brain")
     assert plan.evict_models == ("subagent-gpu",)
     assert (plan.drain_timeout_s, plan.load_timeout_s) == (5.0, 7.0)
+    # Brain-runs-alone unless the deployment says its peers fit beside the deep model.
+    assert plan.coresident is False
+    assert _enabled(coresident=True).residency_plan("cortex").coresident is True
 
 
 def test_nothing_is_built_when_escalation_is_off() -> None:

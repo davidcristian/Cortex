@@ -125,12 +125,18 @@ Model management (Slice 4, ADR-0007; the swap's value half is ADR-0030, in `mode
   one logical model's process is doing, as its host reports it. `start` only *begins* loading,
   so readiness is observed here and nowhere else, which is why every swap health-gates rather
   than trusting a returned `start`.
-- `ResidencyPlan(cortex_model, brain_model, evict_models=(), drain_timeout_s=60.0,
-  load_timeout_s=300.0, poll_interval_s=1.0)` is the frozen composition-root value the manager,
+- `ResidencyPlan(cortex_model, brain_model, evict_models=(), coresident=False,
+  drain_timeout_s=60.0, load_timeout_s=300.0, poll_interval_s=1.0)` is the frozen
+  composition-root value the manager,
   the conductor, and boot recovery all read, so they cannot disagree about the topology: which
   model is the standing resident every exit path converges back to, which one a handoff swaps in,
   which other hosted tiers a swap must stop first (the GPU-placed subagent; while the brain is
-  resident it is alone on the GPU, ADR-0030 decision 8), and the swap's three bounds. A negative
+  resident it is alone on the GPU, ADR-0030 decision 8), and the swap's three bounds.
+  `coresident` is the deployment's opt-in reversal of that one rule and of nothing else
+  (ADR-0030's co-residency addendum, measured): with it set a swap stops the cortex and leaves
+  every `evict_models` tier serving, and the conductor never enters the drain window, so
+  delegation runs through the handoff. Off by default, since it asserts a fit no process can
+  check. A negative
   drain bound, a negative load bound, or a non-positive poll interval raises `ValueError` at
   construction. `DEFAULT_SWAP_DRAIN_TIMEOUT_S` (60 s, long enough for a normal delegated run to
   finish and short enough that a wedged one does not hold the handoff open for minutes),
@@ -643,7 +649,9 @@ unchanged):
   through `ModelHost`, serves `model` for the scope's duration, and **in a `finally`** restores
   the **standing residency**, because the swap back is the recovery path and not an
   optimization. Standing residency is the cortex plus every `plan.evict_models` tier the swap
-  in stopped, so a subagent tier is running again by the time admission reopens. Entering may
+  in stopped, so a subagent tier is running again by the time admission reopens; under a
+  `coresident` plan the swap in stopped none of them, and the restore's starts are the no-ops
+  that would also heal a peer that died on its own. Entering may
   raise `SwapFailedError` (the cortex having already been restored by that same `finally`); a
   restore that fails even after its one retry raises `ResidencyRestoreError` from the exit,
   loudly logged. While a scope is active, `acquire` of any other model **waits** rather than
@@ -897,7 +905,8 @@ Use-case:
   picture with none attached, and the capture may have happened *after* the handoff was approved,
   which is why this refusal is here and not in the tool); then it snapshots the
   slot into a `READY` record, drains the subagent pool (bounded by `plan.drain_timeout_s`;
-  a timeout **aborts before anything is evicted**), enters the residency scope, marks the record
+  a timeout **aborts before anything is evicted**; a `coresident` plan skips the step and its
+  announcement, having stopped no tier the pool feeds), enters the residency scope, marks the record
   `BRAIN_ACTIVE` only once the deep model is actually serving, streams `BrainPhase`, and settles
   the record `DONE` (then deletes it) or `FAILED`. Settling is also what releases the store's
   active pointer, so a settling write the store **refuses** is followed by deleting the record

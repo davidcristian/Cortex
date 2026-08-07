@@ -66,7 +66,7 @@ entries from it never added the two it opened, and there the count did move and 
 | [tools-mcp.md](tools-mcp.md) | Dispatch budget/cost/salience, spawn batch cap, MCP registries (ADR-0009/0010) | 6 |
 | [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028), a quoted injection replayed by the plain history window, obeyed 2 of 10 on a bare turn and 0 of 10 behind either standing rule, the plain one landed for the tool-less turn (ADR-0013/0038) | 12 |
 | [memory.md](memory.md) | Store, scoping, rerank/MMR, the ranked `select` and its recall trail, and the judge's default now that bounding its request made it twenty times cheaper at the same ranking and a 41-note corpus across six categories found it worse nowhere and better on two, plus the two the ranked-recall close opened and neither this cell nor the area header picked up until 2026-08-06, a cross-encoder rank and an audit of the candidates a rank drops, and, since the judge learned to decline on 2026-08-07, the gap that close named rather than the one it shut: the shipped geometric policies still hand a turn their nearest misses on a question memory cannot answer (ADR-0008/0038) | 10 |
-| [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status, whose disable-thinking and token-cap halves now reach every pass that discards its own deliberation, leaving the user-facing reply as the whole of that entry and the count unmoved for a narrowing (ADR-0007/0020/0038) | 7 |
+| [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status, whose disable-thinking and token-cap halves now reach every pass that discards its own deliberation, leaving the user-facing reply as the whole of that entry and the count unmoved for a narrowing (ADR-0007/0020/0038), and, since co-residency closed 2026-08-07 on a card that could finally test it, the two that close opened: a co-resident deployment's fit asserted by a flag and checked by nothing, and the placer's budget still naming a cortex the handoff evicted (ADR-0030) | 8 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018), and, since the delegated tool step was declined 2026-08-07, nothing left on the outcome path but the record of why a delegated activity is never settled (ADR-0029) | 2 |
 | [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), the reserved scrollbar rail's assumed width and spent card inset, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), `Ctrl+K` toggling a section nobody can see, the liquid edge's backdrop blur, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit and the switcher's, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, the chat floor's frozen measurement of the empty state, the console tab strip's missing keyboard half, the switcher's disputed listbox role, the two motions its list still made in one frame, and a Thoughts trace opening a reply off the bottom of a full history all landed 2026-08-03, the last of them opening the chrome-side entry that landed 2026-08-04 on the same ride, alongside the cycle keys' silent swap, which opened the focus entry that landed 2026-08-06 as the caret following the conversation into the composer and opened two entries behind it, both landed the same day: the draft named below, and the row gestures that swap nothing, answered by the caret staying in the list and opening the chord and the silent-shrink entries above; the composer's move on a clamped shrink closed 2026-08-06 as moot, its mechanism having been deleted the day it was filed, and the retarget-and-resize pair landed 2026-08-06 as the panel measuring itself in fractional pixels, opening the roll entry that took its place, which landed hours later the same day as the section measuring itself the way the panel does, both published numbers reproducing first and the step at every roll boundary reading 0.000px after, and which opened the whisper-bubble target named above; the composer's draft belonging to no chat landed 2026-08-06 too, the same day it was opened and the same day the user answered it, as unsent text keyed by session id in the reducer, which was the last entry anywhere waiting on a decision rather than on work; the modified chord landed 2026-08-07 as a rule about the text a field would lose rather than about what a chord is, opening the two entries named above, the closing-list caret and the silence of a held chord, and reading this file's entries against its header that day turned up the liquid edge's blur, open here since 2026-07-21, carried in the running record below the whole time and named by no count either doc has published since; and the silent shrink landed 2026-08-07 as the region reporting a list that shrank as well as a conversation that arrived, one out and none in, its chord sibling read alongside it and deliberately left open, and the part only a real screen reader can settle sent to [host/overlay-screen-reader.md](../host/overlay-screen-reader.md); and the whisper bubble's rounded roll target closed 2026-08-07, measured before it was touched as its own text demanded: the published number sat exactly half a pixel under the height the box stands on, no frame of a reply showed the panel moving without the bubble moving it, and what the trace found instead was the prediction doubling as the panel's pinned edge on a summon that lands inside the roll, 316.59375px where the measured height centres at 316.34375px, so the roll now publishes the number its own box carries; and a list the reader closes dropping the caret closed 2026-08-07 as a rule about a section closing rather than about a key, the switcher turning out to close thirteen ways of which ten already answered, opening the mirror entry that closed hours later the same day, with the caret DECLINED on three measured reasons and a sentence landed in its place, the switcher opening thirteen ways of which eleven were inaudible, and opening the key toggling an unseen section named above; and its chord sibling was DECLINED outright 2026-08-07, all four of its shapes, on the measurement that the rename editor holds every chord there is and that seven of the nine measured do something in the field anyway, `Ctrl+Z` undoing the whole edit, so a sentence raised where the hold is decided would be false at most of its doors) | 11 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam, the generated title's empty-reply half closed 2026-08-06 by bounding its request (ADR-0021/0038) | 2 |
@@ -1553,6 +1553,36 @@ question in the other direction: opening the list leaves the caret where it was,
 header from the first row ([body-overlay.md](body-overlay.md),
 [ADR-0035](../adr/ADR-0035-console-and-motion.md)).
 
+Inference & model manager went **7 to 8 on 2026-08-07**, and the entry that closed is the oldest one
+this backlog has ever carried: model-manager co-residency, deferred since the Slice 4 inference work
+and held since by ADR-0030 decision 8's brain-runs-alone rule. What unblocked it was hardware, an
+RTX 5090 Laptop reporting 24463 MiB, and the sitting spent its first half measuring rather than
+designing, which is the whole reason the answer is not the one the ADR predicted. **The prediction
+was that the shipped pair would not fit. It does not, and it does not say so.** The cortex costs
+8448 to 8468 MiB with its projector at 16K, not the ~11.3 GB every doc had quoted from the 2026-06-29
+build, and the deep model 19117 to 19125 MiB, so the pair wants 29139 MiB against 24463 over a
+1552 MiB floor. Started anyway, both tiers reported `ready` at 23539 to 23642 MiB with 496 MiB free:
+WSL2 paged roughly 6 GB to system memory rather than refusing the allocation, and the only witness is
+decode, 14.80 to 17.29 tok/s for the deep model against 25.07 to 33.28 with the card to itself, the
+cortex untouched at 44.68 to 49.47. **A genuine fit and a 4676 MiB overcommit read the same on
+`nvidia-smi`**, about 23.6 GB used and about 0.5 GB free, which is the instrument lesson the ADR
+addendum now carries so no later sitting trusts a memory figure alone. And the half decision 8 named
+second turned out to need no tiny model at all: the deep model and the **shipped** gemma-4-E4B
+subagent tier sat together at 23555 to 23642 MiB with the deep model decoding at its solo rate, and a
+spawn admitted to that already-resident tier allocated nothing (23639 MiB generating against 23642
+idle), which is the measurement the design leans on rather than an argument. Against a handoff that
+costs 102.9 s of swap in which every spawn is refused, that is what co-residency buys.
+`CORTEX_SWAP_CORESIDENT` landed off by default, one flag doing two things useless apart, and its
+safety is the reopening deferral's own condition met rather than dodged: a co-resident handoff stops
+no tier delegated work can reach. **The two that opened in its place are both things the landing made
+reachable rather than things it broke**, which is the count going up for the right reason. The flag is
+an assertion about a card and nothing checks it, because the brain container sees no GPU and the
+failure is the quiet 2x above rather than a refusal; and the placer still fit-tests every GPU-placed
+spawn against a budget naming a cortex the handoff evicted, with the deep model's 19 GB charged
+nowhere, which was moot while the pool was drained and is exactly what co-residency reaches
+([inference-model-manager.md](inference-model-manager.md),
+[ADR-0030](../adr/ADR-0030-brain-handoff.md), [ADR-0004](../adr/ADR-0004-model-lineup.md)).
+
 ## Recommended order
 
 Ordered by what unblocks the most value soonest. Before starting any item, verify its claims
@@ -2355,11 +2385,13 @@ claim about the tree like any other, and this one aged in hours.
 
 ### Blocked on hardware that fits two model tiers
 
-**Renamed 2026-07-19.** This bucket read "Blocked on Slice 11 (real model swap / GPU lifecycle)"
-after that slice was marked done on 2026-07-18, which named a blocker that had stopped existing.
-One entry is still open here, co-residency, and what blocks it is a card that fits the tiers it
-would keep alive plus the ADR-0030 decision 8 rule it would relax. The rest of the bucket is kept
-as the record of what an area's deferrals became.
+**Renamed 2026-07-19, emptied 2026-08-07.** This bucket read "Blocked on Slice 11 (real model
+swap / GPU lifecycle)" after that slice was marked done on 2026-07-18, which named a blocker that
+had stopped existing. Its one remaining entry, co-residency, was blocked on a card that fits the
+tiers it would keep alive; that card arrived, the measurement was taken, and the entry closed, so
+**nothing is open here**. The bucket is kept as the record of what an area's deferrals became, and
+the heading stays because the next entry blocked on hardware belongs in it rather than in a new
+one.
 
 - Co-residency, the open half of the model-manager process-lifecycle entry
   ([inference-model-manager.md](inference-model-manager.md)). The **pure half landed 2026-07-17**
@@ -2369,9 +2401,14 @@ as the record of what an area's deferrals became.
   chaos suite that kills a handoff at every step boundary) and the **real process lifecycle landed
   2026-07-18** with the model-host sub-slice: the supervisor sidecar behind that same port, one
   `llama-server` child per tier, mechanism-validated in Docker on the dev GPU with two small
-  artifacts (tier scale stays host-side). What stays open is **co-residency**, which ADR-0030
-  decision 8 keeps deferred with the brain-runs-alone rule, now exercisable for the first time on
-  hardware that fits the tiers it would keep alive.
+  artifacts (tier scale stays host-side). **Co-residency closed 2026-08-07** on the 24 GB card
+  this bucket was waiting for, measured before it was designed. The shipped pair does not co-fit
+  and misses by 4676 MiB, but it does not miss loudly: WSL2 pages the overcommit and serves the deep
+  model at half its decode rate while `nvidia-smi` reads the same ~23.6 GB used as a genuine fit.
+  What does fit is the deep model beside the shipped subagent tier, at 23555 to 23642 MiB with the
+  deep model's decode unchanged, so `CORTEX_SWAP_CORESIDENT` landed **off by default**: a handoff
+  that stops the cortex and nothing else, and no drain window, which is safe because it stops no
+  tier delegated work can reach. Two refinements opened in its place, both in that area doc.
 - Nothing of this area's trio remains here as an **entry**, though two pieces of the third are
   still owed and are host-side ([resource-governance.md](resource-governance.md)):
   `SubagentScheduler.drain()` **landed 2026-07-17** with the brain-handoff drain sub-slice

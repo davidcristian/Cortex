@@ -50,6 +50,7 @@ import pytest
 import swap_harness as harness
 from swap_harness import (
     Fakes,
+    Gate,
     RecordingHandoffStore,
     ScriptedBrainBackend,
     assert_the_window_announced_real_progress,
@@ -65,6 +66,7 @@ from cortex_core import (
     DRAINING_DETAIL,
     ESCALATE_TOOL_NAME,
     LOADING_DETAIL,
+    POOL_DRAINING_MSG,
     RESTORE_FAILED_NOTE,
     RESTORING_DETAIL,
     STORE_FAILED_NOTE,
@@ -84,6 +86,7 @@ from cortex_core import (
     RecordingConfirmer,
     ScriptedModelHost,
     StatusUpdate,
+    SubagentAdmissionError,
     SystemClock,
     TaintLedger,
     TextDelta,
@@ -562,3 +565,78 @@ async def test_the_deep_phase_cannot_escalate_to_itself() -> None:
     assert "escalation is not available for this turn" in invocation.detail
     assert stowaway.brief is None  # nothing was queued behind the running handoff
     assert _texts(events) == "thinking"
+
+
+def _coresident_harness(gate: Gate, *, coresident: bool) -> harness.Harness:
+    """The one deployment shape this pair of tests differs on, everything else identical."""
+    return build_harness(
+        Fakes(
+            host=ScriptedModelHost(running=["cortex", "subagent-gpu"]),
+            backend=ScriptedBrainBackend(gate=gate, gate_after=1),
+        ),
+        residency=harness.plan(evict_models=("subagent-gpu",), coresident=coresident),
+    )
+
+
+async def _paused_mid_phase(live: harness.Harness, gate: Gate) -> asyncio.Task[list[TurnEvent]]:
+    """Drive a handoff until the deep model's stream is mid-flight, and hold it there."""
+    task = asyncio.create_task(harness.run_handoff(live, harness.armed_slot()))
+    await gate.arrived()
+    return task
+
+
+async def test_a_coresident_handoff_keeps_its_peers_and_keeps_delegating() -> None:
+    """The opt-in reversal of brain-runs-alone, asserted where it is observable: mid-phase.
+
+    Two things hold at once here and neither holds by default. The GPU-placed tier is never
+    stopped, so it is serving for the whole handoff rather than being restarted at the end; and
+    the pool is never quiesced, so a spawn issued while the deep model works is admitted instead
+    of refused. Both are read with the deep model's own stream held open, because a pool asked
+    after the handoff answers the same either way, which is what the paired default case below
+    exists to show.
+    """
+    gate = Gate()
+    live = _coresident_harness(gate, coresident=True)
+    await live.seed_session()
+    task = await _paused_mid_phase(live, gate)
+    # Mid-phase: the deep model holds the card and the peer tier never left it.
+    assert live.host.running == {"brain", "subagent-gpu"}
+    async with live.scheduler.admit(harness.request()):
+        pass  # a quiesced pool raises SubagentAdmissionError here instead
+    gate.release.set()
+    events = await task
+    assert live.scheduler.drains == 0  # the window was never entered, not merely left early
+    assert ("stop", "subagent-gpu") not in live.host.calls
+    assert live.handoffs.states[-1] is HandoffState.DONE
+    assert _texts(events) == "a deep answer"
+
+
+async def test_the_shipped_default_still_evicts_its_peers_and_refuses_a_spawn() -> None:
+    """The same shape with the opt-in off, which is what makes the case above non-vacuous.
+
+    Read at the identical instant: the tier is stopped rather than serving, and the admission
+    the co-resident deployment takes is refused with the drain window's own message.
+    """
+    gate = Gate()
+    live = _coresident_harness(gate, coresident=False)
+    await live.seed_session()
+    task = await _paused_mid_phase(live, gate)
+    assert live.host.running == {"brain"}  # the peer was evicted for the deep model
+    with pytest.raises(SubagentAdmissionError, match=POOL_DRAINING_MSG):
+        async with live.scheduler.admit(harness.request()):
+            pass  # pragma: no cover - admit raises before the block is ever entered
+    gate.release.set()
+    await task
+    assert live.scheduler.drains == 1
+    assert ("stop", "subagent-gpu") in live.host.calls
+    assert live.host.running == {"cortex", "subagent-gpu"}  # and it is restarted at the end
+
+
+async def test_a_coresident_handoff_does_not_announce_a_drain_it_never_performs() -> None:
+    """The window's first status is dropped rather than lied about (the other three stand)."""
+    live = build_harness(residency=harness.plan(coresident=True))
+    await live.seed_session()
+    events = await harness.run_handoff(live, harness.armed_slot())
+    assert _texts(events) == "a deep answer"
+    assert _states(events) == [LOADING_DETAIL, WORKING_DETAIL, RESTORING_DETAIL]
+    assert live.scheduler.drains == 0

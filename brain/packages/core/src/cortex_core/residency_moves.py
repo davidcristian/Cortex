@@ -34,11 +34,16 @@ async def swap_in(host: ModelHost, plan: ResidencyPlan, model: str, gate: Readin
     hosted tier (while the deep model is resident it is alone on the GPU), then the new
     resident starts and is gated. ``start`` only *begins* loading, so readiness is observed
     through ``status`` and never inferred from a returned start.
+
+    A ``coresident`` plan skips the second step and only the second step: the cortex still goes,
+    because no measured pairing of it and a deep candidate fits 24 GB, while the standing peers
+    the deployment has measured as fitting stay exactly where they are.
     """
     try:
         await host.stop(plan.cortex_model)
-        for evicted in plan.evict_models:
-            await host.stop(evicted)
+        if not plan.coresident:
+            for evicted in plan.evict_models:
+                await host.stop(evicted)
         await host.start(model)
         state = await gate(model)
     except ModelHostError as err:
@@ -81,6 +86,11 @@ async def _restart_evicted(host: ModelHost, plan: ResidencyPlan) -> None:
     Deliberately after the cortex is serving and gated, and deliberately best effort: the turn
     the user is waiting on needs the cortex, and a tier that will not come back must not be
     reported as the cortex being gone, which is what failing the restore would say.
+
+    Deliberately unconditional too, ``coresident`` included, where the swap in is not: a start
+    against a tier the swap never stopped is a no-op the supervisor answers from its own child
+    table, and if that tier died of its own accord while the deep model held the card, this is
+    the one place that notices and brings it back.
     """
     for evicted in plan.evict_models:
         try:

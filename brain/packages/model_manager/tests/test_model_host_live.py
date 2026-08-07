@@ -226,3 +226,74 @@ async def test_a_residency_scope_really_evicts_one_model_and_loads_another() -> 
         assert manager.residency() == RESIDENCY_SERVING
     finally:
         await client.aclose()
+
+
+@pytest.mark.integration
+async def test_a_coresident_scope_leaves_its_peer_serving_beside_the_deep_model() -> None:
+    """The opt-in reversal, over real weights: the peer tier never leaves the card.
+
+    The same real path as the eviction case above, one plan field apart. With ``coresident`` set,
+    entering the scope must stop the standing resident and nothing else, so the GPU-placed
+    subagent tier is still READY while the deep model serves, and it is still READY after the
+    restore without anything having restarted it. That last read is the one that separates a tier
+    kept alive from a tier evicted and put back: a swap that stopped it would also restart it, so
+    the assertion that catches the difference is the one taken INSIDE the scope.
+
+    Needs three tiers in the roster (``CORTEX_MODEL_FILE_BRAIN`` and
+    ``CORTEX_MODEL_FILE_SUBAGENT_GPU`` both named) and a card that holds the deep model and the
+    peer at once, which is what the deployment asserts by setting the flag at all. Every other
+    shape skips.
+    """
+    endpoint = os.environ.get("CORTEX_MODELHOST_ENDPOINT")
+    if not endpoint:
+        pytest.skip("set CORTEX_MODELHOST_ENDPOINT to a running model-host sidecar")
+    standing = os.environ.get("CORTEX_MODEL_CORTEX", "cortex")
+    deep = os.environ.get("CORTEX_MODEL_BRAIN", "brain")
+    peer = os.environ.get("CORTEX_MODEL_SUBAGENT_GPU", "subagent-gpu")
+    client = httpx.AsyncClient(timeout=httpx.Timeout(_CONTROL_TIMEOUT_S))
+    host = HttpModelHost(endpoint, client)
+    plan = ResidencyPlan(
+        cortex_model=standing,
+        brain_model=deep,
+        evict_models=(peer,),
+        coresident=True,
+        load_timeout_s=300.0,
+    )
+    manager = SwappingModelManager(
+        host,
+        {standing: "http://127.0.0.1:8080", deep: "http://127.0.0.1:8081"},
+        plan,
+        _SystemClock(),
+        AsyncioSleeper(),
+    )
+    try:
+        try:
+            states = [await host.status(model) for model in (deep, peer)]
+        except ModelHostError as err:
+            pytest.skip(f"the sidecar does not host both {deep!r} and {peer!r}: {err}")
+        if ModelHostState.FAILED in states:
+            pytest.skip(f"a tier in {(deep, peer)} has a dead child; fix it before swapping")
+        await host.start(standing)
+        await host.start(peer)
+        assert await _settled(host, peer) is ModelHostState.READY
+        async with manager.swap_scope(deep):
+            assert await host.status(deep) is ModelHostState.READY
+            assert await host.status(standing) is ModelHostState.STOPPED
+            # The whole point: the peer was never asked to leave, so it is serving beside the
+            # deep model rather than waiting to be restarted after it.
+            assert await host.status(peer) is ModelHostState.READY
+        assert await host.status(standing) is ModelHostState.READY
+        assert await host.status(peer) is ModelHostState.READY
+    finally:
+        await client.aclose()
+
+
+async def _settled(host: HttpModelHost, model: str) -> ModelHostState:
+    """Wait out a tier's load, so a peer started for this test is judged once it is serving."""
+    return await await_model_ready(
+        host,
+        model,
+        clock=_SystemClock(),
+        sleeper=AsyncioSleeper(),
+        plan=ResidencyPlan(cortex_model=model, brain_model=model, load_timeout_s=300.0),
+    )

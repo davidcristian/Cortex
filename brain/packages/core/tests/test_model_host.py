@@ -112,6 +112,10 @@ def test_the_plan_defaults_its_bounds_to_the_documented_values() -> None:
     )
     assert ResidencyPlan("c", "b").poll_interval_s == DEFAULT_HEALTH_POLL_INTERVAL_S
     assert ResidencyPlan("c", "b").drain_timeout_s == DEFAULT_SWAP_DRAIN_TIMEOUT_S
+    # Co-residency is the deployment's own assertion about its card, so a plan that was not
+    # told holds the shipped rule: the deep model runs alone.
+    assert ResidencyPlan("c", "b").coresident is False
+    assert _plan(coresident=True).coresident is True
 
 
 async def test_the_scripted_host_starts_stops_and_reports_idempotently() -> None:
