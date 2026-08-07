@@ -297,9 +297,10 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   `aria-expanded` under the caret that pressed it. It is the CONTENTS and not the toggle, so the
   closing direction has no mirror: a close is answered by the caret landing on that same button
   (`overlay/sectionCaret.ts`), and what an opening reader wants is the one fact walking cannot give
-  them, the empty line not being a tab stop at all. The arm stays silent while the chat is not the
-  view on screen, both chords being live from a tucked panel and from behind an open console, where
-  the list opens for nobody. The notice carries a count that keys the region's child, since a live
+  them, the empty line not being a tab stop at all. The arm has no silent door left: it stood the
+  sentence down while the chat was not the view on screen, and since 2026-08-07 it cannot open a
+  list there at all, the key landing on the chat first (the console bullet below carries the rule).
+  The notice carries a count that keys the region's child, since a live
   region reports a mutation rather than a value and two announcements can read alike. Where focus
   goes is the next bullet.
 - **A chat arriving on the panel takes the caret with it** (`OverlayState.arrival` +
@@ -582,7 +583,12 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   emptying or swapping it behind a standing console (those two keys are the whole reachable
   surface, the pencil and
   the switcher rows being under the console); a summon clears it too, and a
-  dismiss deliberately does not, the panel fading out wearing what it had on. `sessionDeleted` and
+  dismiss deliberately does not, the panel fading out wearing what it had on. **The `?` key is the
+  third door onto `toggleConsole` and the only one that can be pressed off the chat**, so since
+  2026-08-07 that arm lands on the chat as the swap arms do and asks the SCREEN whether the tab is
+  already up (`mode === "panel" && consoleTab === tab`) instead of asking the flag; `Ctrl+K` does
+  the same for the switcher, and off the chat both OPEN rather than toggle, a reader who cannot
+  see a section having none to close (ADR-0035 addendum, 2026-08-07). `sessionDeleted` and
   `adoptSession` leave it exactly as it was, the first because a delete comes from a switcher row
   and keeps the surface the user is managing chats in (as it already keeps the switcher open), the
   second because a cold-start restore must take nothing off the panel. `CONSOLE_TABS` is exported

@@ -294,21 +294,49 @@ describe("overlayState reducer", () => {
     expect(shut.notice).toBeNull();
   });
 
-  it("says nothing about a list that opened where nobody could see it", () => {
-    // Ctrl+K stays live from a tucked panel and from behind an open console, and measured, it
-    // opens the list in both: the rows mount and `aria-expanded` turns true where the reader
-    // cannot reach them. A section nobody can see has not opened for them.
+  it("Ctrl+K from a tucked panel brings the panel back with the list on it", () => {
+    // The key used to mount the rows and turn `aria-expanded` true behind a panel that was not on
+    // screen, and the next summon found a list nobody had opened. It summons, the way the keys
+    // aimed at the conversation do, and the sentence is true because the list is now in front of
+    // the reader who pressed it.
     const sessions = [summary("a")];
     const tucked: OverlayState = { ...initialState, sessions };
-    expect(reduce(tucked, { kind: "toggleSwitcher", announce: true }).notice).toBeNull();
+    const opened = reduce(tucked, { kind: "toggleSwitcher", announce: true });
+    expect(opened.mode).toBe("panel");
+    expect(opened.touched).toBe(true);
+    expect(opened.switcherOpen).toBe(true);
+    expect(opened.notice?.text).toBe("Recent chats open. 1 chat.");
+  });
+
+  it("Ctrl+K from behind the console takes the console off and shows the list", () => {
+    const sessions = [summary("a")];
     const behindConsole = run([
       { kind: "open" },
       { kind: "sessionsLoaded", sessions },
       { kind: "toggleConsole", tab: "shortcuts" },
     ]);
     const opened = reduce(behindConsole, { kind: "toggleSwitcher", announce: true });
+    expect(opened.consoleTab).toBeNull();
     expect(opened.switcherOpen).toBe(true);
-    expect(opened.notice).toBeNull();
+    expect(opened.notice?.text).toBe("Recent chats open. 1 chat.");
+  });
+
+  it("a press off the chat opens rather than toggling, so a summon cannot shut an unseen list", () => {
+    // The list is open in the store and shut on the screen, which is the state the old flip made
+    // reachable and this one still has to answer: a reader who cannot see the list is asking for
+    // it, so the press shows it instead of closing it. On the chat the same press closes it.
+    const sessions = [summary("a")];
+    const open = run([
+      { kind: "open" },
+      { kind: "sessionsLoaded", sessions },
+      { kind: "toggleSwitcher", announce: false },
+    ]);
+    expect(open.switcherOpen).toBe(true);
+    const tuckedWithList = reduce(open, { kind: "dismiss" });
+    expect(reduce(tuckedWithList, { kind: "toggleSwitcher", announce: false }).switcherOpen).toBe(
+      true,
+    );
+    expect(reduce(open, { kind: "toggleSwitcher", announce: false }).switcherOpen).toBe(false);
   });
 
   it("carries a standing sentence through a silent toggle rather than clearing it", () => {
@@ -333,6 +361,20 @@ describe("overlayState reducer", () => {
     expect(reduce(appearance, { kind: "toggleConsole", tab: "shortcuts" }).consoleTab).toBe(
       "shortcuts",
     );
+  });
+
+  it("? from a tucked panel puts the shortcuts on screen instead of behind a hidden window", () => {
+    // The second key with this defect, which the entry that opened this work had not counted:
+    // measured in Chromium, ? from a tucked panel mounted the console and took the chat view
+    // `inert` and `aria-hidden` behind a panel nobody could see.
+    const tuckedWithTab = reduce(reduce(initialState, { kind: "toggleConsole", tab: "shortcuts" }), {
+      kind: "dismiss",
+    });
+    expect(tuckedWithTab.mode).toBe("hidden");
+    const shown = reduce(tuckedWithTab, { kind: "toggleConsole", tab: "shortcuts" });
+    expect(shown.mode).toBe("panel");
+    expect(shown.touched).toBe(true);
+    expect(shown.consoleTab).toBe("shortcuts");
   });
 
   it("openConsole shows a tab and is idempotent, so the tab strip cannot close the console", () => {

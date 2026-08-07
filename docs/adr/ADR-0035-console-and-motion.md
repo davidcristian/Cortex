@@ -4186,7 +4186,9 @@ own measurement rather than by this rule.
 **`Ctrl+K` still toggles a section nobody can see.** From a tucked panel and from behind an open
 console the list opens with its rows mounted and unreachable, and the only thing that changed here
 is that the overlay no longer claims otherwise. Whether the key should refuse instead is filed in
-[refinements/body-overlay.md](../refinements/body-overlay.md).
+[refinements/body-overlay.md](../refinements/body-overlay.md). **Answered by the addendum below on
+2026-08-07**, for the whole key table rather than for the one key: it summons instead, and off the
+chat it opens rather than toggling.
 
 **And nothing is claimed about how a reader SPEAKS this.** The shape was pickable from the tree, and
 the delivery is a Windows sitting with NVDA, filed at
@@ -4292,3 +4294,110 @@ about the overlay's whole key table rather than about one field.
 **And it leaves the repeat question unanswered rather than answered**, since a rule that raises no
 sentence needs no latch. Anything that later speaks per keydown in a field inherits the measurement
 above and has to bring its own guard.
+
+## Addendum, 2026-08-07: a key aimed at a surface nobody can see brings the surface
+
+The overlay's global keys stay live while the panel is not on screen, which is right for the ones
+that summon it and was wrong for the two that do not. `Ctrl+K` flipped the switcher's flag wherever
+it was pressed, so from a tucked panel and from behind an open console it mounted the rows and
+turned `aria-expanded` true where nobody could reach either, and the next summon found a list open
+that nobody had opened. The addendum above stood the announcement down for both cases, so the
+overlay stopped claiming otherwise, and deliberately left the toggle for this decision, on the
+argument that what a chord means while the overlay is tucked reaches the whole key table.
+
+### What was measured
+
+Driven by hand in headless Chromium at 900x900 against the demo bridge, one fresh page per press, in
+four setups: on the chat with the panel up, tucked (dismissed to `mode: "hidden"`), behind an open
+console, and behind an open console with the switcher's list already open under it. Each press
+records the panel's visibility, the switcher's mounted rows, `aria-expanded` on the chats button,
+whether the console is up, the chat pane's `inert` and `aria-hidden`, `document.activeElement`, and
+the live region's text.
+
+**The table is six keys and it was enumerated from the code, not from the entry.** All six are on
+one `window` keydown listener (`components/Overlay.tsx`): `Escape`, `?`, `Ctrl+N`, `Ctrl+K`,
+`Ctrl+↑`, `Ctrl+↓`. The summon is not one of them, arriving as the host's `cortex:activate` event,
+and every other key in the overlay belongs to a field or to a control that has to be reached first.
+
+| key | tucked, before | behind the console, before |
+| --- | --- | --- |
+| `Escape` | nothing | console leaves, caret to the composer |
+| `?` | **console mounts, chat pane `inert` and `aria-hidden`, panel off screen, caret on `body`** | console leaves |
+| `Ctrl+N` | summons, caret to the composer, announced | console leaves, fresh chat, announced |
+| `Ctrl+K` | **3 rows mount, `aria-expanded` true, panel off screen, silent, caret on `body`** | **3 rows mount, `aria-expanded` true behind the `inert` pane, silent, console stays up** |
+| `Ctrl+↑` | nothing | nothing |
+| `Ctrl+↓` | summons, swaps, announced | console leaves, swaps, announced |
+
+**Four of the six already had an answer**, and one of those answers is this decision's precedent:
+`newChat` and `openSession` set `mode: "panel"` and clear the console because a key aimed at the
+conversation should land in the conversation, which `sessionState.ts` argues in those words after a
+cycle key was measured loading a chat behind a standing console. `Escape` acts on whatever is
+topmost and is a no-op with nothing up. `Ctrl+↑` doing nothing in every column is not a fifth
+invisible door: `cycleTarget` does not wrap, the demo's restored chat sits at the newest end, and an
+out of range target reads back as null, so the key means "the previous chat" and there is not one.
+
+**The entry named one key and the table has two.** `?` mounts the console from a tucked panel in
+exactly the way `Ctrl+K` mounts the list, so a rule written for the key the entry named would have
+left its neighbour behind. That is the sixth entry in this chain to undercount its own doors, and
+the first where the undercount was a whole half of the defect.
+
+### The decision
+
+**A global key aimed at one of the panel's surfaces puts that surface on screen, and off the chat it
+opens rather than toggling.** The first half is the precedent above applied to the two keys that did
+not have it. The second half is what "off the chat" has already been measured to mean: a section
+nobody can see has not opened for them, so the switcher a reader can see is shut whatever the flag
+says, and a press read as a toggle would let one press close a list they were never shown. Refusing
+the press instead was rejected because a tucked `Ctrl+K` is a request to come back, which is what
+`Ctrl+N` already means one key over, and refusing would make this the only key that is live and
+inert at once. Doing nothing was rejected because the cost is not the one press it looks like: it
+leaves a flag the screen disagrees with, which is the state that made the announcement stand down
+and would make every later rule ask a second question.
+
+### How it is built
+
+Nine lines in `overlay/chromeState.ts`. `ontoChat` lands the state on the chat (`mode: "panel"`,
+`consoleTab: null`, `touched: true`, the last for the reason the summon sets it, so a cold-start
+adoption cannot replace what a key just put up), and both toggles ask the screen rather than the
+flag: the switcher opens unless `onChat` is already true, and the console's "the tab you are on"
+test is `mode === "panel" && consoleTab === tab`. `onChat` is not retired and changes job, from
+deciding whether the sentence would be true to deciding whether a press is a toggle or a request,
+which is the same question asked one step earlier; the announcement's own guard goes with the state
+it guarded, because the arm can no longer open a list off the chat. `openConsole` is untouched: the
+tab strip that dispatches it lives inside the console and is on screen for as long as it is.
+
+### What it measures now
+
+| key | tucked, after | behind the console, after | behind the console with the list open, after |
+| --- | --- | --- | --- |
+| `?` | panel summons, console up, caret on the selected tab | console leaves | console leaves |
+| `Ctrl+K` | panel summons with 3 rows on it, `aria-expanded` true, caret to the composer, `Recent chats open. 3 chats.` | console leaves, list opens, caret to the composer, announced | console leaves, **the list is still open**, caret to the composer |
+| `Ctrl+N` | unchanged | unchanged | unchanged |
+| `Ctrl+↑` / `Ctrl+↓` | unchanged | unchanged | unchanged |
+| `Escape` | unchanged | unchanged | unchanged |
+
+The on-the-chat column is bit identical before and after, every cell of it. The last cell of the
+second row is the trace the entry asked for, a summon that lands on an already open list, and it is
+the open-rather-than-toggle half paying for itself: the old code shut that list, silently, on the
+press meant to show it.
+
+### The mutation proof
+
+Five mutations, five distinct rednesses, nothing else in the 673 test suite moving under any of
+them. Stopping `ontoChat` setting `mode` reddens three cases, the two tucked ones and the existing
+open-then-shut case, which the key can now only satisfy by summoning. Letting it leave `consoleTab`
+alone reddens the behind-the-console case. Restoring the bare `!state.switcherOpen` flip reddens the
+open-rather-than-toggle case. Asking the console's toggle for the flag alone reddens the `?` case.
+Dropping `touched` reddens both tucked cases.
+
+### What this does not do
+
+**It does not make a hidden window receive keys.** On the real Win32 body a window that is not shown
+gets no keydown at all, so the tucked half of this table is reached through the orb and the preview,
+which are modes with the window up and the panel away, and through a dismissed overlay whose window
+the shell still holds. That is equally true of `Ctrl+N` and the cycle keys, so it is a property of
+the whole table rather than of this change, and it is why the rule is written on `mode === "panel"`
+rather than on any one of the three modes that are not it.
+
+**And it does not give the summon a rule**, because the summon is not one of these keys: it arrives
+as a host event and lands on the chat already.
