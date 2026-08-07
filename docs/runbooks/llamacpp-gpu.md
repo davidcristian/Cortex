@@ -371,10 +371,12 @@ to 2651 MiB and thinking on. Six things to know about the setting you are now ru
   both flags from the child's argv; the capture edge is refunded separately with
   `CORTEX_BODY_CAPTURE_MAX_EDGE=0`, which returns the body to its own 1600 px default. Confirmed
   live at the default on 2026-08-06: the card read 11304 MiB with the tier resident and 2778 MiB
-  after teardown, so the tier holds 8526 MiB and sits about 2.8 GB under the 11.3 GB
-  `CORTEX_VRAM_CORTEX_GB` the placer already charges for it. Nothing about placement changes, and
-  the GPU subagent tier's headroom (the 14 GB soft cap minus that reservation) is untouched: the
-  budget hangs off the projector, which only the cortex tier has.
+  after teardown, so the tier holds 8526 MiB and sat about 2.8 GB under the 11.3 GB
+  `CORTEX_VRAM_CORTEX_GB` the placer charged for it at the time. That gap is closed: the
+  reservation is 8.6 GiB since 2026-08-07 (the bullet below), and this reading is one of the three
+  the correction rests on. Nothing about placement changes, and the GPU subagent tier's headroom
+  (the 14 GB soft cap minus that reservation) still hangs off the projector, which only the cortex
+  tier has.
 - **Raising one without the other is close to pointless.** The budget alone leaves the body sending
   a 1600 px picture (24 to 26 of 47); the capture edge alone sends more pixels into an encoder that
   throws them away (4 of 47 at 2048 px and at 3072 px on the shipped budget, no better than the
@@ -467,11 +469,33 @@ safety default.
 - **Cortex = gemma-4-12B** (stronger chat model + QAT). Both candidates ≈ 11 GB, so VRAM
   didn't decide it. The budget is a **deliberate 14 GB soft cap** (env
   `CORTEX_VRAM_SOFT_CAP_GB`; the user keeps ~10 GB of 24 GB for a second monitor + gaming),
-  so the ~11.3 GB cortex sits under it with ~2.7 GB headroom. The embedder and subagents
-  still run on **CPU** (ADR-0004 addendum, not a relaxed envelope).
-- **Placement:** cortex → GPU (~11.3 GB, ~2.7 GB under the 14 GB cap), embedder → CPU (`CORTEX_NGL=0`),
+  so the cortex sits under it with headroom to spare: 5.4 GiB, since the reservation was
+  re-measured to 8.6 GiB on 2026-08-07 (the co-residency bullets below and the
+  [ADR-0012](../adr/ADR-0012-resource-governance.md) re-measured-reservation addendum). The
+  embedder and subagents still run on **CPU** (ADR-0004 addendum, not a relaxed envelope).
+- **Placement:** cortex → GPU (8.6 GiB reserved, 5.4 GiB under the 14 GB cap), embedder → CPU (`CORTEX_NGL=0`),
   subagents → CPU (a dynamic pool the cortex sizes within budget), brain → hybrid if it
   doesn't fit. All per-`llama-server` flags, no core change (ADR-0004 addendum).
+- **The cortex reservation, re-measured 2026-08-07** and lowered from 11.3 GB to **8.6 GiB**, which
+  is the number the placer subtracts from the soft cap on every spawn. Procedure, so a later sitting
+  can reproduce it: bring the stack up with the projector named
+  (`CORTEX_MMPROJ_FILE_CORTEX=google/gemma-4-12B-it-qat-q4_0-gguf/mmproj-gemma-4-12b-it-qat-q4_0.gguf`)
+  and the control API published (`just up-modelhost-loopback`); read the child's real argv out of
+  `/proc` rather than trusting the compose file; sample `nvidia-smi --query-gpu=memory.used` every
+  0.2 to 0.3 s throughout; then stop the tier, read the floor, start it, and read idle, a long
+  generation, and a vision turn carrying a real screenshot, stopping the tier once more at the end
+  to read the floor again. The numbers: floor **1261 to 1301 MiB** before and **1259 to 1308 MiB**
+  after, so the desktop did not move under the session; ready 30.3 s after `start`; idle **9701 to
+  9745 MiB** total used, which is 8400 to 8484 above the floor; a 13180-token prompt at 2983.16
+  tok/s with 924 tokens decoded at 50.69 tok/s allocating **nothing** (9716 to 9721), the 16K KV
+  and the compute buffers both being taken at load; a vision turn on a 1304x1172 screenshot
+  reaching 9805, and on a near-full context **9832**, the session peak, which is 8573 above the
+  floor. The vision path's 70 to 90 MiB is the only thing that arrives with the work and it stays
+  allocated afterwards (idle reads 9764 to 9818 once an image has been through). Per-process
+  attribution (`nvidia-smi --query-compute-apps`) reports nothing under WSL2, verified with the tier
+  resident and serving, so total used minus a bracketed floor is the only instrument and a floor
+  read once and reused is the error to avoid. Argument, margin and consequences:
+  [ADR-0012](../adr/ADR-0012-resource-governance.md)'s re-measured-reservation addendum.
 - **Co-residency of the cortex and a GPU-placed subagent, measured 2026-08-04** on a card that holds
   the tiers, through the `model-host` sidecar with the subagent tier opted in
   (`CORTEX_MODEL_FILE_SUBAGENT_GPU`, `-ngl 99 --ctx-size 8192 --parallel 2` on `:8083`). `nvidia-smi`

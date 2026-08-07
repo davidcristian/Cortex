@@ -456,7 +456,10 @@ status. `docker/docker-compose.gpu.yml` gains the `--mmproj` pair pointing at
 
 ### 14. No VRAM, placer, or model-manager change
 
-`cortex_reservation_gb` stays at 11.3, `vram_soft_cap_gb` stays at 14.0, and
+`cortex_reservation_gb` stays at 11.3 (it became 8.6 on 2026-08-07, re-measured with the projector
+loaded at this decision's own shape; the reasoning below is unchanged and the correction it calls
+documentary turned out to be about 2.6 GiB, [ADR-0012](ADR-0012-resource-governance.md)
+re-measured-reservation addendum), `vram_soft_cap_gb` stays at 14.0, and
 `VramBudgetPlacer`, `ModelManager.acquire`, `SubagentPlacer`, and `SubagentScheduler` are
 untouched. The 11.3 GB default is ADR-0004's **with-mmproj** measurement, so enabling the
 projector spends budget the placer has been charging since Slice 8.5 while the server ran

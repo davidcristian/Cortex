@@ -6,9 +6,14 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 historical record of what each deferral became, and the index at [index.md](index.md) carries the
 recommended pickup order.
 
-**Open items:** the Intel NPU as a third placement target, a bounded admission wait, a read
-timeout on the subagent HTTP client, the drain bound against a fired task's lease, admission
-reopening onto a tier that would not restart
+**Open items:** 6, counted by reading the entries below rather than by adjusting the last number.
+The Intel NPU as a third placement target, a bounded admission wait, a read timeout on the subagent
+HTTP client, the drain bound against a fired task's lease, admission reopening onto a tier that
+would not restart, and, since the cortex reservation was re-measured on 2026-08-07 and the
+placeholder it was hiding became the only term left refusing a GPU placement, the subagent VRAM ask.
+That re-measurement closed nothing this count had ever carried: it had been deferred at two ADRs and
+recorded on no index, so the count goes 5 to 6 for an arrival with no matching departure, which is
+the honest shape of that history rather than a bookkeeping slip.
 
 **Resource governance in Slice 8.5 ([ADR-0012](../adr/ADR-0012-resource-governance.md)):** each behind
 the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
@@ -165,6 +170,47 @@ the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
   ADR-0030 decision 8's addendum already says: a **second** GPU-capable executor, so that two
   GPU-placed spawns can actually run at once and a placement-aware charge changes how many are
   admitted.
+- **The cortex reservation landed 2026-08-07 as a re-measurement, and it had never been an entry
+  here.** Where it lived was two ADRs and no index: [ADR-0004](../adr/ADR-0004-model-lineup.md)'s
+  swap-latency note 8, which saw the cortex read about 9.7 GB against its own 11.0 and asked a later
+  sitting to confirm which figure the deployment pays, and
+  [ADR-0030](../adr/ADR-0030-brain-handoff.md)'s co-residency addendum, which measured 8448 to 8468
+  MiB and deliberately left `CORTEX_VRAM_CORTEX_GB=11.3` alone because lowering it widens what the
+  placer admits and that is this area's decision rather than the handoff's. Both were right to
+  defer and neither wrote a line anywhere that counts open work, so an item that bounded every
+  spawn's fit-test sat outside every count for three days. That is the doc-first rule's own failure
+  mode, recorded here plainly rather than quietly fixed.
+  **What the re-measurement found.** The published 8448 to 8468 was an idle figure and a reservation
+  has to cover a peak, which is why this was never a one-line edit. At the shipped tier shape, read
+  out of the running child's argv (`-ngl 99 --ctx-size 16384 --parallel 1 --jinja` with the projector
+  and `--image-max-tokens 1024`), the tier is **8400 to 8484 MiB idle and 8573 MiB at its peak**
+  above a floor read with the tier stopped at both ends of the session (1261 to 1301, then 1259 to
+  1308 MiB, agreeing within 7 MiB, so nothing of the desktop's own drift is folded in). A 13180-token
+  prompt with 924 tokens decoded allocated **nothing**, llama.cpp taking the 16K KV and the compute
+  buffers at load; the only thing that arrives with the work is the vision path's 70 to 90 MiB on the
+  first image, and it stays. And most of the apparent 2.8 GB gap was a unit: the 11.3 was
+  `nvidia-smi` total used with the desktop's floor inside it, while every other term in this budget
+  is a tier's own cost. **The reservation is 8.6 GiB**, 233 MiB over the measured peak, which covers
+  the sampler's in-phase spread, the floor bracket and one more vision-sized allocation. The
+  headroom goes from 2.7 to 5.4 GiB, so a spawn declared at the GPU tier's measured 3319 MiB is
+  GPU-placed where nothing ever was ([ADR-0012](../adr/ADR-0012-resource-governance.md)
+  re-measured-reservation addendum, procedure in
+  [runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md)). One entry opens in its place, below,
+  and it is the term the re-measurement deliberately did not touch.
+- **The shipped subagent VRAM ask is a placeholder about 2.3 GiB above what the tier measures.**
+  *Fix when it bites, and it bites the moment a deployment wants GPU subagents.*
+  `docker-compose.subagents.yml` sets `CORTEX_SUBAGENTS_VRAM_GB=5.5` and the code default is 2.0,
+  neither of them measured; the GPU-placed subagent tier read **3319 MiB** on this card on
+  2026-08-04, which is 3.24 GiB. With the reservation corrected the headroom is 5.4 GiB, so the ask
+  is now the only reason the shipped stack still refuses every GPU placement, where before it was
+  one of two. The reservation was **not** rounded down to 8.5 to make 5.5 fit, which would have
+  been choosing the answer and would have left two wrong numbers agreeing; the ask is the wrong
+  number and it should be corrected by measuring one spawn of the roster's default entry rather
+  than by arithmetic. It is a compose default plus a `SubagentsConfig` field, so nothing behind a
+  port has to move, and the same sitting should decide whether the roster's alternate entry needs
+  its own figure. Pinned by a test today
+  (`test_shipped_vram_budget_still_refuses_the_compose_placeholder_ask`), so a later change to the
+  reservation cannot quietly flip the shipped stack into GPU placement without answering this.
 - **The Intel NPU as a third placement target.** A future OpenVINO `InferenceBackend` adapter + a
   `PlacementTarget.NPU`, pending a feasibility pass. Using the otherwise-idle NPU for tiny
   subagents or embeddings serves the same "keep the machine usable" motivation as the caps above,

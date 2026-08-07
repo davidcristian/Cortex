@@ -70,7 +70,7 @@ entries from it never added the two it opened, and there the count did move and 
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018), and, since the delegated tool step was declined 2026-08-07, nothing left on the outcome path but the record of why a delegated activity is never settled (ADR-0029) | 2 |
 | [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), the reserved scrollbar rail's assumed width and spent card inset, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), `Ctrl+K` toggling a section nobody can see, the liquid edge's backdrop blur, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit and the switcher's, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, the chat floor's frozen measurement of the empty state, the console tab strip's missing keyboard half, the switcher's disputed listbox role, the two motions its list still made in one frame, and a Thoughts trace opening a reply off the bottom of a full history all landed 2026-08-03, the last of them opening the chrome-side entry that landed 2026-08-04 on the same ride, alongside the cycle keys' silent swap, which opened the focus entry that landed 2026-08-06 as the caret following the conversation into the composer and opened two entries behind it, both landed the same day: the draft named below, and the row gestures that swap nothing, answered by the caret staying in the list and opening the chord and the silent-shrink entries above; the composer's move on a clamped shrink closed 2026-08-06 as moot, its mechanism having been deleted the day it was filed, and the retarget-and-resize pair landed 2026-08-06 as the panel measuring itself in fractional pixels, opening the roll entry that took its place, which landed hours later the same day as the section measuring itself the way the panel does, both published numbers reproducing first and the step at every roll boundary reading 0.000px after, and which opened the whisper-bubble target named above; the composer's draft belonging to no chat landed 2026-08-06 too, the same day it was opened and the same day the user answered it, as unsent text keyed by session id in the reducer, which was the last entry anywhere waiting on a decision rather than on work; the modified chord landed 2026-08-07 as a rule about the text a field would lose rather than about what a chord is, opening the two entries named above, the closing-list caret and the silence of a held chord, and reading this file's entries against its header that day turned up the liquid edge's blur, open here since 2026-07-21, carried in the running record below the whole time and named by no count either doc has published since; and the silent shrink landed 2026-08-07 as the region reporting a list that shrank as well as a conversation that arrived, one out and none in, its chord sibling read alongside it and deliberately left open, and the part only a real screen reader can settle sent to [host/overlay-screen-reader.md](../host/overlay-screen-reader.md); and the whisper bubble's rounded roll target closed 2026-08-07, measured before it was touched as its own text demanded: the published number sat exactly half a pixel under the height the box stands on, no frame of a reply showed the panel moving without the bubble moving it, and what the trace found instead was the prediction doubling as the panel's pinned edge on a summon that lands inside the roll, 316.59375px where the measured height centres at 316.34375px, so the roll now publishes the number its own box carries; and a list the reader closes dropping the caret closed 2026-08-07 as a rule about a section closing rather than about a key, the switcher turning out to close thirteen ways of which ten already answered, opening the mirror entry that closed hours later the same day, with the caret DECLINED on three measured reasons and a sentence landed in its place, the switcher opening thirteen ways of which eleven were inaudible, and opening the key toggling an unseen section named above; and its chord sibling was DECLINED outright 2026-08-07, all four of its shapes, on the measurement that the rename editor holds every chord there is and that seven of the nine measured do something in the field anyway, `Ctrl+Z` undoing the whole edit, so a sentence raised where the hold is decided would be false at most of its doors) | 11 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam, the generated title's empty-reply half closed 2026-08-06 by bounding its request (ADR-0021/0038) | 2 |
-| [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 5 |
+| [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012), and, since the cortex reservation was re-measured on 2026-08-07 at the tier's shipped shape and lowered from 11.3 to 8.6 GiB, the placeholder that correction uncovered: the subagent VRAM ask is now the only term still refusing every GPU placement | 6 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
 | [body-gateway.md](body-gateway.md) | Body gateway, OS actions, hardened posture (ADR-0023) | 5 |
 | [scheduling.md](scheduling.md) | Scheduling and reminders, `TurnStamp` provenance (ADR-0025/0027) | 8 |
@@ -1641,6 +1641,37 @@ bucket below never carried this entry, though it was filed fix-when-it-bites in 
 sibling was listed the same day, so a reader finding no struck line there is seeing an omission
 rather than a close that missed one.
 
+Resource governance went **5 to 6 on 2026-08-07**, and both halves of that are unusual. The item
+that landed was `CORTEX_VRAM_CORTEX_GB`, the term the placer subtracts from the soft cap on every
+spawn's fit-test, and **it had been deferred at two ADRs and recorded on no index at all**: ADR-0004
+saw the cortex read about 9.7 GB against its own 11.0 and asked a later sitting which figure the
+deployment pays, and the co-residency close that morning measured 8448 to 8468 MiB and deliberately
+left the reservation alone, on the correct reasoning that lowering it widens what the placer admits.
+Neither wrote a line anywhere that counts open work, so for three days a number bounding every
+admission sat outside every count, which is the doc-first rule's own failure mode and is recorded in
+the area doc rather than quietly repaired. **The published figure was an idle one and a reservation
+has to cover a peak**, which is why this was never the one-line edit it looked like. At the shipped
+tier shape, read out of the running child's argv rather than the compose file, the cortex is 8400 to
+8484 MiB idle and **8573 MiB at its peak** above a floor read with the tier stopped at both ends of
+the session, 1261 to 1301 then 1259 to 1308 MiB, agreeing within 7 MiB so no drift is folded in. A
+13180-token prompt with 924 tokens decoded allocated **nothing**, llama.cpp taking the 16K KV and
+the compute buffers at load; the only thing that arrives with the work is the vision path's 70 to 90
+MiB on the first image, and it stays allocated afterwards. And most of the apparent gap was a unit
+rather than a build: 11.3 was `nvidia-smi` total used with the desktop's own floor inside it, while
+every other term in that budget is a tier's own cost, so the reservation was about 1.7 GiB high read
+its own way and about 2.6 GiB high read the budget's. The default is **8.6 GiB**, 233 MiB over the
+peak, a margin sized against the sampler's in-phase spread, the floor bracket and one more
+vision-sized allocation rather than picked round. Headroom goes 2.7 to 5.4 GiB, so a spawn declared
+at the GPU tier's measured 3319 MiB is placed on the GPU where nothing ever was. **What opened is
+the term the sitting refused to bend.** 8.5 would have exactly admitted the 5.5 GiB
+`docker-compose.subagents.yml` asks, and choosing it would have been choosing the answer on a 131
+MiB margin; the ask is itself about 2.3 GiB above what the tier measures, so correcting the
+reservation to match it would have left two wrong numbers agreeing. It is now the only reason the
+shipped stack still refuses a GPU placement, it is pinned by a test so a later reservation change
+cannot flip that silently, and it is filed fix-when-it-bites
+([resource-governance.md](resource-governance.md),
+[ADR-0012](../adr/ADR-0012-resource-governance.md), [ADR-0004](../adr/ADR-0004-model-lineup.md)).
+
 ## Recommended order
 
 Ordered by what unblocks the most value soonest. Before starting any item, verify its claims
@@ -2805,7 +2836,12 @@ load cannot see a figure the deployment under-declared nor a gigabyte the deskto
 and the spill it leaves reports `ready` on both tiers and reads like a fit on `nvidia-smi`, so the
 trigger is a deep phase that is slow rather than absent and the fix is the deep phase watching
 llama.cpp's own `timings.predicted_per_second`, which the backend currently discards
-([inference-model-manager.md](inference-model-manager.md)); the three exceptions the commit-body
+([inference-model-manager.md](inference-model-manager.md)); the shipped subagent VRAM ask, joined on
+2026-08-07 when the cortex reservation was re-measured and stopped being the term that refused every
+GPU placement, leaving `CORTEX_SUBAGENTS_VRAM_GB=5.5` about 2.3 GiB above the 3319 MiB the GPU tier
+measures and the only reason nothing is placed, whose trigger is a deployment that actually wants
+GPU subagents and whose fix is measuring one spawn of the roster's default entry rather than
+arithmetic ([resource-governance.md](resource-governance.md)); the three exceptions the commit-body
 wrap gate did not ship, which replaced their own parent here on 2026-07-19 when the wrap check
 itself landed, because the exemption that shipped is a property of the longest **word** rather
 than of the line's **kind**, so a pasted command, a fenced code block, and a `BREAKING CHANGE:`

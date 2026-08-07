@@ -62,10 +62,8 @@ class BrainRuntimeConfig(BaseSettings):
     # env CORTEX_VRAM_SOFT_CAP_GB is the deliberate GPU budget (ADR-0004, 14 GB); the
     # SubagentPlacer fit-tests subagents against it (ADR-0012), enforced from this slice on.
     vram_soft_cap_gb: float = Field(default=14.0, gt=0)
-    # env CORTEX_VRAM_CORTEX_GB is the resident cortex's measured footprint (~11.3 GB, ADR-0004
-    # addendum); the subagent GPU headroom is the cap minus this.
     cortex_reservation_gb: float = Field(
-        default=11.3, ge=0, validation_alias="CORTEX_VRAM_CORTEX_GB"
+        default=8.6, ge=0, validation_alias="CORTEX_VRAM_CORTEX_GB"
     )
     history_char_budget: int = Field(default=48_000, ge=0)
     history_summary: bool = True

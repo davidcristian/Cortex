@@ -87,9 +87,13 @@ The other knobs, all optional:
    It asserts the 500 and llama.cpp's own `mmproj` hint, measured verbatim in ADR-0029's
    2026-08-03 addendum. A red run means the wording moved; re-measure and record the new string.
 
-**What the projector costs.** ADR-0004's 11.3 GB cortex reservation is a **with-mmproj**
-measurement, so enabling it spends budget the placer has been charging since before it loaded;
-subagent headroom is unchanged. An image costs 266 prompt tokens at any size from 720p up when the
+**What the projector costs.** The cortex reservation has always been a **with-mmproj** figure, so
+enabling the projector spends budget the placer was already charging and subagent headroom is
+unchanged. It is 8.6 GiB since 2026-08-07, re-measured with the projector loaded at the shipped
+16K shape, where the tier peaks at 8573 MiB above the idle floor
+([ADR-0012](../adr/ADR-0012-resource-governance.md) re-measured-reservation addendum); the 11.3 GB
+this paragraph used to name was ADR-0004's, read as `nvidia-smi` total used with the desktop's own
+floor inside it. An image costs 266 prompt tokens at any size from 720p up when the
 budget is left to the model, and 1010 at the shipped `CORTEX_IMAGE_MAX_TOKENS=1024` with the
 shipped 2048 px capture, for about 400 MiB more VRAM.
 

@@ -28,7 +28,11 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   `cortex_model: str = "cortex"` (`CORTEX_MODEL_CORTEX`) is a LOGICAL model id (ADR-0004), never a
   file path; and the GPU-budget facts the `SubagentPlacer` fit-tests against (ADR-0012):
   `vram_soft_cap_gb: float = 14.0` (`CORTEX_VRAM_SOFT_CAP_GB`, the deliberate soft cap, ADR-0004) and
-  `cortex_reservation_gb: float = 11.3` (`CORTEX_VRAM_CORTEX_GB`, the resident cortex's footprint);
+  `cortex_reservation_gb: float = 8.6` (`CORTEX_VRAM_CORTEX_GB`, the resident cortex's footprint,
+  re-measured 2026-08-07 at the shipped tier shape and lowered from 11.3, which was a total-used
+  reading with the desktop's own floor inside it; the tier peaks at 8573 MiB above the floor and the
+  reservation keeps 233 MiB over that, leaving 5.4 GiB of subagent headroom where there was 2.7,
+  ADR-0012 re-measured-reservation addendum);
   `history_char_budget: int = 48000` (`CORTEX_HISTORY_CHAR_BUDGET`, ADR-0014) sets how many
   characters of session history one turn sends to the model (the newest whole turns;
   `0` disables windowing, negative rejected);
