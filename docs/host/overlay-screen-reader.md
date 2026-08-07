@@ -72,10 +72,14 @@ The four questions the transcript answers:
    the reader and the sentence lands as well. If a reader stutters there, note it; the alternative
    is asking the DOM where the caret is from inside a reducer, which this ADR refused.
 
-Two things to note in passing while a reader is on the overlay, since the bring-up is the expensive
+Three things to note in passing while a reader is on the overlay, since the bring-up is the expensive
 part: whether the switcher reads as a list of rows with their four buttons per row (the listbox role
-came off for exactly this reason), and whether the caret's landings after a row gesture read as the
-controls they are (`Delete <title>`, `Cancel delete`, `Recent chats`, the composer).
+came off for exactly this reason), whether the caret's landings after a row gesture read as the
+controls they are (`Delete <title>`, `Cancel delete`, `Recent chats`, the composer), and whether a
+reader inside the rename editor can tell the held `Ctrl+N` from an application that has stopped
+answering. That last silence is a decision rather than an omission, argued in the same ADR on the
+grounds that the hold destroys nothing and that the branch it is decided at cannot tell a bound
+chord from `Ctrl+Z`; a reader who is genuinely stranded there is the finding that reopens it.
 
 ## Pass looks like
 
