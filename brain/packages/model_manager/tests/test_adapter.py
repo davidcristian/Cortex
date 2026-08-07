@@ -30,7 +30,7 @@ from http import HTTPStatus
 import httpx
 import pytest
 
-from cortex_core import ModelHostError, ModelHostState
+from cortex_core import DeviceMemory, ModelHostError, ModelHostState
 from cortex_model_manager import HttpModelHost
 
 _ENDPOINT = "http://model-host:9300"
@@ -151,3 +151,59 @@ async def test_a_state_word_this_version_does_not_know_is_a_failure_not_a_guess(
 
     with pytest.raises(ModelHostError, match="which is not known"):
         await _host(httpx.MockTransport(handle)).status("brain")
+
+
+def _health(body: dict[str, object]) -> httpx.MockTransport:
+    """A sidecar whose ``/health`` answers ``body`` and whose other routes are never asked."""
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/health"
+        return httpx.Response(HTTPStatus.OK, json=body)
+
+    return httpx.MockTransport(handle)
+
+
+async def test_the_card_is_read_off_the_health_route_and_nowhere_else() -> None:
+    """The fourth verb's wire: one GET, on the route that takes no per-model lock."""
+    seen: list[tuple[str, str]] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        seen.append((request.method, request.url.path))
+        return httpx.Response(
+            HTTPStatus.OK,
+            json={"status": "ok", "device_free_mib": 22484, "device_total_mib": 24463},
+        )
+
+    memory = await _host(httpx.MockTransport(handle)).device_memory()
+    assert memory == DeviceMemory(free_mib=22484, total_mib=24463)
+    assert seen == [("GET", "/health")]
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        # A daemon that can see no card at all (a CPU-only stack, or one with no device reserved).
+        {"status": "ok", "device_free_mib": None, "device_total_mib": None},
+        # A daemon older than this field: the same answer, because a brain that cannot get a
+        # reading must not behave as though the load fitted.
+        {"status": "ok"},
+        # Half an answer is no answer: a total with no free figure says nothing about room.
+        {"status": "ok", "device_total_mib": 24463},
+        # And a figure that is not a number is not a reading either.
+        {"status": "ok", "device_free_mib": "plenty", "device_total_mib": 24463},
+    ],
+)
+async def test_a_health_body_without_two_figures_is_no_reading(body: dict[str, object]) -> None:
+    assert await _host(_health(body)).device_memory() is None
+
+
+async def test_a_sidecar_that_cannot_answer_about_the_card_is_a_typed_error() -> None:
+    """Not a silent ``None``: a control call that broke is the swap's failure to decide, not a
+    reading that came back empty."""
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        del request
+        return httpx.Response(HTTPStatus.SERVICE_UNAVAILABLE, text="the supervisor is wedged")
+
+    with pytest.raises(ModelHostError, match="for the device it runs on"):
+        await _host(httpx.MockTransport(handle)).device_memory()

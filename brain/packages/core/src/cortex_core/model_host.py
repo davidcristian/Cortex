@@ -44,6 +44,26 @@ class ModelHostState(Enum):
 
 
 @dataclass(frozen=True, slots=True)
+class DeviceMemory:
+    """How much of the GPU is free right now, and how big it is, as the host's own card reports.
+
+    MiB because every instrument and every measurement in this repo speaks MiB (``nvidia-smi``,
+    ADR-0004's tier costs, the ADR-0030 co-residency table), so a value never has to be converted
+    at the seam where it is compared.
+
+    **A reading is only evidence before an allocation, never after one.** Measured 2026-08-07: a
+    pair of tiers that genuinely fit a 24 GB card and a pair overcommitted by 4676 MiB both read
+    about 23.6 GB used with about 0.5 GB free, because the WSL2 driver pages the overcommit to
+    system memory instead of refusing it, and the only witness is decode throughput. So this value
+    answers exactly one question, "is there room for what is about to be loaded", asked while the
+    room still exists.
+    """
+
+    free_mib: int
+    total_mib: int
+
+
+@dataclass(frozen=True, slots=True)
 class ResidencyPlan:
     """Which models share the one GPU, and the bounds a swap between them respects (ADR-0030).
 
@@ -60,6 +80,13 @@ class ResidencyPlan:
     the deep model's own phase may spawn. It is safe to reopen admission precisely because
     nothing admission could be handed to was ever stopped.
 
+    ``brain_vram_mib`` is what turns that assertion into something checkable: the free device
+    memory the deep model needs before it may be started, measured by the deployment on its own
+    card. Zero (the default) means no fit check at all, which is the shipped behaviour; anything
+    positive makes ``swap_in`` read the host's card immediately before the load and refuse the
+    handoff when the room is not there. It is required alongside ``coresident`` on a deployment
+    whose host can see a card, because a co-resident plan is precisely a claim about room.
+
     ``drain_timeout_s`` bounds the wait for the subagent pool to quiesce, which happens before
     anything is evicted, so exceeding it aborts the swap rather than killing a subagent;
     ``load_timeout_s`` bounds the readiness gate after a start, and ``poll_interval_s`` is the
@@ -71,11 +98,15 @@ class ResidencyPlan:
     brain_model: str
     evict_models: tuple[str, ...] = ()
     coresident: bool = False
+    brain_vram_mib: int = 0
     drain_timeout_s: float = DEFAULT_SWAP_DRAIN_TIMEOUT_S
     load_timeout_s: float = DEFAULT_SWAP_LOAD_TIMEOUT_S
     poll_interval_s: float = DEFAULT_HEALTH_POLL_INTERVAL_S
 
     def __post_init__(self) -> None:
+        if self.brain_vram_mib < 0:
+            msg = f"ResidencyPlan.brain_vram_mib must be >= 0, got {self.brain_vram_mib}"
+            raise ValueError(msg)
         if self.drain_timeout_s < 0:
             msg = f"ResidencyPlan.drain_timeout_s must be >= 0, got {self.drain_timeout_s}"
             raise ValueError(msg)

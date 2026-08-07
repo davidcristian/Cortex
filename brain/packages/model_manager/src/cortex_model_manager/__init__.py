@@ -9,6 +9,11 @@ from cortex_model_manager.children import (
     ChildProcesses,
 )
 from cortex_model_manager.config import ModelHostConfig
+from cortex_model_manager.device_memory import (
+    DeviceMemoryProbe,
+    NoDeviceMemory,
+    NvidiaSmiMemory,
+)
 from cortex_model_manager.probe import HealthProbe, HttpHealthProbe
 from cortex_model_manager.server import build_model_host, build_supervisor, main
 from cortex_model_manager.spec import ModelSpec, RosterError, build_roster
@@ -30,6 +35,7 @@ __all__ = [
     "AsyncioChildProcesses",
     "ChildProcess",
     "ChildProcesses",
+    "DeviceMemoryProbe",
     "HealthProbe",
     "HttpHealthProbe",
     "HttpModelHost",
@@ -37,6 +43,8 @@ __all__ = [
     "ModelSpec",
     "ModelStatus",
     "ModelSupervisor",
+    "NoDeviceMemory",
+    "NvidiaSmiMemory",
     "RosterError",
     "StopBounds",
     "SupervisorError",

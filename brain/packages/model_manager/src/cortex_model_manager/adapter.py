@@ -1,4 +1,4 @@
-"""The real ``ModelHost``: the port's three verbs over the supervisor's control API (ADR-0030 d3).
+"""The real ``ModelHost``: the port's four verbs over the supervisor's control API (ADR-0030 d3).
 
 This half runs in the **brain** container and holds no process knowledge at all. It sends a
 logical id and reads back one of the port's four states, which is the whole reason artifact paths,
@@ -15,6 +15,10 @@ Two policies, both deliberate:
 - **A FAILED state is a normal answer, logged loudly.** The health gate returns FAILED at once
   rather than waiting out its bound, and the sidecar's ``detail`` is the only place the exit code
   appears on the brain's side, so it is logged where the swap's own failure note will be read.
+- **A missing device reading is a normal answer too, and never an error.** The fourth verb asks
+  how much of the card is free, and a daemon with no GPU (or one too old to report it) says so
+  with a body that carries neither figure. Refusing on that belongs to the swap, which knows
+  whether anything asked for a fit; the adapter's job is only to say what came back.
 """
 
 import logging
@@ -24,9 +28,14 @@ from urllib.parse import quote
 
 import httpx
 
-from cortex_core import ModelHostError, ModelHostState
+from cortex_core import DeviceMemory, ModelHostError, ModelHostState
 
 _logger = logging.getLogger(__name__)
+
+
+def _about(model: str) -> str:
+    """How a control call names the model it is about, in a failure a human has to read."""
+    return f"model {model!r}"
 
 
 class HttpModelHost:
@@ -51,11 +60,34 @@ class HttpModelHost:
 
     async def status(self, model: str) -> ModelHostState:
         """What the sidecar says ``model``'s process is doing right now."""
-        return self._read(model, await self._request("GET", self._model_path(model), model))
+        payload = await self._request("GET", self._model_path(model), _about(model))
+        return self._read(model, payload)
+
+    async def device_memory(self) -> DeviceMemory | None:
+        """How much of the sidecar's card is free, or ``None`` when it can see no card.
+
+        Off ``GET /health``, which is the one route that takes no per-model lock: a swap asks this
+        between an eviction and a load, and a question that queued behind a stop would add that
+        stop's whole grace to the answer. A body from a daemon too old to carry the two fields
+        reads as no card, which is the same fail-closed answer as a daemon that has none, and the
+        right one either way: a brain that cannot get a reading must not act as if it fitted.
+        """
+        payload = await self._request("GET", "/health", "the device it runs on")
+        free = payload.get("device_free_mib")
+        total = payload.get("device_total_mib")
+        if not isinstance(free, int) or not isinstance(total, int):
+            _logger.info(
+                "the model host reports no device memory: free=%r total=%r",
+                free,
+                total,
+                extra={"free": free, "total": total},
+            )
+            return None
+        return DeviceMemory(free_mib=free, total_mib=total)
 
     async def _act(self, model: str, verb: str) -> None:
         """Run a lifecycle verb and read the state it left behind, for the log."""
-        payload = await self._request("POST", f"{self._model_path(model)}/{verb}", model)
+        payload = await self._request("POST", f"{self._model_path(model)}/{verb}", _about(model))
         state = self._read(model, payload)
         _logger.info(
             "asked the model host for a lifecycle change: model=%s verb=%s state=%s",
@@ -69,23 +101,27 @@ class HttpModelHost:
         """The route for one logical id, escaped: an id is a name, never a path fragment."""
         return f"/models/{quote(model, safe='')}"
 
-    async def _request(self, method: str, path: str, model: str) -> dict[str, Any]:
-        """One control call, with every failure shape collapsed into ``ModelHostError``."""
+    async def _request(self, method: str, path: str, subject: str) -> dict[str, Any]:
+        """One control call, with every failure shape collapsed into ``ModelHostError``.
+
+        ``subject`` is what the call was about, already phrased for a message, because the four
+        lifecycle routes ask about a model and the health route asks about the card.
+        """
         try:
             response = await self._client.request(method, f"{self._endpoint}{path}")
         except httpx.HTTPError as err:
-            msg = f"the model host at {self._endpoint!r} did not answer for model {model!r}: {err}"
+            msg = f"the model host at {self._endpoint!r} did not answer for {subject}: {err}"
             raise ModelHostError(msg) from err
         if response.status_code != HTTPStatus.OK:
             msg = (
-                f"the model host refused {method} {path} for model {model!r} with HTTP "
+                f"the model host refused {method} {path} for {subject} with HTTP "
                 f"{response.status_code}: {response.text.strip()[:200]}"
             )
             raise ModelHostError(msg)
         try:
             body: object = response.json()
         except ValueError as err:
-            msg = f"the model host answered unparseable JSON for model {model!r}"
+            msg = f"the model host answered unparseable JSON for {subject}"
             raise ModelHostError(msg) from err
         if not isinstance(body, dict):
             msg = f"the model host answered a {type(body).__name__}, not an object"

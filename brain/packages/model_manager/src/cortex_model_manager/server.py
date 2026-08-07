@@ -26,6 +26,7 @@ from starlette.applications import Starlette
 from cortex_model_manager.api import build_app
 from cortex_model_manager.children import AsyncioChildProcesses
 from cortex_model_manager.config import ModelHostConfig
+from cortex_model_manager.device_memory import NvidiaSmiMemory
 from cortex_model_manager.probe import HttpHealthProbe
 from cortex_model_manager.supervisor import ModelSupervisor
 
@@ -52,7 +53,12 @@ def build_supervisor(config: ModelHostConfig) -> tuple[ModelSupervisor, httpx.As
 
 
 def build_model_host(config: ModelHostConfig) -> Starlette:
-    """The ASGI app for this deployment's roster, with the probe's client closed on shutdown."""
+    """The ASGI app for this deployment's roster, with the probe's client closed on shutdown.
+
+    The device probe is wired unconditionally, because whether this container can see a card is
+    the probe's own question to answer and not something env should assert: on a CPU-only stack
+    the binary is simply not in the image, and the seam reports no reading.
+    """
     supervisor, client = build_supervisor(config)
     _logger.info(
         "model host configured: models=%s boot_model=%s",
@@ -60,7 +66,12 @@ def build_model_host(config: ModelHostConfig) -> Starlette:
         config.cortex_model,
         extra={"models": list(supervisor.models), "boot_model": config.cortex_model},
     )
-    return build_app(supervisor, boot_model=config.cortex_model, close=client.aclose)
+    return build_app(
+        supervisor,
+        boot_model=config.cortex_model,
+        close=client.aclose,
+        device=NvidiaSmiMemory(config.nvidia_smi, config.probe_timeout_s),
+    )
 
 
 def main() -> None:

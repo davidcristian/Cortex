@@ -1624,3 +1624,117 @@ says by construction.
 Both deferrals are written up in
 [refinements/inference-model-manager.md](../refinements/inference-model-manager.md) with their lines
 in that backlog's index.
+
+## Addendum (2026-08-07, later): the co-residency flag is checked, at the one instant it can be
+
+The addendum above landed `CORTEX_SWAP_CORESIDENT` and recorded, as its own refinement, that
+nothing verifies it: the flag is an assertion about a card, and the brain container sees no GPU.
+This closes that refinement. It also narrows what the closing is allowed to claim, because the
+measurement above is a warning about the instrument as much as about the pair.
+
+**The instrument constrains the design, so the design starts there.** A genuine fit and a 4676 MiB
+overcommit both read about 23.6 GB used with about 0.5 GB free once both tiers are up: the WSL2
+driver pages the excess to system memory and reports success, and only decode rate says otherwise.
+So a check that read the card **after** the load would answer the same for the configuration it
+must accept and the one it must refuse, which is worse than no check, since it would license the
+bad one in writing. Free memory is evidence at exactly one instant: **before the allocation, after
+everything this handoff intends to unload is gone.** That instant is inside `swap_in`, between the
+last `stop` and the `start`, and that is where the check went.
+
+### The decision
+
+1. **The model host reports the card.** `ModelHost` gains a fourth verb, `device_memory() ->
+   DeviceMemory | None`, off the sidecar's existing `GET /health` body (now carrying
+   `device_free_mib` and `device_total_mib`). The supervisor container is the only process in the
+   stack with a device reserved, so it is the only one that can answer; the brain reads what it
+   says. `None` is a real answer meaning "this host can see no card", not an error, because a
+   CPU-only stack and the scripted backend are normal deployments.
+2. **The daemon reads it with `nvidia-smi`**, behind a `DeviceMemoryProbe` seam beside the existing
+   `ChildProcesses` and `HealthProbe` ones. The binary is injected into the container by the NVIDIA
+   container toolkit alongside the driver, so it is present exactly where a GPU is reserved, which
+   is the condition the seam has to report. Every failure is "no reading" rather than an exception,
+   including **more than one visible GPU**: nothing downstream knows which card a model would land
+   on, so this refuses to guess.
+3. **The deployment declares what the deep model costs**, `CORTEX_SWAP_BRAIN_VRAM_MIB`, and the
+   swap compares it against what is free immediately before the load. Short of it, `swap_in` raises
+   `SwapFailedError` with both figures in the message, the deep model is never started, the scope's
+   `finally` restores the standing residency, and the user gets the existing swap-failure note. A
+   host that cannot answer at all fails closed the same way: a deployment that asked to be checked
+   and cannot be is refused rather than run unchecked.
+4. **Co-residency requires the figure at boot**, when the host is the real supervisor.
+   `CORTEX_SWAP_CORESIDENT=1` with no `CORTEX_SWAP_BRAIN_VRAM_MIB` is a boot failure, in the same
+   validator that already refuses escalation with no backend. Over the `scripted` host it stays
+   optional, that backend starting no process on any card.
+
+### Why the refusal is there and not somewhere else
+
+- **Not at wiring time.** What a card has free changes by the gigabyte while the machine runs (this
+  one's idle floor moved between 1529 and 2836 MiB inside a session, because Windows shares it), so
+  a reading taken at boot is stale by the first handoff, and at boot the cortex is resident, which
+  is not the residency the deep model loads into. Boot is still the right place for the half that
+  **is** constant, the deployment's own declaration, which is why the validator refuses an
+  unmeasured co-resident stack there. The brain still does not depend on the sidecar answering at
+  wiring time, which is the objection the stop-bounds refinement recorded against enforcing its own
+  pairing at boot: nothing here talks to the sidecar until a swap does.
+- **Not by degrading to the evict-everything path.** Falling back to the shipped behaviour on a
+  card that turns out to be short is tempting and is unsafe here, for a reason that is about
+  ordering rather than taste: the conductor decides whether to drain **before** the swap begins, so
+  a co-resident handoff has already skipped the drain and announced no window by the time `swap_in`
+  reads the card. Stopping the peers at that point would reopen exactly the hazard the drain
+  exists for, admission onto a tier nothing restarted, and it would do it silently. A handoff that
+  cannot run as configured is refused, and the machine is left as it was found.
+- **After the cortex is stopped, not before.** The refusal therefore costs one cortex eviction and
+  its restore (measured 31.43 s) on a misconfigured deployment. Checking earlier would need the
+  cortex's own cost as a second declared number to know what the eviction will free, and that
+  number is the one ADR-0004 and decision 8 have both had wrong by about 2.8 GB. One measured
+  figure that is compared against the real card beats two that are compared against each other.
+
+### What this check can detect, and what it cannot
+
+It detects **one thing**: at the instant before the load, the card had less free memory than the
+deployment said the deep model needs. Live, on this machine: with the cortex resident the sidecar
+reported 14905 MiB free of 24463, the deep model's declared 19125 MiB did not clear it, and
+`swap_in` refused in 0.03 s without starting anything. With the cortex evicted, the same call on
+the same card passed the check and loaded the deep model to `ready` in 69.24 s, leaving 3579 MiB
+free. Those two runs differ in nothing but what was resident.
+
+It cannot detect:
+
+- **A declared figure that is wrong.** Nothing here measures a model; it compares a number the
+  deployment measured against the card. Under-declare and the check passes and the load spills.
+- **A spill that has already happened.** The reading is meaningless after the allocation, which is
+  the whole instrument lesson above. This is now the shape of the one refinement this closing
+  opens: the only witness of a spill is decode rate, and nothing in the brain watches it.
+- **Memory taken during the load.** A tier-scale load is a minute or more, and the desktop sharing
+  this card moves about a gigabyte on its own. A deployment wanting slack declares it, by adding it
+  to the figure; there is no invented margin constant here, because a margin nobody measured is
+  another unchecked assertion.
+- **Anything about a peer.** The check asks whether the deep model fits in what is free. Which
+  tiers are standing, and whether they should be, is the plan's business.
+
+### Naming
+
+`CORTEX_SWAP_BRAIN_VRAM_MIB` joins the swap family (`CORTEX_SWAP_EVICT_MODELS`,
+`CORTEX_SWAP_CORESIDENT`, `CORTEX_SWAP_DRAIN_TIMEOUT_S`, `CORTEX_SWAP_LOAD_TIMEOUT_S`) and names
+the fact it carries, the deep tier's own cost, in the unit every instrument and every measurement
+in this repo publishes. The honest alternates: `CORTEX_SWAP_REQUIRED_FREE_MIB`, which names the
+test rather than the fact and would have to be renamed the day a second tier is gated the same
+way; and `CORTEX_VRAM_BRAIN_GB`, which would sit in the placer's `CORTEX_VRAM_CORTEX_GB` family and
+was rejected for reading as a placement budget the placer does not consult, and for hiding MiB
+behind a unit that would need converting at the seam where the two numbers meet. On the sidecar,
+`CORTEX_MODELHOST_NVIDIA_SMI` names a binary path exactly as `CORTEX_MODELHOST_LLAMA_BIN` does.
+
+### What this deliberately does not do
+
+- **No spill detection.** Recorded as a refinement in
+  [refinements/inference-model-manager.md](../refinements/inference-model-manager.md): the brain
+  would have to read llama.cpp's own `timings.predicted_per_second` after a handoff and say so when
+  it collapses. That is the only instrument that separates a fit from a spill, and it is the honest
+  residue of a check that can only see the room beforehand.
+- **No reading on the seam.** `Health` still answers residency and says nothing about VRAM. A
+  number that means something only at one instant of a swap is not a status field.
+- **No second port.** The reading rides `ModelHost` rather than a segregated port, because its one
+  caller is the swap, which already holds the other three verbs, and because it comes off the same
+  daemon's existing route on the same client. `ResidencyReporter` was split from
+  `ResidencyController` to keep a read-only caller from reaching a write; there is no such
+  asymmetry here.

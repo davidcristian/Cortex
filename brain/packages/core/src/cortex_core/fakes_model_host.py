@@ -15,7 +15,7 @@ import asyncio
 from collections.abc import Iterable, Mapping
 
 from cortex_core.errors import ModelHostError
-from cortex_core.model_host import ModelHostState
+from cortex_core.model_host import DeviceMemory, ModelHostState
 
 
 class ScriptedModelHost:
@@ -33,6 +33,14 @@ class ScriptedModelHost:
     Effects apply before a pause and after a failure check: a failed ``start`` starts nothing,
     while a paused ``stop`` has genuinely stopped its model, which is what makes a kill at that
     boundary the honest analogue of a process death after the eviction.
+
+    ``device_memory`` is the card this twin claims to sit beside, and ``None`` (the default) is
+    the honest answer for a twin that starts no process on any GPU: it says "this host cannot see
+    a card", which is what the scripted backend genuinely cannot. A test that needs a swap to get
+    past a fit check hands it a reading, and one that needs the fail-closed path leaves it out.
+    The reading is a fixed value rather than a ledger over ``running``, deliberately: this twin
+    models the port, and modelling VRAM arithmetic here would invent numbers no measurement
+    backs.
     """
 
     def __init__(
@@ -43,8 +51,10 @@ class ScriptedModelHost:
         fail: Mapping[tuple[str, str], str] | None = None,
         fail_once: Mapping[tuple[str, str], str] | None = None,
         pause_at: Iterable[tuple[str, str]] = (),
+        device_memory: DeviceMemory | None = None,
     ) -> None:
         self.running: set[str] = set(running)
+        self.device: DeviceMemory | None = device_memory
         self.calls: list[tuple[str, str]] = []
         self.reached: dict[tuple[str, str], asyncio.Event] = {
             key: asyncio.Event() for key in pause_at
@@ -89,6 +99,17 @@ class ScriptedModelHost:
         if model not in self.running:
             return ModelHostState.STOPPED
         return self._override.get(model, ModelHostState.READY)
+
+    async def device_memory(self) -> DeviceMemory | None:
+        """What the card beside this twin reports, or ``None`` for a host that sees none.
+
+        Logged in ``calls`` under an empty id, since the reading is about the host and not about
+        any one model, and scriptable for failure and pause through that same key: the fit check
+        runs inside the swap's own try, so a host that cannot answer must be able to fail there.
+        """
+        self._check("device_memory", "")
+        await self._pause("device_memory", "")
+        return self.device
 
     def _check(self, op: str, model: str) -> None:
         """Log the operation, then raise whatever failure was scripted for it."""

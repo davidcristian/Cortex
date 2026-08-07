@@ -125,8 +125,15 @@ Model management (Slice 4, ADR-0007; the swap's value half is ADR-0030, in `mode
   one logical model's process is doing, as its host reports it. `start` only *begins* loading,
   so readiness is observed here and nowhere else, which is why every swap health-gates rather
   than trusting a returned `start`.
+- `DeviceMemory(free_mib, total_mib)` is a frozen dataclass: how much of the GPU is free right
+  now and how big it is, in MiB because every instrument and every measurement in this repo
+  publishes MiB. **A reading is evidence before an allocation and never after one:** measured
+  2026-08-07, a pair of tiers that genuinely fit a 24 GB card and a pair overcommitted by
+  4676 MiB both read about 23.6 GB used with about 0.5 GB free, the driver having paged the
+  excess to system memory rather than refusing it.
 - `ResidencyPlan(cortex_model, brain_model, evict_models=(), coresident=False,
-  drain_timeout_s=60.0, load_timeout_s=300.0, poll_interval_s=1.0)` is the frozen
+  brain_vram_mib=0, drain_timeout_s=60.0, load_timeout_s=300.0, poll_interval_s=1.0)` is the
+  frozen
   composition-root value the manager,
   the conductor, and boot recovery all read, so they cannot disagree about the topology: which
   model is the standing resident every exit path converges back to, which one a handoff swaps in,
@@ -135,8 +142,12 @@ Model management (Slice 4, ADR-0007; the swap's value half is ADR-0030, in `mode
   `coresident` is the deployment's opt-in reversal of that one rule and of nothing else
   (ADR-0030's co-residency addendum, measured): with it set a swap stops the cortex and leaves
   every `evict_models` tier serving, and the conductor never enters the drain window, so
-  delegation runs through the handoff. Off by default, since it asserts a fit no process can
-  check. A negative
+  delegation runs through the handoff. Off by default, since it asserts a fit about one card.
+  `brain_vram_mib` is what that assertion is checked against: the free device memory the deep
+  model needs, measured by the deployment, which `swap_in` compares against the host's own
+  reading immediately before the load. Zero (the default) means no check at all; the
+  composition root requires a positive figure alongside `coresident` on the real supervisor
+  host. A negative VRAM figure, a negative
   drain bound, a negative load bound, or a non-positive poll interval raises `ValueError` at
   construction. `DEFAULT_SWAP_DRAIN_TIMEOUT_S` (60 s, long enough for a normal delegated run to
   finish and short enough that a wedged one does not hold the handoff open for minutes),
@@ -636,8 +647,14 @@ unchanged):
   **Unchanged by the swap** (ADR-0030 decision 5 / ADR-0012 decision 1): residency is a
   separate, segregated port rather than a widened `acquire`.
 - `ModelHost` (in `ports_models.py`, re-exported here) provides `async start(model)`,
-  `async stop(model)`, `async status(model) -> ModelHostState` (ADR-0030 decision 3): the
-  process-lifecycle half ADR-0007 deferred. Both verbs are idempotent and `start` only *begins*
+  `async stop(model)`, `async status(model) -> ModelHostState`, and
+  `async device_memory() -> DeviceMemory | None` (ADR-0030 decision 3 and its fit-check
+  addendum): the process-lifecycle half ADR-0007 deferred, plus the one reading only the host
+  can take. `device_memory` is not about a process and takes no id; `None` means the host can
+  see no card, which is a normal answer (a CPU-only stack, the scripted backend) and never an
+  error. It rides this port rather than a segregated one because its only caller is the swap,
+  which already holds the other three verbs, and because it comes off the same daemon's same
+  route on the same client. Both verbs are idempotent and `start` only *begins*
   loading, so readiness is observed only through `status`. `model` is a logical id (ADR-0004):
   artifact paths, ports, `-ngl`, and context flags never cross it, so a deployment re-points a
   tier without touching the core. Failures surface as `ModelHostError`. `ScriptedModelHost` is
@@ -1567,15 +1584,19 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   recovery failing to confirm the cortex is not the same as knowing it is gone (an unreachable
   host says nothing about the process it supervises) and clearing the resident would refuse every
   turn on a machine that may be serving. The report is display only; the lease stays forgiving.
-  The two host-facing moves themselves (evict and
+  The two host-facing moves themselves (evict, check the card, and
   start; stop and restore the standing residency) live in `residency_moves.py`, and the swap
   back's uninterruptible wait in `residency_restore.py`, both split off for
   the line cap along the seam the manager already draws: it owns *when* and *who may*, they own
   *what the host is asked to do* and *what a cancellation may not abandon*, with opposite failure
   directions (the swap in raises `SwapFailedError`, the restore answers a bool because its caller
-  retries it).
+  retries it). The fit check sits inside `swap_in` between the last `stop` and the `start`, which
+  is the only instant free memory means anything: everything the handoff means to unload is gone
+  and nothing is allocated yet. Under a plan with `brain_vram_mib` set, a card short of that
+  figure, or a host that can see no card at all, raises `SwapFailedError` there with both figures
+  in the message and starts nothing; with the figure at zero the host is never asked.
 - `ScriptedModelHost(*, running=(), status_override=None, fail=None, fail_once=None,
-  pause_at=())` is the `ModelHost` twin (ADR-0030 decision 3, in `fakes_model_host.py`): a set
+  pause_at=(), device_memory=None)` is the `ModelHost` twin (ADR-0030 decision 3, in `fakes_model_host.py`): a set
   of running models plus exactly the scripting the swap's named failure modes need.
   `status_override` is what a *running* model reports instead of `READY` (a load that never
   finishes, a model that died at load); `fail` raises `ModelHostError` for an `(op, model)`
@@ -1583,7 +1604,10 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   `pause_at` blocks an operation at its boundary **after** its effect lands, firing
   `reached[key]` and resuming on `release[key]`, which is how a test kills the conductor at a
   named step. `calls` is the op log, which is what proves a swap requested the right things in
-  the right order and at most once.
+  the right order and at most once; a device reading is logged there under an empty id, since it
+  is about the host rather than any one model. `device_memory` is the card this twin claims to
+  sit beside, `None` by default because a twin that starts no process on any GPU honestly sees
+  none, and settable on `.device` so a test can drive both sides of the fit check.
 - `AsyncioSleeper` is the real `Sleeper` (production wiring, the `SystemClock` precedent);
   `RecordingSleeper` is its twin, recording every requested wait in `.waits` and yielding the
   loop instead of consuming time, so a poll loop's *schedule* is asserted rather than its

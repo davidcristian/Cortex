@@ -31,7 +31,7 @@ at once, which is the eviction half nothing else here would catch.
 
 import asyncio
 import os
-from collections.abc import Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -45,9 +45,11 @@ from cortex_core import (
     ModelHostError,
     ModelHostState,
     ResidencyPlan,
+    SwapFailedError,
     SwappingModelManager,
     await_model_ready,
 )
+from cortex_core.residency_moves import swap_in
 from cortex_model_manager import (
     AsyncioChildProcesses,
     ChildProcess,
@@ -297,3 +299,96 @@ async def _settled(host: HttpModelHost, model: str) -> ModelHostState:
         sleeper=AsyncioSleeper(),
         plan=ResidencyPlan(cortex_model=model, brain_model=model, load_timeout_s=300.0),
     )
+
+
+@pytest.mark.integration
+async def test_the_real_sidecar_reports_the_card_it_can_see() -> None:
+    """The reading the fit check rests on, taken through the real adapter off a real driver.
+
+    Asserted as a shape rather than a number, because the figure is the machine's and moves while
+    the desktop runs; what a gated test cannot reach at all is whether the sidecar's container can
+    see a GPU, which is the entire premise of checking a fit from the brain.
+    """
+    endpoint = os.environ.get("CORTEX_MODELHOST_ENDPOINT")
+    if not endpoint:
+        pytest.skip("set CORTEX_MODELHOST_ENDPOINT to a running model-host sidecar")
+    client = httpx.AsyncClient(timeout=httpx.Timeout(_CONTROL_TIMEOUT_S))
+    try:
+        reading = await HttpModelHost(endpoint, client).device_memory()
+    finally:
+        await client.aclose()
+    if reading is None:
+        pytest.skip("this model-host container can see no GPU, so there is no reading to check")
+    assert 0 < reading.free_mib <= reading.total_mib
+
+
+@pytest.mark.integration
+async def test_a_swap_refuses_the_load_the_card_has_no_room_for_and_allows_the_one_it_has() -> None:
+    """Both sides of the fit check against one real card, one real sidecar, one real load.
+
+    The two arms differ in **one number** and nothing else: the same target tier, the same moment,
+    the same free memory. Asking for a megabyte more than the card has free must refuse without
+    starting anything, and asking for exactly what is free must go through and really load. That
+    pairing is what makes this a check rather than a switch, and the refusal arm is the one no
+    gated test can prove, because only a real driver can say what is genuinely free.
+
+    Deliberately driven through ``swap_in`` rather than a residency scope: a scope's ``finally``
+    restores the standing resident, which on a refusal would reload a tier the swap never touched
+    and cost minutes to prove nothing. The plan therefore names a stopped tier as its standing
+    resident, so the eviction step is a no-op and what is measured is the check alone.
+
+    The target has to start this stopped, because the card's free figure is read once and both
+    arms are judged against it. A target the co-residency case above left serving is stopped here
+    and started again on the way out, rather than skipping: this is the one case whose whole
+    subject is what the card has free, so it may not be the case that quietly does not run.
+    """
+    endpoint = os.environ.get("CORTEX_MODELHOST_ENDPOINT")
+    if not endpoint:
+        pytest.skip("set CORTEX_MODELHOST_ENDPOINT to a running model-host sidecar")
+    target = os.environ.get("CORTEX_MODELHOST_LIVE_FIT_MODEL", "subagent-gpu")
+    client = httpx.AsyncClient(timeout=httpx.Timeout(_CONTROL_TIMEOUT_S))
+    host = HttpModelHost(endpoint, client)
+    found_running = False
+    try:
+        try:
+            found_running = await host.status(target) is not ModelHostState.STOPPED
+        except ModelHostError as err:
+            pytest.skip(f"the sidecar does not host {target!r}: {err}")
+        await host.stop(target)
+        reading = await host.device_memory()
+        if reading is None:
+            pytest.skip("this model-host container can see no GPU, so no fit can be checked")
+        gate = _gate_for(host)
+        # One MiB more than the card has free: nothing may be started, and the message has to
+        # carry both figures, since that is all an operator gets to diagnose it with.
+        with pytest.raises(SwapFailedError, match=f"only {reading.free_mib} of "):
+            await swap_in(host, _fit_plan(target, reading.free_mib + 1), target, gate)
+        assert await host.status(target) is ModelHostState.STOPPED
+        # Exactly what is free: the same call, the same card, and this one really loads.
+        await swap_in(host, _fit_plan(target, reading.free_mib), target, gate)
+        assert await host.status(target) is ModelHostState.READY
+    finally:
+        # Leave the sidecar as it was found, on every path this can take: a start is idempotent,
+        # so it is a no-op against the tier the second arm just loaded and a restore for one an
+        # early skip left stopped.
+        if found_running:
+            await host.start(target)
+        else:
+            await host.stop(target)
+        await client.aclose()
+
+
+def _fit_plan(target: str, needed_mib: int) -> ResidencyPlan:
+    """A plan whose standing resident is the target itself, so nothing else is evicted."""
+    return ResidencyPlan(
+        cortex_model=target, brain_model=target, brain_vram_mib=needed_mib, load_timeout_s=300.0
+    )
+
+
+def _gate_for(host: HttpModelHost) -> Callable[[str], Awaitable[ModelHostState]]:
+    """The real readiness gate, bound to this host, as the manager binds its own."""
+
+    async def gate(model: str) -> ModelHostState:
+        return await _settled(host, model)
+
+    return gate

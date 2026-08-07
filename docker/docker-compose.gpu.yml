@@ -39,8 +39,11 @@
 # That last line is reversible, on a card that has been measured to hold the pair: setting
 # CORTEX_SWAP_CORESIDENT=1 in the `brain` environment leaves every listed tier serving through the
 # handoff and skips the subagent pool's drain entirely, so delegation keeps flowing and the deep
-# phase may spawn. It is OFF by default and nothing validates it, because the brain container sees
-# no GPU. On this stack's own 24 GB card the deep model and the E4B subagent tier fit together at
+# phase may spawn. It is OFF by default, and turning it on also requires
+# CORTEX_SWAP_BRAIN_VRAM_MIB, the deep tier's measured VRAM cost (19125 MiB for the pick below):
+# the sidecar reports what the card has free on GET /health and the swap refuses the handoff when
+# that figure will not clear, which is the only check there is, since the brain container itself
+# sees no GPU. On this stack's own 24 GB card the deep model and the E4B subagent tier fit together at
 # 23555 to 23642 MiB with about 908 MiB free, while the cortex and the deep model do not fit and
 # do not say so: WSL2 pages the overcommit and halves the deep model's decode rate with nvidia-smi
 # reading the same ~23.6 GB used. Measure decode, not memory. Procedure and table:
@@ -129,6 +132,12 @@ services:
       CORTEX_MODELHOST_STOP_GRACE_S: "${CORTEX_MODELHOST_STOP_GRACE_S:-10}"
       CORTEX_MODELHOST_REAP_TIMEOUT_S: "${CORTEX_MODELHOST_REAP_TIMEOUT_S:-30}"
       CORTEX_MODELHOST_PROBE_TIMEOUT_S: "${CORTEX_MODELHOST_PROBE_TIMEOUT_S:-5}"
+      # What GET /health reads the card with, so the brain can refuse a handoff that will not fit.
+      # The container toolkit injects this binary alongside the driver, so the default is right
+      # wherever a GPU is reserved; where none is, it is simply absent and the daemon reports no
+      # reading, which is what a brain with no measured figure never asks about anyway. Bounded by
+      # the probe timeout above, both being control-plane reads a swap step waits on.
+      CORTEX_MODELHOST_NVIDIA_SMI: "${CORTEX_MODELHOST_NVIDIA_SMI:-nvidia-smi}"
     volumes:
       # Models stay on the Windows drive, mounted read-only (ADR-0004 d3). Forward slashes
       # work in Docker Desktop on Windows; override the source with CORTEX_MODELS_DIR.

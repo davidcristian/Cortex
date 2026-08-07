@@ -38,12 +38,17 @@ async def swap_in(host: ModelHost, plan: ResidencyPlan, model: str, gate: Readin
     A ``coresident`` plan skips the second step and only the second step: the cortex still goes,
     because no measured pairing of it and a deep candidate fits 24 GB, while the standing peers
     the deployment has measured as fitting stay exactly where they are.
+
+    Between the evictions and the start sits the fit check, at the one moment it can mean
+    anything: everything this handoff intends to unload is gone, nothing has been allocated yet,
+    and what the card reports free is exactly the room the deep model is about to ask for.
     """
     try:
         await host.stop(plan.cortex_model)
         if not plan.coresident:
             for evicted in plan.evict_models:
                 await host.stop(evicted)
+        await _refuse_a_load_the_card_cannot_hold(host, plan, model)
         await host.start(model)
         state = await gate(model)
     except ModelHostError as err:
@@ -52,6 +57,72 @@ async def swap_in(host: ModelHost, plan: ResidencyPlan, model: str, gate: Readin
     if state is not ModelHostState.READY:
         msg = f"model {model!r} did not become ready in time (last state: {state.value})"
         raise SwapFailedError(msg)
+
+
+async def _refuse_a_load_the_card_cannot_hold(
+    host: ModelHost, plan: ResidencyPlan, model: str
+) -> None:
+    """Fail the swap before the load when the free device memory is short of the plan's figure.
+
+    Off unless the deployment declared ``brain_vram_mib``, which is what a co-resident deployment
+    is required to do: with no figure there is nothing to compare against and this returns at
+    once, so a stack that never declared one behaves exactly as it did.
+
+    **What this can detect, stated narrowly on purpose.** It compares one number the deployment
+    measured against one number the card reports, at the instant before the allocation. That is
+    the only instant at which free memory is evidence: measured 2026-08-07 on a 24 GB card, a
+    genuine fit and a 4676 MiB overcommit both read about 23.6 GB used and about 0.5 GB free
+    **afterwards**, because the driver pages the excess to system memory and reports success, so a
+    check that looked at the card once both tiers were up would license exactly the configuration
+    it exists to refuse. It therefore detects a card that has too little room left, and nothing
+    else: not a declared figure that is wrong (a deployment that under-declares gets no
+    protection, which is why the runbook says to measure decode and not memory), not memory some
+    other process on the card takes during the minutes the load runs, and not a spill once it has
+    happened. Its answer is "there was not room", never "it fitted".
+
+    ``None`` from the host means it cannot see a card at all, which fails closed: a deployment
+    that asked for a fit check and cannot have one is refused rather than run unchecked.
+    """
+    if plan.brain_vram_mib <= 0:
+        return
+    memory = await host.device_memory()
+    if memory is None:
+        msg = (
+            f"the model host reports no device memory, so there is no way to tell whether "
+            f"{model!r} fits in the {plan.brain_vram_mib} MiB it was declared to need; the "
+            "handoff is refused rather than run unchecked"
+        )
+        _logger.error(msg, extra={"model": model, "needed_mib": plan.brain_vram_mib})
+        raise SwapFailedError(msg)
+    if memory.free_mib < plan.brain_vram_mib:
+        msg = (
+            f"{model!r} needs {plan.brain_vram_mib} MiB of free device memory and only "
+            f"{memory.free_mib} of {memory.total_mib} MiB is free, so it was not started; a "
+            "load that does not fit is paged to system memory rather than refused, at roughly "
+            "half the decode rate (docs/runbooks/model-swap.md)"
+        )
+        _logger.error(
+            msg,
+            extra={
+                "model": model,
+                "needed_mib": plan.brain_vram_mib,
+                "free_mib": memory.free_mib,
+                "total_mib": memory.total_mib,
+            },
+        )
+        raise SwapFailedError(msg)
+    _logger.info(
+        "the card has room for the deep model: model=%s needed_mib=%d free_mib=%d",
+        model,
+        plan.brain_vram_mib,
+        memory.free_mib,
+        extra={
+            "model": model,
+            "needed_mib": plan.brain_vram_mib,
+            "free_mib": memory.free_mib,
+            "total_mib": memory.total_mib,
+        },
+    )
 
 
 async def restore_standing(

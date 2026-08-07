@@ -12,7 +12,7 @@ boundaries exclusively as the typed errors in ``errors.py``.
 from contextlib import AbstractAsyncContextManager
 from typing import Protocol
 
-from cortex_core.model_host import ModelHostState
+from cortex_core.model_host import DeviceMemory, ModelHostState
 from cortex_core.residency_state import ResidencyReport
 
 
@@ -30,6 +30,16 @@ class ModelHost(Protocol):
     Failures surface as ``ModelHostError``. The core's ``ScriptedModelHost`` is the scriptable
     twin CI and the chaos suite drive (delays, failures, kill-at-step); the real supervisor
     adapter's live tests are ``integration``-marked, per AGENTS.md gate 3.
+
+    ``device_memory`` is the fourth verb and the only one that is not about a process: how much of
+    the card is free right now. It belongs here rather than in a port of its own because the one
+    caller that reads it is the swap, which already holds all three lifecycle verbs, and because
+    the answer comes off the same daemon's ``GET /health`` on the same client (a segregated port
+    would be a second protocol over one adapter object for a client that uses every method of
+    both). The brain's own container sees no GPU, so this is the only reading it can have.
+    ``None`` is a real answer, meaning **this host cannot see a card**, and it is deliberately not
+    an error: a deployment with no GPU visible to the supervisor is a normal one (CI, the scripted
+    backend), while a swap that requires a fit treats an absent reading as a refusal.
     """
 
     async def start(self, model: str) -> None: ...
@@ -37,6 +47,8 @@ class ModelHost(Protocol):
     async def stop(self, model: str) -> None: ...
 
     async def status(self, model: str) -> ModelHostState: ...
+
+    async def device_memory(self) -> DeviceMemory | None: ...
 
 
 class ResidencyController(Protocol):

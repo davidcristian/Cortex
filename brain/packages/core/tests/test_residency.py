@@ -79,6 +79,7 @@ from cortex_core import (
     RESIDENCY_LOST,
     RESIDENCY_RESTORING,
     RESIDENCY_SERVING,
+    DeviceMemory,
     HandoffInProgressError,
     ModelHost,
     ModelHostState,
@@ -138,6 +139,10 @@ class _YieldingHost:
     async def status(self, model: str) -> ModelHostState:
         await asyncio.sleep(0)
         return await self._inner.status(model)
+
+    async def device_memory(self) -> DeviceMemory | None:
+        await asyncio.sleep(0)
+        return await self._inner.device_memory()
 
 
 def _manager(host: ModelHost, plan: ResidencyPlan | None = None) -> SwappingModelManager:
@@ -430,6 +435,98 @@ async def test_a_brain_that_dies_at_load_fails_the_swap_with_its_state() -> None
     with pytest.raises(SwapFailedError, match="last state: failed"):
         async with manager.swap_scope("brain"):
             pass  # pragma: no cover - entering raises before the body runs
+    assert host.running == {"cortex"}
+
+
+async def test_a_swap_is_refused_when_the_card_has_no_room_for_the_deep_model() -> None:
+    """The fit check, on the numbers measured 2026-08-07: 13165 MiB free against 19125 wanted.
+
+    What the deep model would otherwise do is start anyway and be paged to system memory, which
+    is why the assertion is on ``calls``: no ``start`` for the deep model at all. A refusal that
+    merely raised after loading would be worse than none.
+    """
+    host = ScriptedModelHost(
+        running=["cortex"], device_memory=DeviceMemory(free_mib=13165, total_mib=24463)
+    )
+    manager = _manager(host, _plan(brain_vram_mib=19125))
+    with pytest.raises(SwapFailedError, match="needs 19125 MiB of free device memory"):
+        async with manager.swap_scope("brain"):
+            pass  # pragma: no cover - entering raises before the body runs
+    assert ("start", "brain") not in host.calls
+    assert host.running == {"cortex"}
+    async with manager.acquire("cortex") as lease:
+        assert lease.endpoint == _CORTEX_URL
+
+
+async def test_the_card_is_read_after_the_evictions_and_before_the_load() -> None:
+    """The one instant the reading means anything, asserted as its place in the op log.
+
+    Read earlier and the check would charge the deep model for tiers this handoff is about to
+    unload, refusing swaps that fit; read later and it would be reading a card the load has
+    already overcommitted, which measures the same either way (a fit and a 4676 MiB spill both
+    left about 0.5 GB free). So its position between the last stop and the start is the
+    behaviour, not an implementation detail.
+    """
+    host = ScriptedModelHost(
+        running=["cortex", "subagent-gpu"],
+        device_memory=DeviceMemory(free_mib=20033, total_mib=24463),
+    )
+    manager = _manager(host, _plan(evict_models=("subagent-gpu",), brain_vram_mib=19125))
+    async with manager.swap_scope("brain"):
+        assert host.running == {"brain"}
+    assert host.calls[:4] == [
+        ("stop", "cortex"),
+        ("stop", "subagent-gpu"),
+        ("device_memory", ""),
+        ("start", "brain"),
+    ]
+
+
+async def test_a_card_with_exactly_the_room_is_a_fit_and_one_mib_short_is_not() -> None:
+    """The boundary itself, because either side of it is a different deployment's answer."""
+    exact = ScriptedModelHost(
+        running=["cortex"], device_memory=DeviceMemory(free_mib=19125, total_mib=24463)
+    )
+    async with _manager(exact, _plan(brain_vram_mib=19125)).swap_scope("brain"):
+        assert exact.running == {"brain"}
+    short = ScriptedModelHost(
+        running=["cortex"], device_memory=DeviceMemory(free_mib=19124, total_mib=24463)
+    )
+    with pytest.raises(SwapFailedError, match="only 19124 of 24463 MiB is free"):
+        async with _manager(short, _plan(brain_vram_mib=19125)).swap_scope("brain"):
+            pass  # pragma: no cover - entering raises before the body runs
+
+
+async def test_a_host_that_can_see_no_card_refuses_a_swap_that_asked_for_a_fit() -> None:
+    """Fail closed: a deployment that asked to be checked and cannot be is refused, not run."""
+    host = ScriptedModelHost(running=["cortex"])
+    manager = _manager(host, _plan(brain_vram_mib=19125))
+    with pytest.raises(SwapFailedError, match="reports no device memory"):
+        async with manager.swap_scope("brain"):
+            pass  # pragma: no cover - entering raises before the body runs
+    assert ("start", "brain") not in host.calls
+    assert host.running == {"cortex"}
+
+
+async def test_a_plan_with_no_measured_figure_never_asks_the_host_about_the_card() -> None:
+    """The shipped default: no figure, no question, and the swap runs exactly as it always did."""
+    host = ScriptedModelHost(running=["cortex"])
+    manager = _manager(host)
+    async with manager.swap_scope("brain"):
+        assert host.running == {"brain"}
+    assert ("device_memory", "") not in host.calls
+
+
+async def test_a_host_that_fails_the_reading_fails_the_swap_rather_than_skipping_it() -> None:
+    """A control call that broke is not permission to load: it is the swap's own failure."""
+    host = ScriptedModelHost(
+        running=["cortex"], fail={("device_memory", ""): "the model host did not answer"}
+    )
+    manager = _manager(host, _plan(brain_vram_mib=19125))
+    with pytest.raises(SwapFailedError, match="the model host did not answer"):
+        async with manager.swap_scope("brain"):
+            pass  # pragma: no cover - entering raises before the body runs
+    assert ("start", "brain") not in host.calls
     assert host.running == {"cortex"}
 
 

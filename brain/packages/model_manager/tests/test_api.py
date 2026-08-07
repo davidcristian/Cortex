@@ -26,8 +26,9 @@ from model_host_contract import CORTEX, DEEP
 from process_fakes import FakeChildProcesses, FakeProbe
 from test_model_host_contract import contract_roster
 
-from cortex_core import ModelHostState
+from cortex_core import DeviceMemory, ModelHostState
 from cortex_model_manager import (
+    DeviceMemoryProbe,
     ModelSupervisor,
     build_app,
     model_host_lifespan,
@@ -42,13 +43,14 @@ _TINY_REAP = 0.07
 
 def _wired(
     processes: FakeChildProcesses | None = None,
+    device: DeviceMemoryProbe | None = None,
 ) -> tuple[httpx.AsyncClient, ModelSupervisor, FakeProbe]:
     children = processes or FakeChildProcesses()
     probe = FakeProbe()
     supervisor = ModelSupervisor(
         contract_roster(), children, probe, stop_grace_s=_TINY, reap_timeout_s=_TINY_REAP
     )
-    app = build_app(supervisor, boot_model=CORTEX)
+    app = build_app(supervisor, boot_model=CORTEX, device=device)
     client = httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url="http://model-host")
     return client, supervisor, probe
 
@@ -76,7 +78,32 @@ async def test_health_reports_the_daemon_the_roster_and_the_bounds_it_was_wired_
         "models": [CORTEX, DEEP],
         "stop_grace_s": _TINY,
         "reap_timeout_s": _TINY_REAP,
+        # A daemon wired with no device probe says so rather than omitting the fields, because
+        # the brain reads their absence as "cannot see a card" and refuses a checked handoff on
+        # it; a missing key and a null must not be two different answers.
+        "device_free_mib": None,
+        "device_total_mib": None,
     }
+
+
+async def test_health_reports_what_the_card_has_free_for_the_brains_fit_check() -> None:
+    """The reading the brain's swap compares against, on the one route that takes no model lock.
+
+    Deliberately here and not on ``/models/{id}``: a ``status`` queues behind that model's lock,
+    so a question asked between an eviction and a load could wait out a whole stop grace. This
+    route holds nothing, which is why the fit check can afford to ask it inside a swap step.
+    """
+
+    class _Card:
+        async def read(self) -> DeviceMemory | None:
+            return DeviceMemory(free_mib=22484, total_mib=24463)
+
+    client, _, _ = _wired(device=_Card())
+    try:
+        body = _body(await client.get("/health"))
+    finally:
+        await client.aclose()
+    assert (body["device_free_mib"], body["device_total_mib"]) == (22484, 24463)
 
 
 async def test_start_then_status_then_stop_answer_the_state_each_left_behind() -> None:
