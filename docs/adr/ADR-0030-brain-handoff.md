@@ -1585,6 +1585,15 @@ paralleling the evict list, which was rejected for splitting one standing reside
 settings that could disagree, and for needing its own overlap validator to say what one boolean
 says by construction.
 
+**Confirmed by the maintainer on 2026-08-07**, who raised decision 8's own rule against it: that
+everything else is ejected during the handoff and the brain is exclusive while it works. That rule
+is unchanged, and it is what the shipped default still does. What this addendum relaxes is the pair
+of exceptions decision 8 recorded for itself, keeping CPU subagents serving through a swap and a GPU
+subagent peer beside the deep model; the cortex is evicted either way, and no measured pairing of it
+with a deep candidate fits this card. The flag stays, off by default. Recorded because the decision
+was reached by the implementer and ratified afterwards, which is a different provenance from a
+decision the maintainer made, and a later reader should be able to tell them apart.
+
 ### What decision 8 got wrong, corrected here rather than in place
 
 - **The cortex figure.** Decision 8 budgets ~11.3 GB at 16K and the placer still reserves it
