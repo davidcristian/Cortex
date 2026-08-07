@@ -2,6 +2,7 @@ import { type RefObject, useEffect, useRef } from "react";
 
 import type { MarkStyle } from "../mark/marks";
 import { chatFloorRef } from "../overlay/measured";
+import { RECENT_CHATS } from "../overlay/notice";
 import { type ConsoleTab, type OverlayState, draftOf, isTurnActive } from "../overlay/overlayState";
 import { handOff } from "../overlay/sectionCaret";
 import { useLogScroll } from "../overlay/useLogScroll";
@@ -121,11 +122,17 @@ export function ChatView({
         <span className="title">{state.title}</span>
         <CaptureDot claim={state.capture} />
         <LinkDot link={state.link} />
+        {/* `aria-expanded` is the whole of what this control says about the list, and measured, the
+            whole of what the overlay said about it: opening the list by key moved no caret and
+            raised no live region anywhere. So the key says what the list holds and this button does
+            not, being the one place the state is already read back under the reader's own caret
+            (`overlay/notice.ts`). Its name is imported for the same reason the empty line's words
+            are: the button, the list and the sentence are three renderings of one name. */}
         <button
           className="hbtn"
           ref={chatsButton}
           onClick={onToggleSwitcher}
-          aria-label="Recent chats"
+          aria-label={RECENT_CHATS}
           aria-expanded={state.switcherOpen}
           type="button"
         >

@@ -669,7 +669,7 @@ describe("useOverlay", () => {
     const { result } = renderHook(() => useOverlay(bridge, () => "s1"));
     await flush();
     expect(result.current.state.switcherOpen).toBe(false);
-    act(() => result.current.toggleSwitcher());
+    act(() => result.current.toggleSwitcher(false));
     expect(result.current.state.switcherOpen).toBe(true);
   });
 

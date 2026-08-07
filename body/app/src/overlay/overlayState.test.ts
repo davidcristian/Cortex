@@ -193,7 +193,10 @@ describe("overlayState reducer", () => {
   });
 
   it("newChat mints a fresh session, clears the conversation, and closes the switcher", () => {
-    const started = reduce(run([{ kind: "open" }, submit("q")]), { kind: "toggleSwitcher" });
+    const started = reduce(run([{ kind: "open" }, submit("q")]), {
+      kind: "toggleSwitcher",
+      announce: false,
+    });
     const fresh = reduce(started, { kind: "newChat", sessionId: "new-42", announce: false });
     expect(fresh.sessionId).toBe("new-42");
     expect(fresh.messages).toEqual([]);
@@ -251,9 +254,74 @@ describe("overlayState reducer", () => {
   it("sessionsLoaded stores the chat list and toggleSwitcher flips it open then shut", () => {
     const loaded = reduce(initialState, { kind: "sessionsLoaded", sessions: [summary("a")] });
     expect(loaded.sessions).toEqual([summary("a")]);
-    const opened = reduce(loaded, { kind: "toggleSwitcher" });
+    const opened = reduce(loaded, { kind: "toggleSwitcher", announce: false });
     expect(opened.switcherOpen).toBe(true);
-    expect(reduce(opened, { kind: "toggleSwitcher" }).switcherOpen).toBe(false);
+    expect(reduce(opened, { kind: "toggleSwitcher", announce: false }).switcherOpen).toBe(false);
+  });
+
+  it("says what an opened list holds, when the key opened it and the chat is on screen", () => {
+    // The defect, as state: measured over thirteen ways the switcher opens, every one left the
+    // caret where it was and raised nothing in any live region, so a reader who pressed Ctrl+K was
+    // handed silence. Reddens if the opening arm stops speaking or stops counting the rows.
+    const listed = run([
+      { kind: "open" },
+      { kind: "sessionsLoaded", sessions: [summary("a"), summary("b")] },
+    ]);
+    const opened = reduce(listed, { kind: "toggleSwitcher", announce: true });
+    expect(opened.notice?.text).toBe("Recent chats open. 2 chats.");
+    expect(reduce({ ...listed, sessions: [] }, { kind: "toggleSwitcher", announce: true }).notice?.text)
+      .toBe(`Recent chats open. ${NO_OTHER_CHATS}.`);
+  });
+
+  it("stays silent for the door that carries the state under the reader's own caret", () => {
+    // The header's chats button flips `aria-expanded` where the caret already is, so its door
+    // passes false and the region says nothing. Reddens if the flag stops being the door's.
+    const listed = run([{ kind: "open" }, { kind: "sessionsLoaded", sessions: [summary("a")] }]);
+    expect(reduce(listed, { kind: "toggleSwitcher", announce: false }).notice).toBeNull();
+  });
+
+  it("says nothing about a list closing, whichever door closed it", () => {
+    // The sentence is the contents and not the toggle: closing delivers nothing to report, and the
+    // caret landing on the chats button says it already (`overlay/sectionCaret.ts`).
+    const open = run([
+      { kind: "open" },
+      { kind: "sessionsLoaded", sessions: [summary("a")] },
+      { kind: "toggleSwitcher", announce: false },
+    ]);
+    expect(open.switcherOpen).toBe(true);
+    const shut = reduce(open, { kind: "toggleSwitcher", announce: true });
+    expect(shut.switcherOpen).toBe(false);
+    expect(shut.notice).toBeNull();
+  });
+
+  it("says nothing about a list that opened where nobody could see it", () => {
+    // Ctrl+K stays live from a tucked panel and from behind an open console, and measured, it
+    // opens the list in both: the rows mount and `aria-expanded` turns true where the reader
+    // cannot reach them. A section nobody can see has not opened for them.
+    const sessions = [summary("a")];
+    const tucked: OverlayState = { ...initialState, sessions };
+    expect(reduce(tucked, { kind: "toggleSwitcher", announce: true }).notice).toBeNull();
+    const behindConsole = run([
+      { kind: "open" },
+      { kind: "sessionsLoaded", sessions },
+      { kind: "toggleConsole", tab: "shortcuts" },
+    ]);
+    const opened = reduce(behindConsole, { kind: "toggleSwitcher", announce: true });
+    expect(opened.switcherOpen).toBe(true);
+    expect(opened.notice).toBeNull();
+  });
+
+  it("carries a standing sentence through a silent toggle rather than clearing it", () => {
+    // Unlike the swap arms, which replace the panel's contents and null the notice, a toggle
+    // leaves them alone: a sentence about the chat that just arrived is still true, and carrying
+    // the same object says nothing twice, the region reporting mutations rather than values.
+    const spoken = run([
+      { kind: "open" },
+      { kind: "sessionsLoaded", sessions: [summary("a")] },
+      { kind: "newChat", sessionId: "n-1", announce: true },
+    ]);
+    expect(spoken.notice?.text).toBe("Switched to New chat.");
+    expect(reduce(spoken, { kind: "toggleSwitcher", announce: false }).notice).toBe(spoken.notice);
   });
 
   it("toggleConsole opens its own tab, closes it again, and switches from the other one", () => {
@@ -543,7 +611,7 @@ describe("overlayState reducer", () => {
     const open = reduce(listed, { kind: "openSession", sessionId: "chat-7", messages: [], announce: false });
     expect(reduce(open, { kind: "sessionDeleted", sessionId: "chat-7", fallbackSessionId: "f" }).arrival).toBe(2);
     expect(reduce(open, { kind: "sessionDeleted", sessionId: "other", fallbackSessionId: "f" }).arrival).toBe(1);
-    expect(run([{ kind: "open" }, submit("hi"), { kind: "toggleSwitcher" }]).arrival).toBe(0);
+    expect(run([{ kind: "open" }, submit("hi"), { kind: "toggleSwitcher", announce: false }]).arrival).toBe(0);
   });
 
   it("gives every chat its own draft: a swap parks one and hands over the other", () => {

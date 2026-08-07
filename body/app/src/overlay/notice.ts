@@ -34,6 +34,16 @@
 // once and leave whether both are spoken, and in which order, to the reader's own speech queue,
 // which nothing here can observe. One region says one thing, and when a delete does both, it says
 // both in one sentence in the order they happened (`chatDeleted` then `arrived`).
+//
+// AND IT NOW CARRIES A LIST THE READER ASKED FOR (ADR-0035 addendum, 2026-08-07). Measured in
+// Chromium before it, over thirteen ways the switcher opens: not one of them produced a mutation in
+// any live region on the page, and not one of them moved the caret. The only channel carrying the
+// fact was `aria-expanded` on the header's chats button, which flipped false to true where the
+// reader was not standing, so a reader who pressed `Ctrl+K` was handed silence. What the sentence
+// carries is what the list HOLDS rather than that a section toggled: the row count is the one thing
+// the tab order cannot hand back, and on an empty list it cannot hand back anything at all, the
+// line saying so being text rather than a tab stop (measured: Tab from the chats button on an empty
+// list walks the header's remaining three buttons and then leaves the list entirely).
 
 /** One thing the overlay has to say. */
 export interface Notice {
@@ -68,9 +78,34 @@ export function arrived(title: string): string {
  *  header-and-switcher lesson one surface down: two renderings of one fact are one string. */
 export const NO_OTHER_CHATS = "No other chats yet";
 
-/** How many rows a list has left, in its own words: `2 chats left`, `1 chat left`. */
+/** What the chat list is called, in the one place both renderings of the name read it from: the
+ *  header control that opens it, the list element itself, and the sentence below that names it to a
+ *  reader who cannot see either. Same rule as the empty line above. */
+export const RECENT_CHATS = "Recent chats";
+
+/** How many rows a list holds, in its own words: `2 chats`, `1 chat`. */
+function count(rows: number, noun: string): string {
+  return `${rows} ${noun}${rows === 1 ? "" : "s"}`;
+}
+
+/** How many rows a list has left, which is what a list that just shrank under the reader reports. */
 function tally(left: number, noun: string): string {
-  return `${left} ${noun}${left === 1 ? "" : "s"} left.`;
+  return `${count(left, noun)} left.`;
+}
+
+/**
+ * The chat list, opened, and what it holds.
+ *
+ * WHAT IT SAYS IS THE CONTENTS AND NOT THE TOGGLE, which is why there is no mirror of this for the
+ * list closing. A reader who opens the list is asking what chats there are, and the answer is the
+ * one thing they cannot get by walking: the rows are nine Tab presses ahead of the composer and the
+ * empty line is not a tab stop at all. A reader who closes it is asking for it to go, and is
+ * answered by the caret landing on the control that says so (`overlay/sectionCaret.ts`).
+ */
+export function switcherOpened(chats: number): string {
+  return chats === 0
+    ? `${RECENT_CHATS} open. ${NO_OTHER_CHATS}.`
+    : `${RECENT_CHATS} open. ${count(chats, "chat")}.`;
 }
 
 /**

@@ -178,6 +178,40 @@ describe("App", () => {
     expect(document.activeElement).not.toBe(screen.getByLabelText("Message"));
   });
 
+  it("says what the list holds when the key opens it, and nothing when the button does", async () => {
+    // The whole path for the opening direction, which the closing rule above left exactly as it
+    // found it: measured over thirteen doors, opening the switcher moved no caret and raised no
+    // live region anywhere, so a reader who pressed Ctrl+K was handed silence. The key speaks and
+    // the header's button does not, its own `aria-expanded` being read back under the caret that
+    // pressed it. Reddens if either door takes the other's answer.
+    const bridge = new FakeBridge();
+    bridge.sessions = [
+      { sessionId: "s1", title: "About cats", preview: "p1", lastActivityUnixMs: 2, pinned: false },
+      { sessionId: "s2", title: "About swaps", preview: "p2", lastActivityUnixMs: 1, pinned: false },
+    ];
+    await renderApp(bridge);
+    activate();
+    await act(async () => {});
+    const region = document.querySelector(".announcer");
+    const chats = screen.getByLabelText("Recent chats");
+    fireEvent.click(chats);
+    await act(async () => {});
+    expect(chats.getAttribute("aria-expanded")).toBe("true");
+    expect(region?.textContent).toBe("");
+    fireEvent.click(chats);
+    await act(async () => {});
+    fireEvent.keyDown(window, { key: "k", ctrlKey: true });
+    await act(async () => {});
+    expect(chats.getAttribute("aria-expanded")).toBe("true");
+    expect(region?.textContent).toBe("Recent chats open. 2 chats.");
+    // And the caret is exactly where it was: the sentence is what moved, not the reader.
+    expect(document.activeElement).toBe(screen.getByLabelText("Message"));
+    // Closing again says nothing: what the region carries is the contents, not the toggle.
+    fireEvent.keyDown(window, { key: "k", ctrlKey: true });
+    await act(async () => {});
+    expect(region?.textContent).toBe("Recent chats open. 2 chats.");
+  });
+
   it("hands the caret to the field when an example prompt takes the empty state away", async () => {
     // The same rule reached from the other side: a chip is a control its own press unmounts, and it
     // is in no list, so there is no heir and nothing to look inside afterwards. Measured at 900x900

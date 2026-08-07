@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { NO_OTHER_CHATS, arrived, chatDeleted, reminderDismissed, speak } from "./notice";
+import {
+  NO_OTHER_CHATS,
+  RECENT_CHATS,
+  arrived,
+  chatDeleted,
+  reminderDismissed,
+  speak,
+  switcherOpened,
+} from "./notice";
 
 describe("notice", () => {
   it("counts every announcement, so two with the same words are two things said", () => {
@@ -42,5 +50,26 @@ describe("notice", () => {
     // The last ack takes the whole section with it, so this sentence is the only warning that
     // the thing the reader was working in is gone.
     expect(reminderDismissed(0)).toBe("Reminder dismissed. No reminders left.");
+  });
+
+  it("says an opened chat list by what it holds, counted and pluralised", () => {
+    // What a reader opening the list is asking is what chats there are, and it is the one thing
+    // the tab order does not hand back. Reddens if the count or its plural stops being said.
+    expect(switcherOpened(3)).toBe("Recent chats open. 3 chats.");
+    expect(switcherOpened(1)).toBe("Recent chats open. 1 chat.");
+  });
+
+  it("says an opened EMPTY chat list in the list's own words", () => {
+    // The empty line is text inside the list and not a tab stop, so a reader walking the panel
+    // passes it without ever meeting it: this sentence is the only way that fact arrives. Same
+    // string as the line on screen, for the same reason a delete's sentence borrows it.
+    expect(switcherOpened(0)).toBe(`Recent chats open. ${NO_OTHER_CHATS}.`);
+  });
+
+  it("names the chat list once, for the button, the list and the sentence alike", () => {
+    // Three renderings of one name (`ChatView`'s header control, `SessionList`'s own label, and
+    // the sentence above). Reddens if any of them grows a wording of its own.
+    expect(RECENT_CHATS).toBe("Recent chats");
+    expect(switcherOpened(2).startsWith(`${RECENT_CHATS} `)).toBe(true);
   });
 });

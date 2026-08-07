@@ -4007,3 +4007,188 @@ it back in the composer.
 and `aria-expanded` state say what just happened, which is the same argument the caret rule made for
 its own landings, so the region keeps its contract of reporting what happened to the panel's content
 rather than to its sections.
+
+## Addendum, 2026-08-07: a list the reader opens says what it holds, and does not take the caret
+
+The rule above settled where the caret goes when a section CLOSES and left the opening direction
+exactly as it found it: `Ctrl+K` opens the switcher and the caret stays where it was, several Tab
+presses from a row. The refinement filed behind it asked whether an opening list should take the
+caret, and named three shapes for it, moving the caret into the list, reordering the header so the
+list sits beside the control that opens it, or nothing at all.
+
+The caret question is answered NO, on the measurement below. What the measurement found instead is
+that an opening list is inaudible: it moves no caret, changes no control the reader is standing on,
+and raises nothing in any live region, so a reader who cannot see the panel is handed silence by the
+key that was supposed to show them their chats.
+
+### What was measured before
+
+Headless Chromium 1228 at 900x900 against the demo bridge, each door from a fresh page:
+`document.activeElement` sampled every animation frame for 800ms across the opening roll, the
+devtools accessibility tree (`Accessibility.getFullAXTree`) read for the header control's own state,
+and a `MutationObserver` on every node carrying `aria-live`, `role="status"`, `role="alert"` or
+`role="log"`.
+
+**Thirteen doors, and the entry named two.** The switcher has one opening action in the reducer and
+that is what the entry counted; what a rule has to answer is where the caret is standing when it
+fires, which is a different list and a longer one.
+
+| Door | Caret before | Caret across the roll | Said |
+| --- | --- | --- | --- |
+| `Ctrl+K` from the composer, empty draft | `textarea[Message]` | unmoved 13..813ms | nothing |
+| `Ctrl+K` from the composer, caret at offset 4 of `half a question` | `textarea[Message]` | unmoved, selection still `[4,4]` | nothing |
+| the chats button, pointer | `textarea[Message]` | `button[Recent chats]` from 53ms | nothing |
+| the chats button, Enter | `button[Recent chats]` | unmoved | nothing |
+| `Ctrl+K` from the chats button | `button[Recent chats]` | unmoved | nothing |
+| `Ctrl+K` from the header's theme button | `button[Toggle theme]` | unmoved | nothing |
+| `Ctrl+K` from a reminder's ack | `button[Dismiss reminder]` | unmoved | nothing |
+| `Ctrl+K` from an example chip | `button.echip` | unmoved | nothing |
+| `Ctrl+K` from a hint strip opener | `button[Settings]` | unmoved | nothing |
+| `Ctrl+K` from a pending confirm's Deny | `button.confirm-deny` | unmoved | nothing |
+| `Ctrl+K` with the console up | `button.tab` | unmoved | nothing; the list mounts its three rows behind an `inert`, `aria-hidden` chat view |
+| `Ctrl+K` with the panel tucked | `body` | unmoved | nothing; the list mounts with no panel on screen |
+| `Ctrl+K` onto an empty list | `textarea[Message]` | unmoved | nothing; the line reads `No other chats yet` |
+
+**The one channel that carries the fact** is `aria-expanded` on the header's chats button, which the
+tree reports flipping `false` to `true` on every one of those doors. The button carries no
+`aria-controls` (zero related nodes) and no description. So the state is readable exactly where the
+reader is not standing, on eleven of the thirteen doors.
+
+**The distance the entry measured is not a property of the design.** Its figure was six Shift+Tab
+presses from the composer without reaching a row. Walked with the keyboard rather than counted from
+the markup, on the empty state it is **ten** presses back before the first switcher control (the
+last row's pin), the walk crossing two example chips, the mark button and three reminder rows; in a
+chat that has messages, where none of those exist, it is **two**. Forward it is nine either way, the
+walk leaving the document and coming back in at the header. The one figure that held is the entry's
+own headline: from the chats button, Tab passes theme, new chat and dismiss, and the fourth press is
+the first row's title.
+
+**And on an empty list there is nothing to walk to at all.** Tab from the chats button goes theme,
+new chat, dismiss, and then straight out of the list into the reminder stack: the empty line is text
+inside the `<ul>` and not a tab stop, so the fact a reader most wants when they ask for their chats
+is the one fact the tab order cannot hand back.
+
+### The decision
+
+**The caret does not move into an opening list.** Three measured reasons, in the order they decide
+it.
+
+The shape can only help the door that is already answered. A guard is not optional here: the same
+rule that closes a section refuses to move the caret when the caret is outside it, because `Ctrl+K`
+is pressed as often from the composer as from the list, and an unguarded open would pull a reader
+out of a half-typed sentence. The mirror of that guard is "only when the caret is on the anchor",
+and the anchor is the chats button, whose `aria-expanded` already says what happened under the
+caret that pressed it. Everything the guard would let through is the case with the least to gain.
+
+It cannot answer an empty list. There is no row to hand the caret to, so the rule would do nothing
+at exactly the door where the reader learns the least by walking.
+
+And it would have to choose a row without one being obviously right, the first or the open chat's,
+where the open chat frequently has no row at all (a fresh chat is unlisted until it is written to).
+
+**The header reorder is refused as well.** It buys three Tab presses at the one door already
+answered, and it buys them by moving the control that opens the list to the end of a cluster whose
+last button is Dismiss, which is a visual change made for a reading-order fact. Reading order and
+visual order stay the same thing here.
+
+**What lands instead is a sentence.** The overlay's one live region already carries what happened to
+the panel, and this is the first thing that happened to it that the region did not carry: the list
+the reader asked for, and what it holds.
+
+`switcherOpened` in `overlay/notice.ts` builds it, sharing the plural helper with the tally a
+shrinking list reports: `Recent chats open. 3 chats.`, `Recent chats open. 1 chat.`, and for the
+empty case `Recent chats open. No other chats yet.`, in the switcher's own words. `RECENT_CHATS` is
+exported beside `NO_OTHER_CHATS` and read by the header control, the list element and the sentence,
+so the three renderings of one name cannot drift.
+
+**What it says is the CONTENTS and not the toggle**, which is what makes the closing direction need
+no mirror and keeps the region from stuttering. A reader who opens the list is asking what chats
+there are; a reader who closes it is asking for it to go, and is answered by the caret landing on
+the control that says so. Announcing both would put a sentence in the region for every close made
+from inside the list, on top of the focus move the close rule already makes, which is the same fact
+said twice.
+
+**The door decides, not the arm**, which is the rule the arriving-chat arms already follow: the
+action carries an `announce` flag, `Ctrl+K` passing true because the key names nothing and moves
+nothing, and the header's chats button passing false because it is the state's own control and the
+caret that pressed it is standing on it. The one door where both speak is `Ctrl+K` pressed with the
+caret parked on that button, which is the price of the door deciding rather than the DOM, and the
+same price the fresh chat's own two doors already pay.
+
+**And a list that opened where nobody could see it says nothing.** Both chords stay live while the
+chat is not the view on screen, and measured, `Ctrl+K` opens the list from a tucked panel and from
+behind an open console in exactly the same way, its rows mounting and `aria-expanded` turning true
+where the reader can neither see nor reach them. The arm asks `state.mode === "panel" &&
+state.consoleTab === null` before it speaks. That the key toggles a section nobody can see at all is
+a separate question, filed rather than answered here.
+
+### How it is built
+
+`overlay/chromeState.ts`, 66 lines, holding the switcher's toggle and the console's three tab arms:
+which of the panel's sections is showing, which is the same responsibility twice over and neither of
+them the conversation's. It is the third half split off `overlay/overlayState.ts` beside
+`sessionState.ts` and `turnState.ts`, and for the same reason, the file having stood at 291 lines
+against a 300-line cap before the rule arrived.
+
+The reducer arm is four lines over a guard, the flag rides the action, `useOverlay.toggleSwitcher`
+takes it, `Overlay.tsx` passes true from the key and false from the button it hands to the header.
+A silent toggle CARRIES the standing notice rather than clearing it, unlike the swap arms which null
+it: a toggle does not replace the panel's contents, so a sentence about the chat that just arrived
+is still true, and carrying the same object says nothing twice, the region reporting mutations.
+
+### What it measures now
+
+Same instrument, same thirteen doors.
+
+| Door | Before | After |
+| --- | --- | --- |
+| `Ctrl+K` from the composer, empty draft | silence | `Recent chats open. 3 chats.` |
+| `Ctrl+K` from the composer, caret at offset 4 | silence | the same sentence, draft and selection still `[4,4]` |
+| `Ctrl+K` from the header's theme button | silence | the same sentence |
+| `Ctrl+K` from a reminder's ack | silence | the same sentence |
+| `Ctrl+K` from an example chip | silence | the same sentence |
+| `Ctrl+K` from a hint strip opener | silence | the same sentence |
+| `Ctrl+K` from a pending confirm's Deny | silence | the same sentence |
+| `Ctrl+K` from the chats button | silence | the same sentence, over the button's own `expanded` |
+| `Ctrl+K` onto an empty list | silence | `Recent chats open. No other chats yet.` |
+| the chats button, pointer | silence | silence |
+| the chats button, Enter | silence | silence |
+| `Ctrl+K` with the console up | silence | silence |
+| `Ctrl+K` with the panel tucked | silence | silence |
+
+Every sentence is exactly one `childList` mutation on `.announcer` and nothing anywhere else; the
+connection dot's region never moves. **The caret is unmoved on all thirteen**, the traces being frame
+for frame what they were, and the composer's half-typed sentence keeps its text and its offset.
+**And the count key holds**: three open-close rounds in one page produced three announcements, each
+one removing the region's child and adding a fresh one with identical text, with the three closes in
+between raising nothing at all.
+
+### The mutation proof
+
+`overlay/notice.test.ts` gains three cases and `overlay/overlayState.test.ts` five, with one in
+`components/Overlay.test.tsx` for the key's door and one in `App.test.tsx` driving the whole path.
+
+Neutering the sentence reddens the reducer's own case and the end to end one. Dropping the door's
+flag, so the button announces too, reddens four: the button's silence, the close, the carried
+notice, and the end to end case. Dropping the on-screen guard reddens the tucked and behind the
+console case alone. Announcing the close as well reddens the close case alone. Counting an empty
+list instead of borrowing the line's own words reddens the empty case and the reducer's. Making the
+key's door silent reddens the key's own case and the end to end one.
+
+Six mutations, six distinct rednesses, and nothing else in the 670 test suite moved under any of
+them.
+
+### What this does not do
+
+**A held chord still says nothing**, which is the entry filed beside this one and is declined on its
+own measurement rather than by this rule.
+
+**`Ctrl+K` still toggles a section nobody can see.** From a tucked panel and from behind an open
+console the list opens with its rows mounted and unreachable, and the only thing that changed here
+is that the overlay no longer claims otherwise. Whether the key should refuse instead is filed in
+[refinements/body-overlay.md](../refinements/body-overlay.md).
+
+**And nothing is claimed about how a reader SPEAKS this.** The shape was pickable from the tree, and
+the delivery is a Windows sitting with NVDA, filed at
+[host/overlay-screen-reader.md](../host/overlay-screen-reader.md) with the sentences the same sitting
+already owes.

@@ -6,6 +6,7 @@ import type {
   TransportError,
   TurnEvent,
 } from "../bridge/types";
+import { closeConsole, openConsole, toggleConsole, toggleSwitcher } from "./chromeState";
 import { type Drafts, parkDraft } from "./drafts";
 import {
   INITIAL_LINK,
@@ -31,10 +32,11 @@ import {
 // The overlay's pure state + reducer (ADR-0011, design/overlay-ux.md §4). Kept out of React so
 // the interaction model (folding a Converse turn's events into messages, and the
 // dismiss-while-streaming → orb → preview mode machine) is exhaustively testable. Components
-// dispatch actions and render the result; animation lives in CSS. The two long halves live beside
+// dispatch actions and render the result; animation lives in CSS. The three long halves live beside
 // this file and are re-exported below, so a component still has one import: the session-switching
-// helpers in `sessionState.ts`, and the turn fold (what a message is, how its events apply) in
-// `turnState.ts`. Splitting them is what keeps all three under the line cap.
+// helpers in `sessionState.ts`, the turn fold (what a message is, how its events apply) in
+// `turnState.ts`, and the panel's own sections, the switcher list and the console's tabs, in
+// `chromeState.ts`. Splitting them is what keeps all four under the line cap.
 
 export { draftOf } from "./drafts";
 export { cycleTarget } from "./sessionState";
@@ -160,7 +162,13 @@ export type Action =
   | { readonly kind: "linkProbing" }
   | { readonly kind: "linkObserved"; readonly status: LinkStatus }
   | { readonly kind: "linkProbeEnded" }
-  | { readonly kind: "toggleSwitcher" }
+  | {
+      readonly kind: "toggleSwitcher";
+      /** Whether the opened list says what it holds: true for Ctrl+K, false for the header's
+       *  chats button, which carries `aria-expanded` under the caret that pressed it
+       *  (`chromeState.ts`). */
+      readonly announce: boolean;
+    }
   | { readonly kind: "openConsole"; readonly tab: ConsoleTab }
   | { readonly kind: "toggleConsole"; readonly tab: ConsoleTab }
   | { readonly kind: "closeConsole" };
@@ -275,17 +283,12 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
         : { ...state, reminders, notice: speak(state.notice, [reminderDismissed(reminders.length)]) };
     }
     case "toggleSwitcher":
-      return { ...state, switcherOpen: !state.switcherOpen };
+      return toggleSwitcher(state, action.announce);
     case "openConsole":
-      // What the tab strip does, so it is idempotent: clicking the tab already showing leaves it
-      // showing. Switching tabs is a view change (Panel routes on the tab), so the panel morphs.
-      return { ...state, consoleTab: action.tab };
+      return openConsole(state, action.tab);
     case "toggleConsole":
-      // What an OPENER does: the hint strip's sliders and its ?, and the ? key, each own one tab,
-      // so pressing the one you are already on closes the console and the other one switches.
-      return { ...state, consoleTab: state.consoleTab === action.tab ? null : action.tab };
+      return toggleConsole(state, action.tab);
     case "closeConsole":
-      // Esc and the header's chevron: out in one press, whichever tab is up.
-      return { ...state, consoleTab: null };
+      return closeConsole(state);
   }
 }
