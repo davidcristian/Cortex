@@ -66,6 +66,14 @@ class SwapConfig(BaseSettings):
     ``CORTEX_SWAP_DRAIN_TIMEOUT_S`` (60 s) bounds the wait for delegated work to finish before
     anything is evicted, and ``CORTEX_SWAP_LOAD_TIMEOUT_S`` (300 s) bounds the wait for a model
     to report ready after it is started.
+
+    ``CORTEX_SWAP_CORESIDENT`` (**off by default**) is the deployment's assertion that its
+    standing peers fit beside the deep model, which is a measurement no process can make for
+    itself: the deep model's own VRAM and every peer's are facts about one card, and the brain
+    sees neither. With it on a handoff stops the cortex and nothing else, and the subagent pool
+    is never quiesced, so delegated work keeps flowing and the deep phase may spawn. Off, the
+    shipped rule stands unchanged: the deep model runs alone. Inert without escalation, exactly
+    as the topology settings around it are.
     """
 
     model_config = SettingsConfigDict(env_prefix="CORTEX_", validate_by_name=True)
@@ -78,6 +86,7 @@ class SwapConfig(BaseSettings):
     brain_model: str = Field(default=DEFAULT_BRAIN_MODEL, validation_alias="CORTEX_MODEL_BRAIN")
     brain_endpoint: str = ""
     evict_models: tuple[str, ...] = Field(default=(), validation_alias="CORTEX_SWAP_EVICT_MODELS")
+    coresident: bool = Field(default=False, validation_alias="CORTEX_SWAP_CORESIDENT")
     swap_drain_timeout_s: float = Field(default=DEFAULT_SWAP_DRAIN_TIMEOUT_S, ge=0)
     swap_load_timeout_s: float = Field(default=DEFAULT_SWAP_LOAD_TIMEOUT_S, ge=0)
 
@@ -114,6 +123,7 @@ class SwapConfig(BaseSettings):
             cortex_model=cortex_model,
             brain_model=self.brain_model,
             evict_models=self.evict_models,
+            coresident=self.coresident,
             drain_timeout_s=self.swap_drain_timeout_s,
             load_timeout_s=self.swap_load_timeout_s,
         )

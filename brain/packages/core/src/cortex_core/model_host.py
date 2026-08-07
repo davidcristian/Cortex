@@ -49,8 +49,17 @@ class ResidencyPlan:
 
     ``cortex_model`` is the standing resident every exit path converges back to;
     ``brain_model`` is the deep model a handoff swaps in. ``evict_models`` names the other
-    hosted models a swap must stop first (the GPU-placed subagent, when one is hosted), because
-    while the brain is resident it is alone on the GPU (ADR-0030 decision 8).
+    hosted models standing beside the cortex (the GPU-placed subagent, when one is hosted):
+    boot recovery brings them up, and by default a swap stops them first, because while the
+    brain is resident it is alone on the GPU (ADR-0030 decision 8).
+
+    ``coresident`` is the deployment's opt-in reversal of exactly that default, off unless a
+    deployment has measured that its standing peers fit beside the deep model (the ADR's
+    co-residency addendum). With it on a swap stops the cortex and nothing else, and the
+    subagent pool is never quiesced, so delegated work keeps flowing through the handoff and
+    the deep model's own phase may spawn. It is safe to reopen admission precisely because
+    nothing admission could be handed to was ever stopped.
+
     ``drain_timeout_s`` bounds the wait for the subagent pool to quiesce, which happens before
     anything is evicted, so exceeding it aborts the swap rather than killing a subagent;
     ``load_timeout_s`` bounds the readiness gate after a start, and ``poll_interval_s`` is the
@@ -61,6 +70,7 @@ class ResidencyPlan:
     cortex_model: str
     brain_model: str
     evict_models: tuple[str, ...] = ()
+    coresident: bool = False
     drain_timeout_s: float = DEFAULT_SWAP_DRAIN_TIMEOUT_S
     load_timeout_s: float = DEFAULT_SWAP_LOAD_TIMEOUT_S
     poll_interval_s: float = DEFAULT_HEALTH_POLL_INTERVAL_S

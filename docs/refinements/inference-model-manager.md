@@ -7,17 +7,23 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 historical record of what each deferral became, and the index at [index.md](index.md) carries the
 recommended pickup order.
 
-**Open items:** 7. Model-manager co-residency; resume a crashed handoff from its record; fence the
-single-handoff claim across processes; reconverge the brain's residency when the sidecar restarts
-under it; check the sidecar's stop bounds against the brain's control deadline; MTP model
-variants; and disable-thinking / token-budget capping, **narrowed rather than closed on
-2026-08-06**. The lever shipped that day as `GenerationBounds` on `InferenceBackend.stream`, and
+**Open items:** 8. Resume a crashed handoff from its record; fence the single-handoff claim across
+processes; reconverge the brain's residency when the sidecar restarts under it; check the sidecar's
+stop bounds against the brain's control deadline; MTP model variants; disable-thinking /
+token-budget capping, **narrowed rather than closed on 2026-08-06**; and the two this area's
+oldest entry opened on the day it closed, **2026-08-07**, a co-resident deployment's fit being
+asserted and checked by nothing, and the placer's budget describing the standing residency rather
+than the handoff window. **Model-manager co-residency is closed**, so the count went 7 to 8 rather
+than 7 to 6: one out, two in, which is what this list is for.
+
+On the narrowing of the capping entry, which is the one the count deliberately did not move
+for: the lever shipped on 2026-08-06 as `GenerationBounds` on `InferenceBackend.stream`, and
 all three passes whose deliberation `drain_text` throws away unread now take it: the history
 recap's fold, the session title, and the model-based recall rank. What the entry still covers is
 the case it was written for and the only one left, a user-facing reply, which sends no bounds
 deliberately, so a runaway trace on a real answer is uncapped exactly as it always was and the
-original trigger, a user who minds the wait, still stands for that case alone. **The count
-deliberately does not move.** A count moved for a half-closed entry loses an open item exactly as
+original trigger, a user who minds the wait, still stands for that case alone. **The count does
+not move for this entry.** A count moved for a half-closed entry loses an open item exactly as
 one that fails to move for a newly opened deferral does, which this backlog learned in the other
 direction; what moves instead is this sentence and the entry's line in the index's
 fix-when-it-bites bucket, so nobody picks it up expecting to build a lever that already exists.
@@ -45,6 +51,66 @@ fix-when-it-bites bucket, so nobody picks it up expecting to build a lever that 
   the deep model on a larger card, is the thing still deferred. What this landing changes about it:
   the tiers it would need to keep alive are now real hosted models rather than hypothetical ones,
   so the deferral is exercisable for the first time on hardware that fits them.
+  **Co-residency closed 2026-08-07** ([ADR-0030](../adr/ADR-0030-brain-handoff.md) co-residency
+  addendum), measured first and designed second, on an RTX 5090 Laptop reporting 24463 MiB with the
+  real tiers driven through the shipped sidecar. The paragraph above is wrong in three of its
+  numbers and the ADR corrects them there; the ones that matter here are that the cortex costs
+  **8448 to 8468 MiB** with its projector at 16K rather than the ~11.3 GB every doc quoted, and the
+  deep model **19117 to 19125 MiB**, so the pair wants **29139 MiB against 24463** over a 1552 MiB
+  floor and misses by **4676 MiB**. It does not miss loudly. Started with the cortex resident the
+  deep tier reported `ready` at 23539 to 23642 MiB with 496 MiB free, because WSL2 pages the
+  overcommit to system memory, and the only witness is decode: **14.80 to 17.29 tok/s co-resident
+  against 25.07 to 33.28 alone**, with the cortex untouched at 44.68 to 49.47. So `nvidia-smi` alone
+  cannot tell this deferral's answer either way, which is the methodological finding a later sitting
+  should not have to rediscover. What **does** fit is the half decision 8 named second, and it needs
+  no tiny model: the deep model and the **shipped** gemma-4-E4B subagent tier sat at 23555 to 23642
+  MiB with 908 MiB free, the deep model decoding 28.92 to 29.82 tok/s beside it, which is its solo
+  rate, and generating on both at once allocated nothing new (23639 MiB under load against 23642
+  idle). Against that, a handoff costs 0.48 s to evict the cortex, 70.03 s for the deep model to
+  gate warm, and 32.36 s to restore, **102.9 s** in which every spawn is refused, the deep phase's
+  own included. What landed is `CORTEX_SWAP_CORESIDENT`, **off by default**, one flag doing two
+  things that are useless apart: `swap_in` stops the cortex and nothing else, and the conductor
+  never enters the drain window (nor announces one), so delegation runs through the handoff. It is
+  safe because a co-resident handoff stops no tier delegated work can reach, which is the reopening
+  deferral's own condition rather than a way around it. Two things it deliberately does not do are
+  recorded below as this area's newest entries.
+- **Check that a co-resident deployment's card really holds the pair, instead of trusting the
+  flag.** Opened 2026-08-07 by the co-residency landing
+  ([ADR-0030](../adr/ADR-0030-brain-handoff.md) co-residency addendum). `CORTEX_SWAP_CORESIDENT` is
+  an assertion the deployment makes about its own hardware and nothing verifies it, because the
+  brain container sees no GPU: the fit is a fact about one card's free VRAM at one moment, and the
+  brain has no reading of it. The failure this leaves is the quiet one the same addendum measured:
+  a card that cannot hold the pair does not refuse the second load, it pages the overcommit to
+  system memory and serves the deep model at roughly **half** its decode rate, with `nvidia-smi`
+  showing the same ~23.6 GB used and ~0.5 GB free as a genuine fit. **What would close it:** the
+  sidecar reporting free and total device memory on `GET /health` (it is the process that can see
+  the card, and that body already carries the two stop bounds), the adapter carrying it, and a
+  check at wiring time or at swap-in that refuses, or logs loudly, when the deep tier's own measured
+  cost will not clear what is free. The cost is the one the stop-bounds entry above already prices:
+  the brain would then depend on the sidecar answering, which today it deliberately does not, and a
+  VRAM reading taken at wiring time is stale by the time a handoff runs. **Trigger:** any report of
+  a deep phase that is inexplicably slow on a co-resident deployment, or a second machine adopting
+  the flag without redoing the measurement.
+- **Give the placer a model of the handoff window, instead of one that describes the standing
+  residency.** *Fix when it bites.* Opened 2026-08-07 by the same landing. `VramBudgetPlacer`
+  fit-tests every GPU-placed spawn against `soft_cap_gb - cortex_reservation_gb - placed_gb`
+  ([placer.py](../../brain/packages/core/src/cortex_core/placer.py)), and during a handoff both
+  named terms are wrong: the cortex whose 11.3 GB is reserved has been evicted, and the deep model
+  holding 19 GB of the card is not charged at all, because it is not placed through the placer.
+  ADR-0030 decision 8 suspends the soft cap for the handoff window in prose and **nothing in code
+  reads it**. This was moot while the pool was drained, since no placement could happen inside the
+  window; co-residency is exactly what makes it reachable. It is not a live defect and the reason is
+  measured rather than argued: a spawn admitted to a tier that is already resident allocates no new
+  VRAM (23639 MiB with both tiers generating against 23642 idle), so the ledger's answer changes
+  nothing about the card either way, and its errors are in the safe direction anyway, a refusal
+  falling back to the CPU backend. **What would close it:** a placement epoch, meaning the placer
+  told which residency it is fit-testing against so the reservation names the model that is actually
+  there, which is a `SubagentPlacer` port change plus a writer at the residency scope's two edges.
+  Its natural companion is placement-aware charging, declined-as-recorded in
+  [resource-governance.md](resource-governance.md) and reopening on the same second GPU-capable
+  executor. **Trigger:** a co-resident deployment whose peer tier is started per spawn rather than
+  standing (which would allocate), or a second GPU-placed tier, at which point the ledger stops
+  being decorative.
 - **Resume a crashed handoff from its record, instead of failing it.** Opened 2026-07-17 with the
   brain-handoff conductor sub-slice ([ADR-0030](../adr/ADR-0030-brain-handoff.md) decision 4),
   which names it as the recorded refinement. Boot recovery marks any handoff a crash interrupted

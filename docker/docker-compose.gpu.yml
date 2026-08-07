@@ -35,6 +35,16 @@
 #                          subagents override defaults this to the CPU server, so WITHOUT this
 #                          line the tier runs and nothing reaches it.
 #   CORTEX_SWAP_EVICT_MODELS   lists it so a handoff stops it first (the deep model runs alone).
+#
+# That last line is reversible, on a card that has been measured to hold the pair: setting
+# CORTEX_SWAP_CORESIDENT=1 in the `brain` environment leaves every listed tier serving through the
+# handoff and skips the subagent pool's drain entirely, so delegation keeps flowing and the deep
+# phase may spawn. It is OFF by default and nothing validates it, because the brain container sees
+# no GPU. On this stack's own 24 GB card the deep model and the E4B subagent tier fit together at
+# 23555 to 23642 MiB with about 908 MiB free, while the cortex and the deep model do not fit and
+# do not say so: WSL2 pages the overcommit and halves the deep model's decode rate with nvidia-smi
+# reading the same ~23.6 GB used. Measure decode, not memory. Procedure and table:
+# docs/runbooks/model-swap.md.
 
 services:
   brain:

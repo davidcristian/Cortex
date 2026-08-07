@@ -484,6 +484,18 @@ safety default.
   and 63.50 with both generating at once, which is what sharing one card costs. Procedure:
   [subagents-cpu.md](subagents-cpu.md) section 2c; budget consequences in the
   [ADR-0012](../adr/ADR-0012-resource-governance.md) fit addendum.
+- **Co-residency of the deep model and a GPU-placed subagent, measured 2026-08-07** on the same
+  card, which is the pairing a brain handoff would keep alive rather than the standing one above.
+  Floor 1552 MiB; the deep model (gemma-4-31B q4_0 at 8K, `-ngl 99`) alone reads 20671 to 20723 MiB,
+  and with the E4B subagent tier beside it **23555 to 23642 MiB**, the peer costing **2878 MiB** and
+  leaving about 908 MiB free. The deep model decodes 28.92 to 29.82 tok/s beside it against 25.07 to
+  33.28 alone, so the peer costs it nothing; generating on both at once costs both (18.74 and 22.91)
+  and allocates nothing new. **The cortex and the deep model do NOT co-fit**: 29139 MiB wanted
+  against 24463, and the pair still reports `ready` at 23539 to 23642 MiB because WSL2 pages the
+  overcommit, at the price of the deep model's decode falling to 14.80 to 17.29 tok/s. A memory
+  reading cannot tell those last two apart; decode can. Full table and procedure:
+  [model-swap.md](model-swap.md), argument in the
+  [ADR-0030](../adr/ADR-0030-brain-handoff.md) co-residency addendum.
 - **Swap latency (ROADMAP assumption 2):** load is ~mount-read bound (~150-180 MB/s off
   the Windows bind mount). Measured through the real supervisor at small scale on the 8 GB dev
   card, a 0.8B stand-in health-gates in ~11 s and a 2B in ~18 s, while the eviction half is

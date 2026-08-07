@@ -22,12 +22,12 @@ ordering is load-bearing and each step's failure has a direction:
    thinks is live, then persist the record ``READY``. Nothing has been stopped, so a failure
    here costs nothing but the handoff.
 2. **Drain.** Quiesce the subagent pool, bounded. A timeout **aborts before anything is
-   evicted**: v1 never kills a subagent mid-stream, so a straggler means the swap does not
-   happen, not that the machine is left half-swapped. ``undrain`` is owed in a ``finally``,
-   swap-back and abort alike, so admission always resumes, and it is owed **after** the swap
-   generator is closed, since closing it is what restores the standing residency: a window
-   reopened while the evicted tier is still stopped would place delegated work on a server
-   nothing has restarted yet.
+   evicted**: v1 never kills a subagent mid-stream, so a straggler stops the swap rather than
+   half-swapping the machine. ``undrain`` is owed in a ``finally``, swap-back and abort alike,
+   and owed **after** the swap generator is closed, since closing it restores the standing
+   residency: a window reopened onto a still-stopped tier would place delegated work on a
+   server nothing has restarted. A ``coresident`` plan stops no such tier, so it skips the
+   whole step and delegation keeps flowing, the deep phase's own spawns included.
 3. **Swap in and run.** Inside the residency scope, mark the record ``BRAIN_ACTIVE`` only once
    the deep model is actually serving, then stream its phase onto this turn's own stream.
 4. **Swap back.** The scope's ``finally``. A clean handoff then marks the record ``DONE`` and
@@ -76,9 +76,9 @@ def _status(detail: str) -> StatusUpdate:
 class SwapConductor:
     """Runs one brain handoff end to end, as a stream of events for the escalating turn.
 
-    ``scheduler`` is ``None`` for a deployment with no subagent pool: there is then nothing to
-    quiesce and the drain step is simply not owed. Everything else is required, and every
-    collaborator is a port, so the whole sequence is exercised over fakes.
+    ``scheduler`` is ``None`` with no subagent pool, and a ``coresident`` plan takes down no
+    tier the pool feeds, so both leave the drain unowed for one reason: nothing to protect.
+    Everything else is required, every collaborator a port, so the sequence runs over fakes.
     """
 
     def __init__(
@@ -135,7 +135,8 @@ class SwapConductor:
             yield TextDelta(text=prepared)
             return
         try:
-            yield _status(DRAINING_DETAIL)
+            if not self._plan.coresident:
+                yield _status(DRAINING_DETAIL)
             if not await self._drain():
                 # The abort direction: nothing has been evicted, so the cortex is still serving
                 # and the turn simply ends with what it has.
@@ -244,8 +245,8 @@ class SwapConductor:
         await self._advance(record, HandoffState.DONE)
 
     async def _drain(self) -> bool:
-        """Quiesce the subagent pool, or answer True when there is no pool to quiesce."""
-        if self._scheduler is None:
+        """Quiesce the pool, or answer True when there is no pool, or none to quiesce it for."""
+        if self._scheduler is None or self._plan.coresident:
             return True
         return await self._scheduler.drain(timeout_s=self._plan.drain_timeout_s)
 

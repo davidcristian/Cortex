@@ -143,7 +143,11 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   (`CORTEX_BRAIN_ENDPOINT`) are the deep tier's logical id and base URL; `evict_models`
   (`CORTEX_SWAP_EVICT_MODELS`) names further hosted tiers a swap must stop first (while the deep
   model is resident it is alone on the GPU) and start again on the way back, since those tiers
-  are part of the standing residency every exit path converges to; `swap_drain_timeout_s` (60 s) and
+  are part of the standing residency every exit path converges to; `coresident`
+  (`CORTEX_SWAP_CORESIDENT`, **off**) reverses that one rule, leaving those tiers serving through
+  the handoff and skipping the drain window entirely, which is the deployment asserting its card
+  holds the pair (ADR-0030's co-residency addendum has the measurement and what is still
+  unchecked); `swap_drain_timeout_s` (60 s) and
   `swap_load_timeout_s` (300 s) are the swap's two bounds. Enabling escalation without a model
   host or without a brain endpoint **fails at boot**, rather than advertising a tool that could
   only refuse. `residency_plan(cortex_model)` is the one `ResidencyPlan` the manager, the

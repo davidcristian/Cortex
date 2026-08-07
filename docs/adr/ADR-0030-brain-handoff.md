@@ -1502,3 +1502,125 @@ things are worth having in hand before weighing it, all checked against code rat
 Risk 1 in the list above is therefore no longer blocked on a measurement; it is a judgement about
 whether injected content may spend the machine. It stays listed for the user, now with a number
 beside it.
+
+## Addendum (2026-08-07): co-residency is measured, and half of decision 8 is wrong
+
+Decision 8 deferred co-residency on an arithmetic argument, and this is the first sitting on a card
+that can test it: an RTX 5090 Laptop reporting 24463 MiB, models on the read-only mount, driven
+through the shipped `model-host` sidecar's control API with the real tiers rather than stand-ins.
+Every number below is `nvidia-smi` total used on that card, with the floor stated beside it, because
+this machine's floor moves: it read 1529 to 1554 MiB with the desktop quiet and 2836 MiB earlier in
+the same session, which is roughly a gigabyte of the budget that belongs to Windows rather than to
+this stack. Throughput is llama.cpp's own `timings`, decode only, so a fixed request overhead cannot
+be mistaken for a slow model.
+
+**The shipped pair does not co-fit, and the reason is not the one decision 8 gave.** The cortex
+(gemma-4-12B QAT q4_0 at `--ctx-size 16384`, with its projector and the shipped 1024-token image
+budget) costs **8448 to 8468 MiB** above the floor, not the 11.3 GB decision 8 quotes from ADR-0004.
+The deep model (gemma-4-31B QAT q4_0 at `--ctx-size 8192`, `-ngl 99`) costs **19117 to 19125 MiB**,
+which reproduces ADR-0004's 19128 MiB to within 11 MiB. Together with a 1552 MiB floor that is
+**29139 MiB wanted against 24463 MiB of card, a deficit of 4676 MiB**, so the rule stands. What does
+not stand is the shape of the failure. Starting the deep model with the cortex resident **succeeded**:
+both tiers reported `ready`, the pair read 23539 to 23642 MiB, and 496 MiB of the card was free.
+Under WSL2 the driver had paged roughly 6 GB out to system memory rather than refusing the
+allocation, and the only thing that says so is the throughput. The deep model decoded **14.80 to
+17.29 tok/s** co-resident against **25.07 to 33.28 tok/s** with the card to itself, and its prefill
+on the first request after each switch collapsed to **13.8 to 14.0 tok/s** from 126 to 134. The
+cortex was untouched (44.68 to 49.47 tok/s co-resident, 44.52 alone): the deficit was charged
+entirely to the model that arrived second.
+
+**So `nvidia-smi` cannot tell a fit from a spill on this machine, and any future sitting has to
+measure decode.** The genuine fit below and the 4676 MiB overcommit above both read about 23.6 GB
+used with about 0.5 GB free. That is the instrument check this addendum's numbers rest on.
+
+**The other half of the deferral is real, and it works.** Decision 8's second recorded refinement,
+"brain + tiny GPU subagent on a larger card", needs no tiny model. With the cortex evicted exactly as
+a handoff evicts it, the deep model and the **shipped** gemma-4-E4B subagent tier (`-ngl 99
+--ctx-size 8192 --parallel 2`) sat together at **23555 to 23642 MiB** over a 1552 MiB floor, the peer
+costing 2878 MiB and leaving 908 MiB free. The deep model decoded **28.92 to 29.82 tok/s** beside it,
+which is its solo rate, and its prefill held at 105 to 116 tok/s. Generating on both at once cost
+both (deep 18.74, peer 22.91) and allocated nothing new: 23639 MiB under load against 23642 MiB idle.
+That last figure is the one the design leans on, and it is why admitting delegated work to an
+already-resident tier does not need a VRAM decision.
+
+**What a handoff costs today, which is what co-residency buys back.** Through the real control API,
+with the artifact warm in the page cache: evicting the cortex answered in **0.48 s**, the deep model
+gated `ready` **70.03 s** later, and the swap back cost **0.89 s** to stop it plus **31.43 s** for the
+cortex to gate, for **102.9 s** of pure swap on top of the deep model's own work. Cold, ADR-0004's
+99.6 s load makes it about 132 s. For the whole of that window, and for the whole deep phase after
+it, `SubagentScheduler.drain` refuses every spawn, the deep model's own included.
+
+### The decision: `CORTEX_SWAP_CORESIDENT`, off by default
+
+`ResidencyPlan` gains `coresident: bool = False`, read from `CORTEX_SWAP_CORESIDENT`. With it off
+nothing whatsoever changes, and the shipped rule is exactly decision 8's: the deep model runs alone.
+With it on, two things and no others:
+
+1. `residency_moves.swap_in` stops the cortex and stops nothing else, so every `evict_models` tier
+   stays serving through the handoff. The cortex still goes, because no measured pairing of it with
+   a deep candidate fits this card.
+2. `SwapConductor` does not enter the drain window at all, and does not announce one either, so
+   delegated work keeps flowing and the deep phase may spawn.
+
+The two belong together and neither is useful alone. A kept tier nothing may be delegated to buys
+nothing; an open window over an evicted tier is the hazard the reopening deferral was recorded for.
+They are safe together for one reason, which is worth stating as an invariant rather than a
+consequence: **a co-resident handoff stops no tier delegated work can reach**, so there is no
+instant at which admission is open onto a server nothing has restarted. `restore_standing` still
+starts every `evict_models` tier on the way out, deliberately, because a start against a tier that
+never stopped is a no-op the supervisor answers from its own child table, and because it is the one
+place that would notice a peer that died while the deep model held the card.
+
+The flag is an assertion the deployment makes about its own card, and nothing checks it, which is
+recorded as a refinement rather than smoothed over: the brain container sees no GPU, and the
+measurement above is the only way to know. A deployment that sets it on a card that cannot hold the
+pair gets the silent 2x that opens this addendum, not a failure.
+
+**Naming.** `CORTEX_SWAP_CORESIDENT` sits in the swap family (`CORTEX_SWAP_EVICT_MODELS`,
+`CORTEX_SWAP_DRAIN_TIMEOUT_S`, `CORTEX_SWAP_LOAD_TIMEOUT_S`) and uses the word the deferral itself
+has used since decision 8, so nothing has to be translated between the backlog and the env. The
+honest alternates were `CORTEX_SWAP_KEEP_PEERS`, which names the mechanism rather than the property
+and would have to be renamed the day a third thing is kept, and a `CORTEX_SWAP_KEEP_MODELS` list
+paralleling the evict list, which was rejected for splitting one standing residency across two
+settings that could disagree, and for needing its own overlap validator to say what one boolean
+says by construction.
+
+### What decision 8 got wrong, corrected here rather than in place
+
+- **The cortex figure.** Decision 8 budgets ~11.3 GB at 16K and the placer still reserves it
+  (`CORTEX_VRAM_CORTEX_GB=11.3`). Measured on this build with the projector loaded it is 8448 to
+  8468 MiB, so the shipped reservation is about 2.8 GB conservative. ADR-0004's own incidental
+  observation predicted this and asked for a controlled re-measurement; this is it, and the
+  reservation is left alone deliberately, since lowering it widens what the placer admits beside the
+  cortex and that is a resource-governance decision with its own measurements to redo.
+- **The reason CPU subagents are drained.** Decision 8 says the drain covers them because "the
+  brain's hybrid-offload fallback and its KV want the host RAM/CPU headroom". ADR-0004's brain-pick
+  addendum retired that premise on 2026-08-04: every candidate fits alone at `-ngl 99`, the hybrid
+  fallback "is therefore not needed and is not configured". The surviving reason for the drain is
+  the one the conductor's own comments give, that admission must not reopen onto an evicted tier,
+  and it is exactly the reason a co-resident plan does not need it.
+- **"No candidate fits beside the ~11.3 GB cortex in 24 GB."** True, and true for a second reason
+  the arithmetic hid: at the measured cortex figure the lightest candidate ADR-0004 tested
+  (gemma-4-26B-A4B, 14607 MiB) misses a 1552 MiB floor by 160 MiB, and it is the candidate that
+  answered 0 of 4 escalation questions. The pairing that nearly fits is the one that cannot serve.
+- **"Exercisable for the first time on hardware that fits the tiers it would keep alive."** The
+  backlog's wording. The tiers it keeps alive are the deep model and the subagent peer, not the
+  cortex, and that pair fits with 908 MiB to spare.
+
+### What this deliberately does not do
+
+- **No residency-set model.** `SwappingModelManager._resident` is still one model and `acquire`
+  still leases one. It does not need to be a set here, because a subagent tier is leased through its
+  own `SingleResidentModelManager` against a static endpoint and never through the swapping manager
+  (`subagent_builders._entry_profile`). Co-residency of two tiers the *swapping* manager leases
+  would need that change, and nothing asks for it.
+- **No placement accounting for the window.** `VramBudgetPlacer` still fit-tests against
+  `soft_cap - cortex_reservation - placed`, which during a handoff describes a card that does not
+  exist: the cortex is gone and the deep model is not charged at all. Decision 8 suspends the soft
+  cap in prose and nothing in code reads it. That was moot while the pool was drained, and
+  co-residency is precisely what makes it reachable, so it is recorded as an open refinement.
+- **No fit check.** See above; recorded, not built.
+
+Both deferrals are written up in
+[refinements/inference-model-manager.md](../refinements/inference-model-manager.md) with their lines
+in that backlog's index.
