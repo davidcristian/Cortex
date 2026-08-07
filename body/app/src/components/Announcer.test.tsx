@@ -23,20 +23,33 @@ describe("Announcer", () => {
     expect(idle.text).toBe("");
     expect(idle.said).toBeNull();
 
-    rerender(<Announcer notice={{ title: "Everything about cats", count: 1 }} />);
+    rerender(<Announcer notice={{ text: "Switched to Everything about cats.", count: 1 }} />);
     const spoken = read(container);
     // The same node, with words in it now: the region itself never remounts.
     expect(spoken.region).toBe(idle.region);
-    // A sentence and not a bare title, which would name a thing without saying what happened.
-    expect(spoken.text).toBe("Switched to Everything about cats");
+    // Rendered as given. The sentence is built in `notice.ts`, which is what keeps everything
+    // the region may carry in one file; reddens if this component starts composing again.
+    expect(spoken.text).toBe("Switched to Everything about cats.");
   });
 
-  it("makes a second arrival under the same title a second mutation", () => {
-    const { container, rerender } = render(<Announcer notice={{ title: "New chat", count: 1 }} />);
+  it("reads whatever the notice holds, a list change included", () => {
+    // The region's contract widened from "the conversation that arrived" to "what happened to
+    // the panel", and a delete that also swaps says both in one sentence rather than racing a
+    // second region. Reddens if this component ever puts a fixed prefix back in front.
+    const { container } = render(
+      <Announcer notice={{ text: "Chat deleted. 1 chat left. Switched to New chat.", count: 4 }} />,
+    );
+    expect(read(container).text).toBe("Chat deleted. 1 chat left. Switched to New chat.");
+  });
+
+  it("makes a second announcement with the same words a second mutation", () => {
+    const { container, rerender } = render(
+      <Announcer notice={{ text: "Switched to New chat.", count: 1 }} />,
+    );
     const first = read(container);
-    rerender(<Announcer notice={{ title: "New chat", count: 2 }} />);
+    rerender(<Announcer notice={{ text: "Switched to New chat.", count: 2 }} />);
     const second = read(container);
-    expect(second.text).toBe("Switched to New chat");
+    expect(second.text).toBe("Switched to New chat.");
     expect(second.said).not.toBe(first.said);
     expect(second.region).toBe(first.region);
   });
@@ -44,8 +57,10 @@ describe("Announcer", () => {
   it("takes its words back down when a swap speaks for itself", () => {
     // A switcher row clears the notice, and the region must not keep reading the last chat
     // switched to: what stands in it is only ever the last thing that was actually announced.
-    const { container, rerender } = render(<Announcer notice={{ title: "Cats", count: 1 }} />);
-    expect(read(container).text).toBe("Switched to Cats");
+    const { container, rerender } = render(
+      <Announcer notice={{ text: "Switched to Cats.", count: 1 }} />,
+    );
+    expect(read(container).text).toBe("Switched to Cats.");
     rerender(<Announcer notice={null} />);
     expect(read(container).text).toBe("");
   });

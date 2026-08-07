@@ -261,22 +261,35 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   on the open row and `false` on the others. `Ctrl+↑` and `Ctrl+↓` are unchanged, being an
   application-wide cycle rather than movement inside a list; what they say when they swap the chat
   is the next bullet.
-- **A chat swap says which chat arrived, unless its door already said it**
-  (`overlay/notice.ts` + `components/Announcer.tsx`, ADR-0035 addendum, 2026-08-04). The overlay
-  keeps one polite live region, `role="status"` at the overlay's ROOT rather than in the panel,
-  because a dismissed panel is `inert` and the cycle keys are global, so a press can open the panel
-  and swap the chat in one commit and a region inside it would enter the accessibility tree with
-  the words it wants read. `OverlayState.notice` is what it renders (`Switched to <title>`), and
-  the rule is about the gesture rather than the transition, so `openSession` and `newChat` carry an
-  `announce` flag set at the door: one arm serves a switcher row and a cycle key both. Speaking are
-  the cycle keys, `Ctrl+N`, a reminder card's open control, and the fresh chat that replaces a
-  deleted one, none of whose gestures name a chat; silent are a switcher row and the header's
-  pencil, each already labelled with the arriving title, and cold-start adoption, which answers no
-  gesture and cannot land over something said (it runs only while `touched` is false). A silent
-  door CLEARS the notice, a removal not being announced under the default `aria-relevant`, and the
-  notice carries a count that keys the region's child, since a live region reports a mutation
-  rather than a value and two chats can share a title. What the region says is the title the
-  reducer arm computed, so it and the header cannot disagree. Where focus goes is the next bullet.
+- **One live region says what happened to the panel: the chat that arrived, the list that shrank,
+  or both** (`overlay/notice.ts` + `components/Announcer.tsx`, ADR-0035 addenda, 2026-08-04 and
+  2026-08-07). The overlay keeps one polite region, `role="status"` at the overlay's ROOT rather
+  than in the panel, because a dismissed panel is `inert` and the cycle keys are global, so a press
+  can open the panel and swap the chat in one commit and a region inside it would enter the
+  accessibility tree with the words it wants read. `overlay/notice.ts` holds **everything the region
+  may carry**: `speak` counts the announcements and joins what it was given, and `arrived`,
+  `chatDeleted` and `reminderDismissed` build the sentences, so the question of what may go in the
+  region has one file for an answer. `OverlayState.notice` is `{ text, count }` and `Announcer`
+  renders the text as given rather than composing a prefix.
+  **A swap** is announced by the gesture rather than by the transition, so `openSession` and
+  `newChat` carry an `announce` flag set at the door: one arm serves a switcher row and a cycle key
+  both. Speaking are the cycle keys, `Ctrl+N`, a reminder card's open control, and the fresh chat
+  that replaces a deleted one, none of whose gestures name a chat; silent are a switcher row and the
+  header's pencil, each already labelled with the arriving title, and cold-start adoption, which
+  answers no gesture and cannot land over something said (it runs only while `touched` is false). A
+  silent door CLEARS the notice, a removal not being announced under the default `aria-relevant`.
+  **A list that shrank** is announced by either of the overlay's two lists, with no flag, because a
+  row leaving is destroyed rather than merely unspoken: it is out of the tree by the time the caret
+  lands, and the reader's gesture is a request rather than an outcome (a failed delete leaves the
+  row). Both arms guard on the list having really shrunk, so a repeated dispatch claims nothing.
+  A delete of the chat on screen does both in one commit and says both in **one** sentence
+  (`Chat deleted. 1 chat left. Switched to New chat.`), deliberately rather than in a second region:
+  two regions mutating together leave which is spoken, and in what order, to the reader's own speech
+  queue, which no accessibility tree can observe. `NO_OTHER_CHATS` is exported here and rendered by
+  `SessionList`, so the switcher's empty line and the sentence about an emptied switcher are one
+  string. The notice carries a count that keys the region's child, since a live region reports a
+  mutation rather than a value and two announcements can read alike. Where focus goes is the next
+  bullet.
 - **A chat arriving on the panel takes the caret with it** (`OverlayState.arrival` +
   `components/Composer.tsx`, ADR-0035 addendum, 2026-08-06). Every gesture that replaces the
   conversation puts focus in the composer, which is where a summon already puts it, so the reader is

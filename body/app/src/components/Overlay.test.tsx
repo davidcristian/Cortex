@@ -153,12 +153,12 @@ describe("Overlay", () => {
 
   it("keeps the live region outside the panel, which is out of the tree while dismissed", () => {
     const controller = fakeController("hidden", [], {
-      notice: { title: "Everything about model swaps", count: 1 },
+      notice: { text: "Switched to Everything about model swaps.", count: 1 },
     });
     const { container } = renderOverlay(controller);
     const region = container.querySelector(".announcer");
     const panel = container.querySelector(".panel");
-    expect(region?.textContent).toBe("Switched to Everything about model swaps");
+    expect(region?.textContent).toBe("Switched to Everything about model swaps.");
     expect(panel?.hasAttribute("inert")).toBe(true);
     expect(panel?.contains(region ?? null)).toBe(false);
   });

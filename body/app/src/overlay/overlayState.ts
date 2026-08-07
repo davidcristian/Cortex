@@ -16,7 +16,7 @@ import {
   linkProbing,
   linkServing,
 } from "./linkState";
-import type { Notice } from "./notice";
+import { type Notice, reminderDismissed, speak } from "./notice";
 import { NEW_CHAT_TITLE, adoptSession, deleteSession, newChat, openSession } from "./sessionState";
 import {
   type CaptureClaim,
@@ -57,8 +57,11 @@ export interface OverlayState {
   readonly consoleTab: ConsoleTab | null;
   /** The approval the current turn is paused on, if any (ADR-0022). */
   readonly pendingConfirm: PendingConfirm | null;
-  /** What the overlay's live region has to say about the conversation that arrived, or `null`
-   *  when the swap that put it on screen was fired by a control already naming it (`notice.ts`). */
+  /**
+   * What the overlay's live region has to say about what just happened to the panel: the
+   * conversation that arrived, a list that shrank under the reader, or both in one sentence when a
+   * delete did both.
+   */
   readonly notice: Notice | null;
   /** Which conversation-arrival the panel is showing, counted from the overlay's first. */
   readonly arrival: number;
@@ -225,14 +228,12 @@ export function reduce(state: OverlayState, action: Action): OverlayState {
       // Each open re-reads: the brain is the authority on what is still deliverable, so the
       // list is replaced wholesale rather than merged (a reminder acked elsewhere leaves).
       return { ...state, reminders: action.reminders };
-    case "reminderDismissed":
-      // Optimistic: the card goes now and the ack rides the bridge. A lost ack means the
-      // brain still holds it, and the next open surfaces it again (ADR-0025). Filtering an
-      // unknown id is a no-op, so a double-click or a stale card cannot corrupt the list.
-      return {
-        ...state,
-        reminders: state.reminders.filter((r) => r.reminderId !== action.reminderId),
-      };
+    case "reminderDismissed": {
+      const reminders = state.reminders.filter((r) => r.reminderId !== action.reminderId);
+      return reminders.length === state.reminders.length
+        ? state
+        : { ...state, reminders, notice: speak(state.notice, [reminderDismissed(reminders.length)]) };
+    }
     case "toggleSwitcher":
       return { ...state, switcherOpen: !state.switcherOpen };
     case "openConsole":

@@ -1,6 +1,7 @@
 import { type RefObject, useRef, useState } from "react";
 
 import type { SessionSummary } from "../bridge/types";
+import { NO_OTHER_CHATS } from "../overlay/notice";
 import { caretKey, heir, useRowCaret } from "../overlay/rowCaret";
 import { usePresence } from "../overlay/usePresence";
 import { useTravel } from "../overlay/useTravel";
@@ -125,7 +126,7 @@ export function SessionList({
       {sessions.length === 0 && (
         <li className="switcher-empty-slot">
           <Collapse open enter={stack.entries.length > 0}>
-            <div className="switcher-empty">No other chats yet</div>
+            <div className="switcher-empty">{NO_OTHER_CHATS}</div>
           </Collapse>
         </li>
       )}

@@ -8,10 +8,10 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 are the historical record of what each deferral became, and the index at
 [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** 14. Multi-turn-within-one-stream + proto `Cancel`, streamed
+**Open items:** 13. Multi-turn-within-one-stream + proto `Cancel`, streamed
 brain status (its producer landed 2026-07-18; only the push RPC remains), a list the reader closes
-dropping the caret on `<body>`, a held chord saying nothing about being held, a list that shrinks
-saying nothing where a chat arriving speaks, the liquid edge's backdrop blur,
+dropping the caret on `<body>`, a held chord saying nothing about being held, the liquid edge's
+backdrop blur,
 the two bounds the panel's section budget leaves behind it
 (a section's own frame being under no cap, and the room a closing section hands back in one frame),
 the two tradeoffs the reserved scrollbar rail accepts (its width
@@ -90,6 +90,23 @@ was therefore wrong before today's work as well as after it, and unlike the 2026
 behind nothing, since the index cell agreed with it. The lesson the count-by-cancellation entry
 teaches still applies and is what caught this: the only check is reading the entries the line claims
 to summarize.
+
+**Moved 2026-08-07, fourteen to thirteen, and read against the entries rather than trusted.** The
+count was correct when this pass started, which is worth recording because the last two times it was
+not: reading every top-level entry in this file and asking which carries a landing found exactly the
+fourteen names above, and the index cell agreed with them one for one. **A list that shrinks saying
+nothing** then closed, as the overlay's one live region learning to report a list that shrank as well
+as a conversation that arrived, and it closed alone: one out, none in. Its sibling, a held chord
+saying nothing about being held, was read with it and deliberately not bundled, which is the unusual
+half of this movement and is argued at both entries. The shared question they were filed against,
+what the region may carry beyond "the conversation that arrived", is answered by the close; what
+keeps the chord separate is measured rather than tidy, a held chord leaving its own explanation
+intact under the reader's caret where a deleted row is destroyed, a seam that plumbs four components
+where the shrink plumbed none, and a repeat policy the shrink never had to decide. The residue only a
+real screen reader can settle went to
+[host/overlay-screen-reader.md](../host/overlay-screen-reader.md) rather than staying here, the same
+split the tier-scale mechanism took: the shape was pickable from the accessibility tree and only the
+speech is not.
 
 **Body / overlay in Slice 8 ([ADR-0011](../adr/ADR-0011-body-v1.md)):**
 - **Multi-turn-within-one-stream + an explicit proto `Cancel` event.** One turn per `Converse`
@@ -1510,6 +1527,31 @@ to summarize.
   narration. This wants the same measurement in a real reader that the silent-shrink entry below
   wants, and the two should probably be picked up together, since both are about what the region's
   contract is allowed to carry beyond "the conversation that arrived". Nothing blocks it.
+  - **SHARPENED 2026-08-07 by the silent-shrink entry below, which settled the shared question and
+    did NOT bundle this** ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)). The contract
+    this was waiting on is decided: the region may carry more than an arrival, and everything it may
+    say is built in `overlay/notice.ts`, so the first shape is no longer blocked on a decision. Three
+    measured reasons it stays its own entry rather than riding along.
+    **What a shrink destroys, a held chord leaves standing**, and that is the test the shrink's own
+    close chose. Measured at 900x900 with `a brand new name` typed into a row's editor: `Ctrl+N`
+    produced zero live-region mutations, and both before and after the press the focused element was
+    the `input` labelled "New chat name" holding that exact value. Nothing was lost, so the reader
+    can re-read it; a deleted row is out of the accessibility tree and cannot be re-read at all.
+    **It is a different seam.** Every sentence the shrink close added was already at a reducer arm
+    (`sessionState.deleteSession`, `overlayState`'s `reminderDismissed`), so it plumbed nothing. The
+    hold is decided in `SessionRow`'s keydown over `SessionList`'s own state and nothing in that path
+    touches the reducer, so publishing from it wants a callback through `Panel`, `ChatView`,
+    `SessionList` and `SessionRow`, plus an `OverlayController` member and an `Action` variant. That
+    is the entry's real cost and it was never stated.
+    **And it has a policy question the shrink did not.** A chord fires per keydown and keydown
+    repeats while a key is held, so this is the one sentence in the region a reader can raise dozens
+    of times without moving, and the count key makes every one of them a fresh announcement by
+    design. A guard (`event.repeat`, or a latch per editor) is part of the shape rather than a
+    detail, which is a fourth thing to decide and not a line to add.
+    A shape it can now also weigh, which neither doc named: say it **on the editor itself** rather
+    than in the region, as an `aria-describedby` line the input carries while a chord is pending, so
+    the explanation sits with the thing the reader is standing in and is re-readable instead of
+    spoken once. Still open, still blocking nothing.
 - **A list that shrinks says nothing, where a chat arriving speaks.** Opened 2026-08-06 by the caret
   rule further above, which is named rather than pointed at now that its chord entry and that
   entry's own two successors stand between them. The caret's landings all put focus on a control
@@ -1523,6 +1565,69 @@ to summarize.
   that risks the most: that region is read by the panel's own announcer and its contract today is "the
   conversation that arrived". Wants a measurement in a real reader before a shape is picked. Nothing
   blocks it.
+  - **LANDED 2026-08-07 as the third of those shapes, which the entry ranked riskiest and the
+    measurement ranked safest** ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)). The
+    region carries what just happened to the panel: a chat that arrived, a list that shrank, or both
+    in one sentence when a delete did both.
+    **What was measured first, and what the entry got wrong.** Chromium 1228 headless at 900x900
+    against the demo bridge, reading the devtools accessibility tree (`Accessibility.getFullAXTree`)
+    plus a `MutationObserver` on every node in the document carrying `aria-live`, `role="status"`,
+    `role="alert"` or `role="log"`. The whole live-region roster of a resting overlay is **two
+    nodes**, neither carrying an explicit `aria-live` or `aria-atomic`, both computing
+    `live: "polite"`, `atomic: true`, `relevant: "additions text"`: `div.announcer`, empty, and
+    `span.linkdot.ok`, named "Brain ready: cortex-orchestrator demo". The capture ring's region and a
+    failed reply's alert are in no resting tree, each mounting with its event. The entry's central
+    claim reproduced, and on the reminder stack too, which it did not name: deleting a chat that was
+    not the open one, deleting down to the empty line, acking a reminder, and acking the last one so
+    the section left, all produced **zero** mutations in any live region on the page.
+    **Three things it did not have.** The first decided the shape: **deleting the open chat is not
+    silent**, that arm already speaking, so the commit that shrinks the list is also the commit that
+    announces (`Switched to New chat`, one `childList` mutation). The reader still hears nothing
+    about the row that left, which is the entry's point, but any second region would have two
+    announcements in flight at once. The second is a location: the entry called the region "the
+    panel's own announcer" and it is deliberately OUTSIDE the panel, a sibling at the overlay's root,
+    which is the fact that rules out one of its three shapes. The third was checked rather than
+    assumed, per the standing warning: the cycle-keys entry's count key still holds, three
+    consecutive `Ctrl+N` presses each removing the region's child and adding a fresh one with
+    identical text.
+    **Why widening `notice` is the safe shape and not the risky one.** A second region puts two
+    announcements in one commit and hands the ordering to the reader's speech queue, which is
+    observable in NVDA and not in an accessibility tree; a `role="status"` line inside the switcher
+    is worse, since the reminder stack's whole section is unmounted with its last row (measured:
+    `.reminders` is not in the document afterwards), so a region inside it would leave in the same
+    commit as the sentence saying it is empty. One region has neither problem, because the order is
+    written into the string. And the region was never only about arrivals: `deleteSession` has been
+    one of its four writers all along, naming the empty chat that takes the deleted one's place.
+    **What it says.** `Chat deleted. 2 chats left.`, `Chat deleted. 1 chat left.`,
+    `Chat deleted. No other chats yet.`, `Reminder dismissed. 2 reminders left.`,
+    `Reminder dismissed. No reminders left.`, and for the delete that also swaps,
+    `Chat deleted. 1 chat left. Switched to New chat.` The deleted title is not repeated, the control
+    pressed being labelled "Confirm delete <title>"; what is news is that the write landed, since a
+    failed delete leaves the row, and what the list has become. The empty-list words are
+    `NO_OTHER_CHATS`, exported from `overlay/notice.ts` and rendered by `SessionList`, so the line on
+    screen and the sentence are one string. `Switched to <title>` gained a full stop, being sometimes
+    the second clause now.
+    **What it cost**: `overlay/notice.ts` grew from 41 lines to 93 and is now the whole of what the
+    region may carry (`speak` counts and joins, `arrived`/`chatDeleted`/`reminderDismissed` build);
+    `Notice.title` became `Notice.text` and `Announcer` renders it rather than composing a prefix.
+    Both arms were already reducer arms, so nothing was plumbed: `sessionState.deleteSession` speaks
+    on both of its paths and `overlayState`'s `reminderDismissed` on its one, each guarding on the
+    list having really shrunk so a repeated dispatch claims no row.
+    **After, measured the same way.** Every list change now produces exactly ONE `childList` mutation
+    on `.announcer` and nothing anywhere else; the connection dot's region never moves. The roster is
+    still two regions with the same computed attributes, the empty line still reads `No other chats
+    yet` in the list's own subtree, and the caret still lands where the caret rule put it
+    (`button[Delete Everything about model swaps]`, `button[Recent chats]`, `textarea[Message]`).
+    **What could not be measured here** is whether a reader SPEAKS it, and what happens when the
+    polite update and the composer's focus announcement land in the same commit, which is what
+    deleting the open chat does. That is a Windows sitting with NVDA, filed at
+    [host/overlay-screen-reader.md](../host/overlay-screen-reader.md) rather than left here: the
+    shape was pickable from the tree and only the speech is not.
+    **And one silence was left deliberately**, recorded rather than counted because it is a decline
+    on merits: a list that shrinks for a reason the reader did not cause stays quiet.
+    `remindersLoaded` and `sessionsLoaded` replace their lists wholesale on every summon, so a
+    reminder acked on another surface leaves without a sentence. Announcing a change nobody made
+    turns the region into a feed, and no second surface exists to make one. It reopens with one.
 - **The composer's draft belongs to no chat, and the caret now lands in it.** Opened 2026-08-06 by
   the focus rule above. The field is never unmounted, which is what keeps a draft alive across a trip
   to the console, and it keeps it across a chat swap too: measured at 900x900, "half a question"
