@@ -155,8 +155,8 @@ function standing(parent: HTMLElement, height: number): HTMLElement {
  * The panel measures itself under the loosest cap any edge could allow, so for that read it is
  * taller and every box inside it is taller too. A box that has outgrown its own scroll range is
  * clamped by the engine to the range it now has, and putting the real cap back does not undo it:
- * `deep` is what the dev machine can hold at rest, and `measuring` the shallower thing it can hold while
- * the panel is being measured.
+ * `deep` is what the box can hold at rest, and `measuring` the shallower thing it can hold while the
+ * panel is being measured.
  */
 function scrollBox(element: HTMLElement, deep: number, measuring: number): HTMLElement {
   const box = document.createElement("div");
@@ -855,7 +855,7 @@ describe("usePanelMotion", () => {
   it("hands back a scroll position that its own measurement clamped", () => {
     const { ref, element, state } = harness();
     state.natural = 400;
-    // At rest the dev machine can scroll to 400; while the panel is being measured it is taller, and can
+    // At rest the box can scroll to 400; while the panel is being measured it is taller, and can
     // hold only 80. A reader at 120 is inside the difference, which is where the defect lived.
     const history = scrollBox(element, 400, 80);
     const { rerender } = renderHook(() => usePanelMotion(ref, true, "chat"));
