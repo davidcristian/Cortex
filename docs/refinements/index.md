@@ -68,7 +68,7 @@ entries from it never added the two it opened, and there the count did move and 
 | [memory.md](memory.md) | Store, scoping, rerank/MMR, the ranked `select` and its recall trail, and the judge's default now that bounding its request made it twenty times cheaper at the same ranking and a 41-note corpus across six categories found it worse nowhere and better on two, plus the two the ranked-recall close opened and neither this cell nor the area header picked up until 2026-08-06, a cross-encoder rank and an audit of the candidates a rank drops, and, since the judge learned to decline on 2026-08-07, the gap that close named rather than the one it shut: the shipped geometric policies still hand a turn their nearest misses on a question memory cannot answer (ADR-0008/0038) | 10 |
 | [inference-model-manager.md](inference-model-manager.md) | Model-manager lifecycle, MTP, reasoning status, whose disable-thinking and token-cap halves now reach every pass that discards its own deliberation, leaving the user-facing reply as the whole of that entry and the count unmoved for a narrowing (ADR-0007/0020/0038) | 7 |
 | [subagents.md](subagents.md) | Progress reporting, spawn schema, heterogeneous roster (ADR-0010/0018), and, since the delegated tool step was declined 2026-08-07, nothing left on the outcome path but the record of why a delegated activity is never settled (ADR-0029) | 2 |
-| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), the reserved scrollbar rail's assumed width and spent card inset, the rounded roll target the whisper's bubble publishes while its own height carries a decimal, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), a list the reader closes dropping the caret on `<body>`, a held chord saying nothing about being held, a list that shrinks saying nothing where a chat arriving speaks, the liquid edge's backdrop blur, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit and the switcher's, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, the chat floor's frozen measurement of the empty state, the console tab strip's missing keyboard half, the switcher's disputed listbox role, the two motions its list still made in one frame, and a Thoughts trace opening a reply off the bottom of a full history all landed 2026-08-03, the last of them opening the chrome-side entry that landed 2026-08-04 on the same ride, alongside the cycle keys' silent swap, which opened the focus entry that landed 2026-08-06 as the caret following the conversation into the composer and opened two entries behind it, both landed the same day: the draft named below, and the row gestures that swap nothing, answered by the caret staying in the list and opening the chord and the silent-shrink entries above; the composer's move on a clamped shrink closed 2026-08-06 as moot, its mechanism having been deleted the day it was filed, and the retarget-and-resize pair landed 2026-08-06 as the panel measuring itself in fractional pixels, opening the roll entry that took its place, which landed hours later the same day as the section measuring itself the way the panel does, both published numbers reproducing first and the step at every roll boundary reading 0.000px after, and which opened the whisper-bubble target named above; the composer's draft belonging to no chat landed 2026-08-06 too, the same day it was opened and the same day the user answered it, as unsent text keyed by session id in the reducer, which was the last entry anywhere waiting on a decision rather than on work; the modified chord landed 2026-08-07 as a rule about the text a field would lose rather than about what a chord is, opening the two entries named above, the closing-list caret and the silence of a held chord, and reading this file's entries against its header that day turned up the liquid edge's blur, open here since 2026-07-21, carried in the running record below the whole time and named by no count either doc has published since) | 14 |
+| [body-overlay.md](body-overlay.md) | Overlay polish, connection indicator, proto Cancel (ADR-0011), the reserved scrollbar rail's assumed width and spent card inset, the rounded roll target the whisper's bubble publishes while its own height carries a decimal, the two bounds the panel's section budget left behind it (a section's own frame being under no cap, and the room a closing section hands back arriving in one frame), a list the reader closes dropping the caret on `<body>`, a held chord saying nothing about being held, the liquid edge's backdrop blur, and the whisper's follow-ups (ADR-0037): a pickable voice row, a mid-stream resize keeping the old wrap width, and kerning inside the letter boxes under a changed font (its drain-growth entry landed the day it was filed, and the console outliving a new chat, the reminder stack's per-row exit and the switcher's, the panel's watch on its own box with the arrival-aside correction that came out of it, the demo bridge over the line cap, two sections outrunning the panel on their own, the chat floor's frozen measurement of the empty state, the console tab strip's missing keyboard half, the switcher's disputed listbox role, the two motions its list still made in one frame, and a Thoughts trace opening a reply off the bottom of a full history all landed 2026-08-03, the last of them opening the chrome-side entry that landed 2026-08-04 on the same ride, alongside the cycle keys' silent swap, which opened the focus entry that landed 2026-08-06 as the caret following the conversation into the composer and opened two entries behind it, both landed the same day: the draft named below, and the row gestures that swap nothing, answered by the caret staying in the list and opening the chord and the silent-shrink entries above; the composer's move on a clamped shrink closed 2026-08-06 as moot, its mechanism having been deleted the day it was filed, and the retarget-and-resize pair landed 2026-08-06 as the panel measuring itself in fractional pixels, opening the roll entry that took its place, which landed hours later the same day as the section measuring itself the way the panel does, both published numbers reproducing first and the step at every roll boundary reading 0.000px after, and which opened the whisper-bubble target named above; the composer's draft belonging to no chat landed 2026-08-06 too, the same day it was opened and the same day the user answered it, as unsent text keyed by session id in the reducer, which was the last entry anywhere waiting on a decision rather than on work; the modified chord landed 2026-08-07 as a rule about the text a field would lose rather than about what a chord is, opening the two entries named above, the closing-list caret and the silence of a held chord, and reading this file's entries against its header that day turned up the liquid edge's blur, open here since 2026-07-21, carried in the running record below the whole time and named by no count either doc has published since; and the silent shrink landed 2026-08-07 as the region reporting a list that shrank as well as a conversation that arrived, one out and none in, its chord sibling read alongside it and deliberately left open, and the part only a real screen reader can settle sent to [host/overlay-screen-reader.md](../host/overlay-screen-reader.md)) | 13 |
 | [session-read-seam.md](session-read-seam.md) | Session listing/read seam, the generated title's empty-reply half closed 2026-08-06 by bounding its request (ADR-0021/0038) | 2 |
 | [resource-governance.md](resource-governance.md) | Scheduler/placer budgets, NPU, drain (ADR-0012) | 5 |
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
@@ -1464,6 +1464,46 @@ and spare the composer by name, but a small pure module the next field adopts in
 ([body-overlay.md](body-overlay.md),
 [ADR-0035](../adr/ADR-0035-console-and-motion.md)).
 
+Body & overlay went **14 to 13 later on 2026-08-07** when a list that shrinks saying nothing closed,
+and this one is worth reading for how it chose between three shapes that all worked. The header
+count was right when the pass started, which the pass checked rather than assumed by reading every
+entry in the area doc and asking which carries a landing; the fourteen names and the cell agreed one
+for one, which after two weeks of that agreement being worthless is a result rather than a formality.
+**The measurement came before the shape, and it moved it.** Over the devtools accessibility tree
+plus a `MutationObserver` on every node carrying `aria-live`, `role="status"`, `role="alert"` or
+`role="log"`, a resting overlay holds exactly two live regions, the announcer and the connection dot,
+both computing `live: "polite"`, `atomic: true`, `relevant: "additions text"`; and deleting a chat
+that was not the open one, deleting down to the empty line, acking a reminder and acking the last one
+so its whole section left each produced **zero** mutations in any of them. The entry was right, and
+right about the reminder stack it never named. It was wrong twice, and both corrections decide the
+shape. Deleting the chat that IS open already speaks, so the commit that shrinks the list is the
+commit that announces; and the region is deliberately outside the panel rather than, as the entry
+had it, the panel's own. So a second region for the list would put two announcements in one commit
+and hand which is spoken, and in what order, to the reader's own speech queue, which no tree can
+observe, and a `role="status"` line inside the switcher is worse still, since the reminder stack's
+section is unmounted with its last row and would take the sentence saying so with it. **The shape
+the entry ranked riskiest is the only one that manufactures no question this repo cannot answer**,
+so `notice` widened: one region, one sentence, and a delete that also swaps says both in the order
+they happened. What could not be settled here is whether a reader SPEAKS it, and what happens when
+the polite update races the focus announcement the same commit sends to the composer; that went to
+[host/overlay-screen-reader.md](../host/overlay-screen-reader.md) as a Windows sitting, the
+mechanism-versus-observation split rather than punting the entry.
+**And it closed alone on purpose**, which in this area is the unusual outcome and is the second
+thing worth reading. Its sibling, a held chord saying nothing about being held, was filed hours
+earlier as the same question and the two were expected to ride together. The question does close for
+both: the region may carry more than an arrival. What keeps the chord open is measured rather than
+tidy. A held chord destroys nothing, focus and value both sitting untouched on the input labelled
+"New chat name" before and after the press, where a departed row is out of the tree and cannot be
+re-read at all, and that difference is the test the close chose for what earns a sentence. It is
+also a different seam: every sentence added here was already at a reducer arm, while the hold is
+decided in `SessionList`'s own state and publishing from it wants a callback through four components
+plus a controller member and an action, a cost its entry never stated. And it carries a policy the
+shrink never had to decide, keydown repeating while a key is held. The entry is sharpened with all
+three and with a fourth shape neither doc had named, saying it on the editor itself where it can be
+re-read rather than in a region where it is spoken once
+([body-overlay.md](body-overlay.md),
+[ADR-0035](../adr/ADR-0035-console-and-motion.md)).
+
 ## Recommended order
 
 Ordered by what unblocks the most value soonest. Before starting any item, verify its claims
@@ -1875,6 +1915,18 @@ against the code (the warning above); the entry text tells you which seams it ex
   a key doing nothing needs no narration. Wants the same measurement in a real reader the
   silent-shrink entry below wants, and the two are probably one pickup, both being about what that
   region's contract may carry beyond "the conversation that arrived". Nothing blocks it.
+  **Sharpened 2026-08-07 by that entry's close, which answered the shared question and did not bundle
+  this.** The contract is settled (the region may carry more than an arrival, and everything it may
+  say is built in `overlay/notice.ts`), so the first shape is unblocked; three measured reasons keep
+  it separate. A held chord destroys nothing, focus and value both sitting untouched on the input
+  labelled "New chat name" before and after the press, where a deleted row is out of the tree and
+  cannot be re-read. It is a different seam: every sentence the shrink added was already at a reducer
+  arm, while the hold is decided in `SessionList`'s own state and publishing from it wants a callback
+  through four components plus a controller member and an action, which is the entry's real cost and
+  was never stated. And it carries a policy the shrink did not, keydown repeating while a key is
+  held, so this is the one sentence a reader can raise dozens of times without moving. A fourth shape
+  is now on the table too: say it on the editor itself, as a description the input carries while a
+  chord is pending, which is re-readable rather than spoken once.
 - **A list that shrinks says nothing, where a chat arriving speaks**
   ([body-overlay.md](body-overlay.md)), opened 2026-08-06 by the caret rule above, which is named
   rather than pointed at now that its chord entry and that entry's own two successors stand between.
@@ -1885,6 +1937,23 @@ against the code (the warning above); the entry text tells you which seams it ex
   switcher, or widening `notice`, and the last risks the most, its contract today being
   "the conversation that arrived". Wants a measurement in a real reader before a shape is picked.
   Nothing blocks it.
+  **Closed 2026-08-07 on the third shape, the one it ranked riskiest and the measurement ranked
+  safest** ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)). Measured first over the
+  devtools accessibility tree plus a `MutationObserver` on every live-region-shaped node: a resting
+  overlay has exactly two, the announcer and the connection dot, both computing `live: "polite"`,
+  `atomic: true`, `relevant: "additions text"`, and four of the list changes (a chat deleted, the
+  list emptied, a reminder acked, the stack emptied) produced zero mutations in any of them. The
+  entry was right, and on the reminder stack it did not name as well. It was wrong about two things:
+  deleting the OPEN chat already speaks, so the commit that shrinks the list is the commit that
+  announces, and the region is outside the panel rather than in it. Both decide the shape. A second
+  region would put two announcements in one commit and hand the ordering to the reader's speech
+  queue, which no tree can observe; a line inside the switcher is worse, the reminder stack's section
+  being unmounted with its last row. One region says both in one sentence
+  (`Chat deleted. 1 chat left. Switched to New chat.`), the empty-list words are one string shared
+  with the switcher's own line, and every list change now makes exactly one mutation. What a tree
+  cannot answer, whether a reader speaks it and what happens when the polite update races the
+  composer's focus announcement, went to
+  [host/overlay-screen-reader.md](../host/overlay-screen-reader.md).
 - **The composer's draft belongs to no chat, and the caret now lands in it**
   ([body-overlay.md](body-overlay.md)), opened 2026-08-06 by the same answer. The field is never
   unmounted, which is what carries a draft to the console and back, and it carries it across a chat

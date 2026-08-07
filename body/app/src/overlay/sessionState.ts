@@ -1,6 +1,6 @@
 import type { SessionMessage, SessionSummary } from "../bridge/types";
 import { dropDraft } from "./drafts";
-import { speak } from "./notice";
+import { arrived, chatDeleted, speak } from "./notice";
 import type { OverlayState } from "./overlayState";
 import type { Message } from "./turnState";
 
@@ -112,7 +112,7 @@ export function newChat(state: OverlayState, sessionId: string, announce: boolea
     touched: true,
     sessionId,
     title: NEW_CHAT_TITLE,
-    notice: announce ? speak(state.notice, NEW_CHAT_TITLE) : null,
+    notice: announce ? speak(state.notice, [arrived(NEW_CHAT_TITLE)]) : null,
     arrival: state.arrival + 1,
     messages: [],
     switcherOpen: false,
@@ -154,7 +154,7 @@ export function openSession(
     touched: true,
     sessionId,
     title,
-    notice: announce ? speak(state.notice, title) : null,
+    notice: announce ? speak(state.notice, [arrived(title)]) : null,
     arrival: state.arrival + 1,
     messages: loaded,
     switcherOpen: false,
@@ -215,7 +215,15 @@ export function adoptSession(
  * That reset is a chat swap and it always announces, with no flag to say so, because it has only
  * the one door and that door names the wrong chat: the button pressed is "Confirm delete" plus the
  * title of the conversation LEAVING, which says nothing about the empty one taking its place
- * (`notice.ts`). Deleting any other chat swaps nothing and stays silent.
+ * (`notice.ts`).
+ *
+ * AND THE ROW LEAVING SPEAKS ON BOTH PATHS, which is the half this arm used to be silent about
+ * (ADR-0035 addendum, 2026-08-07). Deleting any other chat swaps nothing, and it used to say
+ * nothing either, so a reader heard the name of the control they landed on and never heard that the
+ * write had landed or what the list held now. It says so now, and when the delete also swaps, the
+ * one region says both in the order they happened rather than a second region racing the first.
+ * `gone` is what keeps that honest: an id the list never held (a repeated dispatch, a stale row)
+ * changes no list, so it raises no sentence about one.
  *
  * It is a swap for focus too, and the reset counts as an arrival: the confirm button is inside the
  * row that leaves, so the caret goes to the composer of the chat that arrived rather than nowhere
@@ -234,8 +242,15 @@ export function deleteSession(
 ): OverlayState {
   const sessions = state.sessions.filter((s) => s.sessionId !== sessionId);
   const drafts = dropDraft(state.drafts, sessionId);
+  const gone = sessions.length < state.sessions.length ? [chatDeleted(sessions.length)] : [];
   if (sessionId !== state.sessionId) {
-    return { ...state, sessions, drafts, touched: true };
+    return {
+      ...state,
+      sessions,
+      drafts,
+      touched: true,
+      notice: gone.length === 0 ? state.notice : speak(state.notice, gone),
+    };
   }
   return {
     ...state,
@@ -244,7 +259,7 @@ export function deleteSession(
     touched: true,
     sessionId: fallbackSessionId,
     title: NEW_CHAT_TITLE,
-    notice: speak(state.notice, NEW_CHAT_TITLE),
+    notice: speak(state.notice, [...gone, arrived(NEW_CHAT_TITLE)]),
     arrival: state.arrival + 1,
     messages: [],
     pendingConfirm: null,

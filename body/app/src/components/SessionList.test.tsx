@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { SessionSummary } from "../bridge/types";
+import { NO_OTHER_CHATS } from "../overlay/notice";
 import { stubRoll } from "../test-setup";
 import { SessionList } from "./SessionList";
 
@@ -618,5 +619,13 @@ describe("SessionList", () => {
     toggle.focus();
     fireEvent.click(toggle);
     expect(document.activeElement).toBe(screen.getByLabelText("Pin First chat"));
+  });
+
+  it("puts up the list's empty line in the words the live region borrows for it", () => {
+    // The region says the same thing when the last row leaves (`overlay/notice.ts`), so a reader
+    // who hears one and then reads the other must not be told two different things about one
+    // empty list. Reddens if either side grows its own wording.
+    render(list([]));
+    expect(document.querySelector(".switcher-empty")?.textContent).toBe(NO_OTHER_CHATS);
   });
 });

@@ -77,6 +77,7 @@ directory. Settling this in writing is worth one sentence in an ADR the next tim
 | [windows-desktop.md](windows-desktop.md) | W | One `npm run tauri dev` beside a running brain: the hotkey and one streamed turn, volume, the toast, the confirm card, the session commands, the preference commands and the appearance surviving a restart, the reminder surface, the connection dot | 8 checks + 1 optional + 2 standing |
 | [windows-capture.md](windows-capture.md) | W | The screen-capture path, which needs its own switch, its own receipts, and its own expectations. Carries the single highest-consequence check in the repo | 1 check, 6 observations |
 | [overlay-polish.md](overlay-polish.md) | W | The one item here that is **authoring, not validation**: the OS-window half of the overlay | 1 build (4 parts) + 1 design decision |
+| [overlay-screen-reader.md](overlay-screen-reader.md) | W | A reader pointed at the running overlay: what the live region is actually *spoken* as, which is the half no accessibility tree holds | 1 observation session (8 gestures) |
 | [gpu-tier-scale.md](gpu-tier-scale.md) | G, and W+G for three | The 24 GB machine: everything the deep-model pick unblocks, plus the measurements the placer and the caps ship without. Items 2, 3 and 4 need the overlay to trigger the handoff | 4 open; the pick, the injection run and the GPU-placed subagent all done 2026-08-04 |
 
 User **decisions** (weigh, do not run) stay at their ADRs and are listed at the bottom of this
@@ -195,6 +196,11 @@ Ordered by what unblocks the most, and grouped so each group is one sitting.
 5. **The overlay polish** ([overlay-polish.md](overlay-polish.md)). A work session, not a sitting.
    It is authoring, it can fail review rather than fail a check, and it is the only thing here that
    is not urgent for correctness.
+6. **The screen-reader session** ([overlay-screen-reader.md](overlay-screen-reader.md)). Rides the
+   same bring-up as the Windows desktop sitting and can be folded into it if NVDA is already
+   installed; kept separate because it needs a reader and a speech viewer, and because it produces a
+   transcript rather than a pass. Added 2026-08-07 when the overlay's live region learned to report a
+   list that shrank and the tree stopped being able to answer the last question about it.
 
 The two standing items in [windows-desktop.md](windows-desktop.md) never appear in this order:
 one is an observation to make over months of real use, the other is a per-change obligation.
@@ -240,6 +246,12 @@ host line.
   than last.
 - **The OS-window half of the overlay polish** ([overlay-polish.md](overlay-polish.md)): the one
   **authoring** item here. Blocked on nothing; it is reviewed rather than passed.
+- **What the live region is spoken as** ([overlay-screen-reader.md](overlay-screen-reader.md)):
+  eight gestures read back through NVDA's speech viewer. Everything about those announcements that a
+  machine can check is gated and measured (every region on the page, its computed `live`, `atomic`
+  and `relevant`, the exact text before and after each gesture, and one mutation per gesture); what
+  no tree holds is whether a reader voices it and what it does when a polite update and a focus
+  change land in the same commit, which is what deleting the open chat does.
 - **PGDATA directly on the Windows drive** ([windows-desktop.md](windows-desktop.md), optional and
   explicitly a nice to have): Docker on the Windows host, no Tauri app and no overlay. Nothing
   depends on the answer, and no procedure exists yet, so writing one is part of taking it.

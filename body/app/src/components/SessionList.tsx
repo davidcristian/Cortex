@@ -1,6 +1,7 @@
 import { type RefObject, useRef, useState } from "react";
 
 import type { SessionSummary } from "../bridge/types";
+import { NO_OTHER_CHATS } from "../overlay/notice";
 import { caretKey, heir, useRowCaret } from "../overlay/rowCaret";
 import { usePresence } from "../overlay/usePresence";
 import { useTravel } from "../overlay/useTravel";
@@ -180,11 +181,14 @@ export function SessionList({
           for the row it replaces and yields to the row that replaces it. Rolling it out instead was
           traced and is worse in exactly the way this is better: the arriving row's 50px lands at
           once and the line's 39 would then roll away underneath it, an overshoot bigger than the
-          11px step that is left. */}
+          11px step that is left.
+          Its words come from `overlay/notice.ts`, because the live region says the same thing when
+          the last row leaves and a reader who hears one and then reads the other must not be told
+          two different things about one empty list. */}
       {sessions.length === 0 && (
         <li className="switcher-empty-slot">
           <Collapse open enter={stack.entries.length > 0}>
-            <div className="switcher-empty">No other chats yet</div>
+            <div className="switcher-empty">{NO_OTHER_CHATS}</div>
           </Collapse>
         </li>
       )}

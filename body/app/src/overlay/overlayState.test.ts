@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { DueReminder, SessionMessage, SessionSummary, TurnEvent } from "../bridge/types";
+import { NO_OTHER_CHATS } from "./notice";
 import type { Action, OverlayState } from "./overlayState";
 import { createInitialState, cycleTarget, draftOf, initialState, isTurnActive, latestReply, reduce } from "./overlayState";
 
@@ -415,8 +416,8 @@ describe("overlayState reducer", () => {
       messages: [],
       announce: true,
     });
-    expect(cycled.notice).toEqual({ title: "Everything about cats", count: 1 });
-    expect(cycled.notice?.title).toBe(cycled.title);
+    expect(cycled.notice).toEqual({ text: "Switched to Everything about cats.", count: 1 });
+    expect(cycled.notice?.text).toContain(cycled.title);
     // A switcher row is the other door and the reader pressed the title itself there, so the
     // swap is silent AND what was said before comes down rather than standing in the region.
     const picked = reduce(cycled, {
@@ -434,33 +435,92 @@ describe("overlayState reducer", () => {
     // the case, both arrivals being called "New chat".
     const first = reduce(initialState, { kind: "newChat", sessionId: "a", announce: true });
     const second = reduce(first, { kind: "newChat", sessionId: "b", announce: true });
-    expect(first.notice).toEqual({ title: "New chat", count: 1 });
-    expect(second.notice).toEqual({ title: "New chat", count: 2 });
+    expect(first.notice).toEqual({ text: "Switched to New chat.", count: 1 });
+    expect(second.notice).toEqual({ text: "Switched to New chat.", count: 2 });
     // The header's pencil is the same arm with the flag down: its label is "New chat" already.
     expect(reduce(second, { kind: "newChat", sessionId: "c", announce: false }).notice).toBeNull();
   });
 
-  it("the empty chat replacing a deleted one announces itself, and nothing else about a delete does", () => {
-    // The confirm button names the chat LEAVING ("Confirm delete <title>"), so the fresh chat
-    // arriving in its place has no other announcement, and this is the one swap with a single
-    // door and therefore no flag. Deleting any other chat swaps nothing and says nothing.
+  it("a row leaving the switcher says so, and says what the list holds now", () => {
+    // Measured before this rule: deleting a chat that was not the open one produced no mutation
+    // in any live region on the page, so a reader heard the name of the control they landed on
+    // and nothing about the write landing or the list changing. The row is gone from the tree by
+    // then, so there is nothing left to re-read. Reddens if the arm goes quiet again.
     const started = run([{ kind: "open" }, submit("secret question")]);
     const listed = reduce(started, {
       kind: "sessionsLoaded",
-      sessions: [summary(started.sessionId), summary("keep")],
+      sessions: [summary(started.sessionId), summary("keep"), summary("also")],
     });
     const other = reduce(listed, {
       kind: "sessionDeleted",
       sessionId: "keep",
       fallbackSessionId: "unused",
     });
-    expect(other.notice).toBeNull();
+    expect(other.notice).toEqual({ text: "Chat deleted. 2 chats left.", count: 1 });
+    // Down to one, which is where the plural has to change; then to none, where the region
+    // borrows the switcher's own empty line rather than inventing a second wording for it.
+    const down = reduce(other, {
+      kind: "sessionDeleted",
+      sessionId: "also",
+      fallbackSessionId: "unused",
+    });
+    expect(down.notice).toEqual({ text: "Chat deleted. 1 chat left.", count: 2 });
+    const empty = reduce(down, {
+      kind: "sessionDeleted",
+      sessionId: started.sessionId,
+      fallbackSessionId: "fresh-1",
+    });
+    expect(empty.notice?.text).toContain(NO_OTHER_CHATS);
+  });
+
+  it("a delete that also swaps the chat says both, in one sentence and in order", () => {
+    // The confirm button names the chat LEAVING ("Confirm delete <title>"), so the fresh chat
+    // arriving in its place is news too, and this commit changes both the list and the panel.
+    // ONE region says both: a second region would put two announcements in flight at once and
+    // leave which is spoken, and in what order, to the reader's speech queue. Reddens if the two
+    // halves are ever split, or if the delete stops leading the arrival it caused.
+    const started = run([{ kind: "open" }, submit("secret question")]);
+    const listed = reduce(started, {
+      kind: "sessionsLoaded",
+      sessions: [summary(started.sessionId), summary("keep")],
+    });
     const current = reduce(listed, {
       kind: "sessionDeleted",
       sessionId: started.sessionId,
       fallbackSessionId: "fresh-99",
     });
-    expect(current.notice).toEqual({ title: "New chat", count: 1 });
+    expect(current.notice).toEqual({
+      text: "Chat deleted. 1 chat left. Switched to New chat.",
+      count: 1,
+    });
+  });
+
+  it("says nothing for a delete that removed no row, on either path", () => {
+    // A repeated dispatch (a double press, a stale row) filters nothing out, and a sentence about
+    // a list that did not change is a sentence that is false. Reddens if the announcement is
+    // raised from the arm running rather than from a row actually leaving.
+    const listed = reduce(initialState, {
+      kind: "sessionsLoaded",
+      sessions: [summary("keep")],
+    });
+    const spoke = reduce(listed, {
+      kind: "sessionDeleted",
+      sessionId: "keep",
+      fallbackSessionId: "unused",
+    });
+    const again = reduce(spoke, {
+      kind: "sessionDeleted",
+      sessionId: "keep",
+      fallbackSessionId: "unused",
+    });
+    expect(again.notice).toBe(spoke.notice);
+    // The open-chat path still announces the arrival, which happened, without claiming a row left.
+    const open = reduce(again, {
+      kind: "sessionDeleted",
+      sessionId: again.sessionId,
+      fallbackSessionId: "fresh-2",
+    });
+    expect(open.notice).toEqual({ text: "Switched to New chat.", count: 2 });
   });
 
   it("counts every gesture that replaces the conversation, and nothing else, as an arrival", () => {
@@ -762,6 +822,23 @@ describe("overlayState reducer", () => {
     // A double-click or a stale card re-fires the same action; the list must not change.
     const again = reduce(dismissed, { kind: "reminderDismissed", reminderId: "r-1" });
     expect(again.reminders.map((r) => r.reminderId)).toEqual(["r-2"]);
+  });
+
+  it("a reminder leaving the stack says so too, and the last one says the stack is empty", () => {
+    // The overlay's other list that shrinks under the hand, and measured before this rule it was
+    // silent in exactly the same way: acking a row, and acking the last row so the whole section
+    // went with it, produced no live-region mutation at all. The last one matters most, since it
+    // is also the only warning that the surface itself has gone. Reddens if the arm goes quiet.
+    const loaded = reduce(initialState, {
+      kind: "remindersLoaded",
+      reminders: [reminder("r-1"), reminder("r-2")],
+    });
+    const one = reduce(loaded, { kind: "reminderDismissed", reminderId: "r-1" });
+    expect(one.notice).toEqual({ text: "Reminder dismissed. 1 reminder left.", count: 1 });
+    const none = reduce(one, { kind: "reminderDismissed", reminderId: "r-2" });
+    expect(none.notice).toEqual({ text: "Reminder dismissed. No reminders left.", count: 2 });
+    // And a card that was already gone says nothing, the switcher's rule on this list.
+    expect(reduce(none, { kind: "reminderDismissed", reminderId: "r-2" }).notice).toBe(none.notice);
   });
 
   it("reminders survive the turn and chat actions that clear other surfaces", () => {

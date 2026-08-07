@@ -157,12 +157,12 @@ describe("Overlay", () => {
     // words it wants read, out of a subtree that was `inert` until that frame. Reddens if the
     // announcer is ever moved under the panel.
     const controller = fakeController("hidden", [], {
-      notice: { title: "Everything about model swaps", count: 1 },
+      notice: { text: "Switched to Everything about model swaps.", count: 1 },
     });
     const { container } = renderOverlay(controller);
     const region = container.querySelector(".announcer");
     const panel = container.querySelector(".panel");
-    expect(region?.textContent).toBe("Switched to Everything about model swaps");
+    expect(region?.textContent).toBe("Switched to Everything about model swaps.");
     expect(panel?.hasAttribute("inert")).toBe(true);
     expect(panel?.contains(region ?? null)).toBe(false);
   });
