@@ -632,7 +632,11 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   (`overlay/morph.ts`): it carries `data-morphing` from its first spoken letter to its settle,
   so placements defer and the panel's auto height follows the box frame by frame instead of
   replaying it from a render-old measurement, which snapped the top edge backwards on every
-  token (ADR-0037 addendum has the traces). The settle itself waits a few frames of coda for
+  token (ADR-0037 addendum has the traces). The value it publishes is `tH.toFixed(1)`, the same
+  rounding the box itself is written with, so the panel predicts from the height the bubble will
+  stand on: rounded to a whole pixel it sat half a pixel under that at every wrap, and a summon
+  landing inside the roll pinned the panel to the centre of the wrong number and kept it. The
+  settle itself waits a few frames of coda for
   the mist to reach the last word, so the evaporation plays at the reply's end and never
   mid-line. The bubble latches whether the message was streaming when it mounted: history
   renders one plain text node with none of the machinery, and a message this instance streamed

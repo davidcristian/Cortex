@@ -211,7 +211,7 @@ export function useWhisperClock(refs: WhisperRefs, facts: WhisperFacts): Whisper
         lineOne ? Math.min(m.maxW, fx + m.padX + MIST_W + MIST_GAP * 2) : m.maxW,
       );
       const tH = Math.max(m.breathH, fy + m.line + m.padY);
-      const rolling = String(Math.round(tH));
+      const rolling = tH.toFixed(1);
       if (bubble.getAttribute(MORPHING_ATTRIBUTE) !== rolling) {
         const announced = bubble.hasAttribute(MORPHING_ATTRIBUTE);
         bubble.setAttribute(MORPHING_ATTRIBUTE, rolling);
