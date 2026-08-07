@@ -758,7 +758,7 @@ describe("usePanelMotion", () => {
   it("hands back a scroll position that its own measurement clamped", () => {
     const { ref, element, state } = harness();
     state.natural = 400;
-    // At rest the dev machine can scroll to 400; while the panel is being measured it is taller, and can
+    // At rest the box can scroll to 400; while the panel is being measured it is taller, and can
     // hold only 80. A reader at 120 is inside the difference, which is where the defect lived.
     const history = scrollBox(element, 400, 80);
     const { rerender } = renderHook(() => usePanelMotion(ref, true, "chat"));
