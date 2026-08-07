@@ -60,18 +60,21 @@ def build_rank_messages(
     return [Message(role=Role.USER, text=body, at=at, turn_id=_RANK_TURN_ID)]
 
 
-def parse_order(raw: str, *, pool_size: int, k: int) -> tuple[int, ...]:
+def parse_order(raw: str, *, pool_size: int, k: int) -> tuple[int, ...] | None:
     """The candidate numbers the model returned: in range, de-duplicated, truncated to ``k``."""
     try:
         order: object = json.loads(raw)["order"]
     except (json.JSONDecodeError, KeyError, TypeError):
-        return ()
+        return None
     if not isinstance(order, list):
-        return ()
+        return None
+    listed = cast("list[object]", order)
     kept: list[int] = []
-    for element in cast("list[object]", order):
+    for element in listed:
         if type(element) is int and 0 <= element < pool_size and element not in kept:
             kept.append(element)
+    if listed and not kept:
+        return None
     return tuple(kept[:k])
 
 
@@ -102,7 +105,7 @@ class JudgeRecallPolicy:
     async def select(
         self, hits: Sequence[ScoredMemory], *, query: str, now: datetime, k: int
     ) -> Ranking:
-        """Ask the model to order the pool; fall back on any failure to reach or parse an answer."""
+        """Ask the model to order the pool: fall back on a failure, keep nothing on a refusal."""
         if not hits:
             return await self._fallback.select(hits, query=query, now=now, k=k)
         try:
@@ -116,8 +119,10 @@ class JudgeRecallPolicy:
         except InferenceError:
             return await self._fallback.select(hits, query=query, now=now, k=k)
         order = parse_order(raw, pool_size=len(hits), k=k)
-        if not order:
+        if order is None:
             return await self._fallback.select(hits, query=query, now=now, k=k)
+        if not order:
+            return Ranking(hits=(), basis=RankBasis.DEMUR)
         return Ranking(hits=_keyed(hits, order), basis=RankBasis.VERDICT)
 
 

@@ -75,6 +75,14 @@ full cortex generation per recall and needs the GPU stack up. It falls back to r
 the model cannot be reached or believed, and the fallback is visible rather than silent, because the
 trail records the basis that actually ranked.
 
+`judge` is also the only policy that can **return nothing**. Asked a question none of the candidates
+answers, it says so and the turn is assembled with no recalled memories at all, which the trail
+reports as the `demur` basis with an empty hit list (ADR-0038 abstention addendum). That is a
+different line from a fallback, which shows the fallback's basis and the notes it chose, and from an
+empty pool, which shows the ranking policy's own basis. The geometric policies have no way to
+decline: they always return their nearest `k`, so under `raw` a question memory cannot answer still
+recalls the three least-unrelated notes it holds.
+
 Set `CORTEX_MEMORY_RECALL_AUDIT=1` to turn that trail on: one `cortex.memory.recall` line per
 recall, in the brain's container logs, carrying the pool size, the rank basis, whether keys on that
 basis may be compared, and each kept hit's memory id, cosine score and rank key. It never carries

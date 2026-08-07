@@ -10,13 +10,14 @@ from cortex_core.memory import ScoredMemory
 
 
 class RankBasis(Enum):
-    """How a memory came to mind: the quantity a policy ordered by (ADR-0038 decision 4)."""
+    """How a memory came to mind, or why none did (ADR-0038 decision 4, abstention addendum)."""
 
     ECHO = "echo"
     EMBER = "ember"
     SPREAD = "spread"
     SWEEP = "sweep"
     VERDICT = "verdict"
+    DEMUR = "demur"
 
     @property
     def comparable(self) -> bool:
@@ -42,6 +43,12 @@ class Ranking:
 
     hits: tuple[RankedMemory, ...]
     basis: RankBasis
+
+    def __post_init__(self) -> None:
+        """Refuse the one combination that has no meaning: a declined rank that kept hits."""
+        if self.basis is RankBasis.DEMUR and self.hits:
+            msg = "a DEMUR ranking declines, so it carries no hits"
+            raise ValueError(msg)
 
     @property
     def memories(self) -> tuple[ScoredMemory, ...]:

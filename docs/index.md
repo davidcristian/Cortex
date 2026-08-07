@@ -298,8 +298,10 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   the design the deferred-refinements backlog had been holding two entries against, **landed** in
   both halves. `RecallPolicy.select` is widened once for all three of its waiting consumers,
   to `async def select(hits, *, query, now, k) -> Ranking`, and the key a policy ranked by travels
-  with the hits it kept under a named `RankBasis` (`ECHO`, `EMBER`, `SPREAD`, `SWEEP`, `VERDICT`)
-  whose `comparable` property carries the fact that an MMR key is measured against the kept set. The
+  with the hits it kept under a named `RankBasis` (`ECHO`, `EMBER`, `SPREAD`, `SWEEP`, `VERDICT`,
+  and `DEMUR` since the abstention addendum taught the judge to decline a pool that helps with
+  nothing) whose `comparable` property carries the fact that an MMR key is measured against the
+  kept set. The
   declined blended-relevance field is reversed onto that return rather than onto `ScoredMemory`;
   recall gets its first audit trail (`RecallAuditSink` plus a logging sink that writes rank keys and
   no text); and the model rank ships as `JudgeRecallPolicy`, measured against the shipping cosine at
@@ -311,7 +313,12 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   recomputed per turn, safe because `SessionStore` has no verb that edits a message, so a prefix
   summary can only go incomplete and never wrong; the summarizing-window addendum records that
   half being built, from the `set_recap`/`recap` verbs through `SummarizingHistoryWindow` to a
-  measured run where the shipped window could not answer a question the recap could.
+  measured run where the shipped window could not answer a question the recap could. **The
+  abstention addendum** closes the defect the widened corpus found: a judge that answered
+  `{"order": []}` on a question memory cannot answer was read as a failed rank and replaced with the
+  cosine's nearest misses, and it now returns nothing on the `DEMUR` basis, which the trail reports
+  as a refusal rather than as a fallback (measured: the four unanswerable questions return nothing
+  4 of 4, the run falls back 0 of 26 against 4, and the ranking on the answerable 22 is unchanged).
 
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 

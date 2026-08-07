@@ -2,7 +2,7 @@
 
 Deferred refinements from the Slice 5 memory work under [ADR-0008](../adr/ADR-0008-memory-v1.md): the memory store, its scoping seam, and the pure-core recall policies. Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** 10 (the judge's default now that it is cheap and measured wider, an abstention the judge cannot express, session+global union read policy, per-scope retention/eviction, cross-scope recall ranking, tiered / self-editing memory + summarization, write-salience policy, ANN index, a cross-encoder rank, auditing the candidates that were dropped). **The tenth was added 2026-08-06 by the corpus widening, which found it; the two before it were added the same day, correcting a line and an index cell that had read 7.** The ranked-recall close did half of its own bookkeeping: it struck the model-based reranker and recall observability from this line when they landed, and it did not add the two deferrals the same close opened, which are written up at the end of the ranked-recall entry below and at [ADR-0038](../adr/ADR-0038-ranked-recall.md). A close that names what it opens and then leaves the header naming only what it shut loses an open item exactly as a count that fails to move does.
+**Open items:** 10 (the judge's default now that it is cheap and measured wider, a geometric policy that still cannot decline, session+global union read policy, per-scope retention/eviction, cross-scope recall ranking, tiered / self-editing memory + summarization, write-salience policy, ANN index, a cross-encoder rank, auditing the candidates that were dropped). **The count held at 10 on 2026-08-07 because one item closed and one opened in the same change**, and it is written out here rather than left to arithmetic: the judge's abstention landed, and the close named what it does not reach, which is that the shipped geometric policies still hand a turn their nearest misses on a question memory cannot answer. **The tenth was added 2026-08-06 by the corpus widening, which found it; the two before it were added the same day, correcting a line and an index cell that had read 7.** The ranked-recall close did half of its own bookkeeping: it struck the model-based reranker and recall observability from this line when they landed, and it did not add the two deferrals the same close opened, which are written up at the end of the ranked-recall entry below and at [ADR-0038](../adr/ADR-0038-ranked-recall.md). A close that names what it opens and then leaves the header naming only what it shut loses an open item exactly as a count that fails to move does.
 
 **Memory in Slice 5 ([ADR-0008](../adr/ADR-0008-memory-v1.md)):**
 - **Per-session / namespaced scoping landed 2026-07-06 ([ADR-0008 scoping addendum](../adr/ADR-0008-memory-v1.md)).**
@@ -247,3 +247,46 @@ Deferred refinements from the Slice 5 memory work under [ADR-0008](../adr/ADR-00
   turn, so the recaller, the audit trail and the prompt assembly each need to mean something by
   zero hits. **Trigger:** flipping the default to `judge`, since the defect is invisible while the
   policy is off, or the first report of memory answering a question it has nothing about.
+  **Landed 2026-08-07 ahead of its trigger** ([ADR-0038](../adr/ADR-0038-ranked-recall.md)
+  abstention addendum), because the fix is small and the entry's own reason for deferring it was the
+  blast radius, which the code did not confirm. `RankBasis` gained `DEMUR`, the judicial sibling of
+  `VERDICT` for a reader who decided that nothing in the pool makes the case (a demurrer grants
+  every word of the material and still finds no case; `NONSUIT` was more exact and less readable,
+  `SILENCE` would have fitted an empty store as well as a refusal, and `ABSTAIN` says no decision
+  was made, which is the opposite of what happened). `parse_order` now has three outcomes rather
+  than two: `None` for a reply nothing can be read out of, **including one that named notes of which
+  none exists**, since a model that tried to pick and produced nothing pickable has failed rather
+  than declined; `()` for an `order` that arrived empty; and the picks otherwise. `select` returns
+  `Ranking(hits=(), basis=DEMUR)` for the middle case and never consults the fallback, which stays
+  exactly where it was for real failures. **Cost correction:** this entry priced three consumers
+  needing to mean something by zero hits, and two of the three already did. `MemoryRecaller.recall`
+  returns `ranking.memories`, so an empty ranking was already an empty sequence and nothing
+  re-fetched or substituted the pool; `_recalled_context` (`turn_context.py`) already returned
+  `None` on no hits, so the turn was already assembled without a memory block. Only the trail needed
+  the new basis, and it needed no new field for it, since `demur` with no hits, another basis with
+  no hits, and a fallback's basis with hits are three readings of fields the line already carried.
+  What the entry did not price and the close added is an invariant: a `DEMUR` ranking carrying hits
+  is refused at construction, because a policy cannot both decline and return something. CI-gated at
+  100% over the fakes, with the empty-pick path proved able to fail by restoring the old
+  `if not order` branch (three tests redden, including the turn-assembly one). **Measured live on
+  the same 41-note corpus that found it**: the four unanswerable questions now return nothing, 4 of
+  4, the whole run fell back 0 of 26 where it fell back 4 of 26, and the ranking on the 22
+  answerable questions is unchanged (aggregate MRR 1.000 against the cosine's 0.902, the
+  reversed-cosine control still 0.000) at 0.76 s per recall. Declining costs what ranking costs,
+  because the pool prompt is evaluated either way.
+- **A geometric policy still cannot decline, opened 2026-08-07 by the abstention close
+  ([ADR-0038](../adr/ADR-0038-ranked-recall.md) abstention addendum).** The refusal that landed is
+  the judge's alone. `RawRecallPolicy` (the default) and the three heuristic policies always return
+  their nearest `k`, so on a question memory cannot answer, every deployment that has not opted into
+  `CORTEX_MEMORY_RECALL=judge` still receives three nearest misses, which is the same turn the
+  closed entry described and a different cause. The geometric analogue is a **relevance floor**: a
+  policy that drops a candidate below some similarity and may therefore return nothing, which the
+  `Ranking` the port now returns can express and no policy computes. It was considered during the
+  close and declined on two counts that would have to be answered first. A cosine threshold is not
+  portable across embedding models, since the absolute values a floor is calibrated against belong
+  to whichever `Embedder` produced them and mean something else behind another one. And a floor on
+  `RawRecallPolicy` changes the founding behavior, the one policy whose promise is that recall is
+  byte-for-byte v1, so the floor belongs on a fifth policy rather than on the default. **Trigger:**
+  a deployment that wants recall to stay geometric and still be able to say nothing, which is also
+  the shape the first complaint about irrelevant recalled memories under the shipped default would
+  take, or a calibration run that gives the floor a defensible number.

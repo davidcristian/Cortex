@@ -15,7 +15,11 @@ pool (the one hard rule).
   keys on that basis may be compared, each kept hit's `id` / `score` / `key` / `tainted`, and the
   time. It carries **no text at all**, neither the query nor a recalled memory, which is the tool
   audit's "size not content" stance applied to conversation content. Attached by
-  `CORTEX_MEMORY_RECALL_AUDIT`.
+  `CORTEX_MEMORY_RECALL_AUDIT`. A line with no hits is read through its basis and logs no separate
+  flag for one (ADR-0038 abstention addendum): `"basis": "demur"` is the model having read a pool
+  and declined all of it, any other basis with empty `hits` is a pool that held nothing to rank, and
+  a fallback after an unreachable or unbelievable model shows the fallback's own basis with the hits
+  it chose.
 - `PgVectorMemoryStore(db: Database)` is a `MemoryStore`.
   - `add(record)` → `INSERT (id, text, embedding, scope, tainted, created_at)` with `embedding =
     $3::vector` (the vector passed as a pgvector text literal, e.g. `[0.1,0.2]`). `tainted` is the
