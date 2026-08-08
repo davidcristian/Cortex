@@ -71,8 +71,10 @@ _ARM_TIMEOUT_S = 5.0
 # The control plane's own deadline, matching the brain's CORTEX_MODELHOST_TIMEOUT_S default: a stop
 # answers only once the child is reaped, so this must clear the sidecar's grace plus reap bounds.
 _CONTROL_TIMEOUT_S = 60.0
-# The deep tier's measured cost and the shipped subagent ask, both in the units their own knobs
-# use (CORTEX_SWAP_BRAIN_VRAM_MIB, CORTEX_SUBAGENTS_VRAM_GB).
+# The deep tier's measured cost and a subagent ask, both in the units their own knobs use
+# (CORTEX_SWAP_BRAIN_VRAM_MIB, CORTEX_SUBAGENTS_VRAM_GB). The ask is held at the figure that
+# straddles the handoff window under the soft cap below rather than tracking the shipped default
+# (3.5 GiB since it was measured), which fits both sides and would assert nothing.
 _DEEP_TIER_MIB = 19125
 _SPAWN_GB = 5.5
 
@@ -398,10 +400,11 @@ async def test_a_real_swap_charges_the_placer_for_the_model_that_holds_the_card(
     there being that much room. So this asserts the mechanism and publishes the card's own
     numbers beside it; the deep tier's cost is a measurement, recorded in the runbook's table.
 
-    The spawn asked for is the shipped ``CORTEX_SUBAGENTS_VRAM_GB`` of 5.5 GiB, against a soft cap
-    a deployment on this card would raise to 23 GiB. It fits beside the cortex and does not fit
-    beside the deep model, which is the flip nothing in the gated suite can prove is grounded in
-    real free memory.
+    The spawn asks 5.5 GiB against a soft cap a deployment on this card would raise to 23 GiB,
+    which is a scenario rather than the shipped pair (the ask has been 3.5 GiB since it was
+    measured, and the reservation 8.6): what these numbers buy is a spawn straddling the window,
+    fitting beside the cortex and not beside the deep model, which is the flip nothing in the gated
+    suite can prove is grounded in real free memory.
     """
     endpoint = os.environ.get("CORTEX_MODELHOST_ENDPOINT")
     if not endpoint:

@@ -689,3 +689,93 @@ times and why the floor was read at both ends rather than once. And it says noth
 load spilled, which is the standing lesson [ADR-0030](ADR-0030-brain-handoff.md) records: nothing
 here spilled, the card holding 14631 MiB free at the peak, but a memory reading is not what would
 have told us.
+
+## Addendum (2026-08-08): the subagent VRAM ask, measured, and the two placeholders it replaces
+
+`CORTEX_SUBAGENTS_VRAM_GB` moves from **5.5 to 3.5**, and the `SubagentsConfig` default under it
+from **2.0 to 3.5**. This is the term decision 2 fit-tests against the headroom the addendum above
+left, and it was the last unmeasured number in that budget: the reservation re-measurement made it
+the only reason the shipped stack still refused every GPU placement, so it opened as this area's
+own deferral rather than being met halfway by a reservation.
+
+**What was measured.** The GPU-placed subagent tier at its shipped shape, read out of the running
+child's argv inside the sidecar rather than assumed:
+`--model <the gemma-4-E4B QAT q4_0 pick> --host 0.0.0.0 --port 8083 -ngl 99 --ctx-size 8192
+--parallel 2 --jinja --chat-template-kwargs {"enable_thinking": false}`, started through the
+control API on the 24463 MiB card with the cortex resident throughout, ready **7.07 s** after
+`start`. `nvidia-smi` total used was sampled every 0.2 s throughout, and every figure below is the
+min and max of one phase's samples.
+
+| Phase | Total used (MiB) | The tier's own cost (MiB) |
+| --- | --- | --- |
+| Floor, cortex resident and this tier stopped, immediately before the load | 10448 to 10500 (106 samples) | n/a |
+| Idle, loaded, no request served yet | 13728 to 13803 (117 samples) | 3228 to 3355 |
+| Two concurrent requests, each filling its own slot | 13752 to 13773 (20 samples) | 3252 to 3325 |
+| Four concurrent requests, three rounds, 23.0 s | 13760 to 13838 (100 samples) | 3260 to 3390 |
+| The whole resident phase, peak included | 13728 to **13838** (349 samples) | up to **3410** |
+| Floor again, tier stopped at the end of the session | 10428 to 10493 (84 samples) | n/a |
+
+**The floor is bracketed, for the reason the reservation's own reading gives.** Read before the
+load and again after the last arm, it agrees within 20 MiB at the low end and 7 MiB at the high
+end, so the desktop did not drift under the session and no movement of its own is folded into the
+tier. The cost is therefore **3338 MiB** against the higher floor and **3410 MiB** against the
+lower, which is 3.26 to 3.33 GiB, and the higher of the two is the one the ask has to cover.
+
+**Nothing arrives with the work, and here that is total rather than nearly so.** Both slots were
+driven to their own limit: each request reported 3803 prompt tokens and 293 decoded for exactly
+4096, which is the whole of one slot's half of the 8192 KV, and twelve such requests with four in
+flight at once moved the reading no further than the idle band's own spread. llama.cpp takes the KV
+and its compute buffers at load, as it does for the cortex, and unlike the cortex this tier has no
+vision path at all (no projector is named for it), so the late permanent allocation the reservation
+had to cover does not exist here. The peak is a load-time figure.
+
+**The ask is 3.5 GiB**, which is 3584 MiB and **174 MiB above the conservative peak**. That covers
+each of the two things that could move the reading, more than once over: the sampler's own spread
+inside the resident phase (110 MiB, and 75 MiB within idle alone) and the floor bracket's
+disagreement (20 MiB). It does not pretend to cover a different llama.cpp build, a raised
+`CORTEX_SUBAGENT_CTX_SIZE`, or a raised `CORTEX_SUBAGENTS_PARALLEL`, each of which moves the tier
+itself; a deployment that changes one re-measures, the same rule `CORTEX_VRAM_CORTEX_GB` and
+`CORTEX_SWAP_BRAIN_VRAM_MIB` already live under.
+
+**The two placeholders erred in opposite directions, which is why both moved.** The compose default
+of 5.5 was about 2.1 GiB above the tier's peak and refused every GPU placement. The code default of
+2.0, which is what a deployment gets when it wires subagents without that compose file, was about
+1.3 GiB **below** it: that one admitted a spawn onto room the tier would then overrun, which is the
+unsafe direction and the more interesting of the two errors, and it had been quoted as the
+"GPU-less-safe placeholder" the whole time. They are one number now, declared once per tree, and
+the two declarations are tied together by nothing but the comments that say so:
+`scripts/crosscheck.py` reads module-level constants in Python, Rust and TypeScript, and neither a
+pydantic `Field` default nor a compose environment value is in its grammar.
+
+**What changes for a running deployment.** With the soft cap at 14 GB and the reservation at 8.6
+GiB the headroom is 5.4 GiB, so one spawn is GPU-placed and the next overflows to the CPU server,
+which is what one tier process can serve anyway. Measured on the stack rather than argued: under
+the old ask the GPU arm of `test_subagent_gpu_live.py` could not even select itself (ask 5.5
+against headroom 5.4), both spawns went to the CPU server and the tier served no task at all; under
+3.5 the same command with nothing overridden places one spawn on the tier, which answers in
+**152.11 ms** (18 prompt tokens at 152.54 tok/s, 3 generated at 87.95 tok/s) against **13134.73 ms**
+for the sibling that overflowed, and the tier's served-task count moves by exactly one. The suite
+was proved able to fail first, the same way the arm's own sitting proved it: with the GPU endpoint
+pointed at a closed port under this budget the run reddens on three placements rather than two,
+because a GPU-placed attempt whose backend did not answer re-runs once on the CPU.
+
+**The gated pins were proved able to fail too**, each mutation applied to the shipped default alone
+and reverted, and the two pins fail on different mutations, which is what says they are not one
+test twice. At 5.5 the placement pin reddens on the first spawn overflowing and the margin pin
+stays green, since 5.5 covers the tier amply and simply does not fit. At 3.4 it is the other way
+round: the margin pin reddens at 71.6 MiB against the 130 it has to clear, and the placement pin
+passes, one spawn still fitting. At the old code default of 2.0 both redden, the margin at
+-1362 MiB and the placement on the **second** spawn, which a 2.0 ask leaves room for. They read the
+deployment's own numbers rather than literals, so a later move of the cap or the reservation is
+answered here rather than silently absorbed, which is what the pin they replace was for.
+
+**What the ask still does not model**, stated here because correcting it does not fix it: the
+ledger charges one tier's whole footprint per spawn, while the tier is a standing process that a
+second spawn allocates nothing on. So the refusal of that second spawn is a decode-speed choice
+dressed as a memory one. That is the older modelling gap recorded in
+[refinements/inference-model-manager.md](../refinements/inference-model-manager.md), unchanged by
+this and now the honest reading of what the second placement means. The roster's alternate entry
+(`docker-compose.subagents-roster.yml`, `vram_gb` 2.5) is deliberately left alone: no GPU executor
+exists for it, its `gpu_endpoint` falling back to its own CPU server, so its figure charges a
+ledger for a placement that always runs on the CPU, which is the interim one-executor stance rather
+than a measurement anyone can take today.

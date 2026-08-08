@@ -218,8 +218,11 @@ Since 2026-08-07 the residency scope charges `CORTEX_SWAP_BRAIN_VRAM_MIB` agains
 `CORTEX_VRAM_SOFT_CAP_GB` for the length of a handoff, in place of `CORTEX_VRAM_CORTEX_GB`, so a
 GPU-placed spawn during a co-resident handoff is fit-tested against the card as it actually is.
 On this card, with the cap raised to 23 GiB, that is 4.32 GiB of headroom during the window against
-11.7 GiB outside it, so the shipped 5.5 GiB subagent ask overflows to the CPU server while the deep
-model is resident and is GPU-placed again once the cortex is back. The operator-visible effects:
+14.4 GiB outside it. At the **shipped** 14 GB cap the same window leaves nothing at all, the deep
+tier's 18.68 GiB being over the whole budget, so the measured 3.5 GiB subagent ask is GPU-placed
+outside a handoff, overflows to the CPU server while the deep model is resident, and is GPU-placed
+again once the cortex is back. Both readings say the same thing; the raised cap is what a
+deployment sizing the budget to this card would use, and the shipped one is what ships. The operator-visible effects:
 delegated work through a co-resident handoff may be slower than the same work outside one, and a
 restore that gave up (`could not restore the cortex after a model swap`) keeps every spawn on the
 CPU until the process is restarted, deliberately, because nothing then knows what is on the card.

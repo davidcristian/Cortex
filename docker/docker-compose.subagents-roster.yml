@@ -23,7 +23,11 @@ services:
       # One JSON object per alternate roster entry (ADR-0018; parsed by SubagentsConfig).
       # gpu_endpoint is omitted -> falls back to endpoint (the interim one-executor stance,
       # ADR-0012 deferral). The resource ask reflects the Qwen-2B measurements (~0.9 GiB RSS
-      # -> 1.5 GB memory; ~2.5 GB weights+KV VRAM ask). The description is advertised to the
+      # -> 1.5 GB memory; ~2.5 GB weights+KV VRAM ask). That VRAM figure is deliberately left
+      # unmeasured where the default entry's was measured on 2026-08-08: no GPU executor exists
+      # for this entry at all, since the line above dials the CPU server for both targets, so the
+      # figure only ever charges the placer's ledger for a spawn that runs on the CPU. It gets a
+      # real number when this entry gets a real GPU tier. The description is advertised to the
       # cortex verbatim (trade-off text only); safety is the wiring's (ADR-0017).
       CORTEX_SUBAGENTS_ROSTER__qwen: >-
         {"endpoint": "http://llama-subagent-qwen:8083",

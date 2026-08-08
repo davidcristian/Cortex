@@ -46,10 +46,13 @@ from cortex_core import (
 
 _ENDPOINTS = {"cortex": "http://model-host:8080", "brain": "http://model-host:8081"}
 
-# The card and the deep tier as measured (ADR-0030 co-residency addendum), and the shipped subagent
-# ask (CORTEX_SUBAGENTS_VRAM_GB). The soft cap is what a deployment on this card would raise it to
-# in order to admit a GPU-placed spawn at all: 23.0 GiB of a 23.89 GiB card, leaving 11.7 GiB of
-# standing headroom beside an 11.3 GiB cortex reservation, and 4.32 GiB during a handoff.
+# The card and the deep tier as measured (ADR-0030 co-residency addendum), with a budget chosen so
+# one spawn straddles the handoff window: it fits beside the cortex and not beside the deep model,
+# which is the flip under test. The three budget numbers are a scenario, not the shipped defaults
+# (the shipped ask is 3.5 GiB and the shipped reservation 8.6 since they were measured, and a
+# scenario built from those would want its own cap to keep the straddle); 23.0 GiB of a 23.89 GiB
+# card leaves 11.7 GiB of standing headroom beside an 11.3 GiB reservation, and 4.32 during a
+# handoff, so a 5.5 GiB ask lands on either side of the edge.
 _DEEP_MIB = 19125
 _SPAWN_GB = 5.5
 _SOFT_CAP_GB = 23.0
@@ -106,7 +109,8 @@ def _host(**overrides: object) -> ScriptedModelHost:
 async def test_a_spawn_inside_the_handoff_is_fit_tested_against_the_deep_model() -> None:
     """The whole point: the same spawn, the same placer, opposite answers either side of a swap.
 
-    Outside the window the 5.5 GiB ask fits the 11.7 GiB the cap leaves beside the cortex. Inside
+    Outside the window this scenario's 5.5 GiB ask fits the 11.7 GiB the cap leaves beside the
+    cortex (the module header says why these are a scenario rather than the defaults). Inside
     it the card really holds the deep model's 19125 MiB and about 908 MiB is free, so admitting
     that spawn onto the GPU would be admitting it into memory the deep model already took. It is a
     co-resident handoff, so nothing drained the pool and the spawn genuinely arrives here.
