@@ -599,3 +599,72 @@ drive a signal nothing in the overlay reads. Recorded in the backlog's dead-unti
 reopens only if the overlay grows a redaction surface the inline marker genuinely cannot serve (a
 persisted count badge, distinct styling), which would need a durable channel designed with its
 record, not the ephemeral status one this deferral imagined.
+
+## Addendum (2026-08-08): a URL spelled in the fullwidth and CJK twins of its own punctuation
+
+Closes **two** live bypasses, found while measuring the deferred "mixed/other encodings" tail rather
+than in it, and both worse than the tail that was being measured. Like every earlier addendum this
+is **grammar-and-identity only, with no seam change**: both `OutputGuardrail` policies, the
+`TaintLedger`, `TaintView`, the streaming filter, and the config are untouched, redact and strict
+mode inherit the wider matching for free, and a clean or untainted turn is byte-identical to before.
+Still **deterministic and dependency-free** (stdlib only).
+
+Both were confirmed against the shipped module before any change, driven end to end through a real
+`TaintLedger` that had collected `https://evil.example/pay` from an untrusted result and a real
+streaming filter fed one character at a time:
+
+| Reply spelling | redact (default) | strict | After |
+|---|---|---|---|
+| `https://evil.example/pay` (control) | redacted | redacted | unchanged |
+| `https://evil。example/pay` (U+3002) | **leaked** | redacted | redacted |
+| `https://evil｡example/pay` (U+FF61) | **leaked** | redacted | redacted |
+| `https://evil．example/pay` (U+FF0E, NFKC control) | redacted | redacted | unchanged |
+| `https：//evil.example/pay` (U+FF1A) | **leaked** | **leaked** | redacted |
+| `https:／／evil.example/pay` (U+FF0F) | **leaked** | **leaked** | redacted |
+| `mailto：thief@evil.example` (U+FF1A) | **leaked** | **leaked** | redacted |
+
+### The reader decodes nothing, which is what makes this class different
+
+Every obfuscation closed before this one is a *rendering* the reader or a renderer resolves: a
+defang the eye undoes, an HTML entity the mail client draws, a percent-escape the browser hops. A
+CJK full stop is resolved by the **resolver**. The stdlib's own IDNA codec splits a host on exactly
+`.`, `。` (U+3002), `．` (U+FF0E) and `｡` (U+FF61) (`encodings.idna.dots`), and
+`"evil。example".encode("idna")` returns `b"evil.example"`, so `https://evil。example/pay` is not a
+lookalike of the collected link, it is the collected link. That is also why the fold is a fact
+rather than a judgement, unlike the curated confusable table beside it: the false positive is a
+host legitimately written with a CJK stop, which goes to the same place anyway.
+
+**NFKC covers half of it and the halves are not the obvious ones.** U+FF0E and the one-dot leader
+U+2024 fold to `.` on their own, but U+FF61 normalizes *onto* U+3002 rather than to a dot, and
+U+3002 is left standing, so the two ideographic stops shared a second identity that the collected
+set never held. Pass 7 (`_fold_label_dots`) folds the three that are not already a dot after NFKC.
+
+### The separator that anchored nothing, which is the severe shape again
+
+The identity passes cannot help a URL that is never matched. `_AUTHORITY_SEPS` and `_OPAQUE_SEPS`
+listed the ASCII `:` and `/` only, and the matcher runs before any normalization, so `https：//host`
+and `https:／／host` anchored nothing, matched nothing, and were therefore invisible to **both**
+policies, exactly as the bracket-shape asymmetry was in the seventh addendum. NFKC already folded
+these two characters, so the fix is entirely in the anchor: the colon and the solidus are now
+two-entry tables and every separator spelling is generated from them (the `_BRACKETS` precedent), so
+a mixed spelling such as `https:／／` cannot be the one nobody remembered. The scheme word is still
+required in front of the separator, so CJK prose where `：` is ordinary punctuation (`項目：内容`) is
+untouched, and an authority scheme still needs its slashes (`https：no slashes` is not a URL).
+
+### What the measurement leaves open, with its numbers
+
+The deferred tail this pass set out to measure, "mixed/other encodings past percent + HTML", is
+**still open and now has a table**. Measured against the shipped module in the same run, these
+spellings of the same link do not fold: `evil\u002eexample` and `evil\U0000002eexample` (JS/JSON
+unicode escapes), `evil\x2eexample`, `evil\056example` (octal), `evil%u002eexample`, and
+`evil\.example`; and `https:\/\/evil.example` (JSON-escaped slashes), `https%3A%2F%2Fevil.example`
+(a whole percent-encoded scheme) and `https&#58;//evil.example` (an entity colon with no bracket
+around it) anchor nothing at all. They are deliberately not closed here, because they divide on the
+line this addendum draws: a source-code escape is resolved by no renderer and no resolver, so
+folding it is a bet on a reader decoding it by hand, which is a different argument from the one
+above and deserves its own measurement rather than a ride on this one. The bracket-less entity
+separator is the nearest to actionable of them and is the natural next pass, since the seventh
+addendum's shape-constraint reasoning extends to it directly.
+
+Ten new behaviour tests, each mutation-proven: dropping the label-dot fold reddens four, and
+shrinking the colon and solidus tables back to their ASCII entries reddens six.

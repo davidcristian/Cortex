@@ -728,3 +728,83 @@ def test_an_opaque_turn_still_lets_a_url_the_user_sent_through() -> None:
     guard = UrlRedactingGuardrail().open(taint, allow=frozenset({EVIL}))
     fed = guard.feed(f"you asked about {EVIL} ") + guard.flush()
     assert fed == f"you asked about {EVIL} "
+
+
+# --- Obfuscation-resistant matching: a URL spelled in the fullwidth and CJK twins of its own
+# punctuation (ADR-0015 eighth addendum). Two gaps, both measured against the shipped module first.
+# The matcher runs before any normalization, so a fullwidth scheme separator (U+FF1A colon, U+FF0F
+# solidus) anchored nothing and the URL matched nothing at all: neither mode redacted it. And NFKC
+# maps the halfwidth ideographic stop (U+FF61) onto U+3002 rather than to a dot, so a CJK-dotted
+# host kept a second identity that the default (verbatim) policy missed while strict mode caught it.
+# Unlike a defang, the reader decodes nothing here: the stdlib's own IDNA codec resolves a U+3002
+# stop to a plain dot. Fixtures carry the literal glyph under test, so each takes the deliberate
+# ambiguous-unicode noqa the fullwidth-homoglyph tests above established. -
+
+
+def test_extract_urls_folds_the_idna_label_separators() -> None:
+    plain = {"https://evil.example/pay"}
+    assert extract_urls("https://evil。example/pay") == plain  # U+3002 ideographic full stop
+    assert extract_urls("https://evil｡example/pay") == plain  # U+FF61, NFKC maps it to U+3002
+    assert extract_urls("https://evil．example/pay") == plain  # noqa: RUF001  # U+FF0E, NFKC
+
+
+def test_a_cjk_dotted_host_and_its_plain_twin_share_one_identity() -> None:
+    assert extract_urls("https://evil。example/pay") == extract_urls("https://evil.example/pay")
+
+
+def test_a_cjk_dot_transform_of_a_collected_url_is_redacted() -> None:
+    # The gap this closes is in the *default* policy: the respelling used to carry an identity the
+    # collected set did not hold, so only strict mode (which flags every non-user URL) caught it.
+    guard = _filter({"https://evil.example/pay"})
+    fed = guard.feed("settle at https://evil。example/pay now") + guard.flush()
+    assert fed == f"settle at {REDACTED_LINK} now"
+
+
+def test_extract_urls_anchors_a_fullwidth_scheme_separator() -> None:
+    # Every combination of the two colons and the two solidi, since the separator is generated from
+    # those tables rather than listed: a mixed spelling must not be the one nobody remembered.
+    plain = {"https://evil.example/pay"}
+    assert extract_urls("https：//evil.example/pay") == plain  # noqa: RUF001
+    assert extract_urls("https:／／evil.example/pay") == plain  # noqa: RUF001
+    assert extract_urls("https：／／evil.example/pay") == plain  # noqa: RUF001
+    assert extract_urls("https:/／evil.example/pay") == plain  # noqa: RUF001
+
+
+def test_a_fullwidth_separator_anchors_an_opaque_scheme_and_a_data_url() -> None:
+    assert extract_urls("mailto：a@evil.example") == {"mailto:a@evil.example"}  # noqa: RUF001
+    assert extract_urls("tel：+15550100") == {"tel:+15550100"}  # noqa: RUF001
+    assert extract_urls("data：text/html;base64,AA") == {"data:text/html;base64,aa"}  # noqa: RUF001
+
+
+def test_a_fullwidth_separator_transform_of_a_collected_url_is_redacted() -> None:
+    guard = _filter({"http://evil.example"})
+    fed = guard.feed("see http：//evil.example now") + guard.flush()  # noqa: RUF001
+    assert fed == f"see {REDACTED_LINK} now"
+
+
+def test_strict_tainted_turn_redacts_a_fullwidth_separator() -> None:
+    # The worse half of this gap: an unanchored URL is invisible to strict mode too, which is
+    # otherwise the policy that catches every rewrite the verbatim one misses.
+    guard = _strict(_Taint(tainted=True))
+    fed = guard.feed("go to http：//evil.example ")  # noqa: RUF001
+    assert fed == f"go to {REDACTED_LINK} "
+
+
+def test_a_fullwidth_separator_split_across_chunks_is_carried_not_lost() -> None:
+    # The streaming hold-back derives its scheme prefixes from the same separator tables, so a
+    # fullwidth spelling split across deltas is held rather than leaked in pieces.
+    guard = _filter({"http://evil.example"})
+    assert guard.feed("at http：") == "at "  # noqa: RUF001
+    assert guard.feed("//evil.example ") == f"{REDACTED_LINK} "
+
+
+def test_a_fullwidth_colon_without_a_scheme_word_is_not_a_url() -> None:
+    # The separator counts only behind a scheme word, so CJK prose (where the fullwidth colon is
+    # ordinary punctuation) streams through untouched, and an authority scheme still needs slashes.
+    assert extract_urls("項目：内容") == frozenset()  # noqa: RUF001
+    assert extract_urls("https：no slashes here") == frozenset()  # noqa: RUF001
+
+
+def test_the_eighth_addendum_classes_compose() -> None:
+    # A fullwidth separator and a CJK-dotted host in one link still fold to the plain identity.
+    assert extract_urls("https：//evil。example/pay") == {"https://evil.example/pay"}  # noqa: RUF001

@@ -16,8 +16,12 @@ into one identity, never splitting one:
    which survive NFKC and otherwise let ``evi<ZWSP>l.com`` diverge from its plain twin.
 4. *Decode punycode* labels (``xn--e1awd7f`` to its Unicode form) via the stdlib ``idna`` codec, so
    a registered IDN homoglyph host reduces to the letters it renders as, feeding pass 5.
-5. *NFKC* folding (fullwidth/compatibility homoglyphs to ASCII).
+5. *NFKC* folding (fullwidth/compatibility homoglyphs to ASCII, which is also what reduces a
+   fullwidth scheme separator the matcher now anchors, a U+FF1A colon or a U+FF0F solidus, to
+   its ASCII spelling).
 6. Fold a *curated* table of cross-script confusable letters (Cyrillic/Greek Latin-lookalikes).
+7. Fold the *IDNA label separators* NFKC leaves standing (a U+3002 or U+FF61 stop between two
+   labels), which the resolver reads as a dot; ADR-0015 eighth addendum.
 
 Passes 3 and 4 landed in the seventh addendum. Deterministic and dependency-free (stdlib only), the
 line that keeps this out of the heuristic/screening-model layer. Pure state- and I/O-free.
@@ -192,6 +196,25 @@ def _fold_confusables(url: str) -> str:
     return url.translate(_CONFUSABLES)
 
 
+# The label separators IDNA itself reads as a dot, folded so a host spelled with one shares the
+# identity of the host it resolves to. This is not a judgement about what looks alike: the stdlib's
+# own IDNA codec splits a host on exactly U+002E, U+3002 (ideographic full stop), U+FF0E (fullwidth)
+# and U+FF61 (halfwidth ideographic) via `encodings.idna.dots`, and a host written with the U+3002
+# stop encodes to the plain ASCII host, so the reader decodes nothing and the resolver goes to the
+# same place. NFKC folds U+FF0E (and the one-dot leader U+2024) on its own but maps U+FF61 *onto*
+# U+3002 rather than to a dot, leaving that pair standing, which gave a collected link a second
+# identity the default policy missed while strict mode still caught it (ADR-0015 eighth addendum).
+# Symmetric and over-redaction-only like every other pass here: the false positive is a legitimate
+# host written with a CJK stop, which resolves to the same host anyway. Keys are `\u` escapes so the
+# source stays ASCII, the `_CONFUSABLES` convention.
+_LABEL_DOTS = str.maketrans({"\u3002": ".", "\uff61": ".", "\uff0e": "."})
+
+
+def _fold_label_dots(url: str) -> str:
+    """Fold the IDNA label separators (U+3002, U+FF61, U+FF0E) to the ASCII dot they resolve."""
+    return url.translate(_LABEL_DOTS)
+
+
 def normalize_url(url: str) -> str:
     """One URL's identity: escapes decoded (to a fixpoint), defang refanged, format characters
     stripped, punycode decoded, NFKC-folded, confusables folded, trailing prose punctuation dropped,
@@ -207,7 +230,8 @@ def normalize_url(url: str) -> str:
     equal).
     """
     plain = _strip_format_chars(_refang(_decode_escapes(url)))
-    folded = _fold_confusables(unicodedata.normalize("NFKC", _decode_punycode(plain)))
+    normalized = unicodedata.normalize("NFKC", _decode_punycode(plain))
+    folded = _fold_label_dots(_fold_confusables(normalized))
     trimmed = folded.rstrip(TRAILING_PUNCTUATION)
     head, sep, tail = trimmed.partition("://")
     cut = _AUTHORITY_END.search(tail)
