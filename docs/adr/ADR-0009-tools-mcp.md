@@ -334,8 +334,9 @@ across tasks:
 on first use, and when down the open fails as `ToolError` that `SkipUnavailableToolRegistry`
 reports and serves around. A **recovered sidecar rejoins without a brain restart**, as the next call
 re-dials. **Trade-off:** a per-call session open (a localhost handshake per describe/invoke); a
-session cache/pool is a later optimization behind the unchanged `ToolRegistry` port and recorded in
-the ROADMAP. The port, the audited `ToolDispatcher`, and the core combinators are unchanged;
+session cache/pool is a later optimization recorded in the ROADMAP, and this paragraph's claim that
+it sits behind the unchanged `ToolRegistry` port is **corrected by the handshake addendum below**,
+which measured the trade and declined the pool. The port, the audited `ToolDispatcher`, and the core combinators are unchanged;
 `httpx` becomes a direct `cortex_tools` dependency (the transport whose connect errors it maps).
 
 ## Addendum (2026-07-12): the tool loop emits `ToolActivity` for the overlay chip
@@ -862,3 +863,69 @@ the historical record, annotated with this outcome and moved to its dead-until-a
 reopens only if a real wired tool exhibits a semantic-equivalence evasion that the budget, the
 round cap, and the tainted-turn block do not already bound, and even then the sound form is a
 per-tool domain normalizer (the rejected model judgment), not schema-`default` folding.
+
+## Addendum (2026-08-08): the per-call session open, measured, and the pool declined
+
+**Status:** accepted. The boot-tolerance addendum above traded a per-call session open for
+robustness and priced it in adjectives ("a localhost handshake per describe/invoke", which the
+deferred-refinements entry then called acceptable at personal scale). Nothing had put a number on
+it, on a budget where a user-facing recall default moved the same week on 0.515 s of time to first
+token and a recalling turn takes about 4.6 s to its first token in total. So it was measured.
+
+**How many opens a turn pays** is deterministic, and it is more than the addendum said. With N
+configured endpoints and the called tool owned by the k-th in the config's sorted-name order:
+
+| what the turn does | cortex stack | subagent stack |
+| --- | --- | --- |
+| advertise the tool set (once per loop, before the first token) | N | N |
+| one dispatch | k + 1 | N + k + 1 |
+
+The extra walks are deliberate and this ADR's own combinators own them: `AggregateToolRegistry`
+routes an invoke by re-listing each registry until one claims the name, and `UngatedToolRegistry`
+(ADR-0013) re-lists to recompute the gated set before delegating, both live so that a tool a
+sidecar dropped or re-flagged fails closed rather than routing stale. What no document recorded is
+the consequence, that a **delegated dispatch costs twice a cortex one**.
+`packages/orchestrator/tests/test_mcp_handshake_live.py` now asserts every cell of that table
+against the shipped registry stack by counting opens through a wrapping opener, and it is
+mutation-proven: deleting the ungated re-walk turns it red at `assert 1 == 2`.
+
+**What one open costs: 17.8 ms** (n=30, 16.5 to 21.5), measured against a control server on the
+FastMCP streamable-http transport `cortex_email` itself serves
+(`FastMCP(...).run(transport="streamable-http")`, two trivial tools). A control rather than the
+email sidecar because the email sidecar needs Bridge credentials and does IMAP work, and the
+number wanted here is the transport's floor: what the client and the protocol cost when the
+server on the far end does nothing on connect. That is 0.4% of a recalling turn's time to first
+token. **The pool is declined on that number**, and on two findings behind it.
+
+**The first is that the expensive sidecar was not expensive because of the handshake.** The
+reference filesystem sidecar answered the same open in 565 ms and a fresh-session dispatch in
+1740 ms, a quarter of the whole TTFT budget spent before a token. Tracing every HTTP request
+showed each JSON-RPC round trip taking 3 to 5 ms and the remainder going to `supergateway`
+spawning a fresh `npx @modelcontextprotocol/server-filesystem` child **per request**, about 420 ms
+of it npx resolving the pinned package again, and never reaping it: a few hundred calls left 1452
+live server processes holding 20.5 GiB. Installing both pinned packages once at container start
+and running the bridge `--stateful` (one child per MCP session, killed when the client ends it,
+`--sessionTimeout` reaping a session abandoned without that goodbye) took the pre-token walk from
+1156 ms to 146 ms and a dispatch from 1740 ms to 154 ms, left one process and 110 MiB after the
+same run, and changed no brain code. A pool would have issued fewer requests and fixed none of
+that. The change is in `docker/docker-compose.tools.yml`; the runbook carries the numbers.
+
+**The second is that a pool cannot sit behind the unchanged port**, contrary to the boot-tolerance
+addendum's trade-off line, which this addendum corrects. A held session must be closed; closing
+needs an explicit scope; a scope is a new `ToolRegistry` method that all seven combinators
+(`Aggregate`, `Filtered`, `Gated`, `SkipUnavailable`, `Ungated`, `Composite`, `Sighted`) would
+forward. Without one, the session is closed by a task other than the one that opened it, which is
+precisely the anyio cancel-scope corruption the per-call open was adopted to escape, and boot
+tolerance would have to be rebuilt on the far side of it. That is a port change across the core
+seam, bought for 17.8 ms.
+
+**One correction to the request count.** A fresh session's `invoke` issues three JSON-RPC calls,
+not one: `initialize`, `tools/call`, and a `tools/list` the MCP SDK's `call_tool` makes to cache
+tool output schemas per session, which a per-call session can never reuse. `describe_tools` issues
+two. The addendum above undercounted by one and two respectively.
+
+**What reopens it.** After the sidecar fix each call still pays that sidecar's own child spawn,
+about 125 ms, and only a held session removes it (the same calls on a warm session measure 4.4 ms
+and 3.8 ms). If a deployment ever makes that bite, the honest scope for a pooled session is **one
+tool loop**, which runs in exactly one task and so is same-task by construction, and the price of
+admission is the port change above. Nothing else was opened behind this.
