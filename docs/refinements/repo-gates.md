@@ -9,17 +9,17 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 entries are the historical record of what each deferral became, and the index at
 [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** 7 (`cargo clippy` for the Tauri shell in CI, moved to fix-when-it-bites
+**Open items:** 6 (`cargo clippy` for the Tauri shell in CI, moved to fix-when-it-bites
 2026-07-16; standing test-order randomization, opened as fix-when-it-bites 2026-07-18; the three
 exceptions the wrap gate did not ship, opened as fix-when-it-bites 2026-07-19 behind the landing
 of the commit-body wrap check itself; the overlay stylesheet outside the line cap, opened as
 fix-when-it-bites 2026-08-03 behind the cap reaching the overlay's TypeScript; the couplings the
 cross-language constant scan does not hold yet, opened as fix-when-it-bites 2026-08-03 behind
-that scan landing; a compose
-bind default that lands in the repo tree being stageable, opened as fix-when-it-bites 2026-08-06
-when the two live ones were ignored; **the seventh was added 2026-08-08 by the turn-cost run that
-moved the recall default**, whose harness never entered the repo, so the one measurement in that
-ADR that names no reproducing test is also the one whose result shipped; the rest
+that scan landing; and the sixth, added 2026-08-08 by the turn-cost run that
+moved the recall default, whose harness never entered the repo, so the one measurement in that
+ADR that names no reproducing test is also the one whose result shipped. The compose bind default
+that lands in the repo tree came off this list on 2026-08-08, ahead of its own trigger, as a
+fourth cross-tree scan whose rule is three-way rather than the one this entry sketched; the rest
 landed 2026-07-16, 2026-07-19, 2026-08-03 and 2026-08-06, the last of them the live pgvector run
 sharing the brain's `memories` table, closed ahead of its trigger rather than by it,
 see the outcome notes below the verbatim entries)
@@ -481,3 +481,34 @@ cross-language-constant addendum):**
   trick of tying two files that must agree and is the size of it too. The trigger is the next
   override that adds a bind default, since a scan written today would guard a set of three that is
   already correct.
+
+  **Landed 2026-08-08, ahead of its trigger, and the entry's own sketch of the fix was wrong in
+  two ways worth recording.** `scripts/bindcheck.py` is a fourth cross-tree scan beside the line
+  cap, the dash ban and the constant registry, run unconditionally by `just check` and by CI
+  ([ADR-0026 bind addendum](../adr/ADR-0026-prose-style-gates.md)). The six defaults across five
+  files reproduced exactly as written above. What did not survive contact was the rule: this entry
+  proposed "failing when one is not matched by `.gitignore`", and that rule is false about the
+  tree it would have gated. Three more binds in `docker-compose.memory.yml` point at
+  `./docker/postgres/init.sql`, `live-contract-db.sql` and `backup.sh`, which are inputs the repo
+  ships and must never be ignored, so the honest rule is a three-way one: a bind source resolves
+  **outside** the repo, or onto a path git **tracks**, or onto a path git **ignores**. The second
+  way it was wrong is narrower and matters more for the trigger: reading only `${VAR:-./path}`
+  would walk straight past a plain `source: ./cache` added later, which is exactly the "next
+  override" this entry was waiting for. The scan reads bind mounts, not variable syntax, and finds
+  compose files by name anywhere under the root rather than by a `docker/*.yml` glob.
+  **Two things the writing turned up.** Compose materializes a **directory**, and a directory-only
+  ignore pattern (`models/`) does not match a path git cannot stat, so `check-ignore` has to be
+  asked with a trailing slash or the gate reports every one of these bare; that was found by the
+  scan flagging all six on its first run, which was the scan being wrong rather than the tree. And
+  the unanchored-on-purpose note in `.gitignore` is now enforced rather than remembered: the scan
+  resolves every relative source against both project directories compose can pick, so an anchored
+  `/models/` is reported for leaving `docker/models` uncovered.
+  **No pre-existing violation was found.** The tree was clean on the first correct run, which the
+  entry predicted ("a scan written today would guard a set of three that is already correct"), and
+  the value is entirely in the fourth case. It was therefore reddened deliberately before being
+  trusted: a planted `docker/docker-compose.cache.yml` carrying `${CORTEX_CACHE_DIR:-./hfcache}`
+  drew two complaints and exit 1, and deleting the `models/` line from `.gitignore` drew eight
+  across four overrides; both returned to `bindcheck OK` on revert. The reader is
+  `scripts/composemounts.py`, split out because the two together are over the line cap, and it
+  raises rather than skips on every compose shape it was not taught, since a reader that quietly
+  walked past a new override's one mount is the same gate-that-cannot-fail in a different place.

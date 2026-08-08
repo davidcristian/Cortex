@@ -3,7 +3,7 @@
 
 default: check
 
-# All gates: the cross-tree scans first (fast), then the three tree checks in
+# All gates: the four cross-tree scans first (fast), then the three tree checks in
 # PARALLEL (ADR-0006), so wall time ≈ the slowest tree. Output is buffered per tree
 # and printed in a fixed order so logs stay readable; any failure fails the gate.
 # Kept bash-3.2 compatible (no `declare -A` etc.) for macOS system bash.
@@ -13,6 +13,7 @@ check:
     just check-linecap
     just check-dashcheck
     just check-crosscheck
+    just check-bindcheck
     tmp=$(mktemp -d)
     trap 'rm -rf "$tmp"' EXIT
     echo "Running check-brain, check-scripts, check-body in parallel (output buffered)..."
@@ -52,6 +53,11 @@ check-dashcheck:
 check-crosscheck:
     cd scripts && uv sync --locked
     cd scripts && uv run python crosscheck.py --root ..
+
+# No compose bind default lands a container-written path in the tree that git does not ignore.
+check-bindcheck:
+    cd scripts && uv sync --locked
+    cd scripts && uv run python bindcheck.py --root ..
 
 # Python brain workspace: format, lint, strict types, tests at 100% line+branch.
 check-brain:
