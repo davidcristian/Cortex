@@ -225,3 +225,42 @@ per area rather than global, which is the real change of shape. A new public nam
 its area's file and none in the barrel, so the surface can roughly quadruple before any single
 file is at the cap again, and when one is, the split that relieves it is the ordinary
 split-by-responsibility remedy rather than another convention change.
+
+## Addendum (2026-08-08): a fourth cross-tree scan, over compose bind mounts
+
+`scripts/bindcheck.py` joins the line cap, the dash ban and the constant registry as an
+unconditional `just check` scan, and it guards a class none of the three could see: a
+`docker compose up` creating a host directory for a bind-mount source that does not exist yet,
+root-owned, written from inside the container, and sitting in the working tree where `git add -A`
+will take it. What lands there is a GGUF or a database dump, so the failure mode is a
+multi-gigabyte blob one command away from the index. Two live cases (`models/`, `pgdata/`) were
+found and ignored by hand; the third was the reason to write a check instead of remembering
+again.
+
+**The rule is not "every bind default must be gitignored"**, which would be false of
+`./docker/postgres/init.sql` and of every future bind onto a file the repo ships. It is that a
+bind source must resolve **outside** the repo (the user's own disk, none of the gate's business),
+or onto a path git **tracks** (an input compose finds rather than creates), or onto a path git
+**ignores** (an output, declared as one before it can be written). Git answers both questions
+itself, via `ls-files` and `check-ignore`, because a hand-rolled `.gitignore` matcher is exactly
+the kind of quiet wrongness that leaves a gate green. `check-ignore` is asked with a trailing
+slash, since what compose materializes is a directory and a directory-only pattern (`models/`)
+does not match a bare path.
+
+**Both project directories are checked.** A relative bind resolves against the project directory,
+which is `--project-directory` when given and the first `-f` file's own directory otherwise: the
+`just` recipes pass the repo root, a bare `docker compose -f docker/docker-compose.memory.yml`
+passes `docker/`. That is why the repo's ignore entries for these paths are unanchored, and the
+scan holds them to it: an anchored `/models/` is reported, because it leaves `docker/models`
+bare.
+
+**Fail closed, and proven able to fail.** Finding no compose file, a mount entry the reader
+cannot classify, a source it cannot reduce, or a `git` it cannot run are each a failure rather
+than a pass, since a scan whose glob matched nothing would report success forever. The reader
+(`scripts/composemounts.py`, split out at the line cap) refuses an inline `volumes:` list, a
+mount without a `type`, a type it has not been taught, and a short-syntax entry carrying an
+expansion. Before being trusted the scan was reddened twice over the real tree: a planted
+`docker/docker-compose.cache.yml` with `${CORTEX_CACHE_DIR:-./hfcache}` drew two complaints
+(`hfcache` and `docker/hfcache`) and exit 1, which is precisely the third case this was written
+for, and deleting the `models/` line from `.gitignore` drew eight across four overrides. Both
+went back to `bindcheck OK` on revert.

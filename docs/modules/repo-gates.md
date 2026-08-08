@@ -1,14 +1,15 @@
 # scripts/ (`repo-gates`)
 
 **Purpose.** The repo's own gate tooling: the cross-tree line cap, the punctuating-dash
-ban, the cross-language constant check, the Rust branch coverage threshold, the CI path
-classifier, and the commit-message style hook. A standalone uv project (not a brain
-workspace member, per ADR-0002), gated exactly like all other Python.
+ban, the cross-language constant check, the compose bind-mount check, the Rust branch
+coverage threshold, the CI path classifier, and the commit-message style hook. A standalone
+uv project (not a brain workspace member, per ADR-0002), gated exactly like all other Python.
 
-**Public contract** (all are CLIs, with `linecap.py`, `dashcheck.py`, `crosscheck.py` and
-`coverage_gate.py` invoked by `just` recipes, `ci_paths.py` by the CI workflow,
-`commitlint.py` by the commit-msg pre-commit stage; each also exposes a pure, unit-tested
-core function).
+**Public contract** (all are CLIs, with `linecap.py`, `dashcheck.py`, `crosscheck.py`,
+`bindcheck.py` and `coverage_gate.py` invoked by `just` recipes, `ci_paths.py` by the CI
+workflow, `commitlint.py` by the commit-msg pre-commit stage; each also exposes a pure,
+unit-tested core function). `composemounts.py` is the one module that is not a CLI: it is
+`bindcheck.py`'s compose reader, split out under the line cap.
 
 - `linecap.py [--root DIR] [--max-lines N]` implements AGENTS.md gate 1. Scans
   `*.py`/`*.rs`/`*.ts`/`*.tsx` under `--root` (default `.`), all three gated toolchains
@@ -62,6 +63,34 @@ core function).
   that is absent, one declared twice, a value it cannot reduce, and a registry entry naming
   fewer than `MIN_SITES` (2) are each a fault, never a skip. Exit 0 with a summary; exit 1
   printing `label: detail` per fault; exit 2 if `--root` is not a directory.
+- `bindcheck.py [--root DIR]` holds every compose bind mount to landing somewhere git
+  accounts for (ADR-0026 bind addendum). The rule, stated in the module's own docstring: a
+  bind source must resolve **outside** the repo (an absolute path, or an expansion with no
+  relative default, so the user's own disk), or onto a path git **tracks** (an input the repo
+  ships, which compose finds rather than creates), or onto a path git **ignores** (an output a
+  container writes). It is deliberately NOT "every default must be gitignored", which would be
+  false of `./docker/postgres/init.sql`. Git answers both questions (`ls-files`, `check-ignore`),
+  with git's own `GIT_*` variables stripped for the same reason `commitlint.py` strips them, and
+  `check-ignore` is asked with a trailing slash because compose materializes a **directory** and
+  a directory-only pattern (`models/`) does not match a bare path. A relative source is resolved
+  against BOTH project directories compose can pick, the repo root (what the `just` recipes pass)
+  and the compose file's own directory (what a bare `docker compose -f docker/...` uses), which
+  is why the repo's ignore entries for these paths are unanchored; an anchored `/models/` is
+  reported. Compose files are found by name anywhere under `--root` (stem `docker-compose`/
+  `compose`, suffix `.yml`/`.yaml`), skipping the vendored directory components, so a new override
+  is covered wherever it is added. **Fails closed**: no compose file at all, a mount entry the
+  reader refuses, a source that cannot be reduced, and a git that cannot run are each a fault,
+  never a skip. Exit 0 with a summary; exit 1 printing `path:line: detail` per fault; exit 2 if
+  `--root` is not a directory or the scan could not run at all.
+- `composemounts.py` is `bindcheck.py`'s reader and has no CLI. `read_mounts(text)` returns one
+  `Mount(line, source)` per bind mount a compose file declares, skipping named volumes (long-form
+  `type:` in `NON_BIND_TYPES`, short-form sources without a `PATH_PREFIXES` prefix) and the
+  top-level `volumes:` mapping. It is a line walk, not a YAML parse, because these gates are
+  stdlib-only; it stays honest about that by raising `ComposeReadError` on every shape it was not
+  taught (an inline `volumes: [...]`, a mount with no `type`, an unknown type, a bind with no
+  `source`, a short-syntax entry carrying an expansion, a stray line inside a block). The one YAML
+  rule it leans on is that a mapping needs a space after its colon, which is what tells
+  `type: bind` from the short-syntax scalar `redis-data:/data`.
 - `coverage_gate.py PATH` reads a `cargo llvm-cov --json --summary-only` export,
   requires exactly one `data[]` entry, and gates each of
   `data[0].totals.{lines,regions,branches}` on `covered == count` (the producer's
@@ -114,6 +143,10 @@ core function).
   (`test_the_repo_itself_is_tied`), so `check-scripts` catches a drift even when
   `check-crosscheck` is not the recipe that runs. Registering a constant in a language
   `DECLARATIONS` does not know, or inside a single tree, is refused by that suite too.
+- `bindcheck.py` does the same (`test_the_repo_itself_is_clean`), with a guard on the guard:
+  `test_the_repo_really_declares_binds_for_this_gate_to_have_checked` fails if the reader ever
+  finds fewer than six defaulted bind sources under `docker/`, so the clean verdict cannot go
+  vacuously green on a reader that stopped matching.
 - The exclusion lists above are the single definition of "non-test source file" and
   "generated code" for the cap. Change them only with an ADR update.
 - `dashcheck.py`, `commitlint.py`, and their tests spell the dashes as `\uXXXX` escapes
