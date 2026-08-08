@@ -796,4 +796,4 @@ bracket-only form reddens the two streaming tests and nothing else; unscoping th
 and dropping the digit-run guard redden one each. The first fixture written for that last mutation
 did **not** redden it (a semicolon-less reference followed by digits cannot reach an authority
 scheme's slashes anyway), so the test was replaced with the opaque-scheme form
-(`mailto&#58123@evil.example`) that does. `urls.py` is 246 lines, inside the cap.
+(`mailto&#58123@evil.example`) that does. `urls.py` is 252 lines, inside the cap.

@@ -3,7 +3,7 @@
 
 default: check
 
-# All gates: the four cross-tree scans first (fast), then the three tree checks in
+# All gates: the four cross-tree scans first (fast), then the four tree checks in
 # PARALLEL (ADR-0006), so wall time ≈ the slowest tree. Output is buffered per tree
 # and printed in a fixed order so logs stay readable; any failure fails the gate.
 # Kept bash-3.2 compatible (no `declare -A` etc.) for macOS system bash.
@@ -16,7 +16,7 @@ check:
     just check-bindcheck
     tmp=$(mktemp -d)
     trap 'rm -rf "$tmp"' EXIT
-    echo "Running check-brain, check-scripts, check-body in parallel (output buffered)..."
+    echo "Running check-brain, check-scripts, check-body, check-overlay in parallel (buffered)..."
     just check-brain >"$tmp/brain.log" 2>&1 &
     pid_brain=$!
     just check-scripts >"$tmp/scripts.log" 2>&1 &
