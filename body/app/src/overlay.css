@@ -528,16 +528,62 @@
    also needs no memory of which section arrived first, so the panel reads the same whichever order
    the user opened them in.
 
-   Each rule asks only whether the OTHER section is in the tree, so a section on its own keeps the
-   whole budget and the ordinary case (a reminder stack on an empty chat, nothing else open) is
-   untouched. A section that is rolling SHUT is still in the tree until React removes it, so the
-   other one holds its share for the length of that roll and takes the room back in the frame the
-   roll's end hands it over. */
-.view:has(> .collapse.aside) {
+   Each rule asks only whether the OTHER section is GOING TO BE there, so a section on its own keeps
+   the whole budget and the ordinary case (a reminder stack on an empty chat, nothing else open) is
+   untouched.
+
+   Going to be, rather than is, because a section rolling shut is still in the tree until React
+   removes it. Asked about the tree, the other section held its reduced share for the length of that
+   roll and took the whole budget in the single frame the roll's end handed it over: measured at
+   640x720 acking a full reminder stack with the switcher open, the list stepped 135.14 to 241 in one
+   frame, its entire travel, revealing two more rows at once while the panel's own box never moved.
+   The opening direction was the same defect mirrored, the stack dropping 187.75 to 99.84 in the
+   first frame of a roll that had 300ms left to run.
+
+   A roll publishes the height it is going to as `data-morphing` (`overlay/morph.ts`), which is the
+   number the panel's own ride-along reads, and a closing roll publishes exactly `0`. So the cascade
+   reads the same publication the panel does: a section rolling to nothing has already stopped
+   counting, and the room it is handing back is the other section's from the first frame of the roll
+   rather than from the frame after the last. */
+.view:has(> .collapse.aside:not([data-morphing="0"])) {
   --switcher-share: max(0px, calc(var(--budget) * 40 / 70));
 }
-.view:has(> .collapse:not(.aside)) {
+.view:has(> .collapse:not(.aside):not([data-morphing="0"])) {
   --reminders-share: max(0px, calc(var(--budget) * 30 / 70));
+}
+/* AND THE HANDOVER ARRIVES ON THE ROLL'S OWN CLOCK, which is the other half of following the roll
+   rather than the tree: reading the target moves the step from the end of the roll to its start, and
+   a step at the start is still a step. Both caps ease instead, over the roll's own duration and
+   curve (0.3s and `--ease` are MORPH_ROLL_MS and EASING in `overlay/morph.ts`, restated here the way
+   the thoughts marker's turn restates them), so the room one section gives up is the room the other
+   takes, frame for frame, and the column's total never moves.
+
+   Both the wrapper and the card are eased, because the wrapper's cap is the share and the card's is
+   the share less its air. The two can never cross: the card is `min(content, share - air)`, so with
+   its air added back it is at most the share the wrapper is held to, at every point of the same
+   curve.
+
+   THE GATE IS BOTH SECTIONS BEING OPEN, and not a roll running, which is the obvious rule and was
+   measured wrong. A section joins the tree one style recalc BEFORE it announces its roll: `Collapse`
+   mounts the wrapper, then its layout effect reads the natural height, and that read is what resolves
+   the sibling's new share. Gated on the roll, the closing direction eased and the opening direction
+   did not move at all, the stack still dropping 187.75 to 99.84 in one frame with 300ms of roll left
+   to run, because the gate was not yet standing at the recalc that decided the number. A share can
+   only change while both sections are there to split it, so that is the condition, and it is true one
+   recalc earlier. What it also covers is every other change of the same numbers while both stand
+   open: `--ceiling` moves when the panel's own edge does, and easing the caps with it costs nothing,
+   the panel being at its ceiling whenever a cap binds at all (a share bites only when a section wants
+   more than the column has) so the history absorbs the change rather than the panel's box. Measured
+   over a console round trip and a viewport walked 720 to 900 and back with both open: the panel's top
+   edge travels 0.062px against 1.625px without the ease, the switcher's own worst frame on the resize
+   goes 65.14px to 11.94px, and the page raises no resize-loop error in either.
+
+   Only the panel's own two sections are reached. A row leaving a list rolls inside one of them and
+   changes no share, and a reply's Thoughts trace rolls inside the history. */
+.view:has(> .collapse.aside):has(> .collapse:not(.aside)) > .collapse,
+.view:has(> .collapse.aside):has(> .collapse:not(.aside)) .switcher,
+.view:has(> .collapse.aside):has(> .collapse:not(.aside)) .reminders {
+  transition: max-height 0.3s var(--ease);
 }
 /* Out of the flow so it cannot fight the arriving view for the panel's height, and bounded by the
    panel all the same. Without the `bottom`, a leaving view is laid out at its own natural height
