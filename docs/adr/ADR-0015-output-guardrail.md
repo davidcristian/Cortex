@@ -746,7 +746,16 @@ fullwidth solidi is free, as is any other mixture. Three details are deliberate:
   case-sensitive with `(?-i:…)` rather than admitting a spelling the identity could not fold.
 - **A semicolon-less reference ends where its digit run ends.** HTML makes the semicolon optional,
   but `&#58123` is one five-digit reference (a private-use character), not a colon followed by
-  `123`, so the semicolon-less forms carry `(?:;|(?![0-9]))` (and the hex form its hex-digit twin).
+  `123`, so the semicolon-less forms carry `(?:;|(?![0-9;]))` (and the hex form its hex-digit
+  twin). The `;` in that class joined it on 2026-08-08, and it is not cosmetic: a `;` after the
+  digits always terminates the reference, so HTML never has both readings available, but the
+  regex did, and it would backtrack into the semicolon-less one whenever the semicolon-carrying
+  one failed further along. `data&#58;the results` is where that showed: reading `&#58` as the
+  separator left the `;` to satisfy `_DATA_ANCHOR`'s `[;,]`, so prose the plain `data:the
+  results` spelling is refused was matched, and redacted on a tainted turn under strict mode.
+  Over-redaction, and in a spelling no model writes, but it broke the anchor's promise that the
+  entity families admit exactly what the plain ones do. Refusing the `;` at the semicolon-less
+  branch leaves one reading, which is HTML's.
 
 Together those keep the anchor's promise that **every spelling it admits is one the identity folds**,
 which is what stops a widened matcher from manufacturing matches that then compare equal to nothing.

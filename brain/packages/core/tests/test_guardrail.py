@@ -469,6 +469,20 @@ def test_extract_urls_ignores_data_colon_in_prose() -> None:
     assert extract_urls("the data: shows a chart and data:the results vary") == frozenset()
 
 
+def test_extract_urls_ignores_data_colon_in_prose_spelled_as_an_entity() -> None:
+    # The same prose with an entity colon, which the entity families must not admit where the
+    # plain spelling is refused. The semicolon-less reading of `&#58` would leave the `;` behind
+    # to satisfy the MIME anchor's `[;,]`, spending one semicolon twice and redacting prose.
+    text = "the data&#58; shows a chart and data&#58;the results vary"
+    assert extract_urls(text) == frozenset()
+
+
+def test_extract_urls_still_matches_an_entity_colon_before_a_real_mediatype() -> None:
+    # The other side of that guard: the semicolon belongs to the reference, and what follows it
+    # is a genuine `type/subtype`, so the anchor holds and the identity folds to the plain form.
+    assert extract_urls("open data&#58;text/html,hello now") == {_DATA_URL}
+
+
 def test_verbatim_data_url_is_redacted() -> None:
     guard = _filter({_DATA_URL})
     fed = guard.feed(f"see {_DATA_URL} now") + guard.flush()

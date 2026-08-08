@@ -73,11 +73,18 @@ def _entity_forms(char: str) -> tuple[str, ...]:
     ``html.unescape`` leaves standing, as no renderer resolves it) is not admitted. A semicolon-less
     reference ends the digit run, since ``&#58123`` is one five-digit reference and not a colon,
     which keeps the anchor's promise that every spelling it admits is one the identity folds.
+
+    The semicolon-less branch refuses a following ``;`` as well as a following digit, and that
+    second refusal is what stops one semicolon being spent twice. A ``;`` after the digits always
+    terminates the reference, so the two readings are never both available to HTML; leaving both
+    available to the regex let ``data&#58;the results`` backtrack into reading ``&#58`` as the
+    separator and hand the ``;`` to ``_DATA_ANCHOR``'s ``[;,]``, redacting prose that the plain
+    ``data:the results`` spelling is admitted nowhere near.
     """
     point = ord(char)
     return (
-        rf"&#0*{point}(?:;|(?![0-9]))",
-        rf"&#x0*{point:x}(?:;|(?![0-9a-f]))",
+        rf"&#0*{point}(?:;|(?![0-9;]))",
+        rf"&#x0*{point:x}(?:;|(?![0-9a-f;]))",
         rf"(?-i:&{_ENTITY_NAMES[char]};)",
     )
 
