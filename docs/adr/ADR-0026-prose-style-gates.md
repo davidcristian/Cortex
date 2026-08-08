@@ -264,3 +264,33 @@ expansion. Before being trusted the scan was reddened twice over the real tree: 
 (`hfcache` and `docker/hfcache`) and exit 1, which is precisely the third case this was written
 for, and deleting the `models/` line from `.gitignore` drew eight across four overrides. Both
 went back to `bindcheck OK` on revert.
+
+### Two silences the first reddening did not reach (2026-08-08)
+
+Reddening a scan on the shapes it already reads says nothing about the shapes it walks past, and
+this one walked past two that `docker compose config` resolves into live binds.
+
+**A flush sequence.** YAML lets a list sit at the indent of its own key, and compose accepts it,
+so `volumes:` at four spaces with `- type: bind` also at four is a real mount. The reader closed
+a block at the first line no deeper than its key, so the entire list fell outside it and zero
+mounts were read, with no error: the exact "quietly walks past the one mount a new override adds"
+the module's docstring promises against. A block now ends at a line **shallower** than its key, or
+at one beside the key that is not a list item.
+
+**A flow-style entry.** `- {type: bind, source: ./x, target: /y}` is the long syntax written
+inline. It reached the short-syntax reader, where `{type` is not a path prefix, so it was
+classified as a named volume and skipped. Flow style is now refused by shape, opener `{` or `[`,
+rather than misread, which is the reader's own contract: raise on anything it was not taught.
+
+**And an exemption that answered for two landings at once.** Both project directories are checked,
+but tracked-ness was asked once for the mount: any landing being tracked exempted the other. A
+source can name an input the repo ships under one project directory and nothing at all under the
+other, which is exactly what `./docker/postgres/init.sql` does (`docker/docker/postgres/init.sql`
+under the `docker/` project directory), and it is the second landing a compose run creates. Both
+questions are now asked per landing, and `.gitignore` gained `docker/docker/` for that phantom
+nest, anchored because only the one under `docker/` is phantom.
+
+Proven able to fail, each on a planted repo with a real `git`: the flush block draws two
+complaints and exit 1, the flow mapping and the flow sequence each draw a refusal and exit 1, and
+a bind whose root landing is tracked draws one complaint naming `docker/docker/seed.sql`. Each
+returns to `bindcheck OK` once the landing is accounted for.

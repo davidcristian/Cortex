@@ -228,10 +228,14 @@ CONSTANTS: tuple[Constant, ...] = (
                 "brain/packages/orchestrator/src/cortex_orchestrator/config.py", "DEFAULT_SEAM_PORT"
             ),
         ),
+        # The publish is `host:container` and it is the container half that this value names, so
+        # its template spells both: `127.0.0.1:{value}` alone was satisfied by the host half and
+        # left the half that has to match the server's own default free to drift.
         mentions=(
-            Mention(BASE_COMPOSE, "127.0.0.1:{value}"),
-            Mention("body/app/src-tauri/src/seam.rs", "127.0.0.1:{value}"),
-            Mention("body/app/src-tauri/src/converse.rs", "127.0.0.1:{value}"),
+            Mention(BASE_COMPOSE, '"127.0.0.1:{value}:{value}"'),
+            Mention(BASE_COMPOSE, "insecure_channel('127.0.0.1:{value}')"),
+            Mention("body/app/src-tauri/src/seam.rs", '"http://127.0.0.1:{value}"'),
+            Mention("body/app/src-tauri/src/converse.rs", '"http://127.0.0.1:{value}"'),
         ),
     ),
 )

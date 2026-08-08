@@ -129,14 +129,21 @@ def is_ignored(root: Path, relative: str) -> bool:
 
 
 def _spots(root: Path, compose: Path, mount: Mount) -> list[str]:
-    """Every repo-relative landing of one mount that git would have to account for."""
+    """Every repo-relative landing of one mount that git would have to account for.
+
+    Both questions are asked per landing, never once for the mount. A source can land on an input
+    the repo ships under one project directory and on nothing at all under the other, and it is
+    the second landing that a compose run creates; letting the tracked one speak for both is the
+    same silence this gate exists to remove.
+    """
     path = default_path(mount.source)
     if path is None:
         return []
-    spots = landings(root, compose, path)
-    if any(is_tracked(root, spot) for spot in spots):
-        return []  # an input the repo ships, so no container ever creates it
-    return [spot for spot in spots if not is_ignored(root, spot)]
+    return [
+        spot
+        for spot in landings(root, compose, path)
+        if not is_tracked(root, spot) and not is_ignored(root, spot)
+    ]
 
 
 def check_file(root: Path, compose: Path) -> list[Fault]:

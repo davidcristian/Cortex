@@ -10,6 +10,12 @@ quietly walks past the one mount a new override adds is a gate that cannot fail.
 The one YAML rule it leans on is that a mapping needs a space after its colon. That is exactly
 what tells `type: bind` (a mapping, so the long syntax) from `redis-data:/data` (a scalar, so
 the short one), and it is why `_MAPPING` requires the space.
+
+The second YAML rule it has to know is that a sequence may be written **flush**, its items at the
+indent of the key they belong to rather than under it. Compose accepts both, so a block that
+closed at the first line no deeper than its key would walk past every mount of a flush
+`volumes:` and read zero of them, silently. A block therefore closes on a line shallower than
+its key, or on one at the key's own indent that is not a list item.
 """
 
 import re
@@ -21,6 +27,12 @@ NON_BIND_TYPES = frozenset({"volume", "tmpfs", "npipe", "cluster", "image"})
 
 # What makes a short-syntax source a path at all rather than a named volume.
 PATH_PREFIXES = (".", "/", "~")
+
+# What opens a flow collection, which is YAML's inline `{key: value}` / `[a, b]` spelling. A
+# long-syntax entry written that way (`- {type: bind, source: ./x, target: /y}`) reaches the
+# short-syntax reader, where its first field would pass for a named volume, so it is refused here
+# rather than read as one. The same refusal covers a flow sequence.
+FLOW_OPENERS = ("{", "[")
 
 _VOLUMES = re.compile(r"^(?P<indent>[ \t]*)volumes:(?P<rest>.*)$")
 _ITEM = re.compile(r"^(?P<indent>[ \t]*)-[ \t]*(?P<rest>.*)$")
@@ -68,6 +80,9 @@ def _long_mount(line: int, fields: dict[str, str]) -> Mount | None:
 def _short_mount(line: int, item: str) -> Mount | None:
     """Turn one short-syntax entry into a bind mount, or None when it names a volume."""
     text = strip_quotes(item)
+    if text.startswith(FLOW_OPENERS):
+        msg = f"line {line}: flow-style mount entry {item!r} is not supported; use the block form"
+        raise ComposeReadError(msg)
     if "$" in text:
         msg = f"line {line}: short-syntax mount {item!r} carries an expansion; use the long form"
         raise ComposeReadError(msg)
@@ -132,13 +147,15 @@ class _Reader:
     def feed(self, number: int, line: str) -> None:
         """Offer one non-blank, non-comment line to the walk."""
         depth = len(line) - len(line.lstrip())
-        if self.indent >= 0 and depth <= self.indent:
+        item = _ITEM.match(line)
+        # A flush sequence puts its items at the key's own indent, so only a line that is not an
+        # item closes the block there; anything shallower closes it either way.
+        if self.indent >= 0 and (depth < self.indent or (depth == self.indent and item is None)):
             self.close()
             self.indent = -1
         if self.indent < 0:
             self.open_block(number, line)
             return
-        item = _ITEM.match(line)
         if item is None:
             self.add_key(number, line.strip())
         else:
