@@ -7,19 +7,24 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 historical record of what each deferral became, and the index at [index.md](index.md) carries the
 recommended pickup order.
 
-**Open items:** 7, counted by reading the entries below rather than by adjusting the last number.
+**Open items:** 8, counted by reading the entries below rather than by adjusting the last number.
 Resume a crashed handoff from its record; fence the single-handoff claim across processes;
 reconverge the brain's residency when the sidecar restarts under it; check the sidecar's stop
 bounds against the brain's control deadline; MTP model variants; disable-thinking / token-budget
-capping, **narrowed rather than closed on 2026-08-06**; and noticing a handoff that spilled, which
-is what a fit check cannot see. Three entries closed on 2026-08-07 and this area's oldest was one
+capping, **narrowed rather than closed on 2026-08-06**; and, added 2026-08-08 by the spill watch
+landing, a handoff that has watched itself spill and still promises co-residency next time, plus
+prefill as the second witness the watch declined to read. Three entries closed on 2026-08-07 and
+this area's oldest was one
 of them: **model-manager co-residency**, which opened two in its place, then **the fit its flag
 asserted**, which closed as a real check and opened one, and then **the placer's budget describing
 the standing residency rather than the handoff window**, which closed as a placement epoch and
 opened nothing. So the count went 7 to 8 in the morning and back to 7 by the end of the day: three
 out across three sittings and three in, every arrival something a landing made reachable rather
 than something it broke, and the one that closed on the day it opened did so because its own
-trigger turned out to be a setting a deployment can already turn.
+trigger turned out to be a setting a deployment can already turn. **It went back to 8 on 2026-08-08
+and the arithmetic is written out rather than left to a reader**: noticing a spilled handoff
+landed, which is one out, and it opened two, so the line above names two arrivals where the count
+moved by one.
 
 On the narrowing of the capping entry, which is the one the count deliberately did not move
 for: the lever shipped on 2026-08-06 as `GenerationBounds` on `InferenceBackend.stream`, and
@@ -143,6 +148,56 @@ fix-when-it-bites bucket, so nobody picks it up expecting to build a lever that 
   `LlamaCppBackend` today discards, so it is a port question and not a one-line read. **Trigger:**
   any report of a deep phase that is slow rather than absent, on a deployment whose fit check
   passed.
+
+  **Landed 2026-08-08 ([ADR-0030](../adr/ADR-0030-brain-handoff.md) spill-watch addendum), ahead of
+  its trigger and in the shape this entry proposed**, which is rarer here than the alternative and
+  is worth saying plainly: the entry's account of the code was re-derived before anything was
+  designed and held. A grep over `brain/packages` for `timings` and `predicted_per_second` found
+  the strings only inside two live tests' own wall-clock dictionaries, so nothing read the server's
+  figure, and the port question the entry predicted was the real cost. What landed:
+  `InferenceEvent` gains a `DecodeCadence` arm that a backend closes its stream with when its
+  engine reports one (and legitimately omits when it does not, so silence never reads as healthy);
+  `stream_tool_loop` absorbs it into an optional `CadenceWatch` on the loop context and yields
+  nothing, a decode rate being a fact about the machine rather than something the turn said; the
+  watch is pure policy that ignores samples under 32 tokens and judges on the **fastest**
+  qualifying one, so a briefly busy card cannot convict and a tier that never once reached its
+  floor is convicted; the floor is `CORTEX_SWAP_BRAIN_DECODE_TPS` on `ResidencyPlan`, unset meaning
+  report and judge nothing; and the deep phase says so once per handoff, at WARNING when it
+  collapsed and INFO when it did not. Port + contract test driven over both the scripted twin and
+  the real adapter + fakes, CI-gated at 100%, and the split the cap forced was `backend.py` into
+  `request.py` (core values onto the wire) and `decode.py` (the wire back). **Measured live on the
+  24 GB card**, three completions an arm through the shipped adapter and watch: the deep tier alone
+  reached 31.08 to 33.78 tok/s cold, and with the cortex resident first and the deep model loaded
+  beside it, which is a co-resident handoff's own order, 20.38 to 22.77, **both tiers reporting
+  `ready` and the card reading 423 MiB free**. At a declared 25.0 the watch collapsed the second
+  arm by 2.23 and passed the same tier minutes later once the peer was evicted, so it is not a gate
+  that always fires (`packages/inference/tests/test_decode_cadence_live.py`, integration-marked).
+  The entry's **one wrong word was "loudly"**: what the phase does is log, and the two things it
+  does not do are recorded below as this area's newest entries.
+- **A handoff that has watched itself spill still promises co-residency the next time.** *Fix when
+  it bites.* Opened 2026-08-08 by the spill watch's own landing
+  ([ADR-0030](../adr/ADR-0030-brain-handoff.md) spill-watch addendum). The watch has exactly one
+  actor, an operator reading the log, and the obvious second one is the swap itself: a spill proves
+  the deployment's declared VRAM cost was too low, and the correct automatic answer is the one a
+  correct declaration would have produced, which is to evict the cortex next time rather than run
+  co-resident. That was declined here on two counts and neither is a matter of effort. It latches
+  a working feature off on evidence one handoff wide, and a spill can be caused by the desktop
+  taking a gigabyte rather than by the pair genuinely not fitting, so a transient would cost every
+  later handoff its delegation. And `ResidencyPlan` is a frozen value handed down from the
+  composition root with nowhere to keep a latch, so the state would have to live on the conductor
+  or the controller and survive nothing, which is a residency-state question rather than a watch
+  one. **Trigger:** a deployment that spills repeatedly and whose operator is not reading logs, or
+  a second machine adopting `CORTEX_SWAP_CORESIDENT` from this repo's numbers rather than its own.
+- **Prefill is the second witness and nothing reads it.** *Fix when it bites.* Opened 2026-08-08 by
+  the same landing. `timings` carries `prompt_per_second` beside the decode rate, and the
+  co-residency run recorded it collapsing to 13.8 tok/s on the first request after a switch where a
+  fitting pair holds 105 to 134 ([model-swap.md](../runbooks/model-swap.md)), which is a sharper
+  contrast than decode's. It was left out because prompt rate varies with prompt length far more
+  than decode does, so the floor a deployment would have to measure is a harder number and a
+  wrongly set one produces false collapses; one instrument that works beats two that need
+  calibrating. The arm is already shaped to carry it, `DecodeCadence` being a value the adapter
+  fills from the same object. **Trigger:** a spill that decode misses, or a deployment whose deep
+  answers are short enough that decode rarely clears `MIN_CADENCE_TOKENS`.
 - **Give the placer a model of the handoff window, instead of one that describes the standing
   residency.** *Fix when it bites.* Opened 2026-08-07 by the same landing. `VramBudgetPlacer`
   fit-tests every GPU-placed spawn against `soft_cap_gb - cortex_reservation_gb - placed_gb`

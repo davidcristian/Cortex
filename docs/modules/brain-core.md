@@ -70,8 +70,15 @@ Conversation domain (Slice 3):
   is indistinguishable here from one that never happened, so `ok=False` means "the brain cannot
   say the screen was read", never "it was not read".
 - `TextChunk(text)` / `ReasoningChunk(text)` carries one streamed reply / thinking delta from a
-  backend; `InferenceEvent` is the union `TextChunk | ReasoningChunk | ToolCall`, what an
-  `InferenceBackend` yields (ADR-0009/0020).
+  backend; `InferenceEvent` is the union `TextChunk | ReasoningChunk | ToolCall | DecodeCadence`,
+  what an `InferenceBackend` yields (ADR-0009/0020/0030).
+- `DecodeCadence(tokens_per_second, tokens)` is how fast the server decoded one completion, as it
+  reports it (ADR-0030 spill-watch addendum). Not a `*Chunk`, because it is not a delta of
+  anything: it arrives once, whole, at the end of the completion it describes, a rate being
+  knowable only once the tokens are counted. A backend whose engine reports no such figure emits
+  none, so **silence is "no reading", never "healthy"**. Both fields refuse a negative.
+  `tokens` is what makes the rate readable, a short completion's rate being dominated by whatever
+  the server was doing when it started.
 
 Session listing (Slice 8.7, ADR-0021; `sessions.py`):
 
@@ -132,7 +139,8 @@ Model management (Slice 4, ADR-0007; the swap's value half is ADR-0030, in `mode
   4676 MiB both read about 23.6 GB used with about 0.5 GB free, the driver having paged the
   excess to system memory rather than refusing it.
 - `ResidencyPlan(cortex_model, brain_model, evict_models=(), coresident=False,
-  brain_vram_mib=0, drain_timeout_s=60.0, load_timeout_s=300.0, poll_interval_s=1.0)` is the
+  brain_vram_mib=0, brain_decode_tps=0.0, drain_timeout_s=60.0, load_timeout_s=300.0,
+  poll_interval_s=1.0)` is the
   frozen
   composition-root value the manager,
   the conductor, and boot recovery all read, so they cannot disagree about the topology: which
@@ -519,7 +527,8 @@ Untrusted-content boundary (Slice 6.5, ADR-0013; the pure primitives in `untrust
   engine passes the live ledger straight to `OutputGuardrail.open`.
 - `ToolLoopContext` is a frozen bundle of a tool loop's per-invocation collaborators (`dispatcher`,
   `clock`, `turn_id`, `taint`, `nonce`, `session_id`, `schema=None`,
-  `budget=DispatchBudget()` by default factory, `progress=None`, `escalation=None`), keeping
+  `budget=DispatchBudget()` by default factory, `progress=None`, `escalation=None`,
+  `cadence=None`), keeping
   `stream_tool_loop`
   under its argument ceiling. `session_id` is the originating chat the loop stamps onto each
   dispatch (ADR-0027; `""` for a session-less caller, e.g. a subagent); `schema` (ADR-0028), when
@@ -945,7 +954,8 @@ Use-case:
   is started, "working on this" only once the health gate has passed and the record says
   `BRAIN_ACTIVE`, and the restore before the cortex is asked back.
   `scheduler=None` is a deployment with no subagent pool: there is nothing to quiesce.
-- `BrainPhase(store, backend, clock, brain_model, capabilities)` (`brain_phase.py`) is the deep
+- `BrainPhase(store, backend, clock, brain_model, capabilities, decode_floor_tps=0.0)`
+  (`brain_phase.py`) is the deep
   model's half: it rehydrates from the stores and the record alone (history from `SessionStore`,
   the working set as preamble + recalled context + history + the record's `loop_tail`, the
   `TaintLedger` and fence nonce from the record, the dispatch budget resumed at its carried
@@ -955,7 +965,28 @@ Use-case:
   that tier carries no vision projector), then persists its reply as
   a second assistant message under the same `turn_id` and records the exchange under the same
   taint policy. A mid-work `InferenceError` persists the partial text with an honest note and
-  re-raises, so the conductor fails the record and converges.
+  re-raises, so the conductor fails the record and converges. It is also **the only caller that
+  watches decode cadence** (ADR-0030 spill-watch addendum): it puts a `CadenceWatch` on the loop
+  context and, after the stream and before it persists, logs the tier's rate once, at WARNING with
+  the shortfall when the tier never reached `decode_floor_tps` and at INFO otherwise, including
+  when the watch has no reading at all, which is never reported as a pass. It does nothing else to
+  the turn, the reply having already streamed by the time the rate is known.
+- `CadenceWatch(floor=0.0, *, min_tokens=MIN_CADENCE_TOKENS)` (`cadence.py`, ADR-0030 spill-watch
+  addendum) is the pure policy behind that: `observe(sample)` takes one completion's
+  `DecodeCadence` and `reading()` settles them into a `CadenceReading(observed, floor, samples,
+  judged)` or `None`. Two rules keep a slow number honest. A sample under `min_tokens`
+  (`MIN_CADENCE_TOKENS` = 32) is counted and never judged, since a short completion's rate is
+  dominated by whatever the server was doing when it started. And the **fastest** qualifying
+  sample decides, because a spill is a ceiling that holds for every completion while the
+  overcommit lasts, so one busy round cannot convict while a tier that never once reached its
+  floor is exactly what a spill is. `reading().collapsed` is False whenever `floor` is zero, an
+  undeclared floor meaning "this deployment never measured a rate" and never "any rate will do";
+  `shortfall` is how far under it ran, zero when it did not. `None` from `reading()` is a third
+  answer, not a pass: it is what a backend reporting no timings and a phase that failed before
+  decoding anything both look like. It holds no I/O and is deliberately not persisted anywhere
+  (the one hard rule): a watch is scratch for one handoff, and its conclusion is said rather than
+  kept. One watch per handoff, not per completion, since a tool loop runs several and the question
+  is about the tier across all of them.
 - `EscalatingTurnEngine(make_inner, conductor)` (`escalating_engine.py`) is the `TurnRunner` a
   deployment with escalation enabled serves turns through (ADR-0030 decisions 5/6). Per turn it
   builds an `EscalationSlot`, constructs the inner engine around it, passes every event through,
@@ -1427,6 +1458,13 @@ Use-case:
   wrong yes spends the user's privacy, a wrong no costs one turn's capability. The core fake is
   `ScriptedVisionProbe(answers)` (`fakes_vision.py`), whose script and `rescript` are how a test
   changes the world between the advertisement and the call.
+- `ScriptedInferenceBackend(rounds)` (`fakes_inference.py`) is the `InferenceBackend` twin the
+  decode-cadence contract is driven over: one event list per `stream` call, the last repeating,
+  plus a `calls` tally. It exists because `EchoInferenceBackend` must not learn to report a
+  cadence: that one is shipped wiring a GPU-less deployment really runs, so a fabricated rate out
+  of it would be a made-up number in a real log, on the one path whose whole purpose is telling a
+  real number from a plausible one. An echo has no server and therefore no timings, which is the
+  honest answer and is itself half of what the contract checks.
 - `EscalateToBrainTool()` (`escalate.py`) is the built-in `escalate_to_brain` tool (ADR-0030
   decision 1): the cortex's mid-turn request for the deep-model handoff, cortex-only like every
   built-in. Stateless and dependency-free: it reads the turn's `EscalationSlot` off each

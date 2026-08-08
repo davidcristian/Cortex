@@ -106,6 +106,8 @@ def test_the_plan_rejects_bounds_that_could_not_govern_a_swap() -> None:
         _plan(poll_interval_s=0.0)
     with pytest.raises(ValueError, match="brain_vram_mib must be >= 0"):
         _plan(brain_vram_mib=-1)
+    with pytest.raises(ValueError, match="brain_decode_tps must be >= 0"):
+        _plan(brain_decode_tps=-1.0)
 
 
 def test_the_plan_defaults_its_bounds_to_the_documented_values() -> None:
@@ -122,6 +124,9 @@ def test_the_plan_defaults_its_bounds_to_the_documented_values() -> None:
     # told holds the shipped rule: the deep model runs alone.
     assert ResidencyPlan("c", "b").coresident is False
     assert _plan(coresident=True).coresident is True
+    # A deployment that never measured its deep tier's rate judges no handoff by it.
+    assert ResidencyPlan("c", "b").brain_decode_tps == 0.0
+    assert _plan(brain_decode_tps=25.07).brain_decode_tps == 25.07
 
 
 async def test_the_scripted_host_starts_stops_and_reports_idempotently() -> None:

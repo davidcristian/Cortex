@@ -83,6 +83,16 @@ class SwapConfig(BaseSettings):
     plan is exactly a claim about room and this is the only way that claim is ever tested; with
     the scripted host it stays optional, that backend starting no process on any card. Zero means
     no check, which is what a deployment that evicts everything ships with.
+
+    ``CORTEX_SWAP_BRAIN_DECODE_TPS`` is the after-the-fact half of the same claim, and the only
+    one there is: the tokens per second the deep tier reaches when the card genuinely holds it,
+    measured by the deployment on its own card. The fit check above is passed by a cost declared
+    too low and by memory the desktop takes while the load runs, and both of those spill without
+    failing anything, so the deep phase compares a real completion's rate against this and says so
+    when it did not clear. Zero (the default) reports the rate and judges nothing. It is not
+    required by co-residency the way the VRAM figure is, because it guards nothing: no decision
+    waits on it, and a deployment that has not measured a rate is better served by the observed
+    number in its log than by a boot failure.
     """
 
     model_config = SettingsConfigDict(env_prefix="CORTEX_", validate_by_name=True)
@@ -97,6 +107,9 @@ class SwapConfig(BaseSettings):
     evict_models: tuple[str, ...] = Field(default=(), validation_alias="CORTEX_SWAP_EVICT_MODELS")
     coresident: bool = Field(default=False, validation_alias="CORTEX_SWAP_CORESIDENT")
     brain_vram_mib: int = Field(default=0, ge=0, validation_alias="CORTEX_SWAP_BRAIN_VRAM_MIB")
+    brain_decode_tps: float = Field(
+        default=0.0, ge=0, validation_alias="CORTEX_SWAP_BRAIN_DECODE_TPS"
+    )
     swap_drain_timeout_s: float = Field(default=DEFAULT_SWAP_DRAIN_TIMEOUT_S, ge=0)
     swap_load_timeout_s: float = Field(default=DEFAULT_SWAP_LOAD_TIMEOUT_S, ge=0)
 
@@ -157,6 +170,7 @@ class SwapConfig(BaseSettings):
             evict_models=self.evict_models,
             coresident=self.coresident,
             brain_vram_mib=self.brain_vram_mib,
+            brain_decode_tps=self.brain_decode_tps,
             drain_timeout_s=self.swap_drain_timeout_s,
             load_timeout_s=self.swap_load_timeout_s,
         )

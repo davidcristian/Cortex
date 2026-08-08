@@ -29,8 +29,10 @@ async def drain_text(
 ) -> str:
     """Consume one completion to its end, closing the stream whatever happens, and join its text.
 
-    Only assistant text (``TextChunk``) contributes: a reasoning model's ``ReasoningChunk`` and any
-    ``ToolCall`` are dropped, so a caller gets the reply and never the private thinking. ``schema``
+    Only assistant text (``TextChunk``) contributes: a reasoning model's ``ReasoningChunk``, any
+    ``ToolCall``, and the closing ``DecodeCadence`` are dropped, so a caller gets the reply and
+    never the private thinking. A side call's decode rate is dropped rather than watched because
+    it runs on whichever tier the turn is already on, so it says nothing about a swap. ``schema``
     constrains decoding when the caller needs a fixed shape (ADR-0028), and ``bounds`` caps how far
     the model may go and whether it thinks first (ADR-0038 cheap-fold addendum). Every caller here
     is an in-turn side call whose thinking is discarded by the line above, which is exactly the

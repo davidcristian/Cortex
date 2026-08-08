@@ -41,7 +41,7 @@ from collections.abc import AsyncGenerator
 
 from cortex_core.conversation import Message
 from cortex_core.dispatch_round import ToolLoopContext, run_round
-from cortex_core.inference import ReasoningChunk
+from cortex_core.inference import DecodeCadence, ReasoningChunk
 from cortex_core.loop_events import ReasoningDelta, StepOutcome, ToolStep
 from cortex_core.ports import InferenceBackend
 from cortex_core.tool_round import call_message, plan_round
@@ -109,6 +109,11 @@ async def stream_tool_loop(
                     calls.append(event)
                 elif isinstance(event, ReasoningChunk):
                     yield ReasoningDelta(event.text)
+                elif isinstance(event, DecodeCadence):
+                    # Absorbed, never yielded: how fast the machine decoded is not something the
+                    # turn said (ADR-0030 spill-watch addendum). A caller with no watch drops it.
+                    if context.cadence is not None:
+                        context.cadence.observe(event)
                 else:
                     step_text.append(event.text)
                     yield event.text

@@ -24,6 +24,7 @@ Distrust-green proofs (each mutation reddened the named test, then was restored)
   ``test_closing_the_deep_phase_mid_stream_tears_its_loop_down``.
 """
 
+import logging
 import re
 from collections.abc import AsyncGenerator, Mapping, Sequence
 from datetime import UTC, datetime
@@ -35,6 +36,7 @@ from swap_harness import ScriptedBrainBackend, TickingClock
 from cortex_core import (
     BRAIN_FAILED_NOTE,
     BUDGET_EXHAUSTED_MSG,
+    DecodeCadence,
     DispatchBudget,
     ImagePart,
     InferenceError,
@@ -59,7 +61,7 @@ from cortex_core import (
     as_source,
     wrap_untrusted,
 )
-from cortex_core.brain_phase import BrainPhase
+from cortex_core.brain_phase import SPILLED_LOG_MSG, BrainPhase
 from cortex_core.memory import MemoryRecord
 from cortex_core.recall import MemoryRecaller
 
@@ -80,6 +82,7 @@ async def _drive(
     tail: Sequence[Message] = (),
     taint: TaintLedger | None = None,
     store: InMemorySessionStore | None = None,
+    decode_floor_tps: float = 0.0,
 ) -> tuple[BrainPhase, ScriptedBrainBackend, InMemorySessionStore, list[str]]:
     """Run one deep phase over a seeded session, returning what it saw and what it streamed."""
     sessions = store if store is not None else InMemorySessionStore()
@@ -99,6 +102,7 @@ async def _drive(
         TickingClock(),
         "brain",
         capabilities if capabilities is not None else TurnCapabilities(),
+        decode_floor_tps,
     )
     slot = harness.armed_slot(tail=tail, taint=taint)
     record = slot.snapshot(
@@ -442,3 +446,121 @@ class _Embedder:
     async def embed(self, text: str) -> Sequence[float]:
         del text
         return (1.0, 0.0)
+
+
+# --- The spill watch (ADR-0030 spill-watch addendum) ------------------------------------------
+#
+# Distrust-green proofs for this section, each mutation reverted after it reddened its test:
+# - dropping ``cadence=watch`` from the phase's ``ToolLoopContext`` reddens every test below that
+#   expects any reading, because nothing then reaches the watch at all;
+# - dropping the ``DecodeCadence`` branch from ``stream_tool_loop`` reddens the same tests AND
+#   raises ``AttributeError`` inside the loop, since the event falls through to ``event.text``;
+# - logging the collapse at INFO instead of WARNING reddens
+#   ``test_a_deep_phase_under_the_declared_floor_warns_once_naming_both_numbers``;
+# - reporting after ``_persist`` rather than before reddens nothing, which is why the ordering is
+#   pinned by ``test_a_failed_phase_still_reports_what_it_managed_to_observe`` instead.
+
+
+def _cadence_records(caplog: pytest.LogCaptureFixture) -> list[logging.LogRecord]:
+    """Only this phase's own cadence lines, in order."""
+    return [record for record in caplog.records if "decode" in record.getMessage()]
+
+
+def _extra(record: logging.LogRecord, field: str) -> object:
+    """One structured field off a log record, ``extra`` landing in the record's own ``__dict__``."""
+    return record.__dict__[field]
+
+
+async def test_a_deep_phase_under_the_declared_floor_warns_once_naming_both_numbers(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The measured spill, as the shipped instrument sees it: 17.29 tok/s against a 22 floor."""
+    caplog.set_level(logging.INFO, logger="cortex_core.brain_phase")
+    backend = ScriptedBrainBackend(cadences=[DecodeCadence(tokens_per_second=17.29, tokens=96)])
+    await _drive(backend=backend, decode_floor_tps=22.0)
+    records = _cadence_records(caplog)
+    assert len(records) == 1
+    assert records[0].levelno == logging.WARNING
+    assert _extra(records[0], "tokens_per_second") == 17.29  # pyright: ignore[reportAttributeAccessIssue]
+    assert _extra(records[0], "floor_tokens_per_second") == 22.0  # pyright: ignore[reportAttributeAccessIssue]
+    assert records[0].getMessage() == SPILLED_LOG_MSG
+
+
+async def test_a_deep_phase_that_cleared_its_floor_says_so_without_warning(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The healthy contrast, from the same instrument: the solo rate on the same card."""
+    caplog.set_level(logging.INFO, logger="cortex_core.brain_phase")
+    backend = ScriptedBrainBackend(cadences=[DecodeCadence(tokens_per_second=30.4, tokens=96)])
+    await _drive(backend=backend, decode_floor_tps=22.0)
+    records = _cadence_records(caplog)
+    assert len(records) == 1
+    assert records[0].levelno == logging.INFO
+    assert _extra(records[0], "tokens_per_second") == 30.4  # pyright: ignore[reportAttributeAccessIssue]
+
+
+async def test_a_deployment_that_declared_no_floor_still_gets_its_number(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The number is worth publishing on its own: it is what a later floor would be set from."""
+    caplog.set_level(logging.INFO, logger="cortex_core.brain_phase")
+    backend = ScriptedBrainBackend(cadences=[DecodeCadence(tokens_per_second=3.0, tokens=96)])
+    await _drive(backend=backend)
+    records = _cadence_records(caplog)
+    assert len(records) == 1
+    assert records[0].levelno == logging.INFO
+
+
+async def test_a_backend_that_reports_no_timings_is_not_reported_as_healthy(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Silence must never read as a pass, which is the whole reason the port permits silence."""
+    caplog.set_level(logging.INFO, logger="cortex_core.brain_phase")
+    await _drive(backend=ScriptedBrainBackend(), decode_floor_tps=22.0)
+    records = _cadence_records(caplog)
+    assert len(records) == 1
+    assert records[0].levelno == logging.INFO
+    assert "nothing was checked" in records[0].getMessage()
+
+
+async def test_one_slow_round_of_a_tool_loop_does_not_convict_the_tier(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A whole handoff is watched, not a completion, and the best round is what it is judged on."""
+    caplog.set_level(logging.INFO, logger="cortex_core.brain_phase")
+    dispatcher = ToolDispatcher(_registry(), RecordingAuditSink(), SystemClock())
+    backend = ScriptedBrainBackend(
+        tool_calls=(ToolCall(id="c1", name="read", arguments={}),),
+        cadences=[
+            DecodeCadence(tokens_per_second=8.0, tokens=96),
+            DecodeCadence(tokens_per_second=29.0, tokens=96),
+        ],
+    )
+    await _drive(
+        capabilities=TurnCapabilities(tools=dispatcher),
+        backend=backend,
+        decode_floor_tps=22.0,
+    )
+    records = _cadence_records(caplog)
+    assert len(records) == 1
+    assert records[0].levelno == logging.INFO
+    assert _extra(records[0], "samples") == 2  # pyright: ignore[reportAttributeAccessIssue]
+    assert _extra(records[0], "tokens_per_second") == 29.0  # pyright: ignore[reportAttributeAccessIssue]
+
+
+async def test_a_failed_phase_still_reports_what_it_managed_to_observe(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A server that died mid-stream is exactly when an operator most wants the rate it managed."""
+    caplog.set_level(logging.INFO, logger="cortex_core.brain_phase")
+    backend = ScriptedBrainBackend(fail_after=1)
+    with pytest.raises(InferenceError):
+        await _drive(backend=backend, decode_floor_tps=22.0)
+    assert len(_cadence_records(caplog)) == 1
+
+
+async def test_the_cadence_never_reaches_the_turns_own_stream() -> None:
+    """How fast the machine decoded is not something the turn said, so no delta may carry it."""
+    backend = ScriptedBrainBackend(cadences=[DecodeCadence(tokens_per_second=17.29, tokens=96)])
+    _phase, _backend, _sessions, deltas = await _drive(backend=backend, decode_floor_tps=22.0)
+    assert "".join(deltas) == "a deep answer"

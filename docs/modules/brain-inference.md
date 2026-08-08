@@ -4,9 +4,17 @@
 ADR-0007). A thin HTTP translator: it takes a GPU lease from a `ModelManager`, opens a
 streaming chat completion against the leased `llama-server` endpoint over the
 OpenAI-compatible API, and yields the assistant reply deltas, a reasoning model's thinking
-deltas (ADR-0020), plus any tool calls the model makes (native function-calling, ADR-0009).
+deltas (ADR-0020), any tool calls the model makes (native function-calling, ADR-0009), and the
+completion's own decode rate when the server reports one (ADR-0030 spill-watch addendum).
 No orchestration, no session state (the one hard rule). The core keeps talking only to
 `InferenceBackend`.
+
+**Three modules, split by the direction a value travels.** `request.py` maps core values onto
+the wire, `decode.py` maps the wire back, and `backend.py` keeps what neither can own: the lease,
+the HTTP call, and the order events leave in. The split happened when the cadence arm took
+`backend.py` to the 300-line cap. The two halves are package-internal (nothing but
+`LlamaCppBackend` is exported) but not underscored, a leading underscore being exactly the thing
+that would forbid the adapter from importing them.
 
 **Public contract** (everything importable from `cortex_inference`; `__all__` is the API):
 
@@ -37,6 +45,12 @@ No orchestration, no session state (the one hard rule). The core keeps talking o
      index) and yields them as `ToolCall`s once the stream ends, and stops at
      `data: [DONE]`. Chunks with no text (the role-only opening chunk, an empty delta, an
      empty `choices`) are skipped.
+  4. Yields one `DecodeCadence(tokens_per_second, tokens)` when a chunk carries llama.cpp's own
+     `timings` object, read from `predicted_per_second` and `predicted_n` (ADR-0030 spill-watch
+     addendum). On build `b10298-15586e2d7` exactly one chunk of a stream carries it, the last,
+     and it arrives unasked, so no request changed to get it. Timings are read **before** the
+     chunk's `choices` are, so a build closing on `{"choices": []}` is still heard. The event is
+     emitted after the text it describes, a rate being unknowable before the tokens are counted.
   - The injected `http_client` owns timeouts/transport (the adapter sets none itself because a
     generation may legitimately stream for a long time; the composition root gives it a
     short connect timeout and no read deadline).
@@ -62,7 +76,14 @@ with the cause chained:
 - a malformed streaming chunk (bad JSON, unexpected shape, non-string content) or a
   tool call whose accumulated arguments are not valid JSON raises `InferenceError`
   directly, since a silently skipped chunk would drop reply text or a tool call, the same
-  fail-loud stance the session store takes on corrupt records.
+  fail-loud stance the session store takes on corrupt records;
+- **the decode cadence is the one exception, and it fails quiet.** A `timings` object that is
+  missing, not an object, missing either field, holding a non-number, holding a bool (which is an
+  `int` in Python and would otherwise arrive as 1.0 tok/s), or holding a negative yields no
+  cadence and changes nothing else about the stream. It is a diagnostic that arrives after the
+  answer, so killing a finished reply over it would trade what the user asked for against what the
+  operator would have liked, and the core's `CadenceWatch` already reads "no cadence" as its own
+  answer rather than as a healthy one.
 
 **Invariants.**
 - Stateless per call: nothing about a turn outlives `stream`; no KV or context is held

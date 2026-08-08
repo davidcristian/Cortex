@@ -18,6 +18,7 @@ Pure: the only I/O is through the ports the caller hands in on the context.
 from collections.abc import AsyncGenerator, Mapping, Sequence
 from dataclasses import dataclass, field
 
+from cortex_core.cadence import CadenceWatch
 from cortex_core.conversation import Message
 from cortex_core.dispatch import DispatchRefusal, ToolDispatcher
 from cortex_core.handoff import EscalationSlot
@@ -56,7 +57,12 @@ class ToolLoopContext:
     delegation depth-1 in what reaches the overlay as it is in the tree. ``escalation``
     (ADR-0030) is the turn's handoff slot, threaded exactly like ``progress`` so the
     ``escalate_to_brain`` built-in reads it off each dispatch's stamp; ``None`` (the default,
-    every escalation-less caller) leaves the tool refusing honestly.
+    every escalation-less caller) leaves the tool refusing honestly. ``cadence`` (ADR-0030
+    spill-watch addendum) is where the loop hands each completion's reported decode rate, and it
+    is deliberately not a yielded event: how fast a tier decoded is a fact about the machine, not
+    about the turn, so it must never reach a stream the user reads. ``None`` (the default, the
+    cortex turn and every subagent) drops the report, which costs nothing because the only caller
+    that has a rate to compare against is the deep phase.
     """
 
     dispatcher: ToolDispatcher | None
@@ -69,6 +75,7 @@ class ToolLoopContext:
     budget: DispatchBudget = field(default_factory=DispatchBudget)
     progress: ProgressSink | None = None
     escalation: EscalationSlot | None = None
+    cadence: CadenceWatch | None = None
 
 
 def _refused_by(

@@ -93,6 +93,15 @@ class ResidencyPlan:
     handoff when the room is not there. It is required alongside ``coresident`` on a deployment
     whose host can see a card, because a co-resident plan is precisely a claim about room.
 
+    ``brain_decode_tps`` is the other half of the same honesty, and the half no reading of memory
+    can supply: the rate the deep tier decodes at when the card really does hold it, measured by
+    the deployment on that card. The fit check can be passed by a figure declared too low and by
+    a gigabyte the desktop took mid-load, and in both cases the load succeeds and spills, so this
+    is what the deep phase compares against afterwards. Zero (the default) reports the observed
+    rate and judges nothing, which is deliberately weaker than the VRAM figure's requirement:
+    that one guards a decision taken before anything is loaded, this one only names what an
+    already-finished handoff should have looked like.
+
     ``drain_timeout_s`` bounds the wait for the subagent pool to quiesce, which happens before
     anything is evicted, so exceeding it aborts the swap rather than killing a subagent;
     ``load_timeout_s`` bounds the readiness gate after a start, and ``poll_interval_s`` is the
@@ -105,6 +114,7 @@ class ResidencyPlan:
     evict_models: tuple[str, ...] = ()
     coresident: bool = False
     brain_vram_mib: int = 0
+    brain_decode_tps: float = 0.0
     drain_timeout_s: float = DEFAULT_SWAP_DRAIN_TIMEOUT_S
     load_timeout_s: float = DEFAULT_SWAP_LOAD_TIMEOUT_S
     poll_interval_s: float = DEFAULT_HEALTH_POLL_INTERVAL_S
@@ -123,6 +133,9 @@ class ResidencyPlan:
     def __post_init__(self) -> None:
         if self.brain_vram_mib < 0:
             msg = f"ResidencyPlan.brain_vram_mib must be >= 0, got {self.brain_vram_mib}"
+            raise ValueError(msg)
+        if self.brain_decode_tps < 0:
+            msg = f"ResidencyPlan.brain_decode_tps must be >= 0, got {self.brain_decode_tps}"
             raise ValueError(msg)
         if self.drain_timeout_s < 0:
             msg = f"ResidencyPlan.drain_timeout_s must be >= 0, got {self.drain_timeout_s}"

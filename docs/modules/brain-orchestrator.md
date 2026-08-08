@@ -155,12 +155,19 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   holds the pair (ADR-0030's co-residency addendum has the measurement); `brain_vram_mib`
   (`CORTEX_SWAP_BRAIN_VRAM_MIB`, 0) is the free device memory that deep tier needs, measured on
   the deployment's own card, which the swap compares against the model host's reading immediately
-  before the load and refuses the handoff when it is short; `swap_drain_timeout_s` (60 s) and
+  before the load and refuses the handoff when it is short; `brain_decode_tps`
+  (`CORTEX_SWAP_BRAIN_DECODE_TPS`, 0.0) is the after-the-fact half of that same claim, the tokens
+  per second the deep tier reaches when the card really does hold it, which the deep phase
+  compares a real completion against and logs a warning when it never cleared (ADR-0030
+  spill-watch addendum); `swap_drain_timeout_s` (60 s) and
   `swap_load_timeout_s` (300 s) are the swap's two bounds. Enabling escalation without a model
   host or without a brain endpoint **fails at boot**, rather than advertising a tool that could
   only refuse, and so does co-residency on the `supervisor` host with no measured VRAM figure,
   since that flag is a claim about a card and this is the only thing that ever tests it (the
-  card itself is read at the swap, being a number that moves while the machine runs). `residency_plan(cortex_model)` is the one `ResidencyPlan` the manager, the
+  card itself is read at the swap, being a number that moves while the machine runs). The decode
+  figure is deliberately **not** required the same way: it guards no decision, so an unmeasured
+  deployment is better served by the observed number in its log than by a boot failure, and that
+  number is what a floor would later be set from. `residency_plan(cortex_model)` is the one `ResidencyPlan` the manager, the
   conductor, and boot recovery all read.
 - `SubagentsConfig` uses env prefix `CORTEX_SUBAGENTS_` (ADR-0010, revised by ADR-0012/0018):
   `backend: "none" | "llamacpp" = "none"` (`CORTEX_SUBAGENTS_BACKEND`), `endpoint` (the CPU

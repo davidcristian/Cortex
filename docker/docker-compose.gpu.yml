@@ -46,7 +46,11 @@
 # sees no GPU. On this stack's own 24 GB card the deep model and the E4B subagent tier fit together at
 # 23555 to 23642 MiB with about 908 MiB free, while the cortex and the deep model do not fit and
 # do not say so: WSL2 pages the overcommit and halves the deep model's decode rate with nvidia-smi
-# reading the same ~23.6 GB used. Measure decode, not memory. Procedure and table:
+# reading the same ~23.6 GB used. Measure decode, not memory, which the brain now does for itself:
+# CORTEX_SWAP_BRAIN_DECODE_TPS names the tokens per second the deep tier reaches when the card
+# really holds it (measure it from a cold load of that tier alone), and a deep phase that never
+# clears it logs a warning naming both numbers. Unset, the rate is logged and judged against
+# nothing. Procedure, the measured spilled-against-healthy numbers, and the table:
 # docs/runbooks/model-swap.md.
 
 services:

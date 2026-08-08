@@ -28,10 +28,22 @@ honestly if the deep model ever calls it. A mid-work failure (an ``InferenceErro
 server that died under it) persists the partial text with an honest note, the runner's
 parts-so-far discipline, and then re-raises so the conductor marks the handoff failed and
 converges back to the cortex.
+
+**It is also where a spilled handoff is caught** (ADR-0030 spill-watch addendum). The fit check
+inside ``swap_in`` reads free device memory immediately before the load, which is the only instant
+that reading means anything, and two things stay invisible to it: a deployment that declared the
+deep tier's cost too low, and memory the desktop took while the load ran. Both end in an
+overcommit the driver pages to host memory rather than refusing, so both tiers report ``ready``
+and the card reads like a fit. The one witness is throughput, and this phase is where a real
+completion on the deep tier can be watched. It says so once per handoff and does nothing else to
+the turn: the reply is already streaming by the time the rate is known, so refusing would spend a
+user's answer on an operator's problem, and there is nothing left to degrade.
 """
 
+import logging
 from collections.abc import AsyncGenerator, Sequence
 
+from cortex_core.cadence import CadenceReading, CadenceWatch
 from cortex_core.conversation import Message, Role
 from cortex_core.errors import InferenceError
 from cortex_core.events import TextDelta, TurnEvent
@@ -44,6 +56,22 @@ from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
 from cortex_core.turn_context import TurnCapabilities, assemble_inference_messages
 from cortex_core.turn_output import flush_channels, record_exchange, stream_turn_events
 from cortex_core.untrusted import TaintLedger
+
+_logger = logging.getLogger(__name__)
+
+# What the operator is told when the deep tier never reached the rate its deployment measured.
+# One sentence naming the instrument, because the reader arriving at this line is arriving from a
+# handoff that worked and was slow, and every other instrument they would reach for agrees it was
+# fine (docs/runbooks/model-swap.md).
+SPILLED_LOG_MSG = (
+    "the deep model decoded below the rate this deployment measured for it, which is what an "
+    "overcommitted card looks like: the load was not refused, it was paged to host memory"
+)
+_MEASURED_LOG_MSG = "the deep model's decode rate for this handoff"
+_NO_READING_LOG_MSG = (
+    "no decode rate was reported for this handoff, so nothing was checked; a completion too "
+    "short to judge, a failed phase, or a backend whose engine reports no timings all read alike"
+)
 
 
 def _user_query(history: Sequence[Message], record: HandoffRecord) -> str:
@@ -77,12 +105,19 @@ class BrainPhase:
         clock: Clock,
         brain_model: str,
         capabilities: TurnCapabilities,
+        decode_floor_tps: float = 0.0,
     ) -> None:
         self._store = store
         self._backend = backend
         self._clock = clock
         self._model = brain_model
         self._caps = capabilities
+        # The deep tier's decode rate on this deployment's own card, measured by the deployment
+        # exactly as its VRAM cost was and just as unknowable from inside a container. Zero (the
+        # default, and every deployment that has not measured one) reports the rate and judges
+        # nothing, which is why the watch exists either way: the healthy number is what makes a
+        # later collapse readable, and it is the same instrument that publishes both.
+        self._decode_floor_tps = decode_floor_tps
 
     async def run(self, record: HandoffRecord) -> AsyncGenerator[TurnEvent, None]:
         """Rehydrate, run the shared tool loop on the deep model, persist, and stream it out.
@@ -95,6 +130,7 @@ class BrainPhase:
         history = await self._store.history(record.session_id)
         query = _user_query(history, record)
         taint = record.taint_ledger()
+        watch = CadenceWatch(self._decode_floor_tps)
         context = ToolLoopContext(
             dispatcher=self._caps.tools,
             clock=self._clock,
@@ -109,6 +145,7 @@ class BrainPhase:
             # No slot: the deep model cannot escalate to itself, and the built-in refuses
             # honestly rather than queuing a handoff no conductor would run.
             escalation=None,
+            cadence=watch,
         )
         assembled = await assemble_inference_messages(
             query, history, self._caps, context, self._clock
@@ -133,9 +170,35 @@ class BrainPhase:
             yield TextDelta(text=BRAIN_FAILED_NOTE)
         finally:
             await events.aclose()
+        self._report_cadence(watch.reading(), record.handoff_id)
         await self._persist(record, query=query, reply="".join(parts), taint=taint)
         if failure is not None:
             raise failure
+
+    def _report_cadence(self, reading: CadenceReading | None, handoff_id: str) -> None:
+        """Say what the deep tier's throughput was, once, after the phase and before it persists.
+
+        Placed after the stream rather than inside it so the whole handoff's completions are in
+        hand: a tool loop runs several, and the question is about the tier across all of them.
+        Placed before ``_persist`` so a failed phase, which re-raises after persisting, still
+        reports what it managed to observe.
+        """
+        if reading is None:
+            _logger.info(_NO_READING_LOG_MSG, extra={"model": self._model, "handoff": handoff_id})
+            return
+        extra = {
+            "model": self._model,
+            "handoff": handoff_id,
+            "tokens_per_second": reading.observed.tokens_per_second,
+            "tokens": reading.observed.tokens,
+            "floor_tokens_per_second": reading.floor,
+            "samples": reading.samples,
+            "judged": reading.judged,
+        }
+        if reading.collapsed:
+            _logger.warning(SPILLED_LOG_MSG, extra=extra | {"shortfall": reading.shortfall})
+            return
+        _logger.info(_MEASURED_LOG_MSG, extra=extra)
 
     async def _persist(
         self, record: HandoffRecord, *, query: str, reply: str, taint: TaintLedger
