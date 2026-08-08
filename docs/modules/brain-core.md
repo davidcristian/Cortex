@@ -1077,7 +1077,11 @@ Use-case:
   covering MORE than the current boundary (a widened budget) is discarded and rebuilt, which
   self-heals. It LETS GO of the GPU: the model pass goes through `drain_text`, so the adapter's
   acquire block is left before `select` returns and the reply's acquire is the second acquire
-  of a sequence, never a nested one. And it is FENCED at both ends (ADR-0038 untrusted-recap
+  of a sequence, never a nested one. That was a sequencing argument until 2026-08-08, when it was
+  measured against three overlapping `Converse` streams and held on every point it claims (ADR-0038
+  fold-under-load addendum, `packages/orchestrator/tests/test_fold_under_load_live.py`); what the
+  measurement adds is the price, since a fold is one more thing every OTHER stream's reply queues
+  behind. And it is FENCED at both ends (ADR-0038 untrusted-recap
   addendum, the fences themselves living in `recap_prompt.py`): a persisted transcript is not
   trusted input, because an assistant reply may quote
   what an untrusted tool result said, so the recap prompt carries `SECURITY_PREAMBLE` as its
