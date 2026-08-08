@@ -1260,3 +1260,124 @@ trigger in [memory.md](../refinements/memory.md).
 
 Nothing. The decline opens no new item: the calibration harness ships as the test named above rather
 than staying in a scratchpad, and the reopening condition is an assertion inside it.
+
+## Fold-under-load addendum (2026-08-08): the sequencing argument, measured against overlapping streams
+
+`CORTEX_HISTORY_SUMMARY` ships **on**, so every long conversation now spends a model pass inside
+turn assembly, and the reason that was ever safe to do on the turn's critical path was an
+**argument about ordering** rather than a measurement. The argument is worth stating exactly,
+because it is what was tested:
+
+The GPU lease is one non-reentrant `asyncio.Lock` per `ModelManager` (`model.py`), and the
+composition root builds one `LlamaCppBackend` over one manager for the whole process, so every
+`Converse` stream contends for that one lock. The adapter takes the lease **inside its stream
+generator** (`backend.py`), on the generator's first `__anext__`, and holds it until that
+generator leaves the `async with` block. A fold takes it through `drain_text`, which leaves the
+block in a `finally`; `SummarizingHistoryWindow.select` awaits the fold to completion;
+`assemble_inference_messages` awaits `select`; and `handle_turn` awaits the whole assembly several
+statements before it first iterates the reply's generator. So within one turn the fold's lease and
+the reply's lease are two acquisitions **in sequence**, never one nested inside the other.
+
+Concurrency is what tests that, and nothing had ever run more than one stream. The measurement is
+`packages/orchestrator/tests/test_fold_under_load_live.py` (integration-marked, five arms), which
+drives the shipped `converse` use case over the real adapter, the real Redis store and the real
+resident cortex, with each model call's lease timestamped at request, grant and release.
+
+### Designed to falsify, and what proves the run is not empty
+
+Concurrent streams that never actually overlap would pass every assertion in this file while
+measuring nothing, which is the null result this backlog has recorded twice. So the run does not
+assert "the turns ran together": it collects every moment one stream **asked** for the lease
+strictly inside a different stream's **hold**, and fails when it finds none. Two arms then break
+the system deliberately and show the same helpers catching the break, because a concurrency test
+that passes on a broken system is worthless.
+
+### Measured (2026-08-08, 24 GB card, gemma-4-12B at 16K, three overlapping streams)
+
+A solo turn over the same corpus first, so the concurrent numbers have something to read against:
+time to first token **4.6 s**, whole turn **4.9 s**, the fold holding the lease **2.4 s**.
+
+Three streams then start together, each on its own session with its own planted booking reference,
+each with enough dropped history to force a fold. Seconds are from the first acquisition request:
+
+| acquisition | asked | granted | released | waited | behind |
+|---|---|---|---|---|---|
+| s0 fold | 0.00 | 0.00 | 2.81 | 0.00 | nothing |
+| s2 fold | 0.00 | 2.81 | 5.61 | 2.81 | s0 fold |
+| s1 fold | 0.00 | 5.61 | 8.23 | 5.61 | s0 fold, s2 fold |
+| s0 reply | 2.82 | 8.23 | 10.44 | 5.41 | s2 fold, s1 fold |
+| s2 reply | 5.61 | 10.44 | 12.27 | 4.83 | s1 fold, s0 reply |
+| s1 reply | 8.24 | 12.27 | 17.75 | 4.03 | s0 reply, s2 reply |
+
+All three folds were requested at the same instant, which is the overlap the run refuses to
+proceed without: five acquisitions were issued while another stream held the lease.
+
+**The argument held on every point it claims.** No hold ever overlapped another, so the lock is
+exclusive and the timeline really is measuring it; within every stream the fold's hold ended
+before that stream's reply's hold began; and no acquisition was left ungranted or unreleased.
+
+**What load costs is queueing, and a fold is now among the things a reply queues behind.** Time to
+first token went from 4.6 s solo to 10.3 s, 12.0 s and 17.5 s, and the row that matters is `s0
+reply`: it asked at 2.82 s, the instant its own fold released, and waited **5.41 s behind two
+OTHER streams' folds**. The argument never denied this and it is the load consequence the
+default-on knob now carries: with N streams folding at once, every stream's reply waits out up to
+N-1 folds that are not its own, on top of the replies ahead of it.
+
+**No turn's context was wrong.** Each stream answered with its own reference and with nobody
+else's, over four independent runs of this arm (twelve of twelve), and each session's recap
+named only its own. One window instance served all three streams deliberately, since the sink is
+handed per call precisely so a shared window stays correct, and each fold's `folding` chip landed
+on exactly its own stream (one chip per stream, every run).
+
+**A swap landing mid-fold is the one hypothesis answered from the code rather than measured**, and
+it is worth saying which. This stack runs with escalation off, so the manager is
+`SingleResidentModelManager` and there is no swap to land. With escalation on the lease belongs to
+`SwappingModelManager`, which takes the very same lock and whose swap **waits for the lease to fall
+free** rather than preempting, so a fold in flight is a mid-stream round like any other and a fold
+that starts as a residency scope opens queues for the scope to end instead of failing. That is a
+reading of `residency.py`, not a run, and it is labelled as one.
+
+**Two turns of one session concurrently** is the other shape, and it needs two streams naming one
+session because one stream runs its turns one at a time. Both turns appended, both read a history
+the other was still growing, both folded, and both wrote a recap under one key: both answered with
+the session's own reference, the history ended at the expected 26 messages, and the surviving
+recap covered a prefix that really exists (14 of 26). Append-only history is what makes that safe;
+a recap of a prefix can go stale and never wrong, so the loser of the write race costs a repeated
+fold and never a wrong answer.
+
+### The one thing the run found that was not written down anywhere
+
+**A consumer that stops reading holds the GPU, and now a stranger's fold waits on it.** The
+reply's lease is held for the generator's whole lifetime, and the seam's credit bound
+(`CORTEX_SEAM_CONVERSE_BUFFER`) suspends generation **inside** that lease when the consumer stops
+dequeuing. That is the shipped backpressure behaving exactly as designed, and it predates the
+fold. What is new is who pays: measured at a one-credit bound with the reader stalling 12 s, the
+stalled stream's reply held the lease **16.52 s** against the 2.2 s to 3.6 s an unstalled reply
+holds it, and the next stream's **fold waited 16.51 s** behind it. The trade is real in both
+directions (the bound exists to cap a stalled stream's memory, and letting generation run ahead of
+the consumer to release the lease sooner is what it refuses to do), so it is recorded as a
+deferral rather than changed here.
+
+### Distrust green: both halves proven able to fail
+
+* **A fold that holds the lease across the reply.** A window that opens a model call and never
+  closes it, which is precisely what `drain_text` exists to prevent, deadlocked the turn: it did
+  not complete inside 30 s, and the same checker that returns an empty list above returned
+  `['leak/fold took the lease and never released it', 'leak/reply waited for the lease and never
+  got it']`. The arm asserts the NAMES and not merely the timeout, because a test that only
+  notices a hang cannot tell a deadlock from a slow model.
+* **Streams that do not overlap.** The same two streams run one after the other produced four
+  acquisitions and **zero** contentions, so the overlap proof the main arm depends on is
+  something that can genuinely come back empty.
+
+### Decision
+
+Nothing changes in the shipped code. The argument that `CORTEX_HISTORY_SUMMARY=true` is safe to
+run on the turn's critical path is now a measurement rather than a reading of the call graph, and
+what it costs under load is a number: a fold serializes with every other stream's work, and a
+reply waits out the folds ahead of it.
+
+### Deferred by this addendum
+
+One, in [session-history.md](../refinements/session-history.md): a stalled consumer holding the
+GPU lease across the whole of its reply, with the numbers above.

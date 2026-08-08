@@ -209,3 +209,20 @@ the 400 to 850 and 14.5 s to 224.5 s that held the default off, and an opening f
 five compounding folds 3 times of 3. The reasoning, the numbers and the trap that makes the token
 cap and the thinking switch one decision are in
 [ADR-0038's cheap-fold addendum](ADR-0038-ranked-recall.md).
+
+## Addendum (2026-08-08): the summarizing window's lease sequencing is measured, not argued
+
+Everything this ADR and its addenda say about the fold letting go of the GPU before the reply asks
+for it was a **sequencing argument**, re-derived from the call graph three times and never once
+run against more than one stream. It has now been measured, in
+[ADR-0038's fold-under-load addendum](ADR-0038-ranked-recall.md), by
+`packages/orchestrator/tests/test_fold_under_load_live.py`: three `Converse` streams folding at
+once over the real cortex, with every acquisition of the lease timestamped at request, grant and
+release, and the run refusing to report anything unless the streams provably contended.
+
+The argument held. No hold overlapped another, every stream's fold released before that stream's
+reply acquired, and no answer carried another session's facts. What the run adds to this ADR is
+the price, which the argument never claimed to know: a fold is one more thing every other stream's
+reply queues behind, so time to first token went from 4.6 s alone to 10.3 s, 12.0 s and 17.5 s
+across three overlapping streams, and one reply waited 5.41 s behind two folds that were not its
+own. The seam's `select` contract is unchanged by any of it.

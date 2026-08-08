@@ -99,7 +99,11 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   fold asks for no thinking and at most 512 tokens per request (a new `GenerationBounds` on
   `InferenceBackend.stream`), `CORTEX_HISTORY_RECAP_MIN_CHARS` puts a floor under a fold, and
   `HistoryWindow.select` takes a `ProgressSink` so a folding turn says so. A fold now decodes 61 to
-  163 tokens for 2.9 s to 6.2 s and the opening fact survives 3 times of 3.
+  163 tokens for 2.9 s to 6.2 s and the opening fact survives 3 times of 3. Its claim to let go of
+  the GPU before the reply asks for it stopped being a sequencing argument on 2026-08-08 (ADR-0038
+  fold-under-load addendum): measured against three overlapping `Converse` streams it held on every
+  point, and what load costs is queueing, one reply waiting 5.41 s behind two folds that were not
+  its own.
 - [ADR-0015: Output guardrail](adr/ADR-0015-output-guardrail.md): the model-independent
   laundering defense (ADR-0013 hardening deferral landed). The `TaintLedger` collects the
   URLs untrusted content carries in, an `OutputGuardrail` seam in `TurnCapabilities` redacts
@@ -338,7 +342,14 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   ones it cannot, because the two populations overlap on cosine behind both embedding models the
   repo ships a path for, so the tightest floor that silences all four unanswerable questions
   silences 6 of 22 answerable ones and guts the vocabulary-trap category. Declining is a property
-  of reading, not of ranking.
+  of reading, not of ranking. **The fold-under-load addendum** replaces the last argument this
+  ADR shipped a default on with a measurement: the summarizing window's claim to release the GPU
+  before the reply asks for it was a reading of the call graph, and three overlapping `Converse`
+  streams over the real cortex say it holds (no nested or shared lease, every fold released before
+  its own reply acquired, no session's facts in another's answer), at a price the argument never
+  claimed to know, one reply waiting 5.41 s behind two folds that were not its own. The run refuses
+  to report unless the streams provably contended, and it opened one deferral, a stalled consumer
+  holding the lease across its whole reply.
 
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 

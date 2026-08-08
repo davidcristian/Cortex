@@ -604,6 +604,12 @@ The service:
   drops otherwise, so subagent progress counts against the bound like a reply delta yet
   never stalls the subagent, and the bound does not drift (unlike the confirmer's
   control-path events, which over-credit by a documented, bounded amount).
+  **What suspending generation costs the OTHER streams** was measured 2026-08-08 and is a
+  recorded deferral (ADR-0038 fold-under-load addendum): the inference adapter holds the GPU
+  lease for its stream generator's whole lifetime, so a generation suspended at the bound is a
+  suspended generation still holding the card. At a one-credit bound with the reader stalling
+  12 s, that reply held the lease 16.52 s against the 2.2 s to 3.6 s an unstalled one holds it,
+  and the next stream's history fold waited 16.51 s behind it.
 
 **Invariants.**
 - Conversation state lives ONLY in the session store: the service holds a turn's

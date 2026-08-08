@@ -160,6 +160,35 @@ set it `false` for a deployment that would rather forget than wait, and
 dropped conversation is worth a fold. The numbers are in the
 [ADR-0038 cheap-fold addendum](../adr/ADR-0038-ranked-recall.md).
 
+## What a fold costs when several streams overlap (ADR-0038, agent-runnable)
+
+The arms above run one stream at a time. `packages/orchestrator/tests/test_fold_under_load_live.py`
+runs three at once, which is what tests the claim that the fold lets go of the GPU before the reply
+asks for it. It needs the same stack plus the base file's Redis (`just up` brings both), takes
+about two minutes, and `-s` is required because the timeline IS the measurement:
+
+```
+cd brain && CORTEX_INFERENCE_ENDPOINT=http://127.0.0.1:8080 \
+  uv run pytest -m integration --no-cov -s \
+  packages/orchestrator/tests/test_fold_under_load_live.py
+```
+
+Five arms. The first runs a solo turn for a baseline and then three concurrent `Converse` streams,
+each on its own session with its own planted fact, and prints every acquisition of the GPU lease
+with the moment it was asked for, granted and released, and whose hold it waited behind. The second
+runs two turns of ONE session at once, which is the only way to make a pair of folds race for one
+recap key. The third stalls a reader mid-reply at a one-credit bound and times what the next
+stream's fold waits. The last two are the falsification arms: a fold made to hold the lease across
+the reply, which must deadlock and be NAMED as a leak rather than merely time out, and the same two
+streams run one after the other, which must report zero contention so the overlap proof the first
+arm depends on is something that can genuinely come back empty.
+
+Read the first arm's table rather than its pass/fail: the assertions only pin what must hold
+whatever the model says. Measured 2026-08-08 on the 24 GB card: time to first token 4.6 s solo
+against 10.3 s, 12.0 s and 17.5 s across three streams, folds holding the lease 2.6 s to 2.8 s
+each, and one reply waiting 5.41 s behind two folds that were not its own. A run that reports no
+contention fails on purpose, because concurrent streams that never overlap have measured nothing.
+
 ## What the two other in-turn model passes cost (ADR-0021/ADR-0038, agent-runnable)
 
 The history fold is not the only pass whose thinking is thrown away before anyone reads it. The
