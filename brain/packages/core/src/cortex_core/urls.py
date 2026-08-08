@@ -21,8 +21,8 @@ def _entity_forms(char: str) -> tuple[str, ...]:
     """
     point = ord(char)
     return (
-        rf"&#0*{point}(?:;|(?![0-9]))",
-        rf"&#x0*{point:x}(?:;|(?![0-9a-f]))",
+        rf"&#0*{point}(?:;|(?![0-9;]))",
+        rf"&#x0*{point:x}(?:;|(?![0-9a-f;]))",
         rf"(?-i:&{_ENTITY_NAMES[char]};)",
     )
 
