@@ -472,10 +472,16 @@ safety default.
   so the cortex sits under it with headroom to spare: 5.4 GiB, since the reservation was
   re-measured to 8.6 GiB on 2026-08-07 (the co-residency bullets below and the
   [ADR-0012](../adr/ADR-0012-resource-governance.md) re-measured-reservation addendum). The
-  embedder and subagents still run on **CPU** (ADR-0004 addendum, not a relaxed envelope).
+  embedder still runs on **CPU** (ADR-0004 addendum, not a relaxed envelope), and so do subagents
+  wherever the placer sends them until a deployment opts the GPU tier in.
 - **Placement:** cortex → GPU (8.6 GiB reserved, 5.4 GiB under the 14 GB cap), embedder → CPU (`CORTEX_NGL=0`),
-  subagents → CPU (a dynamic pool the cortex sizes within budget), brain → hybrid if it
-  doesn't fit. All per-`llama-server` flags, no core change (ADR-0004 addendum).
+  subagents → a dynamic pool the cortex sizes within budget, of which the first spawn is
+  GPU-placed since the ask was measured to 3.5 GiB on 2026-08-08 and the rest overflow, brain →
+  hybrid if it doesn't fit. All per-`llama-server` flags, no core change (ADR-0004 addendum).
+  A GPU **verdict** is not a GPU **process**: `CORTEX_SUBAGENTS_GPU_ENDPOINT` still defaults to the
+  CPU server, so a stack that has not named `CORTEX_MODEL_FILE_SUBAGENT_GPU` and repointed that
+  endpoint executes the GPU-placed spawn on the CPU one, deliberately (docker-compose.gpu.yml's
+  three-setting checklist).
 - **The cortex reservation, re-measured 2026-08-07** and lowered from 11.3 GB to **8.6 GiB**, which
   is the number the placer subtracts from the soft cap on every spawn. Procedure, so a later sitting
   can reproduce it: bring the stack up with the projector named
@@ -496,6 +502,23 @@ safety default.
   resident and serving, so total used minus a bracketed floor is the only instrument and a floor
   read once and reused is the error to avoid. Argument, margin and consequences:
   [ADR-0012](../adr/ADR-0012-resource-governance.md)'s re-measured-reservation addendum.
+- **The subagent VRAM ask, measured 2026-08-08** and moved from a placeholder 5.5 GB to **3.5 GiB**,
+  which is what the placer fit-tests against the headroom the reservation above leaves. Procedure:
+  bring the stack up with the GPU-placed subagent tier named
+  (`CORTEX_MODEL_FILE_SUBAGENT_GPU=google/gemma-4-E4B-it-qat-q4_0-gguf/gemma-4-E4B_q4_0-it.gguf`)
+  and the control API published (`just up-modelhost-loopback` plus the subagents override), leave
+  the cortex resident, read the tier's real argv out of `/proc` in the sidecar rather than trusting
+  the compose file, and sample `nvidia-smi --query-gpu=memory.used` every 0.2 s while stopping the
+  tier, starting it, driving both of its slots to their own context limit, and stopping it again.
+  The numbers: floor with the tier stopped **10448 to 10500 MiB** before and **10428 to 10493 MiB**
+  after, agreeing within 20 MiB; ready **7.07 s** after `start`; idle 13728 to 13803; twelve
+  requests with four in flight, each reporting 3803 prompt tokens and 293 decoded for exactly the
+  4096 of one slot's half of the 8192 KV, peaking at **13838 MiB**. So the tier's own cost is
+  **3338 to 3410 MiB** depending which end of the floor bracket you charge it against, and the work
+  allocates nothing at all beyond the load, this tier carrying no projector. The ask is 174 MiB
+  above the conservative peak; argument and margin in the
+  [ADR-0012](../adr/ADR-0012-resource-governance.md) measured-ask addendum, placement procedure in
+  [subagents-cpu.md](subagents-cpu.md) section 2c.
 - **Co-residency of the cortex and a GPU-placed subagent, measured 2026-08-04** on a card that holds
   the tiers, through the `model-host` sidecar with the subagent tier opted in
   (`CORTEX_MODEL_FILE_SUBAGENT_GPU`, `-ngl 99 --ctx-size 8192 --parallel 2` on `:8083`). `nvidia-smi`

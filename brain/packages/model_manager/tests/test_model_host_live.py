@@ -42,8 +42,6 @@ _ARM_TIMEOUT_S = 5.0
 # The control plane's own deadline, matching the brain's CORTEX_MODELHOST_TIMEOUT_S default: a stop
 # answers only once the child is reaped, so this must clear the sidecar's grace plus reap bounds.
 _CONTROL_TIMEOUT_S = 60.0
-# The deep tier's measured cost and the shipped subagent ask, both in the units their own knobs
-# use (CORTEX_SWAP_BRAIN_VRAM_MIB, CORTEX_SUBAGENTS_VRAM_GB).
 _DEEP_TIER_MIB = 19125
 _SPAWN_GB = 5.5
 

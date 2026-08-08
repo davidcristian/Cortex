@@ -117,15 +117,18 @@ belongs to the roster override's second CPU server). Take it down with `just dow
 
 Then the two arms, which select themselves from the budget in the environment and skip otherwise:
 
+Since the ask was measured on 2026-08-08 the **shipped** budget selects the GPU arm, so that arm
+needs nothing overridden and the CPU one is the arm that now has to be arranged for:
+
 ```bash
 cd brain
-# the GPU arm: a soft cap sized to the real card, so the ask fits the headroom once
+# the GPU arm: the shipped budget, whose 5.4 GiB of headroom holds exactly one 3.5 GiB ask
 CORTEX_SUBAGENTS_ENDPOINT=http://127.0.0.1:8082 CORTEX_SUBAGENTS_GPU_ENDPOINT=http://127.0.0.1:9083 \
-  CORTEX_SUBAGENTS_VRAM_GB=5.5 CORTEX_VRAM_SOFT_CAP_GB=20 \
   uv run pytest -m integration --no-cov packages/orchestrator/tests/test_subagent_gpu_live.py
-# the CPU arm: the shipped soft cap, whose headroom the same ask exceeds
+# the CPU arm: a soft cap the same ask cannot fit, which is the overflow path every deployment
+# below this card's size takes
 CORTEX_SUBAGENTS_ENDPOINT=http://127.0.0.1:8082 CORTEX_SUBAGENTS_GPU_ENDPOINT=http://127.0.0.1:9083 \
-  CORTEX_SUBAGENTS_VRAM_GB=5.5 \
+  CORTEX_VRAM_SOFT_CAP_GB=11 \
   uv run pytest -m integration --no-cov packages/orchestrator/tests/test_subagent_gpu_live.py
 ```
 
@@ -139,15 +142,25 @@ docker compose --project-directory . -f docker/docker-compose.yml -f docker/dock
   -f docker/docker-compose.subagents.yml logs model-host | grep -c launch_slot_
 ```
 
-**Measured here on 2026-08-04**, cortex resident throughout. The GPU arm (headroom 8.7 GB against
-the 5.5 GB ask) placed one of two concurrent spawns on the tier and overflowed the other: the tier
-answered in **221.05 ms** (18 prompt tokens at 104.83 tok/s, 4 generated at 81.07 tok/s) against
-**12536.83 ms** on the CPU server, a ratio no core-side arrangement could fake. The CPU arm (the
-shipped 14 GB cap, headroom 2.7 GB) overflowed both and left the tier's count unmoved. **Distrust
-green here:** point `CORTEX_SUBAGENTS_GPU_ENDPOINT` at a closed port under the GPU-arm budget and
-the run must **fail** with three placements and a "a GPU-placed subagent did not answer" warning,
-which is the ADR-0012 CPU re-place doing its job. A suite that passes that way is measuring
-nothing.
+**Measured here on 2026-08-04**, cortex resident throughout, when both arms still needed a raised
+cap to reach the GPU. The GPU arm (headroom 8.7 GB against the then 5.5 GB ask) placed one of two
+concurrent spawns on the tier and overflowed the other: the tier answered in **221.05 ms** (18
+prompt tokens at 104.83 tok/s, 4 generated at 81.07 tok/s) against **12536.83 ms** on the CPU
+server, a ratio no core-side arrangement could fake. The CPU arm (the shipped 14 GB cap, headroom
+2.7 GB) overflowed both and left the tier's count unmoved. **Distrust green here:** point
+`CORTEX_SUBAGENTS_GPU_ENDPOINT` at a closed port under the GPU-arm budget and the run must **fail**
+with three placements and a "a GPU-placed subagent did not answer" warning, which is the ADR-0012
+CPU re-place doing its job. A suite that passes that way is measuring nothing.
+
+**Re-run on 2026-08-08 against the measured ask**, which is the run the commands above now
+describe. Under the old 5.5 the GPU arm could not even select itself (it skips with "ask=5.5 GB
+against headroom=5.4 GB"), the CPU arm passed with both spawns on the CPU server, and the tier's
+`launch_slot_` count did not move. With nothing overridden the arms swap: the GPU one passes, the
+tier's count moves by exactly one, and that spawn answers in **152.11 ms** (18 prompt tokens at
+152.54 tok/s, 3 generated at 87.95 tok/s) against **13134.73 ms** for the sibling that overflowed.
+The CPU arm at `CORTEX_VRAM_SOFT_CAP_GB=11` (headroom 2.4 GiB, under the ask) passes with the count
+still unmoved. The closed-port proof was taken again first and still reddens the GPU arm on three
+placements with the re-place warning.
 
 ## 3. Validate cortex-driven delegation (full stack, needs the GPU cortex)
 

@@ -21,7 +21,7 @@ class SubagentRosterEntry(BaseModel):
 
     endpoint: str = Field(min_length=1)
     gpu_endpoint: str = ""
-    vram_gb: float = Field(default=2.0, gt=0)
+    vram_gb: float = Field(default=3.5, gt=0)
     cpus: float = Field(default=2.0, gt=0)
     memory_gb: float = Field(default=2.0, gt=0)
     description: str = ""
@@ -37,7 +37,7 @@ class SubagentsConfig(BaseSettings):
     gpu_endpoint: str = ""
     model: str = DEFAULT_SUBAGENT_MODEL
     model_description: str = DEFAULT_SUBAGENT_DESCRIPTION
-    vram_gb: float = Field(default=2.0, gt=0)
+    vram_gb: float = Field(default=3.5, gt=0)
     cpus: float = Field(default=2.0, gt=0)
     memory_gb: float = Field(default=2.0, gt=0)
     cpu_budget: float = Field(default=4.0, gt=0)

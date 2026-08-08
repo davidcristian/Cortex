@@ -383,6 +383,17 @@ zero core change (ADR-0004's placement logic). Recorded refinements, not v1: co-
 and placement-aware charging, which reopens with a second GPU-capable executor per its
 ADR-0012 addendum.
 
+**The opening premise of this decision is no longer true and the decision is unchanged
+(2026-08-08).** Both of its standing terms have since been measured on the card this repo runs:
+the cortex reservation is 8.6 GiB rather than 11.3 and the subagent ask 3.5 GiB rather than 5.5
+([ADR-0012](ADR-0012-resource-governance.md)'s re-measured-reservation and measured-ask addenda),
+so the headroom is 5.4 GiB, the ask fits it, and the standing GPU carries the cortex **and** one
+GPU-placed subagent rather than the cortex alone. Nothing above depends on that: the deep model
+still does not fit beside either, the swap still evicts every listed tier unless
+`CORTEX_SWAP_CORESIDENT` says the card was measured to hold the pair, and the window still
+suspends the cap. What changes is only which sentence describes today: the shipped stack now has a
+GPU-placed subagent for a handoff to evict, where when this was written it had none.
+
 ### 9. Implementation slicing: seven vertical slices, each green and committable
 
 1. **S11.a, the record.** `HandoffRecord` + `HandoffStore` port + core fake + contract test +

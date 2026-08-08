@@ -531,6 +531,14 @@ not happen either: with both tiers generating at once the cortex fell from 71.82
 the subagent from 96.96 to 63.50, which is contention rather than degradation, and through the
 spawn batch itself the cortex answered at 61.71 tok/s and its tier never left READY.
 
+**Both halves of that arithmetic were corrected within four days, which is this item's finding
+being acted on rather than revised.** The cortex reservation went to 8.6 GiB on 2026-08-07,
+measured at the shipped tier shape and covering a peak rather than an idle reading, and the
+subagent ask to 3.5 GiB on 2026-08-08, measured on this tier with the floor bracketed at both ends
+of the session. So the pair claims 12.1 GB where it claimed 16.8, the shipped 14 GB soft cap holds
+both, and a spawn is GPU-placed on the shipped stack for the first time. The paragraph above is
+kept as the record of what the numbers were when this item closed.
+
 **What it deliberately did not do**, both named because this item's own recipe asked for them.
 `CORTEX_SWAP_EVICT_MODELS` was left unset: what it buys is a handoff stopping the tier before the
 deep model loads, which is items 2 to 4's territory and needs the overlay they wait on. And the

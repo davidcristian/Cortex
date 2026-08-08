@@ -165,8 +165,11 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   overflow `llama-server`) **and** `gpu_endpoint` (the GPU one), which are both required when
   `llamacpp`; `model` (`CORTEX_SUBAGENTS_MODEL`); one subagent's resource ask `vram_gb` /
   `cpus` / `memory_gb` and the soft admission ceilings `cpu_budget` / `mem_budget_gb`
-  (defaults are GPU-less-safe placeholders; the maintainer measures real numbers on the host).
-  Set by `docker/docker-compose.subagents.yml`. The flat fields define the roster's
+  (`vram_gb` defaults to the measured **3.5** GiB, above the 3338 to 3410 MiB the GPU-placed tier
+  costs at its shipped shape, so one spawn fits the 5.4 GiB headroom and the next overflows,
+  ADR-0012 measured-ask addendum; the rest are GPU-less-safe placeholders the maintainer measures
+  on the host). Set by `docker/docker-compose.subagents.yml`, which declares the same 3.5 and is
+  tied to this default by nothing but the two comments that say so. The flat fields define the roster's
   **default entry** (the robust ADR-0004 pick; `model_description` /
   `CORTEX_SUBAGENTS_MODEL_DESCRIPTION` is its advertised text); each
   `CORTEX_SUBAGENTS_ROSTER__<name>` adds one **alternate** model as a JSON

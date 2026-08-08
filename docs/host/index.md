@@ -297,7 +297,11 @@ are W+G**, marked on each line:
    11110 MiB of the card free, while the shipped placeholders claim 16.8 GB for them, so the
    arithmetic and not the card is why no spawn had ever been GPU-placed. The numbers live in the
    [ADR-0012](../adr/ADR-0012-resource-governance.md) fit addendum and the measured table of
-   [runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md).
+   [runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md). **The "16.8 GB" is the record of what
+   the placeholders claimed that day and stopped being true afterwards:** the reservation was
+   re-measured to 8.6 GiB on 2026-08-07 and the ask to 3.5 GiB on 2026-08-08, so the pair now claims
+   12.1 GB, sits inside the same 14 GB cap, and the shipped stack GPU-places a spawn. That is this
+   item's own finding carried out rather than a correction of it.
 7. **The cgroup cap numbers.** **G.** Independent, but best done under item 2's load, which is the
    only realistic one, so in practice it happens in the sitting that has both capabilities.
 
