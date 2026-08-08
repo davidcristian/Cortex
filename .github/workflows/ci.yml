@@ -3,8 +3,8 @@
 # Path filtering is a fail-closed in-repo classifier (scripts/ci_paths.py,
 # ADR-0006): unknown paths run both toolchains, and if the diff range cannot be
 # determined we also run both. The cross-tree scans (the 300-line cap, the
-# punctuating-dash ban, and the cross-language constant check) are exempt from the
-# filter and always run. Every action is pinned to a full commit SHA
+# punctuating-dash ban, the cross-language constant check, and the compose bind
+# check) are exempt from the filter and always run. Every action is pinned to a full commit SHA
 # with a version comment; dependabot (.github/dependabot.yml) keeps the pins fresh.
 name: CI
 
