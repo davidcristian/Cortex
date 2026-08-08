@@ -333,6 +333,12 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   cosine's nearest misses, and it now returns nothing on the `DEMUR` basis, which the trail reports
   as a refusal rather than as a fallback (measured: the four unanswerable questions return nothing
   4 of 4, the run falls back 0 of 26 against 4, and the ranking on the answerable 22 is unchanged).
+  **The relevance-floor addendum** declines the geometric analogue of that refusal, and its
+  calibration is why: a similarity floor cannot separate the questions memory can answer from the
+  ones it cannot, because the two populations overlap on cosine behind both embedding models the
+  repo ships a path for, so the tightest floor that silences all four unanswerable questions
+  silences 6 of 22 answerable ones and guts the vocabulary-trap category. Declining is a property
+  of reading, not of ranking.
 
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 

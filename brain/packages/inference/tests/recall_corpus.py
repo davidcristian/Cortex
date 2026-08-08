@@ -29,6 +29,9 @@ where the right behaviour is to return nothing at all:
             rank prompt does not carry timestamps and neither ranking may be credited for one.
 `CLAUSE`    the answer is a subordinate clause of a note whose topic is something else, so the
             note as a whole sits away from the question even though the sentence inside it hits.
+
+`UNRELATED` at the foot of the file is a third population outside `QUESTIONS` entirely, added by
+the relevance-floor calibration: questions about subjects no note touches at all.
 """
 
 from enum import Enum
@@ -152,3 +155,20 @@ QUESTIONS: dict[str, tuple[str | None, Category]] = {
     "which day does the pager rota change hands?": ("incident", Category.CLAUSE),
     "what temperature does the bread go in at?": ("recipe", Category.CLAUSE),
 }
+
+# A third population, and deliberately NOT a `Category` in `QUESTIONS` above: adding it there
+# would silently move every number every earlier run of this corpus published. `ABSENT` questions
+# are unanswerable *and adjacent*, each sitting beside notes the corpus does hold, which is what
+# makes them hard. These are unanswerable and unrelated: nothing here shares a subject with any
+# note, so they are the easiest possible case for a policy that decides by distance alone. Used by
+# `test_recall_floor_live.py` to ask what a similarity floor can catch at its very best.
+UNRELATED: tuple[str, ...] = (
+    "what is the atomic weight of tungsten?",
+    "who won the world cup in 1998?",
+    "how do I sharpen a chisel without a jig?",
+    "what year did the Bronze Age end in northern Europe?",
+    "is a tomato botanically a fruit?",
+    "how deep is the Mariana Trench?",
+    "what does a semicolon do in a for loop?",
+    "why do cats knead blankets?",
+)
