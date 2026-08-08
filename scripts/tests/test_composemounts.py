@@ -70,6 +70,18 @@ def test_a_second_service_reopens_a_block_after_the_first_closes() -> None:
     assert read_mounts(text) == [Mount(line=4, source="./one"), Mount(line=8, source="./two")]
 
 
+def test_a_flush_sequence_is_read_rather_than_walked_past() -> None:
+    """Compose accepts items at their key's own indent, and a whole such block used to vanish."""
+    text = "services:\n  a:\n    volumes:\n    - type: bind\n      source: ./x\n"
+    assert read_mounts(text) == [Mount(line=4, source="./x")]
+
+
+def test_a_flush_sequence_still_closes_on_the_next_key_beside_it() -> None:
+    """The block ends at the first line that is not one of its items, flush or not."""
+    text = 'services:\n  a:\n    volumes:\n    - ./x:/y\n    ports:\n    - "1:2"\n'
+    assert read_mounts(text) == [Mount(line=4, source="./x")]
+
+
 def test_nothing_outside_a_volumes_block_is_read() -> None:
     assert read_mounts("services:\n  a:\n    command:\n      - ./not-a-mount\n") == []
 
@@ -85,6 +97,10 @@ def test_nothing_outside_a_volumes_block_is_read() -> None:
         ("services:\n  a:\n    volumes:\n      - loose\n", "is not source:target"),
         ("services:\n  a:\n    volumes:\n      - type: bind\n        loose\n", "not a mount key"),
         ("services:\n  a:\n    volumes:\n      - v:/d\n        stray: true\n", "not a mount key"),
+        # Flow style: the long syntax written inline, whose first field would otherwise pass for
+        # a named volume and take a live bind mount with it.
+        ("services:\n  a:\n    volumes:\n      - {type: bind, source: ./x}\n", "flow-style"),
+        ("services:\n  a:\n    volumes:\n      - [./x, /y]\n", "flow-style"),
     ],
 )
 def test_a_shape_it_was_not_taught_is_refused(text: str, reason: str) -> None:

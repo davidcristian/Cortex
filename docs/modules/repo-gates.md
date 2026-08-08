@@ -48,10 +48,19 @@ unit-tested core function). `composemounts.py` is the one module that is not a C
   **A `Site` declares the value** (a repo-relative path plus the identifier declared in it) and is
   read and compared. **A `Mention` spends it without declaring it** (a path plus a template
   carrying `{value}`): the scan renders the agreed value into the template and requires the result
-  to appear in the file. That is not circular, since the template carries the shape and the site
-  carries the value, and it is what lets the gate reach a key spelled inside a shell string, a
-  custom property a stylesheet reads back with `var(...)`, and a bare literal a component compares
-  against, with no promotion to a named constant first.
+  to appear in the file **as a token of its own**, `bounded()` guarding whichever of the needle's
+  two edges is itself a word character. That is not circular, since the template carries the shape
+  and the site carries the value, and it is what lets the gate reach a key spelled inside a shell
+  string, a custom property a stylesheet reads back with `var(...)`, and a bare literal a component
+  compares against, with no promotion to a named constant first.
+  **Bounded, and written to cover the whole of what it pins.** Bare containment passed on two real
+  violations: a value that is a prefix of the one written down (`5005` inside `50051`), which the
+  bound now refuses, and a published `host:container` port pair whose host half alone carried the
+  needle, which is a template question rather than a matcher one, so the compose publish is
+  registered as `"127.0.0.1:{value}:{value}"` and the healthcheck dial beside it as its own
+  mention. A mention remains a presence check and not a census: a file spending the value twice
+  and losing one occurrence still passes, since what an entry ties is the spelling and not the
+  count.
   **`Relation`** is `EQUAL` by default; `ORDERED` holds an entry's sites to non-decreasing order
   in registry order, for a bound that must sit under another rather than match it. An ordering
   compares numbers only (a string under one is a fault), and it may carry no mentions, there being
@@ -85,7 +94,11 @@ unit-tested core function). `composemounts.py` is the one module that is not a C
   against BOTH project directories compose can pick, the repo root (what the `just` recipes pass)
   and the compose file's own directory (what a bare `docker compose -f docker/...` uses), which
   is why the repo's ignore entries for these paths are unanchored; an anchored `/models/` is
-  reported. Compose files are found by name anywhere under `--root` (stem `docker-compose`/
+  reported. **Both questions are asked per landing**, never once for the mount: a source can name
+  an input the repo ships under one project directory and nothing at all under the other, and it
+  is the second landing that a compose run creates. That is why `.gitignore` carries
+  `docker/docker/`, where `./docker/postgres/init.sql` and its two neighbours resolve when the
+  project directory is `docker/`. Compose files are found by name anywhere under `--root` (stem `docker-compose`/
   `compose`, suffix `.yml`/`.yaml`), skipping the vendored directory components, so a new override
   is covered wherever it is added. **Fails closed**: no compose file at all, a mount entry the
   reader refuses, a source that cannot be reduced, and a git that cannot run are each a fault,
@@ -97,9 +110,12 @@ unit-tested core function). `composemounts.py` is the one module that is not a C
   top-level `volumes:` mapping. It is a line walk, not a YAML parse, because these gates are
   stdlib-only; it stays honest about that by raising `ComposeReadError` on every shape it was not
   taught (an inline `volumes: [...]`, a mount with no `type`, an unknown type, a bind with no
-  `source`, a short-syntax entry carrying an expansion, a stray line inside a block). The one YAML
-  rule it leans on is that a mapping needs a space after its colon, which is what tells
-  `type: bind` from the short-syntax scalar `redis-data:/data`.
+  `source`, a short-syntax entry carrying an expansion, a flow-style entry opening with `{` or
+  `[`, a stray line inside a block). The one YAML rule it leans on is that a mapping needs a space
+  after its colon, which is what tells `type: bind` from the short-syntax scalar
+  `redis-data:/data`. The second is that a sequence may be written **flush**, its items at the
+  indent of the key they belong to, which compose accepts and this reader now walks: a block ends
+  at a line shallower than its key, or at one beside the key that is not a list item.
 - `coverage_gate.py PATH` reads a `cargo llvm-cov --json --summary-only` export,
   requires exactly one `data[]` entry, and gates each of
   `data[0].totals.{lines,regions,branches}` on `covered == count` (the producer's

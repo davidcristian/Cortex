@@ -3180,7 +3180,12 @@ trigger and with a rule this bucket had wrong: comparing the bind defaults again
 would have failed on the three binds that point at files the repo ships, so what shipped is
 outside the repo, or tracked, or ignored, over every bind mount rather than only the
 `${VAR:-./path}` ones, since a plain `source: ./cache` added later is the very case the trigger
-named ([repo-gates.md](repo-gates.md)).
+named ([repo-gates.md](repo-gates.md)); and a mention counting nothing, opened 2026-08-08 when the
+matcher was bounded, since one occurrence satisfies a template however many times the file spends
+the value, so `Message.tsx` comparing against `"thinking"` twice can lose one of them with the gate
+green, the word boundary having been chosen over a count because a count would redden on every new
+stylesheet rule about a coupling that never moved, and its trigger being a mention whose
+occurrences are genuinely a set that has to move together ([repo-gates.md](repo-gates.md)).
 
 Four entries opened by the brain-handoff sub-slices were written up in their area docs and in the
 narrative above but had no line here until 2026-07-19, so nothing said when to pick them up.

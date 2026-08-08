@@ -39,3 +39,9 @@ sandbox/
 # reachable too.
 pgdata/
 models/
+
+# The same second project directory, for the binds that name a repo input rather than an output.
+# ./docker/postgres/init.sql and its two neighbours resolve to docker/docker/postgres/... when the
+# project directory is docker/, where the repo ships nothing, so compose would create that phantom
+# nest instead of finding the file. Anchored, because only the one under docker/ is phantom.
+docker/docker/

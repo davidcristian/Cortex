@@ -74,8 +74,21 @@ def test_an_ignored_default_is_accounted_for(repo: Path) -> None:
 
 def test_a_tracked_input_needs_no_ignore_rule(repo: Path) -> None:
     """Not "every default must be gitignored": compose finds an input rather than making one."""
-    _compose(repo, "./docker/seed.sql")
+    _compose(repo, "./docker/seed.sql", name="docker-compose.yml")
     assert bindcheck.check(repo) == []
+
+
+def test_a_tracked_landing_does_not_speak_for_the_other_one(repo: Path) -> None:
+    """The exemption is per landing, not per mount, which is how a shipped input hid a phantom.
+
+    The same source under the `docker/` project directory resolves to `docker/docker/seed.sql`,
+    where the repo ships nothing, so that landing is a directory a compose run creates. Reading
+    the tracked landing as an answer for both left it unreported.
+    """
+    _compose(repo, "./docker/seed.sql")
+    faults = bindcheck.check(repo)
+    assert len(faults) == 1
+    assert "'docker/docker/seed.sql'" in faults[0].detail
 
 
 def test_an_unignored_default_is_reported_at_both_landings(repo: Path) -> None:

@@ -1468,11 +1468,41 @@ registry order". The comparator field being read rather than decorative: the sam
 entries flipped to `Relation.EQUAL` both exit 1 on values that pass as orderings, which is the
 proof the field decides something. The mention, in both directions: renaming `--ceiling` in
 `overlay.css` exits 1 with "does not spell 'var(--ceiling,'", and renaming `CEILING_PROPERTY` in
-the TypeScript exits 1 with "does not spell 'var(--roof,'". The bare literal: one of
-`Message.tsx`'s two `"thinking"` comparisons mistyped exits 1. The string-embedded copy: the
-healthcheck's `x-cortex-seam-token` mistyped exits 1. The port: `DEFAULT_SEAM_PORT` moved to
-50052 exits 1 three times, naming the compose file and both host-shell files. Every one reverted
-to "crosscheck OK: 14 cross-tree constant(s) under .. agree".
+the TypeScript exits 1 with "does not spell 'var(--roof,'". The bare literal: `THINKING_STATE`
+renamed to `"deliberating"` exits 1 twice, naming `turnState.ts` and `Message.tsx`. The
+string-embedded copy: the healthcheck's `x-cortex-seam-token` mistyped exits 1. The port:
+`DEFAULT_SEAM_PORT` moved to 50052 exits 1 four times, naming the compose publish, the compose
+healthcheck and both host-shell files. Every one reverted to "crosscheck OK: 14 cross-tree
+constant(s) under .. agree".
+
+**One of those proofs was published in a form that could not have run**, and correcting it is
+worth more than quietly restating it. It read "one of `Message.tsx`'s two `"thinking"`
+comparisons mistyped exits 1". That file carries the comparison on two adjacent lines, a mention
+asks whether the file spells the value at all, and mistyping one of two leaves the other standing:
+re-run today, that mutation exits 0. Mistyping **both** exits 1, and so does the rename at the
+declaring site, which is the drift a mention is for. The limit is now stated where the behaviour
+is: a mention is a presence check and not a census.
+
+### Bounded matching (2026-08-08): a mention that is contained is not a mention that is spelled
+
+A rendered needle was looked for with `in`, and two violations passed it. **A prefix:**
+`DEFAULT_SEAM_PORT` changed to 5005 left `127.0.0.1:5005` inside `127.0.0.1:50051` and the gate
+agreed, which is why 50052 exiting 1 had looked like proof. **A half of a pair:** the compose
+publish is `"127.0.0.1:50051:50051"`, `host:container`, and this value names the container half,
+so a template of `127.0.0.1:{value}` was satisfied by the host half alone and the container half
+could move to 50052 with the gate green and the stack publishing to a dead port.
+
+Two changes, because they are two different faults. The matcher now bounds a needle at whichever
+of its edges is itself a word character (`crosscheck.bounded`), a word boundary rather than an
+occurrence count: counting would tie a registry entry to how many times a stylesheet happens to
+spend a custom property, which is churn without a coupling behind it. And the registry now spells
+the whole of what it pins, `"127.0.0.1:{value}:{value}"` for the publish with the healthcheck's
+`insecure_channel('127.0.0.1:{value}')` beside it as its own mention, and the two host-shell
+endpoints quoted whole. Proven able to fail, on the real tree: the container half alone moved to
+50052 exits 1 naming the publish; `DEFAULT_SEAM_PORT` at 5005 exits 1 four times; a
+`MORPHING_ATTRIBUTE` shortened to `"data-morphin"` exits 1 where containment would have found it
+inside `[data-morphing]`. All three reverted to "crosscheck OK: 14 cross-tree constant(s) under ..
+agree".
 
 ## Addendum (2026-08-06): what a 4K desktop is actually legible at, and what the knob costs
 
