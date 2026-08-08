@@ -3,13 +3,16 @@
 from dataclasses import dataclass
 
 from cortex_core.body import ScreenCapture
+from cortex_core.body_failure import body_failure_message
 from cortex_core.errors import BodyGatewayError
 from cortex_core.ports import BodyGateway
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
 
 CAPTURE_SCREEN_TOOL_NAME = "capture_screen"
 
-_UNREACHABLE = "could not reach the body to capture the screen"
+# The infinitive the shared per-kind lead completes, so a refused capture says the body refused
+# and only a capture that never reached the body says so.
+_ACTION = "capture the screen"
 
 _DESCRIPTION = (
     "Take a picture of the user's primary display and look at it. Use this when the user asks "
@@ -67,7 +70,7 @@ class CaptureScreenTool:
         except BodyGatewayError as err:
             return ToolResult(
                 call_id=call.id,
-                content=f"{_UNREACHABLE}: {err}",
+                content=body_failure_message(err, action=_ACTION),
                 is_error=True,
                 trust=Trust.TRUSTED,
             )

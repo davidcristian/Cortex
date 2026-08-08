@@ -9,6 +9,8 @@ state (the one hard rule). The composition root owns the channel's lifecycle.
 
 **Public contract** (`__all__` is the API):
 
+- `kind_of(err) -> BodyFailure` classifies one `AioRpcError` into the port's error currency; it
+  is the single table every call routes its failures through (see the error contract below).
 - `GrpcBodyGateway(channel, *, token="", capture_timeout_s=10.0)` is a `BodyGateway`.
   - `get_volume() -> VolumeState` calls `BodyService.GetVolume`, maps the wire `VolumeState`
     to the core value.
@@ -59,11 +61,25 @@ recorded as a decision rather than built as code: a re-capture photographs a dif
 possibly after the user switched windows, so it neither reproduces the answer nor leaves the
 world unchanged, and it would fire a second host receipt for one user intent.
 
-**Error contract.** Every gRPC failure (the body unreachable, a non-OK status
-(`UNAVAILABLE`/`UNAUTHENTICATED`/`INTERNAL`)) is caught as `grpc.aio.AioRpcError` and re-raised
-as `BodyGatewayError` with the cause chained (and the status detail in the message). The volume
-tools (`cortex_core`) catch it and return an `is_error` result the cortex can recover from. A
-dead body is a message, never a turn-killing exception.
+**Error contract.** Every gRPC failure (the body unreachable, a non-OK status) is caught as
+`grpc.aio.AioRpcError` and re-raised as `BodyGatewayError` with the cause chained (and the status
+detail in the message) **and the status classified into a `BodyFailure` kind** by `kind_of`
+(`failures.py`), which is the whole reason the core can word a refusal as a refusal. The table:
+
+| Status | Kind |
+| --- | --- |
+| `UNAVAILABLE`, `DEADLINE_EXCEEDED` | `UNREACHABLE` |
+| `PERMISSION_DENIED`, `UNAUTHENTICATED` | `REFUSED` |
+| `UNIMPLEMENTED` | `UNSUPPORTED` |
+| `FAILED_PRECONDITION` | `UNREADY` |
+| `RESOURCE_EXHAUSTED` | `OVERSIZE` |
+| anything else, and every refusal raised here rather than received | `FAULTED` |
+
+`UNAVAILABLE` is reserved for a call that never arrived, which is what the body-side mapping
+guarantees by never spending that code (ADR-0023's 2026-08-08 addendum); grpc-python cannot tell
+a locally synthesized status from a sent one, so the reservation is the only way the distinction
+survives. The volume and capture tools (`cortex_core`) catch the error and return an `is_error`
+result the cortex can recover from. A dead body is a message, never a turn-killing exception.
 
 **Invariants.**
 - Stateless per call; the adapter holds only its stub + prebuilt metadata (the one hard rule).
@@ -74,7 +90,8 @@ dead body is a message, never a turn-killing exception.
   checks against the real Rust body are `integration`-marked (per
   `docs/runbooks/body-volume.md`).
 
-**Dependencies.** cortex-core (the `BodyGateway` port, `VolumeState` value, `BodyGatewayError`),
+**Dependencies.** cortex-core (the `BodyGateway` port, `VolumeState` value, `BodyGatewayError`
+and its `BodyFailure` kind),
 cortex-seam (the `BodyServiceStub` + volume wire messages + `SEAM_TOKEN_HEADER`), grpcio (the
 async channel). The composition root (`cortex_orchestrator.wiring`) builds the channel from
 `CORTEX_BODY_ENDPOINT` and injects the shared `CORTEX_SEAM_TOKEN`.

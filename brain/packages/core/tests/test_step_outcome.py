@@ -9,6 +9,7 @@ import pytest
 
 from cortex_core import (
     CAPTURE_SCREEN_TOOL_NAME,
+    BodyFailure,
     BodyGatewayError,
     CaptureScreenTool,
     DispatchPolicy,
@@ -31,11 +32,13 @@ from cortex_core.loop_events import StepOutcome, ToolStep
 from cortex_core.tool_budget import DispatchBudget
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
 
-# The body's own answer when the host kill switch is off AND when the overlay could not exclude
-# itself: both wire `DeniedScreenCapture`, which answers `CaptureError::Disabled`, so the two
-# failure modes are one string by the time the brain sees them.
-_DISABLED = "body capture_screen failed: screen capture is disabled on this host"
-_TIMED_OUT = "body capture_screen failed: Deadline Exceeded"
+_DISABLED = BodyGatewayError(
+    "body capture_screen failed: screen capture is disabled on this host",
+    kind=BodyFailure.REFUSED,
+)
+_TIMED_OUT = BodyGatewayError(
+    "body capture_screen failed: Deadline Exceeded", kind=BodyFailure.UNREACHABLE
+)
 
 
 class _Clock:
@@ -133,7 +136,7 @@ async def test_a_capture_that_reached_the_model_settles_ok() -> None:
 
 
 @pytest.mark.parametrize(
-    ("mode", "detail"),
+    ("mode", "failure"),
     [
         ("the host kill switch refused", _DISABLED),
         ("the overlay's self-exclusion failed closed", _DISABLED),
@@ -141,11 +144,11 @@ async def test_a_capture_that_reached_the_model_settles_ok() -> None:
     ],
 )
 async def test_a_capture_the_body_refused_or_never_answered_settles_not_ok(
-    mode: str, detail: str
+    mode: str, failure: BodyGatewayError
 ) -> None:
     """Three of the four modes the entry named."""
     del mode
-    yielded, audit = await _capture_turn(body=InMemoryBodyGateway(fail=BodyGatewayError(detail)))
+    yielded, audit = await _capture_turn(body=InMemoryBodyGateway(fail=failure))
 
     assert _steps(yielded) == [
         ToolStep(tool_name=CAPTURE_SCREEN_TOOL_NAME, summary=_steps(yielded)[0].summary)
@@ -350,7 +353,7 @@ async def test_the_capture_that_reached_the_model_is_the_one_that_settles_ok() -
     tool = CaptureScreenTool(body)
 
     result = await tool.invoke(ToolCall(id="c1", name=CAPTURE_SCREEN_TOOL_NAME, arguments={}))
-    failed = await CaptureScreenTool(InMemoryBodyGateway(fail=BodyGatewayError(_DISABLED))).invoke(
+    failed = await CaptureScreenTool(InMemoryBodyGateway(fail=_DISABLED)).invoke(
         ToolCall(id="c2", name=CAPTURE_SCREEN_TOOL_NAME, arguments={})
     )
 

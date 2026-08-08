@@ -140,24 +140,22 @@ where
     }
 }
 
-/// Maps an [`AudioError`] to the outbound gRPC [`Status`] the brain reads. This is the inverse of
-/// `status::status_to_error`. A missing endpoint is `Unavailable` (transient, like a dead
-/// backend); a backend failure is `Internal`.
+/// Maps an [`AudioError`] to the outbound gRPC [`Status`] the brain reads.
 fn audio_error_to_status(error: &AudioError) -> Status {
     match error {
         AudioError::NoEndpoint(detail) => {
-            Status::unavailable(format!("no audio endpoint: {detail}"))
+            Status::failed_precondition(format!("no audio endpoint: {detail}"))
         }
         AudioError::Backend(detail) => Status::internal(format!("audio backend error: {detail}")),
     }
 }
 
 /// Maps a [`NotifyError`] to the outbound gRPC [`Status`], on the same split as the volume mapping:
-/// a missing notification service is `Unavailable` (transient), a backend failure is `Internal`.
+/// no notification service is `FailedPrecondition` (host state), a backend failure is `Internal`.
 fn notify_error_to_status(error: &NotifyError) -> Status {
     match error {
         NotifyError::Unavailable(detail) => {
-            Status::unavailable(format!("no notification service: {detail}"))
+            Status::failed_precondition(format!("no notification service: {detail}"))
         }
         NotifyError::Backend(detail) => {
             Status::internal(format!("notification backend error: {detail}"))

@@ -16,7 +16,9 @@ of the commit-body wrap check itself; the overlay stylesheet outside the line ca
 fix-when-it-bites 2026-08-03 behind the cap reaching the overlay's TypeScript; the three
 couplings the widened constant scan still cannot hold, opened as fix-when-it-bites 2026-08-08
 when four of the five kinds its predecessor named were closed, which is the backlog working as
-intended rather than a count standing still; and the sixth, added 2026-08-08 by the turn-cost run
+intended rather than a count standing still, and grown to four the same day by the gRPC status
+codes the kinded body-gateway error currency now needs both sides to spell alike, folded into
+that entry rather than counted beside it; and the sixth, added 2026-08-08 by the turn-cost run
 that moved the recall default, whose harness never entered the repo, so the one measurement in
 that ADR that names no reproducing test is also the one whose result shipped. The compose bind
 default that lands in the repo tree came off this list on 2026-08-08, ahead of its own trigger, as
@@ -425,9 +427,11 @@ cross-language-constant addendum):**
   uses is the same defect in a wider gate. **Landed ahead of the trigger**, which was the first
   coupling that actually drifts; nothing had drifted, and each capability was reddened on the real
   tree instead, once per capability. **What this opens** is the entry below.
-- **The three couplings the widened registry still cannot hold.** *Fix when it bites.* Opened
+- **The four couplings the widened registry still cannot hold.** *Fix when it bites.* Opened
   2026-08-08 behind the landing above, in the same shape its own parent had: a registry that now
   reaches four kinds of coupling makes each remaining one a decision rather than an absence.
+  A fourth joined the same day and is folded in here rather than counted again, since it is the
+  same absence and a near-duplicate name would inflate the area.
   **A membership, not an ordering.** `CAPTURE_MIME` (`"image/png"`) must stay inside the brain's
   `ALLOWED_MIME_TYPES`, which is a `frozenset` literal, so this wants a collection value form as
   well as a comparator, and the reducer refuses what it cannot reduce by policy rather than by
@@ -449,6 +453,17 @@ cross-language-constant addendum):**
   which is a stylesheet change and belongs with the stylesheet's own entry above. **Trigger:**
   either of those two, or the first frame that shows a CSS transition and the roll beside it on
   two clocks.
+  **A gRPC status code, spelled once per language's own casing.** Added 2026-08-08 with the
+  gateway's kinded error currency ([ADR-0023](../adr/ADR-0023-body-gateway-volume.md)'s addendum
+  of that date). The body writes `Status::resource_exhausted` and `Status::failed_precondition`;
+  the brain's classifier keys on `grpc.StatusCode.RESOURCE_EXHAUSTED` and
+  `FAILED_PRECONDITION`, and the two sides must agree or a refused capture is worded as a fault.
+  Neither side declares a value the other could read: tonic's spelling is a method name and
+  grpc-python's is an enum member, so a mention template would have to case-fold across the
+  languages, which the reducer cannot do and should not learn for one coupling. What holds the
+  pair today is prose in both module docs plus a test table on each side, which is exactly what
+  the registry exists to replace. **Trigger:** a third caller of the same table, or a case-aware
+  mention form arriving for another reason.
 
 **Repo gates ([ADR-0026](../adr/ADR-0026-prose-style-gates.md)):**
 - **The fail-open `scripts/` gate config closed 2026-07-12

@@ -105,11 +105,13 @@ line cap.
     wire's `max_edge`/`max_bytes` hints into a `body_core::CaptureRequest`, runs the blit, the
     pure-core `Capture::from_bgra` policy, the clock read, and the receipt inside **one**
     `off_worker` hop, then maps the `Capture` onto `ImageBlob` (including `source_width`/
-    `source_height` and `captured_at_unix_ms`). Error mapping: `NoDisplay -> Unavailable`,
-    `Disabled -> PermissionDenied`, `Backend`/`TooLarge -> Internal`. That last pair sharing a
-    code is a deferred refinement (`docs/refinements/vision.md`) and not an urgent one: the
-    brain reads the message rather than the code, and `TooLarge` cannot arise at all unless a
-    caller names a much tighter `max_bytes` than this seam's own. The receipt is a
+    `source_height` and `captured_at_unix_ms`). Error mapping, one code per variant so the brain
+    can tell them apart: `NoDisplay -> FailedPrecondition`, `Disabled -> PermissionDenied`,
+    `Backend -> Internal`, `TooLarge -> ResourceExhausted`. **Nothing this server answers is
+    `Unavailable`**, which is the rule the brain's classifier rests on: tonic synthesizes that
+    code client-side for a channel that cannot connect and grpc-python cannot tell a synthesized
+    status from a sent one, so leaving it unspent makes it mean exactly "the call never arrived"
+    (ADR-0023's 2026-08-08 addendum). The receipt is a
     `body_core::Notification` built from the fixed body-owned `CAPTURE_RECEIPT_*` strings and
     is **best effort**: by the time it runs the pixels have been read, so a dead notification
     service must not also cost the capability. `receipts` (the host's
@@ -128,9 +130,10 @@ line cap.
     mid-call arrives as a join failure and answers `Internal`, because letting the panic
     escape the handler would cost the brain the whole connection instead of one call.
   - `audio_error_to_status(&AudioError) -> Status` is the inverse of
-    `client::status_to_error`: `NoEndpoint`→`Unavailable` (transient, like a dead
-    backend), `Backend`→`Internal`. `notify_error_to_status(&NotifyError) -> Status` splits
-    the same way (`Unavailable`→`Unavailable`, `Backend`→`Internal`). A declined
+    `client::status_to_error`: `NoEndpoint`→`FailedPrecondition` (host state, and it works again
+    once a device is there), `Backend`→`Internal`. `notify_error_to_status(&NotifyError) -> Status`
+    splits the same way (`Unavailable`→`FailedPrecondition`, `Backend`→`Internal`); the variant
+    keeps its `body_core` name because that name is about the host, not about gRPC. A declined
     notification is **not** an error: `shown=false` rides the reply, because the brain reads
     it as "push did not happen" exactly like a status and the reminder stays deliverable
     either way, so turning a user preference into a gRPC failure would only lie to the logs.

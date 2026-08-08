@@ -349,7 +349,7 @@ async fn set_volume_applies_each_field_combination() {
 }
 
 #[tokio::test]
-async fn no_endpoint_maps_to_unavailable() {
+async fn no_endpoint_maps_to_failed_precondition() {
     let addr = spawn_body(
         FakeAudio::failing(AudioError::NoEndpoint(String::from("gone"))),
         "",
@@ -362,7 +362,9 @@ async fn no_endpoint_maps_to_unavailable() {
         .get_volume(GetVolumeRequest {})
         .await
         .unwrap_err();
-    assert_eq!(status.code(), Code::Unavailable);
+    // Host state, not a body nobody could reach: the brain reserves `Unavailable` for a call
+    // that never arrived, so an unplugged speaker must not borrow that code.
+    assert_eq!(status.code(), Code::FailedPrecondition);
     assert!(status.message().contains("gone"));
 }
 
@@ -441,7 +443,7 @@ async fn a_declined_notification_answers_shown_false_rather_than_a_status() {
 }
 
 #[tokio::test]
-async fn a_missing_notification_service_maps_to_unavailable() {
+async fn a_missing_notification_service_maps_to_failed_precondition() {
     let addr = spawn_with(
         FakeAudio::new(0.5, false),
         FakeNotify::failing(NotifyError::Unavailable(String::from("no notifier"))),
@@ -455,7 +457,7 @@ async fn a_missing_notification_service_maps_to_unavailable() {
         .notify(notify_request("stretch", false))
         .await
         .unwrap_err();
-    assert_eq!(status.code(), Code::Unavailable);
+    assert_eq!(status.code(), Code::FailedPrecondition);
     assert!(status.message().contains("no notifier"));
 }
 
@@ -838,12 +840,14 @@ async fn a_capture_runs_off_the_async_worker() {
     );
 }
 
-#[tokio::test]
-async fn each_capture_failure_maps_to_its_own_status() {
-    for (error, code, fragment) in [
+/// Every `CaptureError` variant, with the code the brain classifies it by. The whole set is
+/// here rather than a sample, because the brain reads the code to choose what it tells the
+/// model, so a variant sharing another's code is a variant the model cannot be told apart.
+fn capture_failure_table() -> [(CaptureError, Code, &'static str); 4] {
+    [
         (
             CaptureError::NoDisplay(String::from("lid shut")),
-            Code::Unavailable,
+            Code::FailedPrecondition,
             "no display: lid shut",
         ),
         (
@@ -856,7 +860,17 @@ async fn each_capture_failure_maps_to_its_own_status() {
             Code::Internal,
             "screen capture backend error: BitBlt 0x2",
         ),
-    ] {
+        (
+            CaptureError::TooLarge(6_291_457),
+            Code::ResourceExhausted,
+            "the capture is too large for the seam: 6291457 bytes",
+        ),
+    ]
+}
+
+#[tokio::test]
+async fn each_capture_failure_maps_to_its_own_status() {
+    for (error, code, fragment) in capture_failure_table() {
         let addr = spawn_screen(
             FakeScreen::failing(error),
             FakeNotify::answering(true),
@@ -867,6 +881,60 @@ async fn each_capture_failure_maps_to_its_own_status() {
         let status = capture_once(addr, 0).await.unwrap_err();
         assert_eq!(status.code(), code);
         assert_eq!(status.message(), fragment);
+    }
+}
+
+#[tokio::test]
+async fn no_two_capture_failures_share_a_status_code() {
+    let mut codes: Vec<Code> = capture_failure_table()
+        .into_iter()
+        .map(|(_, code, _)| code)
+        .collect();
+    codes.sort_by_key(|code| *code as i32);
+    codes.dedup();
+    assert_eq!(codes.len(), 4, "each capture failure needs its own code");
+}
+
+#[tokio::test]
+async fn nothing_this_server_answers_is_unavailable() {
+    for (error, _, _) in capture_failure_table() {
+        let addr = spawn_screen(
+            FakeScreen::failing(error),
+            FakeNotify::answering(true),
+            true,
+        )
+        .await
+        .unwrap();
+        let status = capture_once(addr, 0).await.unwrap_err();
+        assert_ne!(status.code(), Code::Unavailable, "{}", status.message());
+    }
+    for error in [
+        AudioError::NoEndpoint(String::from("gone")),
+        AudioError::Backend(String::from("COM 0x1")),
+    ] {
+        let addr = spawn_body(FakeAudio::failing(error), "").await.unwrap();
+        let status = connect(addr)
+            .await
+            .unwrap()
+            .get_volume(GetVolumeRequest {})
+            .await
+            .unwrap_err();
+        assert_ne!(status.code(), Code::Unavailable, "{}", status.message());
+    }
+    for error in [
+        NotifyError::Unavailable(String::from("no notifier")),
+        NotifyError::Backend(String::from("HRESULT 0x1")),
+    ] {
+        let addr = spawn_with(FakeAudio::new(0.5, false), FakeNotify::failing(error), "")
+            .await
+            .unwrap();
+        let status = connect(addr)
+            .await
+            .unwrap()
+            .notify(notify_request("stretch", false))
+            .await
+            .unwrap_err();
+        assert_ne!(status.code(), Code::Unavailable, "{}", status.message());
     }
 }
 
@@ -945,7 +1013,9 @@ async fn a_ceiling_the_ladder_cannot_meet_is_refused_as_too_large() {
     .unwrap();
 
     let status = capture_bounded(addr, 32, 40).await.unwrap_err();
-    assert_eq!(status.code(), Code::Internal);
+    // Resource exhausted, not internal: the picture was taken and the ladder ran out, which is
+    // a different thing from a backend that broke and is worth a different sentence.
+    assert_eq!(status.code(), Code::ResourceExhausted);
     assert!(
         status
             .message()

@@ -4,6 +4,8 @@ Core code raises and propagates only typed errors. There is never a bare Excepti
 adapter-specific exception ever crosses a port boundary.
 """
 
+from enum import Enum
+
 
 class SessionStoreError(Exception):
     """A SessionStore operation failed (store adapters wrap their backend's errors)."""
@@ -45,8 +47,41 @@ class SubagentAdmissionError(Exception):
     """A SubagentScheduler refused a spawn outright: no wait could ever admit this charge."""
 
 
+class BodyFailure(Enum):
+    """How far a ``BodyGateway`` call got before it failed (ADR-0023 2026-08-08 addendum)."""
+
+    UNREACHABLE = "unreachable"
+    """No answer arrived at all, whether for want of a route or of time. The only kind that may
+    tell the caller the body could not be reached."""
+
+    REFUSED = "refused"
+    """The body answered and declined: a standing policy answer (screen capture switched off, a
+    rejected seam token), not a transient one, so retrying it changes nothing."""
+
+    UNSUPPORTED = "unsupported"
+    """The body answered and has no such capability: an RPC it does not implement, or a body
+    older than the brain calling it."""
+
+    UNREADY = "unready"
+    """The body answered and the host state the call needs is not there (no display, no audio
+    endpoint, no notification service). It works again once the user fixes the state."""
+
+    OVERSIZE = "oversize"
+    """The work was done and its result will not fit the seam's budget. Distinct from a fault
+    because nothing is broken: the same call will keep answering the same way."""
+
+    FAULTED = "faulted"
+    """Anything else: an OS fault, an answer the brain will not vouch for, a bound this
+    deployment cannot ask for. The default, deliberately, so a failure nobody classified says
+    the honest uninformative thing rather than claiming the body was out of reach."""
+
+
 class BodyGatewayError(Exception):
-    """A BodyGateway call failed. The body was unreachable or the OS action errored."""
+    """A BodyGateway call failed, carrying the ``BodyFailure`` kind that says how."""
+
+    def __init__(self, message: str, *, kind: BodyFailure = BodyFailure.FAULTED) -> None:
+        super().__init__(message)
+        self.kind = kind
 
 
 class ScheduleStoreError(Exception):

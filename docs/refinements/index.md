@@ -74,7 +74,7 @@ entries from it never added the two it opened, and there the count did move and 
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
 | [body-gateway.md](body-gateway.md) | Body gateway, OS actions, hardened posture (ADR-0023) | 5 |
 | [scheduling.md](scheduling.md) | Scheduling and reminders, `TurnStamp` provenance (ADR-0025/0027) | 8 |
-| [vision.md](vision.md) | Screen capture, images, the pixel boundary (ADR-0029) | 12 |
+| [vision.md](vision.md) | Screen capture, images, the pixel boundary (ADR-0029), one fewer since 2026-08-08 when `RESOURCE_EXHAUSTED` classification closed whole: the arithmetic the 2026-08-06 re-read published still holds, `CaptureError::TooLarge` being unreachable at the shipped byte ceiling at any edge the seam permits, but the wording defect that re-read folded in is reachable on an untouched install and was the trigger nobody had counted as the trigger, so the body's codes and the brain's reading of them landed together (ADR-0023) | 11 |
 | [cross-cutting.md](cross-cutting.md) | Pointer input, OS backends, more roles | 3 |
 
 The counts are per area as extracted; a few threads appear in two areas (the cross-cutting
@@ -1336,6 +1336,14 @@ one had landed and one was missing, which is the standing warning added at the t
 And the **fix-when-it-bites** bucket still described recall observability as a thing nobody can
 inspect after the fact, on the day the audit sink that inspects it shipped. Four navigation aids,
 four different ways to be wrong, none of them reachable by rereading a number.
+
+Vision **went 12 to 11 on 2026-08-08**, when the entry the paragraph below held at 12 closed
+whole. The hold was right about the ceiling and wrong about the reader: it read "nothing brain-side
+reads the status code" as evidence the distinction already reached its only reader, when that was
+the reason the reader could not be told the truth. The code is read now, and the entry closed on
+the prefix rather than on the ladder. The paragraph stands unedited beneath this line, because a
+re-read that reached a wrong conclusion from right measurements is the most useful thing this file
+can keep.
 
 Vision **held at 12 on 2026-08-06**, that evening, when the fix-when-it-bites bucket was re-read
 against the capture edge that moved that morning and one of its entries was ruled not fired. That
@@ -3157,7 +3165,10 @@ time, correctly and before anything is evicted, which makes it a defaults decisi
 usage rather than a design change ([resource-governance.md](resource-governance.md)).
 
 Four vision entries joined on the same day, each with the trigger its own entry implies
-([vision.md](vision.md)). **JPEG or WebP for a photographic screen**, a body-side swap behind an
+([vision.md](vision.md)); **the fourth of them, `RESOURCE_EXHAUSTED` classification, landed
+2026-08-08 and its paragraph below is kept as the record of what it became**, since a bucket that
+quietly drops a closed entry loses the reason it was ever deferred. **JPEG or WebP for a
+photographic screen**, a body-side swap behind an
 unchanged seam (measured at roughly a quarter of PNG's bytes on incompressible content), whose
 trigger is bytes on the wire starting to matter, which they do not while PNG's losslessness is
 worth more than the open legibility risk. **Per-source memory rules**, so a vision turn can be
@@ -3174,7 +3185,14 @@ at the shipped byte ceiling at any edge the seam permits, since the ladder's las
 of the requested edge and always fits, so the entry fires when a deployment sets
 `CORTEX_BODY_MAX_IMAGE_BYTES` under roughly 450 KB and not before. It also now carries the one
 live thing that pass found, which is that every capture failure reaches the model behind a
-"could not reach the body" prefix that is false for all but one of them.
+"could not reach the body" prefix that is false for all but one of them. **That last sentence was
+the trigger, and it took a second reading to see it**: the entry landed 2026-08-08 on the wording
+half rather than on the byte ceiling, whose arithmetic is untouched and still says the refused arm
+cannot be reached. The body now spends a distinct code per capture failure and the brain classifies
+every status into a kind the tool words from, which also moved `NoDisplay` off the code tonic
+synthesizes for a dead channel, so `Unavailable` on that seam means one thing. Vision goes 12 to 11
+and the deferral it opened is a coupling the constant scan cannot hold, folded into
+[repo-gates.md](repo-gates.md)'s existing entry rather than counted beside it.
 
 Two model-manager entries joined on 2026-08-08 behind the spill watch, each declined with its
 reason rather than merely unbuilt ([inference-model-manager.md](inference-model-manager.md)). **A

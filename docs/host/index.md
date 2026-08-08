@@ -75,7 +75,7 @@ directory. Settling this in writing is worth one sentence in an ADR the next tim
 | Doc | Tag | What one bring-up buys | Open |
 | --- | --- | --- | --- |
 | [windows-desktop.md](windows-desktop.md) | W | One `npm run tauri dev` beside a running brain: the hotkey and one streamed turn, volume, the toast, the confirm card, the session commands, the preference commands and the appearance surviving a restart, the reminder surface, the connection dot | 8 checks + 1 optional + 2 standing |
-| [windows-capture.md](windows-capture.md) | W | The screen-capture path, which needs its own switch, its own receipts, and its own expectations. Carries the single highest-consequence check in the repo | 1 check, 6 observations |
+| [windows-capture.md](windows-capture.md) | W | The screen-capture path, which needs its own switch, its own receipts, and its own expectations. Carries the single highest-consequence check in the repo, and since 2026-08-08 the two failure sentences only a real GDI backend can produce | 1 check, 7 observations |
 | [overlay-polish.md](overlay-polish.md) | W | The one item here that is **authoring, not validation**: the OS-window half of the overlay | 1 build (4 parts) + 1 design decision |
 | [overlay-screen-reader.md](overlay-screen-reader.md) | W | A reader pointed at the running overlay: what the live region is actually *spoken* as, which is the half no accessibility tree holds | 1 observation session (8 gestures) |
 | [gpu-tier-scale.md](gpu-tier-scale.md) | G, and W+G for three | The 24 GB machine: everything the deep-model pick unblocks, plus the measurements the placer and the caps ship without. Items 2, 3 and 4 need the overlay to trigger the handoff | 4 open; the pick, the injection run and the GPU-placed subagent all done 2026-08-04 |
@@ -241,7 +241,7 @@ host line.
 
 **W, each with its own bring-up:**
 
-- **The whole GDI capture path** ([windows-capture.md](windows-capture.md)): one check with six
+- **The whole GDI capture path** ([windows-capture.md](windows-capture.md)): one check with seven
   observations, its own kill switch, and the self-exclusion observation to be made first rather
   than last.
 - **The OS-window half of the overlay polish** ([overlay-polish.md](overlay-polish.md)): the one

@@ -75,19 +75,20 @@ fn blob(capture: &Capture, captured_at_unix_ms: i64) -> ImageBlob {
     }
 }
 
-/// Maps a [`CaptureError`] to the outbound gRPC [`Status`] the brain reads, on the same split
-/// the volume and notification mappings use: a missing display is `Unavailable` (transient, a
-/// laptop with its lid shut), a host that switched capture off is `PermissionDenied` (a
+/// Maps a [`CaptureError`] to the outbound gRPC [`Status`] the brain reads, on the same split the
+/// volume and notification mappings use.
 fn capture_error_to_status(error: &CaptureError) -> Status {
     match error {
-        CaptureError::NoDisplay(detail) => Status::unavailable(format!("no display: {detail}")),
+        CaptureError::NoDisplay(detail) => {
+            Status::failed_precondition(format!("no display: {detail}"))
+        }
         CaptureError::Disabled => {
             Status::permission_denied("screen capture is disabled on this host")
         }
         CaptureError::Backend(detail) => {
             Status::internal(format!("screen capture backend error: {detail}"))
         }
-        CaptureError::TooLarge(bytes) => Status::internal(format!(
+        CaptureError::TooLarge(bytes) => Status::resource_exhausted(format!(
             "the capture is too large for the seam: {bytes} bytes"
         )),
     }

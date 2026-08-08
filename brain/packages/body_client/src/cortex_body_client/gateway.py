@@ -5,6 +5,7 @@ from typing import cast
 
 from grpc import aio
 
+from cortex_body_client.failures import kind_of
 from cortex_core import (
     BodyGatewayError,
     ImageError,
@@ -64,7 +65,7 @@ class GrpcBodyGateway:
             reply = cast("VolumeStatePb", await method(GetVolumeRequest(), metadata=self._metadata))
         except aio.AioRpcError as err:
             msg = f"body get_volume failed: {err.details()}"
-            raise BodyGatewayError(msg) from err
+            raise BodyGatewayError(msg, kind=kind_of(err)) from err
         return VolumeState(level=reply.level, muted=reply.muted)
 
     async def set_volume(
@@ -81,7 +82,7 @@ class GrpcBodyGateway:
             reply = cast("VolumeStatePb", await method(request, metadata=self._metadata))
         except aio.AioRpcError as err:
             msg = f"body set_volume failed: {err.details()}"
-            raise BodyGatewayError(msg) from err
+            raise BodyGatewayError(msg, kind=kind_of(err)) from err
         return VolumeState(level=reply.level, muted=reply.muted)
 
     async def notify(
@@ -94,7 +95,7 @@ class GrpcBodyGateway:
             reply = cast("NotifyReply", await method(request, metadata=self._metadata))
         except aio.AioRpcError as err:
             msg = f"body notify failed: {err.details()}"
-            raise BodyGatewayError(msg) from err
+            raise BodyGatewayError(msg, kind=kind_of(err)) from err
         return reply.shown
 
     async def capture_screen(self, *, max_edge: int = 0, max_bytes: int = 0) -> ScreenCapture:
@@ -115,7 +116,7 @@ class GrpcBodyGateway:
             )
         except aio.AioRpcError as err:
             msg = f"body capture_screen failed: {err.details()}"
-            raise BodyGatewayError(msg) from err
+            raise BodyGatewayError(msg, kind=kind_of(err)) from err
         return _to_capture(reply, max_edge=max_edge, max_bytes=max_bytes)
 
 

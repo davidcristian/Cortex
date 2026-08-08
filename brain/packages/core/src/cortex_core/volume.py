@@ -1,9 +1,10 @@
-"""The ``get_volume`` / ``set_volume`` built-in tools: the first host OS action (ADR-0023)."""
+"""The ``get_volume`` / ``set_volume`` built-in tools: the first host OS action."""
 
 from collections.abc import Mapping
 from typing import Any
 
 from cortex_core.body import VolumeState
+from cortex_core.body_failure import body_failure_message
 from cortex_core.errors import BodyGatewayError
 from cortex_core.ports import BodyGateway
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
@@ -11,7 +12,7 @@ from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
 GET_VOLUME_TOOL_NAME = "get_volume"
 SET_VOLUME_TOOL_NAME = "set_volume"
 
-_UNREACHABLE = "could not reach the body to control volume"
+_ACTION = "control volume"
 _SET_REQUIRES_ARG = "set_volume requires 'level' (0.0-1.0) and/or 'mute' (true/false)"
 _BAD_LEVEL = "'level' must be a number between 0.0 and 1.0"
 _BAD_MUTE = "'mute' must be true or false"
@@ -36,8 +37,7 @@ def _parse_set_args(arguments: Mapping[str, Any]) -> tuple[float | None, bool | 
         try:
             numeric = float(level)
         except OverflowError:
-            # An out-of-double-range int (e.g. a huge JSON integer) is not a valid level;
-            # fail as a recoverable message, never a raise (the tool's contract).
+            # A JSON integer too large for a double reaches here, and it is no level either.
             return _BAD_LEVEL
         if not 0.0 <= numeric <= 1.0:
             return _BAD_LEVEL
@@ -51,14 +51,14 @@ def _parse_set_args(arguments: Mapping[str, Any]) -> tuple[float | None, bool | 
 
 
 class GetVolumeTool:
-    """Built-in ``get_volume`` tool over a ``BodyGateway`` (ADR-0023): read the host volume."""
+    """Built-in ``get_volume`` tool over a ``BodyGateway``: read the host volume."""
 
     def __init__(self, body: BodyGateway) -> None:
         self._body = body
 
     @property
     def spec(self) -> ToolSpec:
-        """The read-only, ungated spec advertised to the cortex."""
+        """The read-only spec advertised to the cortex, which needs no confirmation."""
         return ToolSpec(
             name=GET_VOLUME_TOOL_NAME,
             description="Read the host system's current audio volume level and mute state.",
@@ -66,13 +66,13 @@ class GetVolumeTool:
         )
 
     async def invoke(self, call: ToolCall) -> ToolResult:
-        """Read the host volume; an unreachable body becomes a trusted error result."""
+        """Read the host volume; a failed body call becomes a trusted, kind-worded error result."""
         try:
             state = await self._body.get_volume()
         except BodyGatewayError as err:
             return ToolResult(
                 call_id=call.id,
-                content=f"{_UNREACHABLE}: {err}",
+                content=body_failure_message(err, action=_ACTION),
                 is_error=True,
                 trust=Trust.TRUSTED,
             )
@@ -80,17 +80,14 @@ class GetVolumeTool:
 
 
 class SetVolumeTool:
-    """Built-in ``set_volume`` tool over a ``BodyGateway`` (ADR-0023): change the host volume.
-
-    Ungated (reversible); a user can opt into confirmation via ``CORTEX_TOOLS_GATED``.
-    """
+    """Built-in ``set_volume`` tool over a ``BodyGateway``: change the host volume."""
 
     def __init__(self, body: BodyGateway) -> None:
         self._body = body
 
     @property
     def spec(self) -> ToolSpec:
-        """The ungated spec: ``level`` (0.0-1.0) and/or ``mute``, at least one required."""
+        """The spec: ``level`` (0.0-1.0) and/or ``mute``, at least one required, no confirmation."""
         return ToolSpec(
             name=SET_VOLUME_TOOL_NAME,
             description=(
@@ -112,11 +109,7 @@ class SetVolumeTool:
         )
 
     async def invoke(self, call: ToolCall) -> ToolResult:
-        """Validate the arguments, apply the change, and report the resulting state.
-
-        Bad arguments and an unreachable body are both trusted ``is_error`` results; a
-        successful change reports the state the body read back after applying it.
-        """
+        """Validate the arguments, apply the change, and report the resulting state."""
         parsed = _parse_set_args(call.arguments)
         if isinstance(parsed, str):
             return ToolResult(call_id=call.id, content=parsed, is_error=True, trust=Trust.TRUSTED)
@@ -126,7 +119,7 @@ class SetVolumeTool:
         except BodyGatewayError as err:
             return ToolResult(
                 call_id=call.id,
-                content=f"{_UNREACHABLE}: {err}",
+                content=body_failure_message(err, action=_ACTION),
                 is_error=True,
                 trust=Trust.TRUSTED,
             )
