@@ -487,8 +487,12 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   the one thing a descendant cannot read and the two roll-open sections in the panel's chrome are
   capped out of that same number (overlay.css reserves the header, the composer's floor, the hint
   strip and the history's padding off it, and splits what is left between the switcher and the
-  reminder stack in the ratio of the `vh` numbers they are written in, whenever both are open at
-  once). A section's SHARE of that split bounds its whole outer box and is applied to the roll's
+  reminder stack in the ratio of the `vh` numbers they are written in, whenever both are GOING TO BE
+  open at once, a section rolling shut having already published `data-morphing="0"` and so already
+  stopped counting; both caps then ease to a new share over the roll's own duration and curve, gated
+  on both sections standing open rather than on a roll running, because a section joins the tree one
+  style recalc before it announces its roll). A section's SHARE of that split bounds its whole outer
+  box and is applied to the roll's
   wrapper, which has no border, padding or margin of its own and holds the card's air inside its own
   clip; the card carries a second cap at the share less that air, so a list too long for its room
   scrolls instead of being clipped. Capping the card alone left its own frame outside every cap,
@@ -547,7 +551,9 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   share: `data-morphing` on the section makes the panel leave the height alone and carries the
   height the section is rolling to, which is what lets the panel take its bottom edge off the
   ceiling over that same roll (`MORPH_ROLL_MS`) instead of afterwards, capped at the height the
-  panel is allowed to reach. That cap goes on the ELEMENT for the length of the roll and not only on
+  panel is allowed to reach. That publication has a second reader, the cascade: overlay.css matches
+  `[data-morphing="0"]` to know a section is rolling to nothing and stop counting it into the
+  section budget's split a whole roll before React removes it. That cap goes on the ELEMENT for the length of the roll and not only on
   the prediction: a roll is not a placement, so the measuring cap `place` writes on its way in would
   otherwise stand there for the whole roll and let the section carry the panel clean past the clear
   space at the top (traced at 640x720 on a panel already at its ceiling: 450 to the loose 547 with

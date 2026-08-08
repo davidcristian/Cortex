@@ -270,11 +270,16 @@
 .view > .collapse.aside {
   max-height: var(--reminders-share);
 }
-.view:has(> .collapse.aside) {
+.view:has(> .collapse.aside:not([data-morphing="0"])) {
   --switcher-share: max(0px, calc(var(--budget) * 40 / 70));
 }
-.view:has(> .collapse:not(.aside)) {
+.view:has(> .collapse:not(.aside):not([data-morphing="0"])) {
   --reminders-share: max(0px, calc(var(--budget) * 30 / 70));
+}
+.view:has(> .collapse.aside):has(> .collapse:not(.aside)) > .collapse,
+.view:has(> .collapse.aside):has(> .collapse:not(.aside)) .switcher,
+.view:has(> .collapse.aside):has(> .collapse:not(.aside)) .reminders {
+  transition: max-height 0.3s var(--ease);
 }
 .view.out {
   position: absolute;
