@@ -7,7 +7,9 @@ entry both sides of the defense share: the ``TaintLedger``'s collection and the 
 allowlist. The two modules split at the line cap as the seventh addendum landed.
 
 Obfuscation-resistant by construction, and deterministic + dependency-free (stdlib only). The
-matcher tolerates a *defanged* scheme (``hxxp://``, ``[://]``, ``[:]``), a bracketed chunk anywhere
+matcher tolerates a *defanged* scheme (``hxxp://``, ``[://]``, ``[:]``), a **fullwidth** scheme
+separator (a U+FF1A colon or a U+FF0F solidus, which NFKC folds to ASCII in the identity but
+which anchored nothing here; ADR-0015 eighth addendum), a bracketed chunk anywhere
 in the body (so an encoded defang dot behind a literal closer like ``evil[&#46;]com`` is consumed
 whole rather than cutting the match short; ADR-0015 sixth addendum), and an **encoded separator**
 (``http[&#58;//]evil.com``, admitted as a bracket chunk that carries an escape marker; ADR-0015
@@ -41,11 +43,21 @@ _OPAQUE_WORDS = ("mailto", "tel")
 # and `http{://}evil.com` anchored *nothing* and were never matched at all. That asymmetry was a
 # standing bypass in its own right, found while widening this position (ADR-0015 seventh addendum).
 _BRACKETS = (("[", "]"), ("(", ")"), ("{", "}"))
+
+# The colon and solidus a plain separator is built from, each in its ASCII form and its fullwidth
+# twin (U+FF1A, U+FF0F), written as `\u` escapes so the source stays ASCII (the `_CONFUSABLES`
+# convention). NFKC already folds both to ASCII in the *identity*, but the matcher runs before any
+# normalization, so a fullwidth-separated URL anchored nothing, matched nothing, and was therefore
+# redacted by neither mode (ADR-0015 eighth addendum). Every combination is generated from the two
+# tables rather than listed, the `_BRACKETS` precedent, so a mixed spelling (an ASCII colon with a
+# fullwidth solidus) cannot be the one nobody remembered.
+_COLONS = (":", "\uff1a")
+_SOLIDI = ("/", "\uff0f")
 _AUTHORITY_SEPS = (
-    "://",
+    *(f"{colon}{first}{second}" for colon in _COLONS for first in _SOLIDI for second in _SOLIDI),
     *(f"{lo}{tok}{hi}{tail}" for lo, hi in _BRACKETS for tok, tail in (("://", ""), (":", "//"))),
 )
-_OPAQUE_SEPS = (":", *(f"{lo}:{hi}" for lo, hi in _BRACKETS))
+_OPAQUE_SEPS = (*_COLONS, *(f"{lo}:{hi}" for lo, hi in _BRACKETS))
 
 # The bracket vocabulary, shared by every bracketed token below so they cannot drift. The inner run
 # excludes whitespace, prose/markup quoting, and every bracket, so a chunk cannot swallow a second
