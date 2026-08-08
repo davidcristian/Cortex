@@ -19,6 +19,7 @@ import pytest
 
 from cortex_core import (
     CAPTURE_SCREEN_TOOL_NAME,
+    BodyFailure,
     BodyGatewayError,
     CaptureScreenTool,
     DispatchPolicy,
@@ -43,9 +44,16 @@ from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
 
 # The body's own answer when the host kill switch is off AND when the overlay could not exclude
 # itself: both wire `DeniedScreenCapture`, which answers `CaptureError::Disabled`, so the two
-# failure modes are one string by the time the brain sees them.
-_DISABLED = "body capture_screen failed: screen capture is disabled on this host"
-_TIMED_OUT = "body capture_screen failed: Deadline Exceeded"
+# failure modes are one string by the time the brain sees them. Each carries the kind the real
+# gateway classifies its status into, so what settles `ok=False` here is the same value the
+# wire produces: a refusal for the kill switch, an unanswered call for the deadline.
+_DISABLED = BodyGatewayError(
+    "body capture_screen failed: screen capture is disabled on this host",
+    kind=BodyFailure.REFUSED,
+)
+_TIMED_OUT = BodyGatewayError(
+    "body capture_screen failed: Deadline Exceeded", kind=BodyFailure.UNREACHABLE
+)
 
 
 class _Clock:
@@ -143,7 +151,7 @@ async def test_a_capture_that_reached_the_model_settles_ok() -> None:
 
 
 @pytest.mark.parametrize(
-    ("mode", "detail"),
+    ("mode", "failure"),
     [
         ("the host kill switch refused", _DISABLED),
         ("the overlay's self-exclusion failed closed", _DISABLED),
@@ -151,14 +159,14 @@ async def test_a_capture_that_reached_the_model_settles_ok() -> None:
     ],
 )
 async def test_a_capture_the_body_refused_or_never_answered_settles_not_ok(
-    mode: str, detail: str
+    mode: str, failure: BodyGatewayError
 ) -> None:
     """Three of the four modes the entry named. The first two are literally one code path: the
     shell wires ``DeniedScreenCapture`` when either the switch is off or the exclusion failed,
     so they are indistinguishable in the error text, let alone in the event. All three reach the
     brain as a ``BodyGatewayError`` the tool turns into a recoverable error result."""
     del mode
-    yielded, audit = await _capture_turn(body=InMemoryBodyGateway(fail=BodyGatewayError(detail)))
+    yielded, audit = await _capture_turn(body=InMemoryBodyGateway(fail=failure))
 
     assert _steps(yielded) == [
         ToolStep(tool_name=CAPTURE_SCREEN_TOOL_NAME, summary=_steps(yielded)[0].summary)
@@ -363,7 +371,7 @@ async def test_the_capture_that_reached_the_model_is_the_one_that_settles_ok() -
     tool = CaptureScreenTool(body)
 
     result = await tool.invoke(ToolCall(id="c1", name=CAPTURE_SCREEN_TOOL_NAME, arguments={}))
-    failed = await CaptureScreenTool(InMemoryBodyGateway(fail=BodyGatewayError(_DISABLED))).invoke(
+    failed = await CaptureScreenTool(InMemoryBodyGateway(fail=_DISABLED)).invoke(
         ToolCall(id="c2", name=CAPTURE_SCREEN_TOOL_NAME, arguments={})
     )
 

@@ -6,8 +6,10 @@ wildcard re-exports, and it is this file's contract.
 """
 
 from cortex_core.body import ScreenCapture, VolumeState, captured_at_from_unix_ms
+from cortex_core.body_failure import body_failure_message
 from cortex_core.conversation import Message, Role
 from cortex_core.errors import (
+    BodyFailure,
     BodyGatewayError,
     EmbedderError,
     HandoffInProgressError,
@@ -91,6 +93,7 @@ __all__ = [
     "MAX_IMAGE_EDGE",
     "MAX_SOURCE_CHARS",
     "MAX_TURN_SOURCES",
+    "BodyFailure",
     "BodyGateway",
     "BodyGatewayError",
     "Clock",
@@ -154,6 +157,7 @@ __all__ = [
     "TurnRunner",
     "VolumeState",
     "as_source",
+    "body_failure_message",
     "captured_at_from_unix_ms",
     "claimed_source",
     "data_uri",

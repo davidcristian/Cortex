@@ -82,11 +82,12 @@ untrusted model input: a line an attacker gets into a rendered reply becomes scr
 next capture. There is no partial credit and no workaround short of the kill switch. If this
 fails, set `CORTEX_HOST_CAPTURE=0`, stop, and record it before doing anything else.
 
-## The other five observations
+## The other six observations
 
 | Observation | Pass looks like | Failure looks like |
 | --- | --- | --- |
 | The real GDI blit | A reply that describes the actual display | An error from the body, or a capture that never returns |
+| A failure sentence from real hardware | Added 2026-08-08. Switch capture off and ask again: the reply says **the body refused to capture the screen**, not that it could not be reached. Then shut the lid or detach the display and ask: the reply says **the host is not in a state to capture the screen** | Either sentence starting "could not reach the body", which is the defect the kinded gateway error removed and would mean a status code arriving as something other than what the mapping writes |
 | The receipt | An OS notification, "Screen captured", authored by the **body** | The indicator lights and no notification appears, which means the capture failed or was refused; the reply should say so |
 | Per-monitor DPI | The captured image matches what is on screen at the scaling in use | A crop, a stretch, or only part of a scaled monitor |
 | Protected surfaces | A **black** rectangle where a hardware-overlay or DRM-protected surface was | The same thing, silently, with no error to distinguish it from a dark screen. This is expected behaviour to know rather than a bug to file |
@@ -98,6 +99,17 @@ deployment now captures at 2048 px and reads it at `CORTEX_IMAGE_MAX_TOKENS=1024
 synthetic 4K corpus from 6 to 8 of 47 ground-truth strings to 36 to 38. Type at 15 px on an
 unscaled monitor stays unreadable at every budget tried, so expect that and do not file it
 ([llamacpp-gpu.md](../runbooks/llamacpp-gpu.md)).
+
+**Why that row needs real hardware and the rest of its work did not.** The status codes and the
+sentences they produce were validated on the dev machine on 2026-08-08, end to end across the
+language boundary: the real tonic `body_service` served over loopback with `DeniedScreenCapture`,
+which is exactly what the host wires when `CORTEX_HOST_CAPTURE` is unset, and the real
+`GrpcBodyGateway` read it, so `PermissionDenied` became `REFUSED` became "the body refused to
+capture the screen" with nothing faked in between. What that cannot reach is a code no stub emits.
+`CaptureError::NoDisplay` and `CaptureError::Backend` come out of GDI itself, so the only way to
+see the `FailedPrecondition` and `Internal` rows produced by a real backend rather than by a
+constructed error is a Win32 session with a display to lose ([ADR-0023](../adr/ADR-0023-body-gateway-volume.md)'s
+2026-08-08 addendum). Everything else about the mapping is gated and green in CI.
 
 ## What a pass buys
 

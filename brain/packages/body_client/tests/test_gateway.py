@@ -4,6 +4,11 @@ combination, the token attached and its absence rejected, and gRPC failures → 
 The capture path (ADR-0029) adds the size story: a happy blob, an empty reply, a bad mime, an
 image over the domain budget, a reply the *transport* would refuse without the raised channel
 option, and the deadline.
+
+Since the 2026-08-08 addendum the failure assertions also pin the **kind**: every status the body
+can send is driven through the real adapter and its `BodyFailure` checked, because the sentence
+the cortex reads is chosen from that kind and a misclassification is exactly how a refused capture
+came to be announced as an unreachable body.
 """
 
 import asyncio
@@ -15,7 +20,7 @@ import pytest
 from grpc import aio
 
 from cortex_body_client import MAX_RECEIVE_BYTES, GrpcBodyGateway
-from cortex_core import MAX_IMAGE_BYTES, BodyGatewayError
+from cortex_core import MAX_IMAGE_BYTES, BodyFailure, BodyGatewayError
 from cortex_seam import (
     SEAM_TOKEN_HEADER,
     BodyServiceServicer,
@@ -418,3 +423,113 @@ async def test_the_unraised_default_would_have_killed_that_reply_in_the_transpor
     finally:
         await channel.close()
         await server.stop(grace=None)
+
+
+# Every status the body's own handlers can send, with the sentence they send it with, taken from
+# `body/crates/rpc/src/screen.rs`, `server.rs` and `auth.rs`. The kind column is what the cortex's
+# wording is chosen from, so this table is the classification contract in one place.
+_BODY_STATUSES = [
+    pytest.param(
+        grpc.StatusCode.PERMISSION_DENIED,
+        "screen capture is disabled on this host",
+        BodyFailure.REFUSED,
+        id="capture switched off, the shipping default",
+    ),
+    pytest.param(
+        grpc.StatusCode.RESOURCE_EXHAUSTED,
+        "the capture is too large for the seam: 6291457 bytes",
+        BodyFailure.OVERSIZE,
+        id="too large even after the shrink ladder",
+    ),
+    pytest.param(
+        grpc.StatusCode.FAILED_PRECONDITION,
+        "no display: lid shut",
+        BodyFailure.UNREADY,
+        id="no display",
+    ),
+    pytest.param(
+        grpc.StatusCode.INTERNAL,
+        "screen capture backend error: BitBlt 0x2",
+        BodyFailure.FAULTED,
+        id="a backend fault",
+    ),
+    pytest.param(
+        grpc.StatusCode.UNIMPLEMENTED,
+        "screen capture lands in a later slice",
+        BodyFailure.UNSUPPORTED,
+        id="a body older than the brain",
+    ),
+    pytest.param(
+        grpc.StatusCode.UNAUTHENTICATED,
+        "invalid or missing seam token",
+        BodyFailure.REFUSED,
+        id="a rejected seam token",
+    ),
+    pytest.param(
+        grpc.StatusCode.UNAVAILABLE,
+        "no display: lid shut",
+        BodyFailure.UNREACHABLE,
+        id="an older body still spending UNAVAILABLE on host state",
+    ),
+    pytest.param(
+        grpc.StatusCode.DATA_LOSS,
+        "something nobody classified",
+        BodyFailure.FAULTED,
+        id="a code the table does not name",
+    ),
+]
+
+
+@pytest.mark.parametrize(("code", "detail", "kind"), _BODY_STATUSES)
+async def test_every_status_the_body_sends_is_classified(
+    code: grpc.StatusCode, detail: str, kind: BodyFailure
+) -> None:
+    del detail  # the fake writes its own sentence; the classification is what is under test
+    async with _gateway(FakeBody(fail=code)) as gateway:
+        with pytest.raises(BodyGatewayError) as caught:
+            await gateway.capture_screen()
+    assert caught.value.kind is kind
+
+
+@pytest.mark.parametrize(("code", "detail", "kind"), _BODY_STATUSES)
+async def test_the_volume_and_notify_calls_classify_the_same_way(
+    code: grpc.StatusCode, detail: str, kind: BodyFailure
+) -> None:
+    """One classifier, four calls. A per-call copy of the table is how the volume built-in ends
+    up wording a failure differently from the capture built-in for the same wire status."""
+    del detail
+    async with _gateway(FakeBody(fail=code)) as gateway:
+        for call in (
+            gateway.get_volume(),
+            gateway.set_volume(mute=True),
+            gateway.notify(title="t", body="b", reminder_id="r1"),
+        ):
+            with pytest.raises(BodyGatewayError) as caught:
+                await call
+            assert caught.value.kind is kind
+
+
+async def test_a_body_that_is_not_there_is_the_only_unreachable_one() -> None:
+    """The row the old prefix was true for, and the reason UNAVAILABLE is now reserved: nothing
+    the body writes spends that code, so a synthesized one means the call never arrived."""
+    gateway, close = await GrpcBodyGateway.connect("127.0.0.1:1", capture_timeout_s=0.2)
+    try:
+        with pytest.raises(BodyGatewayError) as caught:
+            await gateway.capture_screen()
+    finally:
+        await close()
+    assert caught.value.kind is BodyFailure.UNREACHABLE
+
+
+async def test_a_brain_side_refusal_is_a_fault_and_never_an_unreachable_body() -> None:
+    """The four refusals that never touch a status code (a reply with no image, an unusable
+    image, a reply outside the bound asked for, a bound the wire cannot carry) take the default,
+    and the default must not be the claim this change exists to remove."""
+    async with _gateway(FakeBody(no_image=True)) as gateway:
+        with pytest.raises(BodyGatewayError) as caught:
+            await gateway.capture_screen()
+        assert caught.value.kind is BodyFailure.FAULTED
+
+        with pytest.raises(BodyGatewayError) as bad_bound:
+            await gateway.capture_screen(max_edge=-1)
+        assert bad_bound.value.kind is BodyFailure.FAULTED

@@ -6,7 +6,9 @@ The brain-side half of the first brain→body direction: a thin gRPC client wrap
 presence (a ``None`` field is left unset, so the body sets level, mute, or both), attaches the
 shared seam token as ``x-cortex-seam-token`` metadata (ADR-0016, mirrored for this direction),
 and maps every gRPC failure (the body unreachable, a non-OK status) to ``BodyGatewayError``
-with the cause chained. No orchestration, no state: the composition root owns the channel's
+with the cause chained **and the status classified into a ``BodyFailure`` kind**
+(``failures.py``), which is how the core can word a refusal as a refusal rather than as an
+unreachable body. No orchestration, no state: the composition root owns the channel's
 lifecycle (``connect`` returns the closer), exactly as ``LlamaCppBackend`` injects its client.
 
 ``capture_screen`` (ADR-0029) is the first call on this seam that carries a **deadline** and the
@@ -26,6 +28,7 @@ from typing import cast
 
 from grpc import aio
 
+from cortex_body_client.failures import kind_of
 from cortex_core import (
     BodyGatewayError,
     ImageError,
@@ -98,7 +101,7 @@ class GrpcBodyGateway:
             reply = cast("VolumeStatePb", await method(GetVolumeRequest(), metadata=self._metadata))
         except aio.AioRpcError as err:
             msg = f"body get_volume failed: {err.details()}"
-            raise BodyGatewayError(msg) from err
+            raise BodyGatewayError(msg, kind=kind_of(err)) from err
         return VolumeState(level=reply.level, muted=reply.muted)
 
     async def set_volume(
@@ -115,7 +118,7 @@ class GrpcBodyGateway:
             reply = cast("VolumeStatePb", await method(request, metadata=self._metadata))
         except aio.AioRpcError as err:
             msg = f"body set_volume failed: {err.details()}"
-            raise BodyGatewayError(msg) from err
+            raise BodyGatewayError(msg, kind=kind_of(err)) from err
         return VolumeState(level=reply.level, muted=reply.muted)
 
     async def notify(
@@ -135,7 +138,7 @@ class GrpcBodyGateway:
             reply = cast("NotifyReply", await method(request, metadata=self._metadata))
         except aio.AioRpcError as err:
             msg = f"body notify failed: {err.details()}"
-            raise BodyGatewayError(msg) from err
+            raise BodyGatewayError(msg, kind=kind_of(err)) from err
         return reply.shown
 
     async def capture_screen(self, *, max_edge: int = 0, max_bytes: int = 0) -> ScreenCapture:
@@ -168,7 +171,7 @@ class GrpcBodyGateway:
             )
         except aio.AioRpcError as err:
             msg = f"body capture_screen failed: {err.details()}"
-            raise BodyGatewayError(msg) from err
+            raise BodyGatewayError(msg, kind=kind_of(err)) from err
         return _to_capture(reply, max_edge=max_edge, max_bytes=max_bytes)
 
 

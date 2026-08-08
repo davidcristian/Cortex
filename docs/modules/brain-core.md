@@ -814,8 +814,10 @@ unchanged):
   alone): the brain-side handle on
   the host body's OS actions. A capture is attempted **exactly once and never retried**, because
   a repeat photographs a different screen and fires a second host receipt for one user intent. It is the first brain→body seam direction (the brain dials the body's
-  `BodyService`). Absent kwargs leave that field alone; an unreachable body surfaces as
-  `BodyGatewayError`. The real adapter is `cortex_body_client`'s `GrpcBodyGateway` over the gRPC
+  `BodyService`). Absent kwargs leave that field alone; every failure surfaces as
+  `BodyGatewayError` **carrying a `BodyFailure` kind** that says how far the call got, which is
+  what lets a caller word a refusal as a refusal (ADR-0023's 2026-08-08 addendum). The real
+  adapter is `cortex_body_client`'s `GrpcBodyGateway` over the gRPC
   seam, opt-in and off by default (wired at the composition root, not here).
 - `ScheduleStore` holds durable schedules with the fenced claim→finish protocol (ADR-0025):
   `async add(item)`, `async get(item_id) -> ScheduledItem | None`, `async list_active()`,
@@ -847,6 +849,13 @@ unchanged):
   `ToolNotFoundError`) / `TaskStoreError` / `HandoffStoreError` / `ModelHostError` /
   `BodyGatewayError` / `ScheduleStoreError` are typed
   errors; adapters wrap their backend's failures into these with the cause chained.
+  `BodyGatewayError` alone carries a second field, `kind: BodyFailure`, keyword-only and
+  defaulting to `FAULTED`: `UNREACHABLE` (no answer arrived), `REFUSED` (a standing policy no),
+  `UNSUPPORTED` (no such capability), `UNREADY` (host state missing), `OVERSIZE` (done, will not
+  fit the seam) and `FAULTED` (anything else). `body_failure_message(err, action=...)`
+  (`body_failure.py`) is the one table that turns a kind plus an infinitive into the sentence the
+  cortex reads, so the body built-ins cannot drift apart and only `UNREACHABLE` may claim the body
+  could not be reached.
   `SubagentAdmissionError` is the one raised by pure-core policy rather than an adapter: a
   `SubagentScheduler` refusing a spawn outright (ADR-0012 admission-wall addendum). Bad *values*
   stay `ValueError` (a non-positive budget or ask, an empty roster), as everywhere else.
@@ -1428,7 +1437,9 @@ Use-case:
   like `spawn_subagents`. `get_volume` reads the state; `set_volume` takes optional `level` (0-1)
   and/or `mute`. Both `gated=False` (volume is reversible) and every result is `Trust.TRUSTED`
   (host state, never taints the turn); bad arguments and a `BodyGatewayError` both become an
-  `is_error` `TRUSTED` `ToolResult`, never a raise. `BuiltinTool`s, registered in the
+  `is_error` `TRUSTED` `ToolResult`, never a raise. A gateway failure is worded by
+  `body_failure_message(err, action="control volume")`, so a host with no audio endpoint reads as
+  a host that is not in a state to do it rather than as a body nobody could reach. `BuiltinTool`s, registered in the
   `CompositeToolRegistry`.
 - `CaptureScreenTool(body, *, max_edge=0, max_bytes=0)` is the built-in `capture_screen` tool
   (`screen_tool.py`, `CAPTURE_SCREEN_TOOL_NAME`), the cortex's eyes over a `BodyGateway`
@@ -1693,7 +1704,8 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   `capture_screen` records the hints it was sent as a `CaptureAsk` and answers the `capture`
   kwarg or `default_capture()` (a 1x1 view of a 2x2 screen, so the downscaled branch is
   exercised by default); a `fail`
-  kwarg scripts an unreachable body (`BodyGatewayError`). Contract twin of `cortex_body_client`'s
+  kwarg scripts a failing body (`BodyGatewayError`, whose `kind` the test chooses so the fake can
+  stand in for any wire status). Contract twin of `cortex_body_client`'s
   `GrpcBodyGateway`, no live body.
 - `InMemoryTaskStore` is a dict-backed `TaskStore`; contract twin of the Redis adapter (Slice 7
   CI half). Unknown ids return `None`. Does not survive a restart, by design.

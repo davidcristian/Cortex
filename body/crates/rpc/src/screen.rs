@@ -98,20 +98,30 @@ fn blob(capture: &Capture, captured_at_unix_ms: i64) -> ImageBlob {
 }
 
 /// Maps a [`CaptureError`] to the outbound gRPC [`Status`] the brain reads, on the same split
-/// the volume and notification mappings use: a missing display is `Unavailable` (transient, a
-/// laptop with its lid shut), a host that switched capture off is `PermissionDenied` (a
-/// standing answer the brain should not retry into), and a backend fault or an image that
-/// stays too big even downscaled is `Internal`.
+/// the volume and notification mappings use. Every code here is chosen so the brain can
+/// classify it: a laptop with its lid shut is `FailedPrecondition` (host state, and it works
+/// again once the state is fixed), a host that switched capture off is `PermissionDenied` (a
+/// standing answer the brain should not retry into), a picture that stays too big even after
+/// the shrink ladder is `ResourceExhausted` (it was taken, and it will not fit), and a backend
+/// fault is `Internal`.
+///
+/// **Nothing here says `Unavailable`.** tonic synthesizes that code client-side when a channel
+/// cannot connect, and the brain's grpc-python client cannot tell a synthesized status from a
+/// sent one, so a body spending it on a shut lid would be indistinguishable from a body that is
+/// not running at all. Leaving it unspent makes `Unavailable` on this seam mean exactly one
+/// thing: the call never arrived.
 fn capture_error_to_status(error: &CaptureError) -> Status {
     match error {
-        CaptureError::NoDisplay(detail) => Status::unavailable(format!("no display: {detail}")),
+        CaptureError::NoDisplay(detail) => {
+            Status::failed_precondition(format!("no display: {detail}"))
+        }
         CaptureError::Disabled => {
             Status::permission_denied("screen capture is disabled on this host")
         }
         CaptureError::Backend(detail) => {
             Status::internal(format!("screen capture backend error: {detail}"))
         }
-        CaptureError::TooLarge(bytes) => Status::internal(format!(
+        CaptureError::TooLarge(bytes) => Status::resource_exhausted(format!(
             "the capture is too large for the seam: {bytes} bytes"
         )),
     }

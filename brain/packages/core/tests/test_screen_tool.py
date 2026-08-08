@@ -13,6 +13,7 @@ from cortex_core import (
     CAPTURE_SCREEN_TOOL_NAME,
     DENIED_MSG,
     MAX_IDENTICAL_DISPATCHES,
+    BodyFailure,
     BodyGatewayError,
     CaptureBounds,
     CaptureScreenTool,
@@ -114,13 +115,51 @@ async def test_the_configured_bounds_reach_the_body() -> None:
 async def test_an_unreachable_body_is_a_trusted_error_with_no_pixels() -> None:
     # Deliberately asymmetric: nothing untrusted arrived, so tainting here would close the
     # user's gated tools for the rest of a turn in which nothing was read.
-    body = InMemoryBodyGateway(fail=BodyGatewayError("body down"))
+    body = InMemoryBodyGateway(fail=BodyGatewayError("body down", kind=BodyFailure.UNREACHABLE))
     result = await CaptureScreenTool(body).invoke(_call())
 
     assert result.is_error is True
     assert result.trust is Trust.TRUSTED
     assert result.images == ()
     assert result.content == "could not reach the body to capture the screen: body down"
+
+
+async def test_the_shipping_default_reads_as_a_refusal_and_not_as_a_dead_body() -> None:
+    """The one row of the failure table an untouched install actually hits.
+
+    With ``CORTEX_HOST_CAPTURE`` unset the body answers ``PERMISSION_DENIED`` at once, and this
+    used to reach the model as ``could not reach the body to capture the screen``, with the truth
+    appended after a colon. A capture the host switched off is not a capture nobody could reach,
+    and telling the model otherwise sends the user to check a body that is running fine.
+    """
+    disabled = BodyGatewayError(
+        "body capture_screen failed: screen capture is disabled on this host",
+        kind=BodyFailure.REFUSED,
+    )
+    result = await CaptureScreenTool(InMemoryBodyGateway(fail=disabled)).invoke(_call())
+
+    assert result.content == (
+        "the body refused to capture the screen: body capture_screen failed: "
+        "screen capture is disabled on this host"
+    )
+    assert "could not reach the body" not in result.content
+
+
+async def test_a_capture_too_large_to_send_is_not_reported_as_a_broken_backend() -> None:
+    """The other half of the same defect: a picture that was taken and will not fit is a
+    different thing from a body whose backend broke, and the two used to be one sentence behind
+    one status code."""
+    oversize = BodyGatewayError(
+        "body capture_screen failed: the capture is too large for the seam: 6291457 bytes",
+        kind=BodyFailure.OVERSIZE,
+    )
+    result = await CaptureScreenTool(InMemoryBodyGateway(fail=oversize)).invoke(_call())
+
+    assert result.content.startswith(
+        "the body could not capture the screen within the size the seam allows:"
+    )
+    assert result.trust is Trust.TRUSTED
+    assert result.images == ()
 
 
 async def test_a_capture_taints_the_turn_through_the_ordinary_ledger() -> None:

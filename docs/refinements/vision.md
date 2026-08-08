@@ -10,7 +10,7 @@ index at [index.md](index.md) carries the recommended pickup order.
 JPEG or WebP for photographic screens,
 an `AttachmentStore` for accountability,
 per-source memory rules, a Windows.Graphics.Capture backend, multi-monitor and DPI reporting,
-Linux and macOS backends, a uniform per-call deadline, `RESOURCE_EXHAUSTED` classification,
+Linux and macOS backends, a uniform per-call deadline,
 pixel screening in the body, and carrying a picture across a model swap.
 
 Two bookkeeping notes, both settled 2026-07-19, so the names above can be reconciled against the
@@ -53,7 +53,17 @@ written down so that is visibly a decision rather than an oversight: **`RESOURCE
 classification** was re-read against the raised capture edge and ruled not fired, so it keeps its
 name, its bullet and its place in the count while its bullet gains what the re-read found and a
 trigger a reader can check instead of feel. A re-read that confirms a deferral is the one event in
-this file that should leave the arithmetic exactly where it was.
+this file that should leave the arithmetic exactly where it was. An eleventh, on 2026-08-08,
+which moves the count for the entry the tenth deliberately did not: **`RESOURCE_EXHAUSTED`
+classification** closed whole, both the classification it is named for and the wording defect
+folded into it, so its name leaves the line above and the count moves 12 to 11. It is worth
+setting beside the tenth note, because the two are the same entry read twice. The re-read that
+held it counted it right on the mechanism and wrong on the conclusion: what it found, that nothing
+brain-side read the status code, was not a reason the distinction was already reaching its reader
+but the reason the reader could not be told the truth. The bullet keeps both readings. The
+deferral this close opens is not this area's, so no name arrives to replace it here; it is a
+coupling the constant scan cannot hold, and it lives with the other three in
+[repo-gates.md](repo-gates.md).
 
 ## Vision in Slice 10 ([ADR-0029](../adr/ADR-0029-vision-screen-capture.md))
 
@@ -374,6 +384,36 @@ this file that should leave the arithmetic exactly where it was.
   fact, which is why it waits, but it is reachable on a default install and this entry's own
   trigger clause is about sending a reader to the wrong place. `volume.py` carries the same
   prefix and is more defensible there, having no kill switch behind it.
+
+  **Both halves landed 2026-08-08, so this entry closes whole and the count moves 12 to 11**
+  ([ADR-0023](../adr/ADR-0023-body-gateway-volume.md)'s addendum of that date, which is the right
+  home because what changed is the gateway's error currency and it changed for volume and notify
+  as much as for capture). The wording half was the reason it stopped waiting: the prefix defect
+  is reachable on an untouched install and the entry's own trigger clause is about sending a
+  reader to the wrong place, so the trigger had in fact fired for the half nobody had counted as
+  the trigger.
+
+  **The 2026-08-06 re-read was right about the mechanism and wrong about the conclusion it drew
+  from it**, and both halves of that are worth keeping, since this file's standing warning is that
+  an entry records what somebody once measured. Right: nothing brain-side read the status code,
+  and that was verified again at HEAD before anything moved. Wrong: it read "the only reader
+  already gets the distinction" off that, when what the only reader got was the body's sentence
+  behind a lead that contradicted it. The code nobody read was exactly why the lead could not be
+  chosen correctly, so "a code the brain does not read is worth adding for a caller that would
+  branch on it, and there is none yet" had the caller in front of it the whole time. It is now
+  `body_failure_message`.
+
+  What landed is one kind on the error (`BodyFailure`, six members: `UNREACHABLE`, `REFUSED`,
+  `UNSUPPORTED`, `UNREADY`, `OVERSIZE`, `FAULTED`), one status table in the adapter, one wording
+  table in the core, and, on the body side, a code per `CaptureError` variant rather than the one
+  the entry named. `TooLarge` moved to `ResourceExhausted` as written; `NoDisplay` moved to
+  `FailedPrecondition` because it aliased with the code tonic synthesizes for a channel that
+  cannot connect, which is the same indistinguishability defect one layer down and is why
+  `AudioError::NoEndpoint` and `NotifyError::Unavailable` moved with it. The re-read's arithmetic
+  about the ladder is untouched and still true: `CaptureError::TooLarge` remains unreachable at the
+  shipped byte ceiling at any edge the seam permits, so this entry closed on the wording half
+  while the classification half is a correctness fix nothing can yet exercise from the outside.
+  A new deferral opens beside it, recorded below.
 - **Carrying a picture, or at least the `opaque` bit, across a model swap.** Named in ADR-0029's
   own Deferred paragraph and written down here on 2026-07-19, having been missed when the slice
   closed. Nothing persists an in-turn image: no session store, and no handoff record either, whose
