@@ -1074,3 +1074,22 @@ fact. The remaining entries in [docs/refinements/memory.md](../refinements/memor
 still open, and one of them changed shape here: the relevance floor was filed as the gap left for
 "every deployment that has not opted into the judge", and it is now the gap left for a deployment
 that opts **out** of it.
+
+### Deferred by this addendum
+
+Recorded in [repo-gates.md](../refinements/repo-gates.md) with its line on
+[the index](../refinements/index.md):
+
+- **This measurement's harness is not in the repo.** Every other run in this ADR names an
+  `integration`-marked test that reproduces it; the numbers above name none. The host-side client
+  that opened one `Converse` stream per turn, timed the first `TextDelta` and the `TurnComplete`,
+  and ran the three blocks with a container restart between them was left in a scratchpad, so the
+  0.515 s is re-derivable only by rebuilding the driver from the prose here. It was punted because
+  a driver spanning the seam is not an adapter test and wanted its own decision about where such a
+  thing lives, and it is filed under the repo's test-runner mechanics rather than under memory
+  because that placement, not recall, is what stayed unsettled. The tree answers most of it
+  already: `packages/orchestrator/tests/test_schedule_live_seam.py` is an `integration`-marked
+  host-side client of the shipped `BrainServiceStub`. What it does not answer is a harness that
+  restarts containers between arms and reports a distribution rather than asserting a bound.
+  **Trigger:** the next end-to-end measurement of a whole turn, or a challenge to the shipped
+  recall default that needs this run reproduced rather than cited.

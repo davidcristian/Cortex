@@ -59,7 +59,7 @@ entries from it never added the two it opened, and there the count did move and 
 
 | Doc | Area | Open |
 | --- | --- | --- |
-| [repo-gates.md](repo-gates.md) | Line cap (the core barrel came off it 2026-08-06, split into area sub-barrels under `cortex_core._surface` with every call site unmoved, ADR-0026), dashcheck, coverage config (ADR-0026), gate coverage of the ungated Rust trees and of the overlay's TypeScript (ADR-0011), the stylesheet still outside the cap, test-runner mechanics (ADR-0002), whose live runs now each own their store after the pgvector one took the `cortex_contract` database 2026-08-06 and the Redis ones took a logical database 2026-08-03, the couplings the cross-language constant scan does not hold yet (ADR-0029), and the compose bind defaults that land in the repo tree, whose two live cases were ignored 2026-08-06 while nothing checks for a third | 6 |
+| [repo-gates.md](repo-gates.md) | Line cap (the core barrel came off it 2026-08-06, split into area sub-barrels under `cortex_core._surface` with every call site unmoved, ADR-0026), dashcheck, coverage config (ADR-0026), gate coverage of the ungated Rust trees and of the overlay's TypeScript (ADR-0011), the stylesheet still outside the cap, test-runner mechanics (ADR-0002), whose live runs now each own their store after the pgvector one took the `cortex_contract` database 2026-08-06 and the Redis ones took a logical database 2026-08-03, the couplings the cross-language constant scan does not hold yet (ADR-0029), and the compose bind defaults that land in the repo tree, whose two live cases were ignored 2026-08-06 while nothing checks for a third, and, added 2026-08-08, the harness that measured a whole recalling turn through the seam and stayed in a scratchpad, so the one measurement in that ADR naming no reproducing test is the one whose result shipped as the default | 7 |
 | [seam-transport.md](seam-transport.md) | `BrainTransport` retry/reconnect (ADR-0003/0024) | 4 |
 | [seam-auth.md](seam-auth.md) | Seam token auth (ADR-0016) | 1 |
 | [session-history.md](session-history.md) | Slice 3 history windowing and summarization, the recap's fold made cheap 2026-08-06 (thinking off and a token cap per request, a floor under a fold, a chip while it runs) and `CORTEX_HISTORY_SUMMARY` moved to on, leaving one open item, restated 2026-08-08 as the half of the one-corpus entry that a run can actually settle: nothing has been measured about a cortex under load, while the corpus being hand built by the feature's author is an authorship caveat that no corpus this repo can build retires (ADR-0014/0038) | 1 |
@@ -3106,6 +3106,17 @@ of the requested edge and always fits, so the entry fires when a deployment sets
 `CORTEX_BODY_MAX_IMAGE_BYTES` under roughly 450 KB and not before. It also now carries the one
 live thing that pass found, which is that every capture failure reaches the model behind a
 "could not reach the body" prefix that is false for all but one of them.
+
+One repo-gates entry joined on 2026-08-08 ([repo-gates.md](repo-gates.md)). **The harness that
+measured a whole recalling turn stayed in a scratchpad**, so of the measurements in
+[ADR-0038](../adr/ADR-0038-ranked-recall.md) the only one naming no `integration`-marked test that
+reproduces it is the one whose result shipped, the recall default. It was punted because a
+host-side client driving `Converse` streams across the seam is not an adapter test and wanted its
+own decision about where such a thing lives, and the tree already answers most of that, since
+`packages/orchestrator/tests/test_schedule_live_seam.py` is exactly such a client; what is left is
+that a measurement restarts containers between arms and reports a distribution rather than
+asserting a bound. Its trigger is the next end-to-end measurement of a whole turn, or a challenge
+to the recall default that needs the run reproduced rather than cited.
 
 ### Feature breadth, on request
 
