@@ -262,9 +262,10 @@ touches the turn: the reply has already streamed by the time the rate is known, 
 spend a user's answer on an operator's problem.
 
 **Measured on this card 2026-08-08**, through the shipped adapter and watch, three completions of
-about 120 words an arm, reproducible with
+about 120 words an arm. The last two rows are reproducible with
 `packages/inference/tests/test_decode_cadence_live.py` (integration-marked; start or stop the peer
-through the control API to choose the arm):
+through the control API to choose the arm). The cold row is not: it came from a script driving the
+same adapter and watch, so reproducing it means arranging a clear card yourself:
 
 | Arm | free after | decode | best | at a declared 25.0 |
 |---|---|---|---|---|
@@ -272,7 +273,9 @@ through the control API to choose the arm):
 | **cortex resident, then deep** | **423 MiB** | **21.64, 20.38, 22.77** | **22.77** | **collapsed**, 2.23 short |
 | deep alone, peer evicted under it | 8649 MiB | 28.32, 29.82, 29.38 | 29.82 | not collapsed |
 
-Both tiers answered `ready` in every arm. Two things worth carrying: **a spilled tier does not
+Every tier an arm had resident answered `ready`, and in the middle arm that is both of them, which
+is the one where it matters; the outer two run the deep tier alone. Two things worth carrying: **a
+spilled tier does not
 fully recover when its peer is evicted** (29.82 against 33.78 from cold, at 8649 MiB free where the
 cold load read 2310, so part of it stays off the card until reloaded), and **which tier pays
 depends on load order**. Loading the cortex second, beside an already-resident deep model, cost the
