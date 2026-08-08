@@ -321,13 +321,15 @@ see the outcome notes below the verbatim entries)
   this up.
 - **The overlay's stylesheet is outside the line cap.** *Fix when it bites.* Opened 2026-08-03
   behind the entry above, because turning the cap on made the exclusion a decision rather than an
-  oversight. `body/app/src/overlay.css` is **2420 lines**, by a wide margin the longest hand-written
-  file in the repo, and no gate measures it. It is excluded on the argument that the cap's remedy is
+  oversight. `body/app/src/overlay.css` was **2420 lines** the day this opened and is **2686** as of
+  2026-08-08, by a wide margin the longest hand-written file in the repo, and no gate measures it. It is excluded on the argument that the cap's remedy is
   "split by responsibility", which presumes a module with a public contract, while a stylesheet is
   one cascade whose ordering is load-bearing: splitting it trades a long file for `@import` ordering
   that nothing checks and that fails visually rather than loudly. That argument is honest about the
-  remedy and evasive about the problem, since 2420 lines is exactly the cognitive load the cap
-  exists to bound, and the file has grown with every overlay slice. **What would close it:** either
+  remedy and evasive about the problem, since a file this long is exactly the cognitive load the cap
+  exists to bound, and it has grown with every overlay slice, by 266 lines since the entry was
+  filed. That growth is also why the number above is now measured rather than quoted: an entry that
+  states a file's size has to re-read the file, the way every other claim about the code here does. **What would close it:** either
   a cap for `.css` at a width chosen for stylesheets rather than modules, with the split done by
   layer (tokens, panel, console, motion) and imported in a fixed order from one entry sheet, or the
   same split done for its own sake with the cap following. Neither is a scanner change; the scanner
