@@ -21,6 +21,11 @@ MemoryScopeName = Literal["global", "session"]
 MemoryRecallName = Literal["raw", "reranked", "mmr", "recency_mmr", "judge"]
 MemoryTaintPolicyName = Literal["skip", "record"]
 
+# The port BrainService listens on by default. Named rather than spelled inline because it is
+# not only ours: the compose stack publishes it and dials it in its own healthcheck, and the
+# host body's default endpoints carry it too, so `scripts/crosscheck.py` ties those to this.
+DEFAULT_SEAM_PORT = 50051
+
 
 class SeamServerConfig(BaseSettings):
     """Where (and to whom) the brain hosts BrainService.
@@ -34,7 +39,7 @@ class SeamServerConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="CORTEX_SEAM_")
 
     host: str = "127.0.0.1"
-    port: int = 50051
+    port: int = DEFAULT_SEAM_PORT
     # env CORTEX_SEAM_TOKEN is the shared secret both sides read from env (never the repo).
     token: str = ""
     # env CORTEX_SEAM_CONVERSE_BUFFER sets how many ServerEvents one Converse stream may

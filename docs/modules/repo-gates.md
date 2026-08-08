@@ -39,16 +39,23 @@ unit-tested core function). `composemounts.py` is the one module that is not a C
   dash that means rather than punctuates. Exit 0 with a summary; exit 1 printing
   `path:line: kind: text` per violation; exit 2 if `--root` is not a directory or a file
   cannot be read.
-- `crosscheck.py [--root DIR]` ties the constants that exist once per language because both
-  sides of the seam must hold the same value and neither toolchain can import the other's
-  (ADR-0029 cross-language-constant addendum). `CONSTANTS` is the registry: each entry is a
-  label, the reason the sites must agree (printed with any failure), and two or more `Site`s,
-  each a repo-relative path plus the identifier declared in it. Registered today: the
-  screen-capture byte ceiling (`MAX_CAPTURE_BYTES` in `body/crates/core`, `MAX_IMAGE_BYTES` in
-  `brain/packages/core`), the seam token's metadata key (`SEAM_TOKEN_HEADER` in
-  `body/crates/rpc`'s `auth.rs` and `client.rs`, and in `brain/packages/seam`), and the
-  session-title truncation bound (`TITLE_MAX` in `brain/packages/core`'s `sessions.py` and in the
-  overlay's `sessionState.ts`, ADR-0021 truncation addendum).
+- `crosscheck.py [--root DIR]` ties the values this repo spells in more than one place, because
+  both sides of a seam must hold the same one and neither toolchain can import the other's
+  (ADR-0029 cross-language-constant addendum and its 2026-08-08 widening). The scan is all of the
+  logic; `couplings.py` is all of the data and holds `CONSTANTS`, one entry per value: a label,
+  the reason its places must agree (printed with any failure), its `Site`s, an optional
+  `relation`, and optional `mentions`.
+  **A `Site` declares the value** (a repo-relative path plus the identifier declared in it) and is
+  read and compared. **A `Mention` spends it without declaring it** (a path plus a template
+  carrying `{value}`): the scan renders the agreed value into the template and requires the result
+  to appear in the file. That is not circular, since the template carries the shape and the site
+  carries the value, and it is what lets the gate reach a key spelled inside a shell string, a
+  custom property a stylesheet reads back with `var(...)`, and a bare literal a component compares
+  against, with no promotion to a named constant first.
+  **`Relation`** is `EQUAL` by default; `ORDERED` holds an entry's sites to non-decreasing order
+  in registry order, for a bound that must sit under another rather than match it. An ordering
+  compares numbers only (a string under one is a fault), and it may carry no mentions, there being
+  no single value to spell.
   **No master:** the sites are compared with each other, not against a declared value, so
   editing either side alone fails and a deliberate change is a change to all of them.
   `proto/body.proto` is not the source: protobuf has no constant, so a value could only sit
@@ -57,11 +64,13 @@ unit-tested core function). `composemounts.py` is the one module that is not a C
   literals and a plain double-quoted string, and `DECLARATIONS` holds one declaration syntax
   per language (`.py`, `.rs`, `.ts`), matching module-level and item-level constants only: the
   Python and TypeScript forms are anchored at column 0, so an indented `const` is a local and not
-  a second declaration of the module's constant.
+  a second declaration of the module's constant. A mention needs no declaration syntax, so its
+  file may be any text at all (`.css`, `.yml`, `.tsx`).
   **Fails closed by design**, because a scan that cannot find its constants would agree with
   itself forever: a missing file, an unreadable or non-UTF-8 one, an unknown suffix, a name
-  that is absent, one declared twice, a value it cannot reduce, and a registry entry naming
-  fewer than `MIN_SITES` (2) are each a fault, never a skip. Exit 0 with a summary; exit 1
+  that is absent, one declared twice, a value it cannot reduce, a mention whose rendered needle is
+  absent or whose template carries no `{value}`, and a registry entry naming no declaring site or
+  fewer than `MIN_PLACES` (2) places are each a fault, never a skip. Exit 0 with a summary; exit 1
   printing `label: detail` per fault; exit 2 if `--root` is not a directory.
 - `bindcheck.py [--root DIR]` holds every compose bind mount to landing somewhere git
   accounts for (ADR-0026 bind addendum). The rule, stated in the module's own docstring: a
@@ -142,7 +151,12 @@ unit-tested core function). `composemounts.py` is the one module that is not a C
 - `crosscheck.py`'s registry is checked against the real trees by its own suite
   (`test_the_repo_itself_is_tied`), so `check-scripts` catches a drift even when
   `check-crosscheck` is not the recipe that runs. Registering a constant in a language
-  `DECLARATIONS` does not know, or inside a single tree, is refused by that suite too.
+  `DECLARATIONS` does not know, or a mention whose template carries no `{value}`, or an entry
+  whose places are all one language, is refused by that suite too. It used to refuse an entry
+  confined to one top-level tree; the overlay and its stylesheet are one tree and two languages,
+  so suffix replaced tree when mentions landed. Two more invariants guard the widening itself: the
+  registry must exercise both `Relation` members and both kinds of place, since a comparator no
+  entry uses is a gate that cannot fail.
 - `bindcheck.py` does the same (`test_the_repo_itself_is_clean`), with a guard on the guard:
   `test_the_repo_really_declares_binds_for_this_gate_to_have_checked` fails if the reader ever
   finds fewer than six defaulted bind sources under `docker/`, so the clean verdict cannot go

@@ -1402,6 +1402,78 @@ line on [docs/refinements/index.md](../refinements/index.md), and this addendum.
 including the four things about this arm that bite before the model does, is in
 [docs/runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md) beside the brain tier's row.
 
+## Addendum (2026-08-08): the registry holds orderings and uses, not only declared equalities
+
+The deferral the addendum above opened named three kinds of coupling the registry could not hold,
+and a fourth arrived the same day (a TypeScript name whose far side is a CSS **use**), with a
+fifth on 2026-08-08 (the stylesheet restating the roll's duration and curve). Four of the five are
+closed here, by two changes to `scripts/crosscheck.py` and none to what it is for. The registry
+itself moved out to `scripts/couplings.py`, which is all of the data the way the scan is all of
+the logic, and it went from 3 entries to 14.
+
+**A comparator field, for the couplings that are not equalities.** `Relation.ORDERED` holds an
+entry's sites to non-decreasing order in the order the registry writes them, against
+`Relation.EQUAL` for everything else. Two orderings are registered: the body's `MAX_EDGE_CEILING`
+(4096) at or below the brain's `MAX_IMAGE_EDGE` (8192), and the body's `MAX_CAPTURE_BYTES`
+(6 MiB) at or below `cortex_body_client`'s `MAX_RECEIVE_BYTES` (16 MiB), which is the receive
+limit stated against the ceiling in the tree that actually produces the bytes rather than against
+the brain's own copy of it. An ordering compares numbers only; a string under one is a fault
+rather than an alphabetical comparison nobody asked for. The third ordering the deferral named,
+`CAPTURE_MIME` inside `ALLOWED_MIME_TYPES`, is **not** closed: it is a membership in a
+`frozenset` literal, so it needs a collection value form as well as a comparator, and the value
+reducer refuses what it cannot reduce by policy. That stays deferred.
+
+**A mention, for the far side that is a use rather than a declaration.** This is the answer to
+three of the five kinds at once, and saying so is half the finding: a metadata key spelled inside
+a shell string in a compose healthcheck, a custom property a stylesheet reads back with
+`var(...)`, and a bare `"thinking"` literal a component compares against are all the same problem,
+which is that there is no declaration on that side to parse. A `Mention` is a file plus a
+template carrying `{value}`; the scan renders the agreed value into it and requires the result to
+appear in the file. That is not circular, because the template carries the shape and the site
+carries the value, and it is why a bare literal no longer has to be promoted to a named constant
+first, which is what the deferral thought the remaining work was.
+
+Registered as mentions: the compose healthcheck's fourth copy of `x-cortex-seam-token`, the one
+the deferral called the copy whose drift would be silent; `THINKING_STATE` against the two
+overlay files that compare against the literal; `CEILING_PROPERTY`, `CHAT_FLOOR_PROPERTY`,
+`TRACE_ROW_PROPERTY`, `RESIZING_ATTRIBUTE` and `MORPHING_ATTRIBUTE` against the stylesheet rules
+that spend them; `EASING` against the `--ease` custom property that restates the curve; and the
+brain's seam port against the compose publish, the compose healthcheck and the host shell's two
+default endpoints. That last one is the only entry that needed a source change: the port was a
+bare `50051` on a pydantic field, so it is now `DEFAULT_SEAM_PORT` at module scope in
+`cortex_orchestrator.config`, named the way that file already names its other defaults.
+`CAPTURE_SCREEN_TOOL` against `CAPTURE_SCREEN_TOOL_NAME` needed nothing new and is a plain
+equality; it was simply unregistered.
+
+**One coupling in the fifth kind is not closed and the reason is units.** The stylesheet spells
+the roll's duration as `0.3s` at some thirty inline sites while `MORPH_ROLL_MS` is a count of
+milliseconds, so no template renders one into the other. Closing it wants either a unit-aware
+value form with a per-site unit, which is a design rather than a field, or the overlay adopting a
+`--roll: 300ms` custom property that every transition spends, which is a stylesheet change and
+belongs with the stylesheet's own open entry. The curve half of that pair **is** closed, because
+`--ease` restates the value verbatim.
+
+**One invariant in the suite had to change**, and it is worth naming rather than quietly
+relaxing. `test_every_registered_constant_spans_more_than_one_tree` refused an entry confined to
+one top-level tree, which was right while every coupling crossed the body/brain seam. The overlay
+and its stylesheet are one tree and two languages, and the rename that breaks them is exactly
+what this scan exists to catch, so the test now demands more than one **suffix** across an
+entry's sites and mentions. Two new invariants guard the widening itself: the registry must
+exercise both relations and both kinds of place, because a comparator no entry uses is the same
+gate-that-cannot-fail defect in a wider gate.
+
+**Proven able to fail before being trusted, on the real tree, once per new capability.** The
+ordering: `MAX_EDGE_CEILING` raised to 16384 exits 1 with "sites are not non-decreasing in
+registry order". The comparator field being read rather than decorative: the same two ordered
+entries flipped to `Relation.EQUAL` both exit 1 on values that pass as orderings, which is the
+proof the field decides something. The mention, in both directions: renaming `--ceiling` in
+`overlay.css` exits 1 with "does not spell 'var(--ceiling,'", and renaming `CEILING_PROPERTY` in
+the TypeScript exits 1 with "does not spell 'var(--roof,'". The bare literal: one of
+`Message.tsx`'s two `"thinking"` comparisons mistyped exits 1. The string-embedded copy: the
+healthcheck's `x-cortex-seam-token` mistyped exits 1. The port: `DEFAULT_SEAM_PORT` moved to
+50052 exits 1 three times, naming the compose file and both host-shell files. Every one reverted
+to "crosscheck OK: 14 cross-tree constant(s) under .. agree".
+
 ## Addendum (2026-08-06): what a 4K desktop is actually legible at, and what the knob costs
 
 The headline risk this ADR shipped with is that a 4K desktop downscaled to 1600 px renders small

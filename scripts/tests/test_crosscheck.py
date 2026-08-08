@@ -190,14 +190,153 @@ def test_check_constant_reports_every_broken_site(tmp_path: Path) -> None:
 
 
 def test_check_constant_refuses_a_registry_entry_that_compares_nothing() -> None:
-    """A one-site entry would pass forever, which is a gate that cannot fail."""
+    """A one-place entry would pass forever, which is a gate that cannot fail."""
     lonely = crosscheck.Constant(
         label="a lonely value",
         why="nothing",
         sites=(crosscheck.Site("brain.py", "A"),),
     )
     (fault,) = crosscheck.check_constant(Path(), lonely)
-    assert "fewer than two sites" in fault.detail
+    assert "fewer than two places" in fault.detail
+
+
+def test_check_constant_refuses_an_entry_with_nothing_to_read_the_value_from() -> None:
+    """Mentions spend a value; something has to establish it first."""
+    mentions_only = crosscheck.Constant(
+        label="an unestablished value",
+        why="nothing",
+        sites=(),
+        mentions=(crosscheck.Mention("a.css", "var({value})"), crosscheck.Mention("b.css", "x")),
+    )
+    (fault,) = crosscheck.check_constant(Path(), mentions_only)
+    assert "names no declaring site" in fault.detail
+
+
+def test_check_constant_refuses_a_mention_on_an_ordering() -> None:
+    """An ordering has two different legal values, so there is no one value to go looking for."""
+    muddled = ORDERING._replace(mentions=(crosscheck.Mention("a.css", "{value}"),))
+    (fault,) = crosscheck.check_constant(Path(), muddled)
+    assert "no one value a mention could spell" in fault.detail
+
+
+# ── orderings, where one bound must sit under another ──────────────────────────
+
+
+ORDERING = crosscheck.Constant(
+    label="an ordering",
+    why="the lower bound must stay under the upper one",
+    sites=(
+        crosscheck.Site("body.rs", "MAX_EDGE_CEILING"),
+        crosscheck.Site("brain.py", "MAX_IMAGE_EDGE"),
+    ),
+    relation=crosscheck.Relation.ORDERED,
+)
+
+
+def _order(root: Path, lower: str, upper: str) -> None:
+    (root / "body.rs").write_text(f"const MAX_EDGE_CEILING: u32 = {lower};\n", encoding="utf-8")
+    (root / "brain.py").write_text(f"MAX_IMAGE_EDGE = {upper}\n", encoding="utf-8")
+
+
+@pytest.mark.parametrize(("lower", "upper"), [("4096", "8192"), ("8192", "8192")])
+def test_an_ordering_holds_below_and_at_the_bound(tmp_path: Path, lower: str, upper: str) -> None:
+    """The whole reason for the comparator: these two pass here and would fail as an equality."""
+    _order(tmp_path, lower, upper)
+    assert crosscheck.check_constant(tmp_path, ORDERING) == []
+
+
+def test_an_ordering_fails_when_the_lower_bound_climbs_past_the_upper(tmp_path: Path) -> None:
+    _order(tmp_path, "16384", "8192")
+    (fault,) = crosscheck.check_constant(tmp_path, ORDERING)
+    assert "not non-decreasing in registry order" in fault.detail
+    assert "MAX_EDGE_CEILING = 16384" in fault.detail
+    assert ORDERING.why in fault.detail
+
+
+def test_the_same_sites_under_an_equality_would_be_a_fault(tmp_path: Path) -> None:
+    """Proof the relation field is read rather than decorative: same tree, two verdicts."""
+    _order(tmp_path, "4096", "8192")
+    equal = ORDERING._replace(relation=crosscheck.Relation.EQUAL)
+    (fault,) = crosscheck.check_constant(tmp_path, equal)
+    assert "not identical" in fault.detail
+
+
+def test_an_ordering_over_strings_is_refused(tmp_path: Path) -> None:
+    """Fail closed: `<=` on text would silently compare alphabetically."""
+    (tmp_path / "body.rs").write_text('const MAX_EDGE_CEILING: &str = "a";\n', encoding="utf-8")
+    (tmp_path / "brain.py").write_text('MAX_IMAGE_EDGE = "b"\n', encoding="utf-8")
+    (fault,) = crosscheck.check_constant(tmp_path, ORDERING)
+    assert "an ordering compares numbers" in fault.detail
+
+
+# ── mentions, where the far side spends a value it never declares ──────────────
+
+
+MENTIONED = crosscheck.Constant(
+    label="a spent value",
+    why="the stylesheet reads back what the module publishes",
+    sites=(crosscheck.Site("budget.ts", "CEILING_PROPERTY"),),
+    mentions=(crosscheck.Mention("overlay.css", "var({value},"),),
+)
+
+
+def _spend(root: Path, declared: str, spelled: str) -> None:
+    (root / "budget.ts").write_text(f'const CEILING_PROPERTY = "{declared}";\n', encoding="utf-8")
+    (root / "overlay.css").write_text(f".panel {{ height: var({spelled}, 100vh); }}\n", "utf-8")
+
+
+def test_a_mention_found_in_the_shape_it_names_is_tied(tmp_path: Path) -> None:
+    _spend(tmp_path, declared="--ceiling", spelled="--ceiling")
+    assert crosscheck.check_constant(tmp_path, MENTIONED) == []
+
+
+def test_a_rename_on_the_declaring_side_leaves_the_needle_unfound(tmp_path: Path) -> None:
+    _spend(tmp_path, declared="--roof", spelled="--ceiling")
+    (fault,) = crosscheck.check_constant(tmp_path, MENTIONED)
+    assert "does not spell 'var(--roof,'" in fault.detail
+
+
+def test_a_rename_on_the_spending_side_leaves_it_unfound_too(tmp_path: Path) -> None:
+    """Symmetry is the point: neither side can move alone, and neither is the master."""
+    _spend(tmp_path, declared="--ceiling", spelled="--roof")
+    (fault,) = crosscheck.check_constant(tmp_path, MENTIONED)
+    assert "does not spell 'var(--ceiling,'" in fault.detail
+
+
+def test_a_mention_of_a_number_renders_it_as_written(tmp_path: Path) -> None:
+    (tmp_path / "config.py").write_text("PORT = 50051\n", encoding="utf-8")
+    (tmp_path / "stack.yml").write_text('      - "127.0.0.1:50051:50051"\n', encoding="utf-8")
+    ported = crosscheck.Constant(
+        label="a port",
+        why="the stack publishes what the server binds",
+        sites=(crosscheck.Site("config.py", "PORT"),),
+        mentions=(crosscheck.Mention("stack.yml", "127.0.0.1:{value}"),),
+    )
+    assert crosscheck.check_constant(tmp_path, ported) == []
+
+
+def test_a_mention_on_a_file_that_cannot_be_read_is_a_fault(tmp_path: Path) -> None:
+    (tmp_path / "budget.ts").write_text('const CEILING_PROPERTY = "--ceiling";\n', encoding="utf-8")
+    (fault,) = crosscheck.check_constant(tmp_path, MENTIONED)
+    assert "cannot read overlay.css" in fault.detail
+
+
+def test_a_mention_template_that_spells_no_value_is_refused(tmp_path: Path) -> None:
+    """A template without the placeholder would match forever without tying anything."""
+    _spend(tmp_path, declared="--ceiling", spelled="--ceiling")
+    blind = MENTIONED._replace(mentions=(crosscheck.Mention("overlay.css", ".panel"),))
+    (fault,) = crosscheck.check_constant(tmp_path, blind)
+    assert "carries no {value}" in fault.detail
+
+
+def test_every_mention_is_reported_rather_than_only_the_first(tmp_path: Path) -> None:
+    _spend(tmp_path, declared="--ceiling", spelled="--roof")
+    both = MENTIONED._replace(
+        mentions=(*MENTIONED.mentions, crosscheck.Mention("gone.css", "var({value})"))
+    )
+    details = [fault.detail for fault in crosscheck.check_constant(tmp_path, both)]
+    assert len(details) == 2
+    assert "cannot read gone.css" in details[1]
 
 
 def test_check_walks_the_whole_registry(tmp_path: Path) -> None:
@@ -221,11 +360,36 @@ def test_every_registered_site_is_in_a_language_the_scan_knows() -> None:
     assert suffixes <= set(crosscheck.DECLARATIONS)
 
 
-def test_every_registered_constant_spans_more_than_one_tree() -> None:
-    """A cross-tree gate whose entry sat inside one tree would prove nothing about the seam."""
+def test_every_registered_constant_spans_more_than_one_language() -> None:
+    """An entry whose places were all one language would prove nothing about a seam.
+
+    This used to demand more than one top-level TREE, which was right while every registered
+    coupling crossed the body/brain seam. Mentions moved the line: the overlay's TypeScript and
+    the stylesheet that spends what it publishes live in one tree and are two languages, and
+    the rename that breaks them is exactly what this scan is for. Suffix is the honest test.
+    """
     for constant in crosscheck.CONSTANTS:
-        trees = {site.path.split("/")[0] for site in constant.sites}
-        assert len(trees) > 1, constant.label
+        places = [site.path for site in constant.sites]
+        places.extend(mention.path for mention in constant.mentions)
+        assert len({Path(place).suffix for place in places}) > 1, constant.label
+
+
+def test_every_registered_mention_carries_the_placeholder() -> None:
+    """A template without it would find itself in any file and tie nothing."""
+    for constant in crosscheck.CONSTANTS:
+        for mention in constant.mentions:
+            assert crosscheck.PLACEHOLDER in mention.template, constant.label
+
+
+def test_the_registry_exercises_both_relations() -> None:
+    """A comparator no entry uses is a widened gate that cannot fail, which is the same defect."""
+    assert {constant.relation for constant in crosscheck.CONSTANTS} == set(crosscheck.Relation)
+
+
+def test_the_registry_holds_couplings_of_both_kinds() -> None:
+    """Same argument for the mention form: an unexercised site kind proves nothing."""
+    assert any(constant.mentions for constant in crosscheck.CONSTANTS)
+    assert any(len(constant.sites) > 1 for constant in crosscheck.CONSTANTS)
 
 
 # ── the CLI ────────────────────────────────────────────────────────────────────

@@ -59,7 +59,7 @@ entries from it never added the two it opened, and there the count did move and 
 
 | Doc | Area | Open |
 | --- | --- | --- |
-| [repo-gates.md](repo-gates.md) | Line cap (the core barrel came off it 2026-08-06, split into area sub-barrels under `cortex_core._surface` with every call site unmoved, ADR-0026), dashcheck, coverage config (ADR-0026), gate coverage of the ungated Rust trees and of the overlay's TypeScript (ADR-0011), the stylesheet still outside the cap, test-runner mechanics (ADR-0002), whose live runs now each own their store after the pgvector one took the `cortex_contract` database 2026-08-06 and the Redis ones took a logical database 2026-08-03, the couplings the cross-language constant scan does not hold yet (ADR-0029), and, added 2026-08-08, the harness that measured a whole recalling turn through the seam and stayed in a scratchpad, so the one measurement in that ADR naming no reproducing test is the one whose result shipped as the default. The compose bind defaults that land in the repo tree closed 2026-08-08 ahead of their trigger as a fourth cross-tree scan, and the entry's own sketch of the rule did not survive the tree: three of the nine binds point at files the repo ships, so "fail when a default is not gitignored" would have failed on inputs, and the rule that shipped is outside, or tracked, or ignored | 6 |
+| [repo-gates.md](repo-gates.md) | Line cap (the core barrel came off it 2026-08-06, split into area sub-barrels under `cortex_core._surface` with every call site unmoved, ADR-0026), dashcheck, coverage config (ADR-0026), gate coverage of the ungated Rust trees and of the overlay's TypeScript (ADR-0011), the stylesheet still outside the cap, test-runner mechanics (ADR-0002), whose live runs now each own their store after the pgvector one took the `cortex_contract` database 2026-08-06 and the Redis ones took a logical database 2026-08-03, the three couplings the widened constant scan still cannot hold, which is what is left after four of its predecessor's five kinds closed 2026-08-08 behind an ordering comparator and a mention form for a far side that spends a value without declaring it (ADR-0029), and, added 2026-08-08, the harness that measured a whole recalling turn through the seam and stayed in a scratchpad, so the one measurement in that ADR naming no reproducing test is the one whose result shipped as the default. The compose bind defaults that land in the repo tree closed 2026-08-08 ahead of their trigger as a fourth cross-tree scan, and the entry's own sketch of the rule did not survive the tree: three of the nine binds point at files the repo ships, so "fail when a default is not gitignored" would have failed on inputs, and the rule that shipped is outside, or tracked, or ignored | 6 |
 | [seam-transport.md](seam-transport.md) | `BrainTransport` retry/reconnect (ADR-0003/0024) | 4 |
 | [seam-auth.md](seam-auth.md) | Seam token auth (ADR-0016) | 1 |
 | [session-history.md](session-history.md) | Slice 3 history windowing and summarization, the recap's fold made cheap 2026-08-06 (thinking off and a token cap per request, a floor under a fold, a chip while it runs) and `CORTEX_HISTORY_SUMMARY` moved to on, leaving one open item, restated 2026-08-08 as the half of the one-corpus entry that a run can actually settle: nothing has been measured about a cortex under load, while the corpus being hand built by the feature's author is an authorship caveat that no corpus this repo can build retires (ADR-0014/0038) | 1 |
@@ -3054,14 +3054,24 @@ in three kinds needing three answers (ordered relations the equality comparator 
 as `MAX_EDGE_CEILING` at or below `MAX_IMAGE_EDGE`; values spelled inside strings rather than
 declared, such as the compose healthcheck's fourth copy of the seam-token key and the two ports; and
 TypeScript, where the overlay matched `capture_screen` and `thinking` against the brain by hand and
-the scan had no declaration syntax at all), whose fix is a comparator field, a `.ts` syntax, and a
-resolution for the one pair that was **already divergent** (`TITLE_MAX`, 48 in the brain against 32
-in the overlay, which is why registering it that morning would have turned a gate on over a shipped
-disagreement). **Two of those three landed later the same day** with the truncation bound settled
-below: the scan reads TypeScript, and `TITLE_MAX` is its third registered constant. What is left is
-the comparator field, the copies that are not declarations, the TypeScript names whose far side is a
-CSS use, and `thinking` still being a bare literal rather than a named constant; the trigger is now
-just the first coupling that actually drifts ([repo-gates.md](repo-gates.md)); and a compose bind
+the scan had no declaration syntax at all), **struck 2026-08-08** after the `.ts` syntax and
+`TITLE_MAX` closed the third kind on the day it opened and a comparator field plus a mention form
+closed the rest ahead of the trigger, the registry going from 3 entries to 14 in a `couplings.py`
+of its own; the finding was that four of the five kinds are one missing feature, since a key inside
+a shell string, a stylesheet spending a name with `var(...)` and a bare `"thinking"` literal all
+have no declaration on the far side to parse, so a mention renders the agreed value into a template
+and requires the result to appear, which also dissolved the supposed prerequisite that a bare
+literal be named first; what is left of it is the entry below
+([repo-gates.md](repo-gates.md)); the three couplings the widened registry still cannot hold,
+opened 2026-08-08 behind that landing, being a membership in a `frozenset` (`CAPTURE_MIME` inside
+`ALLOWED_MIME_TYPES`, wanting a collection value form as well as a comparator, triggered by a
+second capture encoding), the body's bind port 50151, whose only possible declaration site is
+inside the one crate no gate compiles so that giving the scan something to read means shipping an
+unchecked source edit (triggered by the shell entering CI, which the clippy entry in the same doc
+already tracks), and the roll's duration restated as `0.3s` against a `MORPH_ROLL_MS` counting
+milliseconds, which no template renders into the other and which wants either a unit-aware value
+form or a `--roll: 300ms` custom property the stylesheet spends, the curve half of that same pair
+having closed since `--ease` restates `EASING` verbatim ([repo-gates.md](repo-gates.md)); and a compose bind
 default that lands in the repo tree being stageable, opened here on 2026-08-06 when the two live
 cases were ignored and the class was not, since `models/` and `pgdata/` are now matched at any
 depth and `./sandbox` always was, leaving the tree clean by three separate acts of remembering

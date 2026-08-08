@@ -12,9 +12,11 @@ hard rule).
 Config (pydantic-settings; explicit constructor arguments beat the environment):
 
 - `SeamServerConfig` uses env prefix `CORTEX_SEAM_`: `host: str = "127.0.0.1"`
-  (`CORTEX_SEAM_HOST`), `port: int = 50051` (`CORTEX_SEAM_PORT`); `bind_address`
-  property yields `"host:port"`. The body's live check dials the same endpoint via
-  `CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:50051`). Keep the two in sync.
+  (`CORTEX_SEAM_HOST`), `port: int = DEFAULT_SEAM_PORT` (50051, `CORTEX_SEAM_PORT`);
+  `bind_address` property yields `"host:port"`. The body's live check dials the same endpoint via
+  `CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:50051`). The two no longer have to be kept in
+  sync by hand: `DEFAULT_SEAM_PORT` is module-level so `scripts/crosscheck.py` can tie it to the
+  compose publish, the compose healthcheck, and the host shell's two default endpoints.
   `token: str = ""` (`CORTEX_SEAM_TOKEN`, ADR-0016) is the shared seam secret; set, it
   makes every RPC require the matching `x-cortex-seam-token` metadata (the body reads
   the same env var), empty disables the check (loopback-only remains the boundary).
