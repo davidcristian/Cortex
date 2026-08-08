@@ -26,8 +26,42 @@ CORTEX_TOOLS_ROOT=./sandbox \
   CVE-2025-53109/53110 patched in `2025.7.1`; the `supergateway` bridge is pinned too). Bump
   the pins deliberately. Never float back to unversioned `npx`. The read-only,
   single-directory mount bounds the blast radius regardless (ADR-0009, fork 2).
+- **The container installs both pins at start rather than running them through `npx`, and the
+  bridge runs `--stateful`.** Expect a slower first boot (an `npm install -g` before it listens),
+  which the brain tolerates because it dials no sidecar at startup. Both were measured on
+  2026-08-08 and both matter on the turn's critical path; the section below has the numbers.
 
-## Run the tools integration test
+## What the sidecar costs a turn
+
+The brain opens a **fresh MCP session per call** (ADR-0009 boot-tolerance addendum), so a turn
+pays one session open to advertise its tools before the first token, plus one per dispatched call
+(two per call for a subagent, whose `UngatedToolRegistry` re-lists before delegating). The open
+itself is cheap, 17.8 ms against a control server on the FastMCP transport the email sidecar
+serves, which is the transport's floor: what the client and the protocol cost when nothing happens
+server-side on connect. What is not cheap is what a sidecar *does* when a session opens, and the
+bridge in front of the reference filesystem server used to do the worst possible thing.
+
+| filesystem sidecar configuration | one open | `describe_tools` | one `invoke` |
+| --- | --- | --- | --- |
+| `npx` per spawn, bridge stateless (before 2026-08-08) | 565 ms | 1156 ms | 1740 ms |
+| pinned binaries installed, bridge `--stateful` (shipped) | 134 ms | 146 ms | 154 ms |
+| the same two calls on a session already open | n/a | 4.4 ms | 3.8 ms |
+
+Two separate faults, both in the bridge's stateless mode. It spawned the stdio server **per
+JSON-RPC request**, and `npx` spent about 420 ms of each spawn re-resolving the pinned package
+(bare `node` starts in 18 ms; the installed server answers in 107 ms). And it never reaped those
+children: a few hundred tool calls left **1452 live server processes holding 20.5 GiB**. Under
+`--stateful` one child serves one MCP session and dies when the client ends it, so the same run
+leaves one process and 110 MiB, and `--sessionTimeout 60000` reaps a session abandoned without
+that goodbye (verified: eight abandoned children, all gone after the idle window). Concurrency is
+the thing `--stateful` could plausibly have broken, since sessions now share a map on the bridge,
+so it was checked: sixteen concurrent fresh-session `read_text_file` calls returned in 511 ms with
+no errors, no crossed content, and no child left behind.
+
+If you bump the pins or change the bridge, re-run the harness below and compare against this
+table. A regression here is invisible in every test that does not time itself.
+
+## Run the tools integration tests
 
 ```
 cd brain && CORTEX_TOOLS_ENDPOINT=http://127.0.0.1:9000/mcp \
@@ -39,6 +73,20 @@ cd brain && CORTEX_TOOLS_ENDPOINT=http://127.0.0.1:9000/mcp \
 opens a real streamable-http MCP session, lists the server's tools, and reads a file through
 `McpToolRegistry`. CI's fake session cannot prove that behavior. Adjust `CORTEX_TOOLS_READ_TOOL`
 if the pinned server names its read tool differently (older builds used `read_file`).
+
+The harness behind the table above is a second integration test. It asserts how many session
+opens each turn shape pays (exactly, against the shipped registry stack) and prints what one
+costs, with a pre-warmed session as the control arm so the timings are provably reading the open
+and not the sidecar:
+
+```
+cd brain && CORTEX_TOOLS_ENDPOINT=http://127.0.0.1:9000/mcp \
+  uv run pytest -m integration --no-cov -s \
+  packages/orchestrator/tests/test_mcp_handshake_live.py
+```
+
+`-s` is what surfaces the numbers; without it only the assertions run. Twenty samples per arm by
+default (`CORTEX_TOOLS_HANDSHAKE_SAMPLES`), about 16 s against the shipped sidecar.
 
 ## End-to-end (the cortex actually uses a tool)
 

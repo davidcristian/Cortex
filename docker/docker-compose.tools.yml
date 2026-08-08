@@ -39,17 +39,30 @@ services:
     # server is confined to /projects (the read-only mount below). Both npm packages are
     # version-pinned: the filesystem server past the EscapeRoute fixes (CVE-2025-53109/53110,
     # patched in 2025.7.1) and the bridge for determinism. Bump deliberately, never float.
+    #
+    # Two things this command does that the obvious `npx ... --stdio "npx ..."` did not, both
+    # measured 2026-08-08 (docs/runbooks/tools-mcp.md holds the numbers):
+    #  1. Both packages are installed once at container start and invoked as binaries. The
+    #     bridge spawns the stdio server per MCP session, and an `npx` spawn costs about 530 ms
+    #     against about 107 ms for the installed binary, nearly all of it npx resolving the
+    #     pinned package again. It is paid on the brain's critical path, so it is worth a
+    #     slower container boot (which the brain tolerates: a sidecar down at boot is dialed
+    #     on first use, per the ADR-0009 boot-tolerance addendum).
+    #  2. `--stateful` binds one stdio child to one MCP session rather than to one JSON-RPC
+    #     request. Stateless mode spawned a child per request and never reaped it: a few
+    #     hundred tool calls left 1452 live server processes holding 20.5 GiB. Stateful kills
+    #     the child when the client ends its session, and `--sessionTimeout` reaps a session
+    #     abandoned without that goodbye.
     image: "node:22-bookworm-slim"
     command:
-      - "npx"
-      - "-y"
-      - "supergateway@3.4.3"
-      - "--outputTransport"
-      - "streamableHttp"
-      - "--port"
-      - "9000"
-      - "--stdio"
-      - "npx -y @modelcontextprotocol/server-filesystem@2026.1.14 /projects"
+      - "sh"
+      - "-c"
+      - >-
+        npm install -g --no-fund --no-audit
+        supergateway@3.4.3 @modelcontextprotocol/server-filesystem@2026.1.14
+        && exec supergateway --outputTransport streamableHttp --port 9000
+        --stateful --sessionTimeout 60000
+        --stdio 'mcp-server-filesystem /projects'
     volumes:
       # The ONLY thing the filesystem tool can see, and it cannot write it (ADR-0009).
       - type: bind

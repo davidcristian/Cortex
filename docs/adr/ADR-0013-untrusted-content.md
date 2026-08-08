@@ -415,6 +415,15 @@ The defense-in-depth stack for a subagent is now, in order: it is never handed a
 output re-enters the cortex as UNTRUSTED (taint containment). The first layer no longer depends
 on wiring discipline. Unchanged seams: `ToolRegistry`, `ToolDispatcher`, `SubagentRunner`.
 
+**What the live walk costs, priced 2026-08-08.** The re-list before each delegated invoke is a
+second round trip to the sidecar, and because the MCP registry opens a session per call
+(ADR-0009), a **subagent's dispatch pays twice the session opens a cortex dispatch pays**: two
+against one endpoint, four against two. That is the intended trade (a cached gated view is exactly
+what would let a stripped-then-recovered gated name through) and it stands, but it had never been
+counted. The number, the table it belongs to, and the reason a pooled session is not the cheap
+answer it looks like are in the [ADR-0009 handshake addendum](ADR-0009-tools-mcp.md);
+`packages/orchestrator/tests/test_mcp_handshake_live.py` asserts the doubling.
+
 **Forward pointer (heterogeneous models, Slice 8.6).** When the cortex gains per-spawn model
 choice, a fourth deterministic layer joins the stack: the turn's taint (this ADR) plus the
 subagent's tool-enablement force the injection-robust model on any untrusted-content spawn,
