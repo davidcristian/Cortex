@@ -258,18 +258,23 @@
   /* Floored at zero, because a viewport short enough to leave the sections nothing still leaves
      the composer, and the composer is what a panel that small is for. */
   --budget: max(0px, var(--ceiling, 100vh) - var(--reserved));
-  /* A section alone with the panel may have the whole budget, which is what the two rules below
-     take back when it is not alone. Floored again, because `max-height` refuses a negative length
-     by dropping the declaration, and a dropped cap is the uncapped section this exists to stop. */
-  --switcher-room: max(0px, var(--budget) - var(--section-gap));
-  --reminders-room: max(0px, var(--budget) - var(--section-gap));
+  --switcher-share: var(--budget);
+  --reminders-share: var(--budget);
+  --switcher-room: max(0px, var(--switcher-share) - var(--section-gap));
+  --reminders-room: max(0px, var(--reminders-share) - var(--section-gap));
   animation: viewin 0.34s var(--ease) 0.05s both;
 }
+.view > .collapse:not(.aside) {
+  max-height: var(--switcher-share);
+}
+.view > .collapse.aside {
+  max-height: var(--reminders-share);
+}
 .view:has(> .collapse.aside) {
-  --switcher-room: max(0px, calc(var(--budget) * 40 / 70 - var(--section-gap)));
+  --switcher-share: max(0px, calc(var(--budget) * 40 / 70));
 }
 .view:has(> .collapse:not(.aside)) {
-  --reminders-room: max(0px, calc(var(--budget) * 30 / 70 - var(--section-gap)));
+  --reminders-share: max(0px, calc(var(--budget) * 30 / 70));
 }
 .view.out {
   position: absolute;

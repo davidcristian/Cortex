@@ -8,11 +8,12 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 are the historical record of what each deferral became, and the index at
 [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** 10. Multi-turn-within-one-stream + proto `Cancel`, streamed
+**Open items:** 9. Multi-turn-within-one-stream + proto `Cancel`, streamed
 brain status (its producer landed 2026-07-18; only the push RPC remains), the liquid edge's
 backdrop blur,
-the two bounds the panel's section budget leaves behind it
-(a section's own frame being under no cap, and the room a closing section hands back in one frame),
+the second of the two bounds the panel's section budget left behind it
+(the room a closing section hands back in one frame; the first, a section's own frame standing under
+no cap, landed 2026-08-08),
 the two tradeoffs the reserved scrollbar rail accepts (its width
 is assumed rather than measured off the engine, and the two 6px cards spend their whole inset on
 it), and the whisper's three follow-ups (a pickable voice
@@ -145,6 +146,17 @@ The entry's own count is the thing to carry up here, since it is the sixth in a 
 named one key and the table has two, `?` mounting the console behind a panel that is not on screen
 in exactly the way `Ctrl+K` mounted the list, so a rule written for one key would have left the
 other. The whole table is six keys, and four of them already landed where they act.
+
+**Moved 2026-08-08, ten to nine, one out and none in, and walked rather than counted.** Every
+top-level entry in this file was read again and asked which one carries a landing, and the ten names
+the line held were exactly the ones left, the index cell agreeing with them one for one. **A section's
+own frame standing under no cap** then closed. Nothing was deferred behind it, and the thing to carry
+up here is that the entry's fix was wrong where its mechanism was right: a section leaving when its
+share cannot hold a row leaves the other one standing as a frame, and at the viewport that escapes it
+is the pair that costs the 40px rather than either alone. The cap moved onto the wrapper instead,
+which is the same number applied where nothing floors it. The entry's own boundary was 24px out as
+well, 284px of viewport rather than the "roughly 260" it guessed, which is the seventh entry in a row
+to have understated itself.
 
 **Body / overlay in Slice 8 ([ADR-0011](../adr/ADR-0011-body-v1.md)):**
 - **Multi-turn-within-one-stream + an explicit proto `Cancel` event.** One turn per `Converse`
@@ -662,6 +674,47 @@ other. The whole table is six keys, and four of them already landed where they a
   is inside. What makes it a deferral rather than a defect is that the body's window is 720px tall
   and the overlay has no smaller size; the fix, if a screen that small ever exists, is for a section
   whose share cannot hold one row to leave rather than to stand there as a frame.
+  - **LANDED 2026-08-08, re-derived from the code and from a running build first, and the entry's
+    mechanism is real while one of its three numbers was not**
+    ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)). Driven by hand in headless Chromium
+    against the demo bridge at 640 wide, with the switcher opened over the demo's own reminder stack
+    so both sections stand open, reading the used height off the computed style. The 14px is exact
+    and it is `box-sizing: border-box` doing it: `max-height` under 1px of border plus 6px of padding
+    on each side floors the content box at zero and leaves the border box standing at 14px, and the
+    card's 6px of air is outside the card's cap altogether, so each section costs 20px and the pair
+    cost 40px at every viewport where the shares floor. The 34px at 640x240 reproduced exactly, and
+    so did everything being inside at 640x300. **The "roughly 260px" did not:** walked viewport by
+    viewport the strip is inside at 286px, exactly level at 284px and 2px out at 282px, so the
+    boundary was 24px higher than the entry's guess at it and the harm starts a whole 720p-quarter
+    window earlier than the entry's own reader would have looked.
+  - **The fix is not the one the entry named, and the entry's fix would not have closed it.** A
+    section leaving when its share cannot hold a row still leaves the OTHER one standing as a frame
+    (a share of zero is a share of zero for both), and at 640x240 the two together are what escapes,
+    not either alone. What the tree wanted was the cap applied where nothing floors it. The share
+    is now the outer allowance and it bounds the section's WRAPPER, which has no border, no padding
+    and no margin of its own and holds the card's air inside its own clip, so a share of zero costs
+    zero. The card keeps a cap of its own at the share less that air, which is what still makes a
+    long list scroll rather than clip. After, at 640x240: the two wrappers cost 0px against 40px,
+    the hint strip clears the panel's edge by 1px where it was 34px outside, and the same 1px of
+    clearance holds at every viewport from 220px up. The shortest viewport everything fits in went
+    286px to 220px, level at 218px and 3px out at 214px.
+  - **The residue below 218px is the reserved furniture and is a decision rather than a deferral.**
+    At 200px the strip is 14px out with both sections costing nothing at all: what is left in the
+    column is the header, a history already at its 10px floor, and the composer standing on its own
+    84px pill floor. Yielding that floor is the one thing the whole reserve ordering exists to
+    refuse (the conversation gives up room before the chrome, the chrome before the composer), so
+    there is no further design here, only a screen the panel cannot be used on.
+  - **The arm was proved able to fail before it was trusted, twice over.** The 284px boundary and the
+    34px are read off the tree as it stood, the change stashed away and the whole ladder walked
+    again from a cold start. And taking only the wrapper's cap away with a live override, in the same
+    browser session as the fixed reading, puts the 40px and the escape straight back: 20px per
+    section wherever the shares floor, with the strip 8px out at 640x260, 24px at 640x240 and 54px at
+    640x200 against 1px INSIDE at all three with the cap standing. Those three are smaller than the
+    cold-start figures because the panel keeps the edge it was placed on for the shorter column, which
+    is the same defect measured from a taller panel. Removing the override in the same session returns
+    every number to the fixed reading. At 640x720 nothing moves under either arm, the two shares
+    (141.14 and 105.86) being exactly what the two outer boxes already measured, so the size the body
+    actually opens at is bit-identical.
 - **The room a section hands back arrives in one frame.** Opened 2026-08-03 with the budget above. A
   section rolling shut is still in the tree until React removes it, which is what the share's own
   `:has()` sees, so the other section holds its reduced share for the length of that roll and takes
