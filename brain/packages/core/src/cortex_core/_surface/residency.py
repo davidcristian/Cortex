@@ -5,6 +5,7 @@ import path for every name below stays ``cortex_core``. ``__all__`` is what that
 wildcard re-exports, and it is this file's contract.
 """
 
+from cortex_core.cadence import MIN_CADENCE_TOKENS, CadenceReading, CadenceWatch
 from cortex_core.handoff import EscalationRefs, EscalationSlot, HandoffRecord, HandoffState
 from cortex_core.health_gate import await_model_ready
 from cortex_core.model import ModelLease, SingleResidentModelManager
@@ -52,6 +53,7 @@ __all__ = [
     "DRAINING_DETAIL",
     "DRAIN_TIMEOUT_NOTE",
     "LOADING_DETAIL",
+    "MIN_CADENCE_TOKENS",
     "OPAQUE_TURN_NOTE",
     "RESIDENCY_BOOT_FAILED",
     "RESIDENCY_DEEP",
@@ -65,6 +67,8 @@ __all__ = [
     "SWAPPING_STATE",
     "SWAP_FAILED_NOTE",
     "WORKING_DETAIL",
+    "CadenceReading",
+    "CadenceWatch",
     "DeviceMemory",
     "EscalationRefs",
     "EscalationSlot",

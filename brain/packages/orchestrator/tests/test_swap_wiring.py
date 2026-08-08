@@ -204,6 +204,9 @@ def test_the_residency_plan_carries_the_tier_ids_and_both_bounds() -> None:
     # And no fit is checked unless the deployment measured one, which is the shipped default.
     assert plan.brain_vram_mib == 0
     assert _enabled(brain_vram_mib=19125).residency_plan("cortex").brain_vram_mib == 19125
+    # Nor is a handoff judged by a decode rate the deployment never measured on its own card.
+    assert plan.brain_decode_tps == 0.0
+    assert _enabled(brain_decode_tps=22.0).residency_plan("cortex").brain_decode_tps == 22.0
 
 
 def test_co_residency_on_the_real_host_without_a_measured_fit_fails_at_boot() -> None:
@@ -231,6 +234,9 @@ def test_co_residency_over_the_scripted_host_needs_no_measurement() -> None:
     """
     plan = _enabled(coresident=True).residency_plan("cortex")
     assert (plan.coresident, plan.brain_vram_mib) == (True, 0)
+    # The decode floor is not required by co-residency at all, on any host: it guards no
+    # decision, so an unmeasured deployment is better served by the number in its log.
+    assert plan.brain_decode_tps == 0.0
 
 
 def test_nothing_is_built_when_escalation_is_off() -> None:

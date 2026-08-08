@@ -15,6 +15,7 @@ import httpx
 import pytest
 
 from cortex_core import (
+    DecodeCadence,
     GenerationBounds,
     ImagePart,
     InferenceError,
@@ -574,3 +575,98 @@ async def test_several_images_on_one_message_all_ride_the_same_parts_array() -> 
     sent_messages = cast("list[dict[str, object]]", sent[0]["messages"])
     content = cast("list[dict[str, object]]", sent_messages[0]["content"])
     assert [part["type"] for part in content] == ["text", "image_url", "image_url"]
+
+
+# --- Decode cadence (ADR-0030 spill-watch addendum) -----------------------------------------
+#
+# The shared contract in `cadence_contract.py` pins what every implementation of the port owes.
+# These pin what only this adapter can get wrong: the shapes llama.cpp can put on the wire, and
+# the order the adapter emits two things that arrived in one chunk. That last one is here rather
+# than in the contract for a reason found by mutating it: on this build the `timings` object rides
+# a content-less final chunk, so the contract's ordering check is satisfied by the transcript and
+# a reordering of the adapter's own yields does not redden it. A chunk carrying both is the case
+# where the adapter's order is its own, so it is pinned where the adapter's own cases live.
+
+
+def _timings(**fields: object) -> str:
+    """One chunk carrying a llama.cpp ``timings`` object, in the shape a live run emits."""
+    body = {"cache_n": 0, "prompt_n": 25, "predicted_ms": 1297.264, **fields}
+    return json.dumps(
+        {"choices": [{"finish_reason": "stop", "index": 0, "delta": {}}], "timings": body}
+    )
+
+
+async def test_the_servers_timings_close_the_stream_as_one_cadence() -> None:
+    body = _sse(
+        '{"choices":[{"delta":{"content":"hi"}}]}',
+        _timings(predicted_per_second=61.66824948507013, predicted_n=80),
+        "[DONE]",
+    )
+    stream = _backend(lambda _r: httpx.Response(200, content=body)).stream("cortex", _messages())
+    assert [event async for event in stream] == [
+        TextChunk("hi"),
+        DecodeCadence(tokens_per_second=61.66824948507013, tokens=80),
+    ]
+
+
+async def test_content_precedes_the_cadence_when_one_chunk_carries_both() -> None:
+    # A build that merges the last delta with the timings must not invert them: a consumer
+    # accumulating reply text has to see the text before the rate that describes it.
+    chunk = json.dumps(
+        {
+            "choices": [{"finish_reason": "stop", "index": 0, "delta": {"content": "last"}}],
+            "timings": {"predicted_per_second": 30.5, "predicted_n": 64},
+        }
+    )
+    stream = _backend(lambda _r: httpx.Response(200, content=_sse(chunk, "[DONE]"))).stream(
+        "cortex", _messages()
+    )
+    assert [event async for event in stream] == [
+        TextChunk("last"),
+        DecodeCadence(tokens_per_second=30.5, tokens=64),
+    ]
+
+
+async def test_a_choiceless_final_chunk_still_yields_its_cadence() -> None:
+    # Read before the choices are, so a build closing on `{"choices":[]}` is not silently unheard.
+    chunk = json.dumps(
+        {"choices": [], "timings": {"predicted_per_second": 12.0, "predicted_n": 40}}
+    )
+    stream = _backend(lambda _r: httpx.Response(200, content=_sse(chunk, "[DONE]"))).stream(
+        "cortex", _messages()
+    )
+    assert [event async for event in stream] == [DecodeCadence(tokens_per_second=12.0, tokens=40)]
+
+
+@pytest.mark.parametrize(
+    "timings",
+    [
+        pytest.param("null", id="not-an-object"),
+        pytest.param('{"predicted_n":80}', id="no-rate"),
+        pytest.param('{"predicted_per_second":61.6}', id="no-token-count"),
+        pytest.param('{"predicted_per_second":"fast","predicted_n":80}', id="rate-not-a-number"),
+        pytest.param('{"predicted_per_second":true,"predicted_n":80}', id="rate-is-a-bool"),
+        pytest.param('{"predicted_per_second":61.6,"predicted_n":true}', id="tokens-are-a-bool"),
+        pytest.param('{"predicted_per_second":-1.0,"predicted_n":80}', id="negative-rate"),
+        pytest.param('{"predicted_per_second":61.6,"predicted_n":-3}', id="negative-tokens"),
+    ],
+)
+async def test_an_unusable_timings_object_yields_no_cadence_and_keeps_the_reply(
+    timings: str,
+) -> None:
+    # The quiet stance: a diagnostic that arrives after the answer never costs the answer.
+    body = _sse(
+        '{"choices":[{"delta":{"content":"hi"}}]}',
+        f'{{"choices":[{{"delta":{{}}}}],"timings":{timings}}}',
+        "[DONE]",
+    )
+    stream = _backend(lambda _r: httpx.Response(200, content=body)).stream("cortex", _messages())
+    assert [event async for event in stream] == [TextChunk("hi")]
+
+
+async def test_a_whole_number_rate_and_count_are_taken_as_written() -> None:
+    # llama.cpp reports floats; a build answering ints (or a float token count) is not a violation.
+    timings = json.dumps({"predicted_per_second": 30, "predicted_n": 64.0})
+    body = _sse(f'{{"choices":[{{"delta":{{}}}}],"timings":{timings}}}', "[DONE]")
+    stream = _backend(lambda _r: httpx.Response(200, content=body)).stream("cortex", _messages())
+    assert [event async for event in stream] == [DecodeCadence(tokens_per_second=30.0, tokens=64)]

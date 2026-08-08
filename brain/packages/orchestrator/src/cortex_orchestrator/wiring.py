@@ -250,7 +250,14 @@ async def run_from_env(
             conductor = SwapConductor(
                 swap.handoffs,
                 swap.manager,
-                BrainPhase(stores.sessions, backend, clock, swap.plan.brain_model, deep),
+                BrainPhase(
+                    stores.sessions,
+                    backend,
+                    clock,
+                    swap.plan.brain_model,
+                    deep,
+                    swap.plan.brain_decode_tps,
+                ),
                 swap.plan,
                 clock,
                 scheduler,

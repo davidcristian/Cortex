@@ -8,6 +8,7 @@ the engine in ``test_engine.py``, and the round cap's pure arithmetic in ``test_
 """
 
 from collections.abc import AsyncIterator, Mapping, Sequence
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 from cortex_core import (
@@ -17,6 +18,8 @@ from cortex_core import (
     REDUNDANT_MSG,
     REPEAT_SALIENCE,
     ROUND_OVERSIZED_MSG,
+    CadenceWatch,
+    DecodeCadence,
     DispatchPolicy,
     EscalationSlot,
     GenerationBounds,
@@ -725,3 +728,44 @@ async def test_a_captures_bytes_never_reach_the_audit_line() -> None:
 
     assert [record.detail for record in sink.records] == ["screen capture of the primary display"]
     assert b"\x89PNG" not in b"".join(record.detail.encode() for record in sink.records)
+
+
+class _CadencedBackend:
+    """Streams a reply and closes it with the server's decode cadence, once per round."""
+
+    async def stream(
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
+    ) -> AsyncIterator[InferenceEvent]:
+        del model, messages, tools, schema, bounds
+        yield TextChunk("answer")
+        yield DecodeCadence(tokens_per_second=17.29, tokens=96)
+
+
+async def test_a_cadence_reaches_a_watching_caller_and_never_the_stream() -> None:
+    """The deep phase's shape: the rate is collected, and the turn's text is untouched by it."""
+    watch = CadenceWatch(22.0)
+    context = _context(RecordingAuditSink(), budget=4)
+    context = replace(context, cadence=watch)
+    yielded = [event async for event in stream_tool_loop(_CadencedBackend(), "m", [], context)]
+    assert yielded == ["answer"]
+    reading = watch.reading()
+    assert reading is not None
+    assert reading.observed.tokens_per_second == 17.29
+
+
+async def test_a_caller_with_no_watch_drops_the_cadence_and_keeps_streaming() -> None:
+    """Every cortex turn and every subagent: the arm must cost a caller that ignores it nothing.
+
+    Without the loop's own branch this reddens loudly rather than subtly, the event falling
+    through to the text arm and having no ``text`` at all.
+    """
+    context = _context(RecordingAuditSink(), budget=4)
+    assert context.cadence is None
+    yielded = [event async for event in stream_tool_loop(_CadencedBackend(), "m", [], context)]
+    assert yielded == ["answer"]

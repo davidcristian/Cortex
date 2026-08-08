@@ -141,7 +141,9 @@ def _record(monkeypatch: pytest.MonkeyPatch, root: _Root, vision_answers: tuple[
         return built
 
     def recording_phase(*args: object) -> object:
-        root.deep_capabilities.append(cast("TurnCapabilities", args[-1]))
+        # The capabilities bundle by position, not from the end: the spill watch's declared floor
+        # now rides after it (ADR-0030 spill-watch addendum).
+        root.deep_capabilities.append(cast("TurnCapabilities", args[4]))
         return real_phase(*args)  # pyright: ignore[reportCallIssue, reportArgumentType]
 
     monkeypatch.setattr(wiring, "build_builtin_tools", recording_builtins)

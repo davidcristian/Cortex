@@ -24,6 +24,7 @@ from cortex_core.fakes_body import (
     default_capture,
 )
 from cortex_core.fakes_handoff import InMemoryHandoffStore
+from cortex_core.fakes_inference import ScriptedInferenceBackend
 from cortex_core.fakes_model_host import ScriptedModelHost
 from cortex_core.fakes_preferences import InMemoryPreferenceStore
 from cortex_core.fakes_schedule import InMemoryScheduleStore
@@ -51,6 +52,7 @@ __all__ = [
     "RecordingProgressSink",
     "RecordingRecallSink",
     "RecordingSleeper",
+    "ScriptedInferenceBackend",
     "ScriptedModelHost",
     "ScriptedVisionProbe",
     "SentNotification",

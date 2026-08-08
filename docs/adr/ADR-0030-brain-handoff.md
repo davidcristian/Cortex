@@ -1830,3 +1830,140 @@ an already-resident tier allocates nothing (23639 MiB generating against 23642 i
 inside the window costs decode speed rather than correctness; the ledger charging per spawn for a
 standing tier is the older modelling gap, and closing it is the placement-aware charge that ADR-0012
 declined on a second GPU-capable executor.
+
+## Spill-watch addendum (2026-08-08): the handoff the fit check cannot see, caught by decode rate
+
+The fit check above reads free device memory immediately before the load, and its own closing
+section named what it does not do: nothing detects a spill that happened anyway. That residue is
+now closed. This addendum is here rather than in a new ADR because it decides nothing about
+handoffs that the fit check did not already frame; it is the second half of one instrument. The
+first half asks "is there room", at the one instant that question is answerable. This half asks
+"was there room", at the one instant *that* question is answerable, which is while a real
+completion is running on the tier that was loaded.
+
+### The failure, re-derived before designing
+
+Two things pass the fit check and spill regardless: a deployment that declared
+`CORTEX_SWAP_BRAIN_VRAM_MIB` too low, since nothing here measures a model, and memory the desktop
+takes while the load runs, this machine's idle floor having moved between 1529 and 2836 MiB inside
+one session. In both cases nothing fails. The WSL2 driver pages the overcommit to host memory
+rather than refusing it, both tiers answer `ready`, the health gate passes, the stream works, and
+the card afterwards reads like a fit.
+
+Re-derived from the tree on 2026-08-08 rather than taken from the entry: a grep for `timings` and
+`predicted_per_second` across `brain/packages` found the string only inside two live tests' own
+wall-clock timing dictionaries, so **nothing in the brain read the server's own figure**, and
+`LlamaCppBackend` discarded the chunk that carries it. Verified against the running stack that the
+figure is there to be read: llama-server build `b10298-15586e2d7` puts one `timings` object on the
+**final** chunk of an ordinary streaming `/v1/chat/completions`, unasked, exactly one chunk of a
+twelve-chunk stream carrying it. So no request anywhere had to change to get this.
+
+### Decision: a port arm, a pure watch, and one sentence in the log
+
+**1. `InferenceEvent` gains a `DecodeCadence` arm.** A backend whose engine reports how fast it
+decoded closes its stream with one, after the text it describes, since a rate is only knowable
+once the tokens are counted. It carries `tokens_per_second` and `tokens`. Reporting none stays a
+legitimate implementation of the port, so silence means "no reading" and never "healthy"; that
+permission is what `EchoInferenceBackend` exercises, an echo having no server and therefore no
+timings to invent. The name is not a `*Chunk` because it is not a delta of anything, and it is not
+`Timings` because that is one engine's noun on a port ADR-0005 says any engine may implement.
+
+**2. The cadence never becomes a turn event.** `stream_tool_loop` absorbs the arm into an optional
+`CadenceWatch` on its `ToolLoopContext` and yields nothing. How fast the machine decoded is a fact
+about the machine, not something the turn said, so it must not reach a stream the user reads. Every
+caller but the deep phase passes no watch and drops it, which is why the arm costs the cortex turn
+and every subagent nothing.
+
+**3. The watch is pure policy with two rules, both of which exist to keep a slow number honest.**
+A sample under `MIN_CADENCE_TOKENS` (32) is counted and never judged, a short completion's rate
+being dominated by whatever the server was doing when it started. And the **fastest** qualifying
+sample decides, because a spill is a ceiling that holds for every completion while the overcommit
+lasts, so judging on the fastest cannot convict a card that was briefly busy during one round of a
+tool loop, while a tier that never once reached its floor is exactly what a spill is.
+
+**4. The floor is the deployment's own measurement**, `CORTEX_SWAP_BRAIN_DECODE_TPS`, riding
+`ResidencyPlan` beside `brain_vram_mib` and just as unknowable from inside a container. It is
+**not** required by co-residency the way the VRAM figure is, and the asymmetry is the point: the
+VRAM figure guards a decision taken before anything is loaded, so a deployment that omits it is
+misconfigured at boot, while this one guards nothing. Zero reports the observed rate and judges
+nothing, which is worth more to an unmeasured deployment than a boot failure, since the number in
+its log is what a floor would later be set from.
+
+**5. On a collapse the deep phase says so, once, and does nothing else to the turn.** The other
+three options were considered and are worse. **Refusing** would spend a user's answer on an
+operator's problem, and it cannot even do that honestly: the rate is known only after the reply has
+streamed. **Degrading** has nothing left to degrade at that point. **Telling the user** puts infra
+telemetry in an assistant reply, and it would arrive after the reply anyway. So the actor is the
+operator, and what the watch replaces is a manual procedure this repo already documents:
+`docs/runbooks/model-swap.md` tells a human to read `timings.predicted_per_second` off a completion
+on each tier when a co-resident deep phase feels slow. That procedure cannot be run after the fact,
+the completion being gone, and it now runs itself at the only moment it can. A healthy handoff logs
+its rate at INFO too, from the same instrument, because the number that makes a later warning
+readable is the one from the day it was fine.
+
+### Measured on the card (2026-08-08)
+
+Through the shipped `LlamaCppBackend` and the shipped watch, gemma-4-31B QAT q4_0 as the deep tier
+beside gemma-4-12B QAT q4_0 as the cortex, on the 24 GB card (24463 MiB), three completions of
+about 120 words an arm. Reproduced by `packages/inference/tests/test_decode_cadence_live.py`,
+integration-marked, whose two worlds are arranged by starting or stopping the peer through the
+model-host control API:
+
+| Arm | card afterwards | decode | best | verdict at a declared 25.0 tok/s |
+| --- | --- | --- | --- | --- |
+| deep alone, cold onto a clear card | 2310 MiB free | 31.08, 31.85, 33.78 | 33.78 | not collapsed |
+| **cortex resident, then deep** | **423 MiB free** | **21.64, 20.38, 22.77** | **22.77** | **collapsed**, 2.23 short |
+| deep alone, the peer evicted under it | 8649 MiB free | 28.32, 29.82, 29.38 | 29.82 | not collapsed |
+
+**Both tiers reported `ready` in every row.** The middle row is a co-resident handoff's own load
+order and it is the one this addendum exists for: the deployment's fit check had nothing to refuse,
+the card read like a fit, and the decode rate is the whole of the difference. The third row is the
+same floor passing on the same tier minutes later, which is what makes the middle row's refusal
+evidence rather than a gate that always fires.
+
+Two things the run found that were not in the entry. **A spilled tier does not fully recover when
+its peer is evicted**: 29.82 tok/s against 33.78 from cold, with 8649 MiB free where the cold load
+read 2310, so part of the tier stays off the card until it is reloaded. A floor is therefore read
+as a floor and set from a cold load. And **which tier pays depends on load order**: loading the
+cortex second, beside an already-resident deep model, cost the deep model only 23.28 tok/s at its
+best rather than 20.32, the driver evidently paging the newcomer first. A handoff always loads the
+deep model second, so the measured arm is the one that matters, but a report of a slow *cortex*
+after a handoff has the same cause read from the other end.
+
+### Proven able to fail before being trusted
+
+The parse, the routing and the policy were each mutated and reverted. Dropping the timings read
+reddens the adapter leg of the shared contract and no scripted case; removing the loop's cadence
+branch reddens every deep-phase case that expects a reading; logging a collapse at INFO reddens
+the warning case; keeping the slowest sample instead of the fastest, dropping the short-sample
+guard, judging against an undeclared floor, and answering with a reading when nothing qualified
+each redden their own named test. One mutation did **not** redden what it should have, and that is
+recorded rather than smoothed over: reordering the adapter's yields does not redden the contract's
+ordering check, because on this build the `timings` object rides a content-less chunk and the order
+is the transcript's rather than the adapter's. The case where the adapter's order is its own, one
+chunk carrying both, is pinned in `test_backend.py` instead, and that is what the mutation reddens.
+
+A second lesson came out of the same pass. The first run of that mutation reported green against a
+**stale `.pyc`**: `cp` restoring the source within the same second as the bytecode's write left
+Python believing the cache current. Every mutation here was re-run with `__pycache__` cleared, and
+a mutation result taken without clearing it is not evidence.
+
+### What this deliberately does not do
+
+- **It does not act.** The watch has one actor, the operator reading the log, and that is argued
+  above rather than assumed. The obvious next actor, a handoff that stops promising co-residency
+  once it has watched itself spill, is recorded as a deferral in
+  [refinements/inference-model-manager.md](../refinements/inference-model-manager.md) rather than
+  built, because it latches a working feature off on evidence one turn wide and `ResidencyPlan` is
+  a frozen value with nowhere to keep the latch.
+- **It does not watch the cortex.** Only the deep phase carries a watch, since only a handoff
+  changes what is on the card. A standing cortex that spilled did so because something else on the
+  machine took the card, which is not this repo's event.
+- **It does not watch prefill.** The runbook records prompt rate collapsing to 13.8 tok/s against
+  105 to 134 on a fitting pair, which is a second and possibly sharper witness. It is left out
+  because prefill rate varies with prompt length far more than decode does, so a floor for it is a
+  harder number for a deployment to measure, and one instrument that works beats two that need
+  calibrating. Recorded as a deferral with that trigger.
+- **It does not ask the server for anything.** No request changed, because this build volunteers
+  the figure. A build that does not would need `timings_per_token`, and the adapter would then be
+  changing every request in the repo to serve one phase.

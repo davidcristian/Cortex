@@ -44,6 +44,7 @@ from cortex_core.images import (
     data_uri,
 )
 from cortex_core.inference import (
+    DecodeCadence,
     GenerationBounds,
     InferenceEvent,
     JsonSchema,
@@ -94,6 +95,7 @@ __all__ = [
     "BodyGatewayError",
     "Clock",
     "Confirmer",
+    "DecodeCadence",
     "Embedder",
     "EmbedderError",
     "GenerationBounds",
