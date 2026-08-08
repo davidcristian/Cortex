@@ -59,10 +59,10 @@ entries from it never added the two it opened, and there the count did move and 
 
 | Doc | Area | Open |
 | --- | --- | --- |
-| [repo-gates.md](repo-gates.md) | Line cap (the core barrel came off it 2026-08-06, split into area sub-barrels under `cortex_core._surface` with every call site unmoved, ADR-0026), dashcheck, coverage config (ADR-0026), gate coverage of the ungated Rust trees and of the overlay's TypeScript (ADR-0011), the stylesheet still outside the cap, test-runner mechanics (ADR-0002), whose live runs now each own their store after the pgvector one took the `cortex_contract` database 2026-08-06 and the Redis ones took a logical database 2026-08-03, the three couplings the widened constant scan still cannot hold, which is what is left after four of its predecessor's five kinds closed 2026-08-08 behind an ordering comparator and a mention form for a far side that spends a value without declaring it (ADR-0029), and, added 2026-08-08, the harness that measured a whole recalling turn through the seam and stayed in a scratchpad, so the one measurement in that ADR naming no reproducing test is the one whose result shipped as the default. The compose bind defaults that land in the repo tree closed 2026-08-08 ahead of their trigger as a fourth cross-tree scan, and the entry's own sketch of the rule did not survive the tree: three of the nine binds point at files the repo ships, so "fail when a default is not gitignored" would have failed on inputs, and the rule that shipped is outside, or tracked, or ignored | 6 |
+| [repo-gates.md](repo-gates.md) | Line cap (the core barrel came off it 2026-08-06, split into area sub-barrels under `cortex_core._surface` with every call site unmoved, ADR-0026), dashcheck, coverage config (ADR-0026), gate coverage of the ungated Rust trees and of the overlay's TypeScript (ADR-0011), the stylesheet still outside the cap, test-runner mechanics (ADR-0002), whose live runs now each own their store after the pgvector one took the `cortex_contract` database 2026-08-06 and the Redis ones took a logical database 2026-08-03, the three couplings the widened constant scan still cannot hold, which is what is left after four of its predecessor's five kinds closed 2026-08-08 behind an ordering comparator and a mention form for a far side that spends a value without declaring it (ADR-0029), and, added 2026-08-08, the harness that measured a whole recalling turn through the seam and stayed in a scratchpad, so the one measurement in that ADR naming no reproducing test is the one whose result shipped as the default, sharpened hours later when its trigger fired: the fold-under-load run committed a seam-spanning driver to `packages/orchestrator/tests/`, settling placement and corpus seeding, and left the two halves only a driver going over gRPC meets, an arm needing the container restarted and a result reported as an interval. The compose bind defaults that land in the repo tree closed 2026-08-08 ahead of their trigger as a fourth cross-tree scan, and the entry's own sketch of the rule did not survive the tree: three of the nine binds point at files the repo ships, so "fail when a default is not gitignored" would have failed on inputs, and the rule that shipped is outside, or tracked, or ignored | 6 |
 | [seam-transport.md](seam-transport.md) | `BrainTransport` retry/reconnect (ADR-0003/0024) | 4 |
 | [seam-auth.md](seam-auth.md) | Seam token auth (ADR-0016) | 1 |
-| [session-history.md](session-history.md) | Slice 3 history windowing and summarization, the recap's fold made cheap 2026-08-06 (thinking off and a token cap per request, a floor under a fold, a chip while it runs) and `CORTEX_HISTORY_SUMMARY` moved to on, leaving one open item, restated 2026-08-08 as the half of the one-corpus entry that a run can actually settle: nothing has been measured about a cortex under load, while the corpus being hand built by the feature's author is an authorship caveat that no corpus this repo can build retires (ADR-0014/0038) | 1 |
+| [session-history.md](session-history.md) | Slice 3 history windowing and summarization, the recap's fold made cheap 2026-08-06 (thinking off and a token cap per request, a floor under a fold, a chip while it runs) and `CORTEX_HISTORY_SUMMARY` moved to on. The cortex-under-load half closed 2026-08-08, the same day it was split out: three overlapping `Converse` streams over the real cortex, with every lease timestamped and the run refusing to report unless the streams provably contended, found the sequencing argument holding on every point (no nesting, no shared hold, fold before reply, no session's facts in another's answer) and priced what it never claimed to know, a reply waiting 5.41 s behind two folds that were not its own. The corpus being hand built by the feature's author stays an authorship caveat that no corpus this repo can build retires, counted nowhere. The one open item is what that run turned up on its way past: a consumer that stops reading holds the GPU lease across its whole reply, measured at 16.52 s against 2.2 s, so a stalled stream blocks a stranger's fold (ADR-0014/0038) | 1 |
 | [tools-mcp.md](tools-mcp.md) | Dispatch budget/cost/salience, spawn batch cap, MCP registries (ADR-0009/0010) | 6 |
 | [untrusted-content.md](untrusted-content.md) | Taint boundary, output guardrail, subagent model safety (ADR-0013/0015/0017/0019/0028), a quoted injection replayed by the plain history window, obeyed 2 of 10 on a bare turn and 0 of 10 behind either standing rule, the plain one landed for the tool-less turn (ADR-0013/0038) | 12 |
 | [memory.md](memory.md) | Store, scoping, rerank/MMR, the ranked `select` and its recall trail, and, since the user asked for the end-to-end turn cost before calling it and got 0.515 s of time to first token against a control whose interval spans zero, the judge's default no longer among them: `CORTEX_MEMORY_RECALL` ships as `judge` from 2026-08-08 and `raw` is the opt-out. What is left is the two the ranked-recall close opened and neither this cell nor the area header picked up until 2026-08-06, a cross-encoder rank and an audit of the candidates a rank drops. The gap the abstention close named rather than shut, a geometric policy that cannot decline, is no longer among them: it closed 2026-08-08 as **declined on measurement**, its second trigger having been a calibration giving the floor a number and the calibration having found that none exists, since answerable and unanswerable questions overlap on cosine behind both embedders the repo ships a path for and every floor that silences the one silences the other, worst of all in the vocabulary trap the model rank exists for. Its consumer was bigger than its own text said, the default deployment's own fallback being the cosine, which is why it was measured rather than shrugged at (ADR-0008/0038) | 8 |
@@ -1743,31 +1743,47 @@ against the code (the warning above); the entry text tells you which seams it ex
 
 ### Actionable now
 
-**Read this before reading the list.** Of the 36 bullets below, 34 are closure records: the entry
+**Read this before reading the list.** Of the 36 bullets below, 35 are closure records: the entry
 they name is landed, moot or declined, and the bullet is kept because a landed entry is this
-backlog's record of what a deferral became. Only two are open, and they are named here so nobody
-has to read 34 closures to find them: **the recap fold under a cortex under load**
-([session-history.md](session-history.md)) and **the spontaneous-pick nudge's live uptake**
+backlog's record of what a deferral became. Only one is open, and it is named here so nobody
+has to read 35 closures to find it: **the spontaneous-pick nudge's live uptake**
 ([subagents.md](subagents.md)), whose fix stays fix-when-it-bites while its observation is
-runnable. That ratio is not a defect in the bucket, it is what the area is: almost everything still
+runnable. The recap fold under a cortex under load was the other, and it closed 2026-08-08 the day
+it was named here; the entry it opened behind it is a fix-when-it-bites one and sits in that bucket
+rather than joining this list. That ratio is not a defect in the bucket, it is what the area is: almost everything still
 open across the backlog sits under fix-when-it-bites, dead-until-a-consumer, or feature breadth,
 each with a trigger a reader can check, so those three lists are where an idle agent should look
 next rather than here. Two rules keep this line honest, both of them earned above: a closure record
 is never deleted, and this paragraph names entries rather than counting them, because the count is
 the part that cannot catch its own drift.
 
-- **The recap fold under a cortex under load** ([session-history.md](session-history.md)), the
-  area's one open item and the half of the one-corpus entry a run can settle, restated 2026-08-08.
-  The authorship objection is a permanent caveat, since every corpus this repo builds is written by
-  the party whose conclusion it tests; what stays work is that nothing has been measured about a
-  fold contending with a reply for one non-reentrant lease. `SummarizingHistoryWindow` claims to let
-  go of the GPU before the reply asks for it (the pass goes through `drain_text`, whose `finally`
+- **The recap fold under a cortex under load** ([session-history.md](session-history.md)), the half
+  of the one-corpus entry a run can settle, restated 2026-08-08 and **closed the same day**. The
+  authorship objection is a permanent caveat, since every corpus this repo builds is written by the
+  party whose conclusion it tests; what was work is that nothing had been measured about a fold
+  contending with a reply for one non-reentrant lease. `SummarizingHistoryWindow` claimed to let go
+  of the GPU before the reply asks for it (the pass goes through `drain_text`, whose `finally`
   leaves the adapter's acquire block, and selection completes inside `assemble_inference_messages`
-  several statements before `handle_turn` first iterates the reply), so the claim is a sequencing
-  argument that concurrent streams are exactly the thing that tests. The card is here and the
-  measurement is agent work: concurrent `Converse` streams against the GPU stack, each crossing a
-  boundary, reporting the fold's own latency and the reply's time to first token beside the
-  single-stream numbers. Nothing blocks it and no port moves.
+  several statements before `handle_turn` first iterates the reply), which is a sequencing argument
+  that concurrent streams are exactly the thing that tests. **Every clause of it was re-derived
+  from the tree first and still matched**, and then it was run:
+  `packages/orchestrator/tests/test_fold_under_load_live.py` drives the shipped `converse` use case
+  over the real adapter, the real Redis store and the real resident cortex, with each model call's
+  lease timestamped at request, grant and release. **The overlap is proven rather than hoped for**,
+  the run collecting every acquisition issued strictly inside a different stream's hold and failing
+  when it finds none, because concurrent streams that never contend are the null result this file
+  warns about twice. Three folds asked at the same instant, five acquisitions were issued under
+  someone else's hold, and the argument held on every point: no two holds overlapped, every fold
+  released before its own reply acquired, nothing was left ungranted or unreleased, and no answer
+  or stored recap carried another session's reference (twelve of twelve over four runs, through one
+  window instance shared by all three streams). **The price is the part the argument never claimed
+  to know**: time to first token 4.6 s solo against 10.3 s, 12.0 s and 17.5 s, one reply waiting
+  5.41 s behind two folds that were not its own. Two turns of one session concurrently were run
+  too, and append-only history held: the loser of the recap write race pays a repeated fold, never
+  a wrong answer. **The harness was proven able to fail before it was believed**, a fold made to
+  hold the lease across the reply deadlocking the turn and being named by the same checker, and the
+  same two streams run serially reporting zero contentions. It opened one entry, in the
+  fix-when-it-bites bucket: a stalled consumer holding the lease for its whole reply.
 - **The recall rank's default, which is now a decision rather than a measurement**
   ([memory.md](memory.md)): `CORTEX_MEMORY_RECALL=judge` was left off on cost alone, and bounding
   its request on 2026-08-06 took that cost from about 12 seconds per recall to 0.9 while the
@@ -3217,7 +3233,26 @@ own decision about where such a thing lives, and the tree already answers most o
 `packages/orchestrator/tests/test_schedule_live_seam.py` is exactly such a client; what is left is
 that a measurement restarts containers between arms and reports a distribution rather than
 asserting a bound. Its trigger is the next end-to-end measurement of a whole turn, or a challenge
-to the recall default that needs the run reproduced rather than cited.
+to the recall default that needs the run reproduced rather than cited. **Its trigger fired the same
+day and it did not close**, the fold-under-load run being exactly that next measurement and landing
+its driver in `packages/orchestrator/tests/` as a committed `integration`-marked test: placement is
+now settled by two instances rather than one, and so is seeding a corpus into a session scope under
+test-owned ids, but the two things this entry itself named as having no precedent are untouched,
+because a run whose subject is a lock inside the brain process is better driven in-process than
+across the wire, so it never had to restart a container to change an arm nor report an interval.
+The entry is sharpened rather than struck, in its own doc.
+
+One session-history entry joined on 2026-08-08 ([session-history.md](session-history.md)). **A
+consumer that stops reading holds the GPU for the whole of its reply**, found by the fold-under-load
+run on its way past. The reply's lease is held for the adapter generator's whole lifetime and the
+credit bound suspends generation INSIDE it, which is the shipped backpressure behaving as designed;
+what the default-on fold changes is who pays, since a fold is now among the things that queue.
+Measured at a one-credit bound with the reader stalling 12 s: the stalled reply held the lease
+16.52 s against the 2.2 s to 3.6 s an unstalled one holds it, and the next stream's fold waited
+16.51 s behind it. Neither direction is free, the bound existing to cap a stalled stream's memory,
+so a real fix is a bound on how long a suspended generation may hold the lease and is port-shaped
+rather than a knob. Its trigger is a deployment with more than one live consumer, or a report of one
+slow client stalling turns that are not its own.
 
 ### Feature breadth, on request
 

@@ -20,7 +20,11 @@ intended rather than a count standing still, and grown to four the same day by t
 codes the kinded body-gateway error currency now needs both sides to spell alike, folded into
 that entry rather than counted beside it; and the sixth, added 2026-08-08 by the turn-cost run
 that moved the recall default, whose harness never entered the repo, so the one measurement in
-that ADR that names no reproducing test is also the one whose result shipped. The compose bind
+that ADR that names no reproducing test is also the one whose result shipped, sharpened the same
+day when its trigger fired and the fold-under-load run committed a seam-spanning driver: placement
+and corpus seeding are settled by that second instance, and what is left is the two halves only a
+driver going over gRPC meets, an arm that needs the container restarted and a result reported as an
+interval. The compose bind
 default that lands in the repo tree came off this list on 2026-08-08, ahead of its own trigger, as
 a fourth cross-tree scan whose rule is three-way rather than the one this entry sketched; the rest
 landed 2026-07-16, 2026-07-19, 2026-08-03 and 2026-08-06, the last of them the live pgvector run
@@ -192,6 +196,29 @@ see the outcome notes below the verbatim entries)
   end-to-end measurement of a whole turn (a vision turn, a tool turn, a handoff), which would
   otherwise pay the same build cost again, or any challenge to the shipped recall default that
   needs the run reproduced rather than cited.
+- **The trigger fired 2026-08-08 and the entry stays open, narrower
+  ([ADR-0038 fold-under-load addendum](../adr/ADR-0038-ranked-recall.md)).** The fold-under-load
+  measurement is the next end-to-end run of a whole turn, and it committed its driver rather than
+  leaving it in a scratchpad: `packages/orchestrator/tests/test_fold_under_load_live.py`,
+  `integration`-marked, in the directory this entry guessed. **Two thirds of what it named as
+  unresolved are settled by that second instance.** Placement is no longer a guess, since
+  `test_schedule_live_seam.py` and this one now sit beside each other doing the same kind of thing;
+  and pre-seeding a corpus into a session scope has a shape, which is writing through the real
+  `RedisSessionStore` under test-owned session ids and deleting them in a `finally`, exactly the
+  schedule test's own discipline. **The rest is untouched, and the reason is a distinction this
+  entry did not draw.** A measurement whose subject lives INSIDE the brain process is better driven
+  in-process than across the wire: the fold run had to timestamp a lock, so it wired the real
+  adapters and drove the shipped `converse` generator directly, which let it change an arm by
+  constructing a config rather than by restarting a container, and let it read the thing being
+  measured at all. So it never met the two hard parts. **What is still unresolved is therefore
+  narrower and better named:** how a committed test expresses an arm that needs the brain container
+  restarted with one environment variable changed (which only a driver going over gRPC ever needs),
+  and how one reports a distribution with an interval rather than asserting a bound, the
+  fold run having reported numbers and asserted only invariants that hold whatever the model says.
+  The A/B/A question is the same one in different clothes: a control arm that is another
+  container configuration belongs wherever the restart belongs. **Trigger unchanged**, minus the
+  half this run answered: the next measurement that genuinely needs a differently-configured brain
+  container between arms, or a challenge to the shipped recall default.
 
 **Gate coverage ([ADR-0011](../adr/ADR-0011-body-v1.md)):**
 - **`cargo fmt` and `cargo clippy` for the two ungated Rust trees.** `just check-body` runs

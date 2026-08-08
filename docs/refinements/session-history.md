@@ -2,7 +2,7 @@
 
 Deferred refinements from Slice 3's cortex chat and session work; the windowing decision and the summarization alternatives it weighs live in [ADR-0014](../adr/ADR-0014-history-windowing.md). Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** 1, and it is narrower than its own title (**restated 2026-08-08**). "The recap measurement rests on one corpus" bundled two residues that behave differently, and only one of them is work. The corpus is **hand built by the author of the feature**, which no run this repo can make retires, because any corpus an agent builds to answer the objection is built by the same interested party: that half is a **permanent caveat** on the numbers, recorded below and not waiting for anyone. What is still an open item is the other half the entry names in passing, that nothing has been measured **about a cortex under load**, which is a real measurement on real hardware and reachable today. The unbounded fold and the fold's silence were both closed 2026-08-06, when the summary moved to on by default.
+**Open items:** 1, and it is not the one this line named a few hours ago (**restated 2026-08-08, twice in one day**). The morning's restatement split "the recap measurement rests on one corpus" into a **permanent caveat** (the corpus is hand built by the author of the feature, which no run this repo can make retires, since any corpus an agent builds is built by the same interested party) and one real item, that nothing had been measured **about a cortex under load**. That item closed the same day, measured against three overlapping `Converse` streams, and the caveat stands unchanged and un-counted. What is open now is what the run turned up on its way past: **a consumer that stops reading holds the GPU lease across its whole reply**, so a stalled stream now blocks a stranger's fold, which is the shipped backpressure behaving as designed and nobody having written down who pays for it. The unbounded fold and the fold's silence were both closed 2026-08-06, when the summary moved to on by default.
 
 **Cortex chat / session in Slice 3:**
 - **Session-history windowing landed 2026-07-03 ([ADR-0014](../adr/ADR-0014-history-windowing.md)).**
@@ -279,3 +279,52 @@ Deferred refinements from Slice 3's cortex chat and session work; the windowing 
   the other 10 sat in neither the window nor the account, under the floor, which is the gap the
   budget clamp exists to bound. Remaining from this deferral: nothing of its own; the one-corpus
   entry above is now the only thing between this feature and a claim about real conversations.
+- **The cortex-under-load half was measured 2026-08-08 and the sequencing argument held
+  ([ADR-0038 fold-under-load addendum](../adr/ADR-0038-ranked-recall.md)); this entry closes and
+  its authorship half stays a caveat.** The entry above split into a caveat and an item that
+  morning, and the item said nothing had been measured about a fold contending with a reply for
+  one non-reentrant lease. It has been, by
+  `packages/orchestrator/tests/test_fold_under_load_live.py`: the shipped `converse` use case over
+  the real adapter, the real Redis store and the real resident cortex, with every model call's
+  lease timestamped at request, grant and release. **The argument re-derived first, since this
+  file's own warning demands it**, and every clause of it still matched the tree: the lease is
+  taken on the adapter generator's first `__anext__` and held to the end of its `async with`, a
+  fold takes it through `drain_text` which leaves that block in a `finally`, and `handle_turn`
+  awaits the whole of `assemble_inference_messages` several statements before it first iterates the
+  reply. **What was proven, rather than assumed, is that the streams overlapped**: the run collects
+  every moment one stream asked for the lease strictly inside a different stream's hold and fails
+  when it finds none, because concurrent streams that never really contend produce a clean green
+  that means nothing, which is the null result this backlog has recorded twice. Three folds were
+  requested at the same instant and five acquisitions were issued under someone else's hold. **The
+  argument held on every point it claims**: no two holds ever overlapped, every stream's fold
+  released before that stream's reply acquired, nothing was left ungranted or unreleased, and no
+  answer or stored recap carried another session's booking reference (twelve of twelve over four
+  runs, one window instance shared by all three streams, one `folding` chip landing on each
+  stream's own wire). **What load costs is queueing**: time to first token went from 4.6 s solo to 10.3 s,
+  12.0 s and 17.5 s, and one reply waited 5.41 s behind two folds that were not its own, which is
+  the interleaving the argument never denied and nobody had priced. Two turns of ONE session
+  concurrently were run too, since append-only history is the whole reason a racing pair of folds
+  is safe: both answered with the session's own reference and the surviving recap covered a prefix
+  that really exists, the loser of the write race costing a repeated fold and never a wrong answer.
+  **The harness was proven able to fail before it was believed**: a window that opens a model call
+  and never closes it, which is exactly what `drain_text` prevents, deadlocked the turn and the
+  same checker named it (`fold took the lease and never released it`, `reply waited for the lease
+  and never got it`), and the same two streams run one after the other reported zero contentions.
+  Remaining from this deferral: the stalled-consumer entry below, and the corpus caveat above,
+  which no run retires.
+- **A consumer that stops reading holds the GPU for the whole of its reply (opened 2026-08-08).**
+  *Fix when it bites.* The reply's lease is held for the adapter generator's whole lifetime, and
+  the credit bound above (`CORTEX_SEAM_CONVERSE_BUFFER`) suspends generation INSIDE that lease when
+  the consumer stops dequeuing, so a stalled reader does not merely stall itself. Measured on the
+  run above at a one-credit bound with the reader stalling 12 s: the stalled stream's reply held
+  the lease **16.52 s** against the 2.2 s to 3.6 s an unstalled reply holds it, and the next
+  stream's **fold waited 16.51 s** behind it. This predates the summary and is not caused by it;
+  what the default-on fold changes is who pays, since a fold is now among the things that queue.
+  Neither obvious direction is free: the bound exists to cap a stalled stream's memory (the entry
+  that landed it is above), and letting generation run ahead of the consumer to release the lease
+  sooner is the exact thing it refuses to do. A real fix is likelier to be a bound on how long a
+  suspended generation may hold the lease, which means the adapter learning to abandon a stream the
+  seam is no longer draining, and that is a port-shaped change rather than a knob. **Trigger:** a
+  deployment with more than one live consumer, or any report of one slow client stalling turns that
+  are not its own; at one overlay on one machine there is one consumer and it reads as fast as it
+  can.
