@@ -557,7 +557,14 @@ safety default.
   model-host sidecar reports the card's free and total MiB on `GET /health` (its own `nvidia-smi`,
   matched against the host's to the megabyte), and a swap refuses to load the deep tier when what
   is free will not clear `CORTEX_SWAP_BRAIN_VRAM_MIB`. That guards the room, not the outcome: a
-  spill still shows only in decode.
+  spill still shows only in decode. Since 2026-08-08 the brain reads it. `LlamaCppBackend` surfaces
+  llama.cpp's own `timings.predicted_per_second` off the final chunk of every completion, and a
+  deep phase compares the best one against `CORTEX_SWAP_BRAIN_DECODE_TPS` and logs a warning
+  naming both numbers when the tier never cleared it. Re-measured through that shipped path on
+  2026-08-08: the deep tier alone reached 31.08 to 33.78 tok/s cold, and beside a resident cortex
+  20.38 to 22.77, **both tiers reporting `ready` and the card reading 423 MiB free**, which is what
+  a fit reads. Set the floor from a **cold** load and read it as a floor, because a spilled tier
+  whose peer is later evicted recovers most of its rate but not all of it (29.82 against 33.78).
 - **Swap latency (ROADMAP assumption 2):** load is ~mount-read bound (~150-180 MB/s off
   the Windows bind mount). Measured through the real supervisor at small scale on the 8 GB dev
   card, a 0.8B stand-in health-gates in ~11 s and a 2B in ~18 s, while the eviction half is

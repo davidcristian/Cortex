@@ -11,6 +11,7 @@ from cortex_core import (
     RESTORING_DETAIL,
     WORKING_DETAIL,
     AdmitAllScheduler,
+    DecodeCadence,
     DispatchBudget,
     EscalationRefs,
     EscalationSlot,
@@ -184,6 +185,7 @@ class ScriptedBrainBackend:
         gate_after: int = 1,
         fail_after: int | None = None,
         tool_calls: Sequence[ToolCall] = (),
+        cadences: Sequence[DecodeCadence | None] = (),
     ) -> None:
         self.calls = 0
         self.closed = False
@@ -194,6 +196,7 @@ class ScriptedBrainBackend:
         self._gate_after = gate_after
         self._fail_after = fail_after
         self._tool_calls = list(tool_calls)
+        self._cadences = list(cadences)
 
     async def stream(
         self,
@@ -211,6 +214,9 @@ class ScriptedBrainBackend:
         if self.calls <= len(self._tool_calls):
             # A round asking for a tool, with the reply on whichever round runs out of them.
             yield self._tool_calls[self.calls - 1]
+            cadence = self._cadence_for_round()
+            if cadence is not None:
+                yield cadence
             return
         try:
             for index, chunk in enumerate(self._chunks):
@@ -220,8 +226,17 @@ class ScriptedBrainBackend:
                 if self._gate is not None and index == self._gate_after:
                     await self._gate.pause()
                 yield TextChunk(chunk)
+            cadence = self._cadence_for_round()
+            if cadence is not None:
+                yield cadence
         finally:
             self.closed = True
+
+    def _cadence_for_round(self) -> DecodeCadence | None:
+        """This round's scripted timings, the last entry standing in for every later round."""
+        if not self._cadences:
+            return None
+        return self._cadences[min(self.calls - 1, len(self._cadences) - 1)]
 
 
 def request() -> PlacementRequest:

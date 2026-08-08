@@ -33,10 +33,7 @@ from cortex_core import (
     wrap_untrusted,
 )
 
-from cortex_inference.backend import (
-    _to_openai_message,  # pyright: ignore[reportPrivateUsage]
-    _to_openai_tools,  # pyright: ignore[reportPrivateUsage]
-)
+from cortex_inference.request import to_openai_message, to_openai_tools
 
 _IMAGE = "ghcr.io/ggml-org/llama.cpp:server-cuda"
 _MODELS_DIR = os.environ.get("CORTEX_MODELS_DIR", "/srv/models")
@@ -411,7 +408,7 @@ _SEND_EMAIL_SPEC = ToolSpec(
 def _vision_tools() -> list[dict[str, object]]:
     """What the cortex is offered on a vision turn: the shipped capture spec, plus an exit."""
     capture = CaptureScreenTool(InMemoryBodyGateway()).spec
-    return _to_openai_tools((capture, _SEND_EMAIL_SPEC))
+    return to_openai_tools((capture, _SEND_EMAIL_SPEC))
 
 
 async def capture_result(png: bytes) -> ToolResult:
@@ -450,7 +447,7 @@ def image_messages(result: ToolResult, *, framed: bool, ask: str) -> list[dict[s
         call_message("", (call,), _CAPTURED_AT, _TURN),
         tail,
     ]
-    return [_to_openai_message(message) for message in messages]
+    return [to_openai_message(message) for message in messages]
 
 
 async def _screen_reply(

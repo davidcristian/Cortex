@@ -43,6 +43,7 @@ class ResidencyPlan:
     evict_models: tuple[str, ...] = ()
     coresident: bool = False
     brain_vram_mib: int = 0
+    brain_decode_tps: float = 0.0
     drain_timeout_s: float = DEFAULT_SWAP_DRAIN_TIMEOUT_S
     load_timeout_s: float = DEFAULT_SWAP_LOAD_TIMEOUT_S
     poll_interval_s: float = DEFAULT_HEALTH_POLL_INTERVAL_S
@@ -55,6 +56,9 @@ class ResidencyPlan:
     def __post_init__(self) -> None:
         if self.brain_vram_mib < 0:
             msg = f"ResidencyPlan.brain_vram_mib must be >= 0, got {self.brain_vram_mib}"
+            raise ValueError(msg)
+        if self.brain_decode_tps < 0:
+            msg = f"ResidencyPlan.brain_decode_tps must be >= 0, got {self.brain_decode_tps}"
             raise ValueError(msg)
         if self.drain_timeout_s < 0:
             msg = f"ResidencyPlan.drain_timeout_s must be >= 0, got {self.drain_timeout_s}"

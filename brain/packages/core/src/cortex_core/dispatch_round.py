@@ -3,6 +3,7 @@
 from collections.abc import AsyncGenerator, Mapping, Sequence
 from dataclasses import dataclass, field
 
+from cortex_core.cadence import CadenceWatch
 from cortex_core.conversation import Message
 from cortex_core.dispatch import DispatchRefusal, ToolDispatcher
 from cortex_core.handoff import EscalationSlot
@@ -33,6 +34,7 @@ class ToolLoopContext:
     budget: DispatchBudget = field(default_factory=DispatchBudget)
     progress: ProgressSink | None = None
     escalation: EscalationSlot | None = None
+    cadence: CadenceWatch | None = None
 
 
 def _refused_by(

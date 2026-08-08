@@ -181,7 +181,8 @@ stream works, and the WSL2 driver quietly pages about 6 GB to system memory. The
 rate, roughly halved, plus a prefill that collapses to 13.8 tok/s on the first request after each
 switch where a fitting pair holds 105 to 134. So **measure `predicted_per_second` from
 llama.cpp's own `timings`, on each tier, before and after**, and treat a memory reading alone as no
-evidence either way. It is the same lesson the 8 GB warning above teaches at a different scale, and
+evidence either way. The brain reads decode itself since 2026-08-08 (the spill watch below);
+prefill it still does not, so that half of this stays a hand measurement. It is the same lesson the 8 GB warning above teaches at a different scale, and
 it survives having enough card to be fooled by.
 
 What co-residency buys, on the same run and the same control API, with the artifact warm in the
@@ -234,6 +235,50 @@ in the silent spill above: two tiers reporting `ready`, `nvidia-smi` reading lik
 deep model decoding at half its rate. When a co-resident deep phase feels slow, do not read
 memory. Read `timings.predicted_per_second` off a completion on each tier and compare it against
 the solo rates in the table above.
+
+### The spill watch, which now runs that reading for you
+
+Since 2026-08-08 the brain does that comparison itself
+([ADR-0030](../adr/ADR-0030-brain-handoff.md) spill-watch addendum). `LlamaCppBackend` surfaces the
+server's `timings.predicted_per_second` as a `DecodeCadence` on every completion, and a deep phase
+compares the **best** completion of the whole handoff against `CORTEX_SWAP_BRAIN_DECODE_TPS`, the
+tokens per second you measured for that tier on this card. Set it from a **cold** load of the tier
+alone, and set it as a floor rather than a target: a rate a healthy tier clears comfortably, not
+the number it peaks at.
+
+- Under the floor, once per handoff, at WARNING: *the deep model decoded below the rate this
+  deployment measured for it, which is what an overcommitted card looks like*, with
+  `tokens_per_second`, `floor_tokens_per_second`, `shortfall`, `tokens`, `samples` and `judged` on
+  the record. That is your signal, and it is the only one there is.
+- At or above it, at INFO, with the same numbers. Worth having: the healthy figure is what makes a
+  later warning readable, and it is what you would set the next floor from.
+- With `CORTEX_SWAP_BRAIN_DECODE_TPS` unset, the same INFO line and no verdict at all, which is
+  what an unmeasured deployment gets rather than a boot failure.
+- No reading at all also logs at INFO and **is not a pass**: a completion under 32 decoded tokens
+  is not judged, and a phase that failed before decoding anything reports nothing.
+
+It watches only the deep phase, since only a handoff changes what is on the card, and it never
+touches the turn: the reply has already streamed by the time the rate is known, so refusing would
+spend a user's answer on an operator's problem.
+
+**Measured on this card 2026-08-08**, through the shipped adapter and watch, three completions of
+about 120 words an arm, reproducible with
+`packages/inference/tests/test_decode_cadence_live.py` (integration-marked; start or stop the peer
+through the control API to choose the arm):
+
+| Arm | free after | decode | best | at a declared 25.0 |
+|---|---|---|---|---|
+| deep alone, cold onto a clear card | 2310 MiB | 31.08, 31.85, 33.78 | 33.78 | not collapsed |
+| **cortex resident, then deep** | **423 MiB** | **21.64, 20.38, 22.77** | **22.77** | **collapsed**, 2.23 short |
+| deep alone, peer evicted under it | 8649 MiB | 28.32, 29.82, 29.38 | 29.82 | not collapsed |
+
+Both tiers answered `ready` in every arm. Two things worth carrying: **a spilled tier does not
+fully recover when its peer is evicted** (29.82 against 33.78 from cold, at 8649 MiB free where the
+cold load read 2310, so part of it stays off the card until reloaded), and **which tier pays
+depends on load order**. Loading the cortex second, beside an already-resident deep model, cost the
+deep model less (23.28 tok/s at best) than loading it second did, the driver paging the newcomer
+first. A handoff always loads the deep model second, so the middle row is the one that matters,
+but a report of a slow *cortex* after a handoff is the same fault read from the other end.
 
 ## Failure modes, each observed rather than reasoned about
 

@@ -29,7 +29,23 @@ class ReasoningChunk:
     text: str
 
 
-type InferenceEvent = TextChunk | ReasoningChunk | ToolCall
+@dataclass(frozen=True, slots=True)
+class DecodeCadence:
+    """How fast the server decoded one completion, as that server reports it (ADR-0030)."""
+
+    tokens_per_second: float
+    tokens: int
+
+    def __post_init__(self) -> None:
+        if self.tokens_per_second < 0:
+            msg = f"DecodeCadence.tokens_per_second must be >= 0, got {self.tokens_per_second}"
+            raise ValueError(msg)
+        if self.tokens < 0:
+            msg = f"DecodeCadence.tokens must be >= 0, got {self.tokens}"
+            raise ValueError(msg)
+
+
+type InferenceEvent = TextChunk | ReasoningChunk | ToolCall | DecodeCadence
 
 
 @dataclass(frozen=True, slots=True)

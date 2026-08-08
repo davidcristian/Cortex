@@ -232,7 +232,13 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   `ready=false` from it while the deep model holds the GPU, or while a boot recovery that could
   not settle the cortex stands. The CI gate is a parameterized chaos
   test over the fake host (kill at every step boundary, converge with no state loss); tier-scale
-  swap validation is host-side.
+  swap validation is host-side. Co-residency landed 2026-08-07 with a fit check that reads the
+  card between the swap's last eviction and its load, and its blind half closed 2026-08-08: the
+  backend now surfaces llama.cpp's own decode rate as a `DecodeCadence`, a pure `CadenceWatch`
+  judges a whole handoff on its fastest judgeable completion, and the deep phase warns once when
+  the tier never reached `CORTEX_SWAP_BRAIN_DECODE_TPS`. Measured on the card: 20.38 to 22.77
+  tok/s spilled against 31.08 to 33.78 alone, **both tiers reporting `ready` and the card reading
+  like a fit in each**.
 
 - [ADR-0031: The bubble mark, and the mark as a picked style](adr/ADR-0031-bubble-mark.md): the
   overlay's activity mark, **landed**. The living rings retired (concentric turning rings read as

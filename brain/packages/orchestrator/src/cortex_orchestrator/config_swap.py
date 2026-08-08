@@ -35,6 +35,9 @@ class SwapConfig(BaseSettings):
     evict_models: tuple[str, ...] = Field(default=(), validation_alias="CORTEX_SWAP_EVICT_MODELS")
     coresident: bool = Field(default=False, validation_alias="CORTEX_SWAP_CORESIDENT")
     brain_vram_mib: int = Field(default=0, ge=0, validation_alias="CORTEX_SWAP_BRAIN_VRAM_MIB")
+    brain_decode_tps: float = Field(
+        default=0.0, ge=0, validation_alias="CORTEX_SWAP_BRAIN_DECODE_TPS"
+    )
     swap_drain_timeout_s: float = Field(default=DEFAULT_SWAP_DRAIN_TIMEOUT_S, ge=0)
     swap_load_timeout_s: float = Field(default=DEFAULT_SWAP_LOAD_TIMEOUT_S, ge=0)
 
@@ -87,6 +90,7 @@ class SwapConfig(BaseSettings):
             evict_models=self.evict_models,
             coresident=self.coresident,
             brain_vram_mib=self.brain_vram_mib,
+            brain_decode_tps=self.brain_decode_tps,
             drain_timeout_s=self.swap_drain_timeout_s,
             load_timeout_s=self.swap_load_timeout_s,
         )

@@ -1,7 +1,9 @@
 """The deep model's half of a handoff: rehydrate from the record, run, persist (ADR-0030 d4)."""
 
+import logging
 from collections.abc import AsyncGenerator, Sequence
 
+from cortex_core.cadence import CadenceReading, CadenceWatch
 from cortex_core.conversation import Message, Role
 from cortex_core.errors import InferenceError
 from cortex_core.events import TextDelta, TurnEvent
@@ -14,6 +16,18 @@ from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
 from cortex_core.turn_context import TurnCapabilities, assemble_inference_messages
 from cortex_core.turn_output import flush_channels, record_exchange, stream_turn_events
 from cortex_core.untrusted import TaintLedger
+
+_logger = logging.getLogger(__name__)
+
+SPILLED_LOG_MSG = (
+    "the deep model decoded below the rate this deployment measured for it, which is what an "
+    "overcommitted card looks like: the load was not refused, it was paged to host memory"
+)
+_MEASURED_LOG_MSG = "the deep model's decode rate for this handoff"
+_NO_READING_LOG_MSG = (
+    "no decode rate was reported for this handoff, so nothing was checked; a completion too "
+    "short to judge, a failed phase, or a backend whose engine reports no timings all read alike"
+)
 
 
 def _user_query(history: Sequence[Message], record: HandoffRecord) -> str:
@@ -34,18 +48,21 @@ class BrainPhase:
         clock: Clock,
         brain_model: str,
         capabilities: TurnCapabilities,
+        decode_floor_tps: float = 0.0,
     ) -> None:
         self._store = store
         self._backend = backend
         self._clock = clock
         self._model = brain_model
         self._caps = capabilities
+        self._decode_floor_tps = decode_floor_tps
 
     async def run(self, record: HandoffRecord) -> AsyncGenerator[TurnEvent, None]:
         """Rehydrate, run the shared tool loop on the deep model, persist, and stream it out."""
         history = await self._store.history(record.session_id)
         query = _user_query(history, record)
         taint = record.taint_ledger()
+        watch = CadenceWatch(self._decode_floor_tps)
         context = ToolLoopContext(
             dispatcher=self._caps.tools,
             clock=self._clock,
@@ -60,6 +77,7 @@ class BrainPhase:
             # No slot: the deep model cannot escalate to itself, and the built-in refuses
             # honestly rather than queuing a handoff no conductor would run.
             escalation=None,
+            cadence=watch,
         )
         assembled = await assemble_inference_messages(
             query, history, self._caps, context, self._clock
@@ -84,9 +102,29 @@ class BrainPhase:
             yield TextDelta(text=BRAIN_FAILED_NOTE)
         finally:
             await events.aclose()
+        self._report_cadence(watch.reading(), record.handoff_id)
         await self._persist(record, query=query, reply="".join(parts), taint=taint)
         if failure is not None:
             raise failure
+
+    def _report_cadence(self, reading: CadenceReading | None, handoff_id: str) -> None:
+        """Say what the deep tier's throughput was, once, after the phase and before it persists."""
+        if reading is None:
+            _logger.info(_NO_READING_LOG_MSG, extra={"model": self._model, "handoff": handoff_id})
+            return
+        extra = {
+            "model": self._model,
+            "handoff": handoff_id,
+            "tokens_per_second": reading.observed.tokens_per_second,
+            "tokens": reading.observed.tokens,
+            "floor_tokens_per_second": reading.floor,
+            "samples": reading.samples,
+            "judged": reading.judged,
+        }
+        if reading.collapsed:
+            _logger.warning(SPILLED_LOG_MSG, extra=extra | {"shortfall": reading.shortfall})
+            return
+        _logger.info(_MEASURED_LOG_MSG, extra=extra)
 
     async def _persist(
         self, record: HandoffRecord, *, query: str, reply: str, taint: TaintLedger
