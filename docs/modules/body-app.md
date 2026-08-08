@@ -488,7 +488,12 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   capped out of that same number (overlay.css reserves the header, the composer's floor, the hint
   strip and the history's padding off it, and splits what is left between the switcher and the
   reminder stack in the ratio of the `vh` numbers they are written in, whenever both are open at
-  once); `overlay/panelRide.ts` is the slide it makes alongside a section's roll, counting its
+  once). A section's SHARE of that split bounds its whole outer box and is applied to the roll's
+  wrapper, which has no border, padding or margin of its own and holds the card's air inside its own
+  clip; the card carries a second cap at the share less that air, so a list too long for its room
+  scrolls instead of being clipped. Capping the card alone left its own frame outside every cap,
+  `box-sizing: border-box` flooring a 14px border box under any shorter cap, so two sections cost 20px
+  each however little they were given; `overlay/panelRide.ts` is the slide it makes alongside a section's roll, counting its
   prediction through the same `centringHeight` a placement counts its measurement with and bounding
   it at `openHeight` first, because that is the order the measurement happens in;
   `overlay/panelWatch.ts` is the `ResizeObserver` that catches a resize no render and no roll

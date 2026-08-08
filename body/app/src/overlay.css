@@ -482,11 +482,39 @@
      the composer, and the composer is what a panel that small is for. */
   --budget: max(0px, var(--ceiling, 100vh) - var(--reserved));
   /* A section alone with the panel may have the whole budget, which is what the two rules below
-     take back when it is not alone. Floored again, because `max-height` refuses a negative length
-     by dropping the declaration, and a dropped cap is the uncapped section this exists to stop. */
-  --switcher-room: max(0px, var(--budget) - var(--section-gap));
-  --reminders-room: max(0px, var(--budget) - var(--section-gap));
+     take back when it is not alone. The SHARE is what the section's outer box may cost the column;
+     the ROOM is what is left for the card once its own air is paid for, and it is the card that is
+     capped so that a list too long for its room scrolls instead of being clipped. Floored, because
+     `max-height` refuses a negative length by dropping the declaration, and a dropped cap is the
+     uncapped section this exists to stop. */
+  --switcher-share: var(--budget);
+  --reminders-share: var(--budget);
+  --switcher-room: max(0px, var(--switcher-share) - var(--section-gap));
+  --reminders-room: max(0px, var(--reminders-share) - var(--section-gap));
   animation: viewin 0.34s var(--ease) 0.05s both;
+}
+/* THE SHARE BOUNDS THE SECTION'S WHOLE BOX, FRAME AND ALL.
+
+   Capping the card alone left the card's own frame outside every cap there is. `box-sizing` is
+   border-box here, so a `max-height` under the frame's own size does not shrink the card: the
+   content box floors at zero and the border box stands at 1px of border plus 6px of padding on each
+   side, which is 14px, and the card's 6px of air below it is not in the cap at all. Two sections
+   therefore cost 20px each however little they were given. The wrapper has no frame of its own and
+   the card's air is inside its clip, so capping the WRAPPER is the same number applied where nothing
+   floors it: a share of zero costs zero. Measured in Chromium at 640x240, where the budget floors at
+   zero and both sections stand open, the hint strip sat 34px past the panel's clipped edge before
+   this and clears it by 1px after, which is the clearance it keeps at every size that fits. The
+   shortest viewport everything still fits in went 286px to 220px. At the body's own 640x720 nothing
+   moves at all, the two shares (141.14 and 105.86) being exactly what the two outer boxes already
+   measured.
+
+   Direct children only, so this reaches the panel's own two sections and not the roll a reply's
+   Thoughts trace makes inside the history, which is bounded by the scroll box instead. */
+.view > .collapse:not(.aside) {
+  max-height: var(--switcher-share);
+}
+.view > .collapse.aside {
+  max-height: var(--reminders-share);
 }
 /* BOTH SECTIONS OPEN, SO NEITHER IS ALONE WITH THE PANEL, and the budget is split in the ratio of
    the two numbers the sections are already written in: one that may take 40vh alone gives up four
@@ -506,10 +534,10 @@
    other one holds its share for the length of that roll and takes the room back in the frame the
    roll's end hands it over. */
 .view:has(> .collapse.aside) {
-  --switcher-room: max(0px, calc(var(--budget) * 40 / 70 - var(--section-gap)));
+  --switcher-share: max(0px, calc(var(--budget) * 40 / 70));
 }
 .view:has(> .collapse:not(.aside)) {
-  --reminders-room: max(0px, calc(var(--budget) * 30 / 70 - var(--section-gap)));
+  --reminders-share: max(0px, calc(var(--budget) * 30 / 70));
 }
 /* Out of the flow so it cannot fight the arriving view for the panel's height, and bounded by the
    panel all the same. Without the `bottom`, a leaving view is laid out at its own natural height
