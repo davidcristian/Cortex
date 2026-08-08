@@ -401,3 +401,164 @@ sitting closes the cortex-driven half with it. The same sentence had been copied
 **What is unchanged.** The Host-Windows paragraph above. The Core Audio backend, the Tauri-shell
 bind and serve, and the spoken end-to-end action are OS-native, and no amount of VRAM substitutes
 for a real desktop session.
+
+## Addendum (2026-08-08): the gateway's error currency grows a kind, and the seam's status codes start carrying it
+
+The port shipped with one untyped failure channel. `BodyGatewayError` carried a sentence and
+nothing else, `GrpcBodyGateway` flattened every `AioRpcError` into it keeping only
+`err.details()`, and the two built-ins on the other side each prefixed whatever came out with a
+fixed lead: `could not reach the body to control volume` in `volume.py`, `could not reach the body
+to capture the screen` in `screen_tool.py`. On a shipping default install that lead is **false**,
+and this addendum records the measurement, the port change that fixes it, and the status-code
+corrections the fix needed on the body side.
+
+### What the model was actually told
+
+Measured on 2026-08-08 by driving the real `GrpcBodyGateway` against a loopback `BodyService` that
+answers the exact codes and sentences `body/crates/rpc/src/screen.rs` and
+`body/crates/rpc/src/server.rs` write, plus a genuinely absent body. Every row is a real string a
+cortex would have read:
+
+| Failure | Code the body sent | What the model read |
+| --- | --- | --- |
+| Capture switched off (`CORTEX_HOST_CAPTURE` unset, **the shipping default**) | `PERMISSION_DENIED` | `could not reach the body to capture the screen: body capture_screen failed: screen capture is disabled on this host` |
+| Capture too large even downscaled | `INTERNAL` | `could not reach the body to capture the screen: body capture_screen failed: the capture is too large for the seam: 41231 bytes` |
+| No display (lid shut, headless) | `UNAVAILABLE` | `could not reach the body to capture the screen: body capture_screen failed: no display: lid shut` |
+| Capture backend fault | `INTERNAL` | `could not reach the body to capture the screen: body capture_screen failed: screen capture backend error: BitBlt 0x2` |
+| A body predating the capture slice | `UNIMPLEMENTED` | `could not reach the body to capture the screen: body capture_screen failed: screen capture lands in a later slice` |
+| Wrong or missing seam token | `UNAUTHENTICATED` | `could not reach the body to capture the screen: body capture_screen failed: invalid or missing seam token` |
+| Body genuinely absent | none, client synthesized | `could not reach the body to capture the screen: body capture_screen failed: Deadline Exceeded` |
+| No audio endpoint | `UNAVAILABLE` | `could not reach the body to control volume: body get_volume failed: no audio endpoint: no device` |
+
+One row out of eight is honest. In every other row the body answered, promptly and precisely, and
+the model was told the opposite before being handed the truth after a colon. It is a framing
+defect rather than a lost fact, which is why it waited, and the reason it stopped waiting is that
+the most reachable row is the first one: an install that has never set `CORTEX_HOST_CAPTURE` gets
+it on the very first capture the cortex tries.
+
+### 1. The port's error currency is a kind, not a sentence
+
+`BodyGatewayError` grows `kind: BodyFailure`, keyword-only, and the enum lives in the core beside
+the exception. One exception type rather than a subclass tree, so every existing `except
+BodyGatewayError` keeps its meaning, and a caller that wants to branch reads one attribute instead
+of running an `isinstance` ladder. The kinds are a designed family, not a transcription of gRPC's
+code list, and the family's structure is the journey a call takes:
+
+| Kind | The call got as far as | The lead the core renders |
+| --- | --- | --- |
+| `UNREACHABLE` | nowhere: no answer arrived, whether for want of a route or of time | `could not reach the body to {action}` |
+| `REFUSED` | the door: a standing policy answer, not a transient one | `the body refused to {action}` |
+| `UNSUPPORTED` | the body, which has no such capability | `this body has no way to {action}` |
+| `UNREADY` | the capability, whose host state is not there | `the host is not in a state to {action}` |
+| `OVERSIZE` | done, and the result will not fit the seam's budget | `the body could not {action} within the size the seam allows` |
+| `FAULTED` | tried, and broke | `the body failed to {action}` |
+
+Three of the six are **absences** (`UNREACHABLE`, `UNSUPPORTED`, `UNREADY`): the thing needed to
+do the work is not there, and the `un` prefix marks them as a set. Three are **events**
+(`REFUSED`, `OVERSIZE`, `FAULTED`): something happened and it went a particular way. `REFUSED`
+rather than `DENIED` because `DENIED_MSG` is already the core's gated-tool denial and a reader
+should never have to ask which denial a name means.
+
+`FAULTED` is the default, and the choice is deliberate. A failure nobody classified must never
+claim the body was unreachable, since that claim is the defect this addendum exists to remove; it
+should say the honest, uninformative thing instead. That makes the three brain-side refusals in
+`_to_capture` (a reply with no image, an image the domain will not accept, a reply outside the
+bound the call asked for) and the misconfigured-bound refusal land in `FAULTED` without argument:
+none of them is the body being out of reach.
+
+### 2. The adapter classifies, the core words it, and both tables are declarative
+
+`cortex_body_client/failures.py` holds the one status-code table, split from `gateway.py` for the
+same reason `status.rs` is split from `client.rs` on the body side: the classifier is the shared
+thing, and the file that owns the calls stays under the cap. `cortex_core/body_failure.py` holds
+the one wording table and the `body_failure_message(err, action=...)` that renders it, so the two
+built-ins share a lead per kind and differ only in the infinitive they name (`capture the screen`,
+`control volume`). Neither table has a code path in it. A kind added without a lead fails a test
+that walks the enum, and a status code nobody classified falls to `FAULTED` rather than to a
+`KeyError`.
+
+The detail still rides after the colon, unchanged. The lead says what happened; the body's own
+sentence says why, and it is the more specific of the two on every row.
+
+### 3. A body that answered never says `UNAVAILABLE`
+
+This is the decision that made the classification possible, and it was forced rather than chosen.
+`CaptureError::NoDisplay` mapped to `Status::unavailable`, and so did `AudioError::NoEndpoint` and
+`NotifyError::Unavailable`. A client-synthesized `UNAVAILABLE` from a dial that never connected is
+the same code. So on the old mapping the brain could not tell *there is no body* from *the body is
+here and the lid is shut*, and no amount of care on the brain side could recover the difference:
+grpc-python does not tag a locally synthesized status the way tonic does, which is why
+`status.rs` on the body side can walk a `source()` chain and `gateway.py` cannot.
+
+The rule this seam now holds is that **`UNAVAILABLE` on `BodyService` means the call did not
+arrive**. Nothing the body writes claims it. The three host-state failures move to
+`FAILED_PRECONDITION`, which is what gRPC's own guidance reserves for a request that will keep
+failing until the system state is explicitly fixed, and a shut lid or an unplugged speaker is
+exactly that. `NotifyError`'s Rust variant keeps the name `Unavailable`, because it is `body_core`
+vocabulary about the host rather than about gRPC, and renaming it would say less than the mapping
+comment does.
+
+The capture set was re-read whole rather than at the one variant the backlog named:
+
+| `CaptureError` | Was | Is | Why |
+| --- | --- | --- | --- |
+| `NoDisplay` | `UNAVAILABLE` | `FAILED_PRECONDITION` | aliased with a dead channel; host state, fixed by opening the lid |
+| `Disabled` | `PERMISSION_DENIED` | unchanged | already exact, and it is the shipping default's answer |
+| `Backend` | `INTERNAL` | unchanged | a fault is a fault |
+| `TooLarge` | `INTERNAL` | `RESOURCE_EXHAUSTED` | a picture that was taken and will not fit is not a broken backend |
+
+`AudioError::NoEndpoint` and `NotifyError::Unavailable` move with `NoDisplay` for the same reason,
+and they had to: the classifier is shared, so leaving volume on the old codes would have made the
+same table honest for capture and lying for volume, in the very file this change is fixing the
+lead in.
+
+### 4. No proto change, verified
+
+`proto/body.proto` is untouched. gRPC status codes are already on the wire for every call on this
+seam; the whole defect was that one side never wrote an informative one and the other side never
+read it. The seam's message shapes, its `MAX_RECEIVE_BYTES`, and its deadline behaviour are
+unchanged, and a body built before this change still interoperates: its `UNAVAILABLE` for a shut
+lid classifies as `UNREACHABLE`, which is the old sentence, so an old body degrades to exactly the
+old behaviour instead of breaking.
+
+### What the model is told now
+
+Same harness, same codes, after the change:
+
+| Failure | Code | What the model reads |
+| --- | --- | --- |
+| Capture switched off (the shipping default) | `PERMISSION_DENIED` | `the body refused to capture the screen: body capture_screen failed: screen capture is disabled on this host` |
+| Capture too large even downscaled | `RESOURCE_EXHAUSTED` | `the body could not capture the screen within the size the seam allows: body capture_screen failed: the capture is too large for the seam: 41231 bytes` |
+| No display | `FAILED_PRECONDITION` | `the host is not in a state to capture the screen: body capture_screen failed: no display: lid shut` |
+| Capture backend fault | `INTERNAL` | `the body failed to capture the screen: body capture_screen failed: screen capture backend error: BitBlt 0x2` |
+| A body predating the capture slice | `UNIMPLEMENTED` | `this body has no way to capture the screen: body capture_screen failed: screen capture lands in a later slice` |
+| Wrong or missing seam token | `UNAUTHENTICATED` | `the body refused to capture the screen: body capture_screen failed: invalid or missing seam token` |
+| Body genuinely absent | client synthesized | `could not reach the body to capture the screen: body capture_screen failed: Deadline Exceeded` |
+| No audio endpoint | `FAILED_PRECONDITION` | `the host is not in a state to control volume: body get_volume failed: no audio endpoint: no device` |
+
+The one honest row is still honest, and it is now the only row that claims what it claims. Its
+detail reads `Deadline Exceeded` rather than a connection error because the capture call carries
+one and a fresh channel retries the dial until it elapses; both codes classify the same way, which
+is the reason `UNREACHABLE` is defined as *no answer arrived* rather than as *no route existed*.
+
+**Backward compatibility, measured rather than argued.** The same harness was run once more with a
+body still sending the old codes. Its `UNAVAILABLE` for a shut lid reads back as `could not reach
+the body to capture the screen`, which is exactly the sentence every failure used to carry, and its
+`INTERNAL` for a too-large capture reads back as `the body failed to capture the screen`. An old
+body therefore degrades to the old behaviour, never to a wrong new claim.
+
+### What was validated, and what a Windows desktop still owes
+
+Validated here, on Linux, in this session: the classifier against every code the body can send and
+against a body that is not there; the core's wording for all six kinds; the Rust mapping for every
+`CaptureError`, `AudioError` and `NotifyError` variant; and, as the tie between the two toolchains,
+the **real** tonic `body_service` running over loopback with `DeniedScreenCapture` (which is
+literally the shipping default's backend) answered by the **real** `GrpcBodyGateway`, so the
+`PERMISSION_DENIED` on the wire, the `REFUSED` kind, and the sentence the tool builds were observed
+end to end across the language boundary rather than asserted on each side separately.
+
+Not validated here, and recorded in [docs/host/windows-desktop.md](../host/windows-desktop.md): a
+capture failing on a real Win32 desktop session. Every row above rides a fake or a stub backend,
+because `os_linux`'s `ScreenCapture` is an `unimplemented!()` stub and this machine has no desktop
+session. The rows that a real GDI backend alone can produce (`NoDisplay` from an actually shut lid,
+`Backend` from a real `BitBlt` failure) have never been seen from real hardware, only constructed.

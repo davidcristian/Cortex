@@ -2119,3 +2119,42 @@ The three records for this decline are
 [docs/refinements/subagents.md](../refinements/subagents.md), its row and its bucket entry on
 [docs/refinements/index.md](../refinements/index.md), and this addendum. The area count moves 3 to
 2: a decline is a close.
+
+## Addendum (2026-08-08): the capture's failure sentences, and where that decision now lives
+
+The two halves of this ADR's `RESOURCE_EXHAUSTED` deferral landed together, and the decision is
+recorded in [ADR-0023](ADR-0023-body-gateway-volume.md)'s addendum of the same date rather than
+here. That is deliberate: what changed is the `BodyGateway` port's **error currency**, which volume
+and notify spend as much as capture does, and the body-side status mapping it forced moved
+`AudioError::NoEndpoint` and `NotifyError::Unavailable` along with `CaptureError::NoDisplay`. A
+decision that reaches three RPCs belongs with the seam that owns all three. This addendum records
+only what is capture-shaped, and what capture still owes a real desktop.
+
+**Capture-shaped, and landed.** `CaptureError::TooLarge` answers `ResourceExhausted` instead of
+`Internal`, which is the change this ADR's own Deferred section named. `CaptureError::NoDisplay`
+answers `FailedPrecondition` instead of `Unavailable`, which it did not name: `Unavailable` is the
+code tonic synthesizes client-side for a channel that never connected, and grpc-python cannot tell
+a synthesized status from a sent one, so a lid-shut laptop and a body that is not running were the
+same thing to the brain. Every `CaptureError` variant now has a code of its own, and
+`CaptureScreenTool` words its failure from the kind the brain classifies that code into, so the
+shipping default (`CORTEX_HOST_CAPTURE` unset, the body answering `PermissionDenied` at once)
+reads as "the body refused to capture the screen" instead of the flat "could not reach the body
+to capture the screen" every capture failure used to carry.
+
+**The arithmetic that held this back is untouched and still correct.** The 2026-08-06 re-read
+established that `TooLarge` cannot be reached at the shipped byte ceiling at any edge the seam
+permits, since the shrink ladder's last rung is at most a quarter of the requested edge, and that
+remains the case. The classification is therefore a correctness fix nothing can yet exercise from
+outside; what actually made the entry fire was the wording half, which is reachable on an untouched
+install. That is worth stating plainly, because the re-read read "nothing brain-side reads the
+status code" as evidence the distinction already reached its only reader, when it was the reason
+the reader could not be told the truth.
+
+**Still host-only, and one line longer.** The failure sentences were validated on the dev machine
+across the language boundary, with the real tonic `body_service` over loopback (backed by
+`DeniedScreenCapture`, the shipping default's own backend) answered by the real `GrpcBodyGateway`.
+What that cannot reach is a status a stub never emits: `NoDisplay` and `Backend` come out of GDI
+itself, so seeing those two rows produced by a real backend needs a Win32 session with a display
+to lose. It is recorded as a seventh observation inside the existing capture sitting
+([docs/host/windows-capture.md](../host/windows-capture.md)), not as a new sitting, because it is
+two extra prompts inside a bring-up that already has to happen.

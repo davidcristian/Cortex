@@ -10,14 +10,17 @@ Volume is reversible and low-harm, so both tools are **ungated** (``gated=False`
 later irreversible OS actions (``gated=True``), and a user can opt volume in by adding
 ``set_volume`` to ``CORTEX_TOOLS_GATED`` (the dispatcher's authoritative backstop, ADR-0022).
 Every result is ``Trust.TRUSTED`` since host state is system-generated, never third-party content,
-so a volume call never taints the turn. Bad arguments and an unreachable body both become an
-``is_error`` result the cortex can correct or report. It is never an exception.
+so a volume call never taints the turn. Bad arguments and a failed body call both become an
+``is_error`` result the cortex can correct or report. It is never an exception, and a body
+failure is worded from its ``BodyFailure`` kind, so a host with no audio endpoint reads as a
+host that is not in a state to do it rather than as a body nobody could reach.
 """
 
 from collections.abc import Mapping
 from typing import Any
 
 from cortex_core.body import VolumeState
+from cortex_core.body_failure import body_failure_message
 from cortex_core.errors import BodyGatewayError
 from cortex_core.ports import BodyGateway
 from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
@@ -25,7 +28,9 @@ from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
 GET_VOLUME_TOOL_NAME = "get_volume"
 SET_VOLUME_TOOL_NAME = "set_volume"
 
-_UNREACHABLE = "could not reach the body to control volume"
+# The infinitive the shared per-kind lead completes (ADR-0023's 2026-08-08 addendum), so a
+# host with no audio endpoint is not announced as a body nobody could reach.
+_ACTION = "control volume"
 _SET_REQUIRES_ARG = "set_volume requires 'level' (0.0-1.0) and/or 'mute' (true/false)"
 _BAD_LEVEL = "'level' must be a number between 0.0 and 1.0"
 _BAD_MUTE = "'mute' must be true or false"
@@ -86,13 +91,13 @@ class GetVolumeTool:
         )
 
     async def invoke(self, call: ToolCall) -> ToolResult:
-        """Read the host volume; an unreachable body becomes a trusted error result."""
+        """Read the host volume; a failed body call becomes a trusted, kind-worded error result."""
         try:
             state = await self._body.get_volume()
         except BodyGatewayError as err:
             return ToolResult(
                 call_id=call.id,
-                content=f"{_UNREACHABLE}: {err}",
+                content=body_failure_message(err, action=_ACTION),
                 is_error=True,
                 trust=Trust.TRUSTED,
             )
@@ -134,7 +139,7 @@ class SetVolumeTool:
     async def invoke(self, call: ToolCall) -> ToolResult:
         """Validate the arguments, apply the change, and report the resulting state.
 
-        Bad arguments and an unreachable body are both trusted ``is_error`` results; a
+        Bad arguments and a failed body call are both trusted ``is_error`` results; a
         successful change reports the state the body read back after applying it.
         """
         parsed = _parse_set_args(call.arguments)
@@ -146,7 +151,7 @@ class SetVolumeTool:
         except BodyGatewayError as err:
             return ToolResult(
                 call_id=call.id,
-                content=f"{_UNREACHABLE}: {err}",
+                content=body_failure_message(err, action=_ACTION),
                 is_error=True,
                 trust=Trust.TRUSTED,
             )

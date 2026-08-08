@@ -5,6 +5,7 @@ import pytest
 from cortex_core import (
     GET_VOLUME_TOOL_NAME,
     SET_VOLUME_TOOL_NAME,
+    BodyFailure,
     BodyGatewayError,
     GetVolumeTool,
     InMemoryBodyGateway,
@@ -72,12 +73,29 @@ async def test_get_volume_tool_reports_muted() -> None:
 
 
 async def test_get_volume_tool_unreachable_body_is_a_trusted_error() -> None:
-    tool = GetVolumeTool(InMemoryBodyGateway(fail=BodyGatewayError("no route")))
+    fail = BodyGatewayError("no route", kind=BodyFailure.UNREACHABLE)
+    tool = GetVolumeTool(InMemoryBodyGateway(fail=fail))
     result = await tool.invoke(_call(GET_VOLUME_TOOL_NAME, {}))
     assert result.is_error is True
     assert result.trust is Trust.TRUSTED
-    assert "could not reach the body" in result.content
-    assert "no route" in result.content
+    assert result.content == "could not reach the body to control volume: no route"
+
+
+async def test_get_volume_tool_says_the_host_is_unready_when_it_has_no_endpoint() -> None:
+    """The volume half of the prefix defect. A host with no default audio device is not a
+    body nobody could reach, and the two used to be the same sentence behind the same status
+    code, so the cortex could not tell a dead body from an unplugged speaker."""
+    fail = BodyGatewayError(
+        "body get_volume failed: no audio endpoint: no device", kind=BodyFailure.UNREADY
+    )
+    result = await GetVolumeTool(InMemoryBodyGateway(fail=fail)).invoke(
+        _call(GET_VOLUME_TOOL_NAME, {})
+    )
+    assert result.content == (
+        "the host is not in a state to control volume: body get_volume failed: "
+        "no audio endpoint: no device"
+    )
+    assert "could not reach the body" not in result.content
 
 
 # --- SetVolumeTool -----------------------------------------------------------------------
@@ -138,8 +156,23 @@ async def test_set_volume_tool_rejects_bad_arguments(
 
 
 async def test_set_volume_tool_unreachable_body_is_a_trusted_error() -> None:
-    tool = SetVolumeTool(InMemoryBodyGateway(fail=BodyGatewayError("refused")))
+    fail = BodyGatewayError("no route", kind=BodyFailure.UNREACHABLE)
+    tool = SetVolumeTool(InMemoryBodyGateway(fail=fail))
     result = await tool.invoke(_call(SET_VOLUME_TOOL_NAME, {"mute": False}))
     assert result.is_error is True
     assert result.trust is Trust.TRUSTED
-    assert "could not reach the body" in result.content
+    assert result.content == "could not reach the body to control volume: no route"
+
+
+async def test_set_volume_tool_says_the_body_refused_when_the_body_refused() -> None:
+    """A standing refusal (a rejected seam token) is not a body that could not be reached,
+    and retrying it changes nothing, which is what the wording now lets the cortex know."""
+    fail = BodyGatewayError(
+        "body set_volume failed: invalid or missing seam token", kind=BodyFailure.REFUSED
+    )
+    result = await SetVolumeTool(InMemoryBodyGateway(fail=fail)).invoke(
+        _call(SET_VOLUME_TOOL_NAME, {"mute": False})
+    )
+    assert result.content == (
+        "the body refused to control volume: body set_volume failed: invalid or missing seam token"
+    )

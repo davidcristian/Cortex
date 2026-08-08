@@ -4,6 +4,8 @@ Core code raises and propagates only typed errors. There is never a bare Excepti
 adapter-specific exception ever crosses a port boundary.
 """
 
+from enum import Enum
+
 
 class SessionStoreError(Exception):
     """A SessionStore operation failed (store adapters wrap their backend's errors)."""
@@ -59,13 +61,61 @@ class SubagentAdmissionError(Exception):
     """
 
 
+class BodyFailure(Enum):
+    """How far a ``BodyGateway`` call got before it failed (ADR-0023 2026-08-08 addendum).
+
+    The port's error currency, and a designed family rather than a transcription of gRPC's code
+    list: the members are ordered by the journey a call takes, from never arriving to arriving
+    and breaking. Three are **absences**, where the thing needed to do the work is not there
+    (``UNREACHABLE``, ``UNSUPPORTED``, ``UNREADY``, which the ``un`` prefix marks as a set), and
+    three are **events**, where something happened and it went a particular way (``REFUSED``,
+    ``OVERSIZE``, ``FAULTED``).
+
+    ``REFUSED`` rather than ``DENIED`` because ``DENIED_MSG`` is already the gated-tool denial,
+    and a reader should never have to ask which denial a name means.
+    """
+
+    UNREACHABLE = "unreachable"
+    """No answer arrived at all, whether for want of a route or of time. The only kind that may
+    tell the caller the body could not be reached."""
+
+    REFUSED = "refused"
+    """The body answered and declined: a standing policy answer (screen capture switched off, a
+    rejected seam token), not a transient one, so retrying it changes nothing."""
+
+    UNSUPPORTED = "unsupported"
+    """The body answered and has no such capability: an RPC it does not implement, or a body
+    older than the brain calling it."""
+
+    UNREADY = "unready"
+    """The body answered and the host state the call needs is not there (no display, no audio
+    endpoint, no notification service). It works again once the user fixes the state."""
+
+    OVERSIZE = "oversize"
+    """The work was done and its result will not fit the seam's budget. Distinct from a fault
+    because nothing is broken: the same call will keep answering the same way."""
+
+    FAULTED = "faulted"
+    """Anything else: an OS fault, an answer the brain will not vouch for, a bound this
+    deployment cannot ask for. The default, deliberately, so a failure nobody classified says
+    the honest uninformative thing rather than claiming the body was out of reach."""
+
+
 class BodyGatewayError(Exception):
-    """A BodyGateway call failed. The body was unreachable or the OS action errored.
+    """A BodyGateway call failed, carrying the ``BodyFailure`` kind that says how.
 
     The gRPC adapter wraps its transport failures (a refused dial, a non-OK status) into this,
-    cause chained; the volume tools catch it and return an ``is_error`` result so the cortex
-    hears about a dead body and can recover, never a turn-killing crash.
+    cause chained, classifying the status code into a ``kind``; the volume and capture tools
+    catch it and return an ``is_error`` result whose wording comes from that kind, so the cortex
+    hears what actually happened and can recover, never a turn-killing crash.
+
+    ``kind`` defaults to ``BodyFailure.FAULTED``: an unclassified failure must never claim the
+    body was unreachable, which is the falsehood the kind was added to remove.
     """
+
+    def __init__(self, message: str, *, kind: BodyFailure = BodyFailure.FAULTED) -> None:
+        super().__init__(message)
+        self.kind = kind
 
 
 class ScheduleStoreError(Exception):

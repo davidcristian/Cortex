@@ -180,25 +180,28 @@ where
 }
 
 /// Maps an [`AudioError`] to the outbound gRPC [`Status`] the brain reads. This is the inverse of
-/// `status::status_to_error`. A missing endpoint is `Unavailable` (transient, like a dead
-/// backend); a backend failure is `Internal`.
+/// `status::status_to_error`. A missing endpoint is `FailedPrecondition` (host state: no default
+/// device, or it was unplugged, and it works again once one is there); a backend failure is
+/// `Internal`. See [`crate::screen`] for why nothing this server writes says `Unavailable`.
 fn audio_error_to_status(error: &AudioError) -> Status {
     match error {
         AudioError::NoEndpoint(detail) => {
-            Status::unavailable(format!("no audio endpoint: {detail}"))
+            Status::failed_precondition(format!("no audio endpoint: {detail}"))
         }
         AudioError::Backend(detail) => Status::internal(format!("audio backend error: {detail}")),
     }
 }
 
 /// Maps a [`NotifyError`] to the outbound gRPC [`Status`], on the same split as the volume
-/// mapping: a missing notification service is `Unavailable` (transient), a backend failure is
+/// mapping: no notification service is `FailedPrecondition` (host state), a backend failure is
 /// `Internal`. Either way the brain treats the push as failed and leaves the reminder
-/// deliverable, so the mapping costs it nothing to read but keeps its logs honest.
+/// deliverable, so the mapping costs it nothing to read but keeps its logs honest. The variant
+/// keeps the name `Unavailable` because that is `body_core` vocabulary about the host, not about
+/// gRPC, and this seam reserves the gRPC code of that name for a call that never arrived.
 fn notify_error_to_status(error: &NotifyError) -> Status {
     match error {
         NotifyError::Unavailable(detail) => {
-            Status::unavailable(format!("no notification service: {detail}"))
+            Status::failed_precondition(format!("no notification service: {detail}"))
         }
         NotifyError::Backend(detail) => {
             Status::internal(format!("notification backend error: {detail}"))
