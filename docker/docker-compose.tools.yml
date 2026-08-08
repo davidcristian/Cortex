@@ -1,13 +1,15 @@
+# Tools override: it adds a filesystem MCP server as a sidecar and points the brain at it. Layer
+# docker-compose.email.yml on top as well and both tool families run at once. The server sees only
+# CORTEX_TOOLS_ROOT (default ./sandbox), mounted read-only, and every call it makes is logged.
 
 services:
   brain:
     environment:
-      # Opt into tools; without this the base image runs tools=none (ADR-0009).
+      # Opt into tools; without this the base image has none.
       CORTEX_TOOLS_BACKEND: "mcp"
       CORTEX_TOOLS_ENDPOINTS__FILESYSTEM: "http://mcp-filesystem:9000/mcp"
-      # The reference server also advertises write tools the read-only mount can only
-      # EROFS-block; advertise just the read subset (refinements addendum, which is a UX nicety
-      # plus defense in depth; the read-only mount below stays the security boundary).
+      # The reference server also offers write tools that the read-only mount can only fail on,
+      # so only the read subset is offered to the model. The mount is still what enforces it.
       CORTEX_TOOLS_ALLOW__FILESYSTEM: >-
         ["read_file", "read_text_file", "read_media_file", "read_multiple_files",
         "list_directory", "list_directory_with_sizes", "directory_tree",
@@ -17,24 +19,26 @@ services:
         condition: service_started
 
   mcp-filesystem:
+    # supergateway bridges the stdio filesystem server to streamable-http. Both npm versions are
+    # fixed, the filesystem server past CVE-2025-53109 and CVE-2025-53110. The packages are
+    # installed once at start, and `--stateful` keeps one child per session rather than per request.
     image: "node:22-bookworm-slim"
     command:
-      - "npx"
-      - "-y"
-      - "supergateway@3.4.3"
-      - "--outputTransport"
-      - "streamableHttp"
-      - "--port"
-      - "9000"
-      - "--stdio"
-      - "npx -y @modelcontextprotocol/server-filesystem@2026.1.14 /projects"
+      - "sh"
+      - "-c"
+      - >-
+        npm install -g --no-fund --no-audit
+        supergateway@3.4.3 @modelcontextprotocol/server-filesystem@2026.1.14
+        && exec supergateway --outputTransport streamableHttp --port 9000
+        --stateful --sessionTimeout 60000
+        --stdio 'mcp-server-filesystem /projects'
     volumes:
-      # The ONLY thing the filesystem tool can see, and it cannot write it (ADR-0009).
+      # The only thing the filesystem tool can see, and it cannot write to it.
       - type: bind
         source: "${CORTEX_TOOLS_ROOT:-./sandbox}"
         target: /projects
         read_only: true
     ports:
-      # Loopback-only publish so a host-side integration test can reach it (assumption 5).
+      # Published on loopback so a host-side integration test can reach it.
       - "127.0.0.1:9000:9000"
     restart: unless-stopped

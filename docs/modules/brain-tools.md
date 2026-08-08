@@ -36,7 +36,17 @@ source of audited, model-callable tools.
   open failure (`McpError`/`OSError`/`httpx.HTTPError`, unwrapped from anyio's `ExceptionGroup` by
   `except*`) crosses the port as `ToolError`; a `ToolError` from the live session's own
   `describe`/`invoke` passes through untouched (no double-wrap). Trades a per-call open for
-  robustness. A session cache is a later optimization behind the same port.
+  robustness, and the trade was **measured on 2026-08-08 and kept**: the open costs 17.8 ms against
+  a control server on the FastMCP streamable-http transport `cortex_email` serves (the transport's
+  floor, with nothing happening server-side on connect), and a pooled session is not the
+  local optimization it looked like, since closing one needs a scope that every combinator would
+  have to forward and, without a scope, gets closed from a task other than the one that opened it,
+  which is the cancel-scope failure this design exists to avoid (ADR-0009 handshake addendum). A
+  turn's open count is N per advertisement and k + 1 per cortex dispatch (N endpoints, the called
+  tool owned by the k-th), doubling per dispatch for a subagent because `UngatedToolRegistry`
+  re-lists before delegating; `packages/orchestrator/tests/test_mcp_handshake_live.py` asserts it.
+  Note that a fresh session's `invoke` is two round trips beyond the open, not one: the MCP SDK's
+  `call_tool` caches tool output schemas per session, so the first call in a session also lists.
 - `McpSession` is the `Protocol` slice of `mcp.ClientSession` the adapter uses (`list_tools`,
   `call_tool`); the real session and the CI fake both satisfy it.
 - `LoggingAuditSink` is a `ToolAuditSink` writing one structured `logging` record per
