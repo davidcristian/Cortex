@@ -9,7 +9,7 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 entries are the historical record of what each deferral became, and the index at
 [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** 6 (`cargo clippy` for the Tauri shell in CI, moved to fix-when-it-bites
+**Open items:** 7 (`cargo clippy` for the Tauri shell in CI, moved to fix-when-it-bites
 2026-07-16; standing test-order randomization, opened as fix-when-it-bites 2026-07-18; the three
 exceptions the wrap gate did not ship, opened as fix-when-it-bites 2026-07-19 behind the landing
 of the commit-body wrap check itself; the overlay stylesheet outside the line cap, opened as
@@ -17,7 +17,9 @@ fix-when-it-bites 2026-08-03 behind the cap reaching the overlay's TypeScript; t
 cross-language constant scan does not hold yet, opened as fix-when-it-bites 2026-08-03 behind
 that scan landing; a compose
 bind default that lands in the repo tree being stageable, opened as fix-when-it-bites 2026-08-06
-when the two live ones were ignored; the rest
+when the two live ones were ignored; **the seventh was added 2026-08-08 by the turn-cost run that
+moved the recall default**, whose harness never entered the repo, so the one measurement in that
+ADR that names no reproducing test is also the one whose result shipped; the rest
 landed 2026-07-16, 2026-07-19, 2026-08-03 and 2026-08-06, the last of them the live pgvector run
 sharing the brain's `memories` table, closed ahead of its trigger rather than by it,
 see the outcome notes below the verbatim entries)
@@ -160,6 +162,33 @@ see the outcome notes below the verbatim entries)
   start, naming the two statements that create the database, rather than one that quietly connects
   elsewhere. Proven with a real row sitting in the brain's table: the suite passes, that table is
   byte-identical across the run, and all four refusals were fired before being trusted.
+- **The end-to-end turn-cost harness never entered the repo.** *Fix when it bites.* Opened
+  2026-08-08 by the run that moved `CORTEX_MEMORY_RECALL` to `judge`
+  ([ADR-0038 turn-cost addendum](../adr/ADR-0038-ranked-recall.md)). It is filed here rather than
+  in [memory.md](memory.md) because what is unresolved is where a driver that spans the seam lives
+  and how it is run, which is what this section is about, while the recall entry the measurement
+  served closed the same day and left nothing open about recall. Every other measurement in that
+  ADR names an `integration`-marked test that reproduces it
+  (`packages/inference/tests/test_rerank_judge_wide_live.py`, `test_history_recap_live.py`,
+  `test_session_title_live.py`); the turn-cost numbers name none. What produced them was a
+  host-side Python client that opened one `Converse` stream per turn against the brain's
+  `BrainService`, timed the first `TextDelta` and the `TurnComplete`, and ran three blocks of 48
+  turns in A/B/A order with a container restart between them, and it lived in a scratchpad, so the
+  published 0.515 s of time to first token is a figure nobody can re-derive without rebuilding the
+  driver from that addendum's prose. **The stated reason for punting was that a driver spanning the
+  seam is not an adapter test and wanted its own decision about where such a thing belongs, and
+  reading the tree afterwards makes that decision smaller than the punt implied:**
+  `packages/orchestrator/tests/test_schedule_live_seam.py` already is one, an `integration`-marked
+  host-side client that drives the shipped `BrainServiceStub` against the compose stack and cleans
+  up after itself, so the placement question has a precedent and the answer is probably
+  `packages/orchestrator/tests/`. What has no precedent is the rest of the shape: a measurement
+  restarts containers between arms with one environment variable changed, pre-seeds a corpus into a
+  session scope, and reports a distribution with a confidence interval rather than asserting a
+  bound, none of which a pytest case expresses well, and a committed one would still have to decide
+  whether the A/B/A control arm is part of the test or part of a runbook. **Trigger:** the next
+  end-to-end measurement of a whole turn (a vision turn, a tool turn, a handoff), which would
+  otherwise pay the same build cost again, or any challenge to the shipped recall default that
+  needs the run reproduced rather than cited.
 
 **Gate coverage ([ADR-0011](../adr/ADR-0011-body-v1.md)):**
 - **`cargo fmt` and `cargo clippy` for the two ungated Rust trees.** `just check-body` runs
