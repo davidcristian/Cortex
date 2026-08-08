@@ -557,7 +557,10 @@ the two having split at the line cap as the seventh addendum landed):
   `http(s)`, `ftp`, `mailto:`, `tel:`, and `data:` behind a MIME-type anchor so `data:the results`
   prose stays out), normalized for identity (scheme+authority lowercased, trailing prose punctuation
   dropped, path/query case kept; an opaque `mailto:`/`tel:`/`data:` has no `://` so it folds whole).
-  Every scheme is anchored at a word boundary, so `sftp://`/`hotel:` are not partial-matched. Six
+  Every scheme is anchored at a word boundary, so `sftp://`/`hotel:` are not partial-matched, and a
+  scheme separator counts in its ASCII spelling or its **fullwidth** one (`https：//`, `https:／／`,
+  generated from a two-entry colon and solidus table; the matcher runs before any normalization, so
+  these anchored nothing and so escaped both policies, ADR-0015 eighth addendum). Seven
   **obfuscation-resistant** passes (in `url_identity.py`) reduce a rewritten link to its plain
   identity, in a fixed order so each feeds the next (ADR-0015 addenda):
   **escape decoding** to a bounded fixpoint (HTML character references `evil&#46;com`→`evil.com` the
@@ -569,10 +572,13 @@ the two having split at the line cap as the seventh addendum landed):
   **format-character stripping** (Unicode category `Cf`: zero-width space/joiner, soft hyphen, BOM,
   which render as nothing yet survive NFKC), **punycode decoding** of `xn--` labels via the stdlib
   `idna` codec (so a *registered* IDN homoglyph host feeds the confusable table), **NFKC**
-  folding (fullwidth/compatibility homoglyphs → ASCII), and a **curated cross-script confusable** fold
-  (Cyrillic/Greek Latin-lookalikes → ASCII, e.g. Cyrillic `расе`→`pace`). So a defanged, encoded,
-  zero-width-split, punycoded, fullwidth, or homoglyph link normalizes to the same identity as its
-  plain twin. A *transform* in
+  folding (fullwidth/compatibility homoglyphs → ASCII), a **curated cross-script confusable** fold
+  (Cyrillic/Greek Latin-lookalikes → ASCII, e.g. Cyrillic `расе`→`pace`), and an **IDNA label
+  separator** fold (`evil。example`→`evil.example`: the stdlib's own IDNA codec splits a host on
+  `.`/`。`/`．`/`｡`, and NFKC maps `｡` onto `。` rather than to a dot, so the two ideographic stops
+  survived it, ADR-0015 eighth addendum). So a defanged, encoded,
+  zero-width-split, punycoded, fullwidth, CJK-dotted, or homoglyph link normalizes to the same
+  identity as its plain twin. A *transform* in
   the reply is caught, not only verbatim reproduction. The passes compose (a percent-encoded
   homoglyph decodes, then folds). Both sides of the defense use it, namely collection
   (`TaintLedger.observe`) and the user-message allowlist, so a collected URL and its reappearance

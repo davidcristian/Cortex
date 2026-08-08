@@ -8,11 +8,14 @@ _AUTHORITY_WORDS = ("https", "http", "hxxps", "hxxp", "ftp")
 _OPAQUE_WORDS = ("mailto", "tel")
 
 _BRACKETS = (("[", "]"), ("(", ")"), ("{", "}"))
+
+_COLONS = (":", "\uff1a")
+_SOLIDI = ("/", "\uff0f")
 _AUTHORITY_SEPS = (
-    "://",
+    *(f"{colon}{first}{second}" for colon in _COLONS for first in _SOLIDI for second in _SOLIDI),
     *(f"{lo}{tok}{hi}{tail}" for lo, hi in _BRACKETS for tok, tail in (("://", ""), (":", "//"))),
 )
-_OPAQUE_SEPS = (":", *(f"{lo}:{hi}" for lo, hi in _BRACKETS))
+_OPAQUE_SEPS = (*_COLONS, *(f"{lo}:{hi}" for lo, hi in _BRACKETS))
 
 # The bracket vocabulary, shared by every bracketed token below so they cannot drift. The inner run
 # excludes whitespace, prose/markup quoting, and every bracket, so a chunk cannot swallow a second

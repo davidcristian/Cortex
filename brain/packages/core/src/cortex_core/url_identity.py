@@ -124,13 +124,22 @@ def _fold_confusables(url: str) -> str:
     return url.translate(_CONFUSABLES)
 
 
+_LABEL_DOTS = str.maketrans({"\u3002": ".", "\uff61": ".", "\uff0e": "."})
+
+
+def _fold_label_dots(url: str) -> str:
+    """Fold the IDNA label separators (U+3002, U+FF61, U+FF0E) to the ASCII dot they resolve."""
+    return url.translate(_LABEL_DOTS)
+
+
 def normalize_url(url: str) -> str:
     """One URL's identity: escapes decoded (to a fixpoint), defang refanged, format characters
     stripped, punycode decoded, NFKC-folded, confusables folded, trailing prose punctuation dropped,
     scheme+authority lowered.
     """
     plain = _strip_format_chars(_refang(_decode_escapes(url)))
-    folded = _fold_confusables(unicodedata.normalize("NFKC", _decode_punycode(plain)))
+    normalized = unicodedata.normalize("NFKC", _decode_punycode(plain))
+    folded = _fold_label_dots(_fold_confusables(normalized))
     trimmed = folded.rstrip(TRAILING_PUNCTUATION)
     head, sep, tail = trimmed.partition("://")
     cut = _AUTHORITY_END.search(tail)
