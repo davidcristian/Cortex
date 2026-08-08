@@ -139,7 +139,7 @@ async def test_a_spawn_that_fits_the_headroom_runs_on_the_gpu_tier() -> None:
     if not config.vram_gb <= headroom < 2 * config.vram_gb:
         pytest.skip(
             f"this arm needs a headroom holding exactly one spawn: ask={config.vram_gb} GB "
-            f"against headroom={headroom} GB (raise CORTEX_VRAM_SOFT_CAP_GB for the real card)"
+            f"against headroom={headroom} GB (leave CORTEX_VRAM_SOFT_CAP_GB at its shipped value)"
         )
     seen: list[PlacementTarget] = []
     result = await _spawn_two(seen)
@@ -151,13 +151,13 @@ async def test_a_spawn_that_fits_the_headroom_runs_on_the_gpu_tier() -> None:
 @pytest.mark.integration
 @_needs_both_tiers
 async def test_a_spawn_over_the_headroom_never_reaches_the_gpu_tier() -> None:
-    """The other arm, which the shipped budget selects: no fit, so nothing is placed on the GPU."""
+    """The other arm: no fit, so nothing is placed on the GPU and both spawns overflow to CPU."""
     config = SubagentsConfig()
     headroom = _headroom(BrainRuntimeConfig())
     if config.vram_gb <= headroom:
         pytest.skip(
             f"this arm needs an ask over the headroom: ask={config.vram_gb} GB against "
-            f"headroom={headroom} GB (leave CORTEX_VRAM_SOFT_CAP_GB at its shipped value)"
+            f"headroom={headroom} GB (lower CORTEX_VRAM_SOFT_CAP_GB under ask plus reservation)"
         )
     seen: list[PlacementTarget] = []
     result = await _spawn_two(seen)
