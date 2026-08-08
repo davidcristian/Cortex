@@ -4449,3 +4449,64 @@ ladder walked from a cold start, and again by taking only the wrapper's cap away
 override inside the fixed session: the 40px and the escape come straight back (8px out at 640x260,
 24px at 640x240, 54px at 640x200, against 1px inside at all three with the cap standing), and
 removing the override returns every number to the fixed reading.
+
+## Addendum: a closing section hands its room over on the roll's own clock (2026-08-08)
+
+The addendum above closed the first of the two bounds the section budget left behind it. This closes
+the second, and the fix is smaller and reaches further than the deferral expected.
+
+**Measured before anything was touched.** Headless Chromium against the demo bridge at 640x720 with
+the switcher's list seeded long enough to reach its cap, every painted frame sampled after the
+frame's rendering steps. Acking the last reminder with the switcher open, the switcher steps
+**135.14 to 241 in a single frame**, its entire travel, over a roll that runs for 300ms; the panel's
+own box holds one distinct height across the whole trace with 0px of top-edge travel, so the cost is
+a reveal and not a jump, exactly as the deferral said. The deferral's printed 127.14 to 227 is the
+same step read on a panel standing at a 436px ceiling rather than this one's 450px.
+
+**The share now reads the roll's target rather than the tree.** A roll already publishes the height
+it is going to as `data-morphing`, which is what the panel's ride-along reads, and a closing roll
+publishes exactly `0`. `:has()` can match an attribute value, so the cascade reads the same
+publication: `.view:has(> .collapse.aside:not([data-morphing="0"]))`. There is no second
+publication and no JavaScript. The deferral expected this to cross into JS and it does not.
+
+**Reading the target alone moves the step rather than removing it,** which the deferral did not say:
+the whole 105.86px then lands in the FIRST frame of the roll instead of the frame after the last. So
+both caps ease to their new share over the roll's own duration and curve. The wrapper's cap eases
+with the card's because the two are the same number less the card's air, and they cannot cross at any
+point of one curve.
+
+**The gate on that ease is both sections being open, and not a roll running.** The obvious rule was
+tried first and measured wrong: gated on `[data-morphing]`, the closing direction eased and the
+opening direction did not move at all. A section joins the tree one style recalc BEFORE it announces
+its roll, `Collapse` mounting the wrapper and then reading its natural height in a layout effect, and
+that read is the recalc that resolves the sibling's new share, with no gate yet standing. A share can
+only change while both sections are there to split it, so that is the condition, and it is true one
+recalc earlier.
+
+**After, at the same viewport and seed.** The switcher covers the same 105.859px of travel over 19
+distinct values with a largest single frame of 15.937px, and the step at the roll's own boundary
+reads 0.000px (241 on the last frame with the aside in the tree, 241 on the first without it). The
+history, which absorbs the handover, goes from a largest frame of 105.859px and 183.109px of total
+travel to 4.313px and 28.609px, moving only the 28.6px the exchange is worth instead of lurching a
+hundred pixels out and back. The panel is unmoved throughout, before and after.
+
+**It closed the unfiled mirror of itself.** Opening the switcher over a standing reminder stack
+dropped the stack 187.75 to 99.84 in the first frame of a roll with 300ms left to run, the same
+defect pointing the other way and never written down. It now covers that travel over 15 distinct
+values with a largest single frame of 17.36px, the history's worst frame going 87.906px to 12.734px.
+
+**The two hazards were measured, not argued.** A cap that lagged the panel could feed the panel's own
+watch on its box, and `--ceiling` is rewritten by every placement. It cannot: a share only binds when
+a section wants more than the column has, which is exactly when the panel stands at its ceiling, so
+the history absorbs the change and the panel's box does not move. Over a console round trip and a
+viewport walked 720 to 900 and back with both sections open, the panel's top edge travels 0.062px
+with the ease against 1.625px without it, the switcher's worst frame on the resize goes 65.14px to
+11.94px, and the page raises no resize-loop error under either arm. Under `prefers-reduced-motion`
+the roll does not animate at all, so the cap moves on the stylesheet's own 0.12s floor for every
+transition instead of the roll's 300ms, and the panel is still unmoved.
+
+**Proved able to fail.** A live override in the same session restores the pre-change tree exactly,
+putting the share back on tree membership and taking the transition away: the closing step returns to
+105.859px in one frame with two distinct values and a boundary step of 135.141 to 241, and the
+opening step to 87.906px in one frame. Removing the override returns every number to the eased
+reading.

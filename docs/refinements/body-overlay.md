@@ -8,12 +8,9 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 are the historical record of what each deferral became, and the index at
 [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** 9. Multi-turn-within-one-stream + proto `Cancel`, streamed
+**Open items:** 8. Multi-turn-within-one-stream + proto `Cancel`, streamed
 brain status (its producer landed 2026-07-18; only the push RPC remains), the liquid edge's
 backdrop blur,
-the second of the two bounds the panel's section budget left behind it
-(the room a closing section hands back in one frame; the first, a section's own frame standing under
-no cap, landed 2026-08-08),
 the two tradeoffs the reserved scrollbar rail accepts (its width
 is assumed rather than measured off the engine, and the two 6px cards spend their whole inset on
 it), and the whisper's three follow-ups (a pickable voice
@@ -157,6 +154,20 @@ is the pair that costs the 40px rather than either alone. The cap moved onto the
 which is the same number applied where nothing floors it. The entry's own boundary was 24px out as
 well, 284px of viewport rather than the "roughly 260" it guessed, which is the seventh entry in a row
 to have understated itself.
+
+**Moved again 2026-08-08, nine to eight, one out and none in, and read the same way.** Every
+top-level entry in this file was walked again and asked which carries a landing; the nine names above
+were exactly the ones left and the index cell agreed with them one for one. **The room a closing
+section hands back arriving in one frame** then closed, as the share reading the roll's published
+target rather than the tree, which the entry named, plus a second half it did not: reading the target
+alone moves the whole step from the last frame of the roll to the first, so both caps ease to their
+new share on the roll's own clock. Nothing was deferred behind it, and two things are worth carrying
+up. It needed no JavaScript, `:has()` being able to read the attribute the roll already publishes, so
+the arithmetic never crossed the language boundary the entry expected it to. And it closed the
+unfiled mirror of itself, found while measuring: a section OPENING took the other one's room in one
+frame too, 187.75 to 99.84 with 300ms of roll still to run, which is what turned the gate on the ease
+from "a roll is running" into "both sections are open", a section joining the tree one style recalc
+before it announces its roll.
 
 **Body / overlay in Slice 8 ([ADR-0011](../adr/ADR-0011-body-v1.md)):**
 - **Multi-turn-within-one-stream + an explicit proto `Cancel` event.** One turn per `Converse`
@@ -725,6 +736,59 @@ to have understated itself.
   list moving at all, which is what makes it a deferral. The fix is for the share to follow the
   roll rather than the tree, which wants the rolling section's target height where the cascade can
   read it, and that is the same publication the ride-along already makes to the panel.
+  - **LANDED 2026-08-08, measured before anything was touched, and it needed no JavaScript at all**
+    ([ADR-0035 addendum](../adr/ADR-0035-console-and-motion.md)). Traced in headless Chromium against
+    the demo bridge at 640x720 with the switcher's list seeded long enough to reach its cap, every
+    painted frame sampled after the frame's rendering steps. The entry reproduces in shape and its
+    numbers are this panel's rather than the ones printed above: the switcher steps **135.14 to 241
+    in a single frame**, which is its entire travel, over a roll that runs 300ms, and the panel's own
+    box holds one distinct height across the whole trace with its top edge travelling 0px. The
+    printed 127.14 to 227 is the same step measured on a panel standing at a 436px ceiling instead of
+    this one's 450px.
+  - **The publication the entry wanted is already in the DOM, and `:has()` can read it.** A roll sets
+    `data-morphing` to the height it is going to (`overlay/morph.ts`), which is what the ride-along
+    reads, and a closing roll sets it to exactly `0`. So the share asks whether the other section is
+    GOING TO BE there rather than whether it is there: `:has(> .collapse.aside:not([data-morphing="0"]))`.
+    No second publication, no JavaScript, and no arithmetic crossing the language boundary.
+  - **Reading the target alone moves the step rather than removing it,** which is the half the entry
+    did not name: the whole 105.86px then lands in the FIRST frame of the roll instead of the frame
+    after the last. So both caps ease to their new share over the roll's own duration and curve, and
+    the wrapper's cap eases with the card's because the two are the same number less the card's air.
+    After, the switcher covers the same 105.859px of travel over 19 distinct values with a largest
+    single frame of **15.937px**, and the step at the roll's own boundary reads **0.000px** (241 on
+    the last frame with the aside in the tree, 241 on the first frame without it). The history, which
+    is what absorbs the handover, goes from a largest frame of 105.859px and 183.109px of total
+    travel to 4.313px and 28.609px: it now moves only the 28.6px the exchange is actually worth
+    instead of lurching a hundred pixels out and back. The panel is unmoved throughout, one distinct
+    height and 0px of top-edge travel, before and after.
+  - **The gate on that ease is both sections being open, and NOT a roll running, which is the obvious
+    rule and was measured wrong.** Gated on `[data-morphing]`, the closing direction eased and the
+    opening direction did not move at all. The reason is an ordering nothing had written down: a
+    section joins the tree one style recalc BEFORE it announces its roll, `Collapse` mounting the
+    wrapper and then reading its natural height in a layout effect, and that read is the recalc that
+    resolves the sibling's new share. The gate was not yet standing when the number moved. A share
+    can only change while both sections are there to split it, so that is the condition, and it is
+    true one recalc earlier.
+  - **Which fixed the mirror of this entry, found while measuring it.** Opening the switcher over a
+    standing stack dropped the stack **187.75 to 99.84 in the first frame** of a roll with 300ms left
+    to run, the same defect pointing the other way and never filed. It now covers that travel over 15
+    distinct values with a largest single frame of 17.36px, the history's worst frame going 87.906px
+    to 12.734px and its total travel 229.046px to 53.234px.
+  - **The arm was proved able to fail.** A live override in the same session restores the pre-change
+    tree exactly, putting the share back on tree membership and taking the transition away: the
+    closing step returns to 105.859px in one frame with 2 distinct values and a boundary step of
+    135.141 to 241, and the opening step to 87.906px in one frame. Removing the override returns
+    every number to the eased reading.
+  - **The two hazards an eased cap could carry were measured rather than argued.** A cap that lagged
+    the panel could feed the panel's own watch on its box, and `--ceiling` is rewritten by every
+    placement. It cannot: a share only binds when a section wants more than the column has, which is
+    exactly when the panel is at its ceiling, so the history absorbs the change and the panel's box
+    does not move. Over a console round trip and a viewport walked 720 to 900 and back with both
+    sections open, the panel's top edge travels 0.062px with the ease against 1.625px without it, the
+    switcher's own worst frame on the resize goes 65.14px to 11.94px, and the page raises no
+    resize-loop error under either arm. Under `prefers-reduced-motion` the roll does not animate at
+    all, so the cap moves on the sheet's own 0.12s floor for every transition rather than on the
+    roll's 300ms, and the panel is still unmoved.
 - ~~**Two overlay modules are over the 300-line cap the TypeScript trees are not machine-gated at.**~~
   **Struck 2026-07-20: both were split along exactly the seams predicted here.** `overlayState.ts`
   went from 394 to 241 by handing the turn-event fold to `overlay/turnState.ts` (171: `Message`,
