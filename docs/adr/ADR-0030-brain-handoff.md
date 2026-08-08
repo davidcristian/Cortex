@@ -1905,9 +1905,12 @@ readable is the one from the day it was fine.
 
 Through the shipped `LlamaCppBackend` and the shipped watch, gemma-4-31B QAT q4_0 as the deep tier
 beside gemma-4-12B QAT q4_0 as the cortex, on the 24 GB card (24463 MiB), three completions of
-about 120 words an arm. Reproduced by `packages/inference/tests/test_decode_cadence_live.py`,
-integration-marked, whose two worlds are arranged by starting or stopping the peer through the
-model-host control API:
+about 120 words an arm. The middle and last rows are reproduced by
+`packages/inference/tests/test_decode_cadence_live.py`, integration-marked, whose two worlds are
+arranged by starting or stopping the peer through the model-host control API. The **cold** row is
+not, and that suite's own docstring says so: it was driven from a script through the same shipped
+adapter and watch, so the 31.08 to 33.78 figures have no committed reproducer and a rerun has to
+arrange a clear card by hand:
 
 | Arm | card afterwards | decode | best | verdict at a declared 25.0 tok/s |
 | --- | --- | --- | --- | --- |
@@ -1915,7 +1918,9 @@ model-host control API:
 | **cortex resident, then deep** | **423 MiB free** | **21.64, 20.38, 22.77** | **22.77** | **collapsed**, 2.23 short |
 | deep alone, the peer evicted under it | 8649 MiB free | 28.32, 29.82, 29.38 | 29.82 | not collapsed |
 
-**Both tiers reported `ready` in every row.** The middle row is a co-resident handoff's own load
+**Every tier a row had resident reported `ready`, the middle row's two included**, which is where
+the claim bites: the outer rows run the deep tier alone, so there is no second tier there to have
+said anything. The middle row is a co-resident handoff's own load
 order and it is the one this addendum exists for: the deployment's fit check had nothing to refuse,
 the card read like a fit, and the decode rate is the whole of the difference. The third row is the
 same floor passing on the same tier minutes later, which is what makes the middle row's refusal

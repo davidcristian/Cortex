@@ -13,15 +13,21 @@ Both arms are asserted, because a GPU arm that could not also NOT fire proves no
 skips unless the budget in the environment selects its arm, so the two run as two commands
 against one stack (docs/runbooks/subagents-cpu.md, section 2c, "The GPU-placed tier"):
 
-    # the GPU arm: a soft cap sized to the real card, so the ask fits the headroom once
+Since the ask was measured against the real tier, the **shipped** budget selects the GPU arm: 14.0
+soft cap less the 8.6 the cortex reserves is 5.4 GB of headroom, which holds exactly one 3.5 GB
+ask and not two. So it is the CPU arm that now has to be arranged for, with a soft cap the same
+ask cannot fit:
+
+    # the GPU arm: the shipped budget, nothing overridden
     CORTEX_SUBAGENTS_ENDPOINT=http://127.0.0.1:8082 \
       CORTEX_SUBAGENTS_GPU_ENDPOINT=http://127.0.0.1:9083 \
-      CORTEX_VRAM_SOFT_CAP_GB=20 \
       uv run pytest -m integration --no-cov packages/orchestrator/tests/test_subagent_gpu_live.py
 
-    # the CPU arm: the shipped soft cap, whose headroom the shipped ask exceeds
+    # the CPU arm: a soft cap whose headroom the shipped ask exceeds, the overflow path every
+    # deployment below this card's size takes
     CORTEX_SUBAGENTS_ENDPOINT=http://127.0.0.1:8082 \
       CORTEX_SUBAGENTS_GPU_ENDPOINT=http://127.0.0.1:9083 \
+      CORTEX_VRAM_SOFT_CAP_GB=11 \
       uv run pytest -m integration --no-cov packages/orchestrator/tests/test_subagent_gpu_live.py
 
 Integration-marked: excluded from CI and the coverage gate by the workspace addopts. The GPU
@@ -185,7 +191,7 @@ async def test_a_spawn_that_fits_the_headroom_runs_on_the_gpu_tier() -> None:
     if not config.vram_gb <= headroom < 2 * config.vram_gb:
         pytest.skip(
             f"this arm needs a headroom holding exactly one spawn: ask={config.vram_gb} GB "
-            f"against headroom={headroom} GB (raise CORTEX_VRAM_SOFT_CAP_GB for the real card)"
+            f"against headroom={headroom} GB (leave CORTEX_VRAM_SOFT_CAP_GB at its shipped value)"
         )
     seen: list[PlacementTarget] = []
     result = await _spawn_two(seen)
@@ -197,19 +203,19 @@ async def test_a_spawn_that_fits_the_headroom_runs_on_the_gpu_tier() -> None:
 @pytest.mark.integration
 @_needs_both_tiers
 async def test_a_spawn_over_the_headroom_never_reaches_the_gpu_tier() -> None:
-    """The other arm, which the shipped budget selects: no fit, so nothing is placed on the GPU.
+    """The other arm: no fit, so nothing is placed on the GPU and both spawns overflow to CPU.
 
-    A GPU arm that cannot be made to stay silent proves nothing about the one that fired, and
-    this is also the shipped deployment's own behaviour (ADR-0012's ask sits deliberately above
-    the placeholder headroom), so the run doubles as evidence that opting in takes the three
-    settings the gpu override's checklist names.
+    A GPU arm that cannot be made to stay silent proves nothing about the one that fired. This is
+    the arm a smaller card takes, and since the shipped budget now selects the GPU one it is the
+    arm that has to be arranged for, by lowering the soft cap under the ask plus the cortex's
+    reservation.
     """
     config = SubagentsConfig()
     headroom = _headroom(BrainRuntimeConfig())
     if config.vram_gb <= headroom:
         pytest.skip(
             f"this arm needs an ask over the headroom: ask={config.vram_gb} GB against "
-            f"headroom={headroom} GB (leave CORTEX_VRAM_SOFT_CAP_GB at its shipped value)"
+            f"headroom={headroom} GB (lower CORTEX_VRAM_SOFT_CAP_GB under ask plus reservation)"
         )
     seen: list[PlacementTarget] = []
     result = await _spawn_two(seen)

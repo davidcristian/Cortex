@@ -164,8 +164,10 @@ dropped conversation is worth a fold. The numbers are in the
 
 The arms above run one stream at a time. `packages/orchestrator/tests/test_fold_under_load_live.py`
 runs three at once, which is what tests the claim that the fold lets go of the GPU before the reply
-asks for it. It needs the same stack plus the base file's Redis (`just up` brings both), takes
-about two minutes, and `-s` is required because the timeline IS the measurement:
+asks for it. It needs the same stack plus the base file's Redis, which is `just up-gpu` and not
+`just up`: the base file alone publishes no `127.0.0.1:8080`, and running it over a live GPU stack
+recreates `brain` from the base definition, dropping `CORTEX_INFERENCE_BACKEND=llamacpp` with it.
+It takes about two minutes, and `-s` is required because the timeline IS the measurement:
 
 ```
 cd brain && CORTEX_INFERENCE_ENDPOINT=http://127.0.0.1:8080 \
