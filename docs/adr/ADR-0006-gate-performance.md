@@ -53,9 +53,12 @@ The decisions were revised same-day, pre-push, for open-source longevity.
    `cross-tree` CI job rather than sitting inside a path-gated one. `linecap.py` scans `.py`,
    `.rs`, `.ts` and `.tsx` across every tree (`docs/` included, and the overlay since the
    2026-08-03 [ADR-0011](ADR-0011-body-v1.md) addendum); `dashcheck.py` scans every text file
-   ([ADR-0026](ADR-0026-prose-style-gates.md)); and `crosscheck.py` reads declaration sites in
-   two trees at once ([ADR-0029](ADR-0029-vision-screen-capture.md) cross-language-constant
-   addendum), which is precisely what no single-toolchain job can do. Otherwise a Rust-only,
+   ([ADR-0026](ADR-0026-prose-style-gates.md)); `crosscheck.py` reads declaration sites in
+   two trees at once, and since its 2026-08-08 widening also the places that spend a value
+   without declaring it ([ADR-0029](ADR-0029-vision-screen-capture.md)
+   cross-language-constant addendum); and `bindcheck.py` reads the compose bind mounts against
+   `.gitignore` and against what git tracks ([ADR-0026](ADR-0026-prose-style-gates.md) bind
+   addendum). Each is precisely what no single-toolchain job can do. Otherwise a Rust-only,
    overlay-only or docs-only change would skip them. Locally they stay the fail-early first
    steps of `just check`.
 2. **Cancellation is PR-only**: `concurrency` with `cancel-in-progress` applies only to
@@ -84,9 +87,10 @@ The decisions were revised same-day, pre-push, for open-source longevity.
 - Skipped jobs report "skipped", which GitHub branch protection treats as satisfied, and
   this is why filtering is job-level `if`s fed by a `changes` job rather than
   `on.push.paths`, which would leave required checks pending forever.
-- The three cross-tree scans run unconditionally, outside the filter, because each reaches
+- The cross-tree scans run unconditionally, outside the filter, because each reaches
   more than one tree (the cap over `.py`/`.rs`/`.ts`/`.tsx` with `docs/` included, the dash
-  ban over every text file, the constant check over two trees at once), so gating any of
+  ban over every text file, the constant check over two trees at once, the compose bind check
+  over `docker/` against the repo's own ignore rules), so gating any of
   them on one toolchain's paths would let a Rust-only or docs-only change merge green over a
   violation.
 - Action version bumps now arrive as weekly dependabot PRs; merging them is routine

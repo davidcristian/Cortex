@@ -214,9 +214,12 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   unreachable and putting the budget on the request makes "one ceiling, two enforcers" a
   mechanism) and its validation, including the control arm that shows a projector-less turn
   **fabricates** a desktop rather than failing. Its 2026-08-03 addendum turns the last piece of
-  that mechanism from prose into a gate: `scripts/crosscheck.py`, the third cross-tree scan, ties
+  that mechanism from prose into a gate: `scripts/crosscheck.py`, a cross-tree scan that ties
   the constants declared once per language (the byte ceiling, and the seam token's metadata key)
-  by comparing declaration sites with each other rather than against a master.
+  by comparing declaration sites with each other rather than against a master. Its 2026-08-08
+  addendum widens it to the couplings a declared equality could not reach: an ordering comparator
+  for a bound that must sit under another, and a mention form for a far side that spends a value
+  without declaring it, in a compose string, a stylesheet, or a bare literal.
 - [ADR-0030: Brain handoff (the real model swap)](adr/ADR-0030-brain-handoff.md): the Slice 11
   capstone design, **accepted**; every engineering sub-slice has landed, the deep-model pick was
   measured 2026-08-04 (gemma-4-31B QAT q4_0, ADR-0004), and the tier-scale swap remains because a
@@ -375,8 +378,9 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
     backends (the `Hotkey` seam; real Windows, cfg-gated stubs elsewhere).
   - [body-app.md](modules/body-app.md) covers `body/app`: the React overlay (gated 100%) + its
     host-native Tauri shell (`cortex-body`).
-  - [repo-gates.md](modules/repo-gates.md) covers `scripts/`: linecap, dashcheck, crosscheck,
-    coverage gate, CI path classifier, and commit-message CLIs.
+  - [repo-gates.md](modules/repo-gates.md) covers `scripts/`: linecap, dashcheck, crosscheck
+    (with its `couplings` registry), bindcheck (with its `composemounts` reader), the
+    coverage gate, the CI path classifier, and the commit-message CLI.
 
 ## Runbooks
 

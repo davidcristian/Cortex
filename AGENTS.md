@@ -103,8 +103,9 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    `cargo fmt --check`, clippy, `cargo test`, `cargo llvm-cov`, the overlay's typecheck and
    Vitest coverage, and the four cross-tree scans: the line cap, which reaches all three
    toolchains; `dashcheck.py`, which bans a dash used as punctuation in any text file
-   (ADR-0026); `crosscheck.py`, which ties the constants declared once per language
-   because both sides of the seam must hold the same value (ADR-0029 cross-language-constant
+   (ADR-0026); `crosscheck.py`, which ties every value this repo spells in more than one place,
+   whether the far side declares it, orders itself against it, or merely spends it inside a
+   string, a stylesheet or a bare literal (ADR-0029 cross-language-constant
    addendum); and `bindcheck.py`, which holds every compose bind mount to resolving outside
    the repo, onto a path git tracks, or onto one git ignores, so no `docker compose up`
    materializes a container-written directory the index would take (ADR-0026 bind addendum).
@@ -203,11 +204,11 @@ body/             Rust/Tauri workspace, host-native
   app/            React+Vite overlay (gated 100%) + its host-native Tauri src-tauri
                   shell (fmt-checked in CI, else host-validated) named cortex-body, own workspace
 scripts/          repo gates: linecap.py (300-line cap), dashcheck.py (no dash as
-                  punctuation), crosscheck.py (one value, declared once per language, still
-                  agreeing), bindcheck.py (no compose bind default lands unignored in the
-                  tree) + composemounts.py (its compose reader), coverage_gate.py (Rust
-                  branches), ci_paths.py (CI path classifier), commitlint.py (commit-message
-                  style)
+                  punctuation), crosscheck.py (one value, spelled in several places, still
+                  agreeing) + couplings.py (its registry), bindcheck.py (no compose bind
+                  default lands unignored in the tree) + composemounts.py (its compose
+                  reader), coverage_gate.py (Rust branches), ci_paths.py (CI path
+                  classifier), commitlint.py (commit-message style)
 .github/          GPU-less CI running the same `just` recipes as local dev
 justfile          `just check` + check-*; proto, up/down, brain-serve, seam-health
                   (`just check` runs the four cross-tree scans before the per-tree ones)

@@ -13,13 +13,14 @@ entries are the historical record of what each deferral became, and the index at
 2026-07-16; standing test-order randomization, opened as fix-when-it-bites 2026-07-18; the three
 exceptions the wrap gate did not ship, opened as fix-when-it-bites 2026-07-19 behind the landing
 of the commit-body wrap check itself; the overlay stylesheet outside the line cap, opened as
-fix-when-it-bites 2026-08-03 behind the cap reaching the overlay's TypeScript; the couplings the
-cross-language constant scan does not hold yet, opened as fix-when-it-bites 2026-08-03 behind
-that scan landing; and the sixth, added 2026-08-08 by the turn-cost run that
-moved the recall default, whose harness never entered the repo, so the one measurement in that
-ADR that names no reproducing test is also the one whose result shipped. The compose bind default
-that lands in the repo tree came off this list on 2026-08-08, ahead of its own trigger, as a
-fourth cross-tree scan whose rule is three-way rather than the one this entry sketched; the rest
+fix-when-it-bites 2026-08-03 behind the cap reaching the overlay's TypeScript; the three
+couplings the widened constant scan still cannot hold, opened as fix-when-it-bites 2026-08-08
+when four of the five kinds its predecessor named were closed, which is the backlog working as
+intended rather than a count standing still; and the sixth, added 2026-08-08 by the turn-cost run
+that moved the recall default, whose harness never entered the repo, so the one measurement in
+that ADR that names no reproducing test is also the one whose result shipped. The compose bind
+default that lands in the repo tree came off this list on 2026-08-08, ahead of its own trigger, as
+a fourth cross-tree scan whose rule is three-way rather than the one this entry sketched; the rest
 landed 2026-07-16, 2026-07-19, 2026-08-03 and 2026-08-06, the last of them the live pgvector run
 sharing the brain's `memories` table, closed ahead of its trigger rather than by it,
 see the outcome notes below the verbatim entries)
@@ -198,8 +199,10 @@ see the outcome notes below the verbatim entries)
   `crates/os_windows`, which is entirely `cfg(windows)` and so compiles to nothing on the
   Linux host and in CI. CI narrows it further: `scripts/ci_paths.py` classifies
   `body/app/` as the overlay tree, so a change confined to the shell's Rust runs the node
-  job and no Rust job at all. Only the two unconditional cross-tree scans (the line cap and
-  dashcheck) see either tree, so the gap is precisely fmt plus clippy, not the whole gate.
+  job and no Rust job at all. Only the unconditional cross-tree scans see either tree: the line
+  cap and dashcheck always did, and since 2026-08-08 so does the constant scan, which reads the
+  shell's two default brain endpoints for the seam port it now ties. So the gap is precisely fmt
+  plus clippy, not the whole gate.
   ADR-0011 called this out as a risk ("Windows backend not CI-checked (fmt/clippy/build)")
   and accepted it as a cross-platform reality; what the risk left unsaid is that nothing
   reports the accumulation, so latent findings pile up silently and are only ever noticed
@@ -393,6 +396,57 @@ cross-language-constant addendum):**
   **What is left of this entry:** a comparator field for the ordered relations, the copies that
   are not declarations, and the TypeScript-into-CSS names whose far side is a use. **Trigger:**
   the first coupling that actually drifts.
+
+  **Landed 2026-08-08, four of the five kinds, and one of them turned out to be three**
+  ([ADR-0029](../adr/ADR-0029-vision-screen-capture.md), the 2026-08-08 registry addendum). The
+  registry moved to `scripts/couplings.py` and went from 3 entries to 14, behind two additions to
+  the scan. **The comparator field** is `Relation.ORDERED`, holding an entry's sites to
+  non-decreasing order in registry order, and two of the three orderings this entry named are
+  registered: `MAX_EDGE_CEILING` at or below `MAX_IMAGE_EDGE`, and `MAX_CAPTURE_BYTES` at or below
+  `MAX_RECEIVE_BYTES`, stated against the body's ceiling rather than the brain's copy of it,
+  because the tree that produces the bytes is the one the transport limit is really about.
+  **The mention** is the other addition, and it answers three of the five kinds at once, which is
+  the finding rather than the feature: a key spelled inside a shell string, a stylesheet reading a
+  name back with `var(...)`, and a bare literal a component compares against are one problem, that
+  there is no declaration on that side to parse. A mention is a file plus a template carrying
+  `{value}`; the scan renders the agreed value into it and requires the result to appear. It is
+  not circular, the template carrying the shape and the site the value, and it dissolves the work
+  this entry thought was left in the `thinking` case: a bare literal never has to become a named
+  constant, because the check reads the use rather than a declaration. So `thinking`, the
+  healthcheck's fourth copy of the seam-token key, the four TypeScript-into-CSS names, the
+  `--ease` curve, and `capture_screen` (which needed nothing but registering) are all tied now.
+  **One suite invariant was relaxed deliberately** rather than quietly: the test that refused an
+  entry confined to one top-level tree now demands more than one suffix, since the overlay and its
+  stylesheet are one tree and two languages and are exactly the rename this scan is for. Two new
+  invariants replace what that loses, both aimed at this widening rather than at the tree: the
+  registry must exercise both relations and both kinds of place, because a comparator no entry
+  uses is the same defect in a wider gate. **Landed ahead of the trigger**, which was the first
+  coupling that actually drifts; nothing had drifted, and each capability was reddened on the real
+  tree instead, once per capability. **What this opens** is the entry below.
+- **The three couplings the widened registry still cannot hold.** *Fix when it bites.* Opened
+  2026-08-08 behind the landing above, in the same shape its own parent had: a registry that now
+  reaches four kinds of coupling makes each remaining one a decision rather than an absence.
+  **A membership, not an ordering.** `CAPTURE_MIME` (`"image/png"`) must stay inside the brain's
+  `ALLOWED_MIME_TYPES`, which is a `frozenset` literal, so this wants a collection value form as
+  well as a comparator, and the reducer refuses what it cannot reduce by policy rather than by
+  omission. **Trigger:** a second capture encoding, which is the only thing that makes the set
+  larger than one useful element.
+  **A port with no declaration to read.** The body's bind port 50151 is a bare literal argument in
+  `body/app/src-tauri/src/body_server.rs`, against `docker-compose.body.yml`'s
+  `host.docker.internal:50151`. The brain's port was closable because its far sides are mentions
+  and its near side became `DEFAULT_SEAM_PORT` in gated code; this one is the reverse, since the
+  only place that could declare it is inside the one crate no gate compiles (the Tauri shell
+  clippy entry above is that same hole). Landing a constant there to give the scan something to
+  read means shipping a source edit nothing type-checks, which is a worse trade than leaving one
+  port untied. **Trigger:** the shell entering CI, which that sibling entry already tracks.
+  **A duration restated in another unit.** `overlay.css` spells the roll's length as `0.3s` at
+  some thirty inline sites while `MORPH_ROLL_MS` counts milliseconds, so no template renders one
+  into the other; the curve half of the same pair closed, `--ease` restating `EASING` verbatim.
+  Closing it wants either a unit-aware value form with a per-site unit, which is a design rather
+  than a field, or the overlay adopting a `--roll: 300ms` custom property every transition spends,
+  which is a stylesheet change and belongs with the stylesheet's own entry above. **Trigger:**
+  either of those two, or the first frame that shows a CSS transition and the roll beside it on
+  two clocks.
 
 **Repo gates ([ADR-0026](../adr/ADR-0026-prose-style-gates.md)):**
 - **The fail-open `scripts/` gate config closed 2026-07-12
