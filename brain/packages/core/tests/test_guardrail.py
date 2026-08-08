@@ -808,3 +808,108 @@ def test_a_fullwidth_colon_without_a_scheme_word_is_not_a_url() -> None:
 def test_the_eighth_addendum_classes_compose() -> None:
     # A fullwidth separator and a CJK-dotted host in one link still fold to the plain identity.
     assert extract_urls("https：//evil。example/pay") == {"https://evil.example/pay"}  # noqa: RUF001
+
+
+# --- Obfuscation-resistant matching: a scheme separator spelled as a *bracketless* HTML character
+# reference (ADR-0015 ninth addendum). `https&#58;//evil.example` anchored nothing, so neither
+# policy saw it: the encoded separator the seventh addendum admitted needed defang brackets around
+# it, and the eighth addendum's tables held only glyphs. An HTML renderer resolves the reference
+# before anything looks for a URL, which is what puts this class on the closed side of the line the
+# eighth addendum drew, so the whole *family* is generated from each separator character's
+# codepoint: decimal and hexadecimal, zero-padded or not, semicolon or not, plus the named form. -
+
+_ENTITY_LINK = "https&#58;//evil.example/pay"
+_PLAIN_LINK = {"https://evil.example/pay"}
+
+
+def test_extract_urls_anchors_an_entity_spelled_colon() -> None:
+    # Every numeric spelling of one colon, since the family is generated from the codepoint rather
+    # than listed: a padding or a casing nobody thought of must not be the one that gets through.
+    assert extract_urls(_ENTITY_LINK) == _PLAIN_LINK
+    assert extract_urls("https&#058;//evil.example/pay") == _PLAIN_LINK
+    assert extract_urls("https&#0058;//evil.example/pay") == _PLAIN_LINK
+    assert extract_urls("https&#58//evil.example/pay") == _PLAIN_LINK  # HTML makes the `;` optional
+    assert extract_urls("https&#x3a;//evil.example/pay") == _PLAIN_LINK
+    assert extract_urls("https&#X3A;//evil.example/pay") == _PLAIN_LINK
+    assert extract_urls("https&#x003a;//evil.example/pay") == _PLAIN_LINK
+    assert extract_urls("https&colon;//evil.example/pay") == _PLAIN_LINK
+
+
+def test_extract_urls_anchors_an_entity_spelled_solidus() -> None:
+    # The solidus is generated from the same table, so it and the colon mix freely with each other
+    # and with the fullwidth glyphs the eighth addendum admitted.
+    assert extract_urls("https:&#47;&#47;evil.example/pay") == _PLAIN_LINK
+    assert extract_urls("https:&sol;&sol;evil.example/pay") == _PLAIN_LINK
+    assert extract_urls("https&#58;&#47;&#47;evil.example/pay") == _PLAIN_LINK
+    assert extract_urls("https&#58;／／evil.example/pay") == _PLAIN_LINK  # noqa: RUF001
+    assert extract_urls("https&colon;&#x2f;／evil.example/pay") == _PLAIN_LINK  # noqa: RUF001
+
+
+def test_an_entity_separator_anchors_an_opaque_scheme_and_a_data_url() -> None:
+    assert extract_urls("mailto&#58;a@evil.example") == {"mailto:a@evil.example"}
+    assert extract_urls("tel&colon;+15550100") == {"tel:+15550100"}
+    assert extract_urls("data&#x3a;text/html;base64,AA") == {"data:text/html;base64,aa"}
+
+
+def test_an_entity_separator_and_its_plain_twin_share_one_identity() -> None:
+    assert extract_urls(_ENTITY_LINK) == extract_urls("https://evil.example/pay")
+
+
+def test_an_entity_separator_transform_of_a_collected_url_is_redacted() -> None:
+    guard = _filter({"https://evil.example/pay"})
+    fed = guard.feed(f"settle at {_ENTITY_LINK} now") + guard.flush()
+    assert fed == f"settle at {REDACTED_LINK} now"
+
+
+def test_strict_tainted_turn_redacts_an_entity_separator() -> None:
+    # The severe half again: a link that anchors nothing is invisible to strict mode too, which is
+    # otherwise the backstop for every rewrite the verbatim policy misses.
+    guard = _strict(_Taint(tainted=True))
+    assert guard.feed(f"go to {_ENTITY_LINK} ") == f"go to {REDACTED_LINK} "
+
+
+def test_an_entity_separator_split_across_chunks_is_carried_not_lost() -> None:
+    # A reference is variable-length, so like the bracketed chunk it cannot be enumerated into the
+    # hold-back's scheme prefixes; the buffer is held while one is unfinished, at any split point.
+    guard = _filter({"https://evil.example/pay"})
+    assert guard.feed("at https&#5") == "at "
+    assert guard.feed("8;&#4") == ""
+    assert guard.feed("7;/evil.example/pay ") == f"{REDACTED_LINK} "
+
+
+def test_an_entity_separator_survives_a_one_character_stream() -> None:
+    # The production shape: the filter sees one character at a time, so a fix that only works on a
+    # whole delta is wrong where it matters.
+    guard = _filter({"https://evil.example/pay"})
+    reply = f"settle at {_ENTITY_LINK} now"
+    fed = "".join(guard.feed(char) for char in reply) + guard.flush()
+    assert fed == f"settle at {REDACTED_LINK} now"
+
+
+def test_an_entity_colon_in_prose_is_not_a_url() -> None:
+    # The scheme word and (for an authority scheme) both solidi are still required, so prose that
+    # merely spells a colon or a slash, and a scheme word beside an unrelated reference, stay out.
+    assert extract_urls("write &#58; for a colon and &sol; for a slash") == frozenset()
+    assert extract_urls("see the http&colon; spelling in the docs") == frozenset()
+    assert extract_urls("the data&nbsp;table below") == frozenset()
+
+
+def test_a_reference_no_renderer_resolves_is_not_admitted() -> None:
+    # The line this addendum draws is *one rendering pass*. HTML named references are
+    # case-sensitive, so `&COLON;` renders as itself and is not a link; a semicolon-less numeric
+    # reference ends where its digit (or hex digit) run does, so `&#58123` is one five-digit
+    # reference and renders as a private-use character rather than a colon; and `&amp;#58;` renders
+    # as the *text* `&#58;`, which is still not a clickable link.
+    assert extract_urls("https&COLON;//evil.example/pay") == frozenset()
+    assert extract_urls("mailto&#58123@evil.example") == frozenset()
+    assert extract_urls("tel&#x3abc") == frozenset()
+    assert extract_urls("https&amp;#58;//evil.example/pay") == frozenset()
+    # The same references *with* their semicolon are colons again, so the guard is a boundary and
+    # not a ban on the shape.
+    assert extract_urls("mailto&#58;123@evil.example") == {"mailto:123@evil.example"}
+
+
+def test_the_ninth_addendum_composes_with_its_predecessors() -> None:
+    # An entity colon, a fullwidth solidus, a CJK-dotted host and a zero-width character in one
+    # link still fold to the single identity its plain twin has.
+    assert extract_urls("https&#58;/／evil。ex\u200bample/pay") == _PLAIN_LINK  # noqa: RUF001

@@ -668,3 +668,132 @@ addendum's shape-constraint reasoning extends to it directly.
 
 Ten new behaviour tests, each mutation-proven: dropping the label-dot fold reddens four, and
 shrinking the colon and solidus tables back to their ASCII entries reddens six.
+
+## Addendum (2026-08-08): the scheme separator spelled as a bracketless HTML character reference
+
+Closes the leftover the eighth addendum named as its natural next pass, and closes the whole
+**family** it belongs to rather than the one spelling that was measured. Like every earlier addendum
+this is **grammar only, with no seam change**: both `OutputGuardrail` policies, the `TaintLedger`,
+`TaintView`, the streaming filter, and the config are untouched, redact and strict mode inherit the
+wider matching for free, and a clean or untainted turn is byte-identical to before. `url_identity.py`
+did not change at all: the decode fixpoint already folded every one of these spellings, and the
+whole gap was that nothing ever reached it. Still **deterministic and dependency-free** (stdlib
+only).
+
+Measured against the shipped module before any change, driven end to end through a real
+`TaintLedger` that had collected `https://evil.example/pay` and `mailto:thief@evil.example` from an
+untrusted result, and a real streaming filter fed **one character at a time**:
+
+| Reply spelling | `extract_urls` before | redact | strict | After |
+|---|---|---|---|---|
+| `https://evil.example/pay` (control) | the link | redacted | redacted | unchanged |
+| `https&#58;//evil.example/pay` | `frozenset()` | **leaked** | **leaked** | redacted |
+| `https&#058;//…`, `https&#0058;//…` (zero padded) | `frozenset()` | **leaked** | **leaked** | redacted |
+| `https&#58//…` (no semicolon) | `frozenset()` | **leaked** | **leaked** | redacted |
+| `https&#x3a;//…`, `https&#X3A;//…`, `https&#x003a;//…` | `frozenset()` | **leaked** | **leaked** | redacted |
+| `https&colon;//…` (named) | `frozenset()` | **leaked** | **leaked** | redacted |
+| `https:&#47;&#47;…`, `https:&sol;&sol;…` (the solidi) | `frozenset()` | **leaked** | **leaked** | redacted |
+| `https&#58;&#47;&#47;…` (all three) | `frozenset()` | **leaked** | **leaked** | redacted |
+| `https&#58;／／…` (entity colon, fullwidth solidi) | `frozenset()` | **leaked** | **leaked** | redacted |
+| `mailto&#58;thief@evil.example` | `frozenset()` | **leaked** | **leaked** | redacted |
+
+Only one of those eleven spellings had ever been named anywhere. The eighth addendum measured the
+first and deferred it; the other ten are what generating the family from the codepoint turns up, and
+every one of them was live.
+
+### An entity is resolved by a renderer, which is why it is not a source-code escape
+
+The eighth addendum left source-code escapes (`\u002e`, `\x2e`, `\056`, `%u002e`, `\.`) out on the
+argument that **no renderer and no resolver resolves them**, so folding one would bet on a reader
+decoding it by hand. That argument is re-weighed here rather than inherited, and it holds, because
+the entity separator falls on the other side of it for a reason that can be stated as a layer.
+
+An HTML character reference is a **text-layer** encoding: the renderer resolves it before anything
+looks for a URL, so an HTML email whose body reads `https&#58;//evil.example/pay` **displays**
+`https://evil.example/pay` and autolinks it. The reader decodes nothing and never sees the reference
+at all, exactly as with the `evil&#46;com` dot the fourth addendum folded. Since HTML email is the
+chief untrusted source this guardrail exists for, that is not a hypothetical rendering path.
+
+A source-code escape is a **source-layer** encoding, resolved by a compiler that is not in this
+picture, so `evil\x2eexample` renders as itself, is not clickable, and asks the reader to do the
+decoding. It stays out, and the eighth addendum's reasoning for that is unchanged.
+
+A percent-escape is a **URL-layer** encoding, resolved only *inside* a string already recognized as
+a URL, which is why `https%3A//evil.example` and `https%3A%2F%2Fevil.example` also stay out: a
+percent-encoded **scheme separator** is resolved by nobody, since no layer recognizes a URL there in
+the first place. Note this is not a retreat from the seventh addendum, which admits `%` inside a
+**bracketed** separator chunk: there the defang brackets are themselves the marker of a link written
+to be undone, and the shape constraint rides on them. With no brackets there is no marker, so the
+reference's own grammar has to be it.
+
+The same line disposes of the double-encoded `https&amp;#58;//evil.example`: one rendering pass
+turns `&amp;#58;` into the **text** `&#58;`, not into a colon, so what the reader sees is the
+unclickable string the row above already covers. The rule the anchor implements is exactly **one
+rendering pass**, and it is tested (`test_a_reference_no_renderer_resolves_is_not_admitted`).
+
+### The family, generated from the codepoint
+
+Fixing the one measured spelling would have left ten. `_entity_forms(char)` generates, from
+`ord(char)`, the decimal reference, the hexadecimal reference, and the named one, and
+`_spellings` folds those into the per-character alternation beside the plain glyphs, so the colon
+and the solidus each carry every spelling and the matcher composes them: an entity colon in front of
+fullwidth solidi is free, as is any other mixture. Three details are deliberate:
+
+- **Leading zeros** (`&#0058;`, `&#x003a;`) and the **case** of `&#X3A;` are resolved by HTML, so
+  `0*` and the pattern's existing `IGNORECASE` admit them.
+- **The named form is case-sensitive**, because HTML's named references are: `html.unescape` leaves
+  `&COLON;` standing, so no renderer resolves it, so the anchor scopes that alternative back to
+  case-sensitive with `(?-i:…)` rather than admitting a spelling the identity could not fold.
+- **A semicolon-less reference ends where its digit run ends.** HTML makes the semicolon optional,
+  but `&#58123` is one five-digit reference (a private-use character), not a colon followed by
+  `123`, so the semicolon-less forms carry `(?:;|(?![0-9]))` (and the hex form its hex-digit twin).
+
+Together those keep the anchor's promise that **every spelling it admits is one the identity folds**,
+which is what stops a widened matcher from manufacturing matches that then compare equal to nothing.
+
+### The streaming hold-back, where this fix could have been right and useless
+
+The filter sees one character at a time, so a reference split across deltas is the obvious way for
+this to pass a unit test and fail in production. A reference is variable-length and so cannot be
+enumerated into `_SCHEME_PREFIXES`, the same problem the seventh addendum's bracket chunk had, so
+`_OPEN_SEP_RE` grows a second branch: a scheme word, then any run of complete separator spellings,
+then an optionally unfinished reference (`https&`, `https&#5`, `https&#58;&#4`). The leading `&` is
+load bearing in the same way the earlier escape marker is, since without it the branch would hold
+back every scheme word followed by letters (`database`). Verified by feeding every one of the
+spellings above **at every two-way split point** (840 splits over the nineteen probes the
+measurement ran, the leftovers included, plus the one-character-at-a-time feed every row of the
+table above was produced with): the output is identical to the whole-string feed in every case.
+
+### False positives, which are the real cost of widening a matcher
+
+The new surface is a scheme word immediately followed by an HTML reference to a colon, plus two
+solidus spellings for an authority scheme. What that cannot reach: prose that merely spells a
+reference (`write &#58; for a colon`, `escape a slash as &sol;`), a scheme word beside an unrelated
+reference (`the data&nbsp;table`), a scheme word and a colon with no slashes behind it (`see the
+http&colon; spelling in the docs`), and `AT&T;`-shaped prose, all of which stream through untouched
+under **strict** mode on a tainted turn, the worst case. Under the default policy the blast radius
+is smaller still and worth stating plainly rather than assuming: redact mode replaces a match only
+when its normalized identity is one the ledger **collected** from untrusted content, so a new match
+that folds to something nobody collected is not redacted at all. A false positive can therefore only
+cost a redaction under strict mode, on a turn that has already read untrusted content, over text
+that spells a scheme separator as an HTML reference. The guardrail also remains `off`-able.
+
+### What stays out, with the line each is on
+
+Unchanged from the eighth addendum and now argued per layer above: **source-code escapes**
+(`evil\u002eexample`, `\x2e`, `\056`, `%u002e`, `\.`, and `https:\/\/…`), a **bracketless
+percent-encoded** separator or scheme (`https%3A//…`, `https%3A%2F%2F…`), and **stacked references**
+(`&amp;#58;`), none of which one rendering pass turns into a clickable link. Also unchanged:
+whitespace-split defang (`evil dot com`), the full UTS-39 confusables set (still a dependency), and
+footer/boilerplate heuristics. The deferred tail this all came out of, "mixed/other encodings past
+percent + HTML", therefore **stays open**, one row shorter and with its argument sharpened from "a
+different measurement" to "a different layer".
+
+Eleven new behaviour tests, each mutation-proven against the final code, with `__pycache__` cleared
+between runs and each mutation verified to have applied: dropping the entity forms from the anchor
+reddens ten; keeping only the plain decimal reference reddens three; reverting `_OPEN_SEP_RE` to its
+bracket-only form reddens the two streaming tests and nothing else; unscoping the named form's case
+and dropping the digit-run guard redden one each. The first fixture written for that last mutation
+did **not** redden it (a semicolon-less reference followed by digits cannot reach an authority
+scheme's slashes anyway), so the test was replaced with the opaque-scheme form
+(`mailto&#58123@evil.example`) that does. `urls.py` is 246 lines, inside the cap.
