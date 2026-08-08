@@ -193,7 +193,8 @@ fix-when-it-bites bucket, so nobody picks it up expecting to build a lever that 
   be worse than today, crediting the evicted cortex's 11.3 GB back while the deep model holds the
   card. Measured live rather than argued, through the real sidecar and a real residency change on
   the 24 GB card: 15061 MiB free of 24463 with the cortex resident, 19553 MiB free inside the
-  window, the charge 18.68 GiB and the headroom 4.32 GiB against the shipped 5.5 GiB ask, so the
+  window, the charge 18.68 GiB and the headroom 4.32 GiB against the 5.5 GiB ask shipped that day
+  (measured to 3.5 on 2026-08-08, which does not move this reading), so the
   same spawn lands on the GPU outside the window and on the CPU inside it and on the GPU again
   after the restore (`test_a_real_swap_charges_the_placer_for_the_model_that_holds_the_card`, which
   declares the deep tier's measured cost and starts the cheap peer tier in its place, since what a

@@ -6,14 +6,14 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 historical record of what each deferral became, and the index at [index.md](index.md) carries the
 recommended pickup order.
 
-**Open items:** 6, counted by reading the entries below rather than by adjusting the last number.
+**Open items:** 5, counted by reading the entries below rather than by adjusting the last number.
 The Intel NPU as a third placement target, a bounded admission wait, a read timeout on the subagent
-HTTP client, the drain bound against a fired task's lease, admission reopening onto a tier that
-would not restart, and, since the cortex reservation was re-measured on 2026-08-07 and the
-placeholder it was hiding became the only term left refusing a GPU placement, the subagent VRAM ask.
-That re-measurement closed nothing this count had ever carried: it had been deferred at two ADRs and
-recorded on no index, so the count goes 5 to 6 for an arrival with no matching departure, which is
-the honest shape of that history rather than a bookkeeping slip.
+HTTP client, the drain bound against a fired task's lease, and admission reopening onto a tier that
+would not restart. The subagent VRAM ask came and went inside two days: the cortex reservation's
+re-measurement on 2026-08-07 opened it, having closed nothing this count had ever carried (it had
+been deferred at two ADRs and recorded on no index), so the count went 5 to 6 for an arrival with no
+matching departure; measuring the tier on 2026-08-08 took it back to 5. Both moves are the honest
+shape of that history rather than a bookkeeping slip.
 
 **Resource governance in Slice 8.5 ([ADR-0012](../adr/ADR-0012-resource-governance.md)):** each behind
 the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
@@ -170,6 +170,12 @@ the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
   ADR-0030 decision 8's addendum already says: a **second** GPU-capable executor, so that two
   GPU-placed spawns can actually run at once and a placement-aware charge changes how many are
   admitted.
+  **One sentence above went false on 2026-08-08 and the conclusion did not.** The ask was measured
+  and is now 3.5 GiB against 5.4 GiB of headroom, so a spawn really is GPU-placed and "there is
+  nothing to discount today" no longer describes the shipped stack. What still declines the entry is
+  the other half, which the measurement did not touch: one `LlamaCppBackend` per target per roster
+  entry still serializes same-entry spawns whatever the budget admits, and the headroom holds one
+  spawn anyway, so a discount would change nothing about how many run.
 - **The cortex reservation landed 2026-08-07 as a re-measurement, and it had never been an entry
   here.** Where it lived was two ADRs and no index: [ADR-0004](../adr/ADR-0004-model-lineup.md)'s
   swap-latency note 8, which saw the cortex read about 9.7 GB against its own 11.0 and asked a later
@@ -211,6 +217,38 @@ the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
   its own figure. Pinned by a test today
   (`test_shipped_vram_budget_still_refuses_the_compose_placeholder_ask`), so a later change to the
   reservation cannot quietly flip the shipped stack into GPU placement without answering this.
+  **Closed 2026-08-08 by measuring the tier, one day after it opened
+  ([ADR-0012 measured-ask addendum](../adr/ADR-0012-resource-governance.md), procedure in
+  [runbooks/subagents-cpu.md](../runbooks/subagents-cpu.md) section 2c).** The ask is **3.5 GiB**
+  in both declarations, the compose default and the `SubagentsConfig` field. Measured at the shape
+  read out of the running child's argv (`-ngl 99 --ctx-size 8192 --parallel 2 --jinja` with
+  thinking off, no projector), with the cortex resident throughout and `nvidia-smi` total used
+  sampled every 0.2 s, the tier is 3228 to 3355 MiB idle and costs at most **3410 MiB** above a
+  floor read with it stopped at both ends of the session (10448 to 10500, then 10428 to 10493 MiB,
+  agreeing within 20 MiB). Twelve requests each filling its slot's whole half of the 8192 KV
+  (3803 prompt tokens plus 293 decoded, exactly 4096) moved nothing beyond the idle band: this tier
+  has no vision path, so unlike the cortex the peak is a load-time figure with no late allocation at
+  all. The margin is 174 MiB, which covers the sampler's spread and the floor bracket twice over.
+  **The entry's own account was right about one placeholder and wrong about the other**, which is
+  worth stating because it was the safe-sounding one: 5.5 was about 2.1 GiB high as recorded, but
+  the code default of 2.0 was about 1.3 GiB **low**, so a deployment wiring subagents without the
+  compose file was admitting a spawn onto room the tier would overrun, the unsafe direction, while
+  the docs called it a GPU-less-safe placeholder. **The alternate needed no figure of its own**,
+  which this entry asked the same sitting to decide: no GPU executor exists for the roster's
+  alternate at all (its `gpu_endpoint` falls back to its own CPU server), so its 2.5 charges a
+  ledger for a placement that always runs on the CPU, and that is the interim one-executor stance
+  rather than a measurement anybody could take today. What replaces the old pin is a pair of tests
+  reading the deployment's own numbers rather than literals: one places the shipped ask and its
+  successor (GPU then CPU), the other holds the margin above the measured peak. Proven on the stack
+  and not only in the gate: under the old ask the live GPU arm could not select itself (5.5 against
+  5.4 GiB of headroom) and the tier served no task; under 3.5 the same command places one spawn
+  there, answered in 152.11 ms against 13134.73 ms for the sibling that overflowed, and the arm was
+  shown able to redden first by pointing the GPU endpoint at a closed port. **What is not fixed is
+  what the ask means for the second spawn:** the ledger charges one tier's whole footprint per
+  spawn, and a second spawn onto that standing process allocates nothing, so refusing it buys decode
+  speed rather than memory. That is the modelling gap recorded in
+  [inference-model-manager.md](inference-model-manager.md), unchanged here and now the honest
+  reading of the refusal.
 - **The Intel NPU as a third placement target.** A future OpenVINO `InferenceBackend` adapter + a
   `PlacementTarget.NPU`, pending a feasibility pass. Using the otherwise-idle NPU for tiny
   subagents or embeddings serves the same "keep the machine usable" motivation as the caps above,

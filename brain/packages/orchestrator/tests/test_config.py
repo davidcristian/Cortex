@@ -134,41 +134,39 @@ def test_runtime_defaults_match_the_dictated_contract() -> None:
 
 
 @pytest.mark.usefixtures("clean_env")
-def test_shipped_vram_budget_admits_the_measured_gpu_subagent_tier() -> None:
-    """What the shipped budget pair means, stated as placements rather than as arithmetic.
+def test_the_shipped_budget_places_one_subagent_on_the_gpu_and_overflows_the_next() -> None:
+    """What the three shipped numbers mean together, stated as placements, not as arithmetic.
 
-    The GPU-placed subagent tier measured 3319 MiB on this stack's card, so its real ask is
-    3.24 GiB. Under the reservation the 2026-06-29 lineup set that spawn overflowed to the CPU
-    and no GPU subagent work was reachable at all; under the re-measured one it lands, and a
-    second still overflows, which is the fit the single tier process can actually serve.
+    The ask is the deployment's own (``SubagentsConfig``, equal to what
+    ``docker-compose.subagents.yml`` sets), so this reads the shipped budget rather than a
+    figure written here. One spawn fits the headroom the re-measured cortex reservation leaves
+    and the next does not, which is the fit the single GPU tier process can actually serve.
     """
-    config = BrainRuntimeConfig()
+    runtime = BrainRuntimeConfig()
+    ask = SubagentsConfig().vram_gb
     placer = VramBudgetPlacer(
-        soft_cap_gb=config.vram_soft_cap_gb,
-        cortex_reservation_gb=config.cortex_reservation_gb,
+        soft_cap_gb=runtime.vram_soft_cap_gb,
+        cortex_reservation_gb=runtime.cortex_reservation_gb,
     )
-    measured_tier_gb = 3319 / 1024
-    first = placer.place(PlacementRequest("a", vram_gb=measured_tier_gb, cpus=1.0, memory_gb=1.0))
-    second = placer.place(PlacementRequest("b", vram_gb=measured_tier_gb, cpus=1.0, memory_gb=1.0))
+    first = placer.place(PlacementRequest("a", vram_gb=ask, cpus=1.0, memory_gb=1.0))
+    second = placer.place(PlacementRequest("b", vram_gb=ask, cpus=1.0, memory_gb=1.0))
     assert first.target is PlacementTarget.GPU
     assert second.target is PlacementTarget.CPU
 
 
 @pytest.mark.usefixtures("clean_env")
-def test_shipped_vram_budget_still_refuses_the_compose_placeholder_ask() -> None:
-    """The reservation was not rounded to the value that would admit the shipped ask.
+def test_the_shipped_subagent_ask_covers_the_tier_it_was_measured_from() -> None:
+    """The ask is a reservation, so it must sit above the tier's peak rather than at it.
 
-    ``docker-compose.subagents.yml`` asks 5.5 GiB a spawn, which is about 2.3 GiB above what the
-    tier measured, and 5.5 does not fit the 5.4 GiB the re-measured reservation leaves. Naming the
-    reservation so that it did would be choosing the answer; the ask is the term that is wrong.
+    Measured 2026-08-08 on this stack's card, the GPU-placed subagent tier costs 3338 to 3410
+    MiB above a bracketed floor at its shipped shape. The ask must cover the higher end and keep
+    a margin over it wider than the sampler's in-phase spread (110 MiB) plus the floor bracket's
+    disagreement (20 MiB), and must not be so wide that it stops fitting the headroom, which is
+    the placement the test above pins.
     """
-    config = BrainRuntimeConfig()
-    placer = VramBudgetPlacer(
-        soft_cap_gb=config.vram_soft_cap_gb,
-        cortex_reservation_gb=config.cortex_reservation_gb,
-    )
-    placement = placer.place(PlacementRequest("a", vram_gb=5.5, cpus=1.0, memory_gb=1.0))
-    assert placement.target is PlacementTarget.CPU
+    measured_peak_mib = 3410
+    margin_mib = SubagentsConfig().vram_gb * 1024 - measured_peak_mib
+    assert margin_mib >= 130
 
 
 @pytest.mark.usefixtures("clean_env")
@@ -485,8 +483,9 @@ def test_subagents_default_to_disabled() -> None:
     assert config.endpoint == ""
     assert config.gpu_endpoint == ""
     assert config.model == "subagent"  # a LOGICAL id (ADR-0004), never a path
-    # GPU-less-safe placeholders; the maintainer measures the real numbers on the host (ADR-0012).
-    assert (config.vram_gb, config.cpus, config.memory_gb) == (2.0, 2.0, 2.0)
+    # The VRAM ask is the measured one and equals what docker-compose.subagents.yml sets; the CPU
+    # and memory asks stay GPU-less-safe placeholders the maintainer measures (ADR-0012).
+    assert (config.vram_gb, config.cpus, config.memory_gb) == (3.5, 2.0, 2.0)
     assert (config.cpu_budget, config.mem_budget_gb) == (4.0, 8.0)
 
 

@@ -317,7 +317,11 @@ launched two in the same millisecond and the third only when the first released.
 entry's 5.5 GB ask never fits, so its batches are strictly serial (258.4 s, 208.7 s, 330.2 s, one
 after another). The advertised claim is therefore conservative rather than wrong, and what it
 overstates is the size of the prize for spreading, which is one more reason to leave the fix
-queued.
+queued. **The last of those readings has since changed and the conclusion has not (2026-08-08):**
+both budget terms were measured, the reservation to 8.6 GiB and the default entry's ask to 3.5, so
+the default entry now behaves exactly as `qwen` did here, one spawn of a batch GPU-placed and the
+rest overflowing, rather than strictly serial. Two lock objects still front one server wherever an
+entry omits `gpu_endpoint`, which is what this correction is about.
 
 **What changes, and what does not.** The spec text is unchanged. This run says the advice is not
 taken; it does not say which wording would be taken, and rewriting on the strength of one

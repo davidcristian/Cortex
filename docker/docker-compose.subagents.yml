@@ -45,12 +45,16 @@ services:
       CORTEX_SUBAGENTS_GPU_ENDPOINT: "${CORTEX_SUBAGENTS_GPU_ENDPOINT:-http://llama-subagent:8082}"
       # Per-subagent ask + soft admission budgets (ADR-0012). The ask reflects the measured
       # E4B pick (ADR-0004 pick-revision addendum): ~2.5 GiB RSS on CPU -> 3.0 memory ask
-      # (2 admitted under the 8 GB budget, matching --parallel); ~5.5 GB weights+KV VRAM ask,
-      # deliberately above the GPU headroom (soft cap - cortex), so the ADR-0012 placer
-      # correctly overflows every E4B spawn to CPU until the budget ever allows it.
+      # (2 admitted under the 8 GB budget, matching --parallel). The VRAM ask is measured too
+      # since 2026-08-08: the GPU-placed tier costs 3338 to 3410 MiB at the shape below
+      # (-ngl 99, the ctx size and --parallel of this file), so 3.5 GiB sits about 174 MiB over
+      # its peak and fits the 5.4 GiB headroom the 14 GB soft cap leaves beside the cortex. One
+      # spawn is therefore GPU-placed and the next overflows to the CPU server, which is what one
+      # tier process can serve. Keep this equal to the SubagentsConfig default (config_subagents.py)
+      # when retuning: nothing in the gates ties the two declarations together.
       CORTEX_SUBAGENTS_CPUS: "${CORTEX_SUBAGENTS_CPUS:-2.0}"
       CORTEX_SUBAGENTS_MEMORY_GB: "${CORTEX_SUBAGENTS_MEMORY_GB:-3.0}"
-      CORTEX_SUBAGENTS_VRAM_GB: "${CORTEX_SUBAGENTS_VRAM_GB:-5.5}"
+      CORTEX_SUBAGENTS_VRAM_GB: "${CORTEX_SUBAGENTS_VRAM_GB:-3.5}"
       CORTEX_SUBAGENTS_CPU_BUDGET: "${CORTEX_SUBAGENTS_CPU_BUDGET:-4.0}"
       CORTEX_SUBAGENTS_MEM_BUDGET_GB: "${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8.0}"
       # No price line is needed here: the brain already charges one `spawn_subagents`

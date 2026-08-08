@@ -26,14 +26,16 @@ class SubagentRosterEntry(BaseModel):
 
     ``endpoint`` (required, non-empty) is the entry's CPU ``llama-server`` base URL; an empty
     ``gpu_endpoint`` falls back to it (normalized in ``named_roster``, per the interim one-executor
-    stance, ADR-0012 deferral). The resource numbers default like the flat fields;
-    ``description`` is the trade-off text the spawn spec advertises verbatim (it informs the
-    cortex's optimization, never safety, since ADR-0017 is enforced in the core).
+    stance, ADR-0012 deferral). The resource numbers default like the flat fields, so an alternate
+    that declares no VRAM ask is charged the only GPU subagent tier this repo has measured, which
+    over-charges anything smaller and therefore errs toward the CPU; ``description`` is the
+    trade-off text the spawn spec advertises verbatim (it informs the cortex's optimization, never
+    safety, since ADR-0017 is enforced in the core).
     """
 
     endpoint: str = Field(min_length=1)
     gpu_endpoint: str = ""
-    vram_gb: float = Field(default=2.0, gt=0)
+    vram_gb: float = Field(default=3.5, gt=0)
     cpus: float = Field(default=2.0, gt=0)
     memory_gb: float = Field(default=2.0, gt=0)
     description: str = ""
@@ -50,8 +52,11 @@ class SubagentsConfig(BaseSettings):
 
     ``vram_gb``/``cpus``/``memory_gb`` are one subagent's resource ask (VRAM footprint the placer
     fit-tests, and the per-container ``--cpus``/``--memory`` the scheduler sums); ``cpu_budget``/
-    ``mem_budget_gb`` are the soft admission ceilings (sum of admitted asks ≤ target). The user
-    measures the real numbers on the host; the defaults are GPU-less-safe placeholders.
+    ``mem_budget_gb`` are the soft admission ceilings (sum of admitted asks ≤ target). ``vram_gb``
+    is measured: 3.5 GiB since 2026-08-08, sized above the 3338 to 3410 MiB the GPU-placed subagent
+    tier costs at its shipped shape (ADR-0012 measured-ask addendum), and it matches the value
+    ``docker-compose.subagents.yml`` sets so the two declarations of one number agree. The CPU and
+    memory asks stay host-measured placeholders.
 
     The flat fields above define the roster's **default entry** as the injection-robust ADR-0004
     pick the wiring pins untrusted-content spawns to (ADR-0017); ``model`` names it and
@@ -68,7 +73,7 @@ class SubagentsConfig(BaseSettings):
     gpu_endpoint: str = ""
     model: str = DEFAULT_SUBAGENT_MODEL
     model_description: str = DEFAULT_SUBAGENT_DESCRIPTION
-    vram_gb: float = Field(default=2.0, gt=0)
+    vram_gb: float = Field(default=3.5, gt=0)
     cpus: float = Field(default=2.0, gt=0)
     memory_gb: float = Field(default=2.0, gt=0)
     cpu_budget: float = Field(default=4.0, gt=0)

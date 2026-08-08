@@ -238,7 +238,11 @@ thinking off, ctx 8192, 2 slots):
   narrow asynchronous subtasks; the admission ask in the compose is updated to the measured
   numbers (memory 3.0 GB → two concurrent under the 8 GB budget, matching `--parallel 2`;
   VRAM ask 5.5 GB, deliberately above the current GPU headroom so the ADR-0012 placer
-  overflows every E4B spawn to CPU).
+  overflows every E4B spawn to CPU). **The VRAM half of that was a placeholder and is now
+  measured: 3.5 GiB since 2026-08-08**, above the 3410 MiB the GPU-placed E4B tier peaks at with
+  the floor bracketed, so one spawn fits the headroom and the next overflows
+  ([ADR-0012](ADR-0012-resource-governance.md)'s measured-ask addendum). The memory and CPU asks
+  in that bullet stand as measured.
 - **`enable_thinking=false` is honored by the gemma-4-E4B template** (validated: no
   `reasoning_content`, direct answers). The earlier compose comment claiming gemma-4-E* are
   non-reasoning templates was wrong and is corrected; both lineup families are
