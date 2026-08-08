@@ -121,3 +121,14 @@ QUESTIONS: dict[str, tuple[str | None, Category]] = {
     "which day does the pager rota change hands?": ("incident", Category.CLAUSE),
     "what temperature does the bread go in at?": ("recipe", Category.CLAUSE),
 }
+
+UNRELATED: tuple[str, ...] = (
+    "what is the atomic weight of tungsten?",
+    "who won the world cup in 1998?",
+    "how do I sharpen a chisel without a jig?",
+    "what year did the Bronze Age end in northern Europe?",
+    "is a tomato botanically a fruit?",
+    "how deep is the Mariana Trench?",
+    "what does a semicolon do in a for loop?",
+    "why do cats knead blankets?",
+)

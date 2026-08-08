@@ -2,7 +2,7 @@
 
 Deferred refinements from the Slice 5 memory work under [ADR-0008](../adr/ADR-0008-memory-v1.md): the memory store, its scoping seam, and the pure-core recall policies. Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** 9 (a geometric policy that still cannot decline, session+global union read policy, per-scope retention/eviction, cross-scope recall ranking, tiered / self-editing memory + summarization, write-salience policy, ANN index, a cross-encoder rank, auditing the candidates that were dropped). **The count fell from 10 to 9 on 2026-08-08, and this one closed alone**: the judge's default was the last entry here waiting on a decision rather than on work, the user asked for the end-to-end turn cost before calling it, the measurement came in at 0.515 s of time to first token against a control whose interval spans zero, and `CORTEX_MEMORY_RECALL` now ships as `judge`. Nothing opened in its place, the one thing it leaves behind being a caveat no run by this repo's author can retire. **The count held at 10 on 2026-08-07 because one item closed and one opened in the same change**, and it is written out here rather than left to arithmetic: the judge's abstention landed, and the close named what it does not reach, which is that the shipped geometric policies still hand a turn their nearest misses on a question memory cannot answer. **The tenth was added 2026-08-06 by the corpus widening, which found it; the two before it were added the same day, correcting a line and an index cell that had read 7.** The ranked-recall close did half of its own bookkeeping: it struck the model-based reranker and recall observability from this line when they landed, and it did not add the two deferrals the same close opened, which are written up at the end of the ranked-recall entry below and at [ADR-0038](../adr/ADR-0038-ranked-recall.md). A close that names what it opens and then leaves the header naming only what it shut loses an open item exactly as a count that fails to move does.
+**Open items:** 8 (session+global union read policy, per-scope retention/eviction, cross-scope recall ranking, tiered / self-editing memory + summarization, write-salience policy, ANN index, a cross-encoder rank, auditing the candidates that were dropped). **The count fell from 9 to 8 later on 2026-08-08 and again nothing opened in its place**, when the geometric policies' missing refusal closed as **declined on measurement**: the entry's second trigger was a calibration run giving the floor a number, the run was done on the real embedder over this area's own corpus, and it found that no number exists, because the answerable and unanswerable populations overlap behind both embedding models the repo ships a path for. The two words that keep the area honest about it are that the mechanism was refuted rather than the goal abandoned: the shipped default still declines, it just does so by reading rather than by measuring distance. **The count fell from 10 to 9 earlier on 2026-08-08, and that one closed alone too**: the judge's default was the last entry here waiting on a decision rather than on work, the user asked for the end-to-end turn cost before calling it, the measurement came in at 0.515 s of time to first token against a control whose interval spans zero, and `CORTEX_MEMORY_RECALL` now ships as `judge`. Nothing opened in its place, the one thing it leaves behind being a caveat no run by this repo's author can retire. **The count held at 10 on 2026-08-07 because one item closed and one opened in the same change**, and it is written out here rather than left to arithmetic: the judge's abstention landed, and the close named what it does not reach, which is that the shipped geometric policies still hand a turn their nearest misses on a question memory cannot answer. **The tenth was added 2026-08-06 by the corpus widening, which found it; the two before it were added the same day, correcting a line and an index cell that had read 7.** The ranked-recall close did half of its own bookkeeping: it struck the model-based reranker and recall observability from this line when they landed, and it did not add the two deferrals the same close opened, which are written up at the end of the ranked-recall entry below and at [ADR-0038](../adr/ADR-0038-ranked-recall.md). A close that names what it opens and then leaves the header naming only what it shut loses an open item exactly as a count that fails to move does.
 
 **Memory in Slice 5 ([ADR-0008](../adr/ADR-0008-memory-v1.md)):**
 - **Per-session / namespaced scoping landed 2026-07-06 ([ADR-0008 scoping addendum](../adr/ADR-0008-memory-v1.md)).**
@@ -321,3 +321,50 @@ Deferred refinements from the Slice 5 memory work under [ADR-0008](../adr/ADR-00
   a deployment that wants recall to stay geometric and still be able to say nothing, which is also
   the shape the first complaint about irrelevant recalled memories under the shipped default would
   take, or a calibration run that gives the floor a defensible number.
+  **Closed 2026-08-08 as declined on measurement, the second arm of its own trigger having been run**
+  ([ADR-0038](../adr/ADR-0038-ranked-recall.md) relevance-floor addendum). **The consumer was bigger
+  than the entry's own framing**, which is the first thing the re-derivation turned up and the reason
+  this was measured rather than shrugged at: `recall_policy_from_config` (`memory_builders.py`)
+  builds `JudgeRecallPolicy` with no `fallback` argument, so the shipped default carries
+  `RAW_RECALL_POLICY` and hands it the pool on an `InferenceError`, on a reply outside the envelope,
+  and on an order that parses to nothing usable. The cosine therefore ranks inside the **default**
+  deployment every time the model cannot be reached or believed, which is exactly the moment nothing
+  else is watching, so a floor would have been a default-path guard and not the opt-out nicety this
+  entry describes. **The design was settled before the measurement could bias it, and it is not the
+  fifth policy this entry proposes:** a fifth `MemoryRecallName` is a policy a deployment runs
+  *instead of* the judge, which leaves that fallback exactly as unfloored as it is today, and it
+  multiplies the matrix because a floor is orthogonal to how you rank. The shape that composes is a
+  decorator over an inner `RecallPolicy` (the shape the judge's own fallback already is) plus one
+  knob defaulting to `0.0`, which protects the founding byte-for-byte promise by the default rather
+  than by a separate name, thresholds `hit.score` because `SPREAD` and `SWEEP` keys are measured
+  against the kept set and do not compare, pre-filters the pool so no new `RankBasis` is needed, and
+  never wraps the judge itself, since the vocabulary trap is precisely where the answering note's
+  cosine is low. **None of it survives the calibration.** Measured on the real embedder over this
+  area's own 41-note corpus at the shipped pool width, with a third population added for the
+  purpose (8 questions about subjects no note mentions), the answerable and unanswerable bands
+  overlap: gold notes score 0.4742 to 0.9063 while the four adjacent unanswerable questions top out
+  at 0.5112 to 0.6325, a separation of **0.1582 negative**, and even the wholly unrelated questions
+  reach 0.4994 against a lowest answerable gold of 0.4742. The tightest floor that silences all four
+  unanswerable questions, 0.6325 and derived from the data rather than picked off a grid, costs
+  **6 of 22 answerable ones outright**, takes MRR from 0.902 to 0.659, and drops the `TRAP` category
+  from 0.81 to **0.17**, which is the vocabulary trap the model rank exists for. That is the cheapest
+  the promise ever gets. Behind the alternative embedder the conclusion holds (separation 0.1933
+  negative, the tightest floor 0.4485 at 7 of 22 and `TRAP` 0.00) while
+  every number moves, so the entry's portability objection is now measured rather than asserted. The
+  safe range and the useful range do not even overlap behind the shipped embedder: a floor costs
+  nothing only at or below the lowest answerable gold, 0.4742, while catching even the easiest
+  population needs 0.4995, so they cross by 0.0253. Behind the alternative embedder they do overlap,
+  by 0.0068, which is a knob whose whole safe and useful range is seven thousandths wide, read off
+  the sample minimum of 22 hand-built questions rather than off a bound, and narrowing on a real
+  store where more notes mean a closer nearest neighbour for every question. **What the run establishes instead is why the shipped default is what
+  it is:** an abstention is a property of reading and not of ranking, since a question memory cannot
+  answer has the same geometry as a question whose answer is worded unlike it, so
+  `CORTEX_MEMORY_RECALL=raw` is an opt-out of exactly that capability and the runbook now says so.
+  The calibration ships as `packages/inference/tests/test_recall_floor_live.py` rather than staying
+  in a scratchpad, needing only the CPU embedder, and its instrument was proved able to fail before
+  its result was believed: an operator that drops a hit reddens the floor-of-zero identity, one that
+  ignores its floor reddens the absurd end, and the finding assertion itself fails with **+0.2104**
+  on a corpus restricted to the categories whose populations do separate, which is the reopening
+  condition wired as a test. **Reopens** behind an embedder whose populations separate, or on a
+  signal that is not an absolute cosine; the already-filed **cross-encoder** rank is the candidate,
+  since it reads the pair rather than measuring the distance. Nothing opened in its place.
