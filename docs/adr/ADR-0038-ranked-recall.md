@@ -968,6 +968,13 @@ Recorded in [memory.md](../refinements/memory.md) with its line on
   byte-for-byte what v1 returned. It therefore wants a fifth policy rather than a knob on the
   default. **Trigger:** a deployment that wants recall to stay geometric and still be able to say
   nothing, or a calibration run that gives the floor a defensible number.
+  **Closed 2026-08-08 as declined on measurement** (the relevance-floor addendum at the foot of this
+  ADR). The calibration ran and found no defensible number to give: over this corpus the answerable
+  and unanswerable populations overlap behind both embedding models the repo ships a path for, so
+  every floor that silences the unanswerable questions also silences answerable ones, worst of all
+  in the vocabulary-trap category the rank was bought for. The consumer was larger than this bullet
+  says, which is why it was worth measuring rather than shrugging at: the default deployment's
+  fallback is `RAW_RECALL_POLICY`, so the cosine ranks whenever the model cannot be reached.
 
 ## Turn-cost addendum (2026-08-08): the default moves to `judge`, measured on whole turns
 
@@ -1093,3 +1100,163 @@ Recorded in [repo-gates.md](../refinements/repo-gates.md) with its line on
   restarts containers between arms and reports a distribution rather than asserting a bound.
   **Trigger:** the next end-to-end measurement of a whole turn, or a challenge to the shipped
   recall default that needs this run reproduced rather than cited.
+
+## Relevance-floor addendum (2026-08-08): declined on measurement, and the number does not exist
+
+The abstention addendum taught `JudgeRecallPolicy` to say that nothing in the pool helps and left
+behind the gap that the refusal is the judge's alone. `RawRecallPolicy` and the three heuristic
+policies always return their nearest `k`, so a recall that runs on geometry hands a turn its nearest
+misses on a question memory cannot answer. The geometric analogue that entry named is a **relevance
+floor**: drop a candidate whose similarity is below some threshold, and return nothing when none
+clears it, which the `Ranking` this ADR introduced can already express. Its trigger was "a
+calibration run that gives the floor a defensible number". The run was done, on the real embedder
+over the real corpus, and the answer is that no such number exists. **The floor is declined.**
+
+### Who the consumer actually is, re-derived first
+
+The entry was written while `raw` shipped, and the turn-cost addendum above inverted its premise
+without closing it, so the consumer was re-derived from the tree before anything was designed. It is
+larger than "a deployment that opts out", and the reason is the fallback:
+`recall_policy_from_config` (`memory_builders.py`) builds `JudgeRecallPolicy(backend, cortex_model,
+pool_factor=...)` and passes no `fallback`, so the shipped default carries `RAW_RECALL_POLICY`, and
+`select` hands the pool to it on an `InferenceError`, on a reply outside the envelope, and on an
+order that parses to nothing usable. The cosine therefore ranks inside the **default** deployment
+every time the model cannot be reached or believed, which is precisely the moment nothing else is
+watching the recall. A floor would have been a default-path guard rather than an opt-out nicety, so
+the entry was worth answering with a measurement rather than with a shrug.
+
+### The shape it would have taken, decided before the measurement could bias it
+
+The entry proposed a **fifth policy**. That is the wrong shape, and the argument is worth keeping
+for whoever reopens this:
+
+- **A fifth name cannot reach the consumer above.** `CORTEX_MEMORY_RECALL` selects one policy. A
+  `floor` member would be a policy a deployment runs *instead of* the judge, which leaves the
+  judge's own fallback, the default path, exactly as unfloored as it is today. The floor has to be
+  something the fallback can wear.
+- **A floor is orthogonal to how you rank**, so a name per combination multiplies the matrix: five
+  policies become ten the moment a deployment wants a floor under `mmr`. The shape that composes is
+  a decorator holding an inner `RecallPolicy`, the shape `JudgeRecallPolicy` already uses for its
+  fallback, plus one knob (`CORTEX_MEMORY_RECALL_FLOOR`, default `0.0`).
+- **The founding-behavior objection is answered by the default, not by a separate name.** The entry
+  refused to floor `RawRecallPolicy` because that policy's promise is byte-for-byte v1 recall. With
+  the knob defaulting to `0.0` the composition root wraps nothing, so `raw` is unchanged unless a
+  deployment asks for a floor, which is the same protection a fifth name buys and costs no name.
+- **It would threshold `hit.score`, never `RankedMemory.key`.** The store's cosine is the one
+  quantity every hit carries with a stable meaning; `SPREAD` and `SWEEP` keys are measured against
+  the kept set at pick time, which is what `RankBasis.comparable` exists to say, so a floor over
+  them would compare numbers that do not compare.
+- **It would pre-filter the pool rather than post-filter the result**, so the inner policy still
+  fills its `k` from whatever qualifies and a hit that clears the floor is never displaced by one
+  that does not. An empty pool then reaches the inner policy, which already returns an empty ranking
+  on its own basis, so no new `RankBasis` member is needed and none is wanted: the basis says which
+  policy ranked, and a floor does not rank. The trail already tells the two empties apart, since a
+  geometric basis with zero hits and a `pool_size` above zero can only be the floor.
+- **It would not wrap the judge itself.** The model can already decline, and the corpus's vocabulary
+  trap is the case where the answering note's cosine is *low*, so flooring the pool the model reads
+  would hide exactly the note the rank was bought to find. The floor belongs on the geometric side:
+  the selected policy when it is geometric, and the judge's fallback when it is not.
+
+None of that survives the measurement, and it is recorded because the measurement is about whether a
+floor can work at all, not about which of these shapes it would have taken.
+
+### Measured (2026-08-08)
+
+Reproduce: `packages/inference/tests/test_recall_floor_live.py`, integration-marked, which needs
+only the memory override's CPU embedder because a floor reads similarity and never the model. It
+sweeps the floor operator over the 41-note corpus in `recall_corpus.py` at the shipped pool width
+(`k` 3, `pool_factor` 4) and prints three populations plus what every candidate threshold does.
+
+The corpus's 26 questions give two of them: 22 answerable, and 4 `ABSENT` ones that are unanswerable
+but adjacent, each sitting beside notes the corpus does hold. The run adds a third, `UNRELATED`, 8
+questions about subjects no note mentions at all, which is the easiest case a floor could ever be
+asked to catch. Behind the shipped embedder (nomic-embed-text-v1.5 Q8_0):
+
+| population | cosine band |
+| --- | --- |
+| answerable, the gold note's own score | 0.4742 to 0.9063 (mean 0.6947) |
+| answerable, the best score in the pool | 0.4919 to 0.9063 |
+| unanswerable and adjacent | 0.5112 to 0.6325 |
+| unanswerable and unrelated | 0.4057 to 0.4994 |
+
+**The populations do not separate, and the headroom is negative.** The lowest answerable gold sits
+**0.1582 below** the highest adjacent-unanswerable best hit, so no threshold has both above it and
+below it. Against the unrelated population the gap is still negative, at 0.0252: a question about
+the atomic weight of tungsten scores 0.4994 against these notes while the trap question "where are
+we keeping things while a conversation is in progress?" tops out at 0.4919.
+
+What that costs, swept (MRR over the 22 answerable, `raw` selection from the same pool):
+
+| floor | adjacent silenced | unrelated silenced | MRR | answerable silenced | hits handed to turns |
+| --- | --- | --- | --- | --- | --- |
+| 0.0 (off) | 0 of 4 | 0 of 8 | 0.902 | 0 of 22 | 102 |
+| 0.45 | 0 of 4 | 6 of 8 | 0.902 | 0 of 22 | 79 |
+| 0.50 | 0 of 4 | 8 of 8 | 0.886 | 1 of 22 | 60 |
+| 0.55 | 1 of 4 | 8 of 8 | 0.864 | 1 of 22 | 41 |
+| **0.6325** (the tightest that silences all four) | 4 of 4 | 8 of 8 | **0.659** | **6 of 22** | 22 |
+| 0.65 | 4 of 4 | 8 of 8 | 0.591 | 8 of 22 | 18 |
+| 1.01 | 4 of 4 | 8 of 8 | 0.000 | 22 of 22 | 0 |
+
+The bolded row is derived from the data rather than picked off the grid: it is the lowest floor
+above every adjacent-unanswerable question's best hit, so it is the **cheapest** price of the promise
+"a question memory cannot answer returns nothing". That price is **6 of 22 answerable questions
+returning nothing at all** and an MRR of 0.902 down to 0.659, and it falls where it can least be
+afforded: the `TRAP` category, the vocabulary trap the model rank was bought for, drops from 0.81 to
+**0.17**, because a note that answers in words the question never uses is exactly a note with a low
+cosine. A floor calibrated to make geometry decline deletes the case geometry was already worst at.
+
+**The number is also not portable, which the entry asserted and this run measures.** The same sweep
+behind nomic-embed-text-v2-moe Q8_0, the alternative `CORTEX_EMBED_MODEL_FILE` pick, moves every
+band: answerable golds 0.2552 to 0.8176, adjacent unanswerable 0.2939 to 0.4485, unrelated 0.1650 to
+0.2484. Separation is **0.1933 negative**, so the conclusion holds, but the tightest floor that
+silences all four adjacent questions moves from 0.6325 to 0.4485 (costing 7 of 22 answerable
+questions there, MRR 0.841 down to 0.591, `TRAP` to 0.00), and the band an off-topic question lands
+in moves from between 0.41 and 0.50 down to between 0.17 and 0.25. A number calibrated behind one
+embedder is a different decision behind the other.
+
+**The instrument was proved able to fail before its result was believed**, since a floor that never
+fires and a floor that works are indistinguishable on a corpus of answerable questions. Three
+mutations, each reddening the assertion that covers it: an operator that drops a hit breaks the
+floor-of-zero identity (68 hits handed out where an unfloored run hands 102); an operator that
+ignores its floor breaks the absurd end (a floor of 1.01 returned three hits instead of none); and
+running the finding assertion over a corpus restricted to `LEXICAL` plus `ABSENT`, whose populations
+genuinely do separate, fails it with a separation of **+0.2104**. That last one is the reopening
+condition, wired as a test rather than as a note: point the run at an embedder whose populations
+separate and it goes red.
+
+### Decision: declined, and declining stays a property of reading
+
+There is no defensible number, so there is no floor. A threshold high enough to make geometry
+decline destroys the recall it was supposed to protect, and a threshold low enough to be safe
+declines nothing that matters. The two ranges are worth stating exactly, because a floor is only
+shippable where they overlap. A floor costs this corpus nothing while it stays at or below the
+lowest answerable gold, which is **0.4742** behind the shipped embedder, and pre-filtering only ever
+promotes a surviving gold, so nothing below that ceiling can move the MRR. The lowest floor that
+catches even the *easiest* population, the questions about subjects no note mentions, is **0.4995**.
+Behind the shipped embedder the safe range and the useful range therefore do not overlap at all:
+they cross by 0.0253. Behind the alternative embedder they do overlap, by **0.0068**, between the
+highest unrelated question at 0.2484 and the lowest answerable gold at 0.2552. A knob whose entire
+safe and useful range is seven thousandths wide behind one embedding model and empty behind the
+other, read off the sample minimum of 22 hand-built questions rather than off a bound, and narrowing
+on a real store where more notes mean a closer nearest neighbour for every question, is the magic
+constant this repo refuses, with the added defect that a deployment could never tell which side of
+it they were on.
+
+What the run establishes positively is worth stating, because it is the reason the shipped default
+is what it is: **an abstention is a property of reading, not of ranking.** The judge returns nothing
+on these questions because it reads the candidates and answers about them; the cosine cannot,
+because the geometry of a question memory cannot answer looks exactly like the geometry of a
+question whose answer is worded unlike it. The capability exists in the shipped stack and
+`CORTEX_MEMORY_RECALL=raw` is an opt-out of exactly that capability, which the runbook now says in
+those terms.
+
+**Reopens** behind an embedder whose populations separate, which the test above measures and
+asserts, or on a signal that is not an absolute cosine. The one already-filed candidate is the
+**cross-encoder rank**, which reads the pair rather than measuring the distance and so is the same
+kind of thing as the judge rather than the same kind as a floor; it stays deferred on its own
+trigger in [memory.md](../refinements/memory.md).
+
+### Deferred by this addendum
+
+Nothing. The decline opens no new item: the calibration harness ships as the test named above rather
+than staying in a scratchpad, and the reopening condition is an assertion inside it.

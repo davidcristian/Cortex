@@ -1232,7 +1232,10 @@ Use-case:
   declining the whole pool, which returns an empty ranking on `DEMUR` without consulting the fallback
   (ADR-0038 abstention addendum); `parse_order` therefore has three outcomes, `None` for a reply
   nothing can be read out of (including one that named notes of which none exists), `()` for a
-  refusal, and the picks otherwise. Its request carries `rank_bounds(k)`
+  refusal, and the picks otherwise. **No geometric policy has an equivalent and none is coming**: a
+  similarity floor was calibrated on the real embedder and declined (ADR-0038 relevance-floor
+  addendum), because a question memory cannot answer scores in the same cosine band as one whose
+  answer is worded unlike it, so a floor that silences the first silences the second. Its request carries `rank_bounds(k)`
   (`max_tokens=24 + 8k`, `thinking=False`, ADR-0038 bounded-side-calls addendum), computed from `k`
   rather than fixed because `ORDER_ENVELOPE` admits an array of numbers and nothing else, so the
   reply's length is known before it is asked for; a truncated constrained reply is not JSON, so

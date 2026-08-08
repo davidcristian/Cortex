@@ -90,7 +90,14 @@ reports as the `demur` basis with an empty hit list (ADR-0038 abstention addendu
 different line from a fallback, which shows the fallback's basis and the notes it chose, and from an
 empty pool, which shows the ranking policy's own basis. The geometric policies have no way to
 decline: they always return their nearest `k`, so under `raw` a question memory cannot answer still
-recalls the three least-unrelated notes it holds.
+recalls the three least-unrelated notes it holds. **That is a property of ranking by distance and
+not a gap waiting to be filled**, so setting `CORTEX_MEMORY_RECALL=raw` is an opt-out of the
+refusal as much as of the rank. A similarity floor was the obvious way to give geometry a refusal
+and was calibrated on the real embedder before being declined (ADR-0038 relevance-floor addendum):
+over the 41-note corpus the questions memory can answer and the questions it cannot overlap on
+cosine, so every floor that silences the second silences the first, worst of all where a note
+answers in words the question never used. Reproduce or reopen it behind another embedding model
+with `packages/inference/tests/test_recall_floor_live.py`, which needs only the CPU embedder below.
 
 Set `CORTEX_MEMORY_RECALL_AUDIT=1` to turn that trail on: one `cortex.memory.recall` line per
 recall, in the brain's container logs, carrying the pool size, the rank basis, whether keys on that
