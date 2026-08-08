@@ -12,7 +12,7 @@ check:
     just check-bindcheck
     tmp=$(mktemp -d)
     trap 'rm -rf "$tmp"' EXIT
-    echo "Running check-brain, check-scripts, check-body in parallel (output buffered)..."
+    echo "Running check-brain, check-scripts, check-body, check-overlay in parallel (buffered)..."
     just check-brain >"$tmp/brain.log" 2>&1 &
     pid_brain=$!
     just check-scripts >"$tmp/scripts.log" 2>&1 &
