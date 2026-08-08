@@ -2,7 +2,7 @@
 
 Deferred refinements from the Slice 5 memory work under [ADR-0008](../adr/ADR-0008-memory-v1.md): the memory store, its scoping seam, and the pure-core recall policies. Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** 10 (the judge's default now that it is cheap and measured wider, a geometric policy that still cannot decline, session+global union read policy, per-scope retention/eviction, cross-scope recall ranking, tiered / self-editing memory + summarization, write-salience policy, ANN index, a cross-encoder rank, auditing the candidates that were dropped). **The count held at 10 on 2026-08-07 because one item closed and one opened in the same change**, and it is written out here rather than left to arithmetic: the judge's abstention landed, and the close named what it does not reach, which is that the shipped geometric policies still hand a turn their nearest misses on a question memory cannot answer. **The tenth was added 2026-08-06 by the corpus widening, which found it; the two before it were added the same day, correcting a line and an index cell that had read 7.** The ranked-recall close did half of its own bookkeeping: it struck the model-based reranker and recall observability from this line when they landed, and it did not add the two deferrals the same close opened, which are written up at the end of the ranked-recall entry below and at [ADR-0038](../adr/ADR-0038-ranked-recall.md). A close that names what it opens and then leaves the header naming only what it shut loses an open item exactly as a count that fails to move does.
+**Open items:** 9 (a geometric policy that still cannot decline, session+global union read policy, per-scope retention/eviction, cross-scope recall ranking, tiered / self-editing memory + summarization, write-salience policy, ANN index, a cross-encoder rank, auditing the candidates that were dropped). **The count fell from 10 to 9 on 2026-08-08, and this one closed alone**: the judge's default was the last entry here waiting on a decision rather than on work, the user asked for the end-to-end turn cost before calling it, the measurement came in at 0.515 s of time to first token against a control whose interval spans zero, and `CORTEX_MEMORY_RECALL` now ships as `judge`. Nothing opened in its place, the one thing it leaves behind being a caveat no run by this repo's author can retire. **The count held at 10 on 2026-08-07 because one item closed and one opened in the same change**, and it is written out here rather than left to arithmetic: the judge's abstention landed, and the close named what it does not reach, which is that the shipped geometric policies still hand a turn their nearest misses on a question memory cannot answer. **The tenth was added 2026-08-06 by the corpus widening, which found it; the two before it were added the same day, correcting a line and an index cell that had read 7.** The ranked-recall close did half of its own bookkeeping: it struck the model-based reranker and recall observability from this line when they landed, and it did not add the two deferrals the same close opened, which are written up at the end of the ranked-recall entry below and at [ADR-0038](../adr/ADR-0038-ranked-recall.md). A close that names what it opens and then leaves the header naming only what it shut loses an open item exactly as a count that fails to move does.
 
 **Memory in Slice 5 ([ADR-0008](../adr/ADR-0008-memory-v1.md)):**
 - **Per-session / namespaced scoping landed 2026-07-06 ([ADR-0008 scoping addendum](../adr/ADR-0008-memory-v1.md)).**
@@ -233,6 +233,32 @@ Deferred refinements from the Slice 5 memory work under [ADR-0008](../adr/ADR-00
   category**, so the scorer has been watched failing rather than merely trusted. **The default is
   still the user's call and is still not flipped**; what changed is that the recommendation no
   longer rests on a corpus cut to produce it.
+  **Called and flipped 2026-08-08, after the measurement the user asked for first**
+  ([ADR-0038](../adr/ADR-0038-ranked-recall.md) turn-cost addendum). The one thing every earlier run
+  had priced was a rank, and this entry's own remaining objection was that a rank is not a turn, so
+  the turn was measured before the flag moved. Real turns through the seam on the 24 GB card, one
+  fresh pre-seeded session each so no turn's own recorded exchange reached the next one's pool, six
+  questions across the six categories, eight repetitions, 48 turns an arm, in **A/B/A order** with a
+  raw block either side of the judged one. **Time to first token rises 0.515 s** (95% CI 0.116 to
+  0.915, blocked by question and bootstrapped), the whole turn 0.526 s, while the **null arm, raw
+  against raw, is -0.158 s with an interval spanning zero**: the harness separates the arms it
+  should and not the arms it should not. **The turn pays less than the rank costs.** Timed alone at
+  the shape assembly actually asks for (`k` 5 at `pool_factor` 4, a pool of 20 rather than the
+  published run's 12) a rank is 0.877 s, above the 0.75 s on record, and the difference is given
+  back because the judge hands the reply 1.17 notes where the cosine hands it 5, so the memory block
+  the model reads before it can speak is smaller. That saving is proportional to how much the cosine
+  over-returns and a deployment whose questions are mostly answerable will see less of it. **The
+  rank runs before generation and lands on the first token**, which the trail's own timestamps
+  confirm from the other side: everything up to and including the pgvector search is 0.363 s judged
+  against 0.396 s raw, the same number, and the whole difference sits after it. **It is paid every
+  turn.** `JudgeRecallPolicy` holds no cache, `MemoryRecaller.recall` calls `select` on every
+  recall, and the run logged exactly 48 recall lines for 48 turns per arm, so the asymmetry with the
+  fold that this entry kept naming is confirmed rather than softened; only its size changed. The
+  ranking was re-read at the wider pool off the same trail and did not suffer for it: **MRR 1.000
+  against the cosine's 0.767 over 40 answerable turns, nothing returned on all 8 unanswerable ones
+  against 0 of 8, and 0 fallbacks in 48 recalls.** `CORTEX_MEMORY_RECALL=raw` is the opt-out now.
+  What no run of this repo's own can settle is unchanged: the corpus is hand built by an interested
+  party, and what the flip changes is that a real conversation is now what the rank meets.
 - **A considered abstention is indistinguishable from a failed rank, found by the wider corpus on
   2026-08-06 ([ADR-0038](../adr/ADR-0038-ranked-recall.md) widened-corpus section).** Four of the
   26 questions have no answer anywhere in the corpus, and the model got all four right: asked which
@@ -279,7 +305,12 @@ Deferred refinements from the Slice 5 memory work under [ADR-0008](../adr/ADR-00
   the judge's alone. `RawRecallPolicy` (the default) and the three heuristic policies always return
   their nearest `k`, so on a question memory cannot answer, every deployment that has not opted into
   `CORTEX_MEMORY_RECALL=judge` still receives three nearest misses, which is the same turn the
-  closed entry described and a different cause. The geometric analogue is a **relevance floor**: a
+  closed entry described and a different cause. **The premise inverted on 2026-08-08 without the
+  entry closing**, when the default moved to `judge` (the turn-cost addendum): the shipped stack can
+  decline now, and what cannot is a deployment that sets `CORTEX_MEMORY_RECALL` to `raw` or to one
+  of the heuristics, which is an opt-out rather than the path of least resistance. That makes the
+  entry smaller and not moot, since the reasons the floor was declined are about the floor and not
+  about how many deployments meet the gap. The geometric analogue is a **relevance floor**: a
   policy that drops a candidate below some similarity and may therefore return nothing, which the
   `Ranking` the port now returns can express and no policy computes. It was considered during the
   close and declined on two counts that would have to be answered first. A cosine threshold is not

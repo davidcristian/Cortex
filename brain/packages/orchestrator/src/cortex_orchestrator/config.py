@@ -119,7 +119,7 @@ class MemoryConfig(BaseSettings):
     embedder_model: str = "embedding"
     scope: MemoryScopeName = "global"
     on_tainted: MemoryTaintPolicyName = "skip"
-    recall: MemoryRecallName = "raw"
+    recall: MemoryRecallName = "judge"
     recall_half_life_days: float = 30.0
     recall_recency_weight: float = 0.3
     recall_dedup_threshold: float = 0.98

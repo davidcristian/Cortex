@@ -440,9 +440,14 @@ only so a sitting on the host's hardware knows what it could also settle:
   were measured on the agent's own runs, on one hand-built corpus each, so what this hardware still
   buys is the same judgment over real conversations rather than a blocker to clear. Their remaining
   entries say so at [session-history.md](../refinements/session-history.md) and
-  [memory.md](../refinements/memory.md), and one of them is now a decision for the user rather than
+  [memory.md](../refinements/memory.md), and one of them was a decision for the user rather than
   work for anyone: the judge's default, whose only reason to be off was a cost that fell twenty
-  times over on the same day.
+  times over on the same day. **That one was decided on 2026-08-08 and is no longer open**: the user
+  asked for the turn cost before the flip, the flip followed the number (a recalling turn's time to
+  first token rises 0.515 s, against a raw-versus-raw control whose interval spans zero), and
+  `CORTEX_MEMORY_RECALL` ships as `judge`. What stays on this line is unchanged and is the same for
+  both passes: the corpora are the agent's own, so real conversations are still what this hardware
+  buys.
 - **Unbalanced COM initialization on the blocking pool**
   ([body-gateway.md](../refinements/body-gateway.md)): the fix is code and stays there; the
   *observation* that would trigger it is the standing watch item in

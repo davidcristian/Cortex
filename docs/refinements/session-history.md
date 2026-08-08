@@ -2,7 +2,7 @@
 
 Deferred refinements from Slice 3's cortex chat and session work; the windowing decision and the summarization alternatives it weighs live in [ADR-0014](../adr/ADR-0014-history-windowing.md). Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** the recap measurement resting on one corpus. The unbounded fold and the fold's silence were both closed 2026-08-06, when the summary moved to on by default.
+**Open items:** 1, and it is narrower than its own title (**restated 2026-08-08**). "The recap measurement rests on one corpus" bundled two residues that behave differently, and only one of them is work. The corpus is **hand built by the author of the feature**, which no run this repo can make retires, because any corpus an agent builds to answer the objection is built by the same interested party: that half is a **permanent caveat** on the numbers, recorded below and not waiting for anyone. What is still an open item is the other half the entry names in passing, that nothing has been measured **about a cortex under load**, which is a real measurement on real hardware and reachable today. The unbounded fold and the fold's silence were both closed 2026-08-06, when the summary moved to on by default.
 
 **Cortex chat / session in Slice 3:**
 - **Session-history windowing landed 2026-07-03 ([ADR-0014](../adr/ADR-0014-history-windowing.md)).**
@@ -123,6 +123,17 @@ Deferred refinements from Slice 3's cortex chat and session work; the windowing 
   which is what let the default move; the corpus half was not, and the default moved anyway.
   **Trigger:** now the standing one, since the feature ships on: a real conversation, and anything
   about a cortex under load, before this measurement is quoted as evidence about either.
+  **Split 2026-08-08 into a caveat and an item, because the two halves of that trigger are not the
+  same kind of not-done.** "A real conversation" is an **authorship** objection, and authorship is
+  not something a run can fix: every corpus this repo can produce is written by the party whose
+  conclusion it tests, so a wider or more adversarial one moves the evidence and never the caveat.
+  It is therefore recorded here as a **permanent caveat** on these numbers rather than carried as
+  work, and it retires only through use, when the shipped feature meets conversations nobody staged.
+  "Anything about a cortex under load" is a different claim entirely: it is about hardware and
+  concurrency, the card is here, and a fold contending with a reply for one non-reentrant lease is
+  exactly the kind of thing a staged run can show. **That half stays the area's one open item**, and
+  it is what the count means now. Nothing about the measured results changes; what changes is that
+  the entry stops asking for a corpus that would not settle it.
 - **The recap pass is unbounded and unthrottled, and its trigger has fired (2026-08-06).** Every
   boundary move spends a full cortex generation over the newly dropped turns, serialized ahead of
   the reply, and the fold's prompt is whatever those turns say. Two knobs were consciously not

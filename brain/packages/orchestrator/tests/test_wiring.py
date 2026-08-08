@@ -266,8 +266,11 @@ def _policy(config: MemoryConfig) -> RecallPolicy:
 
 
 def test_recall_policy_from_config_maps_config_to_the_policy() -> None:
-    """The one env→core seam for reranking: `raw` (default), `reranked`, or `mmr` (ADR-0008)."""
-    assert _policy(MemoryConfig()) is RAW_RECALL_POLICY
+    """The one env→core seam for reranking: `judge` (default), `raw`, `reranked`, `mmr`."""
+    # The shipped default is the model rank (ADR-0038 turn-cost addendum), and `raw` is what a
+    # deployment sets to get the founding top-k cosine back, so both directions are pinned here.
+    assert isinstance(_policy(MemoryConfig()), JudgeRecallPolicy)
+    assert _policy(MemoryConfig(recall="raw")) is RAW_RECALL_POLICY
     reranked = _policy(MemoryConfig(recall="reranked"))
     assert isinstance(reranked, RerankingRecallPolicy)
     # The half-life knob is authored in days and reaches the policy converted to seconds.

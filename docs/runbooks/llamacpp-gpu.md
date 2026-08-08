@@ -196,6 +196,17 @@ prints the basis that actually ranked each recall, so a fallback is visible rath
 numbers and the standing recommendation on that default are in the
 [ADR-0038 bounded-side-calls addendum](../adr/ADR-0038-ranked-recall.md).
 
+**That recommendation was taken on 2026-08-08 and `judge` is the default now**, after the
+[turn-cost addendum](../adr/ADR-0038-ranked-recall.md) measured whole turns rather than ranks: over
+48 real turns an arm through the seam, with a raw block either side of the judged one as a control,
+a recalling turn's time to first token rose **0.515 s** (95% CI 0.116 to 0.915) while the two raw
+blocks differed by an amount whose interval spanned zero. The rank itself is 0.877 s at the pool a
+turn asks for, and the turn pays less than that because the judge hands the reply 1.17 notes where
+the cosine hands it 5. **For an operator this means memory now needs the GPU stack up to rank at
+full quality**: with the model unreachable the policy still answers, falling back to the cosine and
+saying so in the trail, so nothing breaks, but a GPU-less brain should be told
+`CORTEX_MEMORY_RECALL=raw` rather than left to fall back on every turn.
+
 ## Framing-efficacy probe (Slice 6.5 / ADR-0013, agent-runnable)
 
 Confirms the prompt-injection **framing** actually changes the cortex's behavior. This is the model
