@@ -559,8 +559,11 @@ the two having split at the line cap as the seventh addendum landed):
   dropped, path/query case kept; an opaque `mailto:`/`tel:`/`data:` has no `://` so it folds whole).
   Every scheme is anchored at a word boundary, so `sftp://`/`hotel:` are not partial-matched, and a
   scheme separator counts in its ASCII spelling or its **fullwidth** one (`https：//`, `https:／／`,
-  generated from a two-entry colon and solidus table; the matcher runs before any normalization, so
-  these anchored nothing and so escaped both policies, ADR-0015 eighth addendum). Seven
+  generated from a two-entry colon and solidus table), or as an **HTML character reference**
+  (`https&#58;//`, `&#x3a;`, `&colon;`, `&#47;`/`&sol;` for the solidi, zero-padded or
+  semicolon-less, generated per character from its codepoint, ADR-0015 ninth addendum). The matcher
+  runs before any normalization, so each of those anchored nothing and so escaped both policies
+  until it was generated into the table (ADR-0015 eighth + ninth addenda). Seven
   **obfuscation-resistant** passes (in `url_identity.py`) reduce a rewritten link to its plain
   identity, in a fixed order so each feeds the next (ADR-0015 addenda):
   **escape decoding** to a bounded fixpoint (HTML character references `evil&#46;com`→`evil.com` the
@@ -585,9 +588,14 @@ the two having split at the line cap as the seventh addendum landed):
   always compare equal. The matcher also admits an **encoded defang separator**
   (`http[&#58;//]evil.com`) as a bracket chunk carrying an escape marker (`&`/`%`), the marker being
   what keeps prose like `http(s)-only` out; the decode fixpoint then resolves whichever encoding it
-  was, so no table of encodings lives in the anchor (ADR-0015 seventh addendum). Held deliberately
-  out (they would over-redact prose or need a dependency): bare addresses/domains, whitespace-split
-  defang (`evil dot com`), and the *full* UTS-39 confusables set.
+  was, so no table of encodings lives in the anchor (ADR-0015 seventh addendum). A **bracketless**
+  reference needs no such marker because its own grammar is the constraint, and the anchor admits
+  only what **one rendering pass** resolves, so `&COLON;` (which HTML does not resolve),
+  `&#58123` (one five-digit reference, not a colon), and `&amp;#58;` (which renders as text) are
+  not links (ADR-0015 ninth addendum). Held deliberately
+  out (they would over-redact prose, need a dependency, or are resolved by no renderer): bare
+  addresses/domains, whitespace-split defang (`evil dot com`), the *full* UTS-39 confusables set,
+  and source-layer or bracketless URL-layer escapes of the separator (`\x2e`, `https%3A//`).
 - `TaintView` (protocol) exposes the **live** taint signals the guardrail reads at scan time
   (`tainted: bool`, `opaque: bool`, `untrusted_urls: AbstractSet[str]`); the turn's
   `TaintLedger` already
