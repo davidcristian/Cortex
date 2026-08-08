@@ -104,10 +104,11 @@ def _spots(root: Path, compose: Path, mount: Mount) -> list[str]:
     path = default_path(mount.source)
     if path is None:
         return []
-    spots = landings(root, compose, path)
-    if any(is_tracked(root, spot) for spot in spots):
-        return []  # an input the repo ships, so no container ever creates it
-    return [spot for spot in spots if not is_ignored(root, spot)]
+    return [
+        spot
+        for spot in landings(root, compose, path)
+        if not is_tracked(root, spot) and not is_ignored(root, spot)
+    ]
 
 
 def check_file(root: Path, compose: Path) -> list[Fault]:

@@ -303,16 +303,57 @@ def test_a_rename_on_the_spending_side_leaves_it_unfound_too(tmp_path: Path) -> 
     assert "does not spell 'var(--ceiling,'" in fault.detail
 
 
-def test_a_mention_of_a_number_renders_it_as_written(tmp_path: Path) -> None:
-    (tmp_path / "config.py").write_text("PORT = 50051\n", encoding="utf-8")
-    (tmp_path / "stack.yml").write_text('      - "127.0.0.1:50051:50051"\n', encoding="utf-8")
-    ported = crosscheck.Constant(
+def _ported(template: str) -> crosscheck.Constant:
+    """A port declared in one file and spent in a compose publish, under a given template."""
+    return crosscheck.Constant(
         label="a port",
         why="the stack publishes what the server binds",
         sites=(crosscheck.Site("config.py", "PORT"),),
-        mentions=(crosscheck.Mention("stack.yml", "127.0.0.1:{value}"),),
+        mentions=(crosscheck.Mention("stack.yml", template),),
     )
-    assert crosscheck.check_constant(tmp_path, ported) == []
+
+
+def _publish(root: Path, declared: str, host: str, container: str) -> None:
+    (root / "config.py").write_text(f"PORT = {declared}\n", encoding="utf-8")
+    (root / "stack.yml").write_text(f'      - "127.0.0.1:{host}:{container}"\n', encoding="utf-8")
+
+
+def test_a_mention_of_a_number_renders_it_as_written(tmp_path: Path) -> None:
+    _publish(tmp_path, declared="50051", host="50051", container="50051")
+    assert crosscheck.check_constant(tmp_path, _ported("127.0.0.1:{value}:{value}")) == []
+
+
+def test_a_number_a_longer_one_merely_contains_is_not_spelled(tmp_path: Path) -> None:
+    """The pass this bound removed: `5005` sits inside `50051`, so containment agreed with it."""
+    _publish(tmp_path, declared="5005", host="50051", container="50051")
+    (fault,) = crosscheck.check_constant(tmp_path, _ported("127.0.0.1:{value}"))
+    assert "does not spell '127.0.0.1:5005' as a token of its own" in fault.detail
+
+
+def test_a_template_that_pins_only_the_host_half_leaves_the_other_free(tmp_path: Path) -> None:
+    """Why the registry spells a published pair whole: the halves are two different numbers."""
+    _publish(tmp_path, declared="50051", host="50051", container="50052")
+    assert crosscheck.check_constant(tmp_path, _ported("127.0.0.1:{value}")) == []
+    (fault,) = crosscheck.check_constant(tmp_path, _ported("127.0.0.1:{value}:{value}"))
+    assert "does not spell '127.0.0.1:50051:50051'" in fault.detail
+
+
+@pytest.mark.parametrize(
+    ("needle", "text", "found"),
+    [
+        ("50051", "  - 50051\n", True),
+        ("50051", "  - 500511\n", False),  # a longer number, whose prefix this is
+        ("50051", "  - 150051\n", False),  # the same on the leading edge
+        ("var(--ceiling,", "height: var(--ceiling, 100vh);", True),  # punctuation at both edges
+        ("--ease: linear", "--ease: linearity;", False),  # punctuation leading, a word trailing
+        ("[data-morphing", ".view:has([data-morphing]) {", True),
+    ],
+)
+def test_a_needle_is_bounded_at_whichever_edge_is_a_word(
+    needle: str, text: str, *, found: bool
+) -> None:
+    """Only a word edge needs a guard; `var(--ceiling,` bounds itself with its own punctuation."""
+    assert bool(crosscheck.bounded(needle).search(text)) is found
 
 
 def test_a_mention_on_a_file_that_cannot_be_read_is_a_fault(tmp_path: Path) -> None:

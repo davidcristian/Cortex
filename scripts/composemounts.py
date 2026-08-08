@@ -10,6 +10,8 @@ NON_BIND_TYPES = frozenset({"volume", "tmpfs", "npipe", "cluster", "image"})
 # What makes a short-syntax source a path at all rather than a named volume.
 PATH_PREFIXES = (".", "/", "~")
 
+FLOW_OPENERS = ("{", "[")
+
 _VOLUMES = re.compile(r"^(?P<indent>[ \t]*)volumes:(?P<rest>.*)$")
 _ITEM = re.compile(r"^(?P<indent>[ \t]*)-[ \t]*(?P<rest>.*)$")
 _MAPPING = re.compile(r"^(?P<key>[A-Za-z_][\w.-]*):(?:[ \t]+(?P<value>.*))?$")
@@ -56,6 +58,9 @@ def _long_mount(line: int, fields: dict[str, str]) -> Mount | None:
 def _short_mount(line: int, item: str) -> Mount | None:
     """Turn one short-syntax entry into a bind mount, or None when it names a volume."""
     text = strip_quotes(item)
+    if text.startswith(FLOW_OPENERS):
+        msg = f"line {line}: flow-style mount entry {item!r} is not supported; use the block form"
+        raise ComposeReadError(msg)
     if "$" in text:
         msg = f"line {line}: short-syntax mount {item!r} carries an expansion; use the long form"
         raise ComposeReadError(msg)
@@ -120,13 +125,15 @@ class _Reader:
     def feed(self, number: int, line: str) -> None:
         """Offer one non-blank, non-comment line to the walk."""
         depth = len(line) - len(line.lstrip())
-        if self.indent >= 0 and depth <= self.indent:
+        item = _ITEM.match(line)
+        # A flush sequence puts its items at the key's own indent, so only a line that is not an
+        # item closes the block there; anything shallower closes it either way.
+        if self.indent >= 0 and (depth < self.indent or (depth == self.indent and item is None)):
             self.close()
             self.indent = -1
         if self.indent < 0:
             self.open_block(number, line)
             return
-        item = _ITEM.match(line)
         if item is None:
             self.add_key(number, line.strip())
         else:

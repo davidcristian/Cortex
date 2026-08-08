@@ -16,6 +16,10 @@ COMMENT_MARKER = "#"
 
 INTEGER_PRODUCT = re.compile(r"^\d[\d_]*(?:\s*\*\s*\d[\d_]*)*$")
 
+# What counts as a continuation of a rendered needle's own token, at whichever of its two edges is
+# itself made of one. A needle edged by punctuation (`var(--ceiling,`) needs no such guard.
+WORD_CHARACTER = re.compile(r"\w")
+
 # A registry entry naming one place would agree with itself forever, which is the gate that
 # cannot fail this scan was written to remove. Two is therefore the floor, not a formality, and
 # it counts mentions: a lone declaration plus one place that spends it is a real coupling.
@@ -106,14 +110,21 @@ def read_value(root: Path, site: Site) -> str | int:
     return parse_value(found[0])
 
 
+def bounded(needle: str) -> re.Pattern[str]:
+    """The needle as a pattern no longer token can contain: a word edge may not touch a word."""
+    lead = r"(?<!\w)" if WORD_CHARACTER.match(needle[:1]) else ""
+    trail = r"(?!\w)" if WORD_CHARACTER.match(needle[-1:]) else ""
+    return re.compile(f"{lead}{re.escape(needle)}{trail}")
+
+
 def check_mention(root: Path, mention: Mention, value: str | int) -> None:
     """Raise unless the file spends ``value`` in the shape the mention names."""
     if PLACEHOLDER not in mention.template:
         msg = f"mention {mention.template!r} carries no {PLACEHOLDER}, so it ties nothing"
         raise CrossCheckError(msg)
     needle = mention.template.replace(PLACEHOLDER, str(value))
-    if needle not in _read(root, mention.path):
-        msg = f"{mention.path} does not spell {needle!r}"
+    if not bounded(needle).search(_read(root, mention.path)):
+        msg = f"{mention.path} does not spell {needle!r} as a token of its own"
         raise CrossCheckError(msg)
 
 

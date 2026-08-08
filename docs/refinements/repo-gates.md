@@ -610,3 +610,20 @@ cross-language-constant addendum):**
   `scripts/composemounts.py`, split out because the two together are over the line cap, and it
   raises rather than skips on every compose shape it was not taught, since a reader that quietly
   walked past a new override's one mount is the same gate-that-cannot-fail in a different place.
+
+- **A mention counts nothing: one occurrence satisfies it, however many the file spends.**
+  *Fix when it bites.* Opened 2026-08-08 when the mention matcher was bounded. A `Mention` asks
+  whether a file spells the agreed value in the template's shape, and one bounded occurrence is
+  enough, so a file spending it twice can lose one of them with the gate green. That is not
+  hypothetical: `Message.tsx` compares against `"thinking"` on two adjacent lines and `overlay.css`
+  reads `[data-morphing` in three rules, and an ADR published a mutation proof that assumed
+  otherwise (corrected where it was published). What was chosen instead of a count is the word
+  boundary, because a count ties a registry entry to how many times a stylesheet happens to spend
+  a custom property, and every legitimate new rule would then redden a gate about a coupling that
+  never moved. The fix, if it bites, is a per mention `occurrences` field carrying an exact count
+  where one is meaningful and staying unset where it is not, which is a field rather than a design,
+  since `check_mention` already renders one needle and would only count matches instead of
+  searching for the first. **Trigger:** a mention whose several occurrences are genuinely a set
+  that must move together, the first being a state literal compared in two components rather than
+  one, at which point the count is carrying real information and not just arithmetic about a
+  stylesheet.
