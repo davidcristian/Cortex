@@ -4401,3 +4401,51 @@ rather than on any one of the three modes that are not it.
 
 **And it does not give the summon a rule**, because the summon is not one of these keys: it arrives
 as a host event and lands on the chat already.
+
+## Addendum: a section's share bounds its whole box, frame and all (2026-08-08)
+
+The neighbour-aware cap addendum above split the panel's spare column between the switcher and the
+reminder stack and capped each section's CARD at its share. It left one thing outside every cap
+there is, which the deferral filed beside it named and which this closes.
+
+**The mechanism, re-derived rather than restated.** `box-sizing` is border-box across the overlay,
+so a `max-height` shorter than a box's own frame does not shrink that box: the content height floors
+at zero and the border box stands at what the frame costs. Each of these two cards is 1px of border
+and 6px of padding on each side, which is 14px, and each carries 6px of air beneath it that the
+card's own cap never saw. So each section cost 20px however little it was given, and where the
+budget floors at zero the pair cost 40px the arithmetic had already spent elsewhere.
+
+**Measured before anything was touched**, in headless Chromium against the demo bridge at 640 wide
+with the switcher opened over the demo's reminder stack, reading used heights off the computed
+style. The 14px is exact at every viewport where the shares floor, and so is the 40px. At 640x240
+the hint strip stood 34px past the panel's clipped edge, which is the deferral's own number
+reproduced. Its boundary was not: walked viewport by viewport the strip is inside at 286px, exactly
+level at 284px and 2px out at 282px, where the entry had guessed "roughly 260px".
+
+**The fix is not the one the deferral proposed.** A section leaving when its share cannot hold one
+row still leaves the other standing as a frame, and at the viewport that escapes it is the pair that
+costs the 40px. The share is now the outer allowance and it is applied to the roll's WRAPPER, which
+has no border, no padding and no margin of its own and holds the card's air inside its own clip, so
+a share of zero costs zero. The card keeps a cap at the share less that air, which is what still
+makes a long list scroll rather than clip, and the two can never cross: the card is
+`min(content, share - air)`, so with its air added back it is at most the share the wrapper is held
+to. Direct children of the view only, so a reply's Thoughts trace, which rolls inside the history,
+is untouched.
+
+**After.** At 640x240 the two wrappers cost 0px against 40px and the hint strip clears the panel's
+edge by 1px, the clearance it keeps at every size that fits. The shortest viewport everything fits
+in went 286px to 220px, level at 218px and 3px out at 214px. At the body's own 640x720 nothing moves
+at all: the two shares are 141.14 and 105.86, which is exactly what the two outer boxes already
+measured, so the size the body opens at is bit-identical.
+
+**What is left below 218px is a decision, not a deferral.** At 200px the strip is 14px out with both
+sections costing nothing: what remains in the column is the header, a history already at its 10px
+floor and the composer standing on its own 84px pill floor. Yielding that floor is the one thing the
+reserve ordering exists to refuse, so there is no further design here, only a screen the panel
+cannot be used on. The body's window is 640x720 and not resizable.
+
+**Proved able to fail.** The pre-change numbers were read with the change stashed away and the whole
+ladder walked from a cold start, and again by taking only the wrapper's cap away with a live
+override inside the fixed session: the 40px and the escape come straight back (8px out at 640x260,
+24px at 640x240, 54px at 640x200, against 1px inside at all three with the cap standing), and
+removing the override returns every number to the fixed reading.
