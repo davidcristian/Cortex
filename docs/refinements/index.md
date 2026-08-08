@@ -789,8 +789,9 @@ which is the point: an unenforced rule fails silently, so the backlog that exist
 decisions was itself the thing keeping the lost decision. The cap now covers `.ts`/`.tsx` with
 Vitest's own notion of a test file as its exclusion ([ADR-0011](../adr/ADR-0011-body-v1.md) line-cap
 addendum) and `demoBridge.ts` was split rather than exempted, which decrements body & overlay. What
-increments repo gates is what turning the gate on made visible: `overlay.css` at **2420 lines**, the
-longest hand-written file in the repo, still outside the cap on an argument about cascades that is
+increments repo gates is what turning the gate on made visible: `overlay.css` at **2420 lines** that
+day and 2686 when it was re-measured on 2026-08-08, the longest hand-written file in the repo, still
+outside the cap on an argument about cascades that is
 honest about the remedy and evasive about the problem ([repo-gates.md](repo-gates.md)). The proto is
 the other thing outside, and it is a decision rather than a deferral: capping `proto/body.proto`
 (314) would put a gate in direct conflict with AGENTS.md's own invariant that the seam is defined
@@ -1734,6 +1735,31 @@ against the code (the warning above); the entry text tells you which seams it ex
 
 ### Actionable now
 
+**Read this before reading the list.** Of the 36 bullets below, 34 are closure records: the entry
+they name is landed, moot or declined, and the bullet is kept because a landed entry is this
+backlog's record of what a deferral became. Only two are open, and they are named here so nobody
+has to read 34 closures to find them: **the recap fold under a cortex under load**
+([session-history.md](session-history.md)) and **the spontaneous-pick nudge's live uptake**
+([subagents.md](subagents.md)), whose fix stays fix-when-it-bites while its observation is
+runnable. That ratio is not a defect in the bucket, it is what the area is: almost everything still
+open across the backlog sits under fix-when-it-bites, dead-until-a-consumer, or feature breadth,
+each with a trigger a reader can check, so those three lists are where an idle agent should look
+next rather than here. Two rules keep this line honest, both of them earned above: a closure record
+is never deleted, and this paragraph names entries rather than counting them, because the count is
+the part that cannot catch its own drift.
+
+- **The recap fold under a cortex under load** ([session-history.md](session-history.md)), the
+  area's one open item and the half of the one-corpus entry a run can settle, restated 2026-08-08.
+  The authorship objection is a permanent caveat, since every corpus this repo builds is written by
+  the party whose conclusion it tests; what stays work is that nothing has been measured about a
+  fold contending with a reply for one non-reentrant lease. `SummarizingHistoryWindow` claims to let
+  go of the GPU before the reply asks for it (the pass goes through `drain_text`, whose `finally`
+  leaves the adapter's acquire block, and selection completes inside `assemble_inference_messages`
+  several statements before `handle_turn` first iterates the reply), so the claim is a sequencing
+  argument that concurrent streams are exactly the thing that tests. The card is here and the
+  measurement is agent work: concurrent `Converse` streams against the GPU stack, each crossing a
+  boundary, reporting the fold's own latency and the reply's time to first token beside the
+  single-stream numbers. Nothing blocks it and no port moves.
 - **The recall rank's default, which is now a decision rather than a measurement**
   ([memory.md](memory.md)): `CORTEX_MEMORY_RECALL=judge` was left off on cost alone, and bounding
   its request on 2026-08-06 took that cost from about 12 seconds per recall to 0.9 while the
@@ -3032,7 +3058,15 @@ one, since the shipped judge's fallback is the cosine, and the run ships as an i
 test whose finding assertion reddens behind an embedder that does separate
 ([memory.md](memory.md)); the four guardrail tails (whitespace-split hosts, full
 UTS-39 confusables, further encodings, footer heuristics), the GBNF alternative, the
-fence-without-block recall mode, per-provenance eviction, and the screening subagent
+fence-without-block recall mode, per-provenance eviction, and the screening subagent; joined by
+**the residue of a quoted injection replayed by the plain history window**, which opened 2026-08-06,
+was counted in that area's cell from the day it opened, and had no line in this order until
+2026-08-08, so a reader following the order saw eleven of its twelve. Its measured half landed
+(obeyed 2 of 10 on a bare turn, 0 of 10 behind either standing rule, and `PLAIN_SECURITY_PREAMBLE`
+now covers the tool-less turn); its residue is the persisted per-turn taint mark that would let a
+later turn re-fence exactly the messages that read untrusted content, plus a transcript still
+unfenced in the assistant position, and its trigger is the first design needing such a marker, which
+it shares with provenance across the stores
 ([untrusted-content.md](untrusted-content.md)); per-field attachment schema descriptions and
 send batching / session allowlists ([email-confirmer.md](email-confirmer.md)); the NPU as a
 third placement target pending its feasibility pass, plus the two the admission wall opened,
@@ -3061,7 +3095,8 @@ clippy rides along, or shell findings outpacing the user's local checks; confirm
 live over a `pkg-config` shim, with a planted lint proving the declined check real
 ([repo-gates.md](repo-gates.md)); and the overlay stylesheet outside the line cap, opened here on
 2026-08-03 behind the cap reaching the overlay's TypeScript, which turned an oversight into a
-decision: `body/app/src/overlay.css` is 2420 lines and uncapped on the argument that the cap's
+decision: `body/app/src/overlay.css` was 2420 lines then and is 2686 as of 2026-08-08, uncapped on
+the argument that the cap's
 "split by responsibility" remedy presumes a module with a public contract while a stylesheet is one
 cascade whose ordering is load-bearing, whose fix is a split by layer imported in a fixed order from
 one entry sheet (one suffix in the scanner, everything else in the CSS), and whose trigger is an
