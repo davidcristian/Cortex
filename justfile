@@ -9,6 +9,7 @@ check:
     just check-linecap
     just check-dashcheck
     just check-crosscheck
+    just check-bindcheck
     tmp=$(mktemp -d)
     trap 'rm -rf "$tmp"' EXIT
     echo "Running check-brain, check-scripts, check-body in parallel (output buffered)..."
@@ -48,6 +49,11 @@ check-dashcheck:
 check-crosscheck:
     cd scripts && uv sync --locked
     cd scripts && uv run python crosscheck.py --root ..
+
+# No compose bind default lands a container-written path in the tree that git does not ignore.
+check-bindcheck:
+    cd scripts && uv sync --locked
+    cd scripts && uv run python bindcheck.py --root ..
 
 # Python brain workspace: format, lint, strict types, tests at 100% line+branch.
 check-brain:

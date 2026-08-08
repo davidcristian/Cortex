@@ -71,6 +71,7 @@ jobs:
       - run: just check-linecap
       - run: just check-dashcheck
       - run: just check-crosscheck
+      - run: just check-bindcheck
 
   python:
     needs: changes
