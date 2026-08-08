@@ -1183,8 +1183,10 @@ Use-case:
   may call the model, and it carries the `query` because a policy that ranks by what a memory says
   needs the question (ADR-0038); a policy that runs inference must leave its acquire block before
   returning, which `drain_text` does (it also forwards a caller's `bounds`, which every in-turn
-  side call wants since the line above it throws the model's thinking away). The port and the default `RawRecallPolicy` (its
-  `RAW_RECALL_POLICY` singleton keeps v1 top-`k` cosine exactly) live in `rerank.py`; the three
+  side call wants since the line above it throws the model's thinking away). The port and `RawRecallPolicy` (its
+  `RAW_RECALL_POLICY` singleton keeps v1 top-`k` cosine exactly, and is this port's own default
+  argument; the composition root's default is `judge` since the ADR-0038 turn-cost addendum, so the
+  two words mean different things here) live in `rerank.py`; the three
   heuristic opt-in policies live in `rerank_policies.py`, their shared `recency_blend` /
   `redundancy` / `greedy_mmr` math in `rerank_math.py`, and the model-based judge in
   `rerank_judge.py` (ADR-0008 rerank + MMR + recency-and-diversity addenda, ADR-0038; split at the
@@ -1204,7 +1206,8 @@ Use-case:
   rather than fixed because `ORDER_ENVELOPE` admits an array of numbers and nothing else, so the
   reply's length is known before it is asked for; a truncated constrained reply is not JSON, so
   running into the cap degrades to that same fallback rather than to a shortened order. Selected at the composition root via `CORTEX_MEMORY_RECALL`
-  (`raw`, `reranked`, `mmr`, `recency_mmr`, `judge`); the reported `ScoredMemory.score` stays the raw
+  (`raw`, `reranked`, `mmr`, `recency_mmr`, `judge`, the last of them the default since the ADR-0038
+  turn-cost addendum); the reported `ScoredMemory.score` stays the raw
   cosine, only order and membership change.
 - `Ranking` / `RankedMemory` / `RankBasis` (`ranking.py`, ADR-0038) are what `select` returns.
   `RankedMemory` pairs a kept `ScoredMemory` with the `key: float` its policy ordered by; `Ranking`

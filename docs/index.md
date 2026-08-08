@@ -307,9 +307,14 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   no text); and the model rank ships as `JudgeRecallPolicy`, measured against the shipping cosine at
   0.917 to 1.000 mean reciprocal rank. **The rank's request is bounded since the bounded-side-calls
   addendum**, which took it from 448 to 613 decoded tokens at 18.4 s per recall to 12 to 22 at
-  0.9 s at exactly the same ranking, so `CORTEX_MEMORY_RECALL=judge` is recommended as a default and
+  0.9 s at exactly the same ranking, so `CORTEX_MEMORY_RECALL=judge` was recommended as a default and
   left for the user to call, the session title having taken the same lever on the same day (ADR-0021
-  addendum). A session summary is cached in Redis rather than
+  addendum). **The user called it on 2026-08-08, and the turn-cost addendum is what the call rested
+  on:** over 48 real turns an arm through the seam, with a raw block either side of the judged one,
+  a recalling turn's time to first token rises 0.515 s under the judge (95% CI 0.116 to 0.915) while
+  the two raw blocks differ by an amount whose interval spans zero, which is less than the rank's own
+  0.877 s because a rank that keeps 1.17 notes leaves the reply less to read than the cosine's 5. So
+  `judge` is the default and `raw` the opt-out. A session summary is cached in Redis rather than
   recomputed per turn, safe because `SessionStore` has no verb that edits a message, so a prefix
   summary can only go incomplete and never wrong; the summarizing-window addendum records that
   half being built, from the `set_recap`/`recap` verbs through `SummarizingHistoryWindow` to a

@@ -9,8 +9,10 @@ Memory is disabled by default (CI and the no-GPU dev loop run DB-free). With
 `LlamaCppEmbedder`, wired with two pure-core policies chosen here from env: the `MemoryScope`
 (`CORTEX_MEMORY_SCOPE`, ADR-0008 scoping addendum) that decides which namespace a turn writes to and
 reads from, and the `RecallPolicy` (`CORTEX_MEMORY_RECALL`, ADR-0008 rerank addendum) that reranks
-and prunes the recalled pool. Both default to the founding v1 behavior, so recall is unchanged
-unless a deployment opts in. The core never reads env; these two functions are its only
+and prunes the recalled pool. Scoping still defaults to the founding one-global-space behavior;
+ranking no longer does, `judge` being the default since the turn-cost addendum measured it, so a
+recalling turn asks the resident model which notes help and `CORTEX_MEMORY_RECALL=raw` is what
+puts v1 top-k cosine back. The core never reads env; these two functions are its only
 scoping/rerank seam.
 """
 
@@ -63,12 +65,13 @@ def recall_policy_from_config(
 ) -> RecallPolicy:
     """Map ``CORTEX_MEMORY_RECALL`` to its recall reranking policy (ADR-0008 rerank addendum).
 
-    ``raw`` keeps v1 top-k cosine exactly (the default); ``reranked`` blends similarity with a
+    ``raw`` keeps v1 top-k cosine exactly; ``reranked`` blends similarity with a
     recency decay and drops near-duplicates; ``mmr`` selects for maximal marginal relevance
     (query-relevance traded against diversity); ``recency_mmr`` runs that MMR selection over the
     recency blend, combining both axes; ``judge`` hands the pool to the resident model on the given
     ``backend`` and ranks by what it answers (ADR-0038), falling back to ``raw`` whenever the model
-    cannot be reached or believed. Each is tuned by the ``CORTEX_MEMORY_RECALL_*`` knobs (each
+    cannot be reached or believed, and is **the default** since the turn-cost addendum measured
+    what it does to a whole turn. Each is tuned by the ``CORTEX_MEMORY_RECALL_*`` knobs (each
     policy validates the ranges of the ones it uses). The composition root's one env->core seam for
     reranking, since the core never reads the string.
     """

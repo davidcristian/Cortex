@@ -71,13 +71,15 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   (`CORTEX_MEMORY_EMBEDDER_MODEL`), `scope: "global" | "session" = "global"`
   (`CORTEX_MEMORY_SCOPE`, scoping addendum), `on_tainted: "skip" | "record" = "skip"`
   (`CORTEX_MEMORY_ON_TAINTED`, ADR-0019), and `recall: "raw" | "reranked" | "mmr" | "recency_mmr" |
-  "judge" = "raw"` (`CORTEX_MEMORY_RECALL`, rerank + MMR + recency-and-diversity addenda,
+  "judge" = "judge"` (`CORTEX_MEMORY_RECALL`, rerank + MMR + recency-and-diversity addenda,
   ADR-0038) with its
   `recall_half_life_days` (30), `recall_recency_weight` (0.3), `recall_dedup_threshold` (0.98),
   `recall_pool_factor` (4), and `recall_mmr_lambda` (0.5, the MMR relevance-vs-diversity dial) tuning
-  knobs (`recency_mmr` reuses the recency and lambda knobs, `judge` reuses the pool factor and, since
-  its request was bounded, costs about 0.9 s per recall rather than 12, which is why its default is
-  under review rather than settled, ADR-0038 bounded-side-calls addendum; `judge` is also the only
+  knobs (`recency_mmr` reuses the recency and lambda knobs; `judge` reuses the pool factor and is the
+  **default** since the ADR-0038 turn-cost addendum measured whole turns rather than ranks, a rank
+  costing 0.877 s on its own and 0.515 s of a recalling turn's time to first token because it hands
+  the reply fewer notes to read, paid every turn since nothing caches a rank, with
+  `CORTEX_MEMORY_RECALL=raw` the opt-out back to v1 cosine; `judge` is also the only
   value under which a recall may return **nothing**, the model having read the pool and declined it,
   ADR-0038 abstention addendum), plus
   `recall_audit: bool = False` (`CORTEX_MEMORY_RECALL_AUDIT`, ADR-0038) attaching the structured
