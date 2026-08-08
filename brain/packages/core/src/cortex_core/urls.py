@@ -9,7 +9,10 @@ allowlist. The two modules split at the line cap as the seventh addendum landed.
 Obfuscation-resistant by construction, and deterministic + dependency-free (stdlib only). The
 matcher tolerates a *defanged* scheme (``hxxp://``, ``[://]``, ``[:]``), a **fullwidth** scheme
 separator (a U+FF1A colon or a U+FF0F solidus, which NFKC folds to ASCII in the identity but
-which anchored nothing here; ADR-0015 eighth addendum), a bracketed chunk anywhere
+which anchored nothing here; ADR-0015 eighth addendum), a separator spelled as an **HTML
+character reference** (``https&#58;//``, ``&#x3a;``, ``&colon;``, ``&#47;``/``&sol;``, generated
+per character from its codepoint and admitted because one rendering pass resolves it, so the mail
+client autolinks the plain link; ADR-0015 ninth addendum), a bracketed chunk anywhere
 in the body (so an encoded defang dot behind a literal closer like ``evil[&#46;]com`` is consumed
 whole rather than cutting the match short; ADR-0015 sixth addendum), and an **encoded separator**
 (``http[&#58;//]evil.com``, admitted as a bracket chunk that carries an escape marker; ADR-0015
@@ -50,14 +53,70 @@ _BRACKETS = (("[", "]"), ("(", ")"), ("{", "}"))
 # normalization, so a fullwidth-separated URL anchored nothing, matched nothing, and was therefore
 # redacted by neither mode (ADR-0015 eighth addendum). Every combination is generated from the two
 # tables rather than listed, the `_BRACKETS` precedent, so a mixed spelling (an ASCII colon with a
-# fullwidth solidus) cannot be the one nobody remembered.
+# fullwidth solidus) cannot be the one nobody remembered. The ASCII form comes first: it is the
+# character the entity references below spell.
 _COLONS = (":", "\uff1a")
 _SOLIDI = ("/", "\uff0f")
+
+# The HTML name of each separator character, for the named reference (`&colon;`, `&sol;`).
+_ENTITY_NAMES = {":": "colon", "/": "sol"}
+
+
+def _entity_forms(char: str) -> tuple[str, ...]:
+    """Every HTML character reference *one rendering pass* resolves to ``char`` (regex fragments).
+
+    Generated from the codepoint rather than listed, so the whole family lands at once: decimal
+    and hexadecimal, each with any leading zeros (``&#0058;``, ``&#x003a;``), each with the
+    semicolon HTML makes optional, plus the named form (ADR-0015 ninth addendum). ``URL_RE`` is
+    ``IGNORECASE``, which covers ``&#X3A;`` and the hex digits' case for free; the *named* form is
+    case-sensitive to HTML, so it is scoped back to case-sensitive here and ``&COLON;`` (which
+    ``html.unescape`` leaves standing, as no renderer resolves it) is not admitted. A semicolon-less
+    reference ends the digit run, since ``&#58123`` is one five-digit reference and not a colon,
+    which keeps the anchor's promise that every spelling it admits is one the identity folds.
+    """
+    point = ord(char)
+    return (
+        rf"&#0*{point}(?:;|(?![0-9]))",
+        rf"&#x0*{point:x}(?:;|(?![0-9a-f]))",
+        rf"(?-i:&{_ENTITY_NAMES[char]};)",
+    )
+
+
+def _spellings(plain: tuple[str, ...]) -> str:
+    """One separator character's alternation: its plain glyphs, then its entity references."""
+    return f"(?:{'|'.join((*(re.escape(g) for g in plain), *_entity_forms(plain[0])))})"
+
+
+_COLON_SPELLING = _spellings(_COLONS)
+_SOLIDUS_SPELLING = _spellings(_SOLIDI)
+
+# The *defanged* separators, the one family that is a bracketed token rather than a respelling of
+# the character. Held apart from the plain forms because the matcher composes the plain ones out of
+# the per-character alternations above while the streaming hold-back needs them all as literal text.
+_DEFANGED_AUTHORITY_SEPS = tuple(
+    f"{lo}{tok}{hi}{tail}" for lo, hi in _BRACKETS for tok, tail in (("://", ""), (":", "//"))
+)
+_DEFANGED_OPAQUE_SEPS = tuple(f"{lo}:{hi}" for lo, hi in _BRACKETS)
+
+# Every separator spelling as *literal text*, for the streaming hold-back's scheme prefixes below.
+# The entity forms are variable-length and so cannot be enumerated here, exactly as the encoded
+# bracket chunk could not; `_OPEN_SEP_RE` carries both instead.
 _AUTHORITY_SEPS = (
     *(f"{colon}{first}{second}" for colon in _COLONS for first in _SOLIDI for second in _SOLIDI),
-    *(f"{lo}{tok}{hi}{tail}" for lo, hi in _BRACKETS for tok, tail in (("://", ""), (":", "//"))),
+    *_DEFANGED_AUTHORITY_SEPS,
 )
-_OPAQUE_SEPS = (*_COLONS, *(f"{lo}:{hi}" for lo, hi in _BRACKETS))
+_OPAQUE_SEPS = (*_COLONS, *_DEFANGED_OPAQUE_SEPS)
+
+# The matcher's separator, per scheme family: any spelling of the colon (and, for an authority
+# scheme, of both solidi), or one of the defang tokens. Composing the per-character alternations is
+# what makes every mixture free, an entity colon in front of fullwidth solidi included.
+_AUTHORITY_SEP_RE = "|".join(
+    (
+        rf"{_COLON_SPELLING}{_SOLIDUS_SPELLING}{{2}}",
+        *(re.escape(s) for s in _DEFANGED_AUTHORITY_SEPS),
+    )
+)
+_OPAQUE_SEP_RE = "|".join((_COLON_SPELLING, *(re.escape(s) for s in _DEFANGED_OPAQUE_SEPS)))
 
 # The bracket vocabulary, shared by every bracketed token below so they cannot drift. The inner run
 # excludes whitespace, prose/markup quoting, and every bracket, so a chunk cannot swallow a second
@@ -94,10 +153,9 @@ _ENCODED_SEP_CHUNK = rf"{_OPEN_BRACKET}{_CHUNK_INNER}*[&%]{_CHUNK_INNER}*{_CLOSE
 _URL_CHAR = r"[^\s<>\"'\)\]\}]"
 
 
-def _family(words: tuple[str, ...], seps: tuple[str, ...]) -> str:
-    """A regex alternation: any of ``words``, then any of ``seps`` (escaped) or an encoded chunk."""
-    plain = "|".join(re.escape(sep) for sep in seps)
-    return rf"(?:{'|'.join(words)})(?:{plain}|{_ENCODED_SEP_CHUNK})"
+def _family(words: tuple[str, ...], seps: str) -> str:
+    """A regex alternation: any of ``words``, then that family's ``seps`` or an encoded chunk."""
+    return rf"(?:{'|'.join(words)})(?:{seps}|{_ENCODED_SEP_CHUNK})"
 
 
 # The `data:` scheme opens an inline `data:<mediatype>[;base64],<data>` URL: a clickable phishing
@@ -109,14 +167,14 @@ def _family(words: tuple[str, ...], seps: tuple[str, ...]) -> str:
 # identity folds it whole (no `://` authority to split, so the payload lowercases symmetrically,
 # harmless for comparison). The lookahead consumes nothing; the body matches from the MIME type.
 _DATA_ANCHOR = r"(?=[\w.+-]+/|[;,])"
-_DATA_SCHEME = rf"{_family(('data',), _OPAQUE_SEPS)}{_DATA_ANCHOR}"
+_DATA_SCHEME = rf"{_family(('data',), _OPAQUE_SEP_RE)}{_DATA_ANCHOR}"
 
 
 # A clickable link, plain or defanged, anchored at a word boundary (so `sftp://` / `hotel:` are not
 # partial-matched) and matched liberally to the first character that cannot belong to one. Defanged,
 # encoded, and fullwidth forms are reduced to a canonical identity by `normalize_url`.
 URL_RE = re.compile(
-    rf"\b(?:{_family(_AUTHORITY_WORDS, _AUTHORITY_SEPS)}|{_family(_OPAQUE_WORDS, _OPAQUE_SEPS)}"
+    rf"\b(?:{_family(_AUTHORITY_WORDS, _AUTHORITY_SEP_RE)}|{_family(_OPAQUE_WORDS, _OPAQUE_SEP_RE)}"
     rf"|{_DATA_SCHEME})"
     rf"(?:{_DEFANG_CHUNK}|{_URL_CHAR})+",
     re.IGNORECASE,
@@ -140,13 +198,22 @@ _SCHEME_PREFIXES = (
 # ("https://" needs one more character to match URL_RE). It is the stream filter's hold-back bound.
 _LONGEST_OPEN_PREFIX = max(len(prefix) for prefix in _SCHEME_PREFIXES)
 
-# A scheme word whose separator bracket chunk is still **open** at the buffer's end (`http[&#58;`).
-# An encoded separator is variable-length, so unlike the plain forms it cannot be enumerated into
-# `_SCHEME_PREFIXES`; without this the buffer would match no URL, hold nothing, and leak the pieces
-# of a separator split across deltas (ADR-0015 seventh addendum). Bounded by the same bracket-free
-# inner run, so it cannot run past the chunk it is waiting to close.
+# An entity reference that has begun but not finished at the buffer's end (`&`, `&#`, `&#5`,
+# `&#x3`, `&col`). The leading `&` is load bearing: it is what stops this from holding back every
+# scheme word followed by ordinary letters (`database`), and the run it opens is bounded by the
+# first character no reference can contain.
+_UNFINISHED_ENTITY = r"&[#0-9a-z]*"
+
+# A scheme word whose separator is still **arriving** at the buffer's end, in either of the two
+# shapes too variable-length to enumerate into `_SCHEME_PREFIXES`: an open bracket chunk
+# (`http[&#58;`) and a run of separator characters ending in an unfinished entity (`https&#5`,
+# `https&#58;&#4`). Without this the buffer would match no URL, hold nothing, and leak the pieces of
+# a separator split across deltas (ADR-0015 seventh + ninth addenda). Both branches are bounded: the
+# bracket one by the bracket-free inner run, the entity one by the separator spellings themselves.
 _OPEN_SEP_RE = re.compile(
-    rf"\b(?:{'|'.join(_SCHEME_WORDS)}){_OPEN_BRACKET}{_CHUNK_INNER}*\Z",
+    rf"\b(?:{'|'.join(_SCHEME_WORDS)})"
+    rf"(?:{_OPEN_BRACKET}{_CHUNK_INNER}*"
+    rf"|(?:{_COLON_SPELLING}|{_SOLIDUS_SPELLING})*(?:{_UNFINISHED_ENTITY})?)\Z",
     re.IGNORECASE,
 )
 
