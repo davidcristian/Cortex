@@ -370,6 +370,9 @@ def test_memory_defaults_to_disabled() -> None:
     assert config.embedder_endpoint == ""
     assert config.scope == "global"  # recall spans conversations unless opted out
     assert config.on_tainted == "skip"  # a tainted turn is dropped from memory by default
+    # The model rank ships on (ADR-0038 turn-cost addendum): measured better on the corpus that
+    # could have refuted it, and worth 0.515 s of time to first token on a recalling turn.
+    assert config.recall == "judge"
 
 
 @pytest.mark.usefixtures("clean_env")

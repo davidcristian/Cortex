@@ -4,6 +4,12 @@
 # and flips the brain from memory=none to the pgvector backend pointed at them. CI never
 # runs this file. Memory is opt-in so CI and the no-GPU dev loop stay DB-free.
 #
+# LAYERED WITHOUT THE GPU OVERRIDE, ADD CORTEX_MEMORY_RECALL=raw. Recall ranking defaults to the
+# model rank (`judge`, ADR-0038 turn-cost addendum), which asks the resident cortex which notes
+# help. Against the Echo fake that the base file runs, the reply is not the rank envelope, so the
+# policy falls back to raw top-k cosine on every recall: correct, but a wasted round trip per turn
+# that the trail reports as a fallback. Naming `raw` says what is happening instead.
+#
 # Set these on the host (a .env at the repo root works):
 #   CORTEX_MODELS_DIR       host dir holding the GGUFs (default ./models, ADR-0004)
 #   CORTEX_EMBED_MODEL_FILE embedding GGUF path under that dir (default: the nomic pick)

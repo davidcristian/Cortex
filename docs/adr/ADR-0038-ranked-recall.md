@@ -730,7 +730,8 @@ touches, and the rest is a dozen tokens of decoding.
 ### The judge's default: a recommendation, not a flip
 
 `CORTEX_MEMORY_RECALL` **stays `raw` in this change**, and the recommendation is to move it to
-`judge` for any deployment that has memory on at all.
+`judge` for any deployment that has memory on at all. (Taken 2026-08-08, after the turn-cost
+measurement the user asked for first; the turn-cost addendum is the last section of this ADR.)
 
 The reason the default was `raw` was cost and only cost: the original measurement said the judge
 was better on this corpus and priced it at about 12 seconds per recall, and the choice to leave it
@@ -829,7 +830,8 @@ than 10. The wider pool costs prompt-eval time and no more decoding, which is wh
 predict.
 
 **The recommendation stands, with better evidence and one narrowed claim.** `CORTEX_MEMORY_RECALL`
-**still stays `raw` in this change**, because the standing decision is the user's own. What the
+**still stays `raw` in this change**, because the standing decision is the user's own. (It moved to
+`judge` on 2026-08-08; the turn-cost addendum below is what the user asked for first.) What the
 wider corpus changes is that the recommendation no longer rests on a corpus built to produce it:
 the judge ties the cosine wherever the cosine is right and beats it wherever the cosine is wrong,
 on a corpus with four categories the judge could have lost. The two things a default still has to
@@ -916,9 +918,11 @@ it. A turn whose memory declines sends what a memory-less turn sends.
 **What does not change.** The fallback stays, and it stays on the failure path it was built for: an
 unreachable model, a reply outside the envelope, a truncated one, an order of nothing that exists,
 or an empty candidate pool (where the model is never consulted, so a refusal is not available to
-report). `CORTEX_MEMORY_RECALL` still defaults to `raw`, so nothing changes for a deployment that
-has not opted into the judge, and the recommendation to move it stands where the widened corpus left
-it, with the caveat it carried about refusals now answered.
+report). `CORTEX_MEMORY_RECALL` still defaults to `raw` **as of this addendum**, so nothing changes
+for a deployment that has not opted into the judge, and the recommendation to move it stands where
+the widened corpus left it, with the caveat it carried about refusals now answered. (The default
+moved to `judge` on 2026-08-08, in the turn-cost addendum below, once the recommendation's own
+caveat about whole turns had a number.)
 
 ### Measured (2026-08-07)
 
@@ -964,3 +968,109 @@ Recorded in [memory.md](../refinements/memory.md) with its line on
   byte-for-byte what v1 returned. It therefore wants a fifth policy rather than a knob on the
   default. **Trigger:** a deployment that wants recall to stay geometric and still be able to say
   nothing, or a calibration run that gives the floor a defensible number.
+
+## Turn-cost addendum (2026-08-08): the default moves to `judge`, measured on whole turns
+
+Every earlier section priced the rank in isolation and left the default alone, and both of the
+recommendation's own caveats were about that gap: a rank runs on **every** recalling turn, and
+0.75 s of rank was never the same claim as 0.75 s of user-visible latency. The user's call was to
+measure the turn before flipping. This is that measurement, and the flip it licensed.
+
+### What was measured, and how
+
+Real turns through the shipped seam, not a policy in a harness. The gpu stack plus the memory
+override was brought up on the 24 GB card with the resident cortex (gemma-4-12B), and a host-side
+gRPC client opened one `Converse` stream per turn against the brain's `BrainService`, timing from
+the moment it wrote the `UserTurn` to the **first `TextDelta`** (time to first token, the part a
+user feels) and to `TurnComplete`. Each turn ran in its own fresh session under
+`CORTEX_MEMORY_SCOPE=session`, whose scope had been pre-seeded with all 41 notes of
+`recall_corpus.py`, so every turn ranked an identical corpus, no turn's own recorded exchange
+reached the next turn's pool, and the real global memory space was neither read nor written.
+Six questions, one per corpus category, eight repetitions, 48 turns an arm.
+`CORTEX_MEMORY_RECALL_AUDIT=1` was on throughout, so which policy actually ranked each recall is a
+fact of the run rather than an assumption about it.
+
+**Three blocks in A/B/A order**, `raw` then `judge` then `raw`, each block a container restart with
+one environment variable changed. The two raw blocks are the control: they differ from each other
+only in when they ran, so whatever they show is the run-to-run noise floor that the judge block has
+to clear. Arms are compared question by question rather than pooled, because a question's answer
+length dominates its turn time and the questions are the same in every block.
+
+### The numbers
+
+| | raw (block A) | judge (block B) | raw (block C) |
+| --- | --- | --- | --- |
+| Time to first token, mean | 4.296 s | 4.732 s | 4.138 s |
+| Time to first token, median | 4.193 s | 4.502 s | 4.024 s |
+| Time to first token, sd | 1.467 s | 1.519 s | 1.648 s |
+| Whole turn, mean | 4.906 s | 5.357 s | 4.756 s |
+| Whole turn, sd | 1.514 s | 1.619 s | 1.711 s |
+| Turn start through the pgvector search | not captured | 0.363 s | 0.396 s |
+| Notes handed to the reply, mean | 5.00 | 1.17 | 5.00 |
+| Rank bases seen | `echo` | `verdict`, `demur` | `echo` |
+
+Blocked by question and bootstrapped over 20,000 resamples:
+
+- **judge against raw: time to first token +0.515 s** (95% CI +0.116 to +0.915), whole turn
+  **+0.526 s** (95% CI +0.131 to +0.921).
+- **The null arm, raw against raw: -0.158 s** (95% CI -0.669 to +0.377), an interval spanning zero.
+
+So the harness separates two arms that should differ and does not separate two that should not,
+which is the only thing that makes the first number readable.
+
+**The rank alone costs more than the turn does.** Timed on its own through the same
+`JudgeRecallPolicy.select`, at the shape turn assembly actually asks for (`DEFAULT_RECALL_K` 5 at
+`recall_pool_factor` 4, so a pool of 20 of the 41 notes), a rank is **0.877 s** (median 0.859,
+0.704 to 1.160, sd 0.120, n=30). That is above the 0.75 s this ADR published, and the reason is
+recorded rather than surprising: the published figure was measured at `k` 3 over a pool of 12, and
+a wider pool costs prompt-eval time. Yet the turn only pays 0.515 s of it. **The judge gives about
+a third of its own cost back** by handing the reply 1.17 notes where the cosine hands it 5, so the
+memory block the model must read before it can speak is smaller. The saving is real and it is not
+free of risk: it is proportional to how much the cosine over-returns, so a deployment whose recalls
+are mostly answerable will see less of it than this corpus shows.
+
+**Where in the turn it lands: before generation, on the first token.** Recall runs inside
+`assemble_inference_messages`, which `handle_turn` awaits to completion before `stream_tool_loop`
+opens the reply. The trail's own timestamps say the same thing from the other side: everything up
+to and including the pgvector search takes 0.363 s under `judge` and 0.396 s under `raw`, which are
+the same number, and the whole difference sits after it. A recalling turn's first word is half a
+second later than it was.
+
+**It is paid every turn, and nothing caches it.** `JudgeRecallPolicy.select` holds no state and no
+cache, `MemoryRecaller.recall` calls it on every recall, and `_recalled_context` recalls on every
+turn where memory is on: the run logged exactly 48 recall lines for 48 turns in each arm. This is
+the asymmetry with `SummarizingHistoryWindow` that the recommendation kept naming, and it is
+confirmed rather than softened. What changed is only its size.
+
+### The ranking, re-checked at the width a turn uses
+
+The corpus runs behind this decision scored `k` 3 over a pool of 12. Read off this run's audit
+trail at `k` 5 over a pool of 20, over the 40 answerable turns an arm:
+
+| | raw | judge |
+| --- | --- | --- |
+| Mean reciprocal rank | 0.767 | **1.000** |
+| Unanswerable questions returning nothing | 0 of 8 | **8 of 8** |
+| Recalls that fell back to another policy | n/a | **0 of 48** |
+
+Every judged recall in the run was ranked or refused by the model itself. The wider pool did not
+cost the judge anything and it cost the cosine something, the extra candidates being extra ways for
+a distractor to outrank the answer.
+
+### Decision
+
+`CORTEX_MEMORY_RECALL` **now defaults to `judge`**. The premise the old default rested on was cost,
+the cost is 0.515 s of time to first token on a recalling turn, and it buys a rank that was worse
+nowhere and better on two of six categories over a corpus built to refute it, plus a refusal on
+questions memory cannot answer that no geometric policy can express. `CORTEX_MEMORY_RECALL=raw` is
+the one variable that puts the founding behavior back, and it is now the opt-out rather than the
+default.
+
+**What this does not settle**, and what no run by this repo's own author can: the corpus is still
+hand built by an interested party. What the flip changes about that is who is exposed to it. The
+judge is now what a real conversation meets, so the standing objection is answered by use rather
+than by another staged corpus, and the audit trail is how a disagreement gets diagnosed after the
+fact. The remaining entries in [docs/refinements/memory.md](../refinements/memory.md) say what is
+still open, and one of them changed shape here: the relevance floor was filed as the gap left for
+"every deployment that has not opted into the judge", and it is now the gap left for a deployment
+that opts **out** of it.

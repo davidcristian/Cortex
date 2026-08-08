@@ -535,3 +535,25 @@ honest caveats are in ADR-0038. What stays deferred in this area is recorded in
 [index](../refinements/index.md): a cross-encoder rank, which wants a scoring-model port rather than
 a chat completion, and auditing the candidates that were dropped, which the two MMR bases cannot
 give a well-defined key for.
+
+## Addendum (2026-08-08): the recall default is the model rank, not the raw cosine
+
+Decision 4 above records `CORTEX_MEMORY_RECALL` as "`raw` (default) or `reranked`", which was true
+of the change that wrote it and is no longer true of the tree. The default is now `judge`, the
+model rank that [ADR-0038](ADR-0038-ranked-recall.md) built, and the reason is written up in that
+ADR's turn-cost addendum rather than restated here.
+
+The short of it, because a reader who opens this ADR for the recall seam should not have to leave
+it to learn what ships: the rank was left off on cost alone, bounding its request took that cost
+from about 12 seconds to under one, and the question the user held the flip on was what that does
+to a whole turn rather than to a rank. Measured over 48 real turns an arm through the seam on the
+24 GB card, with two raw blocks around the judged one as a control, a recalling turn's time to
+first token rises **0.515 s** (95% CI 0.116 to 0.915) while the two raw blocks differ by an amount
+whose interval spans zero. The rank alone costs 0.877 s at the pool a turn asks for; the turn pays
+less than that because the judge hands the reply 1.17 notes where the cosine hands it 5. The rank
+is paid on every recalling turn and nothing caches it.
+
+Nothing about the `RecallPolicy` seam changed for this. It is one value in `MemoryConfig`, the
+policies are all still selected at the composition root, and `CORTEX_MEMORY_RECALL=raw` restores
+the byte-for-byte v1 behavior this ADR shipped. What did change is which way the opt is: the
+founding cosine is the opt-out now.

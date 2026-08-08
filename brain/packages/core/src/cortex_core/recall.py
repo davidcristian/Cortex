@@ -26,11 +26,12 @@ class MemoryRecaller:
     The injected ``MemoryScope`` decides which namespace each turn records under and recalls
     from (ADR-0008 scoping addendum); the default ``GlobalMemoryScope`` keeps the one-global-
     space v1 behavior, so recall stays cross-session unless a deployment opts into scoping. The
-    injected ``RecallPolicy`` reranks and prunes the recalled pool (ADR-0008 rerank addendum); the
-    default ``RAW_RECALL_POLICY`` keeps v1 top-k cosine exactly, so recall is unchanged unless a
-    deployment opts into reranking. The optional ``RecallAuditSink`` (ADR-0038) receives one
-    ``RecallAudit`` per recall, carrying the ranking the policy returned; ``None`` (the default)
-    is the founding silent recall path.
+    injected ``RecallPolicy`` reranks and prunes the recalled pool (ADR-0008 rerank addendum); this
+    constructor's own default is ``RAW_RECALL_POLICY``, v1 top-k cosine exactly, which is a default
+    for a caller that passes no policy and not what the brain ships (the composition root selects
+    the model rank, ADR-0038 turn-cost addendum). The optional ``RecallAuditSink`` (ADR-0038)
+    receives one ``RecallAudit`` per recall, carrying the ranking the policy returned; ``None``
+    (the default) is the founding silent recall path.
     """
 
     def __init__(  # noqa: PLR0913 -- four optional policy seams, each independently swappable

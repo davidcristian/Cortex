@@ -68,12 +68,21 @@ never recalled in another (`search` filters on `scope = ANY(read-scopes)`). It a
 
 ## Recall ranking and its trail (`CORTEX_MEMORY_RECALL`, ADR-0008 and ADR-0038)
 
-`raw` (the default) is top-`k` cosine exactly as it always was. `reranked`, `mmr` and `recency_mmr`
-are the heuristic policies, tuned by the `CORTEX_MEMORY_RECALL_*` knobs. `judge` is the model rank:
-it hands the over-fetched pool to the resident cortex and takes back an ordering, so it costs one
-full cortex generation per recall and needs the GPU stack up. It falls back to raw cosine whenever
-the model cannot be reached or believed, and the fallback is visible rather than silent, because the
-trail records the basis that actually ranked.
+`judge` **is the default** since the ADR-0038 turn-cost addendum: the model rank hands the
+over-fetched pool to the resident cortex and takes back an ordering, so a recalling turn spends one
+bounded cortex generation before it answers and the GPU stack has to be up. It falls back to raw
+cosine whenever the model cannot be reached or believed, and the fallback is visible rather than
+silent, because the trail records the basis that actually ranked. **What it costs, measured over 48
+real turns an arm on the 24 GB card:** the rank alone is 0.877 s at the pool a turn asks for (`k` 5
+at `pool_factor` 4, so 20 candidates), and a turn's time to first token rises 0.515 s (95% CI 0.116
+to 0.915) rather than the full 0.877 s, because a rank that keeps 1.17 notes gives the reply a
+smaller memory block to read than the cosine's 5. It is paid on every recalling turn; nothing
+caches a rank, unlike the history fold.
+
+`raw` is top-`k` cosine exactly as it always was, and is now the **opt-out**: set
+`CORTEX_MEMORY_RECALL=raw` for the founding behavior, on a stack with no GPU, or to take that half
+second back. `reranked`, `mmr` and `recency_mmr` are the heuristic policies, tuned by the
+`CORTEX_MEMORY_RECALL_*` knobs.
 
 `judge` is also the only policy that can **return nothing**. Asked a question none of the candidates
 answers, it says so and the turn is assembled with no recalled memories at all, which the trail

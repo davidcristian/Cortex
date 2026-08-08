@@ -216,7 +216,7 @@ class MemoryConfig(BaseSettings):
     writing. A tainted memory already stored is always fenced on recall regardless.
 
     ``recall`` (env ``CORTEX_MEMORY_RECALL``, ADR-0008 rerank addendum) picks the recall reranking
-    policy: ``raw`` (the default) keeps v1 top-k cosine exactly; ``reranked`` blends similarity with
+    policy: ``raw`` keeps v1 top-k cosine exactly; ``reranked`` blends similarity with
     a recency decay and drops near-duplicates, tuned by ``recall_half_life_days`` (30),
     ``recall_recency_weight`` (0.3, the blend's recency share), ``recall_dedup_threshold`` (0.98,
     the near-duplicate cosine), and ``recall_pool_factor`` (4, how many times ``k`` to over-fetch);
@@ -224,13 +224,22 @@ class MemoryConfig(BaseSettings):
     the reranker's near-duplicate cutoff), tuned by ``recall_mmr_lambda`` (0.5, the relevance share,
     ``1`` pure relevance and ``0`` pure diversity) and the shared ``recall_pool_factor``;
     ``recency_mmr`` runs that MMR selection over the recency blend rather than raw similarity,
-    combining both axes and reusing the recency and lambda knobs; ``judge`` asks the resident model
-    to order the over-fetched pool by what each note actually says (ADR-0038), reusing
-    ``recall_pool_factor`` and falling back to raw top-k cosine whenever the model cannot be reached
-    or believed. ``judge`` is also the only policy that may return **nothing**, when the model reads
-    the pool and answers that no candidate helps, and the turn then carries no recalled memories at
-    all (ADR-0038 abstention addendum). The knobs are inert under ``raw``; each policy validates the
-    ranges of the ones it uses when it is built.
+    combining both axes and reusing the recency and lambda knobs; ``judge`` (**the default since
+    the turn-cost addendum**) asks the resident model to order the over-fetched pool by what each
+    note actually says (ADR-0038), reusing ``recall_pool_factor`` and falling back to raw top-k
+    cosine whenever the model cannot be reached or believed. ``judge`` is also the only policy that
+    may return **nothing**, when the model reads the pool and answers that no candidate helps, and
+    the turn then carries no recalled memories at all (ADR-0038 abstention addendum). The knobs are
+    inert under ``raw``; each policy validates the ranges of the ones it uses when it is built.
+
+    **The default is a rank, so a recalling turn spends a bounded cortex call before it answers.**
+    Measured end to end on the 24 GB card over 48 turns an arm, the rank alone costs 0.877 s at the
+    pool a turn asks for, and the turn's own time to first token rises 0.515 s (95% CI 0.116 to
+    0.915, against a raw-versus-raw noise floor whose interval spans zero), the difference being
+    the shorter memory block a rank that keeps 1.17 notes hands the reply against the cosine's 5.
+    It is paid on every recalling turn, since nothing caches a rank. A deployment that wants the
+    founding behavior back sets ``CORTEX_MEMORY_RECALL=raw``, and ``recall_audit`` below reports
+    which policy actually ranked each recall either way.
 
     ``recall_audit`` (env ``CORTEX_MEMORY_RECALL_AUDIT``, ADR-0038) turns on the recall trail: one
     structured log line per recall carrying the pool size, the rank basis, and each kept hit's id,
@@ -245,7 +254,7 @@ class MemoryConfig(BaseSettings):
     embedder_model: str = "embedding"
     scope: MemoryScopeName = "global"
     on_tainted: MemoryTaintPolicyName = "skip"
-    recall: MemoryRecallName = "raw"
+    recall: MemoryRecallName = "judge"
     recall_half_life_days: float = 30.0
     recall_recency_weight: float = 0.3
     recall_dedup_threshold: float = 0.98
