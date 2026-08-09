@@ -2083,3 +2083,157 @@ a proof that it reddens.
   that used to add them up.
 - **It does not bound anything new.** No timeout moved, no default changed, and a stack whose
   numbers already paired boots byte for byte as it did, one `GET /health` heavier.
+
+## Host-generation addendum (2026-08-09): the brain notices when the daemon under it is replaced
+
+The addendum above closed the deadline pairing and left one staleness behind, folded into the
+residency-reconvergence refinement rather than counted beside it: a sidecar that restarts under a
+running brain leaves the pairing check as stale as it leaves residency, and the same identifier
+closes both. This is that identifier and both of its readers.
+
+**Re-derived from the tree first, as the backlog demands, and the entry was right about the code
+and wrong about one consequence.** `converge_residency` did exist, already written, in
+`swap_recovery.py`. `recover_handoffs` was called from exactly one place, the boot path, which had
+moved into `swap_builders.recover_boot_residency` in the previous change. `SwappingModelManager`
+did hold `_resident`, `_scope_model` and the report as instance state, and `GET /health` carried
+no identity field of any kind. What the entry does not say, and what the tree does, is that
+`converge_residency` is **not free to run speculatively**: it stops every `evict_models` tier that
+is not already stopped and starts them all again, which is precisely what a `coresident` plan
+exists to avoid doing to its standing peers. That single fact shapes everything below.
+
+### The decision
+
+1. **The identifier is a boot id, not a generation counter, and it is `uuid4().hex`.** It is
+   minted in `ModelSupervisor.__init__`, so it is one value per supervisor instance and therefore
+   per daemon process, and it certifies the child table that object holds: a brain seeing a value
+   it has not seen before knows every belief it formed about what is resident was formed against a
+   table that no longer exists. A counter was rejected on the requirement itself, which is that the
+   value must survive no restart: a counter in a process that restarted begins again at exactly the
+   number the comparison exists to notice. Nothing derived from the container helps either, since a
+   restarted sidecar is pid 1 again at the same address with the same env. The field is therefore
+   compared for **equality only**, and the port says so: it names which boot, never how many, so no
+   reader can be tempted to order two of them.
+2. **It rides `GET /health`**, beside the roster, the three control bounds and the two device
+   figures, and `ModelHost` gains a sixth verb, `boot_id() -> str | None`, shaped exactly like the
+   fifth: same route, same client, `None` for a host that will not say, which is a daemon older
+   than the field or the scriptable twin. An empty string and a non-string both read as no answer,
+   because this value is compared for equality and an empty id would compare equal to the next
+   daemon's empty id.
+3. **The brain's half is `BootWatch` in `residency_watch.py`, held by the manager**, which is the
+   object that owns the beliefs at stake and the only one that may rewrite them. The writer arrives
+   as a `ResidencyPublisher` (the manager's own `_set_resident`, typed in `residency_state.py`), so
+   the watch never reaches into that state. `observe(boot_id) -> bool` is the whole decision and is
+   pure: `None` keeps what was remembered, a first answer is a seed, anything else is a replacement
+   and is remembered at once so one restart reconciles once.
+4. **A first observation is a seed and never a change**, which is decision 1 of the co-residency
+   addendum protecting itself. Converging bounces every evictable tier, so a watch that treated its
+   first daemon as new would take down, on the first handoff of every process, the standing peers a
+   co-resident plan keeps serving through a swap. The seed is taken in
+   `publish_boot_residency`, which is the moment boot recovery's observation is published: an
+   answer about the GPU is an answer about the daemon that gave it, so recording which daemon that
+   was belongs with recording what it said, and the first handoff then has something to compare
+   against rather than a blank.
+5. **The observation happens at the top of `_swap_in`, inside the residency scope and before
+   anything is evicted.** That is the one moment the beliefs are about to be spent, and it needs no
+   port change and no new refusal path in the conductor: a `SwapFailedError` raised there is
+   already carried by `_swap`'s `except ModelManagerError`, which fails the record, streams the
+   note that says the deep model could not be loaded and nothing was unloaded, and lets the scope's
+   own `finally` restore. Both of those statements are true on this path, and the drain the
+   conductor already performed is reopened by the `finally` it always was.
+6. **A replacement rebuilds both halves.** Residency first: `converge_residency` runs, and what it
+   observed is published, so the manager's resident, the seam's report and the machine come out of
+   one reading instead of disagreeing. A convergence that could not settle the cortex publishes
+   that nothing is resident and refuses the handoff, deliberately unlike `publish_boot_residency`,
+   which leaves the resident alone: at boot the seed is only an assumption and the GPU may well be
+   serving, while here the beliefs are known to have been formed against a process that is gone.
+   The deadline pairing second: `control_bounds()` is read again and the handoff is refused when
+   `plan.control_deadline_s` no longer clears the sum. Residency is rebuilt whether or not the
+   pairing still holds, because the machine's state is what a stale belief endangers; the pairing
+   decides only whether this handoff may proceed.
+7. **The deadline moves onto `ResidencyPlan` as `control_deadline_s`**, and
+   `check_control_deadline` reads it there instead of taking it as an argument. Two readers now
+   compare one deployment value against the host's worst stop, and a value handed to two callers
+   is a value that can differ. It is the plan's kind of fact: composition-root config, handed down
+   as one object so the manager, the conductor and boot recovery cannot disagree.
+8. **Every unanswered question stands down rather than refusing.** A host that cannot be asked
+   which daemon it is, a host that names no boot, a host that will not state its bounds, and a
+   plan that declared no deadline all leave the beliefs exactly where they were. That is the same
+   tolerance the boot check argues for, and it costs nothing: a swap whose host is unreachable
+   fails at its very next move with the failure that really happened.
+
+### What the entry's own account got right, and the one hazard it glossed
+
+The scout's warning was the right one: `converge_residency` acts on the `ModelHost` and would have
+left the manager still describing whatever it believed before. That is why the publisher is passed
+in rather than the convergence being called for its effect. The hazard turned out to have a
+narrower shape than feared for `_scope_model`, and the shape is worth recording: the reconciliation
+runs **inside** the one residency scope there can be, having entered it, and a concurrent scope is
+refused by `_begin_scope` and, earlier, by the handoff claim. So there is never a live scope
+belonging to somebody else to reset, and `_scope_model` needs no rebuilding at all. The beliefs
+that can be stale and are rewritten are the resident and the report.
+
+### Proven able to fail before being trusted
+
+Each mutation was applied to production code alone, `__pycache__` cleared, and the whole
+`packages` suite re-run, so the counts are what actually reddened rather than what was aimed at.
+
+- Treating a first observation as a change reddens **3**, and the third is the one that matters:
+  a co-resident plan losing its peers on a brain whose boot could not reach the sidecar.
+- Remembering nothing reddens **12**; clearing what was remembered when a host will not say reddens
+  **1**, and only on one line, since a silence **between** two daemons is the sole sequence in
+  which erasing changes an answer.
+- Skipping the deadline re-read after a replacement reddens **3**. Refusing on an unreachable host
+  instead of standing down reddens **2**, and doing the same for unreadable bounds reddens **1**,
+  so both tolerances are pinned as deliberately as the refusals.
+- Publishing nothing after a successful convergence reddens **7**, which is what ties the beliefs
+  to the reading rather than to the machine alone; publishing nothing after a failed one reddens
+  **1**.
+- Dropping the reconcile from the swap reddens **9**, across the residency, conductor and chaos
+  suites, all of which read the op log; dropping the seed from the boot publish reddens **2**.
+- Dropping `boot_id` from the daemon's health body reddens **2**, the API's own case and the shared
+  contract's supervisor leg, and no scripted case, the twin echoing what it was handed. A
+  supervisor minting a constant instead of a fresh value reddens **1**. An adapter taking whatever
+  the body carries reddens **2**, the empty-string and non-string rows.
+
+### Validated against a real container, since one claim here is not a CI claim
+
+The suite proves the wire over a real supervisor and a real Starlette app, but the property the
+whole design rests on is about **two processes**: that a daemon which has been replaced names
+itself differently. So it was checked by the agent on 2026-08-09 against the real sidecar image,
+built from `brain/Dockerfile.modelhost` and run with no GPU and no model mount (the mechanism is
+control plane, so neither is needed, and the model drive was not mounted in that session).
+
+`GET /health` before and after a `docker restart` answered with an identical roster and identical
+bounds and a different `boot_id` (`e00cac75...` then `72171196...`), which is the point stated
+negatively: nothing else on that body distinguishes a restart. Driven from the brain's own side
+over real HTTP, the real `HttpModelHost` read the id and the bounds off that container, a second
+`reconcile` against the same daemon published nothing at all, and a `reconcile` after a real
+restart logged "the model host has been replaced since the last handoff", tried to converge, and
+refused with `SwapFailedError` having published `(None, RESIDENCY_LOST)`. That refusal is correct
+for the deployment under it, whose roster held one tier and no artifact file, so convergence could
+not settle a cortex that cannot load: the failing path was exercised end to end rather than
+described.
+
+### What this deliberately does not do
+
+- **It does not watch continuously.** The reconciliation happens once per handoff and once at
+  boot, and nothing probes between them, so a restart followed by no handoff is noticed by nothing
+  and `Health` can report a stale residency for that window. This is the same trade the
+  honesty-surfaces sub-slice made when it refused to pay a probe per `Health` (priced there at up
+  to 5.80 s against a 5 s recheck), and it is now the recorded residue of this entry rather than
+  the whole of it: with escalation off the plain `SingleResidentModelManager` holds no residency
+  state at all, and with it on the only reader that can be misled between two handoffs is the
+  indicator.
+- **It does not re-read the card.** Free device memory is the quantity the co-residency addendum
+  refused to check at wiring time because it moves by the gigabyte while a machine runs; a boot id
+  and three env values are the opposite kind of fact, which is why these are read on an event and
+  that one is read immediately before each load.
+- **It does not register the field in the constant scan.** `boot_id` is a JSON key spelled in the
+  daemon that writes it and the adapter that reads it, exactly like `probe_timeout_s` and
+  `device_free_mib` beside it, and neither side declares it as a named constant, so `crosscheck.py`
+  has nothing to compare. What ties them is the shared `ModelHost` contract suite, which drives the
+  same check over the twin and over the real adapter talking to a real supervisor through a real
+  Starlette app: dropping the field from the daemon reddens that leg.
+- **It does not resume the handoff it refuses.** A refused handoff ends as every other refused one
+  does, with the honest note and the cortex serving. Resuming from the record remains the separate
+  deferral it was, waiting on the same request-identity design.

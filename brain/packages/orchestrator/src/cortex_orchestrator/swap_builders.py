@@ -127,14 +127,16 @@ def build_control_client(timeout_s: float) -> httpx.AsyncClient:
     return httpx.AsyncClient(timeout=httpx.Timeout(timeout_s))
 
 
-async def check_control_deadline(swap: SwapRuntime | None, deadline_s: float) -> SwapRuntime | None:
+async def check_control_deadline(swap: SwapRuntime | None) -> SwapRuntime | None:
     """Refuse a deployment whose model host can outlast the deadline the brain bounds it with.
 
     The pairing (``probe_timeout_s + stop_grace_s + reap_timeout_s`` under
     ``CORTEX_MODELHOST_TIMEOUT_S``) spans two containers' env, so it used to be documented in
     three places and enforced in none. It is checkable now because the host reports the three
     bounds it was really given, and this is where it is checked: at wiring time, once, on the
-    object that will spend the deadline.
+    object that will spend the deadline. The deadline is read off the runtime's own plan rather
+    than passed beside it, so this and the swap's re-reading of the same rule after a sidecar
+    restart cannot be comparing against two different numbers.
 
     **Three outcomes, and only one of them refuses.** A host that answers bounds the deadline
     does not clear is a static misconfiguration whose failure is intermittent (a stop pays the
@@ -152,6 +154,7 @@ async def check_control_deadline(swap: SwapRuntime | None, deadline_s: float) ->
     """
     if swap is None:
         return swap
+    deadline_s = swap.plan.control_deadline_s
     try:
         bounds = await swap.host.control_bounds()
     except ModelHostError as err:

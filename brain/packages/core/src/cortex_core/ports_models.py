@@ -47,8 +47,18 @@ class ModelHost(Protocol):
     ``None`` the same way, because a host that supervises no process has no stop to bound. Its
     caller is the composition root rather than the swap: the deadline the brain bounds a control
     call with is separate env from the bounds the host was given, and read at wiring time the two
-    can be compared instead of merely documented. Nothing in a swap asks it, which is deliberate,
-    since env cannot change under a running process and a per-call read would buy nothing.
+    can be compared instead of merely documented. The one thing that can make that reading stale
+    is the sixth verb's whole subject, a host process replaced under a brain that never restarted,
+    which is why a swap reads the bounds again exactly then and never otherwise.
+
+    ``boot_id`` is that sixth verb, and the only one that describes the answering process rather
+    than the machine it supervises: a value minted per host process, so a caller can tell "the
+    host my beliefs were formed against" from "a new one at the same address". It comes off the
+    same ``GET /health`` on the same client as the two readings above, and ``None`` is a real
+    answer once more, meaning this host will not say which boot it is: a twin that supervises no
+    process and never restarts, or a daemon older than the field. It may only be compared for
+    equality. It is deliberately not ordered and deliberately not a count, because a counter in a
+    process that restarted starts again at the number the comparison exists to notice.
     """
 
     async def start(self, model: str) -> None: ...
@@ -60,6 +70,8 @@ class ModelHost(Protocol):
     async def device_memory(self) -> DeviceMemory | None: ...
 
     async def control_bounds(self) -> ControlBounds | None: ...
+
+    async def boot_id(self) -> str | None: ...
 
 
 class ResidencyController(Protocol):

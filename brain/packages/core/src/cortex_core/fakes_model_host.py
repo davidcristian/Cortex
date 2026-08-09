@@ -46,6 +46,13 @@ class ScriptedModelHost:
     answer: a twin whose ``stop`` is a set removal has no SIGTERM grace and no reap to bound, so
     the composition root's pairing check finds nothing to compare and says so. A test that needs
     the check to have something to compare hands it bounds.
+
+    ``boot_id`` is the third of that shape and the one world-condition this twin can be made to
+    change **mid test**: assigning ``boot`` a different value is a supervisor daemon replaced
+    under a running brain, which is the condition no verb of the port can create and the one the
+    residency reconciliation exists for. ``None`` (the default) is a twin that will not say which
+    boot it is, which is what every suite written before that reconciliation gets: nothing is ever
+    compared, so nothing is ever reconciled.
     """
 
     def __init__(  # noqa: PLR0913 -- one knob per scripted condition, all keyword-only
@@ -58,10 +65,12 @@ class ScriptedModelHost:
         pause_at: Iterable[tuple[str, str]] = (),
         device_memory: DeviceMemory | None = None,
         control_bounds: ControlBounds | None = None,
+        boot_id: str | None = None,
     ) -> None:
         self.running: set[str] = set(running)
         self.device: DeviceMemory | None = device_memory
         self.bounds: ControlBounds | None = control_bounds
+        self.boot: str | None = boot_id
         self.calls: list[tuple[str, str]] = []
         self.reached: dict[tuple[str, str], asyncio.Event] = {
             key: asyncio.Event() for key in pause_at
@@ -128,6 +137,17 @@ class ScriptedModelHost:
         self._check("control_bounds", "")
         await self._pause("control_bounds", "")
         return self.bounds
+
+    async def boot_id(self) -> str | None:
+        """Which daemon this twin claims to be, or ``None`` for one that will not say.
+
+        Logged and scriptable under the empty id like the other two host-wide reads, and for a
+        third reason of its own: the swap asks this before it evicts anything, so a host that
+        cannot be asked has to be arrangeable at exactly that point.
+        """
+        self._check("boot_id", "")
+        await self._pause("boot_id", "")
+        return self.boot
 
     def _check(self, op: str, model: str) -> None:
         """Log the operation, then raise whatever failure was scripted for it."""

@@ -8,8 +8,8 @@ historical record of what each deferral became, and the index at [index.md](inde
 recommended pickup order.
 
 **Open items:** 7, counted by reading the entries below rather than by adjusting the last number.
-Resume a crashed handoff from its record; fence the single-handoff claim across processes;
-reconverge the brain's residency when the sidecar restarts under it; MTP model variants;
+Resume a crashed handoff from its record; fence the single-handoff claim across processes; reach
+the residency reconciliation from a brain that cannot run a turn; MTP model variants;
 disable-thinking / token-budget capping, **narrowed rather than closed on 2026-08-06**; and, added
 2026-08-08 by the spill watch landing, a handoff that has watched itself spill and still promises
 co-residency next time, plus prefill as the second witness the watch declined to read. **It went
@@ -17,7 +17,12 @@ co-residency next time, plus prefill as the second witness the watch declined to
 control deadline stopped being documented and started being checked: one out and none in, the
 staleness it leaves behind (a sidecar restarting with changed env) having the same cause and the
 same fix as the residency entry already open, so it was folded into that entry rather than counted
-beside it. Three entries closed on 2026-08-07 and
+beside it. **It held at 7 later the same day**, when that residency entry landed with both of its
+halves, a boot id on `GET /health` that the brain compares before every handoff, and opened one in
+its place: the reconciliation is reachable only through a handoff, so the two report staleness
+cases with no restart behind them, an operator recovering by hand and a cortex that comes up on its
+own after a failed boot, are exactly the ones a brain with nothing resident can never reach. One
+out and one in, and the name in this line changed with them. Three entries closed on 2026-08-07 and
 this area's oldest was one
 of them: **model-manager co-residency**, which opened two in its place, then **the fit its flag
 asserted**, which closed as a real check and opened one, and then **the placer's budget describing
@@ -350,6 +355,34 @@ fix-when-it-bites bucket, so nobody picks it up expecting to build a lever that 
   brain with a **changed** environment leaves that check as stale as it leaves residency. A
   generation counter on `GET /health` closes both at once, the brain re-reading whatever the fresh
   daemon says.
+  **Both halves landed 2026-08-09, hours after the second one joined
+  ([ADR-0030](../adr/ADR-0030-brain-handoff.md) host-generation addendum).** The entry's account of
+  the code was re-derived first and held on every point: `converge_residency` was written and
+  called from one place, boot recovery, which had itself moved into `swap_builders.py`;
+  `SwappingModelManager` held `_resident`, `_scope_model` and the report as instance state; and
+  `GET /health` carried no identity field at all. What shipped is a **boot id**, `uuid4().hex`
+  minted per `ModelSupervisor` instance and therefore per daemon process, published on that route,
+  read by a sixth `ModelHost` verb shaped like the fifth, and compared for equality only by a
+  `BootWatch` the manager holds (`residency_watch.py`). A replacement converges residency,
+  publishes what convergence observed onto the manager's own resident and report, and re-reads the
+  stop bounds against `CORTEX_MODELHOST_TIMEOUT_S`, which now rides `ResidencyPlan` so the boot
+  check and this one cannot compare different numbers. It is asked at the top of `_swap_in`, before
+  anything is evicted, so a refusal leaves the cortex serving; it is seeded by
+  `publish_boot_residency`, so the first handoff has a daemon to compare against.
+  **Three things the entry did not say, all of which shaped the result.** A counter was not
+  usable at all, since a counter in a restarted process starts again at the number the comparison
+  exists to notice, which is why the identifier is random. `converge_residency` is **not** free to
+  call speculatively, because it stops and restarts every `evict_models` tier, which is exactly
+  what a `coresident` plan exists not to do to its peers, so a first observation had to be a seed
+  rather than a change and the seeding had to happen at boot. And the scope hazard is narrower than
+  it looks: the reconciliation runs inside the one scope there can be, a concurrent one having been
+  refused by the handoff claim and by `_begin_scope`, so `_scope_model` never needs rebuilding and
+  the beliefs that do are the resident and the report.
+  **What did not close is the staleness with no restart behind it**, which is the residue this
+  opened and which is filed as its own entry below: the two report cases quoted above (an operator
+  who recovers by hand, and a cortex that comes up on its own after a failed boot) have no
+  replacement to notice, and the reconciliation is reachable only through a handoff, which a brain
+  with nothing resident cannot start.
 - **Check the sidecar's stop bounds against the brain's control deadline, instead of only
   documenting the pairing.** *Fix when it bites.* Opened 2026-07-18 by the audit round on the
   model-host sub-slice. A supervisor `stop` answers only once the child is reaped, so it can
@@ -392,6 +425,27 @@ fix-when-it-bites bucket, so nobody picks it up expecting to build a lever that 
   when the tier it evicts was busy). The one staleness left, a sidecar that restarts under a
   running brain with different env, is the same staleness with the same fix as the residency entry
   above and is folded into it rather than counted as a new deferral.
+- **Reach the residency reconciliation from a brain that cannot run a turn.** *Fix when it bites.*
+  Opened 2026-08-09 by the entry above landing, and it is the half a boot id cannot answer. The
+  reconciliation fires on one event, a daemon naming a different boot, and at one place, the top of
+  `_swap_in`. Both are deliberate (a probe per `Health` was priced at up to 5.80 s against a 5 s
+  recheck, and converging speculatively bounces a co-resident plan's peers), and together they
+  leave two states unreachable. **The first is the expensive one.** After a restore that gave up,
+  `_set_resident(None, RESIDENCY_LOST)` means `acquire` raises `ModelUnavailableError` for every
+  model, so no turn runs, so no handoff starts, so nothing ever reaches the reconciliation even
+  once the sidecar has genuinely been replaced and is serving the cortex again. That is why
+  `docs/runbooks/model-swap.md`'s manual recovery still ends by restarting the brain. **The second
+  is only a dot:** a boot that could not confirm the cortex publishes `RESIDENCY_BOOT_FAILED` and
+  stays amber if the cortex comes up a minute later by itself, with the lease deliberately left
+  forgiving so turns still run. **What would close it:** a reconciliation on the refusal path
+  rather than only inside a swap, which is a cold path (a refused acquire has already failed, so a
+  `GET /health` there costs nothing anyone is waiting on) but is genuinely delicate, because
+  `_claim` holds the residency condition and would have to release it to do I/O, and because the
+  same refusal is reached mid swap while the deep model is loading, where converging would stop
+  the very load in flight. So it wants a gate on "no scope is active" and its own concurrency
+  argument, and possibly an operator-facing re-converge verb instead, which needs no lock
+  reasoning at all. **Trigger:** a second visit to the manual-recovery path, or a report observed
+  stale by a user rather than by a reading of the code.
 - **MTP (multi-token-prediction) model variants.** Deferred until they earn their keep, per
   [ADR-0004](../adr/ADR-0004-model-lineup.md).
 - **The cortex reasoning trace is surfaced as a thinking status. This landed 2026-07-06

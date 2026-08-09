@@ -99,6 +99,9 @@ class _LoadingThenReady:
     async def control_bounds(self) -> ControlBounds | None:
         return None
 
+    async def boot_id(self) -> str | None:
+        return None
+
 
 def test_the_plan_rejects_bounds_that_could_not_govern_a_swap() -> None:
     """Bounds a swap could not be governed by are boot-time misconfigurations, not surprises."""
@@ -112,6 +115,8 @@ def test_the_plan_rejects_bounds_that_could_not_govern_a_swap() -> None:
         _plan(brain_vram_mib=-1)
     with pytest.raises(ValueError, match="brain_decode_tps must be >= 0"):
         _plan(brain_decode_tps=-1.0)
+    with pytest.raises(ValueError, match="control_deadline_s must be >= 0"):
+        _plan(control_deadline_s=-1.0)
 
 
 def test_the_plan_defaults_its_bounds_to_the_documented_values() -> None:
@@ -131,6 +136,9 @@ def test_the_plan_defaults_its_bounds_to_the_documented_values() -> None:
     # A deployment that never measured its deep tier's rate judges no handoff by it.
     assert ResidencyPlan("c", "b").brain_decode_tps == 0.0
     assert _plan(brain_decode_tps=25.07).brain_decode_tps == 25.07
+    # And one that bounds no control call has stated no pairing rule for a swap to re-check.
+    assert ResidencyPlan("c", "b").control_deadline_s == 0.0
+    assert _plan(control_deadline_s=60.0).control_deadline_s == 60.0
 
 
 def test_the_control_bounds_sum_every_term_one_stop_can_spend() -> None:

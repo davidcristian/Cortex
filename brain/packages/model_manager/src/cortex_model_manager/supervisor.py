@@ -28,6 +28,7 @@ import asyncio
 import logging
 from collections.abc import Mapping
 from dataclasses import dataclass
+from uuid import uuid4
 
 from cortex_core import ControlBounds, ModelHostState
 from cortex_model_manager.children import ChildProcess, ChildProcesses
@@ -105,6 +106,12 @@ class ModelSupervisor:
             stop_grace_s=stop_grace_s,
             reap_timeout_s=reap_timeout_s,
         )
+        # Which supervisor this is, minted per instance and therefore per daemon process. It
+        # certifies the child table below: a brain that sees a value it has not seen before knows
+        # that every belief it holds about what is resident was formed against a table that no
+        # longer exists. Random rather than counted, because a counter in a process that restarted
+        # begins again at exactly the number a reader is comparing to notice the restart.
+        self._boot_id = uuid4().hex
         # A model is present here from the moment it is spawned until a stop has reaped it. A
         # present child with an exit code died unasked, which is the difference between FAILED
         # and STOPPED; the roster's own keys are the only ids that ever reach this dict.
@@ -126,6 +133,18 @@ class ModelSupervisor:
         brain's, not an implementation detail.
         """
         return self._bounds
+
+    @property
+    def boot_id(self) -> str:
+        """Which daemon this is, as ``GET /health`` names it, for the life of this process.
+
+        Held here rather than in the API for the same reason the bounds are: this is the object
+        whose in-memory child table the value certifies, and the route that publishes it is a
+        serializer with no state of its own. Nothing in this process reads it back; its only
+        consumer is a brain deciding whether what it believes about the GPU was believed about
+        this daemon or about the one that ran before it.
+        """
+        return self._boot_id
 
     async def start(self, model: str) -> None:
         """Begin loading ``model``; return as soon as the process exists, ready or not."""

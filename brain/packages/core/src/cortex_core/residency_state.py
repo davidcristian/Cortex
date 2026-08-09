@@ -20,6 +20,7 @@ resident and still answering turns while delegated work quiesces, so the dot sta
 something is actually unloaded.
 """
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
 
@@ -35,6 +36,14 @@ class ResidencyReport:
 
     serving: bool
     detail: str
+
+
+# How the one writer of residency is handed to the pieces that observe a change without owning
+# the state: which model the GPU serves (``None`` mid swap) and what to tell a human, published
+# together and never one without the other. ``SwappingModelManager._set_resident`` is the only
+# implementation; the swap back's retry loop and the boot watch are given it so their findings
+# reach the seam without either of them reaching into the manager.
+type ResidencyPublisher = Callable[[str | None, ResidencyReport], Awaitable[None]]
 
 
 # The standing residency: the cortex is up and turns run normally. A fresh manager seeds this

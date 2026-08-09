@@ -133,8 +133,11 @@ async def test_a_clean_handoff_walks_the_record_through_its_states() -> None:
     ]
     assert live.handoffs.deleted == [harness.TURN]
     assert await live.handoffs.active() is None
-    # BRAIN_ACTIVE is written only after the health gate passed, never on a start call alone.
+    # BRAIN_ACTIVE is written only after the health gate passed, never on a start call alone. The
+    # sequence opens by asking which daemon is answering, before anything is evicted, so a swap
+    # never spends its evictions on beliefs formed against a sidecar that has since restarted.
     assert live.host.calls == [
+        ("boot_id", ""),
         ("stop", "cortex"),
         ("start", "brain"),
         ("status", "brain"),
