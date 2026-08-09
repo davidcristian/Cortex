@@ -69,7 +69,9 @@ async def build_subagents(
     if config.backend == "none":
         return None, None, noop_aclose
     client = build_generation_client(config.stall_timeout_s)
-    scheduler = ResourceBudgetScheduler(config.cpu_budget, config.mem_budget_gb)
+    scheduler = ResourceBudgetScheduler(
+        config.cpu_budget, config.mem_budget_gb, wait_timeout_s=config.admission_wait_s
+    )
     roster = SubagentRoster(
         entries={
             name: _entry_profile(name, entry, client, scheduler, placer)

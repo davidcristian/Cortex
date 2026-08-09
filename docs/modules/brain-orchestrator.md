@@ -197,6 +197,11 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   own version of the resident tier's ceiling and is the loose one of the two: it covers a CPU
   call's own time to first token at about 0.35 tok/s, twice the longest whole subtask measured
   on the shipped entry (ADR-0005 stall-ceiling addendum).
+  `admission_wait_s: float = 3600.0` (`CORTEX_SUBAGENTS_ADMISSION_WAIT_S`, non-negative, ADR-0012
+  bounded-admission-wait addendum) is how long a spawn may queue for room before it is refused
+  instead of waiting for it forever; it reaches the one `ResourceBudgetScheduler` the builder makes,
+  so one budget carries one bound whatever mix of entries queues on it. The default is twice the
+  1800 s the last spawn of a full batch waits under the budgets above, and zero means never queue.
   `named_roster` (property) synthesizes the ready-to-dial mapping, with the flat-field default
   first, alternates sorted, fallbacks applied; empty unless `backend="llamacpp"`. Every entry in
   it must fit the whole budget (`cpus <= cpu_budget` and `memory_gb <= mem_budget_gb`, equality
@@ -478,7 +483,8 @@ The service:
   in `subagent_builders.py` (split from `builders.py` for the 300-line cap), the
   `spawn_subagents` tool over a `SubagentRoster` built from `config.named_roster` (ADR-0018):
   per entry its own GPU + CPU `LlamaCppBackend` pair (one shared httpx client) and
-  `PlacementRequest`, all entries sharing ONE `ResourceBudgetScheduler` and the ONE
+  `PlacementRequest`, all entries sharing ONE `ResourceBudgetScheduler` (carrying
+  `config.admission_wait_s` as the bound on queuing for room, ADR-0012) and the ONE
   `VramBudgetPlacer` built once at the root from the runtime VRAM knobs and handed to both this
   builder and `build_swap_runtime` (one budget, one ledger, per ADR-0012, and one object, since
   the residency scope tells that same ledger which model holds the card during a handoff), a Redis `TaskStore`, GPU-first placement with CPU overflow,

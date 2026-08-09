@@ -44,7 +44,7 @@ class HandoffStoreError(Exception):
 
 
 class SubagentAdmissionError(Exception):
-    """A SubagentScheduler refused a spawn outright: no wait could ever admit this charge."""
+    """A SubagentScheduler refused a spawn rather than queuing it: no admission is coming."""
 
 
 class BodyFailure(Enum):

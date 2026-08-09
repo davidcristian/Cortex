@@ -50,6 +50,18 @@ delegation time (ADR-0012 admission-wall addendum).
 > A subagent that keeps *talking* is a different failure and is bounded by nothing yet
 > ([refinements/resource-governance.md](../refinements/resource-governance.md)).
 
+> **Queuing for room is bounded too, and generously.**
+> `CORTEX_SUBAGENTS_ADMISSION_WAIT_S` (default 3600 s) is how long a spawn may wait for the soft
+> budget to free room before it comes back refused, with the bound named in the message so the
+> reader lands on this knob. It is deliberately far above any legitimate wait these defaults can
+> produce: a full batch of 8 against `CPU_BUDGET=4.0` and `CPUS=2.0` admits two at a time, one
+> entry's spawns serialize at its backend anyway (the box below), and a whole subtask measures 200
+> to 300 s here, so the last of that batch is admitted about 1800 s in and the bound is twice that
+> (ADR-0012 bounded-admission-wait addendum). Raising `CPU_BUDGET` or lowering `CPUS` shortens the
+> real waits and never needs this raised; **queuing two full batches at once does**, that being
+> about 80 minutes of serialized work. Zero is legal and means never queue at all: refuse anything
+> that does not fit the budget right now.
+
 > **Admitted is not the same as concurrent.** Each roster entry holds one `LlamaCppBackend` per
 > placement target, and a backend holds its model lease for the whole stream, so two spawns of the
 > *same* entry on the same target run one after the other however many the budget admits. Measured

@@ -827,7 +827,11 @@ unchanged):
   CPU/RAM budget for spawns (yields once the request's `cpus`/`memory_gb` fit the summed targets,
   queues over budget, releases both on exit). A charge larger than the whole budget can never be
   admitted, so it raises `SubagentAdmissionError`: a wall owed by any
-  implementation, since `SubagentRunner` catches exactly it (ADR-0012 admission-wall addendum). The
+  implementation, since `SubagentRunner` catches exactly it (ADR-0012 admission-wall addendum). An
+  implementation that queues also owes a **bound** on that queue and the same typed refusal when it
+  elapses (bounded-admission-wait addendum); how long is its own configuration, `admit` having
+  nowhere to carry a per-spawn one, and a twin that admits everything at once satisfies it
+  vacuously. The
   charge is placement-blind by construction, because `admit` is entered before `place` decides a
   target. A counting budget, not the GPU lease (ADR-0012, revising ADR-0010). `drain` quiesces the
   pool for a model handoff (ADR-0030 decision 4, the additive method ADR-0012 deferred): it stops
@@ -892,7 +896,8 @@ unchanged):
   cortex reads, so the body built-ins cannot drift apart and only `UNREACHABLE` may claim the body
   could not be reached.
   `SubagentAdmissionError` is the one raised by pure-core policy rather than an adapter: a
-  `SubagentScheduler` refusing a spawn outright (ADR-0012 admission-wall addendum). Bad *values*
+  `SubagentScheduler` refusing a spawn rather than queuing it, for any of its three reasons
+  (ADR-0012 admission-wall and bounded-admission-wait addenda, ADR-0030's drain window). Bad *values*
   stay `ValueError` (a non-positive budget or ask, an empty roster), as everywhere else.
 
 Use-case:
@@ -1414,9 +1419,10 @@ Use-case:
   **resolves** the roster entry via `roster.resolve(task.model, tainted=task.tainted,
   tools_enabled=…)` (ADR-0017; an unknown model is an `ok=False` "unknown subagent model" result,
   fail closed), **admits** against that entry's scheduler CPU/RAM budget (outer, may wait; a
-  `SubagentAdmissionError`, meaning a charge no budget could ever fit, is caught and becomes an
+  `SubagentAdmissionError`, meaning a charge no budget could ever fit, a pool draining for a
+  handoff, or a queue that outlasted the admission bound, is caught and becomes an
   `ok=False` "refused before running" result rather than an exception that would cross the spawn
-  tool's `gather` and fail the turn, ADR-0012 admission-wall addendum),
+  tool's `gather` and fail the turn, ADR-0012 admission-wall and bounded-admission-wait addenda),
   **places** on GPU or CPU against the VRAM budget (inner, synchronous), runs the attempt on the
   entry's `backends[placement.target]`, persists + returns a `SubagentResult`, and always releases
   the VRAM in a `finally`.
@@ -1816,12 +1822,21 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   the residency scope at the swap's two edges (ADR-0030 handoff-window addendum), leave the placed
   ledger untouched, and are idempotent. Sync and lock-free (single-threaded asyncio atomicity), so the concurrent batch races the
   ledger correctly. The ledger is live-resource state, rebuilt from zero. It is never durable state.
-- `ResourceBudgetScheduler(cpu_budget, mem_budget_gb)` is `SubagentScheduler` v2 (ADR-0012): pure
+- `ResourceBudgetScheduler(cpu_budget, mem_budget_gb, *, wait_timeout_s=DEFAULT_ADMISSION_WAIT_S)`
+  is `SubagentScheduler` v2 (ADR-0012): pure
   policy over an `asyncio.Condition`. `admit(request)` reserves the request's `cpus`/`memory_gb` while
   both summed reservations stay within targets, queuing (with `notify_all` on release) otherwise; a
   non-positive budget raises `ValueError`, a charge exceeding the whole budget the typed
   `SubagentAdmissionError` (the admission-wall addendum), and so does any admit inside a drain
-  window, with `POOL_DRAINING_MSG` naming the transient cause. `drain(timeout_s=...)` implements
+  window, with `POOL_DRAINING_MSG` naming the transient cause. A queue that outlasts
+  `wait_timeout_s` is the third refusal (`ADMISSION_WAIT_MSG`, the bounded-admission-wait addendum),
+  bounded by `asyncio.timeout` on the same condition `drain` bounds, deliberately rather than by the
+  `Clock` port: a duration belongs on the loop's monotonic clock, and an already-expired bound
+  exercises both of this class's timeout paths without a test sleeping. A negative bound raises
+  `ValueError`; zero is legal and means never queue. `DEFAULT_ADMISSION_WAIT_S` is 3600.0, twice the
+  1800 s the last spawn of a full `MAX_SPAWN_BATCH` waits under the shipped budgets, since a bound
+  that refuses a legitimately queued spawn is worse than the unbounded wait it replaced.
+  `drain(timeout_s=...)` implements
   the port's swap-time quiesce (ADR-0030): it flags the window, `notify_all`s so budget waiters
   wake and refuse, then waits for the int in-flight count (never the float residue) to reach zero
   under `asyncio.timeout`; `undrain()` is a synchronous idempotent flag flip, safe because no

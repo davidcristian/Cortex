@@ -489,6 +489,10 @@ def test_subagents_default_to_disabled() -> None:
     # longest whole subtask measured on the shipped CPU entry, which is what a queued peer can
     # legitimately sit behind; a tighter number would abort slow work instead of wedged work.
     assert config.stall_timeout_s == 600.0
+    # Likewise a literal: one hour is twice the 1800 s the last spawn of a full batch waits under
+    # exactly these budgets, so the shipped bound refuses a pool that is not draining rather than
+    # one that is merely slow.
+    assert config.admission_wait_s == 3600.0
 
 
 @pytest.mark.usefixtures("clean_env")
@@ -536,6 +540,20 @@ def test_the_subagent_stall_ceiling_is_settable_and_must_be_positive(
     assert SubagentsConfig().stall_timeout_s == 90.0
     monkeypatch.setenv("CORTEX_SUBAGENTS_STALL_TIMEOUT_S", "0")
     with pytest.raises(ValidationError, match="stall_timeout_s"):
+        SubagentsConfig()
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_the_admission_wait_is_settable_including_zero_and_refuses_a_negative(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Zero is a policy here, unlike the ceiling above: never queue, refuse what does not fit."""
+    monkeypatch.setenv("CORTEX_SUBAGENTS_ADMISSION_WAIT_S", "900")
+    assert SubagentsConfig().admission_wait_s == 900.0
+    monkeypatch.setenv("CORTEX_SUBAGENTS_ADMISSION_WAIT_S", "0")
+    assert SubagentsConfig().admission_wait_s == 0.0
+    monkeypatch.setenv("CORTEX_SUBAGENTS_ADMISSION_WAIT_S", "-1")
+    with pytest.raises(ValidationError, match="admission_wait_s"):
         SubagentsConfig()
 
 
