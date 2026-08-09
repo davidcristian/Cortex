@@ -19,6 +19,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from cortex_core import (
     DEFAULT_SWAP_DRAIN_TIMEOUT_S,
     DEFAULT_SWAP_LOAD_TIMEOUT_S,
+    DEFAULT_TIER_HEAL_INTERVAL_S,
     ResidencyPlan,
 )
 
@@ -66,7 +67,11 @@ class SwapConfig(BaseSettings):
     that will need it; while the deep model is resident it is alone on the GPU.
     ``CORTEX_SWAP_DRAIN_TIMEOUT_S`` (60 s) bounds the wait for delegated work to finish before
     anything is evicted, and ``CORTEX_SWAP_LOAD_TIMEOUT_S`` (300 s) bounds the wait for a model
-    to report ready after it is started.
+    to report ready after it is started. ``CORTEX_SWAP_TIER_HEAL_S`` (30 s) paces the retry of a
+    tier the swap back could not restart: putting those tiers back is best effort, so something
+    has to keep asking, and until it succeeds the subagent placer sends every spawn to the CPU
+    (ADR-0030 tier-outage addendum). A deployment that evicts nothing never has a tier to retry,
+    so the loop costs it one wakeup per interval and no control call at all.
 
     ``CORTEX_SWAP_CORESIDENT`` (**off by default**) is the deployment's assertion that its
     standing peers fit beside the deep model, which is a measurement no process can make for
@@ -113,6 +118,7 @@ class SwapConfig(BaseSettings):
     )
     swap_drain_timeout_s: float = Field(default=DEFAULT_SWAP_DRAIN_TIMEOUT_S, ge=0)
     swap_load_timeout_s: float = Field(default=DEFAULT_SWAP_LOAD_TIMEOUT_S, ge=0)
+    swap_tier_heal_s: float = Field(default=DEFAULT_TIER_HEAL_INTERVAL_S, gt=0)
 
     @model_validator(mode="after")
     def _escalation_needs_a_host_and_an_endpoint(self) -> "SwapConfig":

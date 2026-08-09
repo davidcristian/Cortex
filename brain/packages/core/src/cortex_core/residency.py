@@ -21,7 +21,9 @@ it back rather than the cortex alone.
 
 A swap changes what the card holds, so it also changes the arithmetic the subagent placer fits
 spawns against. That correction is written at the same two edges as the moves themselves and
-lives in ``residency_charge.py``, which owns the whole argument for it.
+lives in ``residency_charge.py``, which owns the whole argument for it. A swap back that could
+not restart a peer changes something the arithmetic cannot say at all, so the peers the standing
+residency is missing are their own record (``residency_tiers.py``).
 
 Every belief this object holds is about one supervisor process, so a handoff begins by asking
 which one is answering (``residency_watch.py``): a sidecar restarted under this brain leaves the
@@ -59,6 +61,7 @@ from cortex_core.residency_state import (
     RESIDENCY_SERVING,
     ResidencyReport,
 )
+from cortex_core.residency_tiers import StandingTiers, retry_missing
 from cortex_core.residency_watch import BootWatch
 
 _logger = logging.getLogger(__name__)
@@ -92,6 +95,9 @@ class SwappingModelManager:
         self._clock = clock
         self._sleeper = sleeper
         self._placer = placer
+        # Which peers of the cortex the standing residency is missing (``residency_tiers.py``),
+        # written by the swap back's best-effort restart and read by the seam and by the retry.
+        self._tiers = StandingTiers(placer)
         # Which supervisor daemon every belief below was formed against (``residency_watch.py``).
         # It is asked once per handoff, because a daemon replaced under this process leaves all of
         # them describing a machine that no longer exists.
@@ -171,8 +177,11 @@ class SwappingModelManager:
         honest answer is the point; waiting on the residency condition would queue the probe
         behind whatever the scope's end wakes. A plain read is a consistent snapshot: every
         writer publishes the report and the resident together (``_set_resident``).
+
+        The peers are folded in here rather than into ``_report``, so the swap keeps one writer
+        of what the GPU serves: a down tier outlives residency transitions that would drop it.
         """
-        return self._report
+        return self._tiers.note_on(self._report)
 
     @asynccontextmanager
     async def swap_scope(self, model: str) -> AsyncGenerator[None, None]:
@@ -263,11 +272,24 @@ class SwappingModelManager:
             await swap_in(self._host, self._plan, model, self._gate)
             await self._set_resident(model, RESIDENCY_DEEP)
 
+    async def heal_standing_tiers(self) -> None:
+        """Retry every peer the standing residency is missing, unless a handoff owns the GPU.
+
+        Driven by ``TierHealer`` (``residency_heal.py``), which owns the pacing and the task. The
+        lease is deliberately **not** taken: a peer is never the resident, so holding it across a
+        control call would park a user's turn behind a status probe for nothing. What must not
+        happen is starting a peer while the deep model is alone on the card, which the scope
+        check refuses; a scope beginning just after that check costs nothing either, the swap
+        in's first move being to stop these very tiers.
+        """
+        if self._scope_model is None:
+            await retry_missing(self._host, self._tiers)
+
     async def _restore(self, model: str) -> None:
         """Take the lease, then run the swap back's retry policy under it."""
         async with self._lock:
             await restore_with_retries(
-                self._host, self._plan, model, self._gate, self._set_resident, self._placer
+                self._host, self._plan, model, self._gate, self._set_resident, self._tiers
             )
 
     async def _gate(self, model: str) -> ModelHostState:

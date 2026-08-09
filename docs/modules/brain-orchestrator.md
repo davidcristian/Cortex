@@ -168,7 +168,10 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   per second the deep tier reaches when the card really does hold it, which the deep phase
   compares a real completion against and logs a warning when it never cleared (ADR-0030
   spill-watch addendum); `swap_drain_timeout_s` (60 s) and
-  `swap_load_timeout_s` (300 s) are the swap's two bounds. Enabling escalation without a model
+  `swap_load_timeout_s` (300 s) are the swap's two bounds; `swap_tier_heal_s`
+  (`CORTEX_SWAP_TIER_HEAL_S`, 30 s) paces the retry of a peer tier the swap back could not
+  restart, which is best effort by design and so needs something that keeps asking (ADR-0030
+  tier-outage addendum). Enabling escalation without a model
   host or without a brain endpoint **fails at boot**, rather than advertising a tool that could
   only refuse, and so does co-residency on the `supervisor` host with no measured VRAM figure,
   since that flag is a claim about a card and this is the only thing that ever tests it (the
@@ -262,7 +265,12 @@ The service:
     standing residency is serving, **and `HealthReply(ready=False, detail=<the residency's own
     line>)` while a model handoff holds the GPU** (ADR-0030 decision 6): loading the deep model,
     the deep task itself, the swap back, a restore that gave up, and a boot whose recovery could
-    not settle the cortex. The read is
+    not settle the cortex. A **serving** report may carry a line of its own too, and then that
+    line wins over the version string while `ready` stays true: the standing residency is the
+    cortex plus the peer tiers a handoff evicts, so it can be whole enough to serve turns and
+    still be missing one of them, with delegated work running on the CPU meanwhile (ADR-0030
+    tier-outage addendum). The overlay already renders a ready detail, as `Brain ready: <line>`.
+    The read is
     `ResidencyReporter.residency()`, synchronous and lock-free by that port's contract, because
     a probe arrives every few seconds precisely while a swap is in flight and one that queued on
     the GPU lease would hang for the whole load. With no `residency` wired (escalation off, the
@@ -513,11 +521,15 @@ The service:
   a bounded control client from `build_control_client`), the `SwappingModelManager` that is BOTH
   the GPU lease the inference
   backend leases through (hence `build_inference_backend(..., manager=...)`) and the residency
-  scope the conductor drives, the Redis `HandoffStore`, and the `ResidencyPlan`. With it wired,
+  scope the conductor drives, the Redis `HandoffStore`, the `ResidencyPlan`, and the `TierHealer`
+  that retries a peer tier the swap back could not restart. With it wired,
   `run_from_env` runs `recover_handoffs` before serving (a handoff cannot outlive its process)
   and publishes its answer onto the manager with `publish_boot_residency(serving=…)`, so a boot
   that could not settle the cortex is amber from the first probe instead of green over a GPU
-  serving nothing; registers `escalate_to_brain`; hands that same manager to `serve` inside
+  serving nothing; starts that healer in the same call, after the publish, since a pass run
+  first would be retrying against beliefs the seed had not replaced yet, and stops it in the
+  runtime's own `close`, before the store and the control client it spends;
+  registers `escalate_to_brain`; hands that same manager to `serve` inside
   `SeamPorts` as the seam's `residency` reporter (which is what makes `Health` honest mid
   handoff, ADR-0030 decision 6); and returns an `EscalatingTurnEngine` from `make_engine`: a
   fresh slot and inner engine per turn, and a `SwapConductor` over a dispatcher built from THIS

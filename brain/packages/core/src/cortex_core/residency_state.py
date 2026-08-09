@@ -29,9 +29,14 @@ class ResidencyReport:
     """One answer about the GPU: is the usual assistant serving, and if not, what is happening.
 
     ``serving`` is the whole verdict the seam maps to ``HealthReply.ready``. ``detail`` is
-    display-only text for a human deciding whether something is broken (the overlay renders it
-    verbatim after "The brain is not serving"), and it is empty while serving, the seam having
-    its own thing to say about a healthy brain.
+    display-only text for a human deciding whether something is broken, rendered verbatim by the
+    overlay after "The brain is not serving".
+
+    Every constant below leaves it empty while serving, the seam having its own thing to say
+    about a healthy brain, but "serving" and "nothing to report" stopped being the same thing
+    when the standing residency grew peers that can be down while the cortex is up
+    (``residency_tiers.py``). A serving report may therefore carry a detail, which the overlay
+    renders after "Brain ready" instead, and the seam prefers it over its own version string.
     """
 
     serving: bool

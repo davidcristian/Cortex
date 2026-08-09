@@ -2,6 +2,11 @@
 
 These pin the SubagentPlacer contract: Slice 11's process-lifecycle adapter must pass the same
 checks against the same port. Headroom = soft_cap - cortex_reservation - placed.
+
+The port's other two verbs, ``close_gpu``/``open_gpu``, are pinned here and exercised end to end
+in the core's test_residency_tiers.py, where the residency scope is what writes them.
+Distrust-green: consulting the headroom before the closed flag in ``place`` reddens 7 across the
+workspace, two of them here.
 """
 
 from cortex_core import (
@@ -106,3 +111,45 @@ def test_a_handoff_charge_does_not_disturb_what_is_already_placed() -> None:
     placer.release(placed)  # credits exactly the 4.0 it debited, no more
     assert placer.place(_request(11.7)).target is PlacementTarget.GPU
     assert placer.place(_request(0.1)).target is PlacementTarget.CPU
+
+
+def test_a_closed_gpu_sends_a_fitting_spawn_to_the_cpu() -> None:
+    """Room is not the question a closed GPU answers: there is nowhere for the spawn to run.
+
+    The ask here fits the headroom with 1.0 GiB to spare, so nothing about the arithmetic sends
+    it to the CPU. What does is the tier a GPU placement lands on not being up
+    (``residency_tiers.py``).
+    """
+    placer = _placer()  # headroom 3.0
+    placer.close_gpu()
+    assert placer.place(_request(2.0)) == Placement(target=PlacementTarget.CPU, reserved_gb=0.0)
+
+
+def test_opening_the_gpu_again_restores_the_fit_test_unchanged() -> None:
+    """Both verbs are idempotent, and neither of them is a number."""
+    placer = _placer()  # headroom 3.0
+    placer.close_gpu()
+    placer.close_gpu()
+    placer.open_gpu()
+    placer.open_gpu()
+    assert placer.place(_request(3.0)).target is PlacementTarget.GPU
+
+
+def test_closing_the_gpu_leaves_the_ledger_exactly_as_it_found_it() -> None:
+    """A spawn placed before the close still holds its reservation and still releases it."""
+    placer = _placer()  # headroom 3.0
+    placed = placer.place(_request(3.0))
+    placer.close_gpu()
+    placer.open_gpu()
+    assert placer.place(_request(0.1)).target is PlacementTarget.CPU  # the 3.0 is still debited
+    placer.release(placed)
+    assert placer.place(_request(3.0)).target is PlacementTarget.GPU
+
+
+def test_a_handoff_charge_does_not_reopen_a_closed_gpu() -> None:
+    """The two pairs are independent: a swap heals its own charge and never a tier's outage."""
+    placer = _placer(soft_cap_gb=23.0, cortex_reservation_gb=11.3)
+    placer.close_gpu()
+    placer.charge_handoff(resident_gb=18.0)
+    placer.charge_standing()
+    assert placer.place(_request(1.0)).target is PlacementTarget.CPU

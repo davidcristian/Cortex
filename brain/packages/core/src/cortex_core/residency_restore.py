@@ -14,7 +14,7 @@ from collections.abc import Awaitable
 
 from cortex_core.errors import ResidencyRestoreError
 from cortex_core.model_host import ResidencyPlan
-from cortex_core.ports import ModelHost, SubagentPlacer
+from cortex_core.ports import ModelHost
 from cortex_core.residency_charge import charge_standing
 from cortex_core.residency_moves import ReadinessGate, restore_standing
 from cortex_core.residency_state import (
@@ -23,6 +23,7 @@ from cortex_core.residency_state import (
     RESIDENCY_SERVING,
     ResidencyPublisher,
 )
+from cortex_core.residency_tiers import StandingTiers
 
 # How many times the swap back brings the cortex back before it gives up loudly: the first
 # attempt plus the one retry ADR-0030 decision 4 step 3 specifies. A third would not be a
@@ -38,24 +39,27 @@ async def restore_with_retries(
     model: str,
     gate: ReadinessGate,
     publish: ResidencyPublisher,
-    placer: SubagentPlacer | None,
+    tiers: StandingTiers,
 ) -> None:
     """Bring the cortex back, retrying once; give up loudly rather than silently.
 
     Called with the GPU lease held, so nothing can lease a half-restored card and any round the
     scope's own resident still had in flight has been waited out. ``publish`` is the manager's one
     residency writer, handed in rather than reached for, so every step of the give-up is visible
-    to the seam at the instant it happens instead of after the exception unwinds.
+    to the seam at the instant it happens instead of after the exception unwinds. ``tiers`` is
+    the same shape of argument for the peers: the record of which of them came back, written
+    where the attempt is made rather than inferred afterwards from a machine nobody re-reads. It
+    carries the placer too, which is the one collaborator the standing charge below needs.
     """
     cortex = plan.cortex_model
     await publish(None, RESIDENCY_RESTORING)
     for attempt in range(1, _RESTORE_ATTEMPTS + 1):
-        if await restore_standing(host, plan, model, gate):
+        if await restore_standing(host, plan, model, gate, tiers):
             await publish(cortex, RESIDENCY_SERVING)
             # Only here, where the cortex is genuinely serving again. A restore that gave up
             # leaves the handoff's charge standing, so spawns keep overflowing to the CPU rather
             # than being admitted onto a card nobody can describe.
-            charge_standing(placer)
+            charge_standing(tiers.placer)
             return
         _logger.warning(
             "restoring the cortex failed; retrying",

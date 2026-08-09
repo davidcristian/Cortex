@@ -28,6 +28,11 @@ ready for the entire swap back and, after a restore gave up, for good. Both now 
 as the literal ``False`` it has to be, and each of those two mutations reddens its own case here
 (plus the core's constants case, and nothing else). Answering ready unconditionally now reddens
 6 rather than 3.
+
+The last case is the one readiness that is **true** and still has something to say: dropping the
+serving-detail branch from ``Health`` (so a healthy brain always answers its version string)
+reddens exactly it, and dropping ``mark_missing`` in the core reddens it too, which is what ties
+the seam's sentence to the record behind it rather than to a string this file arranged.
 """
 
 import asyncio
@@ -45,6 +50,7 @@ from cortex_core import (
     RESIDENCY_LOADING,
     RESIDENCY_LOST,
     RESIDENCY_RESTORING,
+    TIERS_MISSING_DETAIL,
     AsyncioSleeper,
     EchoInferenceBackend,
     InMemorySessionStore,
@@ -214,6 +220,36 @@ async def test_health_stays_not_ready_after_a_restore_that_gave_up() -> None:
             reply = await _health(BrainServiceStub(channel))
         assert reply.ready is False
         assert reply.detail == RESIDENCY_LOST.detail
+    finally:
+        await server.stop(grace=None)
+
+
+async def test_health_stays_ready_and_names_a_peer_tier_that_did_not_come_back() -> None:
+    """Serving and degraded at once, which is a sentence this reply could not say before.
+
+    The cortex is up and answering, so ``ready`` has to stay true or the overlay would go amber
+    over a brain that is fine. What changed is that delegated work is now running on the CPU,
+    which nothing else on the seam would mention, so the report's own detail wins over this
+    server's version string (ADR-0030 tier-outage addendum).
+    """
+    host = ScriptedModelHost(
+        running=["cortex", "subagent-gpu"], fail={("start", "subagent-gpu"): "no such device"}
+    )
+    manager = SwappingModelManager(
+        host,
+        {"cortex": "http://llama-cortex:8080", "brain": "http://llama-brain:8081"},
+        ResidencyPlan(cortex_model="cortex", brain_model="brain", evict_models=("subagent-gpu",)),
+        SystemClock(),
+        AsyncioSleeper(),
+    )
+    server, address = await _serving(manager)
+    try:
+        async with manager.swap_scope("brain"):
+            pass
+        async with aio.insecure_channel(address) as channel:
+            reply = await _health(BrainServiceStub(channel))
+        assert reply.ready is True
+        assert reply.detail == TIERS_MISSING_DETAIL.format(models="subagent-gpu")
     finally:
         await server.stop(grace=None)
 

@@ -352,6 +352,23 @@ but a report of a slow *cortex* after a handoff is the same fault read from the 
   child; a second `stop` answered 200 and `stopped`; `POST /models/ghost/start` answered
   `404 {"error":"unknown model 'ghost'; this host serves cortex, brain"}`. Nothing a request
   carries can name a model into existence: the roster comes from the sidecar's own env.
+- **A peer tier that will not restart leaves the brain serving and delegation on the CPU.**
+  Restarting each `CORTEX_SWAP_EVICT_MODELS` tier on the way back is deliberately best effort:
+  the turn the user is waiting on needs the cortex, and a tier that will not come back must not
+  be reported as the cortex being gone. So the failure is loud in the brain's log
+  (`a tier evicted for the handoff could not be restarted`) and, since it is recorded rather than
+  only logged, three further things are true. `Health` answers `ready=true` with
+  `<tier> did not come back after a deep task, so delegated work is running on the CPU`, which
+  the overlay's connection tooltip shows as `Brain ready: <that line>`. Every subagent spawn is
+  placed on the CPU without trying the GPU first, so nobody pays a dead attempt and a re-run.
+  And the brain retries the tier every `CORTEX_SWAP_TIER_HEAL_S` seconds (30 s by default,
+  a `GET` of the tier's state and a `start` when it is not coming), clearing all of that the
+  first pass that sees the tier `ready`. **Nothing here needs an operator**, so the useful check
+  is whether the retry is failing for a reason a retry cannot fix: look for
+  `a tier the standing residency is missing could not be retried` in the brain's log, then ask
+  the sidecar directly with `curl -fsS http://127.0.0.1:9300/models/subagent-gpu` (the loopback
+  override) and read the child's own reason out of `docker logs model-host`. A missing artifact
+  or a bad `-ngl` is a config fix and a `docker compose up -d`; the retry cannot invent a GGUF.
 
 ## The chaos kill, host-side
 

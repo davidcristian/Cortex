@@ -19,6 +19,7 @@ from collections.abc import Awaitable, Callable
 from cortex_core.errors import ModelHostError, SwapFailedError
 from cortex_core.model_host import ModelHostState, ResidencyPlan
 from cortex_core.ports import ModelHost
+from cortex_core.residency_tiers import StandingTiers
 
 # A readiness gate: poll one model until it settles or the plan's bound elapses. Passed in so
 # both moves are gated by the same policy their caller uses everywhere else.
@@ -126,12 +127,13 @@ async def _refuse_a_load_the_card_cannot_hold(
 
 
 async def restore_standing(
-    host: ModelHost, plan: ResidencyPlan, model: str, gate: ReadinessGate
+    host: ModelHost, plan: ResidencyPlan, model: str, gate: ReadinessGate, tiers: StandingTiers
 ) -> bool:
     """One attempt at the standing residency: stop ``model``, bring the cortex and its peers up.
 
     ``True`` only when the cortex is genuinely serving again, which is what the caller retries
-    on and what the next turn needs.
+    on and what the next turn needs. ``tiers`` is the record of which peers came back with it,
+    which is a different verdict from this one and is why it is written rather than returned.
     """
     try:
         await host.stop(model)
@@ -142,11 +144,11 @@ async def restore_standing(
         return False
     if state is not ModelHostState.READY:
         return False
-    await _restart_evicted(host, plan)
+    await _restart_evicted(host, plan, tiers)
     return True
 
 
-async def _restart_evicted(host: ModelHost, plan: ResidencyPlan) -> None:
+async def _restart_evicted(host: ModelHost, plan: ResidencyPlan, tiers: StandingTiers) -> None:
     """Put back every tier the swap in evicted, so the standing residency is whole again.
 
     A swap evicts the cortex AND any other hosted tier, because the deep model is alone on the
@@ -162,6 +164,14 @@ async def _restart_evicted(host: ModelHost, plan: ResidencyPlan) -> None:
     against a tier the swap never stopped is a no-op the supervisor answers from its own child
     table, and if that tier died of its own accord while the deep model held the card, this is
     the one place that notices and brings it back.
+
+    Best effort is not the same as unrecorded, which is the half that used to be missing: each
+    outcome is written to ``tiers``, so a peer that refused to come back closes GPU placement and
+    is retried, instead of admission reopening onto it and every spawn paying a dead attempt
+    (``residency_tiers.py``). What an accepted ``start`` proves is only that the host took the
+    request, exactly the evidence ``undrain`` has always reopened on: the peers are not gated
+    here, because gating them would spend the load bound per tier inside the turn the user is
+    waiting on.
     """
     for evicted in plan.evict_models:
         try:
@@ -170,3 +180,6 @@ async def _restart_evicted(host: ModelHost, plan: ResidencyPlan) -> None:
             _logger.exception(
                 "a tier evicted for the handoff could not be restarted", extra={"model": evicted}
             )
+            tiers.mark_missing(evicted)
+        else:
+            tiers.mark_standing(evicted)

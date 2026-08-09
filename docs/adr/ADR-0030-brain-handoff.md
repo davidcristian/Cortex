@@ -2237,3 +2237,203 @@ described.
 - **It does not resume the handoff it refuses.** A refused handoff ends as every other refused one
   does, with the honest note and the cortex serving. Resuming from the record remains the separate
   deferral it was, waiting on the same request-identity design.
+
+## Tier-outage addendum (2026-08-09): a peer that would not restart is recorded, skipped, and retried
+
+The deferral opened by the drain-window pass on 2026-07-18 and recorded at the reopening addendum
+above, **admission reopening even onto a tier the swap back could not restart**, closes here. That
+addendum named the fix in one sentence ("residency state that knows a tier is down, so the placer
+skips it while something retries the start"), and this is that sentence built, plus the two
+questions it did not ask: how a reader tells a tier that is **down** from one that is merely
+**evicted**, and what clears the record so a single transient failure does not degrade the stack
+for the life of the process.
+
+### What the tree said, against what the entry claimed
+
+The entry was re-derived from the code before anything was designed, as this backlog's own standing
+warning demands, and three of its claims held while two moved.
+
+Held: `residency_moves._restart_evicted` really does log a `ModelHostError` and swallow it, by
+decision 4's design; `SwapConductor._undrain` really does reopen admission on every path, after the
+swap generator closes; and the honesty surface really does carry no per-tier state, `ResidencyReport`
+being two fields, `serving` and `detail`.
+
+Moved, first: the entry says the fix "wants a residency state that knows a tier is down ... rather
+than a scheduler change", and adds that this port stays unchanged. The scheduler is indeed
+untouched. **The placer port is not**, and the entry never claimed either way, having been written
+before `SubagentPlacer` grew the handoff-window pair. `place` is synchronous, lock-free and
+argument-poor by design, so a placer cannot be *asked* whether a tier is up; the only shape that
+fits this object is being *told*, which is a verb and therefore a port change. This area's standing
+"behind the unchanged port" phrasing was again the thing to check first rather than to repeat.
+
+Moved, second: the entry's proposal was to widen `ResidencyReport` itself, on the grounds that the
+honesty-surfaces sub-slice gave it "a place to put it". Widening that value would have been wrong,
+and the reason is a lifetime rather than a shape. A report is republished at every residency
+transition, so a tier's down-ness written into one would be dropped by the next swap in, which
+publishes `RESIDENCY_LOADING` and knows nothing about peers. The record therefore lives beside the
+report and is folded into it on read.
+
+### The decision
+
+**One new pure-core record, `StandingTiers` (`residency_tiers.py`), held by `SwappingModelManager`.**
+It knows which peers of the cortex the standing residency is missing. Its one writer is the
+best-effort restart loop: `mark_missing(model)` where the `ModelHostError` is already caught,
+`mark_standing(model)` where the host accepted the start. Its three readers are the placer, the
+seam, and the retry.
+
+**Two new verbs on `SubagentPlacer`, `close_gpu()` and `open_gpu()`.** While closed, `place`
+answers CPU for every request without consulting the headroom. They are deliberately not
+expressed as arithmetic: charging a resident large enough to crowd the cap out would make the
+placer say "no room" where the truth is "no server", and it would collide with the handoff charge,
+whose own reversal would then silently reopen a tier's outage. `VramBudgetPlacer` is the one
+implementation and `test_placer.py` is the contract suite that pins both verbs; the port's
+docstring states the degenerate form for an implementation with no GPU target of its own, exactly
+as it already does for the charge pair.
+
+**One bit for the card, a record per tier.** The record names each missing tier, because that is
+what an operator reads and what a retry acts on. The lever it pulls is coarser: any missing tier
+closes GPU placement for the whole pool. The brain has no declared mapping from a hosted tier id
+(`CORTEX_SWAP_EVICT_MODELS`, a model-host roster name) to the GPU endpoint a roster entry dials
+(`CORTEX_SUBAGENTS_GPU_ENDPOINT`, a URL), and inventing one now would be config with exactly one
+possible value in every deployment this repo ships. The conservative direction is the right one
+anyway: over-refusing the GPU costs decode rate, under-refusing costs a dead load, a failed
+attempt and a CPU re-run for every spawn.
+
+### Down versus evicted, which is the distinction the whole thing turns on
+
+A placer that treats an evicted tier as broken refuses work the stack can do; one that treats a
+broken tier as merely evicted sends every spawn into a start that fails. Three things keep them
+apart, and none of them is a comment.
+
+1. **Only a refusal marks.** The record is written where a `start` **raised**, never where a swap
+   deliberately stopped a tier. A swap in touches it not at all.
+2. **Only a serving report is annotated.** `StandingTiers.note_on` hands back any report that is
+   not serving untouched, so the four swap windows keep their own words. Mid handoff the peers
+   are stopped on purpose and the report already says a swap is happening; annotating that would
+   describe the swap twice and call it a fault.
+3. **The window is covered by something else entirely.** During a non-co-resident handoff the pool
+   is drained, so no spawn is placed at all, and during a co-resident one the peers are never
+   stopped. The arithmetic correction for the card changing hands is the handoff charge, which is
+   a separate pair of verbs for a separate fact.
+
+A reader tells them apart the same way: `ready=false` with a swap window's line means evicted and
+coming back; `ready=true` with a tier named means down.
+
+### What clears the mark
+
+A mark with no clearing path is a defect rather than a safety feature, so there are three, in
+increasing order of how much has to go right.
+
+- **A retry pass that observes the tier serving.** `TierHealer` (`residency_heal.py`) calls
+  `SwappingModelManager.heal_standing_tiers()` every `CORTEX_SWAP_TIER_HEAL_S` seconds (30 s).
+  A pass asks `status` per missing tier: `READY` marks it standing, `LOADING` is left alone (it is
+  on its way, and starting it again would say the same thing every pass for the whole load), and
+  anything else gets one `start`. Readiness is observed on a later pass rather than gated inside
+  this one, so a tier that takes minutes to load costs the loop nothing while it does. A pass
+  never raises, so one unreachable tier cannot stop the others being retried.
+- **The next handoff's own restart**, unchanged: `_restart_evicted` is unconditional, so a swap
+  back that succeeds where the last one failed marks the tier standing again.
+- **A restart of the brain**, which rebuilds every belief from boot recovery.
+
+The retry is what makes this a fix rather than a permanent degradation. Escalation is rare by
+construction, so leaving the next handoff as the only clearing path would mean a transient failure
+costs the GPU pool until the user happens to escalate again, which may be hours or never.
+
+Two things the retry deliberately does not take: **the GPU lease**, because a peer is never the
+resident and holding it across a control call would park a user's turn behind a status probe; and
+**a pass while a scope is active**, because starting a peer while the deep model is alone on the
+card is the one forbidden move. A scope that begins in the instant after that check costs nothing
+either, since the swap in's first move is to stop these very tiers.
+
+### What the user sees, on a surface that already existed
+
+No new surface. `HealthReply` already carries a `detail` beside `ready`, the body already copies it
+verbatim into `LinkStatus`, and the overlay already renders a **ready** detail as
+`Brain ready: <detail>` (`describeLink`); today that slot holds the orchestrator's version string.
+So a serving report with something to say simply wins the slot, and the tooltip reads
+`Brain ready: subagent-gpu did not come back after a deep task, so delegated work is running on
+the CPU`. The dot stays green, which is correct: turns run, delegation runs, and the one thing
+that changed is where delegated work runs. Zero proto, Rust, or TypeScript change, which is the
+whole reason to prefer this over inventing a second surface.
+
+`ResidencyReport`'s docstring said the detail is empty while serving. It is amended rather than
+quietly contradicted: serving and "nothing to report" stopped being the same thing when the
+standing residency grew peers that can be down while the cortex is up.
+
+### Proven able to fail before being trusted
+
+Nine mutations, each applied to production code alone with the whole brain workspace re-run, then
+reverted; the counts are in `test_residency_tiers.py`'s header and are measured rather than aimed
+at. Dropping `mark_missing` reddens 7 across two packages, dropping `mark_standing` 1, reopening
+on any restart rather than on an emptied record 1, annotating a not-serving report 1, consulting
+the headroom before the closed flag 7, starting a `LOADING` tier 1, dropping the scope guard 1,
+dropping the loop's pass guard 1, and dropping the seam's serving-detail branch 1.
+
+The table also earned its keep the way this repo says it should. The first case written here,
+"a peer that would not restart closes GPU placement", was **vacuous**: it held its first
+placement's 2.0 GiB against a 3.0 GiB headroom, so the spawn it asserted on spilled for want of
+room whatever the record said, and dropping `mark_missing` left it green. It releases now. Every
+wait in that file is inside an `asyncio.timeout`, so the loop mutations fail on a bound instead of
+hanging the suite.
+
+### Validated over the twin, and then against a real sidecar
+
+The whole path is exercised over the scriptable `ScriptedModelHost` and the real
+`VramBudgetPlacer`, driving the real `SwappingModelManager` through real residency scopes: a
+failed peer restart, a peer that came back, one peer of two, the retry's two passes, a tier still
+loading, an unreachable host, and a retry deferred by an active scope.
+
+The claim underneath all of that is not a CI claim, so it was checked on 2026-08-09 against the
+real `model-host` image built from `brain/Dockerfile.modelhost`, run with no GPU and no model
+mount (the mechanism is control plane, and the model drive was not mounted in that session), with
+the real `HttpModelHost` driving `_restart_evicted` and `retry_missing` over real HTTP.
+
+- **A peer the sidecar cannot run really does raise.** With the tier named in `evict_models` and
+  no artifact named for it, the daemon answers `404 unknown model 'subagent-gpu'; this host serves
+  none`, the adapter raises `ModelHostError`, the record marks it, and the same spawn that landed
+  on `gpu` before the restart lands on `cpu` after it. A retry pass then reached the daemon, got
+  the same 404, logged "a tier the standing residency is missing could not be retried", and left
+  the mark standing. That is the misconfiguration the entry called reachable, end to end.
+- **The retry's start branch works against a real daemon.** Pointed at a tier with a bad artifact
+  path, a pass read `failed` off `GET /models/subagent-gpu` and issued the `start`, after which
+  the tier read `loading`; the mark stayed, because a pass never claims a load it did not observe
+  finish.
+- **The hole below is measured rather than reasoned about.** That same bad-artifact tier answers
+  `200 {"state":"loading"}` to a `start` and `{"state":"failed","detail":"the process exited with
+  code 1"}` three seconds later. So the restart loop marks it **standing** on the host's
+  acceptance, and a spawn is still placed on `gpu` while the tier is dead. The reopen on an
+  observed `READY` is the one branch no session without a loadable GGUF can witness; it is
+  agent-runnable the moment the model drive is mounted, which by the
+  [host index](../host/index.md)'s own rule makes it not host work, and it is listed at
+  [gpu-tier-scale.md](../host/gpu-tier-scale.md)'s "also possible on this hardware" section so it
+  is not lost.
+
+### What this deliberately does not do
+
+- **It does not notice a tier that dies on its own.** The record is written only where a restart
+  was attempted and refused, so a peer that exits after the swap back accepted its `start`, or one
+  that dies quietly between handoffs, is invisible to it: the retry only ever asks about tiers it
+  already believes are missing. That is the case measured above, where a real sidecar answered
+  `loading` to the start and `failed` seconds later. A sweep over every `evict_models` tier would
+  close the whole family for one `status` per tier per interval, and it is deferred with its
+  trigger rather than built, because a sweep that may `start` a tier is a much stronger thing to
+  hold correct against a handoff in flight than one that only retries a known failure. Gating the
+  peers inside the swap back instead is the wrong end: it would spend the load bound per tier
+  inside the turn the user is waiting on.
+- **It does not tell tiers apart at the placer.** One bit for the card, argued above; a deployment
+  that evicts a tier the subagent pool never places on gets a conservative CPU fallback it did not
+  need. Deferred with its trigger.
+- **It does not touch boot recovery's verdict.** `converge_residency` still lets a peer tier's
+  failed `start` fail the whole convergence, so a boot where the cortex is serving and only a peer
+  is down still answers `RESIDENCY_BOOT_FAILED`, which is the same conflation this addendum
+  refuses everywhere else. It is left alone here because threading the record through the two
+  boot paths is a change to a different sequence, and because the retry clears the placer side of
+  it within a pass either way. Deferred with its trigger.
+- **It does not register a new cross-tree constant.** `CORTEX_SWAP_TIER_HEAL_S` has one
+  declaration, `DEFAULT_TIER_HEAL_INTERVAL_S` in the core, read once by `config_swap.py`; the
+  other spellings of 30 s are prose in that field's own docstring, the module doc and the runbook,
+  which the scan's mention form could tie and which the drain and load bounds beside it have never
+  tied either. Registering one of the three without the other two would be worse than the
+  consistency this keeps.
+- **It does not kill anything to make a tier come back.** The retry only starts; the supervisor's
+  own idempotence is what makes repeating it safe.
