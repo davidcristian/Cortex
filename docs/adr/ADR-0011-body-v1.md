@@ -578,9 +578,10 @@ signature of a rule enforced by attention.
    declaration is hand-written TypeScript like any other.
 3. **The stylesheet, the markup, and the proto stay outside, and this is the argument.** The cap's
    remedy is "split by responsibility", which presumes a module with a public contract. `overlay.css`
-   (2420 lines the day this was decided, 2686 as of 2026-08-08) is one cascade whose order is
-   load-bearing, so splitting it trades a long file for fragile `@import` ordering, and `index.html`
-   is a single mount point. `proto/body.proto` (314 lines then, 345 as of 2026-08-08) is over 300,
+   (2420 lines the day this was decided, 2686 on 2026-08-08, 2700 as of 2026-08-09) is one cascade
+   whose order is load-bearing, so splitting it trades a long file for fragile `@import` ordering,
+   and `index.html` is a single mount point. `proto/body.proto` (314 lines then, 345 as of
+   2026-08-08) is over 300,
    and capping it would put the gate in direct conflict with this repo's
    own architecture invariant that the seam is "defined once in proto/body.proto". A gate that
    demands a violation of AGENTS.md is worse than no gate. The CSS is recorded as an open deferral in
