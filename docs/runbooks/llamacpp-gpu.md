@@ -239,6 +239,16 @@ full quality**: with the model unreachable the policy still answers, falling bac
 saying so in the trail, so nothing breaks, but a GPU-less brain should be told
 `CORTEX_MEMORY_RECALL=raw` rather than left to fall back on every turn.
 
+That measurement's harness is in the repo since the
+[harness addendum](../adr/ADR-0038-ranked-recall.md) and reruns as `just turn-cost`, three blocks
+in A/B/A order with the brain recreated between them and the interval reported by
+`scripts/contrast.py`. Roughly 14 minutes at the same size the original ran. It reproduced the time
+to first token independently at **0.539 s** (95% CI 0.054 to 1.111) against a null arm spanning
+zero, and it found the whole-turn cost larger than first published (0.979 s against 0.526 s),
+almost all of it in the one question memory cannot answer, where a rank that declines leaves the
+model saying at length that it does not know. Procedure and knobs:
+[memory-pgvector.md](memory-pgvector.md).
+
 ## Framing-efficacy probe (Slice 6.5 / ADR-0013, agent-runnable)
 
 Confirms the prompt-injection **framing** actually changes the cortex's behavior. This is the model

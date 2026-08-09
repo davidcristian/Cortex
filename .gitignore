@@ -40,6 +40,11 @@ sandbox/
 pgdata/
 models/
 
+# Sample files written by a live measurement block (`just turn-cost`). One JSON file per block,
+# read back by scripts/contrast.py. They are evidence of one run on one machine, so the numbers
+# they support belong in an ADR addendum and the files themselves do not belong in the tree.
+measurements/
+
 # The same second project directory, for the binds that name a repo input rather than an output.
 # ./docker/postgres/init.sql and its two neighbours resolve to docker/docker/postgres/... when the
 # project directory is docker/, where the repo ships nothing, so compose would create that phantom

@@ -143,6 +143,40 @@ seam-health:
 brain-inference-live:
     cd brain && CORTEX_INFERENCE_ENDPOINT=http://127.0.0.1:8080 uv run pytest -m integration --no-cov packages/inference
 
+# The end-to-end turn-cost measurement (ADR-0038 harness addendum): three blocks in A/B/A order,
+# each a brain container recreated with one environment variable changed, then the blocked paired
+# bootstrap over the three samples. THE RESTARTS LIVE HERE rather than in the test because an arm
+# is a container configuration, so changing one is a deployment step; the test measures one block
+# and `scripts/contrast.py` reads the blocks back. The outer two blocks are the control: same
+# configuration, different times, so their contrast is the run-to-run noise floor the middle block
+# has to clear, and a null interval that does not span zero says the run drifted.
+# Needs a real GPU, the models dir, and roughly 15 minutes at the default size; never runs in CI.
+# Reproduces docs/adr/ADR-0038-ranked-recall.md; runbook: docs/runbooks/memory-pgvector.md.
+turn-cost arm="judge" control="raw" reps="8":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    compose="docker compose --project-directory . -f docker/docker-compose.yml"
+    compose="$compose -f docker/docker-compose.gpu.yml -f docker/docker-compose.memory.yml"
+    mkdir -p measurements
+    $compose up -d --build
+    run_block () {
+        echo "=== block $1: recall=$2 ==="
+        CORTEX_MEMORY_RECALL="$2" CORTEX_MEMORY_SCOPE=session CORTEX_MEMORY_RECALL_AUDIT=1 \
+            $compose up -d --no-deps --force-recreate brain
+        until $compose ps brain | grep -q '(healthy)'; do sleep 1; done
+        cd brain && CORTEX_TURN_COST_ARM="$2" CORTEX_TURN_COST_REPS="{{ reps }}" \
+            CORTEX_TURN_COST_OUT="../measurements/block-$1-$2.json" \
+            uv run pytest -m integration --no-cov -s \
+            packages/orchestrator/tests/test_turn_cost_live.py
+        cd ..
+    }
+    run_block 1 "{{ control }}"
+    run_block 2 "{{ arm }}"
+    run_block 3 "{{ control }}"
+    cd scripts && uv sync --locked
+    uv run python contrast.py "../measurements/block-1-{{ control }}.json" \
+        "../measurements/block-2-{{ arm }}.json" "../measurements/block-3-{{ control }}.json"
+
 # The gpu stack PLUS a loopback publish of the model-host control API, which the base gpu override
 # deliberately withholds (it can start and stop GPU processes, ADR-0030 d3). For live tests only;
 # `just down-gpu` takes it down. Procedure: docs/runbooks/model-swap.md.

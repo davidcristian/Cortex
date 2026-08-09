@@ -366,6 +366,15 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   memory that never came back stops reading like a memory the store never offered. It carries no
   rank key for a drop, since the judge leaves an unhelpful note out of its order rather than scoring
   it low, which makes the line an account of what was available and not of why the rank declined.
+  **The harness addendum** puts the turn-cost run itself in the repo, which it never was, and its
+  answer to the two questions that had kept it out is a division of labour: an arm is a container
+  configuration, so the restarts live in `just turn-cost`, which puts the arms in separate
+  processes, so each block writes a sample and `scripts/contrast.py` reports the blocked paired
+  bootstrap while the block driver asserts only invariants. Rerun at the original's own size it
+  reproduces the time to first token independently (0.539 s against 0.515 s, null arm spanning
+  zero) and revises the whole-turn figure upward to 0.979 s, almost all of the excess sitting in
+  the one question memory cannot answer, where a rank that declines leaves the model saying at
+  length that it does not know.
 
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 

@@ -1496,3 +1496,160 @@ Recorded in [memory.md](../refinements/memory.md) with its line on
   reporting no total, so it wants the port, both adapters, the fake, the contract test and a count
   beside the ranked select. **Trigger:** the first investigation whose memory is not in the pool at
   all, or a deployment that has widened its pool and wants to know whether it is wide enough.
+
+## Harness addendum (2026-08-09): the turn-cost run enters the repo, and reproduces itself
+
+The turn-cost addendum above moved the default on a number that no committed test could
+re-derive. Its driver lived in a scratchpad, which made 0.515 s the one measurement in this ADR
+resting on prose rather than on a run anyone can repeat, and it was the measurement whose result
+shipped. The deferral it left was narrowed the same day by the fold-under-load run, which committed
+a seam-spanning driver and thereby settled where such a thing lives, down to two questions: **how a
+committed test expresses an arm that needs the brain container restarted with one environment
+variable changed**, and **how it reports a distribution with a confidence interval rather than
+asserting a bound**. The A/B/A control was the same question in different clothes. This addendum
+answers all three and records the reproduction.
+
+### The decision: a division of labour, not one clever test
+
+**The restart lives in a recipe, `just turn-cost`, and never in the test.** An arm here is a brain
+container configured one way; changing it is a deployment step, not an assertion. A pytest process
+that recreated its own subject would be instrument and operator at once, would have to spell the
+whole compose file set a second time inside a test file (a second copy of the deployment recipe,
+free to drift from the first), and would take ownership of a stack it neither brought up nor could
+restore after a failure. The recipe is committed and versioned exactly like the compose files it
+invokes, so nothing about the protocol is left in prose.
+
+**That decision forces the second answer rather than leaving it open**, which is why the entry was
+right that the two questions were one. Restarting between arms puts the arms in separate processes.
+No single process can then hold the comparison, so each block has to persist its own sample, and
+once the sample is a file the arithmetic cannot live in the test either. It lives in
+`scripts/contrast.py`, a pure module in the tree that ships in neither artifact and is covered at
+100% like everything beside it. The block driver
+(`brain/packages/orchestrator/tests/test_turn_cost_live.py`) therefore reports nothing and asserts
+only invariants that hold whatever the model says, in the fold run's discipline.
+
+**The A/B/A control needed no separate answer**: it is the recipe running its outer two blocks in
+one configuration and its middle block in another. `contrast.py` treats the first sample as the
+baseline and every later one as a contrast against it, so the last line of an A/B/A run is a null
+whose interval ought to span zero.
+
+Three alternatives were considered and rejected. A test that shells out to `docker compose` itself
+was rejected on the ownership argument above. Changing the arm in process, which is what the fold
+run did by constructing a `BrainRuntimeConfig`, cannot answer this question at all: it works when
+the subject lives inside the brain process and the recall arm is chosen at the composition root
+from the environment, so reaching it in process would mean building a second composition root and
+measuring something other than what the container runs. Reporting the interval from inside the
+test, the way the fold run prints its timings, was rejected because the arms are in different
+processes and because the unreproducible half of the original run was never the turns: it was the
+resampling, which carried no seed. `contrast.py` prints its seed with every report.
+
+### The statistic, and why this one
+
+Blocked (paired) **by question**, because a turn's time is dominated by how long its answer is,
+which is a property of the question and not of the arm. The estimator is the **mean of the
+per-question mean differences**, since a user pays the mean and averaging within a question first
+weights every question equally however many repetitions it got. The interval is a **percentile
+bootstrap over the questions, seeded**, rather than a t interval: the resampling unit is the
+question, so n is six, far too small to lean on a normal approximation, and turn times are
+right-skewed, bounded below by the model's own floor and unbounded above. **One warmup turn per
+block is discarded**, because the turn immediately after a container recreate pays a cold gRPC
+channel, a cold asyncpg pool and the model's first prompt eval, and letting that land inside a
+measured cell would bias one question's mean in one arm only.
+
+### What had to be built before any of it could run
+
+**No `CORTEX_MEMORY_*` knob reached the dockerized brain.** The memory override set the backend,
+the DSN and the embedder endpoint, and nothing else, so the runbook had been telling operators to
+set `CORTEX_MEMORY_RECALL=raw` and `CORTEX_MEMORY_RECALL_AUDIT=1` on a container with no way to
+receive either. The original run must have driven a brain started some other way. The fix is a
+block of **bare pass-through keys** on `docker/docker-compose.memory.yml`, one for every
+`MemoryConfig` field the file does not itself set: a mapping key with no value reaches the
+container when the host sets the variable and never enters the container's environment otherwise.
+The rule is "every field this file does not set" rather than a hand-picked few, so a documented
+knob can never again be one the dockerized brain cannot receive. Spelling defaults instead
+(`${CORTEX_MEMORY_RECALL:-judge}`) was rejected: it restates a shipped default in a second language
+where it can drift, which is the thing `crosscheck.py` exists to catch.
+
+Two of the deferral's own claims did not survive the tree. It said corpus seeding was settled by
+the fold run, whose shape is conversation history written through `RedisSessionStore` and removed
+with `delete`; a turn-cost corpus is 41 memory notes written through `PgVectorMemoryStore`, each
+needing the CPU embedder first and removed with `delete_scope`. What carried over was the
+discipline, test-owned ids deleted in a `finally`, and never the mechanism. And `recall_corpus.py`
+was importable from another package's tests only by accident of pytest prepending a collected
+file's own directory; the workspace now names that directory in `pythonpath` and `extraPaths`, so
+the shared corpus is reachable on purpose.
+
+### The protocol, at the size it was run
+
+**The same size as the original**: six questions, one per corpus category, eight repetitions, 48
+measured turns an arm, three blocks in A/B/A order (`raw`, `judge`, `raw`), 144 measured turns plus
+three discarded warmups. Roughly 14 minutes end to end on the 24 GB card with the resident cortex
+(gemma-4-12B). Each turn runs in its own fresh session under `CORTEX_MEMORY_SCOPE=session` whose
+scope is pre-seeded with all 41 notes, with `CORTEX_MEMORY_RECALL_AUDIT=1` on throughout.
+Repetitions are rep-major, so drift over a block spreads evenly across the questions rather than
+pooling inside one. The 41 embeddings are computed once per block and reused, a vector being a pure
+function of the note text and a fixed model. Two details the original addendum did not record are
+now decided rather than guessed: **which six questions** (the first of each category in `QUESTIONS`
+order, a rule rather than a hand pick) and **the seed** (printed with every report).
+
+### The numbers
+
+| | raw (block A) | judge (block B) | raw (block C) |
+| --- | --- | --- | --- |
+| Time to first token, mean | 3.518 s | 4.057 s | 3.584 s |
+| Time to first token, median | 3.530 s | 3.812 s | 3.393 s |
+| Time to first token, sd | 0.889 s | 1.468 s | 1.475 s |
+| Whole turn, mean | 3.970 s | 4.950 s | 4.114 s |
+| Whole turn, sd | 0.921 s | 2.136 s | 1.581 s |
+| Rank bases seen | `echo` | `verdict`, `demur` | `echo` |
+
+Blocked by question and bootstrapped over 20,000 resamples at the printed seed:
+
+- **judge against raw: time to first token +0.539 s** (95% CI +0.054 to +1.111), whole turn
+  **+0.979 s** (95% CI +0.098 to +2.313).
+- **The null arm, raw against raw: +0.066 s** (95% CI -0.287 to +0.410), an interval spanning zero,
+  and on the whole turn +0.144 s (95% CI -0.197 to +0.471), likewise spanning zero.
+
+**The time to first token reproduces the published figure independently.** 0.539 s against 0.515 s,
+on a different day, a different container and a driver rebuilt from the prose rather than restored
+from the scratchpad. The interval is wider (+0.054 to +1.111 against +0.116 to +0.915), which is
+what a smaller absolute cost on a faster baseline looks like at the same n.
+
+**The whole-turn figure does not reproduce, and the report says why.** The original published
++0.526 s on the whole turn, essentially the same as its time to first token; this run measured
++0.979 s, nearly twice it. The per-question layout finds the cause in one cell: the unanswerable
+question costs +1.76 s under the judge against +0.34 s to +0.88 s for the four it does not dominate,
+and its answers run 675 characters under `judge` against 84 under `raw`. That is the abstention
+addendum's behavior seen from the outside. When the rank demurs, the turn has no memory block at
+all and the model says at length that it does not know, where the cosine's five nearest misses
+give it something short and wrong to say. So the judge's extra cost on a whole turn is partly the
+rank and partly the length of an honest refusal, and how much of each a deployment sees depends on
+how many of its questions memory cannot answer.
+
+**One question carried three times the mean difference**, which is why `contrast.py` prints the
+per-question layout under the interval rather than the interval alone. An aggregate that hides
+that would let a reader take a uniform half second from a number that is nothing of the kind.
+
+### Distrust green
+
+The harness must be able to fail, and each of these was fired before the run was believed.
+
+| Broken on purpose | Result |
+| --- | --- |
+| the seam endpoint points at a closed port | the block dies on `StatusCode.UNAVAILABLE` naming the address, writes no sample, and still cleans up its scopes |
+| the brain runs without `CORTEX_MEMORY_SCOPE=session` | every turn fails on `held 41 rows against the 41 seeded`, since a scope the brain did not record into is a scope it did not recall from |
+| two blocks that asked different questions | `contrast.py` refuses to pair them rather than silently comparing what it has |
+| the two arms that should not differ | the null contrast spans zero on both metrics |
+
+The second is the guard worth naming twice. Session scoping being off is the failure that would
+quietly invalidate a whole run: recall would range over every scope in the table rather than the
+turn's own 41 notes, and every number would still look plausible. It is caught by arithmetic rather
+than by reading the config, because the scope a turn recalls from is the scope it records into, so
+a turn that really had memory on leaves more rows than it was handed.
+
+### Deferred by this addendum
+
+**Nothing.** The one thing this close had to build on the way, the pass-through block that lets a
+`CORTEX_MEMORY_*` knob reach the dockerized brain, was a defect and is fixed rather than filed. The
+per-question layout was built rather than deferred, this run having proved in its own numbers that
+the interval alone misreads.
