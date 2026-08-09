@@ -130,12 +130,22 @@ turn-cost arm="judge" control="raw" reps="8":
     compose="docker compose --project-directory . -f docker/docker-compose.yml"
     compose="$compose -f docker/docker-compose.gpu.yml -f docker/docker-compose.memory.yml"
     mkdir -p measurements
+    health_wait=180
     $compose up -d --build
     run_block () {
         echo "=== block $1: recall=$2 ==="
         CORTEX_MEMORY_RECALL="$2" CORTEX_MEMORY_SCOPE=session CORTEX_MEMORY_RECALL_AUDIT=1 \
             $compose up -d --no-deps --force-recreate brain
-        until $compose ps brain | grep -q '(healthy)'; do sleep 1; done
+        deadline=$((SECONDS + health_wait))
+        until $compose ps brain | grep -q '(healthy)'; do
+            if [ "$SECONDS" -ge "$deadline" ]; then
+                echo "block $1 (recall=$2): brain never reported (healthy) in ${health_wait}s" >&2
+                $compose ps brain >&2
+                echo "diagnose with: $compose logs brain" >&2
+                exit 1
+            fi
+            sleep 1
+        done
         cd brain && CORTEX_TURN_COST_ARM="$2" CORTEX_TURN_COST_REPS="{{ reps }}" \
             CORTEX_TURN_COST_OUT="../measurements/block-$1-$2.json" \
             uv run pytest -m integration --no-cov -s \
