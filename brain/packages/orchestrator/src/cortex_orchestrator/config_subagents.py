@@ -79,6 +79,12 @@ class SubagentsConfig(BaseSettings):
     cpu_budget: float = Field(default=4.0, gt=0)
     mem_budget_gb: float = Field(default=8.0, gt=0)
     roster: dict[str, SubagentRosterEntry] = {}
+    # env CORTEX_SUBAGENTS_STALL_TIMEOUT_S is how long a delegated stream may send nothing before
+    # the adapter gives up on it (ADR-0005 stall-ceiling addendum), bounding the gap between
+    # chunks and never the generation. Loose where the resident tier's is tight, because this one
+    # covers a CPU server decoding at about 0.35 tok/s: the default is twice the longest whole
+    # subtask measured on the shipped default entry, so it fires on a wedge and not on slowness.
+    stall_timeout_s: float = Field(default=600.0, gt=0)
     # Constrain a tool-less subagent's reply to the fixed envelope (ADR-0028), killing
     # format-laundering on the weak-model niche. On by default; the raw stream is restored per
     # niche with CORTEX_SUBAGENTS_CONSTRAIN_OUTPUT=false.

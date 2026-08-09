@@ -71,10 +71,29 @@ from cortex_tools import (
     streamable_http_session,
 )
 
-# Connect/write/pool time out fast on a dead server; reads have no deadline, since a
-# generation may legitimately stream for a long time (the adapter sets no timeout itself).
-# Public: `subagent_builders` dials its llama-servers with the same policy (one knob).
+# Connect/write/pool time out fast on a dead server, one knob for every tier: a dead server is
+# dead at the same speed everywhere. The read phase is the factory's argument, not this.
 LLAMACPP_CONNECT_TIMEOUT_S = 10.0
+
+
+def build_generation_client(stall_timeout_s: float) -> httpx.AsyncClient:
+    """The client a llama-server generation stream rides (ADR-0005 stall-ceiling addendum).
+
+    ``stall_timeout_s`` becomes httpx's READ timeout, which bounds **one socket read** and never
+    the request: it detects a stall, so a stream whose chunks keep arriving may run as long as
+    the model wants and a wedged one raises instead of waiting forever, which is what the
+    founding ``read=None`` did while holding a model lease and a subagent admission with it.
+    Consumer backpressure does not trip it, the seam's credit bound suspending the reader
+    between reads rather than inside one.
+
+    Sized per tier by the caller, since the worst legitimate silence differs by an order of
+    magnitude between them (`CORTEX_INFERENCE_STALL_TIMEOUT_S` against
+    `CORTEX_SUBAGENTS_STALL_TIMEOUT_S`); the ADR derives both from measurements.
+    """
+    return httpx.AsyncClient(
+        timeout=httpx.Timeout(LLAMACPP_CONNECT_TIMEOUT_S, read=stall_timeout_s)
+    )
+
 
 _logger = logging.getLogger(__name__)
 
@@ -101,10 +120,12 @@ def build_inference_backend(
     llama.cpp, so the caller's shutdown path is uniform regardless of which backend ran.
     ``manager`` overrides the single-resident lease with the swapping one when a handoff is
     wired (ADR-0030): the backend must lease through the very object the residency scope
-    swaps under, or a swap could preempt a live round.
+    swaps under, or a swap could preempt a live round. That is also why one client carries the
+    deep tier's stall ceiling as well as the cortex's: after a handoff the brain phase streams
+    through this very backend object, at a different endpoint.
     """
     if config.backend == "llamacpp":
-        client = httpx.AsyncClient(timeout=httpx.Timeout(LLAMACPP_CONNECT_TIMEOUT_S, read=None))
+        client = build_generation_client(config.stall_timeout_s)
         leases = (
             manager
             if manager is not None

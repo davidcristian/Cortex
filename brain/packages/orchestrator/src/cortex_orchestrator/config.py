@@ -186,6 +186,13 @@ class InferenceConfig(BaseSettings):
     model host restarted without its projector stops being offered eyes without a brain restart;
     ``on`` and ``off`` fix the answer for CI, for a deterministic test, and for a user who wants
     capture off without editing compose.
+
+    ``stall_timeout_s`` (``CORTEX_INFERENCE_STALL_TIMEOUT_S``) is how long a resident-tier
+    generation may send nothing before the adapter gives up on it (ADR-0005 stall-ceiling
+    addendum). It bounds the gap between chunks and never the generation, so it must clear the
+    worst legitimate time to first token rather than the longest reply: the default is derived
+    from the 17.5 s a contended cortex took to its first token and from the deep tier's own
+    cost, that tier streaming through the same client after a handoff.
     """
 
     model_config = SettingsConfigDict(env_prefix="CORTEX_INFERENCE_")
@@ -193,6 +200,7 @@ class InferenceConfig(BaseSettings):
     backend: InferenceBackendName = "echo"
     endpoint: str = ""
     vision: VisionMode = Field(default="auto", validation_alias="CORTEX_VISION")
+    stall_timeout_s: float = Field(default=120.0, gt=0)
 
     @model_validator(mode="after")
     def _llamacpp_needs_an_endpoint(self) -> "InferenceConfig":

@@ -39,12 +39,28 @@ _SSE_DATA_PREFIX = "data:"
 _SSE_DONE = "[DONE]"
 
 
+def _transport_failure(err: httpx.HTTPError, model: str) -> InferenceError:
+    """The port's error for a failed exchange, with a stall named apart from a dead server.
+
+    Both cross as ``InferenceError`` (a caller must never see an httpx type), but the two send
+    an operator to opposite places: nothing answered at all, against a server that took the
+    request and then went quiet past the client's stall ceiling, which is a wedged or contended
+    tier rather than an unreachable one (ADR-0005 stall-ceiling addendum).
+    """
+    if isinstance(err, httpx.ReadTimeout):
+        return InferenceError(f"llama-server sent nothing for model {model!r} within its ceiling")
+    return InferenceError(f"llama-server request failed for model {model!r}")
+
+
 class LlamaCppBackend:
     """InferenceBackend over a llama-server OpenAI-compatible endpoint (ADR-0005).
 
     The ``http_client`` is injected so timeouts and transport are configured at the
     composition root; the adapter sets no request timeout of its own. A generation may
-    legitimately stream for a long time.
+    legitimately stream for a long time, which is why the root's ceiling is a per-read stall
+    bound and not a deadline on the request (ADR-0005 stall-ceiling addendum): a stream that
+    keeps arriving is never cut off, and one that stops arriving crosses the port as an
+    ``InferenceError`` instead of parking the caller's lease forever.
     """
 
     def __init__(self, model_manager: ModelManager, http_client: httpx.AsyncClient) -> None:
@@ -102,7 +118,6 @@ class LlamaCppBackend:
             msg = f"model manager could not lease {model!r} for inference"
             raise InferenceError(msg) from err
         except httpx.HTTPError as err:
-            msg = f"llama-server request failed for model {model!r}"
-            raise InferenceError(msg) from err
+            raise _transport_failure(err, model) from err
         for call in finish_calls(pending):
             yield call
