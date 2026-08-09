@@ -10,9 +10,12 @@ entries are the historical record of what each deferral became, and the index at
 [index.md](index.md) carries the recommended pickup order.
 
 **Open items:** 6 (`cargo clippy` for the Tauri shell in CI, moved to fix-when-it-bites
-2026-07-16; standing test-order randomization, opened as fix-when-it-bites 2026-07-18; the three
-exceptions the wrap gate did not ship, opened as fix-when-it-bites 2026-07-19 behind the landing
-of the commit-body wrap check itself; the overlay stylesheet outside the line cap, opened as
+2026-07-16; standing test-order randomization, opened as fix-when-it-bites 2026-07-18; a paste
+being exempt from the wrap and from nothing else, opened as fix-when-it-bites 2026-08-09 behind
+the three exceptions the wrap gate did not ship, which closed the same day ahead of their trigger,
+so this number holds at 6 by exchange rather than by standing still: the fence and the `$` prompt
+landed, and what they leave is the dash ban, the volatile-reference ban and the hash check still
+reading a line inside a paste; the overlay stylesheet outside the line cap, opened as
 fix-when-it-bites 2026-08-03 behind the cap reaching the overlay's TypeScript; the three
 couplings the widened constant scan still cannot hold, opened as fix-when-it-bites 2026-08-08
 when four of the five kinds its predecessor named were closed, which is the backlog working as
@@ -91,6 +94,55 @@ see the outcome notes below the verbatim entries)
   body, at which point the author chooses between mangling the paste and bypassing the hook, which
   is precisely the outcome the entry above was recorded to avoid. Until then the gate is right
   about every message this repo has actually written.
+
+  **Landed 2026-08-09, ahead of its trigger and not by it**
+  ([ADR-0026 line-kind addendum](../adr/ADR-0026-prose-style-gates.md)). No commit had yet needed
+  a command or a block in its body: over 433 commits the history holds 0 fenced lines, 0
+  prompt-marked lines and 0 `BREAKING CHANGE:` footers, so what moved this was the backlog being
+  worked rather than an author meeting the wall. **What it became:** `check_widths` in
+  `scripts/commitlint.py`, which is the width rule lifted out of the per-line walk into a walk of
+  its own, because a kind exemption needs state a single line cannot carry. A line between two
+  fences is not measured, either fence character opening and closing and an info string still
+  opening; a line whose first token is a bare `$` is not measured; and a fence still open when the
+  walk ends is a violation naming the line that opened it, since the alternative is one stray fence
+  exempting the rest of the message while the gate exits 0.
+  **The footer is not exempt: it wraps like the prose it is**, which is the decision this entry
+  left open, argued from what the footer is rather than from convenience. Its token is machine
+  read and its value is prose, and neither reader loses anything to a newline: git's trailer token
+  admits no space, so `BREAKING CHANGE:` is not a git trailer at all (`interpret-trailers --parse`
+  prints nothing for it and prints `Co-authored-by:` from the same message), and the Conventional
+  Commits parser that does read it allows a footer value to carry newlines. Exempting it would
+  hole the wrap for the one class of text the wrap is for, keyed on a token rather than on the
+  words.
+  **Two of this entry's own claims did not survive the measurement.** The first is the sharp one:
+  the gate cannot "refuse a message the commit rules require", because what it refuses is a footer
+  written unwrapped, and AGENTS.md mandates the footer and the wrap on the same page while the
+  specification it cites permits both at once. Proven against the gate as it stood that morning,
+  before anything was changed: a 139-character one-line footer exits 1 and the same footer wrapped
+  over lines of 63, 63 and 11 exits 0. The second is the pasted-command heuristic, which this entry
+  and its ADR both sketched as "a leading indent, a shell prompt". The indent half was tested
+  against this repo's own history and is false here: all 9 body lines indented four spaces or more
+  are prose, nested bullet continuations in two messages, the one that wired the Tauri shell and
+  one reporting VRAM measurements per model, so an
+  indent-based exemption would have unwrapped ordinary sentences and exempted nothing that exists.
+  Only the prompt shipped. **What this opens** is the entry below.
+- **A paste is exempt from the wrap and from nothing else.** *Fix when it bites.* Opened
+  2026-08-09 behind the landing above, because inviting a paste into a commit body makes the other
+  three rules' reach a decision rather than an absence. The kind exemption is width only: inside a
+  fence and after a `$` prompt, the dash ban, the volatile-reference ban and the resolving-hash
+  check still read every line. Measured on the shipped gate rather than reasoned about, with one
+  fenced message: `cargo llvm-cov -- --nocapture` draws `line 5 uses a spaced ASCII --` and a
+  `git show` of a short hash that really resolves draws `line 4 cites commit`, two complaints and
+  exit 1 over a paste that is correct in both cases, since `--` is cargo's own argument separator
+  and the hash is the command's argument rather than a citation. It waits because the width rule is
+  the one this repo measured drift against and because the other three are not obviously wrong
+  here: a hash pasted into a body still stops resolving after a rewrite, and a message is still
+  prose. **What would close it:** either the same kind toggle carried into the dash and hash checks,
+  which is the walk it was just lifted out of and a decision that a paste is not the author's prose,
+  or the narrower reading that only the argument-separator `--` and a hash inside a fence are
+  exempt. **Trigger:** the first commit whose paste carries either, at which point the author
+  chooses between mangling the paste and bypassing the hook, which is exactly the outcome the entry
+  above exists to prevent.
 
 **Test-runner mechanics ([ADR-0002](../adr/ADR-0002-toolchain-gates.md)):**
 - **Standing test-order randomization.** Opened 2026-07-18, fix-when-it-bites, by a review that

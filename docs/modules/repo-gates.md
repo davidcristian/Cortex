@@ -155,7 +155,18 @@ unit-tested core function). `composemounts.py` is the one module that is not a C
   fails, and `too_wide` exempts one whose longest word alone is over the wrap, since a URL, a
   path, or a long identifier has nowhere to break and demanding a rewrite that cannot exist
   would train authors to ignore the gate. Four 73-character lines reached master before this
-  landed, which is what it was added for. Across the WHOLE
+  landed, which is what it was added for. `check_widths` adds the two exemptions that turn on
+  the line's KIND rather than its width, which is why the wrap walks the message instead of
+  reading each line alone (ADR-0026's 2026-08-09 addendum): a line between two fences
+  (` ``` ` or `~~~`, an info string included) and a line whose first token is a bare `$` are
+  pastes, and moving a newline inside one changes what it says. A fence left open at the end of
+  the walk is a violation naming the line that opened it, since otherwise one stray fence
+  exempts every line after it while the gate still exits 0. A leading indent is deliberately
+  NOT a signal: all 9 four-space-indented lines in this repo's history are prose. A
+  `BREAKING CHANGE:` footer is not exempt either, being prose over a token no newline harms.
+  The exemption is width only: a fenced paste is still held to the three rules below, so a
+  bare `--` separator or a resolving hash inside one is still reported (a recorded deferral).
+  Across the WHOLE
   message (subject and body) it also bans a dash used as punctuation (em dash, en dash,
   spaced ASCII `--`, since a message is pure prose) and volatile references: a slice
   number, a decision-record number, the roadmap, or a numbered assumption/increment/gate/

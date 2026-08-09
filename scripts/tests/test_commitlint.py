@@ -281,6 +281,102 @@ def test_main_flags_a_body_line_past_the_wrap(
     assert "wraps the body at 72" in capsys.readouterr().err
 
 
+# ── the wrap's line-kind exemptions ────────────────────────────────────────────
+
+# 104 characters, longest word 29: a real invocation from the repo's own runbooks, and the
+# shape the word-width exemption cannot see, since every word in it fits the wrap.
+_COMMAND = (
+    "docker compose --project-directory . -f docker/docker-compose.yml "
+    "-f docker/docker-compose.gpu.yml up -d"
+)
+# 124 characters, longest word 11: a footer of short words, which is the sharp case.
+_FOOTER = (
+    "BREAKING CHANGE: the capture request field is renamed, so every client must be "
+    "regenerated from the proto before it connects"
+)
+
+
+def test_a_fenced_line_past_the_wrap_is_exempt() -> None:
+    assert len(_COMMAND) > commitlint.MAX_BODY_WIDTH
+    assert commitlint.check_widths(["feat: subject", "```", _COMMAND, "```"]) == []
+
+
+@pytest.mark.parametrize("fence", ["```", "~~~", "```bash", "    ```"])
+def test_every_fence_spelling_opens_and_closes_a_block(fence: str) -> None:
+    # An info string still opens a block, and either fence character does; a fence indented
+    # inside a list item is still a fence.
+    assert commitlint.check_widths(["feat: subject", fence, _COMMAND, fence]) == []
+
+
+def test_prose_after_a_closed_fence_is_still_flagged() -> None:
+    # The leak that matters: an exemption that outlives its block is the gate not holding.
+    lines = ["feat: subject", "```", _COMMAND, "```", _OVER]
+    (problem,) = commitlint.check_widths(lines)
+    assert "line 5 is 73 chars" in problem
+
+
+def test_an_unclosed_fence_is_itself_a_violation() -> None:
+    # Otherwise one stray fence exempts every line after it, silently and forever.
+    (problem,) = commitlint.check_widths(["feat: subject", "```", _COMMAND])
+    assert "line 2 opens a code fence nothing closes" in problem
+
+
+def test_a_prompted_paste_is_exempt() -> None:
+    assert commitlint.check_widths(["feat: subject", f"    $ {_COMMAND}"]) == []
+
+
+def test_the_line_after_a_prompted_paste_is_measured_again() -> None:
+    # The prompt marks its own line, not the rest of the message.
+    (problem,) = commitlint.check_widths(["feat: subject", f"$ {_COMMAND}", _OVER])
+    assert "line 3 is 73 chars" in problem
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        f"    {_OVER}",  # a nested bullet's continuation: prose, and this repo's history has 9
+        f"\t{_OVER}",
+        f"  $x = {_OVER}",  # a dollar that is not a prompt
+    ],
+)
+def test_an_indent_alone_is_not_a_paste(line: str) -> None:
+    (problem,) = commitlint.check_widths(["feat: subject", line])
+    assert f"is {len(line)} chars" in problem
+
+
+def test_a_breaking_change_footer_wraps_like_any_other_prose() -> None:
+    # Decided rather than exempted: the footer is a machine-read token over a prose value,
+    # and the parser that reads it allows newlines in that value, so wrapping costs nothing.
+    assert len(_FOOTER) == 124
+    (problem,) = commitlint.check_widths(["feat(proto)!: rename the capture field", _FOOTER])
+    assert "line 2 is 124 chars" in problem
+
+
+def test_a_wrapped_breaking_change_footer_passes() -> None:
+    lines = [
+        "feat(proto)!: rename the capture field",
+        "",
+        "BREAKING CHANGE: the capture request field is renamed, so every",
+        "client must be regenerated from the proto before it connects.",
+    ]
+    assert commitlint.check_widths(lines) == []
+
+
+def test_main_passes_a_message_carrying_a_fenced_command(tmp_path: Path) -> None:
+    msg = _write(
+        tmp_path, f"docs: record the invocation\n\nBring the stack up:\n\n```\n{_COMMAND}\n```\n"
+    )
+    assert commitlint.main([msg, "--repo", str(tmp_path)]) == 0
+
+
+def test_main_fails_a_message_whose_fence_is_left_open(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    msg = _write(tmp_path, f"docs: record the invocation\n\n```\n{_COMMAND}\n")
+    assert commitlint.main([msg, "--repo", str(tmp_path)]) == 1
+    assert "code fence nothing closes" in capsys.readouterr().err
+
+
 # ── whole-message wiring ───────────────────────────────────────────────────────
 
 
