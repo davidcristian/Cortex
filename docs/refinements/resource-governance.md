@@ -7,16 +7,17 @@ historical record of what each deferral became, and the index at [index.md](inde
 recommended pickup order.
 
 **Open items:** 5, counted by reading the entries below rather than by adjusting the last number.
-The Intel NPU as a third placement target, a bounded admission wait, the drain bound against a
+The Intel NPU as a third placement target, a queue-depth bound, the drain bound against a
 fired task's lease, admission reopening onto a tier that would not restart, and a total generation
-cap. The number is unmoved and the set is not: the read timeout on the subagent HTTP client landed
-2026-08-09 and opened the total generation cap in the same pass, one out and one in, which is the
-shape this file's own warning is about (a count that agrees with its header proves nobody
-miscounted and nothing else). Before that, the subagent VRAM ask came and went inside two days: the
-cortex reservation's re-measurement on 2026-08-07 opened it, having closed nothing this count had
-ever carried (it had been deferred at two ADRs and recorded on no index), so the count went 5 to 6
-for an arrival with no matching departure; measuring the tier on 2026-08-08 took it back to 5. All
-three moves are the honest shape of that history rather than a bookkeeping slip.
+cap. The number is unmoved and the set is not, twice on one day: the read timeout on the subagent
+HTTP client landed 2026-08-09 and opened the total generation cap in the same pass, and hours later
+the bounded admission wait landed and opened the queue-depth bound it declined, one out and one in
+each time, which is the shape this file's own warning is about (a count that agrees with its header
+proves nobody miscounted and nothing else). Before that, the subagent VRAM ask came and went inside
+two days: the cortex reservation's re-measurement on 2026-08-07 opened it, having closed nothing
+this count had ever carried (it had been deferred at two ADRs and recorded on no index), so the
+count went 5 to 6 for an arrival with no matching departure; measuring the tier on 2026-08-08 took
+it back to 5. All four moves are the honest shape of that history rather than a bookkeeping slip.
 
 **Resource governance in Slice 8.5 ([ADR-0012](../adr/ADR-0012-resource-governance.md)):** each behind
 the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
@@ -284,11 +285,65 @@ the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
   spawn holds none of the budget, so refusing it saves nothing. Also noted: with respect to what it
   charges the budget was already hard; "soft" only ever meant that it binds nothing it did not
   admit. Behind it, two new entries below.
-- **A bounded admission wait.** *Fix when it bites.* Admission waits with no timeout and no
+- **A bounded admission wait landed 2026-08-09, ahead of its trigger and half of it declined
+  ([ADR-0012 bounded-admission-wait addendum](../adr/ADR-0012-resource-governance.md)).** The entry
+  read: "*Fix when it bites.* Admission waits with no timeout and no
   queue-depth bound. Depth-1 guarantees the queue drains while admitted runs terminate, and
   `MAX_SPAWN_BATCH` bounds one call, so nothing is unbounded in practice today. The trigger is a
   real deployment showing a turn stalled in admission long enough to matter; the fix is a timeout
-  design over a `Clock`, refusing with the same typed error, not a policy flip.
+  design over a `Clock`, refusing with the same typed error, not a policy flip."
+  `ResourceBudgetScheduler.admit` now refuses after `wait_timeout_s` seconds with the same typed
+  `SubagentAdmissionError` the runner already degrades to an `ok=False` result, wired from
+  `CORTEX_SUBAGENTS_ADMISSION_WAIT_S` (default 3600 s, zero meaning never queue). Four things
+  about it, two of them corrections to this entry's own text.
+  **"Nothing is unbounded in practice today" was the false half**, and the read-timeout entry
+  below said why without either of them noticing: a wedged `llama-server` stream held its
+  admission forever, so the queue behind it never moved, and depth-1 plus `MAX_SPAWN_BATCH` bound
+  how *many* wait rather than how *long*. That sibling landed hours earlier the same day, which is
+  what let this one close ahead of its trigger: with a stall now bounded on both generation
+  clients, the remaining ways for a queue to stop moving are a runaway generation (the entry at
+  the bottom of this file) and nothing else anybody has named, so leaving the wait itself
+  unbounded had stopped being defensible.
+  **The port really was unchanged, and this time it was checked rather than claimed.** This area's
+  header asserts that blanket over all three ports and the index's standing warning names the pair
+  where it broke, so the signature was opened first:
+  `admit(request) -> AbstractAsyncContextManager[None]` carries nowhere to put a per-spawn bound
+  and needs none, because the bound is policy the budget owns, exactly like the two numbers already
+  on that constructor. What the port gained is a sentence of contract, that an implementation which
+  queues owes a bound on that queue and the same typed refusal when it elapses; `AdmitAllScheduler`
+  satisfies it vacuously, having no queue, so the drain contract suite needed no new case and the
+  twin is untouched.
+  **"A timeout design over a `Clock`" is the other correction.** The bound is `asyncio.timeout`
+  around the wait loop, the mechanism `drain` already uses on this very condition object, for three
+  reasons the addendum argues: a duration belongs on the loop's monotonic clock rather than on the
+  wall clock `Clock.now()` reads, the `Clock`/`Sleeper` pair exists for poll loops that would
+  otherwise force real-time tests (this is a bounded wait on an event, whose timeout path an
+  already-expired bound drives in microseconds), and one class should not bound its two waits two
+  different ways. A `Clock` here would have been a decoration.
+  **The number is derived, not felt**, which matters because a bound that refuses a legitimately
+  queued spawn is worse than the unbounded wait it replaces: `MAX_SPAWN_BATCH` is 8, the shipped
+  budget admits two at a time, one entry's spawns serialize at its single backend anyway (4.8 s
+  through two backend objects against 10.0 s through one), and a whole CPU subtask measures 200 to
+  300 s, so the last of a full batch is admitted about **1800 s** in and the bound is twice that.
+  Said plainly rather than left to be found: two full batches queued at once, about 80 minutes of
+  serialized work, will lose its tail to the bound, and that is the deployment that should raise
+  the knob. **The queue-depth half did not ship** and is the entry below.
+- **A queue-depth bound, to refuse a hopeless queue early rather than an hour late.** *Fix when it
+  bites.* Opened 2026-08-09 by the close above, which shipped one of the two refusals that entry
+  asked for. They answer different questions: the wait bound refuses **late**, after the caller has
+  already paid the hour, while a depth bound refuses **early**, when the queue is already provably
+  longer than the budget can drain. Only the wait bound is derivable today, because the scheduler
+  holds charges and no durations: it knows a waiter asks for 2.0 cpus and has no idea whether that
+  is thirty seconds of work or five minutes, so five waiters asking 0.5 each and five asking 2.0
+  look identical to it and any depth number is a guess where the wait number is arithmetic over
+  measurements. What that leaves open is a spawn joining an already hopeless queue and paying the
+  whole bound before it is told, with `MAX_SPAWN_BATCH` and depth-1 still the only things bounding
+  how long the queue can get. The trigger is the first deployment observed hitting the wait bound,
+  which is also the first one with a measured drain rate to derive a depth from; the fix is a
+  waiter count in `ResourceBudgetScheduler` and the same typed refusal, behind the same unchanged
+  port for the same reason the wait bound was (the number is the budget's policy, not a per-spawn
+  ask), which is a claim the close above establishes by having opened the signature rather than
+  one this entry is asserting fresh.
 - **The drain bound is shorter than a fired task's lease, so a task in flight aborts a handoff.**
   *Fix when it bites.* Opened 2026-07-17 by the brain-handoff conductor sub-slice, which wired
   `CORTEX_SWAP_DRAIN_TIMEOUT_S` (default 60 s) as the bound on quiescing the pool before anything
@@ -372,8 +427,15 @@ the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
   them is cheap: a **token** cap is expressible today, `GenerationBounds.max_tokens` already
   riding the `InferenceBackend` port and already used by the recap fold, so it is a value threaded
   from `SubagentsConfig` through the runner; a **wall-clock** cap is not, needing the same timeout
-  design and injected `Clock` as the bounded admission wait above, and it is the one that would
+  design as the bounded admission wait above, and it is the one that would
   actually bound the pool's worst case, a token budget on a 0.35 tok/s tier still being minutes.
+  **That half got cheaper on 2026-08-09**, hours after this entry was written, when the wait it
+  points at landed: the design turned out to be `asyncio.timeout` around the wait rather than the
+  injected `Clock` this entry priced it at (a duration belongs on the loop's monotonic clock, and
+  the `Clock`/`Sleeper` pair exists for poll loops), so the wall-clock cap is the same wrapper
+  around the attempt's stream consumption and needs no port to carry a deadline. What did not get
+  cheaper is the number, which is still the guess about how long a legitimate answer runs that
+  keeps this entry closed.
   Its origin decision is the [ADR-0005 stall-ceiling addendum](../adr/ADR-0005-llamacpp-engine.md),
   which declined it deliberately: converting an unbounded wait into a bounded reported failure is
   a transport concern, while capping how much a model may say is a policy about answers, and

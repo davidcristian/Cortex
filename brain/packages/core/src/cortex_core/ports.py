@@ -268,8 +268,14 @@ class SubagentScheduler(Protocol):
     than the whole budget can never be admitted, so it raises ``SubagentAdmissionError`` rather than
     waiting forever; any implementation owes that refusal, since ``SubagentRunner`` degrades exactly
     this error to an ``ok=False`` result instead of letting an exception kill the turn (ADR-0012
-    admission-wall addendum). The budget binds nothing it did not admit (no ``.wslconfig``/parent
-    cgroup, the user's constraint), which is the sense in which it is *soft*; it is distinct from
+    admission-wall addendum). **An implementation that queues owes a bound on that queue** and the
+    same typed refusal when it elapses (the bounded-admission-wait addendum): a wait nothing ends
+    is a turn that never finishes, and the caller cannot supply the bound, since ``admit``'s
+    signature has nowhere to carry one and the wait is policy the budget owns rather than a
+    per-spawn ask. How long is the implementation's own configuration; a twin that admits
+    everything at once, having no queue, satisfies this vacuously. The budget binds nothing it did
+    not admit (no ``.wslconfig``/parent cgroup, the user's constraint), which is the sense in which
+    it is *soft*; it is distinct from
     the ``ModelManager``'s GPU lease and the ``SubagentPlacer``'s VRAM ledger. The three compose at
     the runner (ADR-0010 decision 6, ADR-0012).
 

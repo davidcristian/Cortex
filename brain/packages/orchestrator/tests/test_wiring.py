@@ -58,6 +58,7 @@ from cortex_core import (
     SessionMemoryScope,
     SpawnSubagentsTool,
     StrictUrlRedactingGuardrail,
+    SubagentAdmissionError,
     SubagentProfile,
     SubagentResources,
     SubagentRoster,
@@ -604,6 +605,36 @@ async def test_build_subagents_dials_its_llama_servers_under_its_own_stall_ceili
     await close()
     # One client for the whole roster, built once with the configured seconds.
     assert seen == [333.0]
+
+
+async def test_build_subagents_hands_the_pool_its_configured_admission_bound() -> None:
+    """The deployment's seconds reach the one budget object, proved by what that object refuses.
+
+    Behaviourally rather than by reading a private field: at zero the pool never queues, so a
+    second charge against a full budget comes back refused instead of parking. Under the shipped
+    default that same charge would still be waiting when the test ended, which is precisely the
+    state the bound exists to make impossible, and why `asyncio.timeout` sits over it.
+    """
+    _spawn, scheduler, close = await build_subagents(
+        SubagentsConfig(
+            backend="llamacpp",
+            endpoint="http://llama-subagent-cpu:8082",
+            gpu_endpoint="http://llama-subagent-gpu:8083",
+            admission_wait_s=0.0,
+        ),
+        None,
+        "redis://sub:6379/0",
+        SystemClock(),
+        placer=VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.3),
+        task_store_factory=_fake_task_store,
+    )
+    assert scheduler is not None
+    whole_budget = PlacementRequest("subagent", vram_gb=3.5, cpus=4.0, memory_gb=8.0)
+    async with asyncio.timeout(10.0), scheduler.admit(whole_budget):
+        with pytest.raises(SubagentAdmissionError, match="waited 0s for room"):
+            async with scheduler.admit(whole_budget):
+                pass  # pragma: no cover - admit raises before the body runs
+    await close()
 
 
 async def test_build_subagents_builds_the_config_roster_and_advertises_it() -> None:

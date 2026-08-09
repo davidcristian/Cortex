@@ -808,3 +808,122 @@ producing tokens: a repetition loop holds its admission exactly as the wedged st
 is filed as the total generation cap in
 [refinements/resource-governance.md](../refinements/resource-governance.md), the one deferral this
 close opened.
+
+## Addendum (2026-08-09): the admission wait is bounded, and the queue-depth half is not
+
+The admission-wall addendum above kept queuing deliberately and deferred **a bounded wait** to a
+deployment that showed a turn stalling long enough to matter. It lands here ahead of that trigger,
+because the read-timeout close the same day removed the excuse: with a wedged stream now bounded on
+both generation clients, the only remaining way for the queue to stop moving is a subagent that
+keeps talking, which is filed as its own deferral rather than fixed, and an unbounded wait behind
+it is a delegated turn with no end at all. `ResourceBudgetScheduler.admit` now refuses
+after `wait_timeout_s` seconds with the same typed `SubagentAdmissionError` the runner already
+degrades to an `ok=False` result, wired from `CORTEX_SUBAGENTS_ADMISSION_WAIT_S` (default 3600 s,
+zero meaning never queue at all).
+
+### The port really was unchanged, and here is the check rather than the claim
+
+The backlog puts this area's entries "behind the unchanged
+`SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports", a blanket this area is on record for
+getting wrong twice (placement-aware charging needed an argument `admit` has
+nowhere to carry; hard enforcement needed a cgroup a port that only sees admissions cannot reach).
+So the signature was opened and read before anything was designed:
+`admit(request) -> AbstractAsyncContextManager[None]`, `drain(*, timeout_s) -> bool`, `undrain()`.
+A wait bound is expressible without touching any of it, and for a reason worth writing down rather
+than a coincidence: the bound is **policy the budget owns**, not a per-spawn ask, so it belongs
+where the budget's other two numbers already live, on the implementation's constructor. Every
+caller of `admit` is the runner, and it wants the refusal, not the knob. What the port *did* gain
+is a sentence of contract: an implementation that queues owes a bound on that queue and the same
+typed refusal when it elapses. `AdmitAllScheduler` satisfies that vacuously, having no queue, which
+is why the drain contract suite needed no new case; the twin is unchanged.
+
+### Deriving 3600 s, from measurements and not from feel
+
+A bound that refuses a legitimately queued spawn is worse than the unbounded wait it replaces: it
+turns a slow success into a failure. So the number is the worst wait the **shipped** stack can
+produce while everything is working, doubled.
+
+- `MAX_SPAWN_BATCH` is **8**, the cap on one `spawn_subagents` call (ADR-0010 batch-cap addendum).
+- The shipped budget admits **two** at a time: `CORTEX_SUBAGENTS_CPU_BUDGET=4.0` against an ask of
+  `CORTEX_SUBAGENTS_CPUS=2.0`, and the memory pair caps at the same two whichever declaration is in
+  force (8.0 against the compose file's 3.0, or against the code default's 2.0, where cpus binds
+  first). That is also why `--parallel` is 2 on the CPU server.
+- **Admitted is not concurrent**, which is what makes the arithmetic serial rather than parallel:
+  one roster entry holds one `LlamaCppBackend` per target and a backend holds its model lease for
+  the whole stream, measured at **4.8 s through two backend objects against 10.0 s through one**
+  ([docs/runbooks/subagents-cpu.md](../runbooks/subagents-cpu.md)). So a slot frees once per whole
+  subtask, not twice.
+- A whole CPU subtask on the shipped entry is **200 to 300 s**: a three subtask batch runs 10 to 15
+  minutes serialized at about 0.35 tok/s (same runbook, derived in the
+  [ADR-0005 stall-ceiling addendum](ADR-0005-llamacpp-engine.md)).
+
+Six of a full batch of eight therefore wait behind a subtask each: the last is admitted **1800 s**
+in, and every second of that is a spawn that was going to run. The bound is **twice** it, the same
+doubling the pool's own stall ceiling carries for the same reason (on this hardware the honest
+reading is that ten minutes of silence is a wedge, and an hour of queuing is a pool that is not
+draining). Two knobs would have been wrong here where they were right for the stall ceiling: the
+budget is one object across roster entries by design, so there is one queue and one bound.
+
+**What the bound does refuse**, said plainly rather than left to be discovered: two full batches
+queued at once, which is 16 CPU subtasks and about 80 minutes of serialized work, will lose its
+tail to the bound. A deployment that routinely queues more than one batch at a time should raise
+`CORTEX_SUBAGENTS_ADMISSION_WAIT_S`, and the refusal names the bound so its reader lands on the
+right knob. The GPU tier only shortens these waits (a GPU-placed spawn measured **221.05 ms**
+against **12536.83 ms** for the sibling that overflowed), so sizing on the CPU path is the
+conservative direction.
+
+### Depth and wait answer different questions; only one shipped
+
+The entry asked for both "no timeout and no queue-depth bound". They are not the same refusal: a
+**depth** bound refuses early, when the queue is already provably longer than the budget can drain;
+the **wait** bound refuses late, after the caller has paid. Only the wait bound shipped, and the
+reason is that the scheduler has charges and no durations. It knows a waiter asks for 2.0 cpus; it
+has no idea whether that waiter is thirty seconds or five minutes of work, so any depth number is a
+guess where the wait number above is arithmetic over measurements. Five waiters asking 0.5 cpus
+each drain in a fraction of the time five asking 2.0 do, and depth cannot tell them apart.
+
+**What is left unanswered**, therefore: a spawn joining a queue that is already hopeless still pays
+the whole hour before it is told, so the model hears "refused" an hour late instead of at once, and
+`MAX_SPAWN_BATCH` plus depth-1 are still the only things bounding how long that queue can get.
+Filed as its own deferral in
+[refinements/resource-governance.md](../refinements/resource-governance.md), with the trigger that
+makes it worth its guess: the first deployment observed hitting this bound, which is also the first
+one with a measured drain rate to derive a depth from.
+
+### `asyncio.timeout`, not the `Clock` port, and why that is the consistent choice
+
+The entry, and the ADR-0005 addendum that pointed here, both expected "a timeout design over a
+`Clock`". The bound is enforced by `asyncio.timeout` around the wait loop instead, which is the
+idiom `drain` already uses on this very condition object, and the reasons are three:
+
+- **A duration belongs on a monotonic clock.** `Clock.now()` is wall time; an NTP step during an
+  hour-long wait would fire this bound early or late. The event loop's clock cannot step.
+- **The `Sleeper`/`Clock` pair exists for poll loops.** Its own charter says so: the core may not
+  reach for `asyncio.sleep`, because a poll loop that did would make every test of it a real-time
+  test (`health_gate.py`). This is not a poll loop; it is a bounded wait on an event, and an
+  already-expired bound drives its timeout path with no wall-clock time at all, which is exactly
+  why `drain` was allowed the same mechanism. Every test of the new refusal runs in microseconds.
+- **One class, one way of bounding a wait.** A scheduler whose two waits timed out by two different
+  mechanisms would be a question with no good answer at the next reading.
+
+The core still reads no wall clock and still owns no timer. Injecting a `Clock` here would have
+bought a decoration: the deadline would have been read from it and enforced somewhere else.
+
+### Distrust green
+
+Six mutations, each applied to production code alone with the whole `packages` suite re-run, so the
+counts are measured rather than aimed at:
+
+| Mutation | Reddened | Which |
+| --- | --- | --- |
+| the `asyncio.timeout` wrapper dropped (the unbounded wait restored) | 4 | the three bound cases plus the wiring one |
+| the refusal interpolates a literal instead of the configured bound | 2 | `..._is_refused_and_names_it`, `..._hands_the_pool_its_configured_admission_bound` |
+| `TimeoutError` allowed to escape untyped | 4 | the same four as the first row |
+| the builder keeps the core default instead of `config.admission_wait_s` | 1 | `test_build_subagents_hands_the_pool_its_configured_admission_bound` |
+| `DEFAULT_ADMISSION_WAIT_S` retuned to 600.0 | 2 | `test_subagents_default_to_disabled`, `..._clears_the_worst_wait_one_batch_can_legitimately_produce` |
+| the non-negative bound check dropped | 1 | `test_rejects_a_negative_wait_bound` |
+
+Every test that can queue is wrapped in an `asyncio.timeout(10)`, because the defect under test is
+an unbounded wait and a mutation that hangs the suite proves nothing. That wrapper is itself
+witnessed: the first row's run took **139 s** against the suite's usual **98 s**, which is those
+four tests reaching their guard and failing rather than the run never ending.

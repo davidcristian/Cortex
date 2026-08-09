@@ -102,7 +102,10 @@ async def build_subagents(
 
     The scheduler is returned alongside the tool because the swap conductor has to quiesce this
     very pool before a model handoff evicts anything (ADR-0030 decision 4): one budget object,
-    composed at the root, never a second one that would admit past the drain.
+    composed at the root, never a second one that would admit past the drain. That one object
+    also carries `config.admission_wait_s`, so how long a spawn may queue for room is the
+    deployment's number rather than the core's default (ADR-0012 bounded-admission-wait
+    addendum); one budget means one bound, whatever mix of roster entries is queued on it.
 
     Every entry shares one client, so `config.stall_timeout_s` is the ceiling on a silent CPU
     stream for the whole pool (ADR-0005 stall-ceiling addendum). It is the loose one of the two
@@ -113,7 +116,9 @@ async def build_subagents(
     if config.backend == "none":
         return None, None, noop_aclose
     client = build_generation_client(config.stall_timeout_s)
-    scheduler = ResourceBudgetScheduler(config.cpu_budget, config.mem_budget_gb)
+    scheduler = ResourceBudgetScheduler(
+        config.cpu_budget, config.mem_budget_gb, wait_timeout_s=config.admission_wait_s
+    )
     roster = SubagentRoster(
         entries={
             name: _entry_profile(name, entry, client, scheduler, placer)
