@@ -3463,6 +3463,68 @@ so a real fix is a bound on how long a suspended generation may hold the lease a
 rather than a knob. Its trigger is a deployment with more than one live consumer, or a report of one
 slow client stalling turns that are not its own.
 
+**A trigger sweep of this bucket ran 2026-08-09 against the tree and fired nothing**, recorded here
+so the next reader spends the pass elsewhere instead of re-deriving the same verdicts. Every entry
+was read against the code rather than against its own text, which is the discipline this index
+keeps asking for and which the sharpest of the findings needed, because **the retryable-code
+table's trigger looks fired and is not**. That entry ([seam-transport.md](seam-transport.md)) names
+as its trigger a brain that starts answering `RESOURCE_EXHAUSTED` or `ABORTED`, and the vision
+paragraph above records `RESOURCE_EXHAUSTED` classification landing 2026-08-08, which reads exactly
+like that code arriving. It is neither the same path nor the same direction. The code that landed is
+raised by the **body's** service for `CaptureError::TooLarge`
+(`body/crates/rpc/src/screen.rs:124`) and consumed by the brain as a client, which maps it to
+`BodyFailure.OVERSIZE` (`brain/packages/body_client/src/cortex_body_client/failures.py:40`), while
+the retry policy this entry is about classifies the body-to-brain direction at
+`body/crates/core/src/retry/policy.rs:26`, whose transient set is still exactly `Unavailable`, and
+every brain-side abort is still `UNAVAILABLE` or `UNAUTHENTICATED`
+(`session_servicer.py:64,76,88,99,110`, `preference_servicer.py:46,62`, `server.py:201,212`,
+`auth.py:44,52`). The trigger wants a
+producer on the seam the policy reads and what landed is a producer on the other one.
+
+The remaining readable triggers are all quiet, each checked at the site that would have to have
+moved. Safe `converse` reconnect before the first event wants routine mid-turn evictions, and
+nothing is routinely evicted while `CORTEX_SWAP_EVICT_MODELS` is empty by default
+(`brain/packages/orchestrator/src/cortex_orchestrator/config_swap.py:113`, the knob the recovery
+path names at `brain/packages/core/src/cortex_core/swap_recovery.py:101`)
+([seam-transport.md](seam-transport.md)). The whisper's measured-once wrap width wants a resizable
+overlay window, and `body/app/src-tauri/tauri.conf.json:20` still declares `"resizable": false`. The
+switcher's and the reminder stack's inset spent on the reserved rail wants a row dropping its
+horizontal padding or the maintainer reading the rail as touching the chrome, and
+`body/app/src/overlay.css:37` still declares `--rail: 6px` with the sheet's geometry note at line 31
+still recording both surfaces at 6px ([body-overlay.md](body-overlay.md)). The overlay stylesheet
+outside the line cap wants a second stylesheet forcing the ordering question, and there is still
+exactly one under `body/app/src`, `overlay.css` at the 2700 lines this bucket already records for
+today. None of the four couplings the widened constant scan cannot hold has moved either:
+`CAPTURE_MIME` is still the single encoding `"image/png"`
+(`body/crates/core/src/os/screen_policy.rs:50`, whose `mime_type` at line 188 documents the encoding
+as always that one), the body's bind port 50151 still has its only declaration inside the crate no
+gate compiles (`body/app/src-tauri/src/body_server.rs:46`) and so still rides the shell clippy
+entry, and `scripts/couplings.py` still registers exactly the two value-declaring properties a third
+of that shape would join, `--ease` at line 244 and `--roll` at line 264. Shell `cargo clippy` in CI
+wants CI gaining the Tauri desktop stack for another reason, and `.github/workflows/ci.yml` installs
+no system library at all (line 125 records shell fmt needing only rustfmt, and lines 141 and 142
+state the shell is never built there) ([repo-gates.md](repo-gates.md)).
+
+**One entry is half fired and was deliberately not picked**, which is worth saying plainly rather
+than letting "nothing fired" cover it: multi-turn within one stream plus a client-sent `Cancel`
+([body-overlay.md](body-overlay.md)). The brain-side swap this entry names as its trigger has
+landed, and the body glue it waits on is confirmed absent, `body/crates/rpc/src/converse.rs`
+carrying no `Cancel` at all. It stays open because the coupling the entry states about itself still
+holds: a client `Cancel` against a one-turn-per-call body ends the stream on a `Protocol` error, so
+it cannot precede body multi-turn and the per-turn confirm keying that rides with it, and the
+economic half of the trigger, compute expensive enough that muting the sink stops being adequate,
+still wants a live deployment. Everything else open here is live-observation shaped, its trigger
+being a deployment doing something rather than a file saying something, so no reading of the code
+settles it: the salience and batch-cap knobs, the guardrail tails, the scheduling entries behind the
+push retry policy, the Windows COM and audio hardening, fencing the single-handoff claim across
+processes, and the residency and model-manager entries each recent close opened.
+
+The same pass checked the **Actionable now** bucket and found it exhausted as its own opening
+paragraph says, 35 of its 36 bullets being closure records and the one open item, the
+spontaneous-pick nudge's live uptake, having run 2026-08-04 with its residue host-side. It did not
+reach **Dead until a consumer exists** or **Feature breadth, on request**, which is therefore where
+the next session should look rather than here.
+
 ### Feature breadth, on request
 
 - macOS/Linux OS backends behind the existing traits ([cross-cutting.md](cross-cutting.md))
