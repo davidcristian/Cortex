@@ -204,7 +204,10 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   bounded-admission-wait addendum) is how long a spawn may queue for room before it is refused
   instead of waiting for it forever; it reaches the one `ResourceBudgetScheduler` the builder makes,
   so one budget carries one bound whatever mix of entries queues on it. The default is twice the
-  1800 s the last spawn of a full batch waits under the budgets above, and zero means never queue.
+  1800 s the last spawn of a full batch waits when an entry's admitted pair serializes on one
+  placement target and four times the 900 s it waits when that pair overlaps, which is what the
+  asks above ship, making it an upper bound over both placements rather than either wait; zero
+  means never queue.
   `named_roster` (property) synthesizes the ready-to-dial mapping, with the flat-field default
   first, alternates sorted, fallbacks applied; empty unless `backend="llamacpp"`. Every entry in
   it must fit the whole budget (`cpus <= cpu_budget` and `memory_gb <= mem_budget_gb`, equality

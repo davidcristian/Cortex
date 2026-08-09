@@ -511,9 +511,10 @@ def test_subagents_default_to_disabled() -> None:
     # longest whole subtask measured on the shipped CPU entry, which is what a queued peer can
     # legitimately sit behind; a tighter number would abort slow work instead of wedged work.
     assert config.stall_timeout_s == 600.0
-    # Likewise a literal: one hour is twice the 1800 s the last spawn of a full batch waits under
-    # exactly these budgets, so the shipped bound refuses a pool that is not draining rather than
-    # one that is merely slow.
+    # Likewise a literal: one hour is twice the 1800 s the last spawn of a full batch waits when
+    # these budgets admit a pair that serializes on one placement target, and four times the 900 s
+    # it waits when that pair overlaps, which is what the asks above ship. An upper bound over both
+    # placements, so it refuses a pool that is not draining rather than one that is merely slow.
     assert config.admission_wait_s == 3600.0
 
 

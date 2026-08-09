@@ -171,6 +171,20 @@ deferral is the same way an open item gets lost as a count moved for a half-clos
   parenthetical above went stale with it: the default entry's ask was re-measured to 3.5 GiB the
   same day, so it fits the headroom once and overlaps exactly as `qwen` did rather than staying
   strictly serial.
+  **What stays as written, listed rather than left to be rediscovered.** The sweep that finished
+  the arithmetic correction hours later read every restatement of the serial premise in the tree
+  and left five standing on purpose. Four of them are this sentence and its escorts: the advertised
+  text in `spawn_spec.py`, the pinned note beside it, the assertions in
+  `packages/core/tests/test_spawn.py` that pin both strings, and the live probe's docstring in
+  `packages/orchestrator/tests/test_spawn_nudge_live.py`, all of which now describe the wording as
+  a deliberate understatement instead of asserting the premise as fact, so the strings themselves
+  are untouched and the decline is legible at each of them. The fifth is a class rather than a
+  site: the historical narratives of the 2026-07-16 landing (the [ADR-0010
+  addendum](../adr/ADR-0010-subagents.md), the entry above, and the area rows in
+  [index.md](index.md)) report what was measured and decided on the day, which is accurate as
+  history and would be falsified by being rewritten; each already sits next to the correction that
+  supersedes it. Correctly scoped statements of the mechanism, the ones that say *sharing one
+  backend* or *per placement target*, were never wrong and were not touched.
 - **The per-role escape hatch.** A future subagent role needing a cheap model on a
   tainted/tool path for a proven-safe reason would be a per-role override on the same roster
   seam, never a relaxation of the forced-robust default (ADR-0017 risks, ADR-0018 risks).

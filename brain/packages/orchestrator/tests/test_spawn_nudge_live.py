@@ -1,10 +1,11 @@
 """Integration: does a live cortex spread independent subtasks across roster models (ADR-0018)?
 
 The spawn spec tells the cortex that subtasks on **distinct** roster models overlap while subtasks
-sharing one model queue behind that entry's single backend lease, and points it at spreading a
-batch as the wall-clock lever (ADR-0012 admission-wall addendum). Whether a live cortex takes that
-advice **unprompted** is what this suite observes, over the real cortex `llama-server`, the real
-`spawn_subagents` tool, and a roster built from the deployment's own `CORTEX_SUBAGENTS_*` values.
+sharing one model run one after another, wording that understates this deployment's two-way overlap
+on purpose (ADR-0018 declined the rewrite), and points it at spreading a batch as the wall-clock
+lever. Whether a live cortex takes that advice **unprompted** is what this suite observes, over the
+real cortex `llama-server`, the real `spawn_subagents` tool, and a roster built from the
+deployment's own `CORTEX_SUBAGENTS_*` values.
 
 Three arms, because the question has two halves and needs a control:
 
