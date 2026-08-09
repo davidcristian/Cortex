@@ -3556,3 +3556,84 @@ the next session should look rather than here.
   a pitched family and sits behind one component seam, so a registry beside the theme, the iris
   and the dream (the Face's anatomy extending to a voice) is data plus a swatch row. Trigger:
   the user wanting a second voice back
+
+**A costing pass over this bucket ran 2026-08-09 against the tree**, recorded here because two of
+these entries cost materially more than their own line says, one is blocked by something other than
+scope, and one carries a gate hazard no doc joins up. Nothing opened and nothing closed, so no count
+moves; what changes is what the next reader should expect to pay.
+
+**The voice as a fourth picked row is not "data plus a swatch row"**, and it fails that description
+in two independent places. The lifecycle it would parameterize lives in one file at the cap:
+`body/app/src/whisper/useWhisperClock.ts` is 298 lines against the 300-line limit, and the three
+phases the pick would have to vary (`"breath" | "talking" | "settled"`, line 22) are driven from
+that one rAF loop, so the first per-voice edit overruns and the pick opens with a responsibility
+split plus a re-cover of both halves. There is also no registry to add a literal to: the theme, the
+mark and the edge each own one (`body/app/src/theme/themes.ts`, `mark/marks.ts`, `edge/edges.ts`),
+while the whisper directory holds only the clock and `front.ts`, so the registry the entry assumes
+is itself part of the cost. The second failure is the row. `body/app/src/components/AppearanceTab.tsx`
+draws every existing section as a **live preview of the real thing** (`ThemeMini` and `AutoMini` at
+lines 83 and 92, the real `BubbleMark` at line 108, `EdgeMini` at line 135), and the file's own
+comment states the property that makes those rows cheap: each is a map over its registry, so a
+fifth entry is a literal and no change here (lines 57 to 60, restated for edges at lines 124 to
+126). A voice tile's subject is motion over time rather than a still surface, so it needs an
+animated preview component and its tests, the neighbours being 87 lines (`EdgeMini.tsx`) and 203
+(`BubbleMark.tsx`). What does survive is the persistence half: preferences ride generic string keys
+(`THEME_KEY`, `MARK_KEY`, `WINDOW_KEY` at `body/app/src/overlay/usePreferences.ts:11` to 13, read
+through a `read(key: string)` at line 59), so a fourth key costs no proto change and no brain
+change. Naming the row is deliberately not settled here; it is the maintainer's call.
+
+**More subagent roles is not the cheap entry its one line suggests.** It is a bare headline with no
+body entry at all ([cross-cutting.md](cross-cutting.md) lines 5 and 9), and read against the brain
+there is no role concept to extend: the only `role` in the core is `Message.role`, the
+message-author enum `USER`/`ASSISTANT`/`SYSTEM`/`TOOL` at
+`brain/packages/core/src/cortex_core/conversation.py:11`, which is a different thing entirely, and
+the spawn tool's per-item schema is exactly `instruction`, `context` and an optional `model`
+(`spawn_spec.py:89` to 98). What exists on this axis is a **model roster**
+(`brain/packages/core/src/cortex_core/roster.py`), whose `resolve` at line 72 is where the taint
+boundary is enforced rather than described. A role would therefore be a new pure value type, a new
+spawn argument, resolution sitting beside that boundary, composition-root wiring and env config,
+which is a vertical slice and not a breadth add. The one place roles are already named,
+[subagents.md](subagents.md) line 188, treats a per-role override as hypothetical and unimplemented
+by design, which is consistent with there being nothing to override yet.
+
+**The user-attached image path is blocked by a core invariant, not by scope**, correcting its own
+closing line. `Message.__post_init__` raises for any non-`TOOL` message carrying images
+(`conversation.py:67`, with the docstring at lines 46 to 52 calling it an invariant rather than a
+convention, so the domain cannot express the shape), the handoff record refuses the same
+(`handoff.py:174` and 181), and the session store refuses it again on the way to Redis
+(`store_codec.refuse_images` at line 58, called from `store.py:119`). A user image is therefore a
+deliberate relaxation of a rule asserted at three layers, and it must answer the persistence
+question the capture path refused rather than inherit an answer.
+
+**The macOS/Linux OS backends entry carries a coverage trap that no doc records**, which is the
+finding of this pass and the reason the entry reads cheaper than it is. `os_windows` escapes the
+Linux coverage run by construction: the crate is `#[cfg(windows)]` and even its dependencies are
+declared under `[target.'cfg(windows)'.dependencies]`, so on Linux it builds to nothing. The two
+stub crates are not gated that way. `body/crates/os_linux/src/lib.rs` and
+`body/crates/os_macos/src/lib.rs` are 71 lines each, plain workspace members
+(`body/Cargo.toml:2`) with a bare `[dependencies]`, and each satisfies four traits with
+`unimplemented!()`: `Hotkey`, `AudioControl`, `Notify` and `ScreenCapture`, every body under
+`#[cfg_attr(coverage, coverage(off))]` with an inline reason. Since the gate runs
+`cargo llvm-cov --workspace` (`justfile:95`), a **real** Linux backend would compile in CI and be
+measured, putting live X11 or Wayland calls inside the 100 percent line and branch gate, which is
+precisely where AGENTS.md does not put real OS calls: those belong in thin adapters under
+`integration` marking, run on the host and excluded from the gate. Both halves of that collision
+are already written down and never joined: [body-os.md](../modules/body-os.md) line 42 records
+`os_linux` as compiled and measured on Linux CI, and the crate's own header (lines 7 to 9) records
+that real backends are host-validated and never in CI. Whoever picks this up needs the
+integration-marking answer before writing a line of X11. The macOS half does not have the problem,
+for a reason worth stating: a real macOS backend could not compile on Linux at all and would have
+to gain `os_windows`'s `cfg` gate, which is the same escape. That also means ADR-0011's decision 3,
+which describes `os_macos` as `cfg(macos)` and compiling to nothing on Linux, describes a gate the
+crate does not currently carry; today it compiles alongside `os_linux` and is spared only by the
+per-method escape hatch.
+
+**The remaining `ScreenCapture` backends and the liquid edge's backdrop blur stay parked exactly as
+written**, both re-read and neither changed. The capture stubs are the same `unimplemented!()` pair
+just described (line 64 of each crate's `lib.rs`), so that entry inherits the coverage question
+above on the Linux side while its Windows argument is untouched. The blur entry already says to
+start by re-measuring, because the engine moves under it, and the measurement it rests on is still
+the one in the sheet: `body/app/src/overlay.css` lines 297 to 299 record that Chromium does not clip
+`backdrop-filter` output by a `path()` clip, and line 304 sets `backdrop-filter: none` on
+`.panel.edge-live` while the unclipped `.panel` at line 273 keeps its `blur(30px) saturate(140%)`.
+Re-measure first, as the entry says, and only then cost the `mask-image` candidate.
