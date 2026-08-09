@@ -1,4 +1,4 @@
-"""The real ``ModelHost``: the port's four verbs over the supervisor's control API (ADR-0030 d3)."""
+"""The real ``ModelHost``: the port's six verbs over the supervisor's control API (ADR-0030 d3)."""
 
 import logging
 from http import HTTPStatus
@@ -75,6 +75,19 @@ class HttpModelHost:
             )
             return None
         return ControlBounds(probe_timeout_s=probe, stop_grace_s=grace, reap_timeout_s=reap)
+
+    async def boot_id(self) -> str | None:
+        """Which daemon is answering, or ``None`` when this one will not name its own boot."""
+        payload = await self._request("GET", "/health", "which daemon is answering")
+        boot = payload.get("boot_id")
+        if not isinstance(boot, str) or not boot:
+            _logger.info(
+                "the model host does not name its own boot: boot_id=%r",
+                boot,
+                extra={"boot_id": boot},
+            )
+            return None
+        return boot
 
     async def _act(self, model: str, verb: str) -> None:
         """Run a lifecycle verb and read the state it left behind, for the log."""

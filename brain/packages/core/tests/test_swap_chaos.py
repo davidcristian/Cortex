@@ -40,9 +40,8 @@ from cortex_core import (
     render_exchange,
 )
 
-# How far the host has been driven at each boundary, ignoring readiness polls: the eviction, the
-# swap in, and the whole way back. Naming them keeps each case's expectation readable.
-_EVICTED = (("stop", "cortex"),)
+_ASKED_WHO = (("boot_id", ""),)
+_EVICTED = (*_ASKED_WHO, ("stop", "cortex"))
 _SWAPPED_IN = (*_EVICTED, ("start", "brain"))
 _SWAPPED_BACK = (*_SWAPPED_IN, ("stop", "brain"), ("start", "cortex"))
 

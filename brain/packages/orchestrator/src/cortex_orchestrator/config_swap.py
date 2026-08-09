@@ -79,11 +79,7 @@ class SwapConfig(BaseSettings):
         return self
 
     def residency_plan(self, cortex_model: str) -> ResidencyPlan:
-        """The core value the manager, the conductor, and boot recovery all read.
-
-        ``cortex_model`` comes from the runtime config (``CORTEX_MODEL_CORTEX``), so the tier
-        ids stay declared in one place each and cannot drift between the lease and the swap.
-        """
+        """The core value the manager, the conductor, and boot recovery all read."""
         return ResidencyPlan(
             cortex_model=cortex_model,
             brain_model=self.brain_model,
@@ -93,4 +89,5 @@ class SwapConfig(BaseSettings):
             brain_decode_tps=self.brain_decode_tps,
             drain_timeout_s=self.swap_drain_timeout_s,
             load_timeout_s=self.swap_load_timeout_s,
+            control_deadline_s=self.modelhost_timeout_s,
         )

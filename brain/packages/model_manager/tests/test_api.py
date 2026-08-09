@@ -51,7 +51,7 @@ def _body(response: httpx.Response) -> dict[str, Any]:
 
 async def test_health_reports_the_daemon_the_roster_and_the_bounds_it_was_wired_with() -> None:
     """The compose healthcheck's route, and the first thing an operator asks the sidecar."""
-    client, _, _ = _wired()
+    client, supervisor, _ = _wired()
     try:
         response = await client.get("/health")
     finally:
@@ -60,6 +60,10 @@ async def test_health_reports_the_daemon_the_roster_and_the_bounds_it_was_wired_
     assert _body(response) == {
         "status": "ok",
         "models": [CORTEX, DEEP],
+        # Read off the supervisor for the same reason the bounds are: a route that minted its own
+        # would name a boot nothing in the process shares, and the brain compares this against
+        # what it was told last rather than against anything it can derive.
+        "boot_id": supervisor.boot_id,
         "probe_timeout_s": _TINY_PROBE,
         "stop_grace_s": _TINY,
         "reap_timeout_s": _TINY_REAP,

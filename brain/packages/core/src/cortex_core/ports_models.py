@@ -20,6 +20,8 @@ class ModelHost(Protocol):
 
     async def control_bounds(self) -> ControlBounds | None: ...
 
+    async def boot_id(self) -> str | None: ...
+
 
 class ResidencyController(Protocol):
     """Changes which model is resident on the GPU, for the duration of a scope (ADR-0030 d5)."""

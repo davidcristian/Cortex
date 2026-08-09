@@ -78,6 +78,10 @@ class _YieldingHost:
         await asyncio.sleep(0)
         return await self._inner.control_bounds()
 
+    async def boot_id(self) -> str | None:
+        await asyncio.sleep(0)
+        return await self._inner.boot_id()
+
 
 def _manager(host: ModelHost, plan: ResidencyPlan | None = None) -> SwappingModelManager:
     return SwappingModelManager(
@@ -178,6 +182,7 @@ async def test_the_scope_swaps_in_evicts_everything_else_and_restores_all_of_it(
         async with manager.acquire("brain") as lease:
             assert lease.endpoint == _BRAIN_URL
     assert host.calls == [
+        ("boot_id", ""),
         ("stop", "cortex"),
         ("stop", "subagent-gpu"),
         ("start", "brain"),
@@ -387,7 +392,8 @@ async def test_the_card_is_read_after_the_evictions_and_before_the_load() -> Non
     manager = _manager(host, _plan(evict_models=("subagent-gpu",), brain_vram_mib=19125))
     async with manager.swap_scope("brain"):
         assert host.running == {"brain"}
-    assert host.calls[:4] == [
+    assert host.calls[:5] == [
+        ("boot_id", ""),
         ("stop", "cortex"),
         ("stop", "subagent-gpu"),
         ("device_memory", ""),
@@ -660,6 +666,75 @@ async def test_a_boot_that_could_not_confirm_the_cortex_still_leases_a_working_o
     """The boot report is display only: it must not refuse turns on a GPU that may be fine."""
     manager = _manager(ScriptedModelHost(running=["cortex"]))
     await manager.publish_boot_residency(serving=False)
+    async with manager.acquire("cortex") as lease:
+        assert lease.endpoint == _CORTEX_URL
+
+
+async def test_a_co_resident_plan_keeps_its_peers_through_a_handoff() -> None:
+    """The ordinary handoff reconciles nothing, which is what a co-resident deployment needs."""
+    host = ScriptedModelHost(running=["cortex", "subagent-gpu"], boot_id="daemon-a")
+    manager = _manager(host, _plan(evict_models=("subagent-gpu",), coresident=True))
+    await manager.publish_boot_residency(serving=True)
+    async with manager.swap_scope("brain"):
+        assert host.running == {"brain", "subagent-gpu"}
+    assert ("stop", "subagent-gpu") not in host.calls
+
+
+async def test_a_boot_that_could_not_reach_the_host_leaves_the_first_handoff_reconciling_nothing(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The seed can fail, and the rule that it is a seed is what covers the failure."""
+    host = ScriptedModelHost(
+        running=["cortex", "subagent-gpu"],
+        boot_id="daemon-a",
+        fail_once={("boot_id", ""): "connection refused"},
+    )
+    manager = _manager(host, _plan(evict_models=("subagent-gpu",), coresident=True))
+    with caplog.at_level(logging.WARNING, logger="cortex_core.residency_watch"):
+        await manager.publish_boot_residency(serving=False)
+        async with manager.swap_scope("brain"):
+            assert host.running == {"brain", "subagent-gpu"}
+    assert "could not be asked which daemon is answering" in caplog.text
+    assert ("stop", "subagent-gpu") not in host.calls
+
+
+async def test_a_sidecar_that_restarted_since_the_boot_publish_is_reconciled_before_the_swap(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The entry's own case: a fresh daemon under a brain that never restarted."""
+    host = ScriptedModelHost(running=["cortex", "subagent-gpu"], boot_id="daemon-a")
+    manager = _manager(host, _plan(evict_models=("subagent-gpu",), coresident=True))
+    await manager.publish_boot_residency(serving=True)
+    # The sidecar is killed and revived: a new process, its own boot default, no peer tier.
+    host.running = {"cortex"}
+    host.boot = "daemon-b"
+    with caplog.at_level(logging.WARNING, logger="cortex_core.residency_watch"):
+        async with manager.swap_scope("brain"):
+            assert host.running == {"brain", "subagent-gpu"}
+    assert "the model host has been replaced since the last handoff" in caplog.text
+    assert host.running == {"cortex", "subagent-gpu"}
+
+
+async def test_a_restarted_sidecar_whose_bounds_outlast_the_deadline_refuses_before_evicting(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The pairing the composition root checked at boot, re-read on the one event that moves it."""
+    shipped = ControlBounds(probe_timeout_s=5.0, stop_grace_s=10.0, reap_timeout_s=30.0)
+    host = ScriptedModelHost(running=["cortex"], boot_id="daemon-a", control_bounds=shipped)
+    manager = _manager(host, _plan(control_deadline_s=60.0))
+    await manager.publish_boot_residency(serving=True)
+    host.boot = "daemon-b"
+    host.bounds = ControlBounds(probe_timeout_s=5.0, stop_grace_s=20.0, reap_timeout_s=35.0)
+    with (
+        caplog.at_level(logging.ERROR, logger="cortex_core.residency_watch"),
+        pytest.raises(SwapFailedError, match="no longer clears"),
+    ):
+        async with manager.swap_scope("brain"):
+            pass  # pragma: no cover - entering raises before the body runs
+    assert ("stop", "cortex") not in host.calls
+    assert host.running == {"cortex"}
+    assert "nothing was unloaded" in caplog.text
+    # And the machine is still the one it was: the next turn leases the cortex as usual.
     async with manager.acquire("cortex") as lease:
         assert lease.endpoint == _CORTEX_URL
 

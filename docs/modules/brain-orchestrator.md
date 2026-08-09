@@ -503,11 +503,13 @@ The service:
   with no slot of its own and **without `capture_screen`** (ADR-0029: the root builds a second
   built-in set with `vision=None` for the deep tier, because the probe asked the cortex's endpoint
   and no brain-tier candidate on the mount carries a projector, so registration follows the tier
-  that will actually answer rather than the one that was probed). The runtime is gated on its way out of the builder by `check_control_deadline(swap,
-  deadline_s)`, which asks the host for its own `ControlBounds` and raises `ControlDeadlineError`
+  that will actually answer rather than the one that was probed). The runtime is gated on its way out of the builder by `check_control_deadline(swap)`,
+  which asks the host for its own `ControlBounds` and raises `ControlDeadlineError`
   when `CORTEX_MODELHOST_TIMEOUT_S` does not strictly clear their sum, releasing what the runtime
   already holds first because the shutdown hook is not armed that early (ADR-0030's
-  deadline-pairing addendum). Only an **answered** mismatch refuses: a host that cannot be asked
+  deadline-pairing addendum). The deadline comes off `swap.plan.control_deadline_s` rather than
+  beside it, so this reading and the swap's own re-reading after a sidecar restart cannot compare
+  against two different numbers. Only an **answered** mismatch refuses: a host that cannot be asked
   is logged at warning and let through, since boot recovery already argues a brain must start
   beside a sidecar that is merely down, and a host that reports no bounds at all is the scripted
   one, which stops no process. `swap_closer(swap)` releases the handoff store **and** the control client in the shutdown

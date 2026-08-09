@@ -22,6 +22,7 @@ class HostUnderTest:
     card: Callable[[DeviceMemory | None], None]
     aclose: Callable[[], Awaitable[None]]
     bounds: ControlBounds
+    boot_id: str
 
 
 async def check_a_model_nobody_started_reports_stopped(subject: HostUnderTest) -> None:
@@ -130,6 +131,12 @@ async def check_a_host_reports_the_control_bounds_it_was_wired_with(
     assert await subject.host.control_bounds() == subject.bounds
 
 
+async def check_a_host_names_which_boot_of_it_is_answering(subject: HostUnderTest) -> None:
+    """The same daemon names itself the same way twice, and it names the one under test."""
+    assert await subject.host.boot_id() == subject.boot_id
+    assert await subject.host.boot_id() == subject.boot_id
+
+
 ALL_CHECKS: tuple[Callable[[HostUnderTest], Awaitable[None]], ...] = (
     check_a_model_nobody_started_reports_stopped,
     check_start_begins_a_load_and_is_idempotent,
@@ -141,4 +148,5 @@ ALL_CHECKS: tuple[Callable[[HostUnderTest], Awaitable[None]], ...] = (
     check_a_host_with_no_card_reports_no_device_memory,
     check_a_host_with_a_card_reports_what_is_free_and_how_big_it_is,
     check_a_host_reports_the_control_bounds_it_was_wired_with,
+    check_a_host_names_which_boot_of_it_is_answering,
 )

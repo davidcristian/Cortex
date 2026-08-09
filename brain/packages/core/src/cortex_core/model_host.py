@@ -65,6 +65,7 @@ class ResidencyPlan:
     drain_timeout_s: float = DEFAULT_SWAP_DRAIN_TIMEOUT_S
     load_timeout_s: float = DEFAULT_SWAP_LOAD_TIMEOUT_S
     poll_interval_s: float = DEFAULT_HEALTH_POLL_INTERVAL_S
+    control_deadline_s: float = 0.0
 
     @property
     def brain_vram_gb(self) -> float:
@@ -86,4 +87,7 @@ class ResidencyPlan:
             raise ValueError(msg)
         if self.poll_interval_s <= 0:
             msg = f"ResidencyPlan.poll_interval_s must be > 0, got {self.poll_interval_s}"
+            raise ValueError(msg)
+        if self.control_deadline_s < 0:
+            msg = f"ResidencyPlan.control_deadline_s must be >= 0, got {self.control_deadline_s}"
             raise ValueError(msg)

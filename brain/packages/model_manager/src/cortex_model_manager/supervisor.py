@@ -4,6 +4,7 @@ import asyncio
 import logging
 from collections.abc import Mapping
 from dataclasses import dataclass
+from uuid import uuid4
 
 from cortex_core import ControlBounds, ModelHostState
 from cortex_model_manager.children import ChildProcess, ChildProcesses
@@ -63,6 +64,7 @@ class ModelSupervisor:
             stop_grace_s=stop_grace_s,
             reap_timeout_s=reap_timeout_s,
         )
+        self._boot_id = uuid4().hex
         # A model is present here from the moment it is spawned until a stop has reaped it. A
         # present child with an exit code died unasked, which is the difference between FAILED
         # and STOPPED; the roster's own keys are the only ids that ever reach this dict.
@@ -78,6 +80,11 @@ class ModelSupervisor:
     def control_bounds(self) -> ControlBounds:
         """The three bounds this daemon was wired with, as ``GET /health`` reports them."""
         return self._bounds
+
+    @property
+    def boot_id(self) -> str:
+        """Which daemon this is, as ``GET /health`` names it, for the life of this process."""
+        return self._boot_id
 
     async def start(self, model: str) -> None:
         """Begin loading ``model``; return as soon as the process exists, ready or not."""

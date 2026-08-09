@@ -52,6 +52,7 @@ def build_app(
             {
                 "status": "ok",
                 "models": list(supervisor.models),
+                "boot_id": supervisor.boot_id,
                 # All three terms of the pairing rule, in the order the rule states them: a
                 # reader given only the two stop bounds can tune to a compliant-looking sum that
                 # the queued probe then carries past the brain's deadline.

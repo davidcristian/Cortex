@@ -229,6 +229,50 @@ async def test_a_health_body_without_all_three_bounds_is_no_bounds(body: dict[st
     assert await _host(_health(body)).control_bounds() is None
 
 
+async def test_the_answering_daemon_is_named_off_the_same_health_route() -> None:
+    """The sixth verb's wire: one GET, and the value comes back exactly as the daemon spelled it."""
+    seen: list[tuple[str, str]] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        seen.append((request.method, request.url.path))
+        return httpx.Response(
+            HTTPStatus.OK, json={"status": "ok", "boot_id": "0f9c1d2e3a4b5c6d7e8f9a0b1c2d3e4f"}
+        )
+
+    assert await _host(httpx.MockTransport(handle)).boot_id() == "0f9c1d2e3a4b5c6d7e8f9a0b1c2d3e4f"
+    assert seen == [("GET", "/health")]
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        # A daemon older than the field, which is the case that must not read as a restart: the
+        # brain keeps whatever it believed rather than reconciling against an invented value.
+        {"status": "ok"},
+        # Explicitly no id, the same answer by a different route.
+        {"status": "ok", "boot_id": None},
+        # An empty string names no boot, and would compare equal to the next empty string.
+        {"status": "ok", "boot_id": ""},
+        # A number is not an id: two daemons could mint the same one, which is the failure mode
+        # the identifier was chosen against.
+        {"status": "ok", "boot_id": 1},
+    ],
+)
+async def test_a_health_body_that_names_no_boot_is_no_answer(body: dict[str, object]) -> None:
+    assert await _host(_health(body)).boot_id() is None
+
+
+async def test_a_sidecar_that_cannot_be_asked_which_daemon_it_is_is_a_typed_error() -> None:
+    """The swap decides what an unreachable host means; the adapter only reports that it is."""
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        del request
+        return httpx.Response(HTTPStatus.SERVICE_UNAVAILABLE, text="the supervisor is wedged")
+
+    with pytest.raises(ModelHostError, match="for which daemon is answering"):
+        await _host(httpx.MockTransport(handle)).boot_id()
+
+
 async def test_a_sidecar_that_cannot_answer_about_its_bounds_is_a_typed_error() -> None:
     """The composition root decides what an unreachable host means; the adapter only reports."""
 

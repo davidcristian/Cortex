@@ -1,5 +1,6 @@
 """What the GPU is serving right now, in the words the seam shows a human (ADR-0030 d6)."""
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
 
@@ -9,6 +10,9 @@ class ResidencyReport:
 
     serving: bool
     detail: str
+
+
+type ResidencyPublisher = Callable[[str | None, ResidencyReport], Awaitable[None]]
 
 
 # The standing residency: the cortex is up and turns run normally. A fresh manager seeds this

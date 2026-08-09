@@ -83,10 +83,11 @@ def build_control_client(timeout_s: float) -> httpx.AsyncClient:
     return httpx.AsyncClient(timeout=httpx.Timeout(timeout_s))
 
 
-async def check_control_deadline(swap: SwapRuntime | None, deadline_s: float) -> SwapRuntime | None:
+async def check_control_deadline(swap: SwapRuntime | None) -> SwapRuntime | None:
     """Refuse a deployment whose model host can outlast the deadline the brain bounds it with."""
     if swap is None:
         return swap
+    deadline_s = swap.plan.control_deadline_s
     try:
         bounds = await swap.host.control_bounds()
     except ModelHostError as err:

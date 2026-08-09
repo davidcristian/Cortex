@@ -104,6 +104,32 @@ stack up again. Two cases deliberately do **not** refuse: a `model-host` that is
 own under the restart policy), and the `scripted` backend, which stops no process and so has no
 bounds to report.
 
+**Restarting the sidecar under a running brain is safe, and the brain finds out on the next
+handoff.** `GET /health` carries a `boot_id`, a fresh value per daemon process, and the brain
+records which one it was talking to at startup and asks again before each handoff evicts anything.
+A different answer means the sidecar was replaced (an OOM kill, a crash, a `docker compose restart
+model-host`), so everything the brain believed about which model holds the card was believed about
+a process that is gone. It then converges residency back onto the cortex, republishes what it
+observed, and re-reads the three stop bounds, because a restart is the only way that env can change
+under a brain that never restarted. You will see this at warning level in the brain's log:
+
+```
+the model host has been replaced since the last handoff; reconciling residency against the
+daemon that is answering now
+```
+
+Two conditions refuse that one handoff rather than serving it, both **before** anything is
+unloaded, so the cortex keeps answering and the reply carries the note saying the deep model was
+not loaded: a machine the convergence could not settle back onto the cortex, and a sidecar that
+came back with stop bounds the brain's own deadline no longer clears. The second is the pairing
+above, checked again on the one event that can break it; fix it the same way, by editing env and
+restarting, and note that the brain will keep serving ordinary turns meanwhile.
+
+Nothing is watched between handoffs, deliberately. A restart followed by no escalation is noticed
+by nothing, so the connection indicator can show a residency reading taken before the restart until
+the next handoff or the next brain restart. With `CORTEX_ESCALATION` off there is nothing to be
+stale: that manager holds no residency state at all.
+
 ## Bringing the real host up
 
 ```
