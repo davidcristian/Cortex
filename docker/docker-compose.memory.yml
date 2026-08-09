@@ -4,11 +4,12 @@
 # and flips the brain from memory=none to the pgvector backend pointed at them. CI never
 # runs this file. Memory is opt-in so CI and the no-GPU dev loop stay DB-free.
 #
-# LAYERED WITHOUT THE GPU OVERRIDE, ADD CORTEX_MEMORY_RECALL=raw. Recall ranking defaults to the
-# model rank (`judge`, ADR-0038 turn-cost addendum), which asks the resident cortex which notes
-# help. Against the Echo fake that the base file runs, the reply is not the rank envelope, so the
-# policy falls back to raw top-k cosine on every recall: correct, but a wasted round trip per turn
-# that the trail reports as a fallback. Naming `raw` says what is happening instead.
+# LAYERED WITHOUT THE GPU OVERRIDE, RUN IT AS `CORTEX_MEMORY_RECALL=raw docker compose ...`.
+# Recall ranking defaults to the model rank (`judge`, ADR-0038 turn-cost addendum), which asks the
+# resident cortex which notes help. Against the Echo fake that the base file runs, the reply is not
+# the rank envelope, so the policy falls back to raw top-k cosine on every recall: correct, but a
+# wasted round trip per turn that the trail reports as a fallback. Naming `raw` says what is
+# happening instead, and the pass-through block below is what carries it into the container.
 #
 # Set these on the host (a .env at the repo root works):
 #   CORTEX_MODELS_DIR       host dir holding the GGUFs (default ./models, ADR-0004)
@@ -31,6 +32,24 @@ services:
       CORTEX_MEMORY_BACKEND: "pgvector"
       CORTEX_MEMORY_DSN: "postgresql://cortex:${CORTEX_PG_PASSWORD:-cortex}@postgres:5432/cortex"
       CORTEX_MEMORY_EMBEDDER_ENDPOINT: "http://llama-embed:8081"
+      # Every remaining MemoryConfig field, passed through from the host BY NAME (a bare key with
+      # no value is compose's pass-through). Set on the host it reaches the brain; left unset it
+      # never enters the container at all, so each shipped default stays declared in exactly one
+      # place, `MemoryConfig`, instead of being restated here in a second language where it could
+      # drift. The rule is deliberately "every field this file does not itself set" rather than a
+      # hand-picked few, so a knob the runbook documents can never be one the dockerized brain has
+      # no way to receive, which is what every one of these was until the ADR-0038 harness addendum
+      # needed the recall arm changed on a running stack.
+      CORTEX_MEMORY_EMBEDDER_MODEL:
+      CORTEX_MEMORY_SCOPE:
+      CORTEX_MEMORY_ON_TAINTED:
+      CORTEX_MEMORY_RECALL:
+      CORTEX_MEMORY_RECALL_AUDIT:
+      CORTEX_MEMORY_RECALL_HALF_LIFE_DAYS:
+      CORTEX_MEMORY_RECALL_RECENCY_WEIGHT:
+      CORTEX_MEMORY_RECALL_DEDUP_THRESHOLD:
+      CORTEX_MEMORY_RECALL_POOL_FACTOR:
+      CORTEX_MEMORY_RECALL_MMR_LAMBDA:
     depends_on:
       postgres:
         condition: service_healthy

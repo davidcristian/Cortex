@@ -210,15 +210,18 @@ body/             Rust/Tauri workspace, host-native
                   os_linux/os_macos (cfg-gated stubs)
   app/            React+Vite overlay (gated 100%) + its host-native Tauri src-tauri
                   shell (fmt-checked in CI, else host-validated) named cortex-body, own workspace
-scripts/          repo gates: linecap.py (300-line cap), dashcheck.py (no dash as
+scripts/          repo gates, plus the one module here that gates nothing, contrast.py (the
+                  interval a live measurement reports, ADR-0038): linecap.py (300-line cap), dashcheck.py (no dash as
                   punctuation), crosscheck.py (one value, spelled in several places, still
                   agreeing) + couplings.py (its registry), bindcheck.py (no compose bind
                   default lands unignored in the tree) + composemounts.py (its compose
                   reader), coverage_gate.py (Rust branches), ci_paths.py (CI path
                   classifier), commitlint.py (commit-message style)
 .github/          GPU-less CI running the same `just` recipes as local dev
-justfile          `just check` + check-*; proto, up/down, brain-serve, seam-health
-                  (`just check` runs the four cross-tree scans before the per-tree ones)
+justfile          `just check` + check-*; proto, up/down, brain-serve, seam-health, turn-cost
+                  (`just check` runs the four cross-tree scans before the per-tree ones;
+                  `turn-cost` is the A/B/A live measurement, where the container restarts
+                  between arms live, ADR-0038)
 docker/           Compose stack (run via `just up`/`up-gpu`, or `docker compose --project-directory .
                   -f docker/docker-compose.yml …`): docker-compose.yml (brain + redis, loopback-only)
                   + overrides: gpu (the model-host supervisor sidecar, one llama-server child per

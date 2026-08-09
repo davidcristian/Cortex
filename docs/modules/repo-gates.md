@@ -1,15 +1,18 @@
 # scripts/ (`repo-gates`)
 
-**Purpose.** The repo's own gate tooling: the cross-tree line cap, the punctuating-dash
-ban, the cross-language constant check, the compose bind-mount check, the Rust branch
-coverage threshold, the CI path classifier, and the commit-message style hook. A standalone
-uv project (not a brain workspace member, per ADR-0002), gated exactly like all other Python.
+**Purpose.** The repo's own tooling, in the tree neither shipped artifact contains: the cross-tree
+line cap, the punctuating-dash ban, the cross-language constant check, the compose bind-mount
+check, the Rust branch coverage threshold, the CI path classifier, the commit-message style hook,
+and, since 2026-08-09, the one module here that gates nothing, the interval a live measurement
+reports. What they have in common is not that each is a gate; it is that each is pure Python that
+belongs to neither the brain nor the body and is gated exactly like both. A standalone uv project
+(not a brain workspace member, per ADR-0002).
 
 **Public contract** (all are CLIs, with `linecap.py`, `dashcheck.py`, `crosscheck.py`,
 `bindcheck.py` and `coverage_gate.py` invoked by `just` recipes, `ci_paths.py` by the CI
-workflow, `commitlint.py` by the commit-msg pre-commit stage; each also exposes a pure,
-unit-tested core function). `composemounts.py` is the one module that is not a CLI: it is
-`bindcheck.py`'s compose reader, split out under the line cap.
+workflow, `commitlint.py` by the commit-msg pre-commit stage, `contrast.py` by `just turn-cost`;
+each also exposes a pure, unit-tested core function). `composemounts.py` is the one module that is
+not a CLI: it is `bindcheck.py`'s compose reader, split out under the line cap.
 
 - `linecap.py [--root DIR] [--max-lines N]` implements AGENTS.md gate 1. Scans
   `*.py`/`*.rs`/`*.ts`/`*.tsx` under `--root` (default `.`), all three gated toolchains
@@ -188,8 +191,30 @@ unit-tested core function). `composemounts.py` is the one module that is not a C
   git is mid-commit in, which answered the hash question about the wrong object database
   and, in the tests, staged a fixture file into the in-flight commit's own index.
 
+- `contrast.py SAMPLE [SAMPLE ...] [--resamples N] [--seed S]` is the one module here that gates
+  nothing: it is the reporting half of a live measurement, and it lives in this tree because it
+  must be pure, must never ship inside the brain image, and must be covered like everything else
+  (ADR-0038 harness addendum). A live block driver measures ONE arm per process, since an arm is a
+  container configuration and changing it recreates the container, so each block writes a JSON
+  sample and this reads them back. **The first sample is the baseline and every later one is
+  contrasted against it**, which is what makes an A/B/A run one command: the middle block is the
+  arm under test, the last repeats the first, and the last contrast is a null whose interval ought
+  to span zero. Per metric (`ttft`, `wall`, both seconds) it prints each block's unblocked mean,
+  median and standard deviation, then each contrast as the mean of the per-question mean
+  differences with a 95% percentile bootstrap interval, starring an interval that does not span
+  zero, and finally the blocking unit itself, one line per question. That last layout is not
+  decoration: the harness's first run had one of six questions carrying three times the mean
+  difference, so an interval read alone would have been read as a uniform cost it was not.
+  The pairing is **by question** because a turn's time is dominated by its answer's length,
+  and the resampling unit is therefore the question, which is why the interval is a bootstrap
+  rather than a t interval: n is the number of questions and turn times are right-skewed. The seed
+  is printed with the report, so the arithmetic is reproducible without the GPU; the run that
+  produced the samples is not. Refuses rather than guesses on a malformed sample, on two blocks
+  that asked different questions, on a single sample, and on a non-positive resample count. Exit 0
+  printing the report; exit 2 printing one `contrast: PROBLEM` line; argparse exit 2 on usage.
+
 **Invariants.**
-- stdlib-only modules; pure cores (`scan`, `evaluate`/`check`, `classify`) unit-tested
+- stdlib-only modules; pure cores (`scan`, `evaluate`/`check`, `classify`, `report`) unit-tested
   to 100% line+branch; the only coverage pragmas are the `__main__` guard lines.
 - `crosscheck.py`'s registry is checked against the real trees by its own suite
   (`test_the_repo_itself_is_tied`), so `check-scripts` catches a drift even when

@@ -58,6 +58,34 @@ docker compose ... exec postgres psql -U cortex -d cortex_contract -f /docker-en
 It holds nothing but the suite's own rows, so dropping it costs nothing;
 `pg-backup` dumps `-d cortex` only, and never exports it.
 
+## Setting any of these on the dockerized brain
+
+Every `CORTEX_MEMORY_*` knob below is a **pass-through** on the memory override, meaning
+`docker/docker-compose.memory.yml` names it under `brain.environment` with no value. A bare key is
+compose's pass-through: set on the host it reaches the container, left unset it never enters the
+container at all, so each shipped default stays declared once in `MemoryConfig` rather than being
+restated in YAML where it could drift. Put them in the repo-root `.env` or in front of the command:
+
+```
+CORTEX_MEMORY_RECALL=raw CORTEX_MEMORY_RECALL_AUDIT=1 docker compose --project-directory . \
+  -f docker/docker-compose.yml -f docker/docker-compose.memory.yml up -d
+```
+
+To change one on a running stack, recreate **only** the brain and leave Postgres, the embedder and
+any loaded model where they are. `docker compose restart brain` will not do: it reuses the existing
+container and so keeps the old environment.
+
+```
+CORTEX_MEMORY_RECALL=raw docker compose --project-directory . \
+  -f docker/docker-compose.yml -f docker/docker-compose.memory.yml \
+  up -d --no-deps --force-recreate brain
+```
+
+Before 2026-08-09 none of these reached the dockerized brain at all: the override set the backend,
+the DSN and the embedder endpoint and nothing else, so this runbook documented variables an
+operator running the stack in Docker had no way to supply. The pass-through block landed with the
+turn-cost harness (ADR-0038 harness addendum), which needs exactly this restart between arms.
+
 ## Memory scoping (ADR-0008 scoping addendum)
 
 Recall is **global by default** (`CORTEX_MEMORY_SCOPE=global`). Memories are one shared space
@@ -78,6 +106,13 @@ at `pool_factor` 4, so 20 candidates), and a turn's time to first token rises 0.
 to 0.915) rather than the full 0.877 s, because a rank that keeps 1.17 notes gives the reply a
 smaller memory block to read than the cosine's 5. It is paid on every recalling turn; nothing
 caches a rank, unlike the history fold.
+
+Reproduced 2026-08-09 by the committed harness below at 0.539 s (95% CI 0.054 to 1.111) against a
+control arm whose interval spans zero, on a different day and a driver rebuilt from that addendum's
+prose. The same run puts the whole-turn cost at 0.979 s rather than the 0.526 s first published, and
+locates nearly all of the excess in the question memory cannot answer: when the rank declines, the
+turn carries no memory block and the model says at length that it does not know, where the cosine's
+five nearest misses give it something short to say.
 
 `raw` is top-`k` cosine exactly as it always was, and is now the **opt-out**: set
 `CORTEX_MEMORY_RECALL=raw` for the founding behavior, on a stack with no GPU, or to take that half
@@ -121,6 +156,32 @@ unless you have widened `CORTEX_MEMORY_RECALL_POOL_FACTOR` past what ships.
     docker compose --project-directory . -f docker/docker-compose.yml \
       -f docker/docker-compose.gpu.yml -f docker/docker-compose.memory.yml logs -f brain \
       | grep memory.recall
+
+## Measuring what an arm costs a whole turn (ADR-0038 harness addendum)
+
+The numbers above came from real turns through the seam, and the harness that produced them is in
+the repo:
+
+```
+CORTEX_MODELS_DIR=/path/to/models just turn-cost
+```
+
+That brings up the gpu plus memory stacks and runs **three blocks in A/B/A order**, `raw` then
+`judge` then `raw`, recreating only the brain between them with `CORTEX_MEMORY_RECALL` changed and
+`CORTEX_MEMORY_SCOPE=session` plus `CORTEX_MEMORY_RECALL_AUDIT=1` on throughout. Each block runs
+`packages/orchestrator/tests/test_turn_cost_live.py`, which opens one `Converse` stream per turn
+against a fresh session whose scope it pre-seeds with the whole 41-note recall corpus, times the
+first `TextDelta` and the `TurnComplete`, and writes its sample to `measurements/`. The recipe then
+runs `scripts/contrast.py` over the three samples and prints the blocked paired bootstrap. The two
+outer blocks are the control: same configuration, different times, so their contrast is the noise
+floor the middle one has to clear. Roughly 15 minutes at the default of eight repetitions.
+
+`just turn-cost mmr raw 4` measures a different arm, and `just turn-cost judge judge` makes both
+outer blocks match the middle one, which is the null run to reach for when the harness itself is
+what is in doubt. Nothing is torn down at the end, so `docker compose ... logs brain | grep
+memory.recall` still holds the trail for the last block. The samples in `measurements/` are
+gitignored: they are evidence of one run on one machine, and the reading they support belongs in an
+ADR addendum.
 
 ## Tainted-turn recording (`CORTEX_MEMORY_ON_TAINTED`, ADR-0019)
 

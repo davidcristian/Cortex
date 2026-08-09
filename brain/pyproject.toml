@@ -56,6 +56,10 @@ members = ["packages/*"]
 typeCheckingMode = "strict"
 pythonVersion = "3.12"
 include = ["packages"]
+# The same shared corpus directory the pytest `pythonpath` below names, so a bare
+# `from recall_corpus import ...` resolves from any package's tests rather than only from the
+# one the file happens to sit in.
+extraPaths = ["packages/inference/tests"]
 # Generated wire code is exempt from quality gates (ADR-0001 d7, ADR-0002 d4); the
 # committed .pyi stubs keep strict checking working for consumers of cortex_seam.
 exclude = ["**/_generated"]
@@ -64,6 +68,11 @@ venv = ".venv"
 
 [tool.pytest.ini_options]
 testpaths = ["packages"]
+# `recall_corpus.py` is test-tree input data (the wide recall corpus) that live runs in more than
+# one package import as a bare module. Until the turn-cost block driver it worked only because
+# pytest prepends a collected test file's own directory, so it depended on collection order;
+# naming the directory here makes the import deliberate rather than incidental.
+pythonpath = ["packages/inference/tests"]
 markers = [
   "integration: exercises live external systems; excluded from coverage gate and CI",
 ]
