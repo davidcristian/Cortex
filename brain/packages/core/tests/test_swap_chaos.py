@@ -938,6 +938,7 @@ async def test_boot_recovery_fails_a_stranded_record_and_lets_the_next_handoff_r
         live.handoffs,
         host,
         live.residency,
+        live.manager.standing_tiers,
         clock=harness.TickingClock(),
         sleeper=RecordingSleeper(),
     )

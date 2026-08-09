@@ -2,10 +2,16 @@
 
 The standing residency is the cortex **plus** every tier a handoff evicts for the deep model's
 sake, and putting those peers back is deliberately best effort: a tier that will not come back
-must not be reported as the cortex being gone, so ``residency_moves._restart_evicted`` logs a
+must not be reported as the cortex being gone, so ``residency_moves.restart_evicted`` logs a
 ``ModelHostError`` and swallows it. What that leaves is the case this module exists for. The
 cortex is serving, one peer is not, and the conductor reopens subagent admission the moment the
 restore returns, so the next GPU-placed spawn is sent to a ``llama-server`` nothing restarted.
+
+**Two paths write it, for one reason.** The swap back's restart is one; boot recovery's
+convergence (``swap_recovery.py``), which ends in that same move, is the other, and it reaches
+here from outside any handoff. The rule they share is what keeps them one record rather than two
+opinions: the cortex's readiness is a statement about the cortex, and a peer that would not start
+is a statement about the pool, whichever of the two asked.
 
 **Missing is not the same as evicted, and only one of them is recorded here.** A tier stopped on
 purpose while the deep model holds the card is not missing: it is exactly where the swap put it,
@@ -40,9 +46,11 @@ from cortex_core.residency_state import ResidencyReport
 # report, so the overlay renders it after "Brain ready" rather than after "The brain is not
 # serving": turns work, delegation works, and the one thing that changed is where delegated work
 # runs. Naming the tiers is the point of publishing it at all, since the operator's next move is
-# to look at that tier in the model host's own roster.
+# to look at that tier in the model host's own roster, which is also why the sentence names the
+# state and not the cause: a peer is recorded here by a swap back and by boot recovery alike, and
+# a line that said "after a deep task" would be false on a brain that has never escalated.
 TIERS_MISSING_DETAIL = (
-    "{models} did not come back after a deep task, so delegated work is running on the CPU"
+    "the model host is not running {models}, so delegated work is running on the CPU"
 )
 
 _logger = logging.getLogger(__name__)
@@ -82,7 +90,11 @@ class StandingTiers:
         return self._placer
 
     def mark_missing(self, model: str) -> None:
-        """Record that the host would not run ``model``, and stop placing spawns on the GPU."""
+        """Record that the host **refused** to run ``model``, and stop placing spawns on the GPU.
+
+        Refused, never merely stopped: this is called where a ``start`` raised, from the swap
+        back's restart and from boot recovery's convergence, and from nowhere else.
+        """
         self._missing.add(model)
         if self._placer is not None:
             self._placer.close_gpu()

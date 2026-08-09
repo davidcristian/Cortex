@@ -358,7 +358,7 @@ but a report of a slow *cortex* after a handoff is the same fault read from the 
   be reported as the cortex being gone. So the failure is loud in the brain's log
   (`a tier evicted for the handoff could not be restarted`) and, since it is recorded rather than
   only logged, three further things are true. `Health` answers `ready=true` with
-  `<tier> did not come back after a deep task, so delegated work is running on the CPU`, which
+  `the model host is not running <tier>, so delegated work is running on the CPU`, which
   the overlay's connection tooltip shows as `Brain ready: <that line>`. Every subagent spawn is
   placed on the CPU without trying the GPU first, so nobody pays a dead attempt and a re-run.
   And the brain retries the tier every `CORTEX_SWAP_TIER_HEAL_S` seconds (30 s by default,
@@ -369,6 +369,18 @@ but a report of a slow *cortex* after a handoff is the same fault read from the 
   the sidecar directly with `curl -fsS http://127.0.0.1:9300/models/subagent-gpu` (the loopback
   override) and read the child's own reason out of `docker logs model-host`. A missing artifact
   or a bad `-ngl` is a config fix and a `docker compose up -d`; the retry cannot invent a GGUF.
+- **The same is true at boot, and the commonest cause is a tier named but never given a file.**
+  A tier listed in `CORTEX_SWAP_EVICT_MODELS` whose `CORTEX_MODEL_FILE_*` is unset is not in the
+  sidecar's roster at all, so it answers `404 unknown model` to every verb. Boot recovery records
+  it and carries on: the dot stays green, the tooltip names the tier, delegated work runs on the
+  CPU, and the retry loop keeps asking. Two log lines say which phase saw it,
+  `a tier the standing residency includes could not be cleared at boot` and
+  `a tier evicted for the handoff could not be restarted`. The fix is to name the artifact (or to
+  drop the tier from the evict list) and `docker compose up -d`; nothing here needs a restart of
+  the brain. **What still goes amber at boot** is the cortex itself failing to gate, an unreachable
+  sidecar, and a deep tier the daemon does not serve: `CORTEX_MODEL_FILE_BRAIN` unset while
+  `CORTEX_ESCALATION=1` reads as a model host that needs attention, which it does, since no handoff
+  could run on that stack anyway.
 
 ## The chaos kill, host-side
 

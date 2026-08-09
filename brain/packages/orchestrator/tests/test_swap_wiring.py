@@ -50,6 +50,12 @@ than one of its own. Dropping the root's ``publish_boot_residency`` call reddens
 ``test_a_boot_that_could_not_settle_the_cortex_leaves_the_seam_saying_so``, and so does passing
 it a constant ``serving=True``: that argument is the knob turning boot recovery's own observation
 into the seam's first answer, and neither half of it can be dropped silently.
+
+One more beside them, for the record that observation is now written into. Handing boot recovery a
+fresh ``StandingTiers`` instead of the manager's own (two records for one fact, which is what any
+version of this that did not reach through the manager would have) reddens exactly 1,
+``test_a_boot_whose_peer_tier_is_down_still_says_the_brain_is_ready``, on both of its last two
+lines: the seam would say nothing about the tier and the pool would go on offering the GPU.
 """
 
 import asyncio
@@ -72,16 +78,20 @@ from cortex_core import (
     ESCALATE_TOOL_NAME,
     RESIDENCY_BOOT_FAILED,
     RESIDENCY_DEEP,
+    TIERS_MISSING_DETAIL,
     AsyncioSleeper,
     Clock,
     ControlBounds,
     InMemoryBodyGateway,
     ModelHostState,
+    PlacementRequest,
+    PlacementTarget,
     ScriptedModelHost,
     Sleeper,
     SubagentPlacer,
     SwappingModelManager,
     SystemClock,
+    VramBudgetPlacer,
 )
 from cortex_model_manager import HttpModelHost, ModelHostConfig
 from cortex_orchestrator import (
@@ -93,6 +103,7 @@ from cortex_orchestrator import (
     build_builtin_tools,
     build_swap_runtime,
     check_control_deadline,
+    recover_boot_residency,
     run_from_env,
     swap_builders,
     swap_closer,
@@ -304,6 +315,45 @@ async def test_the_enabled_runtime_is_the_one_lease_and_the_one_residency() -> N
     async with runtime.manager.swap_scope("brain"), runtime.manager.acquire("brain") as lease:
         assert lease.endpoint == "http://llama-brain:8081"
     await swap_closer(runtime)()
+
+
+async def test_a_boot_whose_peer_tier_is_down_still_says_the_brain_is_ready() -> None:
+    """A delegation tier that will not start is not the usual assistant failing to come up.
+
+    Boot recovery converges a machine nobody has escalated on yet, which is why this is the least
+    excusable place for that conflation: the report used to go amber with "did not come up at
+    startup" over a cortex serving turns perfectly well. What the boot really learned goes into
+    the manager's own peer record instead, so the seam stays green and names the tier, and the
+    placer the pool spawns against is closed before a single delegated run pays a dead attempt.
+
+    The retry loop is stopped before the assertions rather than after: its first pass would ask
+    the manager's own host, which is the working one this test never replaced, and would clear the
+    mark. Stopping it before it is ever scheduled is what keeps this case about the boot.
+    """
+    placer = VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0)
+    runtime = build_swap_runtime(
+        _enabled(evict_models=("subagent-gpu",)),
+        BrainRuntimeConfig(),
+        InferenceConfig(),
+        SystemClock(),
+        AsyncioSleeper(),
+        _fake_handoff_store,
+        placer,
+    )
+    assert runtime is not None
+    broken = ScriptedModelHost(
+        running=["cortex"], fail={("start", "subagent-gpu"): "no such device"}
+    )
+    try:
+        await recover_boot_residency(replace(runtime, host=broken), SystemClock())
+        await runtime.healer.aclose()
+        report = runtime.manager.residency()
+        assert report.serving is True
+        assert report.detail == TIERS_MISSING_DETAIL.format(models="subagent-gpu")
+        spawn = PlacementRequest("subagent", vram_gb=2.0, cpus=1.0, memory_gb=1.0)
+        assert placer.place(spawn).target is PlacementTarget.CPU
+    finally:
+        await swap_closer(runtime)()
 
 
 async def test_the_supervisor_backend_builds_the_real_adapter_at_the_configured_endpoint(

@@ -23,7 +23,12 @@ A swap changes what the card holds, so it also changes the arithmetic the subage
 spawns against. That correction is written at the same two edges as the moves themselves and
 lives in ``residency_charge.py``, which owns the whole argument for it. A swap back that could
 not restart a peer changes something the arithmetic cannot say at all, so the peers the standing
-residency is missing are their own record (``residency_tiers.py``).
+residency is missing are their own record (``residency_tiers.py``), which this object holds and
+hands out: boot recovery writes the same record from outside a swap entirely, so a peer that
+would not start is never anybody's verdict about the cortex.
+
+What the GPU serves, what a human is told about it, and the queue behind both are one object of
+their own (``residency_board.py``), because they are one invariant rather than three fields.
 
 Every belief this object holds is about one supervisor process, so a handoff begins by asking
 which one is answering (``residency_watch.py``): a sidecar restarted under this brain leaves the
@@ -45,11 +50,12 @@ import logging
 from collections.abc import AsyncGenerator, Mapping
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 
-from cortex_core.errors import HandoffInProgressError, ModelUnavailableError
+from cortex_core.errors import ModelUnavailableError
 from cortex_core.health_gate import await_model_ready
 from cortex_core.model import ModelLease
 from cortex_core.model_host import ModelHostState, ResidencyPlan
 from cortex_core.ports import Clock, ModelHost, Sleeper, SubagentPlacer
+from cortex_core.residency_board import ResidencyBoard
 from cortex_core.residency_charge import charge_handoff
 from cortex_core.residency_claim import HandoffClaim
 from cortex_core.residency_moves import swap_in
@@ -96,29 +102,24 @@ class SwappingModelManager:
         self._sleeper = sleeper
         self._placer = placer
         # Which peers of the cortex the standing residency is missing (``residency_tiers.py``),
-        # written by the swap back's best-effort restart and read by the seam and by the retry.
+        # written wherever a start was refused and read by the seam and by the retry.
         self._tiers = StandingTiers(placer)
         # Which supervisor daemon every belief below was formed against (``residency_watch.py``).
         # It is asked once per handoff, because a daemon replaced under this process leaves all of
-        # them describing a machine that no longer exists.
-        self._boot = BootWatch(host, plan, clock=clock, sleeper=sleeper)
+        # them describing a machine that no longer exists, the peer record included.
+        self._boot = BootWatch(host, plan, self._tiers, clock=clock, sleeper=sleeper)
         # The GPU lease, with v1's discipline unchanged: one holder, waiters queue on the lock.
         self._lock = asyncio.Lock()
-        # Residency bookkeeping, and the queue of acquires waiting for a scope to end. Separate
-        # from the lease lock on purpose: an acquire must never hold this while waiting for the
-        # lease, or a swap (which takes the lease first) would deadlock against it.
-        self._residency = asyncio.Condition()
-        self._resident: str | None = plan.cortex_model
-        # What ``residency()`` answers. Written by the same setter that writes ``_resident``,
-        # under the same condition and with nothing awaited between them, so the seam's report
-        # and the lease's own view of the GPU cannot drift apart.
-        self._report: ResidencyReport = RESIDENCY_SERVING
-        self._scope_model: str | None = None
+        # Residency bookkeeping, and the queue of acquires waiting for a scope to end
+        # (``residency_board.py``). Separate from the lease lock on purpose: an acquire must never
+        # hold it while waiting for the lease, or a swap (which takes the lease first) would
+        # deadlock against it.
+        self._board = ResidencyBoard(plan.cortex_model)
         # Whether a handoff already owns the whole swap sequence, claimed before anything is
-        # drained. Its own object (``residency_claim.py``) over this same condition: a claim is
+        # drained. Its own object (``residency_claim.py``) over that same condition: a claim is
         # held through the drain, while the cortex is still serving and must still be leasable,
         # so it guards a different flag and must not queue other acquires.
-        self._handoff_claim = HandoffClaim(self._residency)
+        self._handoff_claim = HandoffClaim(self._board.condition)
 
     @asynccontextmanager
     async def acquire(self, model: str) -> AsyncGenerator[ModelLease, None]:
@@ -164,8 +165,19 @@ class SwappingModelManager:
         later handoff compares against it and reconciles when the answer names a different one.
         """
         await self._boot.seed()
-        async with self._residency:
-            self._report = RESIDENCY_SERVING if serving else RESIDENCY_BOOT_FAILED
+        await self._board.publish_report(RESIDENCY_SERVING if serving else RESIDENCY_BOOT_FAILED)
+
+    @property
+    def standing_tiers(self) -> StandingTiers:
+        """The peers the standing residency is missing, for boot recovery to write from outside.
+
+        The one belief of this manager's that something other than a swap observes: convergence
+        runs before the seam serves and again whenever the daemon is replaced, and both times a
+        peer that would not start is a fact about the pool rather than about the cortex. Handing
+        the record out keeps the swap back and those two convergences writing one record, which is
+        what stops the placer and the seam disagreeing about which tier is down.
+        """
+        return self._tiers
 
     def residency(self) -> ResidencyReport:
         """What the GPU is serving right now, answered synchronously and without I/O.
@@ -176,12 +188,12 @@ class SwappingModelManager:
         (bounded by ``plan.load_timeout_s``, minutes at tier scale), which is exactly when the
         honest answer is the point; waiting on the residency condition would queue the probe
         behind whatever the scope's end wakes. A plain read is a consistent snapshot: every
-        writer publishes the report and the resident together (``_set_resident``).
+        writer publishes the report and the resident together (``residency_board.py``).
 
-        The peers are folded in here rather than into ``_report``, so the swap keeps one writer
+        The peers are folded in here rather than into the board, so the swap keeps one writer
         of what the GPU serves: a down tier outlives residency transitions that would drop it.
         """
-        return self._tiers.note_on(self._report)
+        return self._tiers.note_on(self._board.report)
 
     @asynccontextmanager
     async def swap_scope(self, model: str) -> AsyncGenerator[None, None]:
@@ -192,7 +204,7 @@ class SwappingModelManager:
         ``model``, and health-gate it. Leaving, in a ``finally`` that covers success, failure,
         and cancellation: stop ``model``, start the cortex, health-gate it, retrying once.
         """
-        await self._begin_scope(model)
+        await self._board.enter_scope(model)
         try:
             await self._swap_in(model)
             yield
@@ -202,7 +214,7 @@ class SwappingModelManager:
                 # not be able to abandon the recovery path halfway.
                 await restore_uninterruptibly(self._restore(model))
             finally:
-                await self._end_scope()
+                await self._board.leave_scope()
 
     async def _claim(self, model: str) -> str:
         """The endpoint ``model`` may be leased from, once any active scope has ended."""
@@ -213,46 +225,8 @@ class SwappingModelManager:
                 f"{sorted(self._endpoints)}"
             )
             raise ModelUnavailableError(msg)
-        async with self._residency:
-            while self._scope_model is not None and self._scope_model != model:
-                await self._residency.wait()
-            if model != self._resident:
-                msg = f"model {model!r} is not resident (resident: {self._resident!r})"
-                raise ModelUnavailableError(msg)
+        await self._board.await_resident(model)
         return endpoint
-
-    async def _begin_scope(self, model: str) -> None:
-        """Claim the one residency scope, so every other model's acquire starts queuing.
-
-        The backstop under ``handoff_claim``: a caller that swaps without claiming first is
-        still refused, and with the same typed error, because a second swap is a second handoff
-        however it was reached and never a swap that broke.
-        """
-        async with self._residency:
-            if self._scope_model is not None:
-                msg = (
-                    f"a residency scope for {self._scope_model!r} is already active, so "
-                    f"{model!r} cannot be swapped in (there is one GPU)"
-                )
-                raise HandoffInProgressError(msg)
-            self._scope_model = model
-
-    async def _end_scope(self) -> None:
-        """Release the scope and wake every acquire that queued behind it."""
-        async with self._residency:
-            self._scope_model = None
-            self._residency.notify_all()
-
-    async def _set_resident(self, model: str | None, report: ResidencyReport) -> None:
-        """Publish which model the GPU serves (``None`` mid swap), and what to tell a human.
-
-        The report is the one thing the resident cannot express on its own: a swap in and a swap
-        back both leave nothing resident, so the direction is published rather than inferred.
-        """
-        async with self._residency:
-            self._resident = model
-            self._report = report
-            self._residency.notify_all()
 
     async def _swap_in(self, model: str) -> None:
         """Wait out the in-flight round, then make ``model`` the resident (moves, then bookkeeping).
@@ -264,13 +238,13 @@ class SwappingModelManager:
             # First of all, and before anything is evicted: everything below is about to be spent
             # against a daemon this process may not have spoken to since it restarted, and a
             # handoff run on beliefs formed against its predecessor is the one that is lost.
-            await self._boot.reconcile(self._set_resident)
-            await self._set_resident(None, RESIDENCY_LOADING)
+            await self._boot.reconcile(self._board.publish)
+            await self._board.publish(None, RESIDENCY_LOADING)
             # Before the move, not after it: the fit check inside ``swap_in`` reads what the card
             # has free, and a spawn placed between that reading and the load would spend it.
             charge_handoff(self._placer, self._plan)
             await swap_in(self._host, self._plan, model, self._gate)
-            await self._set_resident(model, RESIDENCY_DEEP)
+            await self._board.publish(model, RESIDENCY_DEEP)
 
     async def heal_standing_tiers(self) -> None:
         """Retry every peer the standing residency is missing, unless a handoff owns the GPU.
@@ -282,14 +256,14 @@ class SwappingModelManager:
         check refuses; a scope beginning just after that check costs nothing either, the swap
         in's first move being to stop these very tiers.
         """
-        if self._scope_model is None:
+        if not self._board.scope_active:
             await retry_missing(self._host, self._tiers)
 
     async def _restore(self, model: str) -> None:
         """Take the lease, then run the swap back's retry policy under it."""
         async with self._lock:
             await restore_with_retries(
-                self._host, self._plan, model, self._gate, self._set_resident, self._tiers
+                self._host, self._plan, model, self._gate, self._board.publish, self._tiers
             )
 
     async def _gate(self, model: str) -> ModelHostState:

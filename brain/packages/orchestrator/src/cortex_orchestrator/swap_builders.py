@@ -217,15 +217,26 @@ async def recover_boot_residency(swap: SwapRuntime | None, clock: Clock) -> None
     manager's optimistic seed while every turn fails. Nothing here raises: a boot that cannot
     reach the model host still serves, and the report is what says so.
 
+    Convergence writes the peers it could not start into the manager's own record rather than
+    into its answer, so a boot whose delegation tier is broken publishes a **serving** report that
+    names that tier instead of the amber one that says the usual assistant never came up. The
+    record is reached through the manager because that is the object that owns it; the alternative
+    was two records for one fact.
+
     The tier retry loop starts here too, at the one moment residency is as settled as this
     process can make it, and deliberately after the publish: a pass that ran first would be
-    retrying against beliefs the boot seed had not replaced yet. Nothing is ever marked missing
-    at boot, so the loop's first passes ask the host nothing at all.
+    retrying against beliefs the boot seed had not replaced yet. A boot that marked a tier is
+    exactly the case that loop then has work to do on, from its very first pass.
     """
     if swap is None:
         return
     converged = await recover_handoffs(
-        swap.handoffs, swap.host, swap.plan, clock=clock, sleeper=AsyncioSleeper()
+        swap.handoffs,
+        swap.host,
+        swap.plan,
+        swap.manager.standing_tiers,
+        clock=clock,
+        sleeper=AsyncioSleeper(),
     )
     await swap.manager.publish_boot_residency(serving=converged)
     swap.healer.start()
