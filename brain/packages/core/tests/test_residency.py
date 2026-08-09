@@ -67,6 +67,15 @@ workspace green. Each below was applied to production code alone and the workspa
 - clearing the resident in that publish (treating an unconfirmed boot as a known-dead GPU)
   reddens exactly 1, ``test_a_boot_that_could_not_confirm_the_cortex_still_leases_a_working_one``.
 
+One more for who says a thing, rather than what is said. ``caplog``'s handler sits on the root
+logger, so a ``logger=`` argument to ``at_level`` decides only whether a record is enabled, never
+which records are collected: at WARNING and above the root level enables them all, and naming a
+module there pins nothing. Measured, with the emission of "the model host failed while restoring
+the cortex" moved to a logger of another name: under a ``logger=`` filter naming its real module
+the restore case stayed green, and only once the assertions carried ``record.name`` did the same
+move redden both restore cases below. So the two of them assert the emitting module, and the
+filter names it for the reader.
+
 Two more for the daemon a handoff is about to spend its beliefs against, measured the same way
 (``residency_watch.py`` holds the rest of that suite). Dropping the reconcile from ``_swap_in``
 reddens 9: the three cases here that watch a restart or read the op log, plus
@@ -607,14 +616,17 @@ async def test_a_restore_that_fails_once_retries_and_succeeds(
     """Decision 4 step 3's retry: the second attempt brings the cortex back, loudly noted."""
     host = ScriptedModelHost(running=["cortex"], fail_once={("start", "cortex"): "device busy"})
     manager = _manager(host)
-    with caplog.at_level(logging.WARNING, logger="cortex_core.residency"):
+    with caplog.at_level(logging.WARNING):
         async with manager.swap_scope("brain"):
             pass
     assert host.running == {"cortex"}
     assert host.calls.count(("start", "cortex")) == 2  # the failed attempt, then the retry
-    assert [record.message for record in caplog.records] == [
-        "the model host failed while restoring the cortex",
-        "restoring the cortex failed; retrying",
+    # Each record is pinned to the module that emits it, not only to its text: the attempt is
+    # reported where the attempt is made and the retry where the retries are counted, so a
+    # message that drifts to another module stops satisfying this test.
+    assert [(record.name, record.message) for record in caplog.records] == [
+        ("cortex_core.residency_moves", "the model host failed while restoring the cortex"),
+        ("cortex_core.residency_restore", "restoring the cortex failed; retrying"),
     ]
 
 
@@ -625,13 +637,18 @@ async def test_a_restore_that_never_succeeds_raises_loudly_and_leaves_nothing_re
     host = ScriptedModelHost(running=["cortex"], fail={("start", "cortex"): "no such device"})
     manager = _manager(host)
     with (
-        caplog.at_level(logging.WARNING, logger="cortex_core.residency"),
+        caplog.at_level(logging.WARNING, logger="cortex_core.residency_restore"),
         pytest.raises(ResidencyRestoreError, match="manual recovery is needed"),
     ):
         async with manager.swap_scope("brain"):
             pass
     assert host.calls.count(("start", "cortex")) == 2
-    assert any(record.levelno == logging.ERROR for record in caplog.records)
+    # The give-up is the module's own verdict, so the record that carries it has to come from
+    # the module that decides it; an error from any other one is a different event.
+    assert any(
+        record.levelno == logging.ERROR and record.name == "cortex_core.residency_restore"
+        for record in caplog.records
+    )
     # Nothing is resident, so an acquire says so rather than leasing a dead endpoint.
     with pytest.raises(ModelUnavailableError, match="resident: None"):
         async with manager.acquire("cortex"):
