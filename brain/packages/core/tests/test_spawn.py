@@ -483,7 +483,8 @@ async def test_the_spec_advertises_the_roster_to_a_tool_less_wiring() -> None:
     assert "default 'subagent'" in model["description"]
     assert "untrusted external content" in spec.description  # the ADR-0017 caveat is advertised
     # The measured trade-off is advertised, not a blanket parallel claim (ADR-0012 addendum):
-    # distinct models overlap, same model serializes, so spreading is the wall-clock lever.
+    # distinct models overlap, and "one after another" for a shared model understates the
+    # admitted pair's two-way overlap on purpose, so spreading stays the wall-clock lever.
     assert "on distinct models run in parallel" in spec.description
     assert "share one model run one after another" in spec.description
     assert "spread independent subtasks across models" in spec.description
