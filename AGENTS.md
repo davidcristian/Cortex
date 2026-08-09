@@ -122,7 +122,10 @@ the subject style). Imperative mood is the one convention no machine checks:
   period, subject ≤ 72 chars. The body explains what and why, wrapped at 72, which
   `scripts/commitlint.py` now checks: a line past 72 that could have been wrapped fails, and one
   whose longest word alone is over the wrap (a URL, a path, a long identifier) is exempt, having
-  nowhere to break.
+  nowhere to break. Two kinds of line are exempt by what they are rather than by their width,
+  because reflowing a paste changes what it says: a line inside a code fence, and one whose first
+  token is a bare `$` prompt. A fence left open is itself reported. A `BREAKING CHANGE:` footer is
+  neither, so it wraps like the prose it is.
 - Types: `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `build`, `ci`, `chore`,
   `revert`. Breaking change: `!` after type/scope plus a `BREAKING CHANGE:` footer.
 - Scopes (optional, only when the change is contained to one area): `brain`, `body`,

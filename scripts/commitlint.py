@@ -40,6 +40,12 @@ _VOLATILE = (
 
 _HEX = re.compile(r"\b[0-9a-f]{7,40}\b")
 
+# A fenced block, spelled the way Markdown spells it, which is how every forge renders a
+# commit body. Either fence character toggles, and an info string (```bash) is still a fence.
+_FENCE = re.compile(r"^\s*(?:```|~~~)")
+
+_PROMPT = re.compile(r"^\s*\$ \S")
+
 
 def check_header(header: str) -> list[str]:
     """Return the style violations in one commit header (empty = clean)."""
@@ -87,16 +93,39 @@ def too_wide(line: str) -> bool:
     return len(words) > 1 and max(len(word) for word in words) <= MAX_BODY_WIDTH
 
 
-def check_body_lines(lines: list[str], repo: Path) -> list[str]:
-    """Return the width, dash, volatile-reference, and dangling-hash violations in a message."""
+def is_fence(line: str) -> bool:
+    """Whether ``line`` opens or closes a fenced block."""
+    return _FENCE.match(line) is not None
+
+
+def is_pasted_command(line: str) -> bool:
+    """Whether ``line`` is a terminal paste the author marked with a shell prompt."""
+    return _PROMPT.match(line) is not None
+
+
+def check_widths(lines: list[str]) -> list[str]:
+    """Return the wrap violations below the header, and an unclosed fence if one is left open."""
     problems: list[str] = []
-    for number, line in enumerate(lines, start=1):
-        # The header carries its own cap and its own message (``check_header``), so the width
-        # rule starts at the line after it rather than reporting one subject twice.
-        if number > 1 and too_wide(line):
+    opened_at: int | None = None
+    for number, line in enumerate(lines[1:], start=2):
+        if is_fence(line):
+            opened_at = None if opened_at is not None else number
+        elif opened_at is None and not is_pasted_command(line) and too_wide(line):
             problems.append(
                 f"line {number} is {len(line)} chars; AGENTS.md wraps the body at {MAX_BODY_WIDTH}"
             )
+    if opened_at is not None:
+        problems.append(
+            f"line {opened_at} opens a code fence nothing closes; "
+            "an open fence would exempt the rest of the message from the wrap"
+        )
+    return problems
+
+
+def check_body_lines(lines: list[str], repo: Path) -> list[str]:
+    """Return the width, dash, volatile-reference, and dangling-hash violations in a message."""
+    problems: list[str] = check_widths(lines)
+    for number, line in enumerate(lines, start=1):
         for pattern, label in _DASHES:
             if pattern.search(line):
                 problems.append(f"line {number} uses {label}; restructure the sentence")
