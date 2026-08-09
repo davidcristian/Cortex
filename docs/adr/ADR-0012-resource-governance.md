@@ -253,6 +253,13 @@ not about this port.
    5.5 deliberately above the GPU headroom, so every spawn overflows to CPU today; and at the
    documented 14 GB cap minus roughly 11.3 GB of cortex, at most one subagent is ever GPU-placed.
 
+**Both numbers in item 3 have since been measured away, and the decline stands (2026-08-09).** The
+ask is 3.5 GiB against the 5.4 GiB the 14 GB cap leaves beside an 8.6 GiB cortex, so one spawn of
+the admitted pair is GPU-placed and the other overflows, and item 2's "they serialize there
+instead" holds only for spawns sharing a target: an entry's two lock objects give it two-way
+overlap. The discount still buys nothing, because that overlap is capped at two by the lock objects
+rather than by the budget, so admitting a third spawn only moves it from the queue onto a lock.
+
 Recorded as declined rather than deferred: it reopens only with the Slice 11 GPU-placed runtime,
 which is also when a second GPU-capable executor could make the concurrency real, and it reopens
 as a port change, not a tweak.
@@ -848,25 +855,44 @@ produce while everything is working, doubled.
   `CORTEX_SUBAGENTS_CPUS=2.0`, and the memory pair caps at the same two whichever declaration is in
   force (8.0 against the compose file's 3.0, or against the code default's 2.0, where cpus binds
   first). That is also why `--parallel` is 2 on the CPU server.
-- **Admitted is not concurrent**, which is what makes the arithmetic serial rather than parallel:
-  one roster entry holds one `LlamaCppBackend` per target and a backend holds its model lease for
-  the whole stream, measured at **4.8 s through two backend objects against 10.0 s through one**
-  ([docs/runbooks/subagents-cpu.md](../runbooks/subagents-cpu.md)). So a slot frees once per whole
-  subtask, not twice.
+- **Admitted is not concurrent, and how far short it falls is a placement question.** One roster
+  entry holds one `LlamaCppBackend` per target and a backend holds its model lease for the whole
+  stream, measured at **4.8 s through two backend objects against 10.0 s through one**
+  ([docs/runbooks/subagents-cpu.md](../runbooks/subagents-cpu.md)). Two spawns of one entry
+  therefore overlap when they land on different targets and serialize when they share one, so a
+  slot frees twice per whole subtask in the first case and once in the second. The shipped wiring
+  is the overlapping one: `CORTEX_SUBAGENTS_VRAM_GB` is 3.5 against the 5.4 GiB the 14 GB soft cap
+  leaves beside the 8.6 GiB cortex reservation, so exactly one of the admitted pair is GPU-placed
+  and the other overflows, and both dial the one CPU server, because
+  `CORTEX_SUBAGENTS_GPU_ENDPOINT` defaults to it and an alternate's empty `gpu_endpoint` normalizes
+  to its `endpoint`. Serialization is what a closed GPU tier leaves, not the standing case
+  ([ADR-0018](ADR-0018-heterogeneous-subagents.md) measured this pair on the running deployment).
 - A whole CPU subtask on the shipped entry is **200 to 300 s**: a three subtask batch runs 10 to 15
   minutes serialized at about 0.35 tok/s (same runbook, derived in the
   [ADR-0005 stall-ceiling addendum](ADR-0005-llamacpp-engine.md)).
 
-Six of a full batch of eight therefore wait behind a subtask each: the last is admitted **1800 s**
-in, and every second of that is a spawn that was going to run. The bound is **twice** it, the same
-doubling the pool's own stall ceiling carries for the same reason (on this hardware the honest
-reading is that ten minutes of silence is a wedge, and an hour of queuing is a pool that is not
-draining). Two knobs would have been wrong here where they were right for the stall ceiling: the
-budget is one object across roster entries by design, so there is one queue and one bound.
+The last of a full batch of eight therefore waits three whole subtasks while the admitted pair
+overlaps, about **900 s**, and six of them when both spawns land on one target, about **1800 s**;
+every second of either is a spawn that was going to run. The bound is **twice the serial figure**,
+the same doubling the pool's own stall ceiling carries for the same reason (on this hardware the
+honest reading is that ten minutes of silence is a wedge, and an hour of queuing is a pool that is
+not draining). Note what that makes it: an **upper bound** over both placements, four times the
+wait the shipped stack actually produces, rather than an equality against a single serial reading.
+Two knobs would have been wrong here where they were right for the stall ceiling: the budget is one
+object across roster entries by design, so there is one queue and one bound.
+
+**Corrected the same day it was written (2026-08-09).** The bullet above first read the backend
+lock as unconditional ("a slot frees once per whole subtask, not twice"), which is the premise
+[ADR-0018](ADR-0018-heterogeneous-subagents.md) had measured false the day before: an entry that
+omits `gpu_endpoint` fronts one server with two lock objects, so its spawns overlap two ways. The
+number does not move, because the serial reading is still reachable with the GPU tier closed and
+3600 s is twice it. What moves is what the derivation claims: an upper bound, not an equality, and
+a conservative one by a factor of four wherever the GPU path is open.
 
 **What the bound does refuse**, said plainly rather than left to be discovered: two full batches
-queued at once, which is 16 CPU subtasks and about 80 minutes of serialized work, will lose its
-tail to the bound. A deployment that routinely queues more than one batch at a time should raise
+queued at once, which is 16 CPU subtasks, will lose its tail to the bound while the entry
+serializes (the sixteenth spawn is admitted 4200 s in) and will clear it while the pair overlaps
+(2100 s in). A deployment that routinely queues more than one batch at a time should raise
 `CORTEX_SUBAGENTS_ADMISSION_WAIT_S`, and the refusal names the bound so its reader lands on the
 right knob. The GPU tier only shortens these waits (a GPU-placed spawn measured **221.05 ms**
 against **12536.83 ms** for the sibling that overflowed), so sizing on the CPU path is the

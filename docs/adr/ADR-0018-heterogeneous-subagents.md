@@ -323,6 +323,17 @@ the default entry now behaves exactly as `qwen` did here, one spawn of a batch G
 rest overflowing, rather than strictly serial. Two lock objects still front one server wherever an
 entry omits `gpu_endpoint`, which is what this correction is about.
 
+**What the correction reached a day later (2026-08-09), and what it deliberately did not.** The
+same premise had also been written into arithmetic rather than into prose: the bounded admission
+wait in `scheduler.py` derived its 3600 s default from the serialization reading as though it held
+unconditionally, and a test pinned the derivation. That one was corrected against the measurement
+above ([ADR-0012](ADR-0012-resource-governance.md)). The number did not move, the serial reading
+surviving as what a closed GPU tier leaves and 3600 s being twice it; what moved is the claim, from
+an equality to an upper bound four times the wait the shipped stack produces. The advertised
+sentence stays declined on the grounds this section already gave, being prose a model reads whose
+error understates the prize, where the arithmetic's error was a derivation with a correct answer
+and a false reason and no wording to guess at.
+
 **What changes, and what does not.** The spec text is unchanged. This run says the advice is not
 taken; it does not say which wording would be taken, and rewriting on the strength of one
 deployment's behaviour is the guess this residual was written to avoid. The entry stays open and fix-when-it-bites, with its trigger

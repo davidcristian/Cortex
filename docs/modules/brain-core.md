@@ -1482,9 +1482,11 @@ Use-case:
   the `model` enum lists every entry with its
   description and the ADR-0017 caveat, omitted entirely when the runner is tools-enabled or the
   roster has one entry (a knob that cannot do anything is not advertised). The description is
-  honest about the **measured** trade-off, not a blanket parallel claim (ADR-0012 admission-wall
-  addendum): each roster entry holds one backend that keeps its lease for the whole stream, so
-  same-model subtasks serialize and only distinct-model subtasks overlap. The choice note points
+  deliberately conservative about parallelism rather than making a blanket claim (ADR-0012
+  bounded-admission-wait addendum): an entry holds a backend per placement target and each keeps
+  its lease for the whole stream, so same-model subtasks overlap at most two ways where the
+  advertised text says they run one after another, an understatement ADR-0018 measured and left
+  standing rather than rewrite the wording on one deployment's behaviour. The choice note points
   the cortex at distinct-model spread as the wall-clock lever (and gives the model knob a reason
   to reach for beyond a directed pick); the pinned/single-entry note says the batch groups
   independent work rather than speeding it up. `invoke(call)`
@@ -1892,8 +1894,10 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   `Clock` port: a duration belongs on the loop's monotonic clock, and an already-expired bound
   exercises both of this class's timeout paths without a test sleeping. A negative bound raises
   `ValueError`; zero is legal and means never queue. `DEFAULT_ADMISSION_WAIT_S` is 3600.0, twice the
-  1800 s the last spawn of a full `MAX_SPAWN_BATCH` waits under the shipped budgets, since a bound
-  that refuses a legitimately queued spawn is worse than the unbounded wait it replaced.
+  1800 s the last spawn of a full `MAX_SPAWN_BATCH` waits when an entry's admitted pair serializes
+  on one placement target, and four times the 900 s it waits when that pair overlaps, which is the
+  shipped placement; an upper bound either way, since a bound that refuses a legitimately queued
+  spawn is worse than the unbounded wait it replaced.
   `drain(timeout_s=...)` implements
   the port's swap-time quiesce (ADR-0030): it flags the window, `notify_all`s so budget waiters
   wake and refuse, then waits for the int in-flight count (never the float residue) to reach zero

@@ -1038,7 +1038,11 @@ advertised "subtasks that share one model run one after another" is conservative
 deployment, because an entry holds one backend per placement target and the roster override points
 both at one server, so a same-entry batch whose ask fits the VRAM headroom once overlaps two ways.
 That correction rides the same sentence and the same fix, so it is folded into the entry rather
-than counted, and it shrinks the prize for spreading rather than adding work.
+than counted, and it shrinks the prize for spreading rather than adding work. **Its arithmetic twin
+was not folded the same way on 2026-08-09**: the bounded admission wait had derived a shipped
+constant from the identical premise, and a derivation pinned by a test is corrected rather than
+left conservative, so that one moved and this sentence still did not. The split is argued at the
+entry in [subagents.md](subagents.md).
 
 Vision went **14 to 13 on 2026-08-06** and subagents **2 to 3** the same day, one closing that
 opened one: the capture indicator's outcome landed, and the pairing it guarantees for the turn's
@@ -3187,9 +3191,10 @@ send batching / session allowlists ([email-confirmer.md](email-confirmer.md)); t
 third placement target pending its feasibility pass, plus **the last of the two the admission wall
 opened, a bounded admission wait, which landed 2026-08-09 ahead of its trigger and left the
 question it declined in its place**: `admit` refuses after `CORTEX_SUBAGENTS_ADMISSION_WAIT_S`
-(3600 s by default, twice the 1800 s the last spawn of a full `MAX_SPAWN_BATCH` waits under the
-shipped budgets, since a bound that refuses a legitimately queued spawn is worse than the
-unbounded wait it replaces) with the typed error the runner already degrades to an `ok=False`
+(3600 s by default, twice the 1800 s the last spawn of a full `MAX_SPAWN_BATCH` waits when an
+entry's admitted pair serializes on one placement target and four times the 900 s it waits when
+that pair overlaps, an upper bound either way, since a bound that refuses a legitimately queued
+spawn is worse than the unbounded wait it replaces) with the typed error the runner already degrades to an `ok=False`
 result, and two of that entry's own sentences went with it, "nothing is unbounded in practice
 today" (the wedged stream its sibling names held its admission forever, which is exactly how a
 queue stops moving, so the two entries described one failure and neither said so) and "a

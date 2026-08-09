@@ -185,12 +185,16 @@ def test_rejects_a_negative_wait_bound() -> None:
 def test_the_default_bound_clears_the_worst_wait_one_batch_can_legitimately_produce() -> None:
     """Pinned against its derivation and against the literal (ADR-0012 addendum).
 
-    A full `MAX_SPAWN_BATCH` against the shipped budget admits two at a time, and one roster
-    entry's spawns serialize at its single backend anyway, so a slot frees every whole subtask
-    and the last of the batch is admitted six subtasks in. A whole CPU subtask measured 200 to
-    300 s. A bound under that 1800 s would refuse work that was going to run, which is worse
-    than the unbounded wait it replaces, so the default is twice it.
+    A full `MAX_SPAWN_BATCH` against the shipped budget admits two at a time, and how soon those
+    two free their slots is a placement question: one roster entry holds a backend, and so a model
+    lease, per target, so the admitted pair overlaps whenever one spawn is GPU-placed and the other
+    overflows (the shipped ask fits the shipped headroom) and serializes only when both land on the
+    same target. A whole CPU subtask measured 200 to 300 s, so the last of a batch is admitted
+    three subtasks in while the pair overlaps and six subtasks in while it serializes. A bound
+    under either would refuse work that was going to run, which is worse than the unbounded wait it
+    replaces, so the default is twice the serial figure and therefore an upper bound over both.
     """
-    worst_legitimate_wait_s = (MAX_SPAWN_BATCH - 2) * 300.0
-    assert worst_legitimate_wait_s == 1800.0
-    assert DEFAULT_ADMISSION_WAIT_S == 2 * worst_legitimate_wait_s == 3600.0
+    serial_wait_s = (MAX_SPAWN_BATCH - 2) * 300.0
+    overlapped_wait_s = (MAX_SPAWN_BATCH // 2 - 1) * 300.0
+    assert (serial_wait_s, overlapped_wait_s) == (1800.0, 900.0)
+    assert DEFAULT_ADMISSION_WAIT_S == 2 * serial_wait_s == 4 * overlapped_wait_s == 3600.0
