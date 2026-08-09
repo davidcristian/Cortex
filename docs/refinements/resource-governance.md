@@ -6,12 +6,18 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 historical record of what each deferral became, and the index at [index.md](index.md) carries the
 recommended pickup order.
 
-**Open items:** 7, counted by reading the entries below rather than by adjusting the last number.
-The Intel NPU as a third placement target, a queue-depth bound, the drain bound against a
-fired task's lease, a total generation cap, two of the three the tier-outage close opened (a retry
+**Open items:** 6, counted by reading the entries below rather than by adjusting the last number.
+The Intel NPU as a third placement target, a queue-depth bound,
+a total generation cap, two of the three the tier-outage close opened (a retry
 that only asks about tiers it already believes are missing, and a placer holding one bit for the
 card where the record holds one entry per tier), and the deep model's clearing still deciding the
-cortex's verdict at boot. **The number held at 7 later on 2026-08-09 and the set did not, and this
+cortex's verdict at boot. The count went 7 to 6 later on 2026-08-09 when **the drain bound against
+a fired task's lease** closed as declined, with nothing landing in its place: traced to the code
+ahead of the usage it asked for, the drain waits on an in-flight admission and never on a lease,
+so its stated mechanism was a comparison between two numbers that never meet and the abort it
+called systematic is merely likely. A decline is a departure like any other here, which is why
+this is the first move in this file's history that lowers the number without an arrival.
+**The number held at 7 earlier on 2026-08-09 and the set did not, and this
 line was not corrected with it**, which is the failure the index's third warning describes, caught
 by re-reading the entries rather than the arithmetic: the third of that trio, boot recovery calling
 a peer tier's failure the cortex being gone, landed hours after it opened and ahead of its own
@@ -385,18 +391,45 @@ the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
   port for the same reason the wait bound was (the number is the budget's policy, not a per-spawn
   ask), which is a claim the close above establishes by having opened the signature rather than
   one this entry is asserting fresh.
-- **The drain bound is shorter than a fired task's lease, so a task in flight aborts a handoff.**
-  *Fix when it bites.* Opened 2026-07-17 by the brain-handoff conductor sub-slice, which wired
-  `CORTEX_SWAP_DRAIN_TIMEOUT_S` (default 60 s) as the bound on quiescing the pool before anything
-  is evicted. A ticker-fired task holds its admission for up to the schedule lease
+- **The drain bound against a fired task's lease closed 2026-08-09 as declined, wrong premise and
+  no free move ([ADR-0030 drain-bound addendum](../adr/ADR-0030-brain-handoff.md)).** The entry
+  read: "`CORTEX_SWAP_DRAIN_TIMEOUT_S` (default 60 s) bounds quiescing the pool before anything is
+  evicted. A ticker-fired task holds its admission for up to the schedule lease
   (`CORTEX_SCHEDULE_LEASE_S`, default 300 s), so a handoff requested while one is running drains
-  to a timeout and correctly aborts before evicting anything: the user is told, the cortex keeps
-  serving, and nothing is lost. That is the designed direction, but with the shipped defaults it
-  makes an escalation during a scheduled task systematically impossible rather than occasionally
-  unlucky. The knobs already exist (raise the drain bound above the lease, or lower the lease), so
-  the fix is a defaults decision informed by real usage, not a design change; the trigger is a
-  deployment where scheduled work and escalation collide often enough to notice. Killing a
-  subagent mid-stream to make the drain succeed stays refused (v1 never does).
+  to a timeout and correctly aborts before evicting anything. That is the designed direction, but
+  with the shipped defaults it makes an escalation during a scheduled task systematically
+  impossible rather than occasionally unlucky. The knobs already exist (raise the drain bound
+  above the lease, or lower the lease), so the fix is a defaults decision informed by real usage."
+  **The two values are not on the same path.** `drain` waits on one condition,
+  `while self._in_flight > 0` under `asyncio.timeout(timeout_s)`, and `_in_flight` is moved only by
+  `admit`, which `SubagentRunner.run` holds around the whole subagent run. So a drain waits out the
+  remaining runtime of admitted runs and never a lease. The lease is the store's claim fence and,
+  in `ScheduleTicker.run_once`, the `asyncio.wait_for` cap that cancels a wedged fire: a **ceiling**
+  on the hold, not its duration. Comparing 60 s to 300 s compares a wait bound to a cancellation
+  cap, and neither decides the outcome.
+  **What decides it is a measurement, and the honest word is "usually".** A whole CPU subtask is
+  200 to 300 s, so a drain meeting one in flight clears it only when 60 s or less remains: roughly
+  a quarter of arrivals for a single run, fewer for an admitted pair whose releases stagger. Likely,
+  not systematic, which is the word the entry used. The framing was narrow too: an interactive spawn
+  holds the same admission with no lease at all, and since nothing caps a generation's length (the total
+  generation cap below) and the 600 s ceiling bounds only the gap between chunks, its hold has no upper bound
+  at all, so the collision is drain against delegated work of any origin.
+  **Both proposed knob moves are refused.** Lowering the lease under the drain bound makes drains
+  succeed by cancelling every fire before its own subtask can finish, breaking the feature to
+  protect the handoff. Raising the drain bound over the lease covers fires and not interactive
+  spawns, and no finite value makes the drain reliable while a generation's length is uncapped; the
+  smallest that even covers a wedge sits above the 600 s ceiling, which is exactly the "do not hold
+  the handoff open for minutes" the default was chosen for. What is left
+  is a trade between handoff latency and handoff success, made with a knob that already exists by a
+  deployment that has met the collision. Killing a subagent mid-stream stays refused (v1 never
+  does). What landed with the decline is the falsified rationale: the comment on
+  `DEFAULT_SWAP_DRAIN_TIMEOUT_S` and its restatement in
+  [modules/brain-core.md](../modules/brain-core.md) both called 60 s "generous enough for a normal
+  delegated run to finish", which this repo's own 200 to 300 s measurement denies, and the
+  [model-swap runbook](../runbooks/model-swap.md) gained the sizing paragraph that names what the
+  knob is really up against. **Reopens** on a deployment that reports the collision with the
+  measured run durations to size against, which is the usage the entry asked for and the only thing
+  that turns this trade into arithmetic.
 - **Admission reopens even onto a tier the swap back could not restart.** *Fix when it bites.*
   Opened 2026-07-18 by the pass that made the drain window wait for the standing residency, and
   recorded at the [ADR-0030 reopening addendum](../adr/ADR-0030-brain-handoff.md), that ADR owning
