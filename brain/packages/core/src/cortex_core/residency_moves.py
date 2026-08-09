@@ -11,6 +11,10 @@ host failure, or a model that will not gate, becomes a ``SwapFailedError`` and t
 ``finally`` restores. Restoring answers a bool instead, because its caller retries it and only
 gives up loudly after that, and because the swap back is the recovery path: it must not raise
 its way out of the very thing it is recovering.
+
+The last step of the second move, ``restart_evicted``, is public because boot recovery ends the
+same way (``swap_recovery.py``): putting the standing residency's peers back is one move written
+once, so the two paths cannot drift into disagreeing about what a refused start means.
 """
 
 import logging
@@ -144,17 +148,18 @@ async def restore_standing(
         return False
     if state is not ModelHostState.READY:
         return False
-    await _restart_evicted(host, plan, tiers)
+    await restart_evicted(host, plan, tiers)
     return True
 
 
-async def _restart_evicted(host: ModelHost, plan: ResidencyPlan, tiers: StandingTiers) -> None:
-    """Put back every tier the swap in evicted, so the standing residency is whole again.
+async def restart_evicted(host: ModelHost, plan: ResidencyPlan, tiers: StandingTiers) -> None:
+    """Put back every tier a swap or a crash left evicted, so the standing residency is whole.
 
     A swap evicts the cortex AND any other hosted tier, because the deep model is alone on the
     GPU (ADR-0030 decision 8); an exit that restored the cortex alone would leave the subagent
     tier stopped for good while the conductor reopens admission to it, and the next delegated
-    run would be placed on a server nothing ever restarted.
+    run would be placed on a server nothing ever restarted. Boot recovery's convergence ends here
+    too, for the same tiers and by the same rule, which is why this is the one implementation.
 
     Deliberately after the cortex is serving and gated, and deliberately best effort: the turn
     the user is waiting on needs the cortex, and a tier that will not come back must not be

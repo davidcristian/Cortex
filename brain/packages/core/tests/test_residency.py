@@ -20,12 +20,14 @@ Distrust-green proofs (each mutation reddened the named test, then was restored)
   ``test_the_restore_waits_for_the_new_resident_s_own_round``;
 - awaiting the restore directly instead of shielding it (so a cancellation abandons it midway)
   reddens ``test_a_cancelled_scope_cannot_abandon_the_restore_halfway``;
-- making ``_claim`` raise for a non-scope model instead of waiting reddens
+- making ``ResidencyBoard.await_resident`` raise for a non-scope model instead of waiting reddens
   ``test_an_acquire_of_another_model_waits_out_the_scope_instead_of_failing``;
-- dropping ``_end_scope``'s ``notify_all`` leaves a queued acquire asleep whenever the restore
-  did not itself publish a residency change, which reddens
+- dropping ``ResidencyBoard.leave_scope``'s ``notify_all`` leaves a queued acquire asleep whenever
+  the restore did not itself publish a residency change, which reddens
   ``test_a_queued_acquire_is_woken_even_when_the_swap_back_failed`` by timeout (the
   happy-path test alone does NOT discriminate it, which is why that second test exists);
+  re-measured on 2026-08-09 after the bookkeeping moved into ``residency_board.py``, it reddens 3,
+  that case plus the two other waits that then never wake;
 - reading the claim and setting it two statements apart (an await between them) reddens the
   chaos suite's ``test_two_escalating_turns_racing_for_the_gpu_leave_one_of_them_untouched``, and
   dropping the refusal outright (``residency_claim.py``, where the rule now lives) reddens that
@@ -36,7 +38,7 @@ Distrust-green proofs (each mutation reddened the named test, then was restored)
 Three more for the residency report the seam publishes, each applied to production code alone
 with the whole brain workspace re-run, so the counts are what actually reddened:
 
-- answering from ``_resident`` instead of the report the swap publishes (the wrong source: it
+- answering from the board's resident instead of the report the swap publishes (the wrong source: it
   cannot tell a swap in from a swap back) reddens 5, the three report cases here plus
   ``test_health_reports_the_swap_window_it_is_in`` and
   ``test_health_tells_the_truth_about_residency_through_the_whole_wiring`` in the orchestrator.
@@ -62,7 +64,7 @@ workspace green. Each below was applied to production code alone and the workspa
 - dropping the not-serving branch of ``publish_boot_residency`` reddens 2,
   ``test_boot_recovery_s_observation_replaces_the_seed_a_fresh_manager_started_with`` and the
   composition root's boot case;
-- clearing ``_resident`` in that publish (treating an unconfirmed boot as a known-dead GPU)
+- clearing the resident in that publish (treating an unconfirmed boot as a known-dead GPU)
   reddens exactly 1, ``test_a_boot_that_could_not_confirm_the_cortex_still_leases_a_working_one``.
 
 Two more for the daemon a handoff is about to spend its beliefs against, measured the same way

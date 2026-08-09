@@ -16,9 +16,32 @@ Distrust-green proofs (each mutation reddened the named test, then was restored)
 
 Convergence also answers whether the cortex was observed serving, which the composition root
 publishes onto the residency report (a log line nobody reads is not a readiness surface). One
-more measured mutation: returning ``True`` unconditionally reddens exactly 3, both cases here
-that observe a cortex which is not serving plus the composition root's
+more measured mutation: returning ``True`` unconditionally reddens 4 (re-measured 2026-08-09,
+having been 3 before a third such case was added here), every case that observes a cortex which is
+not serving, here and in ``test_residency_watch.py``, plus the composition root's
 ``test_a_boot_that_could_not_settle_the_cortex_leaves_the_seam_saying_so``.
+
+That answer is about the cortex alone, which is three cases here plus three mutations, each applied
+to production code alone with the whole brain workspace re-run, so the counts are measured:
+
+- letting a peer's refused ``start`` decide the verdict again (starting the evicted tiers back
+  inside the same ``try``, which is what this did before) reddens **5**: three here
+  (``..._will_not_start_is_recorded_and_not_counted``, ``..._does_not_serve_at_all_is_no_verdict``,
+  ``..._still_asks_for_its_peers_back``),
+  ``test_a_peer_the_fresh_daemon_will_not_run_is_recorded_and_the_handoff_proceeds`` in
+  ``test_residency_watch.py``, and the composition root's
+  ``test_a_boot_whose_peer_tier_is_down_still_says_the_brain_is_ready``;
+- letting a peer's refused ``status`` do the same (the clearing loop back inside that ``try``,
+  deep model included) reddens **1**,
+  ``test_a_peer_the_daemon_does_not_serve_at_all_is_no_verdict_either``, which is the only case
+  that fails one call earlier than the rest and the one a real sidecar produces;
+- marking the peers after an unreachable host too (calling ``restart_evicted`` before the
+  ``except``'s ``return``) reddens **1**, ``test_an_unreachable_host_does_not_fail_the_boot``.
+
+That last case is why it names a peer tier and hands the host a start it refuses. Written the
+obvious way, over this file's default plan, its last assertion was **vacuous**: that plan evicts
+nothing, so the mutation had no tier to mark and stayed green. Every path here that asserts on the
+record needs a plan with a peer in it, which is the shape the shipped defaults do not have.
 """
 
 import logging
@@ -32,16 +55,30 @@ from cortex_core import (
     HandoffStoreError,
     ModelHostState,
     RecordingSleeper,
+    ResidencyPlan,
     ScriptedModelHost,
+    StandingTiers,
     SystemClock,
     converge_residency,
     recover_handoffs,
 )
 
+_TIER = "subagent-gpu"
 
-async def _recover(handoffs: RecordingHandoffStore, host: ScriptedModelHost) -> bool:
+
+async def _recover(
+    handoffs: RecordingHandoffStore,
+    host: ScriptedModelHost,
+    tiers: StandingTiers | None = None,
+    plan: ResidencyPlan | None = None,
+) -> bool:
     return await recover_handoffs(
-        handoffs, host, harness.plan(), clock=TickingClock(), sleeper=RecordingSleeper()
+        handoffs,
+        host,
+        plan if plan is not None else harness.plan(),
+        tiers if tiers is not None else StandingTiers(),
+        clock=TickingClock(),
+        sleeper=RecordingSleeper(),
     )
 
 
@@ -95,20 +132,23 @@ async def test_an_evictable_tier_is_cleared_off_the_gpu_and_then_put_back() -> N
     A crash can leave a tier holding VRAM the cortex needs, so it goes first; but the standing
     residency includes it, so a boot that left it stopped would silently shrink the machine.
     """
-    host = ScriptedModelHost(running=["subagent-gpu", "brain", "cortex"])
+    host = ScriptedModelHost(running=[_TIER, "brain", "cortex"])
+    tiers = StandingTiers()
     settled = await converge_residency(
         host,
-        harness.plan(evict_models=("subagent-gpu",)),
+        harness.plan(evict_models=(_TIER,)),
+        tiers,
         clock=TickingClock(),
         sleeper=RecordingSleeper(),
     )
     assert settled is True
     assert [call for call in host.calls if call[0] != "status"] == [
-        ("stop", "subagent-gpu"),
+        ("stop", _TIER),
         ("stop", "brain"),
-        ("start", "subagent-gpu"),
+        ("start", _TIER),
     ]
-    assert host.running == {"cortex", "subagent-gpu"}
+    assert host.running == {"cortex", _TIER}
+    assert tiers.missing == ()  # a peer that came back is nothing to record
 
 
 async def test_a_cortex_that_will_not_come_back_is_reported_loudly(
@@ -121,6 +161,7 @@ async def test_a_cortex_that_will_not_come_back_is_reported_loudly(
             RecordingHandoffStore(),
             host,
             harness.plan(load_timeout_s=0.0),
+            StandingTiers(),
             clock=TickingClock(),
             sleeper=RecordingSleeper(),
         )
@@ -133,15 +174,110 @@ async def test_a_cortex_that_will_not_come_back_is_reported_loudly(
 async def test_an_unreachable_host_does_not_fail_the_boot(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A dead supervisor is logged and served around: the brain still starts and answers RPCs."""
-    host = ScriptedModelHost(fail={("status", "brain"): "supervisor unreachable"})
+    """A dead supervisor is logged and served around: the brain still starts and answers RPCs.
+
+    Dead to every call, which is what makes the last assertion mean something: this plan names a
+    peer tier and this host would refuse to start it, so a convergence that asked anyway would
+    have something to record.
+    """
+    host = ScriptedModelHost(
+        fail={
+            ("status", "brain"): "supervisor unreachable",
+            ("start", _TIER): "supervisor unreachable",
+        }
+    )
+    tiers = StandingTiers()
     with caplog.at_level(logging.ERROR, logger="cortex_core.swap_recovery"):
-        settled = await _recover(RecordingHandoffStore(), host)
+        settled = await _recover(
+            RecordingHandoffStore(), host, tiers, harness.plan(evict_models=(_TIER,))
+        )
     # Nothing was observed about the cortex, and the honest report of an unobserved GPU is amber.
     assert settled is False
     assert [record.message for record in caplog.records] == [
         "the model host was unreachable during boot recovery"
     ]
+    # And nothing was observed about the peers either: a host that could not be reached was never
+    # asked to run one, and this record's one rule is that only a refusal marks.
+    assert tiers.missing == ()
+
+
+async def test_a_peer_that_will_not_start_is_recorded_and_not_counted(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The whole fix: a delegation tier that is broken is not the usual assistant being gone.
+
+    The cortex was observed serving, so the verdict this returns is ``True`` and the seam stays
+    green. What the boot did learn is written where every other writer writes it, so the placer
+    stops offering the GPU and the retry loop has the tier to work on from its first pass.
+    """
+    host = ScriptedModelHost(running=["cortex"], fail={("start", _TIER): "no such device"})
+    tiers = StandingTiers()
+    with caplog.at_level(logging.ERROR, logger="cortex_core.residency_moves"):
+        settled = await converge_residency(
+            host,
+            harness.plan(evict_models=(_TIER,)),
+            tiers,
+            clock=TickingClock(),
+            sleeper=RecordingSleeper(),
+        )
+    assert settled is True
+    assert tiers.missing == (_TIER,)
+    assert [record.message for record in caplog.records] == [
+        "a tier evicted for the handoff could not be restarted"
+    ]
+
+
+async def test_a_peer_the_daemon_does_not_serve_at_all_is_no_verdict_either(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The reachable misconfiguration, and the reason the clearing phase is peer-tolerant too.
+
+    A tier named in ``CORTEX_SWAP_EVICT_MODELS`` that the sidecar has no artifact for is not in
+    that daemon's roster, so it answers 404 to every verb, ``status`` included. Guarding only the
+    restart would have left this boot answering that the cortex was gone, one call before it was
+    ever asked about, which is what a real sidecar was observed doing.
+    """
+    host = ScriptedModelHost(
+        running=["cortex"],
+        fail={("status", _TIER): "unknown model", ("start", _TIER): "unknown model"},
+    )
+    tiers = StandingTiers()
+    with caplog.at_level(logging.ERROR):
+        settled = await converge_residency(
+            host,
+            harness.plan(evict_models=(_TIER,)),
+            tiers,
+            clock=TickingClock(),
+            sleeper=RecordingSleeper(),
+        )
+    assert settled is True
+    assert tiers.missing == (_TIER,)
+    assert [record.message for record in caplog.records] == [
+        "a tier the standing residency includes could not be cleared at boot",
+        "a tier evicted for the handoff could not be restarted",
+    ]
+
+
+async def test_a_cortex_that_will_not_settle_still_asks_for_its_peers_back() -> None:
+    """The two verdicts are independent in both directions, not only the interesting one.
+
+    A boot that cannot confirm the cortex is amber whatever the peers do, and leaving the peers
+    stopped on top of that would shrink the machine for the sake of a failure they had no part
+    in: the tier is asked for, comes back, and is recorded standing.
+    """
+    host = ScriptedModelHost(running=[_TIER], status_override={"cortex": ModelHostState.LOADING})
+    tiers = StandingTiers()
+    tiers.mark_missing(_TIER)
+    settled = await converge_residency(
+        host,
+        harness.plan(evict_models=(_TIER,), load_timeout_s=0.0),
+        tiers,
+        clock=TickingClock(),
+        sleeper=RecordingSleeper(),
+    )
+    assert settled is False
+    assert ("start", _TIER) in host.calls
+    assert tiers.missing == ()
 
 
 async def test_an_unreadable_handoff_store_does_not_fail_the_boot(

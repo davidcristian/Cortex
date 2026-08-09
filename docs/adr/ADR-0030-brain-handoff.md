@@ -2351,8 +2351,10 @@ No new surface. `HealthReply` already carries a `detail` beside `ready`, the bod
 verbatim into `LinkStatus`, and the overlay already renders a **ready** detail as
 `Brain ready: <detail>` (`describeLink`); today that slot holds the orchestrator's version string.
 So a serving report with something to say simply wins the slot, and the tooltip reads
-`Brain ready: subagent-gpu did not come back after a deep task, so delegated work is running on
-the CPU`. The dot stays green, which is correct: turns run, delegation runs, and the one thing
+`Brain ready: the model host is not running subagent-gpu, so delegated work is running on the CPU`
+(the sentence this shipped with named a deep task as the cause, corrected by the boot-verdict
+addendum below when boot recovery became the record's second writer).
+The dot stays green, which is correct: turns run, delegation runs, and the one thing
 that changed is where delegated work runs. Zero proto, Rust, or TypeScript change, which is the
 whole reason to prefer this over inventing a second surface.
 
@@ -2428,7 +2430,9 @@ the real `HttpModelHost` driving `_restart_evicted` and `retry_missing` over rea
   is down still answers `RESIDENCY_BOOT_FAILED`, which is the same conflation this addendum
   refuses everywhere else. It is left alone here because threading the record through the two
   boot paths is a change to a different sequence, and because the retry clears the placer side of
-  it within a pass either way. Deferred with its trigger.
+  it within a pass either way. Deferred with its trigger. **Closed the same day by the
+  boot-verdict addendum below**, which also found that the call this paragraph names is not the
+  one a real deployment fails at.
 - **It does not register a new cross-tree constant.** `CORTEX_SWAP_TIER_HEAL_S` has one
   declaration, `DEFAULT_TIER_HEAL_INTERVAL_S` in the core, read once by `config_swap.py`; the
   other spellings of 30 s are prose in that field's own docstring, the module doc and the runbook,
@@ -2437,3 +2441,169 @@ the real `HttpModelHost` driving `_restart_evicted` and `retry_missing` over rea
   consistency this keeps.
 - **It does not kill anything to make a tier come back.** The retry only starts; the supervisor's
   own idempotence is what makes repeating it safe.
+
+## Boot-verdict addendum (2026-08-09): the cortex's readiness is a statement about the cortex
+
+The deferral the tier-outage addendum above opened in its own "deliberately does not do" list,
+**boot recovery still calling a peer tier's failure the cortex being gone**, closes here, ahead of
+its trigger and for the reason the entry gave: it is a lie on an honesty surface, and the surface
+it lies on is the first answer a fresh process gives.
+
+### What the entry got right, and the one thing a real sidecar corrected
+
+The entry was re-derived from the code before anything was designed. Its account of the mechanism
+held exactly: `converge_residency` started every `evict_models` tier inside the same `try` that
+decided whether the cortex was observed serving, so one peer that would not start made the whole
+convergence answer `False`, the composition root published `RESIDENCY_BOOT_FAILED`, and the overlay
+went amber with "the usual assistant did not come up at startup" over a cortex serving turns
+perfectly well. Its account of the blocker held too, to the line: `residency.py` stood at 299 of
+300, both call sites reach the record through it, and the change was therefore a file split rather
+than an argument.
+
+What the entry could not have known, because it was written from the code rather than from a
+running daemon, is **which call actually fails first**. Driven against the real `model-host` image
+over real HTTP, the reachable misconfiguration is a tier named in `CORTEX_SWAP_EVICT_MODELS` that
+the sidecar has no artifact for: such a tier is not in the daemon's roster at all, so it answers
+`404 unknown model 'subagent-gpu'; this host serves cortex, brain` to **every** verb, and the first
+verb convergence spends on it is the `status` of the clearing loop, several calls before the
+`start` the entry named. A fix that guarded only the restart would have left the observed lie
+exactly where it was. So the clearing loop is peer-tolerant too, and the entry's one sentence
+became two.
+
+### The verdict rule
+
+**`converge_residency` answers about the cortex and about nothing else.** `True` means the cortex
+was observed `READY`; `False` means it was not, whether because the host could not be reached or
+because it never gated inside the load bound. A peer of the cortex changes neither answer.
+
+**A peer that will not run is recorded, in the record that already exists for exactly this.**
+`StandingTiers` (`residency_tiers.py`) was built by the addendum above to hold the peers a swap
+back could not restart; boot convergence writes the same record through the same move, since its
+last step is `residency_moves.restart_evicted`, which is now public for that reason and is the one
+implementation both paths run. One record, one writer per outcome, no second vocabulary: the
+distinction a reader already had, **down** versus merely **evicted**, is the one this reuses.
+
+**The record is reached through the manager.** `SwappingModelManager.standing_tiers` hands it out;
+`recover_handoffs` and `BootWatch` take it as an argument, exactly as the swap back's retry policy
+already took it. The alternative, letting boot recovery keep a record of its own, would have been
+two records for one fact, which is the mutation that proves the wiring
+(`test_a_boot_whose_peer_tier_is_down_still_says_the_brain_is_ready`).
+
+**The deep model is deliberately not a peer.** Its clearing stays fatal to the verdict, because it
+is the other half of the residency the cortex has to be alone in: a deep model that cannot be
+stopped is a reason to distrust everything after it, where a delegation tier that cannot be started
+is a fact about where delegated work runs. That asymmetry has a residue, recorded below.
+
+### The three boot cases, and how a reader tells them apart
+
+| What happened | `ready` | What the detail says |
+| --- | --- | --- |
+| The sidecar could not be reached at all | `false` | the usual assistant did not come up at startup |
+| The sidecar answered and the cortex would not gate | `false` | the same line |
+| The sidecar answered, the cortex serves, a peer will not run | `true` | the model host is not running `<tier>` |
+
+The first two share a line on purpose, which the `RESIDENCY_BOOT_FAILED` docstring already argued:
+nothing was observed either way and the operator's next move is the same, so they are separated in
+the log (`the model host was unreachable during boot recovery` against `the cortex is not serving
+after boot recovery`) rather than on the dot. The third is the one that had to become tellable, and
+two independent things keep it apart from the other two. The record is written only where a `start`
+was refused, and an unreachable host returns before that call is ever made, so nothing is marked
+about peers nobody could ask about. And `StandingTiers.note_on` annotates only a **serving** report,
+so even a marked record cannot put a tier's name on an amber dot.
+
+### The split, by responsibility
+
+`residency.py` was one line under the cap, so this change could not be made without one, and a file
+cut to fit a number is the wrong artifact. What came out is the seam the module's own docstring
+had been describing for three addenda: `residency_moves.py` owns *what the host is asked to do*,
+`residency_restore.py` owns *what the swap back is promised to do*, and neither of them owns **the
+bookkeeping both of them publish into**. That is now `ResidencyBoard` (`residency_board.py`): which
+model the GPU serves, what a human is told about it, whether a scope owns the card, and the one
+condition all three are published and waited on under.
+
+It is one object rather than four attributes because it is one invariant: the resident and the
+report are written **together**, under that condition, with nothing awaited between them, so the
+lease's view of the GPU and the seam's answer about it cannot drift apart. The single writer that
+touches the report alone is now a named verb (`publish_report`) instead of an inline exception, and
+it says in its own docstring why boot recovery is allowed it. The manager keeps what none of the
+three can decide: when the GPU may change hands, who may lease what, and the collaborators.
+
+Nothing moved that a caller can see. `acquire`, `handoff_claim`, `swap_scope`, `residency`,
+`publish_boot_residency` and `heal_standing_tiers` are unchanged in name and signature;
+`ResidencyBoard` is deliberately **not** exported from the core barrel, exactly like `HandoffClaim`
+beside it, because no adapter has business holding one.
+
+### Proven able to fail before being trusted
+
+Five mutations, each applied to production code alone with the whole brain workspace re-run, then
+reverted; the counts are measured rather than aimed at.
+
+| Mutation | Reddens |
+| --- | --- |
+| the peer restart back inside the verdict's `try` (the code as it was) | 5 |
+| the peer clearing back inside that `try` (deep model included) | 1 |
+| `restart_evicted` called on the unreachable path too | 1 |
+| `BootWatch` converging against a record of its own | 1 |
+| the composition root handing boot recovery a record of its own | 1 |
+
+The third one is the case that earned the file's warning. Written the obvious way, over this
+suite's default plan, its assertion was **vacuous**: that plan evicts nothing, so a mutation that
+marked every peer had no peer to mark and stayed green. It names a tier and hands the host a start
+it refuses now, and it releases. The split was re-measured rather than assumed: dropping
+`notify_all` from what is now `ResidencyBoard.leave_scope` reddens 3, every wait that then never
+wakes.
+
+### Validated against a real sidecar, since the claim that moved the design is not a CI claim
+
+Run 2026-08-09 against the real `model-host` image, with the real `HttpModelHost` driving
+`converge_residency` over real HTTP. The model drive was not mounted in this session, so there was
+no GGUF to load and the tiers' children were a stub HTTP server standing in for `llama-server`,
+named plainly because it is the limit of what this witnesses: everything below is control plane,
+which is all this change touches, and nothing here says anything about a model.
+
+- **The lie, reproduced.** With `subagent-gpu` in `evict_models` and no artifact named for it, the
+  daemon answered `404 unknown model 'subagent-gpu'; this host serves cortex, brain` to
+  `GET /models/subagent-gpu`, and convergence answered `settled=False` with an empty record, while
+  `GET /models/cortex` on the same daemon read `ready`. That is the entry's lie, live, and it is
+  what showed that guarding the restart alone would not have closed it.
+- **The fix, on the same daemon.** After the clearing loop became peer-tolerant, the same run
+  answered `settled=True`, recorded `missing=('subagent-gpu',)`, and produced
+  `ResidencyReport(serving=True, detail='the model host is not running subagent-gpu, so delegated
+  work is running on the CPU')`.
+- **The ordinary boot, unchanged.** With the tier given an artifact, the daemon's own log shows the
+  whole convergence in order (`GET /models/subagent-gpu`, `GET /models/brain`, `GET /models/cortex`,
+  `POST /models/subagent-gpu/start`) and the record stays empty.
+- **The amber direction, still amber.** Pointed at a cortex id the daemon does not serve,
+  convergence answered `settled=False` and recorded nothing about the peers, which is the
+  unreachable branch returning before the restart.
+
+### The detail line changed, because the record grew a second writer
+
+`TIERS_MISSING_DETAIL` read `{models} did not come back after a deep task, so delegated work is
+running on the CPU`. That clause is false on a brain that has never escalated, which is precisely
+the boot this addendum is about, so the sentence now names the state rather than one writer's
+cause: `the model host is not running {models}, so delegated work is running on the CPU`. It is
+still what the overlay renders after `Brain ready: `, and the runbook and the tier-outage addendum
+above are corrected to quote what ships rather than what shipped.
+
+### What this deliberately does not do
+
+- **It does not make the deep model's clearing best effort.** A `status` or `stop` of
+  `plan.brain_model` that fails still answers `False` without asking about the cortex. Two shapes
+  hide in that: an unreachable host, where the answer is right, and a deployment that turned
+  escalation on without naming `CORTEX_MODEL_FILE_BRAIN`, where the daemon 404s that tier for ever
+  and every boot goes amber over a cortex that is fine. The second is the same conflation one tier
+  up, and it is deferred rather than fixed because the deep model is not a peer: it is the tier
+  whose presence contradicts the residency the cortex needs, and treating a failure to clear it as
+  cosmetic would let a boot report green over a card that is still holding it. Recorded with its
+  trigger in `docs/refinements/resource-governance.md`.
+- **It does not give boot recovery a sweep.** A peer that is rostered, accepted its start and then
+  died is invisible here exactly as it is to the swap back, and an unreachable boot marks nothing
+  at all, so nothing retries those tiers until the next handoff. Both are the entry already open
+  above, whose fix is one sweep over every `evict_models` tier and which now has a third shape
+  named in it.
+- **It does not change what a peer costs the placer.** One bit for the card, argued above; boot
+  recovery pulls the same lever the swap back does, and the retry loop clears it the same way.
+- **It does not widen the health surface.** Three boot cases, two lines, one of them already
+  written: the pair that share a line share an operator move, and inventing a third sentence to
+  separate them would be describing the log on the dot.

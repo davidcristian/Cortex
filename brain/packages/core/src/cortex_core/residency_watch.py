@@ -15,7 +15,9 @@ the change invalidated. Two things were formed against that daemon, so two are r
 - **Residency.** ``converge_residency`` puts the machine back into the standing shape, which is
   boot recovery's own convergence reused rather than a second version of it, and what it observed
   is published, so the manager's beliefs and the seam's report are rewritten from one reading
-  instead of being left to disagree with each other and with the GPU.
+  instead of being left to disagree with each other and with the GPU. The peer record is rewritten
+  by that same convergence and for the same reason: which tiers were missing was a statement about
+  a child table the replaced daemon took with it.
 - **The deadline pairing.** The sidecar's stop bounds are its own environment, and a restart is
   the one event that can change them under a brain that never restarted. They are therefore read
   again here, and nowhere else in a swap, since nothing else can have moved them.
@@ -38,6 +40,7 @@ from cortex_core.residency_state import (
     RESIDENCY_SERVING,
     ResidencyPublisher,
 )
+from cortex_core.residency_tiers import StandingTiers
 from cortex_core.swap_recovery import converge_residency
 
 _logger = logging.getLogger(__name__)
@@ -48,15 +51,24 @@ class BootWatch:
 
     Held by ``SwappingModelManager``, which owns the beliefs at stake and is the only object that
     may rewrite them; the writer arrives as a ``ResidencyPublisher`` so this one never reaches
-    into that state. ``seed`` records who answered when boot recovery finished, and ``reconcile``
-    is the comparison plus everything a difference implies.
+    into that state. ``tiers`` is the same arrangement for the peer record, handed in rather than
+    reached for so a convergence run here writes what a swap back writes. ``seed`` records who
+    answered when boot recovery finished, and ``reconcile`` is the comparison plus everything a
+    difference implies.
     """
 
     def __init__(
-        self, host: ModelHost, plan: ResidencyPlan, *, clock: Clock, sleeper: Sleeper
+        self,
+        host: ModelHost,
+        plan: ResidencyPlan,
+        tiers: StandingTiers,
+        *,
+        clock: Clock,
+        sleeper: Sleeper,
     ) -> None:
         self._host = host
         self._plan = plan
+        self._tiers = tiers
         self._clock = clock
         self._sleeper = sleeper
         self._seen: str | None = None
@@ -136,9 +148,14 @@ class BootWatch:
         leaves the resident alone: at boot an unconfirmed cortex may still be serving and the
         seed is only an assumption, while here the beliefs are known to have been formed against
         a process that is gone, so keeping them would be asserting something already false.
+
+        Success is the cortex, and a peer of it that the fresh daemon will not run is recorded
+        instead of refusing the handoff: the deep model is about to be alone on the card anyway,
+        so a delegation tier that is down changes where delegated work runs and nothing about
+        whether this swap may proceed.
         """
         if await converge_residency(
-            self._host, self._plan, clock=self._clock, sleeper=self._sleeper
+            self._host, self._plan, self._tiers, clock=self._clock, sleeper=self._sleeper
         ):
             await publish(self._plan.cortex_model, RESIDENCY_SERVING)
             return

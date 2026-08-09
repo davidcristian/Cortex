@@ -30,7 +30,11 @@ rather than what was aimed at:
 - publishing nothing after a successful convergence reddens **7**, every case here that gets past
   the comparison, which is what pins the beliefs to the reading rather than to the machine alone;
   publishing nothing after a failed one reddens **1**,
-  ``test_a_replaced_daemon_that_cannot_be_converged_refuses_the_handoff``.
+  ``test_a_replaced_daemon_that_cannot_be_converged_refuses_the_handoff``;
+- converging against a record of its own instead of the manager's (a fresh ``StandingTiers`` in
+  ``_converge``) reddens **1**,
+  ``test_a_peer_the_fresh_daemon_will_not_run_is_recorded_and_the_handoff_proceeds``, which is the
+  case for the third belief a replacement invalidates.
 
 The two ends of the wire are proved in their own suites: dropping the reconcile from the swap
 reddens 9 (``test_residency.py``, ``test_swap_conductor.py`` and four chaos boundaries, all of
@@ -53,6 +57,7 @@ from cortex_core import (
     ResidencyPlan,
     ResidencyReport,
     ScriptedModelHost,
+    StandingTiers,
     SwapFailedError,
 )
 from cortex_core.residency_watch import BootWatch
@@ -83,10 +88,13 @@ class _Published:
         self.writes.append((model, report))
 
 
-def _watch(host: ScriptedModelHost, plan: ResidencyPlan | None = None) -> BootWatch:
+def _watch(
+    host: ScriptedModelHost, plan: ResidencyPlan | None = None, tiers: StandingTiers | None = None
+) -> BootWatch:
     return BootWatch(
         host,
         plan if plan is not None else _plan(),
+        tiers if tiers is not None else StandingTiers(),
         clock=TickingClock(),
         sleeper=RecordingSleeper(),
     )
@@ -168,6 +176,26 @@ async def test_a_replaced_daemon_is_converged_and_the_finding_is_published(
     assert "the model host has been replaced since the last handoff" in caplog.text
     assert host.running == {"cortex", "subagent-gpu"}
     assert published.writes == [("cortex", RESIDENCY_SERVING)]
+
+
+async def test_a_peer_the_fresh_daemon_will_not_run_is_recorded_and_the_handoff_proceeds() -> None:
+    """A replacement rebuilds the peer record too, and a peer is never a reason to refuse.
+
+    The fresh daemon's child table is its own, so which tiers were missing was a statement about a
+    process that is gone. Convergence rewrites it: this one will not run the peer, so the record
+    says so and the swap goes ahead, the deep model being about to hold the card alone anyway.
+    """
+    host = ScriptedModelHost(
+        running=["cortex"], boot_id="daemon-a", fail={("start", "subagent-gpu"): "no such device"}
+    )
+    tiers = StandingTiers()
+    watch = _watch(host, _plan(evict_models=("subagent-gpu",)), tiers)
+    published = _Published()
+    await watch.seed()
+    host.boot = "daemon-b"
+    await watch.reconcile(published)
+    assert published.writes == [("cortex", RESIDENCY_SERVING)]
+    assert tiers.missing == ("subagent-gpu",)
 
 
 async def test_one_restart_is_reconciled_once_however_many_handoffs_follow() -> None:
