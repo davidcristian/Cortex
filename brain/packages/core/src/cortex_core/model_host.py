@@ -18,9 +18,11 @@ from enum import Enum
 DEFAULT_SWAP_LOAD_TIMEOUT_S = 300.0
 
 # How long a swap waits for the subagent pool to quiesce before it evicts anything (ADR-0030
-# decision 4 step 2). Generous enough for a normal delegated run to finish, short enough that a
-# wedged one does not hold the user's handoff open for minutes; the deployment overrides it with
-# CORTEX_SWAP_DRAIN_TIMEOUT_S.
+# decision 4 step 2). This bounds the user's wait, not a delegated run: a whole CPU subtask
+# measures 200 to 300 s (ADR-0005 stall-ceiling addendum), so a drain that meets one in flight
+# usually elapses and aborts the handoff with nothing evicted, which is the designed direction.
+# Raising it above that measurement trades handoff latency for handoff success, and the
+# deployment makes that trade with CORTEX_SWAP_DRAIN_TIMEOUT_S.
 DEFAULT_SWAP_DRAIN_TIMEOUT_S = 60.0
 
 # How long the readiness gate waits between two ``status`` polls. A load takes minutes, so a

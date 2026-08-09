@@ -46,6 +46,19 @@ Other knobs: `CORTEX_MODEL_BRAIN` (the deep tier's logical id, default `brain`),
 `CORTEX_MODELHOST_TIMEOUT_S` (60 s, one control call's deadline). On the sidecar,
 `CORTEX_MODELHOST_NVIDIA_SMI` (`nvidia-smi`) names the binary it reads the card with.
 
+**Sizing `CORTEX_SWAP_DRAIN_TIMEOUT_S`: it bounds your wait, not a subagent's run.** The drain
+waits for the subagent runs already admitted to finish, and a whole CPU subtask on the shipped
+roster entry measures 200 to 300 s, so a handoff asked for while delegated work is in flight
+usually spends the 60 s and aborts before anything is evicted. That abort is the safe direction
+(the cortex never stops serving and the reply says so), and the cost is that you retry the
+escalation once the delegated work is done. Raise the knob only if you would rather wait than
+retry, and size it against that 200 to 300 s subtask, not against `CORTEX_SCHEDULE_LEASE_S`: the
+lease caps how long a ticker-fired task may run, it is not what the drain is waiting on, and an
+interactive spawn holds the pool exactly the same way with no lease and no cap on how long it may
+generate. No value makes the drain reliable while that is true, and the smallest one that even
+covers a wedged stream sits above the pool's 600 s ceiling, which hands that stream ten minutes of
+your handoff. With `CORTEX_SWAP_CORESIDENT` on there is no drain at all.
+
 **`CORTEX_SWAP_CORESIDENT` is the one knob that changes what a handoff does to the machine, and
 it is off.** Set it and a swap stops the cortex and nothing else, every `CORTEX_SWAP_EVICT_MODELS`
 tier keeps serving beside the deep model, and the subagent pool is never quiesced, so delegated
