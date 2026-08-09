@@ -210,6 +210,17 @@ CONSTANTS: tuple[Constant, ...] = (
         mentions=(Mention(OVERLAY_CSS, "--ease: {value};"),),
     ),
     Constant(
+        label="the shared roll duration",
+        why=(
+            "a section's roll animates for this many milliseconds and the stylesheet restates it "
+            "as the --roll custom property the two rules that must move WITH a roll spend, so a "
+            "drift lands the section caps' handover and the thoughts marker's turn on a different "
+            "clock from the roll they accompany (ADR-0035/0037)"
+        ),
+        sites=(Site("body/app/src/overlay/morph.ts", "MORPH_ROLL_MS"),),
+        mentions=(Mention(OVERLAY_CSS, "--roll: {value}ms;"),),
+    ),
+    Constant(
         label="the brain's seam port",
         why=(
             "the compose stack publishes this port and dials it in its own healthcheck, and the "

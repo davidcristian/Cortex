@@ -12,8 +12,7 @@ export const MORPHING_ATTRIBUTE = "data-morphing";
  */
 export const TAB_SLACK_ATTRIBUTE = "data-tab-slack";
 
-/** How long a section's roll takes. Shared, because the panel's concurrent slide has to land with
- *  it: two movements at different speeds read as two movements. */
+/** How long a section's roll takes. */
 export const MORPH_ROLL_MS = 300;
 
 /**

@@ -104,7 +104,11 @@ ground. One swap at three speeds reads as the window coming apart and going back
   as a `@font-face` data URI later; no CDN). Assistant text ~15px/1.5, never cramped. Sleek, not
   decorative. The personality is in motion + the color bloom, not a novelty face.
 - **Motion:** `--spring: cubic-bezier(.34,1.56,.64,1)` for shape; `--ease: cubic-bezier(.4,0,.2,1)`
-  for fades. Three signatures, detailed in §4:
+  for fades; `--roll: 300ms`, the length of a section's roll, for the two rules that have to move
+  *with* one. The last two restate `EASING` and `MORPH_ROLL_MS` from `overlay/morph.ts`, which is
+  what the scripted rolls animate on, and a repo gate holds the two spellings together. Durations
+  that merely happen to match a roll are written out in full instead, so retuning the roll never
+  retunes a fade that has nothing to do with it. Three signatures, detailed in §4:
   - **Whispered streaming** ([ADR-0037](../adr/ADR-0037-whisper-streaming.md), replacing the
     per-word rise + blur this doc used to prescribe). The reply *condenses like breath on
     glass*: letters clear through a nine-letter band of blur on one continuous front whose
