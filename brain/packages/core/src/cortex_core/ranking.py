@@ -2,6 +2,7 @@
 key means (ADR-0038).
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -56,6 +57,41 @@ class Ranking:
         return tuple(ranked.hit for ranked in self.hits)
 
 
+DROPPED_TRAIL_LIMIT = 20
+
+
+@dataclass(frozen=True, slots=True)
+class DroppedCandidate:
+    """A candidate the store offered and the rank did not keep: its id and the store's cosine."""
+
+    id: str
+    score: float
+
+
+@dataclass(frozen=True, slots=True)
+class DroppedCandidates:
+    """What a rank left in the pool, bounded: the candidates carried, and how many more there were.
+    """
+
+    carried: tuple[DroppedCandidate, ...]
+    omitted: int
+
+
+def dropped_candidates(
+    pool: Sequence[ScoredMemory], ranking: Ranking, *, limit: int = DROPPED_TRAIL_LIMIT
+) -> DroppedCandidates:
+    """The pool minus what ``ranking`` kept, bounded to ``limit``, counting what the bound left out.
+    """
+    kept = {ranked.hit.record.id for ranked in ranking.hits}
+    dropped = [hit for hit in pool if hit.record.id not in kept]
+    return DroppedCandidates(
+        carried=tuple(
+            DroppedCandidate(id=hit.record.id, score=hit.score) for hit in dropped[:limit]
+        ),
+        omitted=max(len(dropped) - limit, 0),
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class RecallAudit:
     """One recall as its trail sees it: what was asked, how wide the pool was, and what ranked."""
@@ -65,4 +101,5 @@ class RecallAudit:
     pool_size: int
     k: int
     ranking: Ranking
+    dropped: DroppedCandidates
     at: datetime

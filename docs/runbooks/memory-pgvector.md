@@ -106,6 +106,18 @@ text, neither the query nor a recalled memory, so a line names *which* memories 
 what they said; pair an id with the `memories` table when you need the content. This is the answer
 to "why did recall return these?", which used to need a throwaway script against the store.
 
+The same line answers the harder question, "why did it not remember X?". `dropped` names every
+candidate the store offered and the rank did not keep, by memory id and by the store's cosine, so
+an id that appears there was read and passed over while an id in neither `hits` nor `dropped` was
+never a candidate at all. That distinction matters most under the shipped default, since a judge
+rank returns about one note where the cosine returned five, so most of the pool disappears on a
+normal turn. Two things to read carefully. A dropped candidate carries **no rank key**, because a
+rank has an opinion only about what it kept and the judge leaves an unhelpful note out of its order
+rather than scoring it low, so the line says what was available and not why the rank declined it.
+And the list is bounded at 20, which is the whole pool a default deployment ever fetches (a recall
+of five at a pool factor of four): `dropped_omitted` says how many more there were, and it reads 0
+unless you have widened `CORTEX_MEMORY_RECALL_POOL_FACTOR` past what ships.
+
     docker compose --project-directory . -f docker/docker-compose.yml \
       -f docker/docker-compose.gpu.yml -f docker/docker-compose.memory.yml logs -f brain \
       | grep memory.recall

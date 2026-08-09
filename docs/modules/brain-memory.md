@@ -12,14 +12,22 @@ pool (the one hard rule).
 - `LoggingRecallSink()` is a `RecallAuditSink` (`audit.py`, ADR-0038). `record(audit)` writes one
   `cortex.memory.recall` line per recall, fields both JSON-serialized into the message and set as
   `extra` attributes: the session, the query's *length*, the pool size, `k`, the rank basis, whether
-  keys on that basis may be compared, each kept hit's `id` / `score` / `key` / `tainted`, and the
-  time. It carries **no text at all**, neither the query nor a recalled memory, which is the tool
-  audit's "size not content" stance applied to conversation content. Attached by
-  `CORTEX_MEMORY_RECALL_AUDIT`. A line with no hits is read through its basis and logs no separate
+  keys on that basis may be compared, each kept hit's `id` / `score` / `key` / `tainted`, the
+  candidates the rank dropped, and the time. It carries **no text at all**, neither the query nor a
+  recalled memory, which is the tool audit's "size not content" stance applied to conversation
+  content. Attached by `CORTEX_MEMORY_RECALL_AUDIT`. A line with no hits is read through its basis
+  and logs no separate
   flag for one (ADR-0038 abstention addendum): `"basis": "demur"` is the model having read a pool
   and declined all of it, any other basis with empty `hits` is a pool that held nothing to rank, and
   a fallback after an unreachable or unbelievable model shows the fallback's own basis with the hits
   it chose.
+  - The drops ride that line as `dropped`, one `{"id", "score"}` per candidate the store offered and
+    the rank did not keep, plus `dropped_omitted`, how many more the bound left out (ADR-0038
+    dropped-candidate addendum). `score` is the store's raw cosine and there is no rank key beside
+    it, a rank having no opinion on record about what it passed over, so the pair answers "was this
+    memory even a candidate?" and never "why did the rank decline it?". The sink decides none of
+    that: the core's `dropped_candidates` takes the difference and applies the bound, and `record`
+    only spells it out.
 - `PgVectorMemoryStore(db: Database)` is a `MemoryStore`.
   - `add(record)` → `INSERT (id, text, embedding, scope, tainted, created_at)` with `embedding =
     $3::vector` (the vector passed as a pgvector text literal, e.g. `[0.1,0.2]`). `tainted` is the

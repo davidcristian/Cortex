@@ -5,7 +5,7 @@ from uuid import uuid4
 
 from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.ports import Clock, Embedder, MemoryStore, RecallAuditSink
-from cortex_core.ranking import RecallAudit
+from cortex_core.ranking import RecallAudit, dropped_candidates
 from cortex_core.rerank import RAW_RECALL_POLICY, RecallPolicy
 from cortex_core.scope import GLOBAL_MEMORY_SCOPE, MemoryScope
 
@@ -67,6 +67,7 @@ class MemoryRecaller:
                     pool_size=len(pool),
                     k=k,
                     ranking=ranking,
+                    dropped=dropped_candidates(pool, ranking),
                     at=now,
                 )
             )
