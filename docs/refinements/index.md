@@ -793,8 +793,8 @@ decisions was itself the thing keeping the lost decision. The cap now covers `.t
 Vitest's own notion of a test file as its exclusion ([ADR-0011](../adr/ADR-0011-body-v1.md) line-cap
 addendum) and `demoBridge.ts` was split rather than exempted, which decrements body & overlay. What
 increments repo gates is what turning the gate on made visible: `overlay.css` at **2420 lines** that
-day and 2686 when it was re-measured on 2026-08-08, the longest hand-written file in the repo, still
-outside the cap on an argument about cascades that is
+day, 2686 when it was re-measured on 2026-08-08 and 2700 as of 2026-08-09, the longest hand-written
+file in the repo, still outside the cap on an argument about cascades that is
 honest about the remedy and evasive about the problem ([repo-gates.md](repo-gates.md)). The proto is
 the other thing outside, and it is a decision rather than a deferral: capping `proto/body.proto`
 (314) would put a gate in direct conflict with AGENTS.md's own invariant that the seam is defined
@@ -3255,8 +3255,8 @@ clippy rides along, or shell findings outpacing the user's local checks; confirm
 live over a `pkg-config` shim, with a planted lint proving the declined check real
 ([repo-gates.md](repo-gates.md)); and the overlay stylesheet outside the line cap, opened here on
 2026-08-03 behind the cap reaching the overlay's TypeScript, which turned an oversight into a
-decision: `body/app/src/overlay.css` was 2420 lines then and is 2686 as of 2026-08-08, uncapped on
-the argument that the cap's
+decision: `body/app/src/overlay.css` was 2420 lines then, 2686 on 2026-08-08 and is 2700 as of
+2026-08-09, uncapped on the argument that the cap's
 "split by responsibility" remedy presumes a module with a public contract while a stylesheet is one
 cascade whose ordering is load-bearing, whose fix is a split by layer imported in a fixed order from
 one entry sheet (one suffix in the scanner, everything else in the CSS), and whose trigger is an
