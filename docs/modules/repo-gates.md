@@ -65,7 +65,7 @@ unit-tested core function). `composemounts.py` is the one module that is not a C
   matches rather than a floor, because a floor cannot notice the far side has grown past it and so
   widens itself by however much the tree drifted; a count below 1 is refused, zero being a mention
   asking the value to be absent. It is opt in, and the survey that set it is in the ADR: two of the
-  fourteen registered mentions are counted, `Message.tsx` at 2 (the `className` and the
+  fifteen registered mentions are counted, `Message.tsx` at 2 (the `className` and the
   `aria-label` of one chip) and `overlay.css`'s `:not([{value}="0"])` at 2 (the two section share
   caps, whose handover is symmetric or nothing), while the bare `[{value}` mention beside it stays
   a presence check because its three rules are the sum of two unrelated features. Every mention

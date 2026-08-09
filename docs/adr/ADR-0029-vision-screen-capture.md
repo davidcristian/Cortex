@@ -1451,7 +1451,10 @@ milliseconds, so no template renders one into the other. Closing it wants either
 value form with a per-site unit, which is a design rather than a field, or the overlay adopting a
 `--roll: 300ms` custom property that every transition spends, which is a stylesheet change and
 belongs with the stylesheet's own open entry. The curve half of that pair **is** closed, because
-`--ease` restates the value verbatim.
+`--ease` restates the value verbatim. (Closed on 2026-08-09 by the second of those two, and the
+count in this paragraph was wrong: the sheet spelled `0.3s` seven times, six of them declarations
+and two of those six the roll. The section below says what got the property and what deliberately
+kept its literal.)
 
 **One invariant in the suite had to change**, and it is worth naming rather than quietly
 relaxing. `test_every_registered_constant_spans_more_than_one_tree` refused an entry confined to
@@ -1562,6 +1565,83 @@ pair above would not notice a third share cap written as `[data-morphing]:not([d
 unless that shape were registered too. And the count is a number in a registry rather than a
 property of the far side, so it is stale the moment the far side moves and the gate's own failure
 is what says so, which is the trade this addendum takes on purpose.
+
+### The roll's duration (2026-08-09): one custom property, and the four sites that only coincide
+
+The addendum above left the duration half of the roll's pair open on a units argument, and the
+entry that carried it said the sheet spelled `0.3s` at "some thirty inline sites". **Counted, the
+tree had seven**, and the count was the first thing to fix. Six of the seven were declarations
+(`.panel`'s summon fade, `.bubble`'s `bubblein`, `.chip`'s and `.reminder`'s `confirmin`, the
+section share caps' `max-height`, the thoughts marker's `transform`) and the seventh was a
+sentence about them. The seven `300ms` beside them were all prose in comments, traces and
+measurements rather than values, so the sheet never restated the number in the constant's own
+unit at all. Thirty inline sites was a doc that had gone stale against the file, which is the
+failure mode the refinements index warns about and is worse than a stale cost estimate, because it
+had made the work sound like a sweep when it is two lines.
+
+**The unit-aware value form is not needed, and finding that out is the point.** The parent
+addendum offered two ways to close this: a per-site unit in the registry, or the sheet adopting a
+custom property. They are not equal options once the sites are counted, because the property does
+not merely make the tie expressible, it removes the restatement the tie was for. `:root` now
+carries `--roll: 300ms`, spelled in the constant's own unit, and the mention template is
+`--roll: {value}ms;`, which the existing renderer handles with nothing new. A per-site unit form
+would have taught the registry to convert `300` into `0.3s` so that six declarations could go on
+disagreeing about how to write one number.
+
+**Two rules spend it, and four declarations that last exactly as long deliberately do not.** The
+sheet says which is which and why, because unifying two values that merely coincide is a real
+defect: it couples two features so that retuning one retunes the other, and a false tie is exactly
+what this registry must not claim. The two that are the roll said so in their own comments long
+before this, which is what made the classification a reading rather than a judgement call: the
+section share caps ease `max-height` "over the roll's own duration and curve", so the room one
+chrome section gives up is the room the other takes frame for frame, and the thoughts marker turned
+"over the same 300ms the body rolls open in" so the marker and the trace are one movement. Both
+accompany a scripted roll running on `MORPH_ROLL_MS` and would be wrong at
+any other length. The four that stay literal accompany nothing: `.panel`'s opacity is the summon
+fade, paired with its own 0.44s spring transform and running when no section is rolling at all;
+`bubblein` on a bubble and `confirmin` on a chip and on a reminder row are arrivals, played on
+something that has just appeared rather than beside a height that is moving. A reminder row is the
+closest call, since its exit *is* a roll, but its entrance is not, and `Collapse` is mounted for it
+without `enter`, so nothing about its arrival is on the roll's clock.
+
+**No runtime publish, and the measurement is the argument.** The other shape this could have taken
+is the one `--theme-swap` uses, a `setProperty` from the TypeScript that owns the number. It was
+declined for two reasons. A `var()` that resolves to nothing is invalid at computed-value time and
+takes the whole declaration with it rather than falling back, so a sheet whose `--roll` arrives
+only after the bundle runs has two rules with no transition until it does. Measured, with the
+declaration renamed out of `:root` and nothing else touched: both share-cap rules and the marker
+read `transition-property: all` at `0s`, which is the initial value, not `max-height` at `0.3s`.
+And a publish over a static declaration buys nothing the scan does not already give, since the
+constant and the sheet must be edited together either way. So the sheet declares it, the registry
+holds it to the TypeScript, and the failure mode of a mistake is a red gate rather than a silent
+one.
+
+**Measured unchanged, rather than assumed unchanged.** Headless Chromium 1228 at 900x900 over the
+demo bridge, `vite dev`, computed styles read at both `prefers-reduced-motion` settings, once at
+HEAD and once with the change: the two runs are identical everywhere except that `--roll` on
+`:root` reads `300ms` where it used to read empty. Both share caps and `.switcher` and `.reminders`
+report `max-height` at `0.3s`, with both chrome sections standing open so the rule matches; the
+marker's `::before` reports `transform` at `0.3s`; `.panel` reports `transform, opacity` at
+`0.44s, 0.3s`; `bubblein` and both `confirmin` sites report `0.3s` of animation. Under reduced
+motion every one of them reports the block's `0.12s` transition and its `1e-06s` animation, so the
+override still outranks the token exactly as it outranked the literal.
+
+**Proven able to fail before being trusted, on the real tree, in both directions.**
+`MORPH_ROLL_MS` moved to 400 exits 1 with "does not spell '--roll: 400ms;' as a token of its own".
+The sheet restating the same duration in the other unit, `--roll: 0.3s`, exits 1 the same way,
+which is the drift the entry was actually about: the values agree and the spellings do not, and one
+spelling is the whole point. The property renamed in the declaration exits 1 too, the needle
+carrying the name as well as the number. And the benign case stays green: `.panel`'s summon fade
+retuned to `0.5s` leaves the scan at "crosscheck OK: 15 cross-tree constant(s) under . agree",
+which is the coincidence staying uncoupled, stated as a result rather than as an intention. Every
+mutation returned to that line on revert.
+
+**What this does not do.** The mention pins the declaration, not the spends: a `var(--roll)`
+mistyped in one of the two rules is invisible to the scan, and what catches it is the browser, the
+poisoned declaration above being both the hazard and the detector. No count is pinned, because
+there is nothing to count. The sheet spells the value once, and the two rules that spend it spell
+the property rather than the number, so the occurrence census that the counted-mentions section
+above added has no work to do here.
 
 ## Addendum (2026-08-06): what a 4K desktop is actually legible at, and what the knob costs
 
