@@ -237,6 +237,10 @@ def test_the_residency_plan_carries_the_tier_ids_and_both_bounds() -> None:
     # Nor is a handoff judged by a decode rate the deployment never measured on its own card.
     assert plan.brain_decode_tps == 0.0
     assert _enabled(brain_decode_tps=22.0).residency_plan("cortex").brain_decode_tps == 22.0
+    # And the control deadline rides the plan rather than travelling beside it, so the boot check
+    # and a swap re-reading the same rule after a sidecar restart cannot compare different numbers.
+    assert plan.control_deadline_s == SwapConfig().modelhost_timeout_s
+    assert _enabled(modelhost_timeout_s=90.0).residency_plan("cortex").control_deadline_s == 90.0
 
 
 def test_co_residency_on_the_real_host_without_a_measured_fit_fails_at_boot() -> None:
@@ -409,7 +413,7 @@ async def test_a_deadline_the_hosts_worst_stop_can_outlast_refuses_to_boot(
         ControlBounds(probe_timeout_s=5.0, stop_grace_s=20.0, reap_timeout_s=35.0)
     )
     with caplog.at_level(logging.ERROR), pytest.raises(ControlDeadlineError) as excinfo:
-        await check_control_deadline(runtime, 60.0)
+        await check_control_deadline(runtime)
     # Every term, so the operator can see which knob to move without reading two containers' env.
     assert "worst stop is 60.0 s (probe 5.0 s, grace 20.0 s, reap 35.0 s)" in str(excinfo.value)
     assert "CORTEX_MODELHOST_TIMEOUT_S is 60.0 s" in caplog.text
@@ -430,7 +434,7 @@ async def test_a_refused_pairing_releases_what_the_runtime_already_holds(
         bounds=ControlBounds(probe_timeout_s=5.0, stop_grace_s=20.0, reap_timeout_s=35.0),
     )
     with pytest.raises(ControlDeadlineError):
-        await check_control_deadline(runtime, 60.0)
+        await check_control_deadline(runtime)
     assert asked == ["http://model-host:9300/health"]
     assert released == ["handoff store"]
     assert client.is_closed
@@ -444,7 +448,7 @@ async def test_a_deadline_that_clears_the_worst_stop_is_wired_and_says_so(
         ControlBounds(probe_timeout_s=5.0, stop_grace_s=10.0, reap_timeout_s=30.0)
     )
     with caplog.at_level(logging.INFO):
-        await check_control_deadline(runtime, 60.0)
+        await check_control_deadline(runtime)
     assert "clears the model host's worst stop: deadline_s=60.0 worst_s=45.0" in caplog.text
     await swap_closer(runtime)()
 
@@ -455,7 +459,7 @@ async def test_a_host_that_bounds_no_stop_of_its_own_is_not_a_refusal(
     """The scripted backend CI and the dev loop run: it stops no process, so it bounds nothing."""
     runtime = _with_bounds(None)
     with caplog.at_level(logging.INFO):
-        await check_control_deadline(runtime, 60.0)
+        await check_control_deadline(runtime)
     assert "reports no control bounds" in caplog.text
     await swap_closer(runtime)()
 
@@ -480,14 +484,14 @@ async def test_a_host_that_cannot_be_asked_leaves_the_pairing_unchecked(
     assert runtime is not None
     unreachable = ScriptedModelHost(fail={("control_bounds", ""): "connection refused"})
     with caplog.at_level(logging.WARNING):
-        await check_control_deadline(replace(runtime, host=unreachable), 60.0)
+        await check_control_deadline(replace(runtime, host=unreachable))
     assert "could not be asked for its control bounds" in caplog.text
     await swap_closer(runtime)()
 
 
 async def test_the_pairing_check_is_a_clean_no_op_when_nothing_was_built() -> None:
     """Escalation off builds no host, so there is no deadline anything could spend."""
-    await check_control_deadline(None, 60.0)
+    await check_control_deadline(None)
 
 
 async def test_the_escalate_tool_is_not_advertised_unless_a_handoff_can_run() -> None:

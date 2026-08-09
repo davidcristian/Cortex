@@ -144,6 +144,14 @@ class ResidencyPlan:
     ``load_timeout_s`` bounds the readiness gate after a start, and ``poll_interval_s`` is the
     wait between two status polls. Composition-root config, handed down as one value so the
     manager, the conductor, and boot recovery cannot disagree about the topology.
+
+    ``control_deadline_s`` is the last bound and the only one that belongs to the caller rather
+    than to the machine: how long this brain waits for one control call before it gives up
+    (``CORTEX_MODELHOST_TIMEOUT_S``). It rides here because two separate readers compare it
+    against the worst stop the host reports, the composition root once at boot and the swap again
+    whenever the daemon under it turns out to have been replaced, and a value carried twice is a
+    value that can differ. Zero (the default) means the deployment declared none, so there is
+    nothing to compare and both readers stand down.
     """
 
     cortex_model: str
@@ -155,6 +163,7 @@ class ResidencyPlan:
     drain_timeout_s: float = DEFAULT_SWAP_DRAIN_TIMEOUT_S
     load_timeout_s: float = DEFAULT_SWAP_LOAD_TIMEOUT_S
     poll_interval_s: float = DEFAULT_HEALTH_POLL_INTERVAL_S
+    control_deadline_s: float = 0.0
 
     @property
     def brain_vram_gb(self) -> float:
@@ -182,4 +191,7 @@ class ResidencyPlan:
             raise ValueError(msg)
         if self.poll_interval_s <= 0:
             msg = f"ResidencyPlan.poll_interval_s must be > 0, got {self.poll_interval_s}"
+            raise ValueError(msg)
+        if self.control_deadline_s < 0:
+            msg = f"ResidencyPlan.control_deadline_s must be >= 0, got {self.control_deadline_s}"
             raise ValueError(msg)

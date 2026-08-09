@@ -1,4 +1,4 @@
-"""The real ``ModelHost``: the port's four verbs over the supervisor's control API (ADR-0030 d3).
+"""The real ``ModelHost``: the port's six verbs over the supervisor's control API (ADR-0030 d3).
 
 This half runs in the **brain** container and holds no process knowledge at all. It sends a
 logical id and reads back one of the port's four states, which is the whole reason artifact paths,
@@ -21,7 +21,8 @@ Two policies, both deliberate:
   whether anything asked for a fit; the adapter's job is only to say what came back. The fifth
   verb reads the daemon's own timing bounds off the same body and answers the same way, so a
   daemon older than those fields leaves the composition root's pairing check with nothing to
-  compare rather than with a number it invented.
+  compare rather than with a number it invented, and the sixth reads which daemon is answering at
+  all, for the same reason and with the same fallback: an unnamed boot reconciles nothing.
 """
 
 import logging
@@ -123,6 +124,27 @@ class HttpModelHost:
             )
             return None
         return ControlBounds(probe_timeout_s=probe, stop_grace_s=grace, reap_timeout_s=reap)
+
+    async def boot_id(self) -> str | None:
+        """Which daemon is answering, or ``None`` when this one will not name its own boot.
+
+        Off the same ``GET /health`` again, and read at the two moments the answer can change
+        something: once when boot recovery publishes what it observed, and once per handoff before
+        anything is evicted. A body carrying no id, or one carrying something that is not a
+        non-empty string, reads as no answer, which leaves the brain's beliefs exactly where they
+        were rather than reconciling them against a value it invented. Compared for equality only:
+        the daemon states which boot it is, never how many there have been.
+        """
+        payload = await self._request("GET", "/health", "which daemon is answering")
+        boot = payload.get("boot_id")
+        if not isinstance(boot, str) or not boot:
+            _logger.info(
+                "the model host does not name its own boot: boot_id=%r",
+                boot,
+                extra={"boot_id": boot},
+            )
+            return None
+        return boot
 
     async def _act(self, model: str, verb: str) -> None:
         """Run a lifecycle verb and read the state it left behind, for the log."""

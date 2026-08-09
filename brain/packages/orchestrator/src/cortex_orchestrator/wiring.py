@@ -118,8 +118,7 @@ async def run_from_env(
     # refused with almost nothing to release, and before boot recovery, whose own stops are
     # issued under exactly this deadline.
     swap = await check_control_deadline(
-        build_swap_runtime(swap_config, runtime, inference, clock, AsyncioSleeper(), placer=placer),
-        swap_config.modelhost_timeout_s,
+        build_swap_runtime(swap_config, runtime, inference, clock, AsyncioSleeper(), placer=placer)
     )
     backend, close_backend = build_inference_backend(
         inference, runtime.cortex_model, manager=None if swap is None else swap.manager

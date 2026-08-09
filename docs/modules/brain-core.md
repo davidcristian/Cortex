@@ -148,7 +148,7 @@ Model management (Slice 4, ADR-0007; the swap's value half is ADR-0030, in `mode
   port's verb answer `None` as readily as it answers this (ADR-0030's deadline-pairing addendum).
 - `ResidencyPlan(cortex_model, brain_model, evict_models=(), coresident=False,
   brain_vram_mib=0, brain_decode_tps=0.0, drain_timeout_s=60.0, load_timeout_s=300.0,
-  poll_interval_s=1.0)` is the
+  poll_interval_s=1.0, control_deadline_s=0.0)` is the
   frozen
   composition-root value the manager,
   the conductor, and boot recovery all read, so they cannot disagree about the topology: which
@@ -163,9 +163,13 @@ Model management (Slice 4, ADR-0007; the swap's value half is ADR-0030, in `mode
   model needs, measured by the deployment, which `swap_in` compares against the host's own
   reading immediately before the load. Zero (the default) means no check at all; the
   composition root requires a positive figure alongside `coresident` on the real supervisor
-  host. A negative VRAM figure, a negative
-  drain bound, a negative load bound, or a non-positive poll interval raises `ValueError` at
-  construction. `DEFAULT_SWAP_DRAIN_TIMEOUT_S` (60 s, long enough for a normal delegated run to
+  host. `control_deadline_s` is the deadline this brain bounds one control call with
+  (`CORTEX_MODELHOST_TIMEOUT_S`), carried here because two readers compare it against the host's
+  own worst stop, the composition root at boot and a swap that finds the daemon replaced, and a
+  value passed twice is a value that can differ; zero (the default) means none was declared and
+  both readers stand down. A negative VRAM figure, a negative
+  drain bound, a negative load bound, a negative control deadline, or a non-positive poll interval
+  raises `ValueError` at construction. `DEFAULT_SWAP_DRAIN_TIMEOUT_S` (60 s, long enough for a normal delegated run to
   finish and short enough that a wedged one does not hold the handoff open for minutes),
   `DEFAULT_SWAP_LOAD_TIMEOUT_S` (300 s, an 18 GB GGUF off the drvfs mount is minutes), and
   `DEFAULT_HEALTH_POLL_INTERVAL_S` (1 s) are the exported defaults.
@@ -679,16 +683,22 @@ unchanged):
   separate, segregated port rather than a widened `acquire`.
 - `ModelHost` (in `ports_models.py`, re-exported here) provides `async start(model)`,
   `async stop(model)`, `async status(model) -> ModelHostState`,
-  `async device_memory() -> DeviceMemory | None` and
-  `async control_bounds() -> ControlBounds | None` (ADR-0030 decision 3 with its fit-check and
-  deadline-pairing addenda): the process-lifecycle half ADR-0007 deferred, plus the two readings
-  only the host can take. Neither of those two is about a process and neither takes an id; `None`
-  means the host can see no card, and no stop of its own to bound, both of which are normal
+  `async device_memory() -> DeviceMemory | None`,
+  `async control_bounds() -> ControlBounds | None` and `async boot_id() -> str | None`
+  (ADR-0030 decision 3 with its fit-check, deadline-pairing and host-generation addenda): the
+  process-lifecycle half ADR-0007 deferred, plus the three readings
+  only the host can take. None of those three is about a process and none takes an id; `None`
+  means the host can see no card, has no stop of its own to bound, and will not name which boot it
+  is, all of which are normal
   answers (a CPU-only stack, the scripted backend) and never errors. They ride this port rather
   than a segregated one because they come off the same daemon's same route on the same client,
-  and each has one caller: the swap reads the card immediately before a load, and the composition
+  and each has one caller: the swap reads the card immediately before a load, the composition
   root reads the bounds once at wiring time, where it refuses to serve when its own control
-  deadline does not clear their sum. Both lifecycle verbs are idempotent and `start` only *begins*
+  deadline does not clear their sum, and the swap reads the boot id before it evicts anything, to
+  find out whether the daemon it is about to spend those beliefs against is still the one they
+  were formed against. A boot id is compared for equality only: it says which boot, never how
+  many, since a count in a restarted process starts again at the number the comparison exists to
+  notice. Both lifecycle verbs are idempotent and `start` only *begins*
   loading, so readiness is observed only through `status`. `model` is a logical id (ADR-0004):
   artifact paths, ports, `-ngl`, and context flags never cross it, so a deployment re-points a
   tier without touching the core. Failures surface as `ModelHostError`. `ScriptedModelHost` is
@@ -1669,13 +1679,17 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   recovery failing to confirm the cortex is not the same as knowing it is gone (an unreachable
   host says nothing about the process it supervises) and clearing the resident would refuse every
   turn on a machine that may be serving. The report is display only; the lease stays forgiving.
+  That same call seeds the boot watch below, the observation being published and the daemon it was
+  made against belonging together.
   The two host-facing moves themselves (evict, check the card, and
-  start; stop and restore the standing residency) live in `residency_moves.py`, and the swap
-  back's uninterruptible wait in `residency_restore.py`, both split off for
-  the line cap along the seam the manager already draws: it owns *when* and *who may*, they own
-  *what the host is asked to do* and *what a cancellation may not abandon*, with opposite failure
-  directions (the swap in raises `SwapFailedError`, the restore answers a bool because its caller
-  retries it). The fit check sits inside `swap_in` between the last `stop` and the `start`, which
+  start; stop and restore the standing residency) live in `residency_moves.py`, and both of the
+  swap back's own guarantees, its retry policy (`restore_with_retries`) and its uninterruptible
+  wait, in `residency_restore.py`, all split off for
+  the line cap along the seam the manager already draws: it owns *when*, *who may*, and the state a
+  move publishes, they own *what the host is asked to do*, *how many attempts the way back gets*,
+  and *what a cancellation may not abandon*, with opposite failure
+  directions (the swap in raises `SwapFailedError`, one restore attempt answers a bool because the
+  policy over it retries). The fit check sits inside `swap_in` between the last `stop` and the `start`, which
   is the only instant free memory means anything: everything the handoff means to unload is gone
   and nothing is allocated yet. Under a plan with `brain_vram_mib` set, a card short of that
   figure, or a host that can see no card at all, raises `SwapFailedError` there with both figures
@@ -1687,8 +1701,27 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   reversal fires only once the cortex is genuinely serving again, so a restore that gave up keeps
   spawning on the CPU. With `brain_vram_mib` at zero there is no honest figure and the window is
   never entered, which is the shipped behaviour.
+- `BootWatch(host, plan, *, clock, sleeper)` in `residency_watch.py` is which supervisor daemon
+  every belief above was formed against (ADR-0030's host-generation addendum). The manager holds
+  one, seeds it from `publish_boot_residency`, and calls `reconcile(publish)` as the first thing
+  a swap does, before anything is evicted. `observe(boot_id) -> bool` is the whole decision and it
+  is pure: `None` is no evidence and keeps what was remembered (a daemon too old to name its boot,
+  and the twin, both answer that way), a first answer is a seed, and anything else is a
+  replacement, remembered at once so one restart reconciles once. A replacement then runs
+  `converge_residency` and publishes what it observed, so the manager's resident, the seam's
+  report and the machine are rebuilt from one reading; a convergence that could not settle the
+  cortex publishes that nothing is resident and raises `SwapFailedError`, deliberately unlike the
+  boot publish, which leaves the resident alone because there the seed is only an assumption while
+  here the beliefs are known to have been formed against a process that is gone. It then re-reads
+  `control_bounds()` and refuses the handoff, again with `SwapFailedError`, when
+  `plan.control_deadline_s` no longer clears them, a restart being the only event that can change
+  either side of that pairing under a brain that never restarted. Both refusals happen with the
+  cortex still serving and nothing unloaded, and the scope's own `finally` is the recovery path
+  either way. A host that cannot be asked, one that names no boot, one that states no bounds, and
+  a plan that declared no deadline are all tolerated in the same direction: nothing observed,
+  nothing rebuilt.
 - `ScriptedModelHost(*, running=(), status_override=None, fail=None, fail_once=None,
-  pause_at=(), device_memory=None, control_bounds=None)` is the `ModelHost` twin (ADR-0030 decision 3, in `fakes_model_host.py`): a set
+  pause_at=(), device_memory=None, control_bounds=None, boot_id=None)` is the `ModelHost` twin (ADR-0030 decision 3, in `fakes_model_host.py`): a set
   of running models plus exactly the scripting the swap's named failure modes need.
   `status_override` is what a *running* model reports instead of `READY` (a load that never
   finishes, a model that died at load); `fail` raises `ModelHostError` for an `(op, model)`
@@ -1703,7 +1736,10 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   `control_bounds` is the same shape for the timing a stop can spend, logged and scriptable under
   that same empty id, and `None` by default for the same kind of reason: a twin whose `stop` is a
   set removal has no grace and no reap to bound, so the composition root's pairing check finds
-  nothing to compare.
+  nothing to compare. `boot_id` is the third of that shape and the only world-condition a test can
+  change **mid run**: assigning `.boot` a different value is a supervisor daemon replaced under a
+  live brain, which no verb of the port can bring about, and `None` by default is a twin that will
+  not say which boot it is, so nothing is ever compared and nothing reconciled.
 - `AsyncioSleeper` is the real `Sleeper` (production wiring, the `SystemClock` precedent);
   `RecordingSleeper` is its twin, recording every requested wait in `.waits` and yielding the
   loop instead of consuming time, so a poll loop's *schedule* is asserted rather than its

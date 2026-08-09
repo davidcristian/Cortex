@@ -3,8 +3,9 @@
 Four routes and no more, because this API can start and stop processes on the container that
 holds the GPU and the models mount, and its client is the brain, which runs model-influenced code:
 
-    GET  /health                  the daemon is up, the roster it serves, the three bounds one
-                                  control call may spend, and how much of the card is free
+    GET  /health                  the daemon is up, which boot of it this is, the roster it
+                                  serves, the three bounds one control call may spend, and how
+                                  much of the card is free
     GET  /models/{id}             one model's state (stopped | loading | ready | failed)
     POST /models/{id}/start       begin loading it (idempotent)
     POST /models/{id}/stop        end it, returning once it is reaped (idempotent)
@@ -71,6 +72,11 @@ def build_app(
             {
                 "status": "ok",
                 "models": list(supervisor.models),
+                # Which daemon is answering, so a brain can tell this one from the one that ran
+                # before a restart and reconcile what it believes about the GPU (ADR-0030's
+                # host-generation addendum). Nothing else in the body says that: a roster and a
+                # set of bounds are identical across a restart that invalidated everything.
+                "boot_id": supervisor.boot_id,
                 # All three terms of the pairing rule, in the order the rule states them: a
                 # reader given only the two stop bounds can tune to a compliant-looking sum that
                 # the queued probe then carries past the brain's deadline.

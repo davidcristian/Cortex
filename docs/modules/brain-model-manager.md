@@ -20,7 +20,7 @@ Everything importable from `cortex_model_manager` (`__all__` is the API).
 
 **The adapter (brain side).** `HttpModelHost(endpoint: str, client: httpx.AsyncClient)` is a
 `ModelHost`: `start`/`stop`/`status`, taking a logical model id and nothing else, plus
-`device_memory()` and `control_bounds()`, which take none.
+`device_memory()`, `control_bounds()` and `boot_id()`, which take none.
 
 - `start(model)` POSTs `/models/{id}/start`, `stop(model)` POSTs `/models/{id}/stop`, and
   `status(model)` GETs `/models/{id}` and returns the `ModelHostState` the body names. The id is
@@ -35,7 +35,15 @@ Everything importable from `cortex_model_manager` (`__all__` is the API).
   number, is a bool, or is negative. Read once at wiring time by the brain's composition root,
   never inside a swap: these are the sidecar's env and cannot change under a running container.
   A partial answer is no answer, because a sum missing a term would clear a deadline the whole
-  rule fails (ADR-0030's deadline-pairing addendum).
+  rule fails (ADR-0030's deadline-pairing addendum). It is read a second time, off the same route,
+  when a swap finds the daemon replaced: a restart is the only event that can change either side
+  of that pairing under a brain that never restarted.
+- `boot_id()` GETs the same `/health` once more and returns the value the daemon names its own
+  boot with, or `None` when the body carries none, an empty one, or something that is not a
+  string. Read at the boot publish and once per handoff before anything is evicted, and compared
+  for equality only: a different value means every belief the brain holds about what is resident
+  was formed against a supervisor process that no longer exists (ADR-0030's host-generation
+  addendum).
 - Every failure crosses as `ModelHostError` with its cause chained, and **nothing is retried
   here**: a transport failure, a 404, a 503, a body that will not decode, and a state word this
   version does not know all mean "the model host did not answer the question", which is for the
@@ -53,7 +61,7 @@ answers that this daemon has none. Four routes and no more:
 
 | Route | Meaning |
 |---|---|
-| `GET /health` | the daemon is up, the roster it serves, the three bounds one control call may spend, and how much of the card is free (`{"status": "ok", "models": [...], "probe_timeout_s": 5.0, "stop_grace_s": 10.0, "reap_timeout_s": 30.0, "device_free_mib": 22484, "device_total_mib": 24463}`). An operator's first question, and the only way to read what a running daemon actually got. All three timing terms, because the brain reads them here at wiring time and refuses to serve when its own `CORTEX_MODELHOST_TIMEOUT_S` does not clear their sum (ADR-0030's deadline-pairing addendum), and because a reader given two of them can tune to a compliant-looking sum the third carries past that deadline. The two device figures are `null` on a daemon that can see no card, and they are what the brain's fit check compares against (ADR-0030's fit-check addendum). |
+| `GET /health` | the daemon is up, which boot of it this is, the roster it serves, the three bounds one control call may spend, and how much of the card is free (`{"status": "ok", "boot_id": "0f9c...", "models": [...], "probe_timeout_s": 5.0, "stop_grace_s": 10.0, "reap_timeout_s": 30.0, "device_free_mib": 22484, "device_total_mib": 24463}`). An operator's first question, and the only way to read what a running daemon actually got. All three timing terms, because the brain reads them here at wiring time and refuses to serve when its own `CORTEX_MODELHOST_TIMEOUT_S` does not clear their sum (ADR-0030's deadline-pairing addendum), and because a reader given two of them can tune to a compliant-looking sum the third carries past that deadline. `boot_id` is the one field a restart changes: everything else on this body is identical across one, so it is what tells a brain that its beliefs about the GPU were formed against a daemon that is gone (ADR-0030's host-generation addendum). The two device figures are `null` on a daemon that can see no card, and they are what the brain's fit check compares against (ADR-0030's fit-check addendum). |
 | `GET /models/{id}` | `{"model", "state", "detail"}`, `state` being `stopped`/`loading`/`ready`/`failed`. |
 | `POST /models/{id}/start` | begin loading it (idempotent), answering the state it left behind. |
 | `POST /models/{id}/stop` | end it, returning once the child is reaped (idempotent). |
@@ -76,8 +84,12 @@ declines to pick a row.
 probe_timeout_s)` over the two seams `ChildProcesses` (`spawn(argv) -> ChildProcess`) and
 `HealthProbe` (`serving(url) -> bool`), with `AsyncioChildProcesses` and `HttpHealthProbe` as the
 real adapters and `ModelStatus(model, state, detail)` as its answer. `stop_all()` is the shutdown
-sweep, and `control_bounds` is the core `ControlBounds(probe_timeout_s, stop_grace_s,
-reap_timeout_s)` it was wired with, which `GET /health` reports. It is handed the probe's deadline
+sweep, `boot_id` is a `uuid4().hex` minted per instance and therefore per daemon process, which
+`GET /health` publishes and nothing in this process reads back (it certifies the child table this
+object holds: random rather than counted, since a counter in a process that restarted begins again
+at the number a reader compares to notice the restart), and `control_bounds` is the core
+`ControlBounds(probe_timeout_s, stop_grace_s, reap_timeout_s)` it was wired with, which the same
+route reports. It is handed the probe's deadline
 although it spends none of it: that bound belongs to the client behind `probe`, and a `status`
 probes inside the same per-model lock a `stop` takes, so this is the one object that can state the
 whole worst case of its own slowest call. The defaults are `DEFAULT_STOP_GRACE_S` (10 s),

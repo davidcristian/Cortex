@@ -31,12 +31,13 @@ DEFAULT_BRAIN_MODEL = "brain"
 # sidecar's SIGTERM grace plus its SIGKILL reap bound, and, because a ``status`` queued on the same
 # per-model lock probes inside it, that sidecar's probe timeout as well: 5 s + 10 s + 30 s = 45 s
 # under the shipped defaults, all three measured. This must stay above that sum, or a
-# slow-but-correct eviction would be read as a dead sidecar and abort a handoff that was working;
-# the sidecar's knobs are its own env, so the pairing is documented in
-# docs/runbooks/model-swap.md rather than validated here (its ``GET /health`` reports the two stop
-# bounds it was actually given). It is still a real deadline, unlike the generation clients'
-# deliberate ``read=None`` (builders.py): a hung control call would hang a swap step under no
-# bound at all.
+# slow-but-correct eviction would be read as a dead sidecar and abort a handoff that was working.
+# The sidecar's knobs are its own env, which is why the rule used to be documented in
+# docs/runbooks/model-swap.md and enforced nowhere; the daemon now reports all three on its
+# ``GET /health``, so the brain refuses to serve a pairing that does not hold and re-reads it
+# whenever the daemon under it turns out to have restarted. It is still a real deadline, unlike
+# the generation clients' deliberate ``read=None`` (builders.py): a hung control call would hang a
+# swap step under no bound at all.
 DEFAULT_MODELHOST_TIMEOUT_S = 60.0
 
 ModelHostBackendName = Literal["none", "scripted", "supervisor"]
@@ -162,7 +163,9 @@ class SwapConfig(BaseSettings):
         """The core value the manager, the conductor, and boot recovery all read.
 
         ``cortex_model`` comes from the runtime config (``CORTEX_MODEL_CORTEX``), so the tier
-        ids stay declared in one place each and cannot drift between the lease and the swap.
+        ids stay declared in one place each and cannot drift between the lease and the swap. The
+        control deadline rides it for the same reason: both readers of the pairing rule (the
+        composition root at boot, and a swap that finds the daemon replaced) then read one value.
         """
         return ResidencyPlan(
             cortex_model=cortex_model,
@@ -173,4 +176,5 @@ class SwapConfig(BaseSettings):
             brain_decode_tps=self.brain_decode_tps,
             drain_timeout_s=self.swap_drain_timeout_s,
             load_timeout_s=self.swap_load_timeout_s,
+            control_deadline_s=self.modelhost_timeout_s,
         )

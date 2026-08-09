@@ -172,8 +172,11 @@ from cortex_core import (
 )
 
 # How far the host has been driven at each boundary, ignoring readiness polls: the eviction, the
-# swap in, and the whole way back. Naming them keeps each case's expectation readable.
-_EVICTED = (("stop", "cortex"),)
+# swap in, and the whole way back. Naming them keeps each case's expectation readable. Every swap
+# opens by asking which daemon is answering (``residency_watch.py``), which is the first thing the
+# host is touched for and the last thing that happens before anything is evicted.
+_ASKED_WHO = (("boot_id", ""),)
+_EVICTED = (*_ASKED_WHO, ("stop", "cortex"))
 _SWAPPED_IN = (*_EVICTED, ("start", "brain"))
 _SWAPPED_BACK = (*_SWAPPED_IN, ("stop", "brain"), ("start", "cortex"))
 

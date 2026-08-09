@@ -60,6 +60,20 @@ def test_the_roster_is_what_the_daemon_serves_and_nothing_else() -> None:
     assert supervisor.models == (CORTEX, DEEP)
 
 
+def test_each_supervisor_names_a_different_boot_and_keeps_naming_it() -> None:
+    """The property the brain's whole reconciliation rests on, and the only two it needs.
+
+    A supervisor is one daemon process, so two of them must never agree: a value that repeated
+    across a restart would let a brain go on believing what it believed about a child table that
+    no longer exists, which is exactly what a monotonic counter reset to one would do. And it must
+    not change while a process lives, or every handoff would reconcile a machine nothing moved.
+    """
+    first, _, _ = _supervisor()
+    second, _, _ = _supervisor()
+    assert first.boot_id != second.boot_id
+    assert first.boot_id == first.boot_id
+
+
 @pytest.mark.parametrize("verb", ["start", "stop", "status"])
 async def test_every_verb_refuses_an_id_the_roster_does_not_hold(verb: str) -> None:
     """A request cannot name a model into existence: that is the whole safety of the control API."""

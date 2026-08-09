@@ -47,7 +47,9 @@ class HostUnderTest:
     ``bounds`` is not a world-condition but a wiring fact: the timing each fixture built its host
     with, which the host then has to report back. It is a field rather than a knob because these
     three are env in the real deployment, fixed for the life of a container, so a setter would
-    model something that cannot happen.
+    model something that cannot happen. ``boot_id`` is the same kind of fact for the same reason:
+    a process cannot change which boot it is, only be replaced by another process, which is a new
+    fixture rather than a setter on this one.
     """
 
     host: ModelHost
@@ -56,6 +58,7 @@ class HostUnderTest:
     card: Callable[[DeviceMemory | None], None]
     aclose: Callable[[], Awaitable[None]]
     bounds: ControlBounds
+    boot_id: str
 
 
 async def check_a_model_nobody_started_reports_stopped(subject: HostUnderTest) -> None:
@@ -191,6 +194,18 @@ async def check_a_host_reports_the_control_bounds_it_was_wired_with(
     assert await subject.host.control_bounds() == subject.bounds
 
 
+async def check_a_host_names_which_boot_of_it_is_answering(subject: HostUnderTest) -> None:
+    """The same daemon names itself the same way twice, and it names the one under test.
+
+    The brain compares this value for equality and nothing else, so the only two properties that
+    matter are that it is stable while a process lives (or every handoff would reconcile) and that
+    it belongs to the host answering rather than to the fixture's expectation of it. An
+    implementation minting one per request would pass any assertion made about a single read.
+    """
+    assert await subject.host.boot_id() == subject.boot_id
+    assert await subject.host.boot_id() == subject.boot_id
+
+
 ALL_CHECKS: tuple[Callable[[HostUnderTest], Awaitable[None]], ...] = (
     check_a_model_nobody_started_reports_stopped,
     check_start_begins_a_load_and_is_idempotent,
@@ -202,4 +217,5 @@ ALL_CHECKS: tuple[Callable[[HostUnderTest], Awaitable[None]], ...] = (
     check_a_host_with_no_card_reports_no_device_memory,
     check_a_host_with_a_card_reports_what_is_free_and_how_big_it_is,
     check_a_host_reports_the_control_bounds_it_was_wired_with,
+    check_a_host_names_which_boot_of_it_is_answering,
 )

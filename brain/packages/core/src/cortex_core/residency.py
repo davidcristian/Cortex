@@ -23,6 +23,11 @@ A swap changes what the card holds, so it also changes the arithmetic the subage
 spawns against. That correction is written at the same two edges as the moves themselves and
 lives in ``residency_charge.py``, which owns the whole argument for it.
 
+Every belief this object holds is about one supervisor process, so a handoff begins by asking
+which one is answering (``residency_watch.py``): a sidecar restarted under this brain leaves the
+residency bookkeeping, the seam's report, and the deadline pairing checked at boot all describing
+a daemon that is gone.
+
 The one-handoff rule is exposed here and lives in ``residency_claim.py``: ``handoff_claim`` is
 taken before the conductor drains anything and refuses a concurrent handoff on the spot, over
 this object's own condition so a claim and a scope never decide about the same GPU at once.
@@ -38,33 +43,23 @@ import logging
 from collections.abc import AsyncGenerator, Mapping
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 
-from cortex_core.errors import (
-    HandoffInProgressError,
-    ModelUnavailableError,
-    ResidencyRestoreError,
-)
+from cortex_core.errors import HandoffInProgressError, ModelUnavailableError
 from cortex_core.health_gate import await_model_ready
 from cortex_core.model import ModelLease
 from cortex_core.model_host import ModelHostState, ResidencyPlan
 from cortex_core.ports import Clock, ModelHost, Sleeper, SubagentPlacer
-from cortex_core.residency_charge import charge_handoff, charge_standing
+from cortex_core.residency_charge import charge_handoff
 from cortex_core.residency_claim import HandoffClaim
-from cortex_core.residency_moves import restore_standing, swap_in
-from cortex_core.residency_restore import restore_uninterruptibly
+from cortex_core.residency_moves import swap_in
+from cortex_core.residency_restore import restore_uninterruptibly, restore_with_retries
 from cortex_core.residency_state import (
     RESIDENCY_BOOT_FAILED,
     RESIDENCY_DEEP,
     RESIDENCY_LOADING,
-    RESIDENCY_LOST,
-    RESIDENCY_RESTORING,
     RESIDENCY_SERVING,
     ResidencyReport,
 )
-
-# How many times the scope's exit tries to bring the cortex back before it gives up loudly: the
-# first attempt plus the one retry ADR-0030 decision 4 step 3 specifies. A third would not be a
-# different experiment; past two, the host itself is gone and only the runbook helps.
-_RESTORE_ATTEMPTS = 2
+from cortex_core.residency_watch import BootWatch
 
 _logger = logging.getLogger(__name__)
 
@@ -97,6 +92,10 @@ class SwappingModelManager:
         self._clock = clock
         self._sleeper = sleeper
         self._placer = placer
+        # Which supervisor daemon every belief below was formed against (``residency_watch.py``).
+        # It is asked once per handoff, because a daemon replaced under this process leaves all of
+        # them describing a machine that no longer exists.
+        self._boot = BootWatch(host, plan, clock=clock, sleeper=sleeper)
         # The GPU lease, with v1's discipline unchanged: one holder, waiters queue on the lock.
         self._lock = asyncio.Lock()
         # Residency bookkeeping, and the queue of acquires waiting for a scope to end. Separate
@@ -152,7 +151,13 @@ class SwappingModelManager:
         supervises, and a load that outran its bound may still finish), so clearing the resident
         would refuse every turn on a machine that may well be serving. The report is display
         only; the lease keeps the forgiving posture boot recovery has always had.
+
+        It is also where the boot watch is seeded, because this is the moment the observation
+        being published was made: an answer about the GPU is only ever an answer about the daemon
+        that gave it, so recording which daemon that was belongs with recording what it said. A
+        later handoff compares against it and reconciles when the answer names a different one.
         """
+        await self._boot.seed()
         async with self._residency:
             self._report = RESIDENCY_SERVING if serving else RESIDENCY_BOOT_FAILED
 
@@ -247,6 +252,10 @@ class SwappingModelManager:
         only at lease-free boundaries" means in code: v1 never preempts a round in flight.
         """
         async with self._lock:
+            # First of all, and before anything is evicted: everything below is about to be spent
+            # against a daemon this process may not have spoken to since it restarted, and a
+            # handoff run on beliefs formed against its predecessor is the one that is lost.
+            await self._boot.reconcile(self._set_resident)
             await self._set_resident(None, RESIDENCY_LOADING)
             # Before the move, not after it: the fit check inside ``swap_in`` reads what the card
             # has free, and a spawn placed between that reading and the load would spend it.
@@ -255,38 +264,11 @@ class SwappingModelManager:
             await self._set_resident(model, RESIDENCY_DEEP)
 
     async def _restore(self, model: str) -> None:
-        """Bring the cortex back, retrying once; give up loudly rather than silently.
-
-        Runs with the lease held, so nothing can lease a half-restored GPU, and it waits out any
-        round the scope's own resident still had in flight.
-        """
-        cortex = self._plan.cortex_model
+        """Take the lease, then run the swap back's retry policy under it."""
         async with self._lock:
-            await self._set_resident(None, RESIDENCY_RESTORING)
-            for attempt in range(1, _RESTORE_ATTEMPTS + 1):
-                if await restore_standing(self._host, self._plan, model, self._gate):
-                    await self._set_resident(cortex, RESIDENCY_SERVING)
-                    # Only here, where the cortex is genuinely serving again. A restore that gave
-                    # up leaves the handoff's charge standing, so spawns keep overflowing to the
-                    # CPU rather than being admitted onto a card nobody can describe.
-                    charge_standing(self._placer)
-                    return
-                _logger.warning(
-                    "restoring the cortex failed; retrying",
-                    extra={"model": cortex, "attempt": attempt},
-                )
-            # Nothing is resident and no retry is left, so the report stops claiming a restore is
-            # under way: Health goes on saying so until boot recovery converges residency again.
-            await self._set_resident(None, RESIDENCY_LOST)
-            _logger.error(
-                "could not restore the cortex after a model swap; the GPU serves nothing",
-                extra={"model": cortex, "attempts": _RESTORE_ATTEMPTS},
+            await restore_with_retries(
+                self._host, self._plan, model, self._gate, self._set_resident, self._placer
             )
-            msg = (
-                f"could not restore {cortex!r} after {_RESTORE_ATTEMPTS} attempts; manual "
-                "recovery is needed (docs/runbooks/model-swap.md)"
-            )
-            raise ResidencyRestoreError(msg)
 
     async def _gate(self, model: str) -> ModelHostState:
         """This manager's readiness gate: poll ``model`` until it settles or the bound elapses."""

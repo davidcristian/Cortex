@@ -29,7 +29,9 @@ the mutation was aimed at:
 - dropping ``probe_timeout_s`` from the daemon's health body reddens 2, the supervisor leg of
   ``check_a_host_reports_the_control_bounds_it_was_wired_with`` and ``test_api.py``'s health case.
   No scripted case reddens, which is again the point: the twin echoes the bounds it was handed, and
-  what the supervisor leg pins is that a real daemon publishes the three it was really given.
+  what the supervisor leg pins is that a real daemon publishes the three it was really given;
+- dropping ``boot_id`` from that body reddens 2 in exactly the same shape, the supervisor leg of
+  ``check_a_host_names_which_boot_of_it_is_answering`` and that same health case.
 """
 
 from collections.abc import AsyncIterator, Awaitable, Callable
@@ -57,6 +59,10 @@ _ENDPOINT = "http://model-host:9300"
 # Three distinct sub-second bounds, so a host that reported them in the wrong order, or that
 # published the shipped defaults instead of what it was built with, cannot pass on a coincidence.
 _BOUNDS = ControlBounds(probe_timeout_s=0.5, stop_grace_s=1.0, reap_timeout_s=1.5)
+# The twin is told which boot it is; the supervisor mints its own, so that leg reads it back off
+# the daemon rather than declaring it, which is the difference the contract is driven over both to
+# expose (a fixture that supplied both sides of the comparison would assert nothing).
+_SCRIPTED_BOOT = "scripted-daemon"
 
 
 def contract_roster() -> dict[str, ModelSpec]:
@@ -98,7 +104,7 @@ class _FakeCard:
 
 def _scripted_subject() -> HostUnderTest:
     """The core's scriptable twin: the world's conditions are its status overrides."""
-    host = ScriptedModelHost(control_bounds=_BOUNDS)
+    host = ScriptedModelHost(control_bounds=_BOUNDS, boot_id=_SCRIPTED_BOOT)
 
     def serving(model: str, *, serving: bool) -> None:
         host.set_status(model, None if serving else ModelHostState.LOADING)
@@ -116,6 +122,7 @@ def _scripted_subject() -> HostUnderTest:
         card=card,
         aclose=nothing_to_close,
         bounds=_BOUNDS,
+        boot_id=_SCRIPTED_BOOT,
     )
 
 
@@ -151,6 +158,7 @@ def _supervisor_subject() -> HostUnderTest:
         card=device.set,
         aclose=client.aclose,
         bounds=_BOUNDS,
+        boot_id=supervisor.boot_id,
     )
 
 
