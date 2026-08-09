@@ -12,25 +12,36 @@ coverage.json
 htmlcov/
 lcov.info
 
-# Host secrets / local env (compose reads a repo-root .env; never commit it)
+# Local environment: compose reads a .env at the repo root, and it is never committed.
 .env
 .env.*
 !.env.example
 
-# Node (Tauri webview, later)
+# Node
 node_modules/
 dist/
 
-# Tauri-generated schemas/bindings (body/app/src-tauri/gen)
+# Tauri-generated schemas and bindings (body/app/src-tauri/gen)
 gen/
 
-# Harness-local state (session worktrees etc.)
+# Local tooling state, such as session worktrees.
 .claude/
 
-# Host-only MCP filesystem sandbox (docs/runbooks/tools-mcp.md)
+# The MCP filesystem sandbox, which exists only on a host (docs/runbooks/tools-mcp.md).
 sandbox/
 
+# Compose bind mounts whose defaults point into the repo. Both are written by root from inside a
+# container and neither has a size limit. Not anchored on purpose: compose run from docker/
+# resolves them against that directory, so docker/pgdata and docker/models are reachable too.
 pgdata/
 models/
 
+# Sample files a live measurement writes, one JSON file per block, read back by
+# scripts/contrast.py. They record one run on one machine, so the numbers they support belong in
+# docs/readings/ and the files themselves do not belong in the repo.
+measurements/
+
+# The same second project directory, for the mounts naming a repo file rather than an output:
+# ./docker/postgres/init.sql resolves to docker/docker/postgres/... when compose runs from
+# docker/, and compose would create that directory instead of finding the file.
 docker/docker/

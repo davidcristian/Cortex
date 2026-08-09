@@ -9,7 +9,7 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 entries are the historical record of what each deferral became, and the index at
 [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** 5 (`cargo clippy` for the Tauri shell in CI, moved to fix-when-it-bites
+**Open items:** 4 (`cargo clippy` for the Tauri shell in CI, moved to fix-when-it-bites
 2026-07-16; standing test-order randomization, opened as fix-when-it-bites 2026-07-18; the
 overlay stylesheet outside the line cap, opened as
 fix-when-it-bites 2026-08-03 behind the cap reaching the overlay's TypeScript; the three
@@ -19,14 +19,16 @@ intended rather than a count standing still, and grown to four the same day by t
 codes the kinded body-gateway error currency now needs both sides to spell alike, folded into
 that entry rather than counted beside it, and still four on 2026-08-09 by exchange, the roll's
 duration closing onto a `--roll` custom property the sheet spells once and the spend side of a
-value-declaring property taking its place, folded in the same way; and the fifth, added
-2026-08-08 by the turn-cost run
-that moved the recall default, whose harness never entered the repo, so the one measurement in
-that ADR that names no reproducing test is also the one whose result shipped, sharpened the same
-day when its trigger fired and the fold-under-load run committed a seam-spanning driver: placement
-and corpus seeding are settled by that second instance, and what is left is the two halves only a
-driver going over gRPC meets, an arm that needs the container restarted and a result reported as an
-interval. The compose bind
+value-declaring property taking its place, folded in the same way. The end-to-end turn-cost
+harness came off this list on 2026-08-09, on the trigger it had been narrowed by, and the answer
+to both halves it had left is one division of labour rather than one clever test: an arm is a
+container configuration, so the restarts live in a `just turn-cost` recipe, which puts the arms in
+separate processes, which is why each block writes a sample file and a fourth `scripts/` module
+reports the blocked paired bootstrap over them while the block driver asserts only invariants. It
+is a close that lowers this number rather than exchanging it, and the defect it had to fix on the
+way was filed nowhere because it was fixed: every `CORTEX_MEMORY_*` knob the memory runbook
+documents was unreachable on the dockerized brain, the override having named the backend, the DSN
+and the embedder endpoint and nothing else, and they are pass-throughs now. The compose bind
 default that lands in the repo tree came off this list on 2026-08-08, ahead of its own trigger, as
 a fourth cross-tree scan whose rule is three-way rather than the one this entry sketched; a mention
 counting nothing came off it on 2026-08-09, on its trigger, as an opt-in exact occurrence count,
@@ -315,6 +317,36 @@ see the outcome notes below the verbatim entries)
   container configuration belongs wherever the restart belongs. **Trigger unchanged**, minus the
   half this run answered: the next measurement that genuinely needs a differently-configured brain
   container between arms, or a challenge to the shipped recall default.
+- **Landed 2026-08-09, on the second reading of that trigger** (the run reproduced rather than
+  cited), and the answer to both remaining halves is one division of labour rather than one clever
+  test ([ADR-0038 harness addendum](../adr/ADR-0038-ranked-recall.md)). **An arm is a container
+  configuration, so a restart is a deployment step and lives in a recipe**, `just turn-cost`, which
+  brings the gpu plus memory stacks up and runs three blocks in A/B/A order, recreating only the
+  brain between them. A test that recreated its own subject would be instrument and operator at
+  once, would spell the whole compose file set a second time inside a test file, and would own a
+  stack it neither brought up nor could restore. **That decision then makes the second half's
+  answer forced rather than chosen**, which is why the entry was right to call them one question in
+  different clothes and wrong about which clothes: restarting between arms puts the arms in
+  separate processes, so no one process can hold the comparison, so each block writes a JSON sample
+  and the interval is computed afterwards. It is computed by `scripts/contrast.py`, the first
+  module in that tree that gates nothing, gated at 100% like everything beside it, which pairs the
+  blocks question by question, bootstraps the mean of the per-question differences over a printed
+  seed, and stars an interval that does not span zero. The block driver
+  (`packages/orchestrator/tests/test_turn_cost_live.py`) therefore asserts only invariants, in the
+  fold run's discipline. The A/B/A control needed no separate answer at all: it is the recipe
+  running its outer two blocks in one configuration and its middle block in another.
+  **Two of this entry's own claims did not survive the tree.** It said corpus seeding was settled
+  by the fold run, whose shape is conversation history written through `RedisSessionStore` and
+  deleted with `delete`; a turn-cost corpus is 41 memory notes written through
+  `PgVectorMemoryStore`, each needing the CPU embedder first, and removed with `delete_scope`,
+  so what carried over was the discipline (test-owned ids, deletion in a `finally`) and never the
+  mechanism. And the harness it described could not have been written at the time it was filed:
+  **no `CORTEX_MEMORY_*` knob reached the dockerized brain at all**, the memory override having set
+  the backend, the DSN and the embedder endpoint and nothing else, so the runbook had been
+  documenting `CORTEX_MEMORY_RECALL=raw` and `CORTEX_MEMORY_RECALL_AUDIT=1` past an operator with
+  no way to supply either. That is fixed rather than filed: every remaining `MemoryConfig` field is
+  a bare pass-through key on the override, which reaches the container when the host sets it and
+  never enters it otherwise, so no shipped default is restated in YAML where it could drift.
 
 **Gate coverage ([ADR-0011](../adr/ADR-0011-body-v1.md)):**
 - **`cargo fmt` and `cargo clippy` for the two ungated Rust trees.** `just check-body` runs
