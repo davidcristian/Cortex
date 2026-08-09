@@ -49,11 +49,15 @@ class HandoffStoreError(Exception):
 
 
 class SubagentAdmissionError(Exception):
-    """A SubagentScheduler refused a spawn outright: no wait could ever admit this charge.
+    """A SubagentScheduler refused a spawn rather than queuing it: no admission is coming.
 
-    The budget's one hard refusal (ADR-0012 admission-wall addendum), distinct from queuing:
-    a charge within the budget always eventually fits as peers release, so it waits, while a
-    charge larger than the whole budget never does. Typed rather than a bare ``ValueError``
+    The budget's refusals, each distinct from queuing and each carrying its own guidance in the
+    message: a charge larger than the whole budget, which no peer releasing anything could ever
+    fit (ADR-0012 admission-wall addendum); a pool quiescing for a model handoff, which would
+    deadlock the turn against its own swap if it queued (ADR-0030); and a wait that outlasted the
+    deployment's bound, the one that arrives after the caller has spent it (the ADR-0012
+    bounded-admission-wait addendum). A charge within the budget otherwise waits, since it
+    eventually fits as peers release. Typed rather than a bare ``ValueError``
     because ``SubagentRunner`` catches exactly this and degrades it to an ``ok=False``
     ``SubagentResult``; catching ``ValueError`` there would swallow unrelated value errors.
     Construction-time validation (a non-positive budget, a non-positive ask) stays ``ValueError``

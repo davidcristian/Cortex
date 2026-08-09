@@ -34,10 +34,12 @@ from cortex_core.tool_budget import DispatchBudget
 
 # What the cortex reads when the scheduler refuses a spawn outright. Phrased like the
 # dispatcher's refusal messages: say it was refused rather than attempted, and say what to do
-# instead. Two causes reach here, and the reason carries which: the impossible charge (permanent,
-# a resource-budget misconfiguration, ADR-0012 admission-wall addendum) and the drain window
-# (transient, a model handoff quiescing the pool, ADR-0030). A transient full budget still
-# queues, so this never means "busy, try later".
+# instead. Three causes reach here, and the reason carries which: the impossible charge
+# (permanent, a resource-budget misconfiguration, ADR-0012 admission-wall addendum), the drain
+# window (transient, a model handoff quiescing the pool, ADR-0030), and a queue that outlasted
+# the admission bound (ADR-0012 bounded-admission-wait addendum). A full budget still queues, so
+# this means "busy" only after the bound has actually been spent waiting, never on first sight
+# of a full budget, which is why the reason rather than this template says whether to retry.
 _REFUSED_TEMPLATE = (
     "refused before running: {reason}. The subtask was never attempted; answer without "
     "delegating this subtask, and say what you could not do."
@@ -86,8 +88,8 @@ class SubagentRunner:
         VRAM is ever reserved while queuing. The "reserved VRAM then no CPU slot" leak is
         impossible. The placement's VRAM is always returned in the ``finally``. An unknown
         requested model fails closed as an ``ok=False`` result, mirroring "task not found", and so
-        does a spawn the scheduler refuses outright (a charge no budget could ever fit, or a pool
-        draining for a model handoff, ADR-0030).
+        does a spawn the scheduler refuses outright (a charge no budget could ever fit, a pool
+        draining for a model handoff, ADR-0030, or a queue that outlasted the admission bound).
 
         ``budget`` is the spawning turn's dispatch pool (ADR-0009 turn-wide addendum), handed
         down by ``SpawnSubagentsTool`` off the dispatch stamp so this run's tool calls come out

@@ -10,6 +10,8 @@ from typing import Literal
 from pydantic import BaseModel, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from cortex_core import DEFAULT_ADMISSION_WAIT_S
+
 SubagentsBackendName = Literal["none", "llamacpp"]
 
 # The logical id of the subagent tier (ADR-0004); deployments override via CORTEX_SUBAGENTS_MODEL.
@@ -85,6 +87,12 @@ class SubagentsConfig(BaseSettings):
     # covers a CPU server decoding at about 0.35 tok/s: the default is twice the longest whole
     # subtask measured on the shipped default entry, so it fires on a wedge and not on slowness.
     stall_timeout_s: float = Field(default=600.0, gt=0)
+    # env CORTEX_SUBAGENTS_ADMISSION_WAIT_S is how long a spawn may sit in the admission queue
+    # before it is refused instead of waiting for room forever (ADR-0012 bounded-admission-wait
+    # addendum). The default is twice the worst wait a full batch can legitimately produce
+    # against the budgets above, so it fires on a pool that is not draining rather than on one
+    # that is merely slow. Zero means never queue: refuse anything that does not fit right now.
+    admission_wait_s: float = Field(default=DEFAULT_ADMISSION_WAIT_S, ge=0)
     # Constrain a tool-less subagent's reply to the fixed envelope (ADR-0028), killing
     # format-laundering on the weak-model niche. On by default; the raw stream is restored per
     # niche with CORTEX_SUBAGENTS_CONSTRAIN_OUTPUT=false.

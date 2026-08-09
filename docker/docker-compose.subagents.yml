@@ -35,6 +35,13 @@
 #                              stall-ceiling addendum). It bounds the gap between chunks, not
 #                              the length of a generation. Left to the brain's own default here,
 #                              which is sized for this CPU tier; docs/runbooks/subagents-cpu.md
+#   CORTEX_SUBAGENTS_ADMISSION_WAIT_S  how long a spawn may QUEUE for room under the budgets
+#                              below before it is refused instead of waiting for room forever
+#                              (ADR-0012 bounded-admission-wait addendum). Also left to the
+#                              brain's own default, which is twice the wait the last spawn of a
+#                              full batch takes under exactly these budgets, so raising
+#                              CPU_BUDGET or lowering CPUS shortens the real waits and never
+#                              needs this raised; queuing two full batches at once does
 
 services:
   brain:

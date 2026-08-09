@@ -1,15 +1,23 @@
 """Behavior tests for ResourceBudgetScheduler: the soft 2-D CPU/RAM budget (ADR-0012)."""
 
 import asyncio
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
 import pytest
 
 from cortex_core import (
+    DEFAULT_ADMISSION_WAIT_S,
+    MAX_SPAWN_BATCH,
     PlacementRequest,
     ResourceBudgetScheduler,
     SubagentAdmissionError,
     SubagentScheduler,
 )
+
+# Every test that can queue is wrapped in this, because the defect under test is an unbounded
+# wait: a mutation that restores it would hang the suite, and a hung suite proves nothing.
+_SUITE_BOUND_S = 10.0
 
 
 def _request(cpus: float, memory_gb: float) -> PlacementRequest:
@@ -89,21 +97,100 @@ async def _blocks_until_first_releases(
         async with scheduler.admit(req):
             order.append("second-in")
 
-    t1 = asyncio.create_task(first())
-    await first_holds.wait()  # first owns enough of the budget to block a second identical ask
-    t2 = asyncio.create_task(second())
-    await asyncio.sleep(0)  # give second a turn. It must block on the full budget
-    assert order == ["first-in"]
-    release_first.set()
-    await asyncio.gather(t1, t2)
+    async with asyncio.timeout(_SUITE_BOUND_S):
+        t1 = asyncio.create_task(first())
+        await first_holds.wait()  # first owns enough of the budget to block a second identical ask
+        t2 = asyncio.create_task(second())
+        await asyncio.sleep(0)  # give second a turn. It must block on the full budget
+        assert order == ["first-in"]
+        release_first.set()
+        await asyncio.gather(t1, t2)
     assert order == ["first-in", "first-out", "second-in"]
 
 
 async def test_admit_queues_when_the_cpu_budget_is_full() -> None:
-    # cpu is the binding constraint (2 + 2 > 3); memory has room to spare.
+    # cpu is the binding constraint (2 + 2 > 3); memory has room to spare. The default bound is
+    # the one in force here: a waiter the budget frees is admitted, never refused for having
+    # queued at all.
     await _blocks_until_first_releases(ResourceBudgetScheduler(3.0, 100.0), _request(2.0, 1.0))
 
 
 async def test_admit_queues_when_the_memory_budget_is_full() -> None:
     # memory is the binding constraint (2 + 2 > 3); cpu has room to spare.
     await _blocks_until_first_releases(ResourceBudgetScheduler(100.0, 3.0), _request(1.0, 2.0))
+
+
+@asynccontextmanager
+async def _peer_holding(
+    scheduler: ResourceBudgetScheduler, req: PlacementRequest
+) -> AsyncGenerator[None]:
+    """Hold ``req``'s charge in another task for the block, so an equal ask has to queue."""
+    holding = asyncio.Event()
+    release = asyncio.Event()
+
+    async def peer() -> None:
+        async with scheduler.admit(req):
+            holding.set()
+            await release.wait()
+
+    task = asyncio.create_task(peer())
+    await holding.wait()
+    try:
+        yield
+    finally:
+        release.set()
+        await task
+
+
+async def test_a_wait_that_outlasts_the_bound_is_refused_and_names_it() -> None:
+    """The queue stopped being forever: the bound elapses and the wait becomes a typed refusal.
+
+    An already-expired bound drives the timeout path, exactly as `drain`'s own bound is driven,
+    so nothing here spends wall-clock time proving it. The message carries this scheduler's
+    seconds, not a literal: a refusal that misreports the bound sends its reader to the wrong
+    knob.
+    """
+    scheduler = ResourceBudgetScheduler(4.0, 8.0, wait_timeout_s=0.0)
+    async with asyncio.timeout(_SUITE_BOUND_S), _peer_holding(scheduler, _request(4.0, 8.0)):
+        with pytest.raises(SubagentAdmissionError, match="waited 0s for room"):
+            async with scheduler.admit(_request(4.0, 8.0)):
+                pass  # pragma: no cover - admit raises before the body runs
+
+
+async def test_a_zero_bound_still_admits_what_fits_right_now() -> None:
+    """Zero means never queue, not never admit: the bound is on the wait, never on the charge."""
+    scheduler = ResourceBudgetScheduler(4.0, 8.0, wait_timeout_s=0.0)
+    async with asyncio.timeout(_SUITE_BOUND_S), scheduler.admit(_request(4.0, 8.0)):
+        pass
+
+
+async def test_a_wait_refused_at_the_bound_reserves_nothing() -> None:
+    """The bound refuses before charging, so a timed-out waiter cannot leak budget behind it."""
+    scheduler = ResourceBudgetScheduler(4.0, 8.0, wait_timeout_s=0.0)
+    async with asyncio.timeout(_SUITE_BOUND_S):
+        async with _peer_holding(scheduler, _request(2.0, 2.0)):
+            with pytest.raises(SubagentAdmissionError):
+                async with scheduler.admit(_request(4.0, 8.0)):
+                    pass  # pragma: no cover - admit raises before the body runs
+        async with scheduler.admit(_request(4.0, 8.0)):  # the whole budget came back
+            pass
+
+
+def test_rejects_a_negative_wait_bound() -> None:
+    """A negative bound would refuse every queued spawn while reading like a generous one."""
+    with pytest.raises(ValueError, match="wait_timeout_s must be >= 0"):
+        ResourceBudgetScheduler(4.0, 8.0, wait_timeout_s=-1.0)
+
+
+def test_the_default_bound_clears_the_worst_wait_one_batch_can_legitimately_produce() -> None:
+    """Pinned against its derivation and against the literal (ADR-0012 addendum).
+
+    A full `MAX_SPAWN_BATCH` against the shipped budget admits two at a time, and one roster
+    entry's spawns serialize at its single backend anyway, so a slot frees every whole subtask
+    and the last of the batch is admitted six subtasks in. A whole CPU subtask measured 200 to
+    300 s. A bound under that 1800 s would refuse work that was going to run, which is worse
+    than the unbounded wait it replaces, so the default is twice it.
+    """
+    worst_legitimate_wait_s = (MAX_SPAWN_BATCH - 2) * 300.0
+    assert worst_legitimate_wait_s == 1800.0
+    assert DEFAULT_ADMISSION_WAIT_S == 2 * worst_legitimate_wait_s == 3600.0

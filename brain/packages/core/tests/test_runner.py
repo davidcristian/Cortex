@@ -22,7 +22,9 @@ counts are measured rather than aimed at:
 - recording only the re-run's own reason in the detail reddens 3, two here and the spawn case.
 """
 
-from collections.abc import AsyncIterator, Mapping, Sequence
+import asyncio
+from collections.abc import AsyncGenerator, AsyncIterator, Mapping, Sequence
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 
 from cortex_core import (
@@ -505,6 +507,61 @@ async def test_a_spawn_the_scheduler_refuses_becomes_a_result_not_an_exception()
     assert not backend.seen  # refused before running means no inference was ever issued
     assert await store.get_result("t1") == result  # the cortex reads it back from the store
     # Placement is inside admission, so a refusal reserved no VRAM either: headroom is intact.
+    assert placer.place(PlacementRequest("subagent", 3.0, 1.0, 1.0)).target is PlacementTarget.GPU
+
+
+@asynccontextmanager
+async def _peer_holding_the_whole_budget(
+    scheduler: ResourceBudgetScheduler,
+) -> AsyncGenerator[None]:
+    """Occupy the whole budget in another task for the block, so any spawn has to queue."""
+    holding, release = asyncio.Event(), asyncio.Event()
+
+    async def peer() -> None:
+        async with scheduler.admit(PlacementRequest("peer", vram_gb=1.0, cpus=4.0, memory_gb=8.0)):
+            holding.set()
+            await release.wait()
+
+    task = asyncio.create_task(peer())
+    await holding.wait()
+    try:
+        yield
+    finally:
+        release.set()
+        await task
+
+
+async def test_a_spawn_that_waits_out_the_admission_bound_is_a_result_too() -> None:
+    """The third refusal takes the same road as the wall (ADR-0012 bounded-admission-wait).
+
+    A queue nothing ends is a delegated turn nothing ends, so the wait carries a bound and the
+    bound raises the very error the runner already degrades. Nothing new had to reach the
+    runner: what the cortex gets back is a `SubagentResult` whose detail says the subtask was
+    refused before running and why, which is what makes a refusal actionable rather than a hang
+    with extra steps. The peer holds the whole budget and the bound is already expired, so
+    proving it costs the suite no wall-clock time; `asyncio.timeout` is here because the defect
+    under test is an unbounded wait, and a mutation restoring one must redden rather than hang.
+    """
+    store = InMemoryTaskStore()
+    await store.put_task(SubagentTask(id="t1", instruction="do", context="", at=_AT))
+    backend = TextBackend(["never runs"])
+    placer = VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0)  # headroom 3.0
+    scheduler = ResourceBudgetScheduler(4.0, 8.0, wait_timeout_s=0.0)
+    resources = SubagentResources(
+        backends={PlacementTarget.GPU: backend, PlacementTarget.CPU: backend},
+        scheduler=scheduler,
+        placer=placer,
+        request=_REQUEST,
+    )
+    runner = SubagentRunner(store, _roster(resources), FixedClock())
+    async with asyncio.timeout(10.0), _peer_holding_the_whole_budget(scheduler):
+        result = await runner.run("t1")
+    assert (result.ok, result.output) == (False, "")
+    assert "refused before running" in result.detail
+    assert "outlasts the deployment's admission bound" in result.detail
+    assert not backend.seen  # refused before running means no inference was ever issued
+    assert await store.get_result("t1") == result  # the cortex reads it back from the store
+    # Placement is inside admission, so a wait refused at the bound reserved no VRAM either.
     assert placer.place(PlacementRequest("subagent", 3.0, 1.0, 1.0)).target is PlacementTarget.GPU
 
 
