@@ -1100,6 +1100,13 @@ Recorded in [repo-gates.md](../refinements/repo-gates.md) with its line on
   restarts containers between arms and reports a distribution rather than asserting a bound.
   **Trigger:** the next end-to-end measurement of a whole turn, or a challenge to the shipped
   recall default that needs this run reproduced rather than cited.
+  **Closed 2026-08-09 as landed** (the harness addendum at the foot of this ADR), on the second
+  half of that trigger. The answer to both questions it left is one division of labour: an arm is a
+  container configuration, so the restarts live in a `just turn-cost` recipe, which puts the arms in
+  separate processes, so each block writes a JSON sample and `scripts/contrast.py` reports the
+  blocked paired bootstrap over the samples afterwards. Time to first token reproduces at 0.539 s
+  against the 0.515 s above; the whole turn does not, and the samples name the one question it
+  sits in.
 
 ## Relevance-floor addendum (2026-08-08): declined on measurement, and the number does not exist
 
@@ -1612,23 +1619,30 @@ Blocked by question and bootstrapped over 20,000 resamples at the printed seed:
 
 **The time to first token reproduces the published figure independently.** 0.539 s against 0.515 s,
 on a different day, a different container and a driver rebuilt from the prose rather than restored
-from the scratchpad. The interval is wider (+0.054 to +1.111 against +0.116 to +0.915), which is
-what a smaller absolute cost on a faster baseline looks like at the same n.
+from the scratchpad. The interval is wider (+0.054 to +1.111 against +0.116 to +0.915) even though
+the cost itself came out marginally larger, on a baseline that is faster (3.518 s against 4.296 s).
+What widened it is the spread across the blocking unit rather than the size of the effect: the
+resampling unit is the question, n is six, and one of those six costs +1.76 s against a mean of
++0.539 s, which is what the per-question layout shows and the next paragraph reads off.
 
-**The whole-turn figure does not reproduce, and the report says why.** The original published
+**The whole-turn figure does not reproduce, and the samples say why.** The original published
 +0.526 s on the whole turn, essentially the same as its time to first token; this run measured
-+0.979 s, nearly twice it. The per-question layout finds the cause in one cell: the unanswerable
-question costs +1.76 s under the judge against +0.34 s to +0.88 s for the four it does not dominate,
-and its answers run 675 characters under `judge` against 84 under `raw`. That is the abstention
-addendum's behavior seen from the outside. When the rank demurs, the turn has no memory block at
-all and the model says at length that it does not know, where the cosine's five nearest misses
-give it something short and wrong to say. So the judge's extra cost on a whole turn is partly the
-rank and partly the length of an honest refusal, and how much of each a deployment sees depends on
-how many of its questions memory cannot answer.
++0.979 s, nearly twice it. The cause is one cell, and it is the same cell on both metrics. Paired
+by question over the whole turn, the unanswerable question costs **+4.13 s** under the judge while
+the other five span -0.31 s to +0.97 s; on time to first token, which is the layout `contrast.py`
+prints under the interval, that question costs +1.76 s and the other five span -0.33 s to +0.88 s.
+Its answers run 675 characters under `judge` against 84 under `raw`. That one cell alone carries
+0.688 s of the 0.979 s whole-turn mean, 70% of it. This is the abstention addendum's behavior seen
+from the outside. When the rank demurs, the turn has no memory block at all and the model says at
+length that it does not know, where the cosine's five nearest misses give it something short and
+wrong to say. So the judge's extra cost on a whole turn is partly the rank and partly the length of
+an honest refusal, and how much of each a deployment sees depends on how many of its questions
+memory cannot answer.
 
-**One question carried three times the mean difference**, which is why `contrast.py` prints the
-per-question layout under the interval rather than the interval alone. An aggregate that hides
-that would let a reader take a uniform half second from a number that is nothing of the kind.
+**One question carried three times the mean difference on time to first token and four times it on
+the whole turn**, which is why `contrast.py` prints the per-question layout under the interval
+rather than the interval alone. An aggregate that hides that would let a reader take a uniform half
+second from a number that is nothing of the kind.
 
 ### Distrust green
 
@@ -1637,7 +1651,7 @@ The harness must be able to fail, and each of these was fired before the run was
 | Broken on purpose | Result |
 | --- | --- |
 | the seam endpoint points at a closed port | the block dies on `StatusCode.UNAVAILABLE` naming the address, writes no sample, and still cleans up its scopes |
-| the brain runs without `CORTEX_MEMORY_SCOPE=session` | every turn fails on `held 41 rows against the 41 seeded`, since a scope the brain did not record into is a scope it did not recall from |
+| the brain runs without `CORTEX_MEMORY_SCOPE=session` | the first turn fails on `held 41 rows against the 41 seeded` and the block stops there, since a scope the brain did not record into is a scope it did not recall from |
 | two blocks that asked different questions | `contrast.py` refuses to pair them rather than silently comparing what it has |
 | the two arms that should not differ | the null contrast spans zero on both metrics |
 
@@ -1645,7 +1659,11 @@ The second is the guard worth naming twice. Session scoping being off is the fai
 quietly invalidate a whole run: recall would range over every scope in the table rather than the
 turn's own 41 notes, and every number would still look plausible. It is caught by arithmetic rather
 than by reading the config, because the scope a turn recalls from is the scope it records into, so
-a turn that really had memory on leaves more rows than it was handed.
+a turn that really had memory on leaves more rows than it was handed. Firing it costs one stray
+note in the global memory space, since the turn is recorded before the count can be read, and the
+driver's docstring records that rather than cleaning it up: the only forget primitive `MemoryStore`
+offers is `delete_scope`, and the global space is the one scope its own contract says a caller must
+never hand it.
 
 ### Deferred by this addendum
 

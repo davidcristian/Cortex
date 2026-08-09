@@ -26,10 +26,19 @@ explains every choice below:
 
 **The protocol.** Each turn runs in its own fresh session under `CORTEX_MEMORY_SCOPE=session`,
 whose scope is pre-seeded with all 41 notes of `recall_corpus.py`, so every turn ranks an identical
-corpus, no turn's recorded exchange reaches the next turn's pool, and the global memory space is
-neither read nor written. Six questions, one per corpus category (the first of each in `QUESTIONS`
-order, a stated rule rather than a hand pick, since the original run recorded which categories it
-drew from but not which questions), repeated `CORTEX_TURN_COST_REPS` times. Repetitions are
+corpus and no turn's recorded exchange reaches the next turn's pool. Under that scoping the global
+memory space is neither read nor written, but that is the recipe's invariant rather than this
+file's, and it is worth being exact about which: run against a brain that is NOT session-scoped,
+the first turn records its exchange into the global space, and the row-count assertion below
+catches the misconfiguration only after that has happened. The one note it leaves is deliberately
+not removed here, because the only forget primitive `MemoryStore` offers is `delete_scope` and the
+global space is the one scope its contract says a caller must never hand it. So the cleanup covers
+exactly the `turn-cost-*` scopes this block created, and a block that dies on that assertion leaves
+a single stray note for its operator.
+
+Six questions, one per corpus category (the first of each in `QUESTIONS` order, a stated rule
+rather than a hand pick, since the original run recorded which categories it drew from but not
+which questions), repeated `CORTEX_TURN_COST_REPS` times. Repetitions are
 **rep-major**: every question is asked once before any is asked twice, so drift over a block
 spreads evenly across the questions instead of pooling inside one of them, which is what makes
 blocking by question honest. One warmup turn runs first and is discarded, because the turn
