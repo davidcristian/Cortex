@@ -892,9 +892,12 @@ a conservative one by a factor of four wherever the GPU path is open.
 **What the bound does refuse**, said plainly rather than left to be discovered: two full batches
 queued at once, which is 16 CPU subtasks, will lose its tail to the bound while the entry
 serializes (the sixteenth spawn is admitted 4200 s in) and will clear it while the pair overlaps
-(2100 s in). A deployment that routinely queues more than one batch at a time should raise
-`CORTEX_SUBAGENTS_ADMISSION_WAIT_S`, and the refusal names the bound so its reader lands on the
-right knob. The GPU tier only shortens these waits (a GPU-placed spawn measured **221.05 ms**
+(2100 s in). So the deployment that should raise `CORTEX_SUBAGENTS_ADMISSION_WAIT_S` is the one
+that both routinely queues more than one batch and collapses its admitted pair onto a single
+target, which means a GPU subagent tier that is down or a VRAM ask that never fits the headroom;
+where that pair straddles the two targets the shipped default already covers two batches and the
+knob wants leaving alone. The refusal names the bound either way, so its reader lands on the right
+knob. The GPU tier only shortens these waits (a GPU-placed spawn measured **221.05 ms**
 against **12536.83 ms** for the sibling that overflowed), so sizing on the CPU path is the
 conservative direction.
 
