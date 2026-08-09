@@ -202,8 +202,9 @@ class SpawnSubagentsTool:
         progress = call.stamp.progress
         if progress is not None:
             # The batch's scale, brain-authored: the user learns delegation is running and to how
-            # many subtasks. Phrased without a parallelism claim the wiring does not deliver (the
-            # measured trade-off is same-model spawns serialize, ADR-0012 admission-wall addendum).
+            # many subtasks. Phrased without a parallelism claim the wiring does not deliver (a
+            # batch's same-model spawns overlap at most two ways, the admitted pair, ADR-0012
+            # bounded-admission-wait addendum).
             await progress.emit(
                 StatusUpdate(state=SUBAGENT_PROGRESS_STATE, detail=_progress_detail(len(tasks)))
             )

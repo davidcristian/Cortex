@@ -7,11 +7,14 @@ description), and ``spawn.py`` owns what *running* one does.
 Slice 8.6 (ADR-0018): an instructions item is a bare string or ``{instruction, model?, context?}``
 so the cortex picks the subagent model per subtask from the roster and hands it working material.
 The spec is honest about the wiring: when subagents are tools-enabled, ADR-0017 pins every spawn to
-the robust default, so no ``model`` knob is advertised at all. It is also honest about the
-*measured* trade-off (ADR-0012 admission-wall addendum): each roster entry keeps its one backend's
-lease for the whole stream, so subtasks sharing a model serialize and only subtasks on **distinct**
-models overlap; the spec points the cortex at distinct-model spread as the wall-clock lever, not a
-blanket parallel speedup.
+the robust default, so no ``model`` knob is advertised at all. It is also deliberately conservative
+about parallelism rather than making a blanket claim (ADR-0012 bounded-admission-wait addendum): an
+entry holds a backend per placement target and each keeps its lease for the whole stream, so
+subtasks sharing a model overlap at most two ways, the admitted pair, where the advertised text
+says they run one after another. That understatement is measured and left standing on purpose
+(ADR-0018 declined the rewrite, its entry open in ``docs/refinements/subagents.md``): it points the
+cortex at distinct-model spread as the wall-clock lever, and one deployment's behaviour does not
+say which new wording would be taken.
 
 One call's batch is capped at ``MAX_SPAWN_BATCH`` (ADR-0010 batch-cap addendum), advertised as the
 array's ``maxItems`` and in prose; the runtime check in ``spawn.py`` is the backstop.
@@ -42,8 +45,9 @@ _DESCRIPTION = (
 )
 # Appended for a tool-less multi-entry wiring. The inline example nudges the object form (given
 # only prose a live cortex folds the pick into the instruction, ADR-0018 addendum). The parallelism
-# line is the measured trade-off, not a claim (same-model 10.0 s vs 4.8 s across two backends,
-# ADR-0012 admission-wall addendum): it is honest and a reason for the knob beyond a directed pick.
+# line understates the shipped case rather than overselling it (same-model spawns overlap at most
+# two ways, 10.0 s vs 4.8 s across two backends, ADR-0012 bounded-admission-wait addendum): the
+# conservative wording stands on purpose, still a reason for the knob beyond a directed pick.
 _CHOICE_NOTE = (
     " Each subtask may pick a 'model' by using an object item, e.g. "
     '{"instruction": "...", "model": "<roster name>"}. Subtasks on distinct models run in '

@@ -44,12 +44,17 @@ ADMISSION_WAIT_MSG = (
 
 # How long an admit may queue before it is refused rather than waiting forever. Derived, not
 # felt (the addendum above carries the arithmetic): one full MAX_SPAWN_BATCH of 8 against the
-# shipped budget admits two at once, and since one roster entry's spawns serialize at its single
-# backend anyway, a slot frees every whole subtask, so the eighth spawn is admitted six subtasks
-# in. A whole CPU subtask measures 200 to 300 s, which puts the worst LEGITIMATE wait the
-# shipped stack can produce at about 1800 s; the bound is twice that, the same doubling the
-# pool's stall ceiling carries. Anything under it would refuse work that was going to run, which
-# is worse than the unbounded wait it replaces: it turns a slow success into a failure.
+# shipped budget admits two at once, and how fast those two free their slots depends on where
+# they land. One roster entry holds a backend, and so a model lease, per placement target, so its
+# pair overlaps whenever one spawn is GPU-placed and the other overflows, and serializes only when
+# both land on the same target, which is what a closed GPU tier leaves. A whole CPU subtask
+# measures 200 to 300 s, so the eighth spawn is admitted three subtasks in while the pair overlaps
+# (about 900 s, the shipped ask against the shipped headroom) and six subtasks in while it
+# serializes (about 1800 s). The bound is twice the serial figure, the same doubling the pool's
+# stall ceiling carries, which makes it an upper bound over both placements rather than the
+# equality on one that it was first written as. Anything under it would refuse work that was going
+# to run, which is worse than the unbounded wait it replaces: it turns a slow success into a
+# failure.
 DEFAULT_ADMISSION_WAIT_S = 3600.0
 
 
