@@ -192,8 +192,10 @@ the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
   and is now 3.5 GiB against 5.4 GiB of headroom, so a spawn really is GPU-placed and "there is
   nothing to discount today" no longer describes the shipped stack. What still declines the entry is
   the other half, which the measurement did not touch: one `LlamaCppBackend` per target per roster
-  entry still serializes same-entry spawns whatever the budget admits, and the headroom holds one
-  spawn anyway, so a discount would change nothing about how many run.
+  entry caps same-entry overlap at two lock objects whatever the budget admits, and the headroom
+  holds one GPU spawn anyway, so a discount would change nothing about how many run. (That cap
+  read as plain serialization until 2026-08-09, when the admission bound's arithmetic was corrected
+  against this same measurement.)
 - **The cortex reservation landed 2026-08-07 as a re-measurement, and it had never been an entry
   here.** Where it lived was two ADRs and no index: [ADR-0004](../adr/ADR-0004-model-lineup.md)'s
   swap-latency note 8, which saw the cortex read about 9.7 GB against its own 11.0 and asked a later
@@ -336,12 +338,21 @@ the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
   different ways. A `Clock` here would have been a decoration.
   **The number is derived, not felt**, which matters because a bound that refuses a legitimately
   queued spawn is worse than the unbounded wait it replaces: `MAX_SPAWN_BATCH` is 8, the shipped
-  budget admits two at a time, one entry's spawns serialize at its single backend anyway (4.8 s
-  through two backend objects against 10.0 s through one), and a whole CPU subtask measures 200 to
-  300 s, so the last of a full batch is admitted about **1800 s** in and the bound is twice that.
-  Said plainly rather than left to be found: two full batches queued at once, about 80 minutes of
-  serialized work, will lose its tail to the bound, and that is the deployment that should raise
-  the knob. **The queue-depth half did not ship** and is the entry below.
+  budget admits two at a time, and one entry holds a backend, and so a model lease, per placement
+  target (4.8 s through two backend objects against 10.0 s through one), so the admitted pair
+  overlaps while one spawn is GPU-placed and the other overflows and serializes only while both
+  land on the same target. A whole CPU subtask measures 200 to 300 s, so the last of a full batch
+  is admitted about **900 s** in while the pair overlaps and about **1800 s** in while it
+  serializes, and the bound is twice the serial figure, which makes it an upper bound over both
+  rather than an equality on either.
+  **That premise was corrected on the day the bound landed.** The derivation first read the backend
+  lock as unconditional, which the roster measurement recorded the day before had already ruled out
+  for an entry that omits `gpu_endpoint`: two lock objects front one server, so its spawns overlap
+  two ways. The number did not move, a closed GPU tier still leaving the serial case, but the claim
+  did, from an equality to a bound four times the wait the shipped stack produces. Said plainly
+  rather than left to be found: two full batches queued at once lose their tail to the bound while
+  the entry serializes and clear it while the pair overlaps, and the first is the deployment that
+  should raise the knob. **The queue-depth half did not ship** and is the entry below.
 - **A queue-depth bound, to refuse a hopeless queue early rather than an hour late.** *Fix when it
   bites.* Opened 2026-08-09 by the close above, which shipped one of the two refusals that entry
   asked for. They answer different questions: the wait bound refuses **late**, after the caller has

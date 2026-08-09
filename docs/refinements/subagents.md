@@ -157,6 +157,20 @@ deferral is the same way an open item gets lost as a count moved for a half-clos
   slower. The fix is unchanged, and the probe is now cheap to repeat
   (`packages/orchestrator/tests/test_spawn_nudge_live.py`, bring-up in
   [runbooks/subagents-cpu.md](../runbooks/subagents-cpu.md) section 3c).
+  **The arithmetic that shared this premise was corrected on 2026-08-09; the advertised sentence
+  deliberately was not.** The bounded admission wait derived its 3600 s from the serialization
+  reading as though it were unconditional, one day after the run above measured the two-way
+  overlap, so `scheduler.py`, its test, the derivation in
+  [ADR-0012](../adr/ADR-0012-resource-governance.md) and the entry in
+  [resource-governance.md](resource-governance.md) now carry both placements and call the bound an
+  upper bound rather than an equality. That correction is arithmetic behind a shipped constant,
+  pinned by a test, and it needs no guess about wording. This entry's sentence is prose a model
+  reads, it understates the prize for spreading rather than overstating it, and one deployment's
+  behaviour still does not say which wording would be taken, so it stays as written while its
+  module doc and its spec comment now say the understatement is deliberate. One word of the
+  parenthetical above went stale with it: the default entry's ask was re-measured to 3.5 GiB the
+  same day, so it fits the headroom once and overlaps exactly as `qwen` did rather than staying
+  strictly serial.
 - **The per-role escape hatch.** A future subagent role needing a cheap model on a
   tainted/tool path for a proven-safe reason would be a per-role override on the same roster
   seam, never a relaxation of the forced-robust default (ADR-0017 risks, ADR-0018 risks).

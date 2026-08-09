@@ -178,6 +178,7 @@ def test_rejects_a_negative_wait_bound() -> None:
 
 def test_the_default_bound_clears_the_worst_wait_one_batch_can_legitimately_produce() -> None:
     """Pinned against its derivation and against the literal (ADR-0012 addendum)."""
-    worst_legitimate_wait_s = (MAX_SPAWN_BATCH - 2) * 300.0
-    assert worst_legitimate_wait_s == 1800.0
-    assert DEFAULT_ADMISSION_WAIT_S == 2 * worst_legitimate_wait_s == 3600.0
+    serial_wait_s = (MAX_SPAWN_BATCH - 2) * 300.0
+    overlapped_wait_s = (MAX_SPAWN_BATCH // 2 - 1) * 300.0
+    assert (serial_wait_s, overlapped_wait_s) == (1800.0, 900.0)
+    assert DEFAULT_ADMISSION_WAIT_S == 2 * serial_wait_s == 4 * overlapped_wait_s == 3600.0
