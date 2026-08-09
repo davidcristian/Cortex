@@ -400,13 +400,15 @@ the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
   with the shipped defaults it makes an escalation during a scheduled task systematically
   impossible rather than occasionally unlucky. The knobs already exist (raise the drain bound
   above the lease, or lower the lease), so the fix is a defaults decision informed by real usage."
-  **The two values are not on the same path.** `drain` waits on one condition,
+  **The comparison reads a ceiling as a duration.** `drain` waits on one condition,
   `while self._in_flight > 0` under `asyncio.timeout(timeout_s)`, and `_in_flight` is moved only by
   `admit`, which `SubagentRunner.run` holds around the whole subagent run. So a drain waits out the
-  remaining runtime of admitted runs and never a lease. The lease is the store's claim fence and,
-  in `ScheduleTicker.run_once`, the `asyncio.wait_for` cap that cancels a wedged fire: a **ceiling**
-  on the hold, not its duration. Comparing 60 s to 300 s compares a wait bound to a cancellation
-  cap, and neither decides the outcome.
+  remaining runtime of admitted runs and never a lease. The two do meet on one path, a ticker fired
+  task reaching that same admission through `spawn_subagents`, which is why the entry reads as
+  plausible; what it gets wrong is which quantity the lease names. The lease is the store's claim
+  fence and, in `ScheduleTicker.run_once`, the `asyncio.wait_for` cap that cancels a wedged fire: a
+  **ceiling** on the hold, not its duration. Comparing 60 s to 300 s compares a wait bound to a
+  cancellation cap, and neither decides the outcome.
   **What decides it is a measurement, and the honest word is "usually".** A whole CPU subtask is
   200 to 300 s, so a drain meeting one in flight clears it only when 60 s or less remains: roughly
   a quarter of arrivals for a single run, fewer for an admitted pair whose releases stagger. Likely,
