@@ -646,7 +646,10 @@ updated to say exactly that. Two further deferrals are recorded with it: resumin
 handoff from its record (`docs/refinements/inference-model-manager.md`), which this ADR names and
 which needs the request-identity design the reconnect entry also needs, and the drain bound
 sitting below a fired task's schedule lease (`docs/refinements/resource-governance.md`), which
-makes an escalation during scheduled work abort every time under the shipped defaults.
+was read at the time as making an escalation during scheduled work abort every time under the
+shipped defaults. The addendum of 2026-08-09 below traced that reading to the code and declined
+it: the drain waits on an in-flight admission, never on a lease, so the number it is really up
+against is a measured subtask duration and the abort is likely rather than certain.
 
 ## Addendum (2026-07-18): what the chaos proof was not proving, and the two contracts that fixes
 
@@ -2608,3 +2611,59 @@ above are corrected to quote what ships rather than what shipped.
 - **It does not widen the health surface.** Three boot cases, two lines, one of them already
   written: the pair that share a line share an operator move, and inventing a third sentence to
   separate them would be describing the log on the dot.
+
+## Addendum (2026-08-09): the drain bound is not up against a lease, and the entry is declined
+
+The deferral this ADR opened alongside the tier-outage one, "the drain bound sits below a fired
+task's schedule lease, so a task in flight aborts a handoff", asked for a defaults decision once
+real usage arrived. Traced to the code ahead of that usage, its mechanism does not hold, so the
+decision recorded here is to **decline the defaults change** and correct the two places that
+stated the false rationale. Nothing about decision 4 changes; what changes is what the number in
+it is understood to be measured against.
+
+**The drain waits on an admission, never on a lease.** `ResourceBudgetScheduler.drain` waits on
+one condition, `while self._in_flight > 0`, under `asyncio.timeout(timeout_s)`. `_in_flight` is
+incremented and decremented by `admit`, and `SubagentRunner.run` holds that context manager around
+the whole subagent run (`async with res.scheduler.admit(res.request):`). So what a drain waits out
+is the remaining runtime of the subagent runs already admitted, and nothing else.
+
+**The schedule lease governs a different thing entirely.** `CORTEX_SCHEDULE_LEASE_S` is the store's
+fencing lease on a claim, and in `ScheduleTicker.run_once` it is additionally the cancellation cap
+on a fire: `await asyncio.wait_for(self._fire(claim), timeout=self._settings.lease.total_seconds())`.
+That makes 300 s a **ceiling** on how long a ticker-fired task may hold its admission, not the
+duration it holds it for. Comparing 60 s against it compares a wait bound to a cancellation cap,
+and neither number decides whether the drain succeeds.
+
+**The number the bound is really up against is a measurement, and it is not the lease.** A whole
+CPU subtask on the shipped roster entry is 200 to 300 s
+([ADR-0005](ADR-0005-llamacpp-engine.md) stall-ceiling addendum,
+[ADR-0012](ADR-0012-resource-governance.md)). A drain arriving at an arbitrary point in one
+succeeds only if 60 s or less of it remains, so the abort is **likely, not systematic**: roughly a
+quarter of arrivals clear a single in-flight run, and fewer clear an admitted pair, whose releases
+are staggered. The honest word for the shipped behaviour is "usually", and it is what the two
+corrected comments now say.
+
+**The framing was also narrower than the behaviour.** An interactive spawn holds exactly the same
+admission and carries no lease at all. Nothing caps a delegated generation's length (the total
+generation cap is still open in the same area doc) and the pool's 600 s ceiling bounds the gap
+between chunks rather than the run, so an interactive spawn's hold has no upper bound at all. The
+collision is therefore between a drain and delegated work of any origin, and a scheduled fire is
+one occasion of it rather than its cause.
+
+**Why both knob moves the entry proposed are refused.** Lowering `CORTEX_SCHEDULE_LEASE_S` under
+the drain bound would make drains succeed by cancelling every scheduled fire before its 200 to
+300 s subtask could finish, which breaks the feature to protect the handoff. Raising
+`CORTEX_SWAP_DRAIN_TIMEOUT_S` over the lease fixes only fires, not interactive spawns, and no
+finite value guarantees a clean drain while a generation's length is uncapped; the smallest value
+that even covers the wedge case is above the pool's 600 s ceiling, which is precisely the "do not
+hold the user's handoff open for minutes" this default was chosen for. There
+is no free move here, only a trade between handoff latency and handoff success, and a deployment
+that has met the collision makes it with the knob that already exists.
+
+**What landed instead.** The rationale comment on `DEFAULT_SWAP_DRAIN_TIMEOUT_S` and its
+restatement in [modules/brain-core.md](../modules/brain-core.md) both claimed the 60 s was
+"generous enough for a normal delegated run to finish", which this repo's own measurement denies,
+and both now name the measurement and the direction. The model-swap runbook gains the sizing
+guidance an operator needs at the knob. No default moves, so there is no new relationship for a
+test to pin: the two values were never coupled, and coupling them in code would assert the
+comparison this addendum is retiring.

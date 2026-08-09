@@ -169,8 +169,10 @@ Model management (Slice 4, ADR-0007; the swap's value half is ADR-0030, in `mode
   value passed twice is a value that can differ; zero (the default) means none was declared and
   both readers stand down. A negative VRAM figure, a negative
   drain bound, a negative load bound, a negative control deadline, or a non-positive poll interval
-  raises `ValueError` at construction. `DEFAULT_SWAP_DRAIN_TIMEOUT_S` (60 s, long enough for a normal delegated run to
-  finish and short enough that a wedged one does not hold the handoff open for minutes),
+  raises `ValueError` at construction. `DEFAULT_SWAP_DRAIN_TIMEOUT_S` (60 s, a bound on the
+  user's wait rather than on a delegated run: a whole CPU subtask measures 200 to 300 s, so a
+  drain that meets one in flight usually elapses and aborts the handoff before anything is
+  evicted),
   `DEFAULT_SWAP_LOAD_TIMEOUT_S` (300 s, an 18 GB GGUF off the drvfs mount is minutes), and
   `DEFAULT_HEALTH_POLL_INTERVAL_S` (1 s) are the exported defaults.
 - `await_model_ready(host, model, *, clock, sleeper, plan) -> ModelHostState` (in
