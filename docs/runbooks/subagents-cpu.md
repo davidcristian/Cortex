@@ -241,8 +241,9 @@ Tear the probe down with `docker rm -f e4b-probe`.
 ## 3c. Does the cortex spread a batch across roster models? (ADR-0018)
 
 The spawn spec tells the cortex that subtasks on distinct roster models overlap while subtasks
-sharing one model queue behind that entry's backend lease, and points it at spreading a batch as
-the wall-clock lever. This procedure observes whether a live cortex takes that advice on its own.
+sharing one model run one after another, wording that understates this deployment's two-way
+overlap on purpose, and points it at spreading a batch as the wall-clock lever. This procedure
+observes whether a live cortex takes that advice on its own.
 Two things decide whether a run means anything, so check both before reading a result:
 
 - **Run it WITHOUT the tools or email overrides.** Giving subagents an MCP dispatcher pins every
