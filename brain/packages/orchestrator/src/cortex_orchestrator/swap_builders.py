@@ -119,9 +119,10 @@ def _build_model_host(
 def build_control_client(timeout_s: float) -> httpx.AsyncClient:
     """The control plane's HTTP client: one bounded deadline for every phase of a call.
 
-    Deliberately unlike the generation clients (``builders.py``, ``read=None``): a control call
-    that hung would hang a swap step under no bound at all. The bound has to clear the sidecar's
-    own worst-case stop, which is why its default is a whole minute
+    Deliberately unlike the generation clients (``builders.py``), whose read bound is a per-chunk
+    stall ceiling and not a deadline on the exchange: a control call streams nothing, so it has no
+    gap to be patient about, and every phase of it answers to one number. The bound has to clear
+    the sidecar's own worst-case stop, which is why its default is a whole minute
     (``config_swap.DEFAULT_MODELHOST_TIMEOUT_S``).
     """
     return httpx.AsyncClient(timeout=httpx.Timeout(timeout_s))

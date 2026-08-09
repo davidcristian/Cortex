@@ -61,6 +61,11 @@ services:
       # In-network addresses of the supervised children and of the control API (NOT the
       # host-published ports). The cortex tier is a child process now, not a service.
       CORTEX_INFERENCE_ENDPOINT: "http://model-host:8080"
+      # CORTEX_INFERENCE_STALL_TIMEOUT_S bounds how long a stream from that endpoint (or from the
+      # deep tier after a handoff) may send NOTHING before the turn fails, the gap between chunks
+      # rather than the length of a generation (ADR-0005 stall-ceiling addendum). Left to the
+      # brain's own default, which is sized from this card's measured time to first token; a
+      # slower card raises it. See docs/runbooks/llamacpp-gpu.md.
       # Where the ModelHost adapter sends a start/stop/status. Harmless while escalation is off
       # (nothing builds the adapter), and required the moment CORTEX_MODELHOST_BACKEND=supervisor.
       CORTEX_MODELHOST_ENDPOINT: "http://model-host:9300"

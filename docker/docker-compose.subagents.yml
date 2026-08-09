@@ -30,6 +30,11 @@
 #   CORTEX_SUBAGENTS_{CPUS,MEMORY_GB,VRAM_GB}    one subagent's resource ask (ADR-0012)
 #   CORTEX_SUBAGENTS_{CPU_BUDGET,MEM_BUDGET_GB}  soft admission ceilings (sum of admitted asks)
 #   CORTEX_SUBAGENTS_PARALLEL  server slots; keep ≈ CPU_BUDGET / CPUS (default 2)
+#   CORTEX_SUBAGENTS_STALL_TIMEOUT_S  how long a delegated stream may send NOTHING before the
+#                              spawn fails instead of holding its admission (ADR-0005
+#                              stall-ceiling addendum). It bounds the gap between chunks, not
+#                              the length of a generation. Left to the brain's own default here,
+#                              which is sized for this CPU tier; docs/runbooks/subagents-cpu.md
 
 services:
   brain:

@@ -35,9 +35,9 @@ DEFAULT_BRAIN_MODEL = "brain"
 # The sidecar's knobs are its own env, which is why the rule used to be documented in
 # docs/runbooks/model-swap.md and enforced nowhere; the daemon now reports all three on its
 # ``GET /health``, so the brain refuses to serve a pairing that does not hold and re-reads it
-# whenever the daemon under it turns out to have restarted. It is still a real deadline, unlike
-# the generation clients' deliberate ``read=None`` (builders.py): a hung control call would hang a
-# swap step under no bound at all.
+# whenever the daemon under it turns out to have restarted. It bounds the whole call, unlike the
+# generation clients' per-read stall ceiling (builders.py), which bounds the gap between a stream's
+# chunks: a control call streams nothing, so it has no such gap to spend patience on.
 DEFAULT_MODELHOST_TIMEOUT_S = 60.0
 
 ModelHostBackendName = Literal["none", "scripted", "supervisor"]

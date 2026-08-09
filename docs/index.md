@@ -44,6 +44,9 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
 - [ADR-0005: llama.cpp as the inference engine](adr/ADR-0005-llamacpp-engine.md):
   supersedes vLLM (ADR-0001 d4); one `llama-server` per model behind the
   OpenAI-compatible API; swap = process lifecycle; embeddings on the same engine.
+  Its 2026-08-09 addendum bounds the read phase of both generation clients with a per-tier
+  stall ceiling (`CORTEX_INFERENCE_STALL_TIMEOUT_S`, `CORTEX_SUBAGENTS_STALL_TIMEOUT_S`), a gap
+  between chunks rather than a cap on a generation, derived from measured time to first token.
 - [ADR-0006: Gate performance](adr/ADR-0006-gate-performance.md): path-filtered CI via
   the fail-closed in-repo classifier (`scripts/ci_paths.py`), PR-only run cancellation,
   SHA-pinned actions + dependabot, parallel `just check`.

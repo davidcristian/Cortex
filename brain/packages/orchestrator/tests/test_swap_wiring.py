@@ -325,7 +325,7 @@ async def test_the_supervisor_backend_builds_the_real_adapter_at_the_configured_
 
 
 async def test_the_control_client_has_a_read_deadline_unlike_the_generation_clients() -> None:
-    """The generation clients pass ``read=None`` on purpose; a control call may not hang at all.
+    """The generation clients bound a silent gap; a control call is bounded end to end.
 
     A wedged sidecar would otherwise hold a swap step forever, which is the one wait in the
     sequence no plan bound covers: the drain and the load are bounded by the plan, a control call
@@ -334,7 +334,7 @@ async def test_the_control_client_has_a_read_deadline_unlike_the_generation_clie
     client = swap_builders.build_control_client(31.5)
     try:
         # Whole-value equality, which pins the read deadline along with the other three phases:
-        # `read=None` (what builders.py passes on purpose) cannot satisfy it.
+        # the generation clients' looser, per-read ceiling cannot satisfy it.
         assert client.timeout == httpx.Timeout(31.5)
     finally:
         await client.aclose()

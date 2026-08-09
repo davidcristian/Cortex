@@ -263,6 +263,11 @@ def test_inference_defaults_to_echo_without_an_endpoint() -> None:
     # `off` default would silently cost every deployment the capability, and `on` would advertise
     # a screen read to a model that cannot see. Pinned to the literal for that reason.
     assert config.vision == "auto"
+    # Likewise a literal: the worst measured contended time to first token (17.5 s) scaled by the
+    # deep tier's own cost reaches 45.5 s, and two minutes carries that same factor again as
+    # margin, that tier streaming through this very client after a handoff and never having had
+    # its first token measured. It bounds the gap between chunks, never a generation's length.
+    assert config.stall_timeout_s == 120.0
 
 
 @pytest.mark.usefixtures("clean_env")
@@ -287,6 +292,18 @@ def test_inference_env_selects_llamacpp_with_an_endpoint(monkeypatch: pytest.Mon
 def test_inference_llamacpp_without_endpoint_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CORTEX_INFERENCE_BACKEND", "llamacpp")
     with pytest.raises(ValidationError, match="CORTEX_INFERENCE_ENDPOINT is required"):
+        InferenceConfig()
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_the_resident_stall_ceiling_is_settable_and_must_be_positive(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A slower card raises it; zero would refuse every stream on its first read."""
+    monkeypatch.setenv("CORTEX_INFERENCE_STALL_TIMEOUT_S", "45.5")
+    assert InferenceConfig().stall_timeout_s == 45.5
+    monkeypatch.setenv("CORTEX_INFERENCE_STALL_TIMEOUT_S", "-1")
+    with pytest.raises(ValidationError, match="stall_timeout_s"):
         InferenceConfig()
 
 
@@ -490,6 +507,10 @@ def test_subagents_default_to_disabled() -> None:
     # and memory asks stay GPU-less-safe placeholders the maintainer measures (ADR-0012).
     assert (config.vram_gb, config.cpus, config.memory_gb) == (3.5, 2.0, 2.0)
     assert (config.cpu_budget, config.mem_budget_gb) == (4.0, 8.0)
+    # Against the literal rather than the constant it was assigned from. Ten minutes is twice the
+    # longest whole subtask measured on the shipped CPU entry, which is what a queued peer can
+    # legitimately sit behind; a tighter number would abort slow work instead of wedged work.
+    assert config.stall_timeout_s == 600.0
 
 
 @pytest.mark.usefixtures("clean_env")
@@ -525,6 +546,18 @@ def test_subagents_llamacpp_without_both_endpoints_is_rejected(
 def test_subagents_budget_must_be_positive(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CORTEX_SUBAGENTS_CPU_BUDGET", "0")
     with pytest.raises(ValidationError, match="cpu_budget"):
+        SubagentsConfig()
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_the_subagent_stall_ceiling_is_settable_and_must_be_positive(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A deployment on faster CPUs tightens it; zero would mean a stream that may never read."""
+    monkeypatch.setenv("CORTEX_SUBAGENTS_STALL_TIMEOUT_S", "90")
+    assert SubagentsConfig().stall_timeout_s == 90.0
+    monkeypatch.setenv("CORTEX_SUBAGENTS_STALL_TIMEOUT_S", "0")
+    with pytest.raises(ValidationError, match="stall_timeout_s"):
         SubagentsConfig()
 
 

@@ -779,3 +779,32 @@ this and now the honest reading of what the second placement means. The roster's
 exists for it, its `gpu_endpoint` falling back to its own CPU server, so its figure charges a
 ledger for a placement that always runs on the CPU, which is the interim one-executor stance rather
 than a measurement anyone can take today.
+
+## Addendum (2026-08-09): the read timeout landed, and the fix was two clients
+
+The consequences above deferred **a read timeout on the subagent HTTP client**, calling it the
+actual unbounded-wait hazard under the admission budget. It landed on 2026-08-09, designed and
+recorded at the [ADR-0005 stall-ceiling addendum](ADR-0005-llamacpp-engine.md), which is where the
+derivations and the per-read semantics live. Three things about it belong here, where the deferral
+was written.
+
+**The count was wrong by one, in the direction that mattered.** Both this ADR and the backlog entry
+named `build_subagents`. The resident tier's client (`builders.build_inference_backend`) had the
+same `read=None`, and after a handoff the **deep model streams through that very object**, so the
+site the deferral missed is the one carrying the slowest model in the lineup. Both are now built by
+one factory, `builders.build_generation_client`.
+
+**The pool's ceiling is not a peer's generation.** This ADR's own budget makes admission the queue
+that matters, but the wire queue is shorter than it looks: a backend holds its model lease for the
+whole stream, so two spawns of one entry on one target are serial brain side, ahead of the request
+(measured at 4.8 s through two backend objects against 10.0 s through one,
+[docs/runbooks/subagents-cpu.md](../runbooks/subagents-cpu.md)). The ceiling therefore covers one
+CPU call's own time to first token, and its 600 s is twice the longest whole subtask measured on
+the shipped entry.
+
+**What the wall still cannot see.** The admission budget refuses a charge that cannot fit and the
+ceiling now refuses a stream that has gone quiet, but neither bounds a subagent that keeps
+producing tokens: a repetition loop holds its admission exactly as the wedged stream used to. That
+is filed as the total generation cap in
+[refinements/resource-governance.md](../refinements/resource-governance.md), the one deferral this
+close opened.

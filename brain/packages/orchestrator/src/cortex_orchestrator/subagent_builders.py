@@ -44,7 +44,7 @@ from cortex_core import (
     UngatedToolRegistry,
 )
 from cortex_inference import LlamaCppBackend
-from cortex_orchestrator.builders import LLAMACPP_CONNECT_TIMEOUT_S, noop_aclose
+from cortex_orchestrator.builders import build_generation_client, noop_aclose
 from cortex_orchestrator.config_subagents import SubagentRosterEntry, SubagentsConfig
 from cortex_session import RedisTaskStore
 from cortex_tools import LoggingAuditSink
@@ -103,10 +103,16 @@ async def build_subagents(
     The scheduler is returned alongside the tool because the swap conductor has to quiesce this
     very pool before a model handoff evicts anything (ADR-0030 decision 4): one budget object,
     composed at the root, never a second one that would admit past the drain.
+
+    Every entry shares one client, so `config.stall_timeout_s` is the ceiling on a silent CPU
+    stream for the whole pool (ADR-0005 stall-ceiling addendum). It is the loose one of the two
+    the repo ships: a subagent tier decodes at a fraction of the cortex's rate, and a stall here
+    holds an admission the queued peers are waiting on, which is what makes the unbounded
+    version the pool's hazard rather than a nicety.
     """
     if config.backend == "none":
         return None, None, noop_aclose
-    client = httpx.AsyncClient(timeout=httpx.Timeout(LLAMACPP_CONNECT_TIMEOUT_S, read=None))
+    client = build_generation_client(config.stall_timeout_s)
     scheduler = ResourceBudgetScheduler(config.cpu_budget, config.mem_budget_gb)
     roster = SubagentRoster(
         entries={
