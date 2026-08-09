@@ -8,11 +8,17 @@ recommended pickup order.
 
 **Open items:** 7, counted by reading the entries below rather than by adjusting the last number.
 The Intel NPU as a third placement target, a queue-depth bound, the drain bound against a
-fired task's lease, a total generation cap, and the three the tier-outage close opened: a retry
-that only asks about tiers it already believes are missing, a placer holding one bit for the card
-where the record holds one entry per tier, and boot recovery still calling a peer tier's failure
-the cortex being gone. The count went 5 to 7 on 2026-08-09 when **admission reopening onto a tier
-that would not restart** landed ahead of its trigger, one out and three in, which is this backlog
+fired task's lease, a total generation cap, two of the three the tier-outage close opened (a retry
+that only asks about tiers it already believes are missing, and a placer holding one bit for the
+card where the record holds one entry per tier), and the deep model's clearing still deciding the
+cortex's verdict at boot. **The number held at 7 later on 2026-08-09 and the set did not, and this
+line was not corrected with it**, which is the failure the index's third warning describes, caught
+by re-reading the entries rather than the arithmetic: the third of that trio, boot recovery calling
+a peer tier's failure the cortex being gone, landed hours after it opened and ahead of its own
+trigger, and the deep tier's own clearing took its place, so for a stretch this line named an
+entry that was closed and missed one that was open while the total stayed right. The count went 5
+to 7 on 2026-08-09 when **admission reopening onto a tier that would not restart** landed ahead of
+its trigger, one out and three in, which is this backlog
 working as intended rather than a close that failed to close: the record it wanted is built, and
 what replaces it are the three questions building it made askable for the first time (where else
 an outage can come from, how finely the placer can skip, and which of the two boot verdicts a peer
