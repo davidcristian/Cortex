@@ -9,9 +9,9 @@ import pytest
 import uvicorn
 from starlette.applications import Starlette
 
+from cortex_core import ControlBounds
 from cortex_model_manager import (
     ModelHostConfig,
-    StopBounds,
     build_model_host,
     build_supervisor,
     main,
@@ -41,7 +41,9 @@ async def test_the_wiring_hands_over_every_timing_knob_it_reads(
     monkeypatch.setenv("CORTEX_MODELHOST_PROBE_TIMEOUT_S", "3.25")
     supervisor, client = build_supervisor(ModelHostConfig())
     try:
-        assert supervisor.stop_bounds == StopBounds(stop_grace_s=7.5, reap_timeout_s=11.25)
+        assert supervisor.control_bounds == ControlBounds(
+            probe_timeout_s=3.25, stop_grace_s=7.5, reap_timeout_s=11.25
+        )
         assert client.timeout == httpx.Timeout(3.25)
     finally:
         await client.aclose()

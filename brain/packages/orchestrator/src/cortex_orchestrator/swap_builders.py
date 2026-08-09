@@ -1,25 +1,35 @@
 """Brain-handoff wiring: build the swap's runtime, or nothing at all (ADR-0030)."""
 
+import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
 import httpx
 
 from cortex_core import (
+    AsyncioSleeper,
     Clock,
     HandoffStore,
     ModelHost,
+    ModelHostError,
     ResidencyPlan,
     ScriptedModelHost,
     Sleeper,
     SubagentPlacer,
     SwappingModelManager,
+    recover_handoffs,
 )
 from cortex_model_manager import HttpModelHost
 from cortex_orchestrator.builders import noop_aclose
 from cortex_orchestrator.config import BrainRuntimeConfig, InferenceConfig
 from cortex_orchestrator.config_swap import SwapConfig
 from cortex_session import RedisHandoffStore
+
+_logger = logging.getLogger(__name__)
+
+
+class ControlDeadlineError(RuntimeError):
+    """The control deadline this brain was given does not clear its model host's worst stop."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,6 +81,60 @@ def _build_model_host(
 def build_control_client(timeout_s: float) -> httpx.AsyncClient:
     """The control plane's HTTP client: one bounded deadline for every phase of a call."""
     return httpx.AsyncClient(timeout=httpx.Timeout(timeout_s))
+
+
+async def check_control_deadline(swap: SwapRuntime | None, deadline_s: float) -> SwapRuntime | None:
+    """Refuse a deployment whose model host can outlast the deadline the brain bounds it with."""
+    if swap is None:
+        return swap
+    try:
+        bounds = await swap.host.control_bounds()
+    except ModelHostError as err:
+        _logger.warning(
+            "the model host could not be asked for its control bounds; the deadline pairing is "
+            "unchecked: deadline_s=%s error=%s",
+            deadline_s,
+            err,
+            extra={"deadline_s": deadline_s, "error": str(err)},
+        )
+        return swap
+    if bounds is None:
+        _logger.info(
+            "the model host reports no control bounds, so nothing bounds its stop to check "
+            "against: deadline_s=%s",
+            deadline_s,
+            extra={"deadline_s": deadline_s},
+        )
+        return swap
+    if bounds.clears(deadline_s):
+        _logger.info(
+            "the control deadline clears the model host's worst stop: deadline_s=%s worst_s=%s",
+            deadline_s,
+            bounds.worst_case_stop_s,
+            extra={"deadline_s": deadline_s, "worst_s": bounds.worst_case_stop_s},
+        )
+        return swap
+    msg = (
+        f"CORTEX_MODELHOST_TIMEOUT_S is {deadline_s} s and the model host's worst stop is "
+        f"{bounds.worst_case_stop_s} s (probe {bounds.probe_timeout_s} s, grace "
+        f"{bounds.stop_grace_s} s, reap {bounds.reap_timeout_s} s), so a control call would time "
+        "out on an eviction that was still working and abort the handoff that asked for it. "
+        "Raise the brain's deadline above that sum, or lower the sidecar's own bounds "
+        "(docs/runbooks/model-swap.md)"
+    )
+    _logger.error(msg, extra={"deadline_s": deadline_s, "worst_s": bounds.worst_case_stop_s})
+    await swap.close()
+    raise ControlDeadlineError(msg)
+
+
+async def recover_boot_residency(swap: SwapRuntime | None, clock: Clock) -> None:
+    """Fail a crash-stranded handoff, converge the GPU, and publish what it observed."""
+    if swap is None:
+        return
+    converged = await recover_handoffs(
+        swap.handoffs, swap.host, swap.plan, clock=clock, sleeper=AsyncioSleeper()
+    )
+    await swap.manager.publish_boot_residency(serving=converged)
 
 
 def swap_closer(swap: SwapRuntime | None) -> Callable[[], Awaitable[None]]:

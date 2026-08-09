@@ -15,7 +15,6 @@ from cortex_core import (
     TurnEngine,
     TurnRunner,
     VramBudgetPlacer,
-    recover_handoffs,
 )
 from cortex_orchestrator.builders import (
     build_body_gateway,
@@ -47,7 +46,12 @@ from cortex_orchestrator.schedule_builders import (
 from cortex_orchestrator.server import SeamPorts, serve
 from cortex_orchestrator.stores import RedisStores
 from cortex_orchestrator.subagent_builders import build_subagent_tools, build_subagents
-from cortex_orchestrator.swap_builders import build_swap_runtime, swap_closer
+from cortex_orchestrator.swap_builders import (
+    build_swap_runtime,
+    check_control_deadline,
+    recover_boot_residency,
+    swap_closer,
+)
 from cortex_orchestrator.vision import build_vision
 from cortex_orchestrator.window_builders import build_history_window
 from cortex_session import RedisPreferenceStore, RedisSessionStore
@@ -76,8 +80,9 @@ async def run_from_env(
         soft_cap_gb=runtime.vram_soft_cap_gb,
         cortex_reservation_gb=runtime.cortex_reservation_gb,
     )
-    swap = build_swap_runtime(
-        swap_config, runtime, inference, clock, AsyncioSleeper(), placer=placer
+    swap = await check_control_deadline(
+        build_swap_runtime(swap_config, runtime, inference, clock, AsyncioSleeper(), placer=placer),
+        swap_config.modelhost_timeout_s,
     )
     backend, close_backend = build_inference_backend(
         inference, runtime.cortex_model, manager=None if swap is None else swap.manager
@@ -126,11 +131,9 @@ async def run_from_env(
         policy=tools_config.dispatch_policy,
     )
     ticker_task = start_ticker(ticker)
-    if swap is not None:
-        converged = await recover_handoffs(
-            swap.handoffs, swap.host, swap.plan, clock=clock, sleeper=AsyncioSleeper()
-        )
-        await swap.manager.publish_boot_residency(serving=converged)
+    # The handoff's other boot half, beside the deadline check and for the same reason: both are
+    # swap wiring, and this file is at its line cap (`swap_builders.py`).
+    await recover_boot_residency(swap, clock)
     try:
 
         def capabilities(confirmer: Confirmer, progress: ProgressSink) -> TurnCapabilities:

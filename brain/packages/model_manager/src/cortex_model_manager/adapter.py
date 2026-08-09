@@ -7,7 +7,7 @@ from urllib.parse import quote
 
 import httpx
 
-from cortex_core import DeviceMemory, ModelHostError, ModelHostState
+from cortex_core import ControlBounds, DeviceMemory, ModelHostError, ModelHostState
 
 _logger = logging.getLogger(__name__)
 
@@ -15,6 +15,13 @@ _logger = logging.getLogger(__name__)
 def _about(model: str) -> str:
     """How a control call names the model it is about, in a failure a human has to read."""
     return f"model {model!r}"
+
+
+def _seconds(value: object) -> float | None:
+    """A second count off the wire, or ``None`` for anything this version cannot read as one."""
+    if isinstance(value, bool) or not isinstance(value, int | float) or value < 0:
+        return None
+    return float(value)
 
 
 class HttpModelHost:
@@ -51,6 +58,23 @@ class HttpModelHost:
             )
             return None
         return DeviceMemory(free_mib=free, total_mib=total)
+
+    async def control_bounds(self) -> ControlBounds | None:
+        """How long this sidecar's slowest control call may take, or ``None`` if it will not say."""
+        payload = await self._request("GET", "/health", "the bounds of its own control calls")
+        probe = _seconds(payload.get("probe_timeout_s"))
+        grace = _seconds(payload.get("stop_grace_s"))
+        reap = _seconds(payload.get("reap_timeout_s"))
+        if probe is None or grace is None or reap is None:
+            _logger.info(
+                "the model host reports no control bounds: probe=%r grace=%r reap=%r",
+                probe,
+                grace,
+                reap,
+                extra={"probe": probe, "grace": grace, "reap": reap},
+            )
+            return None
+        return ControlBounds(probe_timeout_s=probe, stop_grace_s=grace, reap_timeout_s=reap)
 
     async def _act(self, model: str, verb: str) -> None:
         """Run a lifecycle verb and read the state it left behind, for the log."""

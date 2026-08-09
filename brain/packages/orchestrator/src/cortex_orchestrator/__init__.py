@@ -55,7 +55,14 @@ from cortex_orchestrator.server import (
     serve,
 )
 from cortex_orchestrator.subagent_builders import build_subagent_tools, build_subagents
-from cortex_orchestrator.swap_builders import SwapRuntime, build_swap_runtime, swap_closer
+from cortex_orchestrator.swap_builders import (
+    ControlDeadlineError,
+    SwapRuntime,
+    build_swap_runtime,
+    check_control_deadline,
+    recover_boot_residency,
+    swap_closer,
+)
 from cortex_orchestrator.ticker import (
     REMINDER_TITLE,
     TASK_TITLE,
@@ -83,6 +90,7 @@ __all__ = [
     "BodyConfig",
     "BrainRuntimeConfig",
     "BrainService",
+    "ControlDeadlineError",
     "EngineFactory",
     "InferenceConfig",
     "MemoryConfig",
@@ -113,11 +121,13 @@ __all__ = [
     "build_swap_runtime",
     "build_ticker",
     "build_tool_registry",
+    "check_control_deadline",
     "converse",
     "create_server",
     "memory_scope_from_name",
     "recall_audit_from_config",
     "recall_policy_from_config",
+    "recover_boot_residency",
     "run_from_env",
     "serve",
     "start_ticker",

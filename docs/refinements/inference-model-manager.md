@@ -7,13 +7,17 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 historical record of what each deferral became, and the index at [index.md](index.md) carries the
 recommended pickup order.
 
-**Open items:** 8, counted by reading the entries below rather than by adjusting the last number.
+**Open items:** 7, counted by reading the entries below rather than by adjusting the last number.
 Resume a crashed handoff from its record; fence the single-handoff claim across processes;
-reconverge the brain's residency when the sidecar restarts under it; check the sidecar's stop
-bounds against the brain's control deadline; MTP model variants; disable-thinking / token-budget
-capping, **narrowed rather than closed on 2026-08-06**; and, added 2026-08-08 by the spill watch
-landing, a handoff that has watched itself spill and still promises co-residency next time, plus
-prefill as the second witness the watch declined to read. Three entries closed on 2026-08-07 and
+reconverge the brain's residency when the sidecar restarts under it; MTP model variants;
+disable-thinking / token-budget capping, **narrowed rather than closed on 2026-08-06**; and, added
+2026-08-08 by the spill watch landing, a handoff that has watched itself spill and still promises
+co-residency next time, plus prefill as the second witness the watch declined to read. **It went
+8 to 7 on 2026-08-09**, when the deadline pairing between the sidecar's stop bounds and the brain's
+control deadline stopped being documented and started being checked: one out and none in, the
+staleness it leaves behind (a sidecar restarting with changed env) having the same cause and the
+same fix as the residency entry already open, so it was folded into that entry rather than counted
+beside it. Three entries closed on 2026-08-07 and
 this area's oldest was one
 of them: **model-manager co-residency**, which opened two in its place, then **the fit its flag
 asserted**, which closed as a real check and opened one, and then **the placer's budget describing
@@ -340,6 +344,12 @@ fix-when-it-bites bucket, so nobody picks it up expecting to build a lever that 
   while the dot is wrong.
   **Trigger:** a sidecar that restarts (an OOM kill, a crash, an operator's `docker compose restart
   model-host`) while a handoff is in flight over the supervisor backend, seen more than once.
+  **A second staleness joined this entry on 2026-08-09** rather than opening one of its own,
+  because it has the same cause and the same fix: the deadline pairing below is now checked once at
+  wiring time against the bounds the sidecar reports, so a sidecar that restarts under a running
+  brain with a **changed** environment leaves that check as stale as it leaves residency. A
+  generation counter on `GET /health` closes both at once, the brain re-reading whatever the fresh
+  daemon says.
 - **Check the sidecar's stop bounds against the brain's control deadline, instead of only
   documenting the pairing.** *Fix when it bites.* Opened 2026-07-18 by the audit round on the
   model-host sub-slice. A supervisor `stop` answers only once the child is reaped, so it can
@@ -360,6 +370,28 @@ fix-when-it-bites bucket, so nobody picks it up expecting to build a lever that 
   at wiring time, which today it deliberately does not. **Trigger:** a user tuning either side's
   timing, or a second deployment shape where the defaults do not hold, and any report of a handoff
   aborting with `ModelHostError` on an eviction that in fact completed.
+  **This landed 2026-08-09, ahead of its trigger and in almost the shape its own text proposed
+  ([ADR-0030](../adr/ADR-0030-brain-handoff.md) deadline-pairing addendum).** Its account of the
+  code was re-derived first, as this backlog demands, and held on every point: `api.py` published
+  two of the three terms, `probe_timeout_s` lived on `ModelHostConfig` and was spent only as the
+  probe client's `httpx.Timeout`, `build_control_client` compared its float with nothing, and
+  5 + 10 + 30 = 45 still cleared 60. What shipped is the third term on `GET /health`, the three
+  travelling as one core value (`ControlBounds`, with `worst_case_stop_s` and a strict
+  `clears(deadline_s)`), a fifth `ModelHost` verb reading them back off that same body, and
+  `check_control_deadline` in `swap_builders.py` gating the runtime on its way out of the builder.
+  Two things the entry got wrong, both in the direction of over-caution. The check could not live
+  **in** `build_control_client`, which is synchronous and is the thing that builds the client the
+  question would have to be asked with, so it is a sibling in the same module that the composition
+  root passes the runtime through. And the cost it named, a wiring-time dependency on the sidecar
+  answering, largely does not exist: `recover_handoffs` already calls that sidecar at startup
+  before the seam serves. What it deliberately does not do is raise, so the real question was
+  whether to make a tolerant boot dependency fatal, and the answer is only for an **answered**
+  mismatch: an unreachable host is logged at warning and let through (a restart policy heals it), a
+  host reporting no bounds is the scripted twin, and a static mispairing that no restart can heal
+  refuses to serve, since its failure is otherwise intermittent (a stop pays the whole grace only
+  when the tier it evicts was busy). The one staleness left, a sidecar that restarts under a
+  running brain with different env, is the same staleness with the same fix as the residency entry
+  above and is folded into it rather than counted as a new deferral.
 - **MTP (multi-token-prediction) model variants.** Deferred until they earn their keep, per
   [ADR-0004](../adr/ADR-0004-model-lineup.md).
 - **The cortex reasoning trace is surfaced as a thinking status. This landed 2026-07-06

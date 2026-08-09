@@ -1,6 +1,7 @@
 """The handoff's composition root: the env gate in both directions, and what it builds."""
 
 import asyncio
+import logging
 import os
 import signal
 import socket
@@ -21,6 +22,7 @@ from cortex_core import (
     RESIDENCY_DEEP,
     AsyncioSleeper,
     Clock,
+    ControlBounds,
     InMemoryBodyGateway,
     ModelHostState,
     ScriptedModelHost,
@@ -29,14 +31,16 @@ from cortex_core import (
     SwappingModelManager,
     SystemClock,
 )
-from cortex_model_manager import HttpModelHost
+from cortex_model_manager import HttpModelHost, ModelHostConfig
 from cortex_orchestrator import (
     BrainRuntimeConfig,
+    ControlDeadlineError,
     InferenceConfig,
     SwapConfig,
     SwapRuntime,
     build_builtin_tools,
     build_swap_runtime,
+    check_control_deadline,
     run_from_env,
     swap_builders,
     swap_closer,
@@ -95,12 +99,23 @@ def _supervisor_runtime(
     released: list[str],
     *,
     refuse_store_close: bool = False,
+    bounds: ControlBounds | None = None,
 ) -> tuple[SwapRuntime, httpx.AsyncClient, list[str]]:
     """The real-backend runtime, with the control client's transport replaced but nothing else."""
     asked: list[str] = []
 
     def handle(request: httpx.Request) -> httpx.Response:
         asked.append(str(request.url))
+        if request.url.path == "/health" and bounds is not None:
+            return httpx.Response(
+                HTTPStatus.OK,
+                json={
+                    "status": "ok",
+                    "probe_timeout_s": bounds.probe_timeout_s,
+                    "stop_grace_s": bounds.stop_grace_s,
+                    "reap_timeout_s": bounds.reap_timeout_s,
+                },
+            )
         return httpx.Response(HTTPStatus.OK, json={"state": "ready", "detail": ""})
 
     client = httpx.AsyncClient(transport=httpx.MockTransport(handle))
@@ -275,6 +290,116 @@ async def test_the_closer_is_a_clean_no_op_when_nothing_was_built() -> None:
     await swap_closer(None)()
 
 
+def _with_bounds(bounds: ControlBounds | None) -> SwapRuntime:
+    """The scripted runtime, holding a host that claims ``bounds`` for its own control calls."""
+    runtime = build_swap_runtime(
+        _enabled(),
+        BrainRuntimeConfig(),
+        InferenceConfig(),
+        SystemClock(),
+        AsyncioSleeper(),
+        _fake_handoff_store,
+    )
+    assert runtime is not None
+    return replace(runtime, host=ScriptedModelHost(running=["cortex"], control_bounds=bounds))
+
+
+async def test_the_shipped_bounds_and_the_shipped_deadline_still_clear_each_other() -> None:
+    """The two containers' defaults, compared as the running pair rather than as prose."""
+    daemon = ModelHostConfig()
+    shipped = ControlBounds(
+        probe_timeout_s=daemon.probe_timeout_s,
+        stop_grace_s=daemon.stop_grace_s,
+        reap_timeout_s=daemon.reap_timeout_s,
+    )
+    assert shipped.worst_case_stop_s == 45.0
+    assert shipped.clears(SwapConfig().modelhost_timeout_s) is True
+
+
+async def test_a_deadline_the_hosts_worst_stop_can_outlast_refuses_to_boot(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The pairing spans two containers' env, so this is the only place it can be checked."""
+    runtime = _with_bounds(
+        ControlBounds(probe_timeout_s=5.0, stop_grace_s=20.0, reap_timeout_s=35.0)
+    )
+    with caplog.at_level(logging.ERROR), pytest.raises(ControlDeadlineError) as excinfo:
+        await check_control_deadline(runtime, 60.0)
+    # Every term, so the operator can see which knob to move without reading two containers' env.
+    assert "worst stop is 60.0 s (probe 5.0 s, grace 20.0 s, reap 35.0 s)" in str(excinfo.value)
+    assert "CORTEX_MODELHOST_TIMEOUT_S is 60.0 s" in caplog.text
+
+
+async def test_a_refused_pairing_releases_what_the_runtime_already_holds(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The whole path over the real adapter, and the shutdown hook is not armed yet when it fails.
+
+    The bounds come off a real ``GET /health`` here rather than off a twin, so this is also what
+    pins the adapter's reading to the composition root's comparison.
+    """
+    released: list[str] = []
+    runtime, client, asked = _supervisor_runtime(
+        monkeypatch,
+        released,
+        bounds=ControlBounds(probe_timeout_s=5.0, stop_grace_s=20.0, reap_timeout_s=35.0),
+    )
+    with pytest.raises(ControlDeadlineError):
+        await check_control_deadline(runtime, 60.0)
+    assert asked == ["http://model-host:9300/health"]
+    assert released == ["handoff store"]
+    assert client.is_closed
+
+
+async def test_a_deadline_that_clears_the_worst_stop_is_wired_and_says_so(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The shipped pair, which must pass: a check that refused this would refuse every stack."""
+    runtime = _with_bounds(
+        ControlBounds(probe_timeout_s=5.0, stop_grace_s=10.0, reap_timeout_s=30.0)
+    )
+    with caplog.at_level(logging.INFO):
+        await check_control_deadline(runtime, 60.0)
+    assert "clears the model host's worst stop: deadline_s=60.0 worst_s=45.0" in caplog.text
+    await swap_closer(runtime)()
+
+
+async def test_a_host_that_bounds_no_stop_of_its_own_is_not_a_refusal(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The scripted backend CI and the dev loop run: it stops no process, so it bounds nothing."""
+    runtime = _with_bounds(None)
+    with caplog.at_level(logging.INFO):
+        await check_control_deadline(runtime, 60.0)
+    assert "reports no control bounds" in caplog.text
+    await swap_closer(runtime)()
+
+
+async def test_a_host_that_cannot_be_asked_leaves_the_pairing_unchecked(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A sidecar that is down is not a misconfiguration, and boot recovery already says so."""
+    runtime = build_swap_runtime(
+        _enabled(),
+        BrainRuntimeConfig(),
+        InferenceConfig(),
+        SystemClock(),
+        AsyncioSleeper(),
+        _fake_handoff_store,
+    )
+    assert runtime is not None
+    unreachable = ScriptedModelHost(fail={("control_bounds", ""): "connection refused"})
+    with caplog.at_level(logging.WARNING):
+        await check_control_deadline(replace(runtime, host=unreachable), 60.0)
+    assert "could not be asked for its control bounds" in caplog.text
+    await swap_closer(runtime)()
+
+
+async def test_the_pairing_check_is_a_clean_no_op_when_nothing_was_built() -> None:
+    """Escalation off builds no host, so there is no deadline anything could spend."""
+    await check_control_deadline(None, 60.0)
+
+
 async def test_the_escalate_tool_is_not_advertised_unless_a_handoff_can_run() -> None:
     """Advertising it without the wrapper would offer a tool that could only refuse."""
     without = build_builtin_tools(None, InMemoryBodyGateway())
@@ -318,6 +443,49 @@ async def test_run_from_env_serves_with_the_handoff_wired(
         await asyncio.wait_for(task, timeout=10)
     finally:
         task.cancel()
+
+
+async def test_run_from_env_refuses_a_deployment_whose_pairing_does_not_hold(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The root asks before it builds anything else, so a mispaired stack never serves a turn."""
+    monkeypatch.setenv("CORTEX_ESCALATION", "1")
+    monkeypatch.setenv("CORTEX_MODELHOST_BACKEND", "supervisor")
+    monkeypatch.setenv("CORTEX_MODELHOST_ENDPOINT", "http://model-host:9300")
+    monkeypatch.setenv("CORTEX_BRAIN_ENDPOINT", "http://llama-brain:8081")
+    server = FakeServer()
+
+    def fake_from_url(url: str) -> Redis:
+        del url
+        return FakeAsyncRedis(server=server)
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        del request
+        return httpx.Response(
+            HTTPStatus.OK,
+            json={
+                "status": "ok",
+                "probe_timeout_s": 5.0,
+                "stop_grace_s": 20.0,
+                "reap_timeout_s": 35.0,
+            },
+        )
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handle))
+
+    def mock_client(timeout_s: float) -> httpx.AsyncClient:
+        del timeout_s
+        return client
+
+    monkeypatch.setattr(Redis, "from_url", fake_from_url)
+    monkeypatch.setattr(swap_builders, "build_control_client", mock_client)
+    # Bounded, because the failure this pins is a root that never asks: without the refusal the
+    # root goes on to ``serve``, which returns for nothing this test can arrange.
+    with pytest.raises(ControlDeadlineError, match=r"CORTEX_MODELHOST_TIMEOUT_S is 60\.0 s"):
+        await asyncio.wait_for(
+            run_from_env(store_factory=lambda _url: _session_store(server)), timeout=10
+        )
+    assert client.is_closed
 
 
 async def test_health_tells_the_truth_about_residency_through_the_whole_wiring(

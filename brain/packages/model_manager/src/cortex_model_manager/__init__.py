@@ -18,17 +18,18 @@ from cortex_model_manager.probe import HealthProbe, HttpHealthProbe
 from cortex_model_manager.server import build_model_host, build_supervisor, main
 from cortex_model_manager.spec import ModelSpec, RosterError, build_roster
 from cortex_model_manager.supervisor import (
+    DEFAULT_PROBE_TIMEOUT_S,
     DEFAULT_REAP_TIMEOUT_S,
     DEFAULT_STOP_GRACE_S,
     ModelStatus,
     ModelSupervisor,
-    StopBounds,
     SupervisorError,
     UnknownModelError,
 )
 from cortex_model_manager.tiers import TierArgs, llama_server_argv, tier_spec
 
 __all__ = [
+    "DEFAULT_PROBE_TIMEOUT_S",
     "DEFAULT_REAP_TIMEOUT_S",
     "DEFAULT_STOP_GRACE_S",
     "AsyncioChild",
@@ -46,7 +47,6 @@ __all__ = [
     "NoDeviceMemory",
     "NvidiaSmiMemory",
     "RosterError",
-    "StopBounds",
     "SupervisorError",
     "TierArgs",
     "UnknownModelError",

@@ -5,7 +5,7 @@ import logging
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from cortex_core import ModelHostState
+from cortex_core import ControlBounds, ModelHostState
 from cortex_model_manager.children import ChildProcess, ChildProcesses
 from cortex_model_manager.probe import HealthProbe
 from cortex_model_manager.spec import ModelSpec
@@ -17,6 +17,8 @@ DEFAULT_STOP_GRACE_S = 10.0
 # bound rather than an unbounded wait: the swap must be told rather than hang.
 DEFAULT_REAP_TIMEOUT_S = 30.0
 
+DEFAULT_PROBE_TIMEOUT_S = 5.0
+
 _logger = logging.getLogger(__name__)
 
 
@@ -26,15 +28,6 @@ class SupervisorError(RuntimeError):
 
 class UnknownModelError(SupervisorError):
     """No such logical model in this daemon's roster. Crosses the wire as a 404."""
-
-
-@dataclass(frozen=True, slots=True)
-class StopBounds:
-    """How long a stop may legitimately take: the SIGTERM grace, then the post-SIGKILL reap bound.
-    """
-
-    stop_grace_s: float
-    reap_timeout_s: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,12 +50,19 @@ class ModelSupervisor:
         *,
         stop_grace_s: float = DEFAULT_STOP_GRACE_S,
         reap_timeout_s: float = DEFAULT_REAP_TIMEOUT_S,
+        probe_timeout_s: float = DEFAULT_PROBE_TIMEOUT_S,
     ) -> None:
         self._roster = dict(roster)
         self._processes = processes
         self._probe = probe
-        self._stop_grace_s = stop_grace_s
-        self._reap_timeout_s = reap_timeout_s
+        # All three, although only two are spent here: the probe's deadline belongs to the client
+        # behind ``probe``, and this is the one object that can state the whole worst case of its
+        # own slowest call, which is what the brain checks its control deadline against.
+        self._bounds = ControlBounds(
+            probe_timeout_s=probe_timeout_s,
+            stop_grace_s=stop_grace_s,
+            reap_timeout_s=reap_timeout_s,
+        )
         # A model is present here from the moment it is spawned until a stop has reaped it. A
         # present child with an exit code died unasked, which is the difference between FAILED
         # and STOPPED; the roster's own keys are the only ids that ever reach this dict.
@@ -75,9 +75,9 @@ class ModelSupervisor:
         return tuple(self._roster)
 
     @property
-    def stop_bounds(self) -> StopBounds:
-        """The stop timing this daemon was wired with, as ``GET /health`` reports it."""
-        return StopBounds(self._stop_grace_s, self._reap_timeout_s)
+    def control_bounds(self) -> ControlBounds:
+        """The three bounds this daemon was wired with, as ``GET /health`` reports them."""
+        return self._bounds
 
     async def start(self, model: str) -> None:
         """Begin loading ``model``; return as soon as the process exists, ready or not."""
@@ -161,20 +161,21 @@ class ModelSupervisor:
     async def _end(self, model: str, child: ChildProcess) -> None:
         """SIGTERM, then SIGKILL after the grace, and wait out the reaping either way."""
         child.terminate()
-        if await self._reaped(child, self._stop_grace_s):
+        if await self._reaped(child, self._bounds.stop_grace_s):
             return
         _logger.warning(
             "a model process ignored SIGTERM; killing it: model=%s pid=%d grace_s=%s",
             model,
             child.pid,
-            self._stop_grace_s,
-            extra={"model": model, "pid": child.pid, "grace_s": self._stop_grace_s},
+            self._bounds.stop_grace_s,
+            extra={"model": model, "pid": child.pid, "grace_s": self._bounds.stop_grace_s},
         )
         child.kill()
-        if await self._reaped(child, self._reap_timeout_s):
+        if await self._reaped(child, self._bounds.reap_timeout_s):
             return
         msg = (
-            f"model {model!r} (pid {child.pid}) survived SIGKILL for {self._reap_timeout_s}s; "
+            f"model {model!r} (pid {child.pid}) survived SIGKILL for "
+            f"{self._bounds.reap_timeout_s}s; "
             "its GPU memory is still held, so nothing else can be loaded"
         )
         _logger.error(msg, extra={"model": model, "pid": child.pid})

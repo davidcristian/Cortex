@@ -13,6 +13,7 @@ from cortex_core import (
     RESIDENCY_LOST,
     RESIDENCY_RESTORING,
     RESIDENCY_SERVING,
+    ControlBounds,
     DeviceMemory,
     HandoffInProgressError,
     ModelHost,
@@ -72,6 +73,10 @@ class _YieldingHost:
     async def device_memory(self) -> DeviceMemory | None:
         await asyncio.sleep(0)
         return await self._inner.device_memory()
+
+    async def control_bounds(self) -> ControlBounds | None:
+        await asyncio.sleep(0)
+        return await self._inner.control_bounds()
 
 
 def _manager(host: ModelHost, plan: ResidencyPlan | None = None) -> SwappingModelManager:

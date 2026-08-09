@@ -25,6 +25,7 @@ def build_supervisor(config: ModelHostConfig) -> tuple[ModelSupervisor, httpx.As
         HttpHealthProbe(client),
         stop_grace_s=config.stop_grace_s,
         reap_timeout_s=config.reap_timeout_s,
+        probe_timeout_s=config.probe_timeout_s,
     )
     return supervisor, client
 

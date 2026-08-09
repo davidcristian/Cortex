@@ -43,7 +43,7 @@ def build_app(
 
     async def health(request: Request) -> Response:
         del request
-        bounds = supervisor.stop_bounds
+        bounds = supervisor.control_bounds
         # Deliberately on this route and not a new one: it takes no per-model lock, so a caller
         # asking how much room is left can never queue behind a stop the way a `status` can, and
         # the brain reads it inside a swap step where that would cost a whole grace period.
@@ -52,6 +52,10 @@ def build_app(
             {
                 "status": "ok",
                 "models": list(supervisor.models),
+                # All three terms of the pairing rule, in the order the rule states them: a
+                # reader given only the two stop bounds can tune to a compliant-looking sum that
+                # the queued probe then carries past the brain's deadline.
+                "probe_timeout_s": bounds.probe_timeout_s,
                 "stop_grace_s": bounds.stop_grace_s,
                 "reap_timeout_s": bounds.reap_timeout_s,
                 "device_free_mib": None if memory is None else memory.free_mib,

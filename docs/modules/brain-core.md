@@ -138,6 +138,14 @@ Model management (Slice 4, ADR-0007; the swap's value half is ADR-0030, in `mode
   2026-08-07, a pair of tiers that genuinely fit a 24 GB card and a pair overcommitted by
   4676 MiB both read about 23.6 GB used with about 0.5 GB free, the driver having paged the
   excess to system memory rather than refusing it.
+- `ControlBounds(probe_timeout_s, stop_grace_s, reap_timeout_s)` is a frozen dataclass: the three
+  deadlines one control call to a model host can spend, with `worst_case_stop_s` their sum and
+  `clears(deadline_s)` the pairing rule, strict, because a caller whose deadline equals the sum
+  times out on the very call the sum describes. Three terms rather than two: a `status` takes the
+  same per-model lock a `stop` does and probes the child inside it, so a queued stop pays that
+  probe's deadline first (measured at 15.70 s against 10.89 s with the lock free). Reported by a
+  host that supervises processes and absent from one that supervises none, which is what makes the
+  port's verb answer `None` as readily as it answers this (ADR-0030's deadline-pairing addendum).
 - `ResidencyPlan(cortex_model, brain_model, evict_models=(), coresident=False,
   brain_vram_mib=0, brain_decode_tps=0.0, drain_timeout_s=60.0, load_timeout_s=300.0,
   poll_interval_s=1.0)` is the
@@ -670,14 +678,17 @@ unchanged):
   **Unchanged by the swap** (ADR-0030 decision 5 / ADR-0012 decision 1): residency is a
   separate, segregated port rather than a widened `acquire`.
 - `ModelHost` (in `ports_models.py`, re-exported here) provides `async start(model)`,
-  `async stop(model)`, `async status(model) -> ModelHostState`, and
-  `async device_memory() -> DeviceMemory | None` (ADR-0030 decision 3 and its fit-check
-  addendum): the process-lifecycle half ADR-0007 deferred, plus the one reading only the host
-  can take. `device_memory` is not about a process and takes no id; `None` means the host can
-  see no card, which is a normal answer (a CPU-only stack, the scripted backend) and never an
-  error. It rides this port rather than a segregated one because its only caller is the swap,
-  which already holds the other three verbs, and because it comes off the same daemon's same
-  route on the same client. Both verbs are idempotent and `start` only *begins*
+  `async stop(model)`, `async status(model) -> ModelHostState`,
+  `async device_memory() -> DeviceMemory | None` and
+  `async control_bounds() -> ControlBounds | None` (ADR-0030 decision 3 with its fit-check and
+  deadline-pairing addenda): the process-lifecycle half ADR-0007 deferred, plus the two readings
+  only the host can take. Neither of those two is about a process and neither takes an id; `None`
+  means the host can see no card, and no stop of its own to bound, both of which are normal
+  answers (a CPU-only stack, the scripted backend) and never errors. They ride this port rather
+  than a segregated one because they come off the same daemon's same route on the same client,
+  and each has one caller: the swap reads the card immediately before a load, and the composition
+  root reads the bounds once at wiring time, where it refuses to serve when its own control
+  deadline does not clear their sum. Both lifecycle verbs are idempotent and `start` only *begins*
   loading, so readiness is observed only through `status`. `model` is a logical id (ADR-0004):
   artifact paths, ports, `-ngl`, and context flags never cross it, so a deployment re-points a
   tier without touching the core. Failures surface as `ModelHostError`. `ScriptedModelHost` is
@@ -1677,7 +1688,7 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   spawning on the CPU. With `brain_vram_mib` at zero there is no honest figure and the window is
   never entered, which is the shipped behaviour.
 - `ScriptedModelHost(*, running=(), status_override=None, fail=None, fail_once=None,
-  pause_at=(), device_memory=None)` is the `ModelHost` twin (ADR-0030 decision 3, in `fakes_model_host.py`): a set
+  pause_at=(), device_memory=None, control_bounds=None)` is the `ModelHost` twin (ADR-0030 decision 3, in `fakes_model_host.py`): a set
   of running models plus exactly the scripting the swap's named failure modes need.
   `status_override` is what a *running* model reports instead of `READY` (a load that never
   finishes, a model that died at load); `fail` raises `ModelHostError` for an `(op, model)`
@@ -1689,6 +1700,10 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   is about the host rather than any one model. `device_memory` is the card this twin claims to
   sit beside, `None` by default because a twin that starts no process on any GPU honestly sees
   none, and settable on `.device` so a test can drive both sides of the fit check.
+  `control_bounds` is the same shape for the timing a stop can spend, logged and scriptable under
+  that same empty id, and `None` by default for the same kind of reason: a twin whose `stop` is a
+  set removal has no grace and no reap to bound, so the composition root's pairing check finds
+  nothing to compare.
 - `AsyncioSleeper` is the real `Sleeper` (production wiring, the `SystemClock` precedent);
   `RecordingSleeper` is its twin, recording every requested wait in `.waits` and yielding the
   loop instead of consuming time, so a poll loop's *schedule* is asserted rather than its

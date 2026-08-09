@@ -20,7 +20,7 @@ Everything importable from `cortex_model_manager` (`__all__` is the API).
 
 **The adapter (brain side).** `HttpModelHost(endpoint: str, client: httpx.AsyncClient)` is a
 `ModelHost`: `start`/`stop`/`status`, taking a logical model id and nothing else, plus
-`device_memory()`, which takes none.
+`device_memory()` and `control_bounds()`, which take none.
 
 - `start(model)` POSTs `/models/{id}/start`, `stop(model)` POSTs `/models/{id}/stop`, and
   `status(model)` GETs `/models/{id}` and returns the `ModelHostState` the body names. The id is
@@ -30,6 +30,12 @@ Everything importable from `cortex_model_manager` (`__all__` is the API).
   reports and also what one too old to carry the fields says. Deliberately that route: it takes
   no per-model lock, and a swap asks this between an eviction and a load, where queueing behind
   a stop would add that stop's whole grace to the answer.
+- `control_bounds()` GETs the same `/health` and returns `ControlBounds(probe_timeout_s,
+  stop_grace_s, reap_timeout_s)`, or `None` when any one of the three is missing, is not a
+  number, is a bool, or is negative. Read once at wiring time by the brain's composition root,
+  never inside a swap: these are the sidecar's env and cannot change under a running container.
+  A partial answer is no answer, because a sum missing a term would clear a deadline the whole
+  rule fails (ADR-0030's deadline-pairing addendum).
 - Every failure crosses as `ModelHostError` with its cause chained, and **nothing is retried
   here**: a transport failure, a 404, a 503, a body that will not decode, and a state word this
   version does not know all mean "the model host did not answer the question", which is for the
@@ -47,7 +53,7 @@ answers that this daemon has none. Four routes and no more:
 
 | Route | Meaning |
 |---|---|
-| `GET /health` | the daemon is up, the roster it serves, the stop bounds it was wired with, and how much of the card is free (`{"status": "ok", "models": [...], "stop_grace_s": 10.0, "reap_timeout_s": 30.0, "device_free_mib": 22484, "device_total_mib": 24463}`). An operator's first question, and the only way to read what a running daemon actually got, since the pairing rule below is enforced nowhere. The two device figures are `null` on a daemon that can see no card, and they are what the brain's fit check compares against (ADR-0030's fit-check addendum). |
+| `GET /health` | the daemon is up, the roster it serves, the three bounds one control call may spend, and how much of the card is free (`{"status": "ok", "models": [...], "probe_timeout_s": 5.0, "stop_grace_s": 10.0, "reap_timeout_s": 30.0, "device_free_mib": 22484, "device_total_mib": 24463}`). An operator's first question, and the only way to read what a running daemon actually got. All three timing terms, because the brain reads them here at wiring time and refuses to serve when its own `CORTEX_MODELHOST_TIMEOUT_S` does not clear their sum (ADR-0030's deadline-pairing addendum), and because a reader given two of them can tune to a compliant-looking sum the third carries past that deadline. The two device figures are `null` on a daemon that can see no card, and they are what the brain's fit check compares against (ADR-0030's fit-check addendum). |
 | `GET /models/{id}` | `{"model", "state", "detail"}`, `state` being `stopped`/`loading`/`ready`/`failed`. |
 | `POST /models/{id}/start` | begin loading it (idempotent), answering the state it left behind. |
 | `POST /models/{id}/stop` | end it, returning once the child is reaped (idempotent). |
@@ -66,12 +72,17 @@ toolkit injects it alongside the driver), a non-zero exit, a body that will not 
 than one visible GPU**, because nothing downstream knows which card a model would land on, so this
 declines to pick a row.
 
-**The supervisor.** `ModelSupervisor(roster, processes, probe, *, stop_grace_s, reap_timeout_s)`
-over the two seams `ChildProcesses` (`spawn(argv) -> ChildProcess`) and `HealthProbe`
-(`serving(url) -> bool`), with `AsyncioChildProcesses` and `HttpHealthProbe` as the real adapters
-and `ModelStatus(model, state, detail)` as its answer. `stop_all()` is the shutdown sweep, and
-`stop_bounds` is the `StopBounds(stop_grace_s, reap_timeout_s)` it was wired with, which `GET
-/health` reports.
+**The supervisor.** `ModelSupervisor(roster, processes, probe, *, stop_grace_s, reap_timeout_s,
+probe_timeout_s)` over the two seams `ChildProcesses` (`spawn(argv) -> ChildProcess`) and
+`HealthProbe` (`serving(url) -> bool`), with `AsyncioChildProcesses` and `HttpHealthProbe` as the
+real adapters and `ModelStatus(model, state, detail)` as its answer. `stop_all()` is the shutdown
+sweep, and `control_bounds` is the core `ControlBounds(probe_timeout_s, stop_grace_s,
+reap_timeout_s)` it was wired with, which `GET /health` reports. It is handed the probe's deadline
+although it spends none of it: that bound belongs to the client behind `probe`, and a `status`
+probes inside the same per-model lock a `stop` takes, so this is the one object that can state the
+whole worst case of its own slowest call. The defaults are `DEFAULT_STOP_GRACE_S` (10 s),
+`DEFAULT_REAP_TIMEOUT_S` (30 s) and `DEFAULT_PROBE_TIMEOUT_S` (5 s), each overridable by the env
+of the same name.
 
 **The roster.** `ModelHostConfig` (env-only) builds `TierArgs` values, `tier_spec` turns each into
 a `ModelSpec(model, port, argv)` via `llama_server_argv`, and `build_roster` indexes them.
@@ -126,7 +137,16 @@ root, and `main()` serves it (`python -m cortex_model_manager`).
   resident, silently defeating the swap. A child that exited unasked is `FAILED` (with its code in
   `detail`) until the next `start`, which replaces it.
 - **One lock per logical model** serializes its three verbs, because a stop racing a start is what
-  produces that bind failure.
+  produces that bind failure. It is also why the probe's deadline is a term of a stop's worst case:
+  a `status` holds that lock while it probes, and the compose healthcheck asks for one every 30 s
+  on exactly the tier a handoff evicts first.
+- **The daemon states its own worst case, and the brain refuses a deadline that cannot clear it.**
+  `probe_timeout_s + stop_grace_s + reap_timeout_s` must sit strictly under the brain's
+  `CORTEX_MODELHOST_TIMEOUT_S` (the shipped 5 + 10 + 30 under 60), or a control call times out on
+  an eviction that was still working. The two sides are separate containers' env, so the rule is
+  checked where they meet: `GET /health` reports all three, and the brain's composition root reads
+  them once at boot and refuses to serve when the sum does not clear (ADR-0030's deadline-pairing
+  addendum, `docs/runbooks/model-swap.md`).
 - **The daemon configures the root logger, and every line names its subject.** `uvicorn.run`
   configures uvicorn's own loggers and leaves root alone, so `main` calls `logging.basicConfig` at
   `CORTEX_MODELHOST_LOG_LEVEL`; without it every INFO lifecycle record is dropped and the one

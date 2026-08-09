@@ -35,6 +35,24 @@ class DeviceMemory:
 
 
 @dataclass(frozen=True, slots=True)
+class ControlBounds:
+    """How long one control call to a model host may legitimately take, in its three terms."""
+
+    probe_timeout_s: float
+    stop_grace_s: float
+    reap_timeout_s: float
+
+    @property
+    def worst_case_stop_s(self) -> float:
+        """The slowest legitimate stop: a queued probe, then the grace, then the reap."""
+        return self.probe_timeout_s + self.stop_grace_s + self.reap_timeout_s
+
+    def clears(self, deadline_s: float) -> bool:
+        """Whether ``deadline_s`` sits strictly above that worst case."""
+        return self.worst_case_stop_s < deadline_s
+
+
+@dataclass(frozen=True, slots=True)
 class ResidencyPlan:
     """Which models share the one GPU, and the bounds a swap between them respects (ADR-0030)."""
 

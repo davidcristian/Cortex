@@ -20,9 +20,10 @@ from cortex_model_manager import (
 )
 
 _TINY = 0.05
-# Deliberately different from the grace, so an app that reported the two bounds in the wrong order
-# would be caught rather than pass on a coincidence.
+# Deliberately different from the grace, so an app that reported the three bounds in the wrong
+# order would be caught rather than pass on a coincidence.
 _TINY_REAP = 0.07
+_TINY_PROBE = 0.03
 
 
 def _wired(
@@ -32,7 +33,12 @@ def _wired(
     children = processes or FakeChildProcesses()
     probe = FakeProbe()
     supervisor = ModelSupervisor(
-        contract_roster(), children, probe, stop_grace_s=_TINY, reap_timeout_s=_TINY_REAP
+        contract_roster(),
+        children,
+        probe,
+        stop_grace_s=_TINY,
+        reap_timeout_s=_TINY_REAP,
+        probe_timeout_s=_TINY_PROBE,
     )
     app = build_app(supervisor, boot_model=CORTEX, device=device)
     client = httpx.AsyncClient(transport=httpx.ASGITransport(app), base_url="http://model-host")
@@ -54,6 +60,7 @@ async def test_health_reports_the_daemon_the_roster_and_the_bounds_it_was_wired_
     assert _body(response) == {
         "status": "ok",
         "models": [CORTEX, DEEP],
+        "probe_timeout_s": _TINY_PROBE,
         "stop_grace_s": _TINY,
         "reap_timeout_s": _TINY_REAP,
         # A daemon wired with no device probe says so rather than omitting the fields, because
