@@ -54,21 +54,32 @@ delegation time (ADR-0012 admission-wall addendum).
 > `CORTEX_SUBAGENTS_ADMISSION_WAIT_S` (default 3600 s) is how long a spawn may wait for the soft
 > budget to free room before it comes back refused, with the bound named in the message so the
 > reader lands on this knob. It is deliberately far above any legitimate wait these defaults can
-> produce: a full batch of 8 against `CPU_BUDGET=4.0` and `CPUS=2.0` admits two at a time, one
-> entry's spawns serialize at its backend anyway (the box below), and a whole subtask measures 200
-> to 300 s here, so the last of that batch is admitted about 1800 s in and the bound is twice that
-> (ADR-0012 bounded-admission-wait addendum). Raising `CPU_BUDGET` or lowering `CPUS` shortens the
-> real waits and never needs this raised; **queuing two full batches at once does**, that being
-> about 80 minutes of serialized work. Zero is legal and means never queue at all: refuse anything
-> that does not fit the budget right now.
+> produce: a full batch of 8 against `CPU_BUDGET=4.0` and `CPUS=2.0` admits two at a time, a whole
+> subtask measures 200 to 300 s here, and how soon that admitted pair frees its slots is a
+> placement question (the box below). With the GPU path open the pair overlaps and the last of the
+> batch is admitted about 900 s in, which is what these defaults ship; with it shut the pair
+> serializes and the same spawn waits about 1800 s. The bound is twice the serial figure, so it is
+> an upper bound over both placements rather than the wait either one produces (ADR-0012
+> bounded-admission-wait addendum). Raising `CPU_BUDGET` or lowering `CPUS` shortens the real waits
+> and never needs this raised. **Queuing two full batches at once needs it raised only where the
+> GPU path is shut:** 16 spawns put the last one about 2100 s in while the pair overlaps, inside
+> the bound, and about 4200 s in while it serializes, past it, so the deployment to size is the one
+> running with the GPU subagent tier down or with a `VRAM_GB` ask that never fits the headroom.
+> Zero is legal and means never queue at all: refuse anything that does not fit the budget right
+> now.
 
 > **Admitted is not the same as concurrent.** Each roster entry holds one `LlamaCppBackend` per
 > placement target, and a backend holds its model lease for the whole stream, so two spawns of the
 > *same* entry on the same target run one after the other however many the budget admits. Measured
 > here on the Qwen-2B override: two concurrent spawns took 4.8 s through two backend objects and
-> 10.0 s through one, exactly serial. Raising `CPU_BUDGET` alone therefore buys queue depth, not
-> throughput; real parallelism needs distinct entries (the roster override) or a **second**
-> GPU-capable executor, which the one hosted GPU tier is not.
+> 10.0 s through one, exactly serial. What one entry does get is an overlap of exactly two, and
+> only while its admitted pair straddles the targets: `CORTEX_SUBAGENTS_GPU_ENDPOINT` defaults to
+> this same server, so an entry whose `VRAM_GB` ask fits the headroom once has one spawn GPU-placed
+> and the other overflowed, two lock objects in front of one `llama-server`, while a closed GPU
+> tier or an ask that never fits puts both on one target and back in line. Raising `CPU_BUDGET`
+> past that pair therefore buys queue depth, not throughput, the third spawn only moving from the
+> scheduler's queue onto a lock; more than two at once needs distinct entries (the roster override)
+> or a **second** GPU-capable executor, which the one hosted GPU tier is not.
 
 > **Reasoning is disabled** on the subagent server (`--chat-template-kwargs
 > '{"enable_thinking": false}'`, baked into the compose command). Both lineup families

@@ -353,6 +353,22 @@ the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
   rather than left to be found: two full batches queued at once lose their tail to the bound while
   the entry serializes and clear it while the pair overlaps, and the first is the deployment that
   should raise the knob. **The queue-depth half did not ship** and is the entry below.
+  **The correction needed a second pass the same day, because the first one under-reported its own
+  reach.** It named the comment, the test, two documents and this entry, and four further sites
+  went on restating the equality in the present tense: the operator guidance in
+  [runbooks/subagents-cpu.md](../runbooks/subagents-cpu.md), the same knob's comment in
+  `docker/docker-compose.subagents.yml`, the contract sentence in
+  [modules/brain-orchestrator.md](../modules/brain-orchestrator.md) that its twin in
+  `brain-core.md` had already been fixed against, and the row for this area in the
+  [index](index.md). The runbook was the one that mattered, being where an operator sizes the
+  knob: it asserted 1800 s for the shipped budgets, cited the corrected addendum for the premise
+  that addendum now denies, and told a reader that queuing two batches at once needs the bound
+  raised, which is false wherever the pair overlaps (2100 s clears 3600 s) and true only where a
+  closed GPU tier or an ask that never fits leaves both spawns on one target (4200 s). Both boxes
+  in that runbook now scope the serialization to a shared target and name the overlap as capped at
+  two rather than absent, and the advice names the placement it applies to. The lesson is the
+  cheap one: a correction's scope claim is itself a claim, and grepping the mechanism ("serialize",
+  "one backend") alongside the numbers is what finds the copies that paraphrase instead of quote.
 - **A queue-depth bound, to refuse a hopeless queue early rather than an hour late.** *Fix when it
   bites.* Opened 2026-08-09 by the close above, which shipped one of the two refusals that entry
   asked for. They answer different questions: the wait bound refuses **late**, after the caller has

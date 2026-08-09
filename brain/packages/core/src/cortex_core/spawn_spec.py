@@ -22,8 +22,6 @@ _CHOICE_NOTE = (
     "spread independent subtasks across models to finish the batch sooner. On a turn that has "
     "read untrusted external content the robust default model is enforced regardless of the pick."
 )
-# Tools-enabled or a one-entry roster: every spawn runs on the one default model (ADR-0017 rule
-# 2b pins it), so no knob is advertised and, sharing one backend lease, the subtasks serialize.
 _PINNED_NOTE = (
     " Every subtask runs on the deployment's default subagent model, so subtasks share its one "
     "backend and run one after another, a batch that groups independent subtasks rather than "
