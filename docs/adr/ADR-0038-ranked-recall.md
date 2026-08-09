@@ -1610,6 +1610,14 @@ order, a rule rather than a hand pick) and **the seed** (printed with every repo
 | Whole turn, sd | 0.921 s | 2.136 s | 1.581 s |
 | Rank bases seen | `echo` | `verdict`, `demur` | `echo` |
 
+Every row above except the last is re-derived by running `scripts/contrast.py` over the committed
+samples, and the last one is not, which is worth saying plainly in a section claiming the run
+reproduces itself. The bases were read from the brain's audit trail with
+`CORTEX_MEMORY_RECALL_AUDIT=1` while the blocks ran, and a turn record carries the wire timings
+alone, so that row is evidence the arm really changed rather than a figure the samples can be
+asked for again. Reproducing it means rerunning the blocks with the audit on and reading the
+container's logs before they roll.
+
 Blocked by question and bootstrapped over 20,000 resamples at the printed seed:
 
 - **judge against raw: time to first token +0.539 s** (95% CI +0.054 to +1.111), whole turn
