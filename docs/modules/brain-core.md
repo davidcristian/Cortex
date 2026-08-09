@@ -1048,21 +1048,28 @@ Use-case:
   **suppresses the inner `TurnCompleted`**, and, only if the cortex actually asked to escalate,
   runs the conductor's phase on the same stream before emitting one real `TurnCompleted` whose
   text is the whole turn's. With no escalation requested it is transparent, completion included.
-- `recover_handoffs(handoffs, host, plan, *, clock, sleeper) -> bool` and
-  `converge_residency(host, plan, *, clock, sleeper) -> bool` (`swap_recovery.py`) are boot
+- `recover_handoffs(handoffs, host, plan, tiers, *, clock, sleeper) -> bool` and
+  `converge_residency(host, plan, tiers, *, clock, sleeper) -> bool` (`swap_recovery.py`) are boot
   recovery: the composition root calls the first once at startup, and it marks any non-terminal
   record `FAILED`
   (a handoff cannot outlive its process; a live record would otherwise refuse every later
   escalation) and converges the GPU back onto the standing residency. Convergence is the
   conductor's own order: clear the GPU (stop every `plan.evict_models` tier, since a crash can
   leave one holding VRAM the cortex needs, then the deep model), settle the cortex to `READY`,
-  and start the evicted tiers back, so a boot leaves the machine where the scope's `finally`
+  and start the evicted tiers back through the swap back's own `restart_evicted`, so a boot leaves
+  the machine where the scope's `finally`
   would have. It deliberately does not resume a deep
   phase, and it never raises: a dead host or store is logged loudly and served around. What it
-  **returns** is whether the cortex was observed `READY` when it finished (`False` also for an
+  **returns** is whether the **cortex** was observed `READY` when it finished (`False` also for an
   unreachable host, which observed nothing), and the composition root publishes that onto the
   manager: without it a boot that could not settle the cortex logs the failure and then answers
   `Health` ready off the manager's seed, which is a green dot over a GPU serving nothing.
+  `tiers` is the manager's own `StandingTiers`, and it is what keeps a **peer** out of that verdict
+  (ADR-0030 boot-verdict addendum): each `evict_models` tier is cleared best effort and restarted
+  best effort, so a `status` or a `start` the host refuses is recorded and skipped rather than
+  answered `False` with, while the deep model's clearing stays fatal (it is the tier whose presence
+  contradicts the residency the cortex needs). A boot that cannot reach the host records nothing
+  about the peers at all, having never asked one to run.
 - `SWAPPING_STATE` plus the swap window's detail and note texts (`swap_notes.py`) are every
   app-authored string a handoff can put on a turn's stream. Status details are ephemeral
   progress; notes are reply text, streamed but not persisted, except `BRAIN_FAILED_NOTE`, which
@@ -1712,12 +1719,22 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   That same call seeds the boot watch below, the observation being published and the daemon it was
   made against belonging together.
   The two host-facing moves themselves (evict, check the card, and
-  start; stop and restore the standing residency) live in `residency_moves.py`, and both of the
+  start; stop and restore the standing residency, whose last step `restart_evicted` is public
+  because boot recovery ends the same way) live in `residency_moves.py`; both of the
   swap back's own guarantees, its retry policy (`restore_with_retries`) and its uninterruptible
-  wait, in `residency_restore.py`, all split off for
-  the line cap along the seam the manager already draws: it owns *when*, *who may*, and the state a
-  move publishes, they own *what the host is asked to do*, *how many attempts the way back gets*,
-  and *what a cancellation may not abandon*, with opposite failure
+  wait, in `residency_restore.py`; and the bookkeeping every one of them publishes into, in
+  `ResidencyBoard` (`residency_board.py`, ADR-0030 boot-verdict addendum): which model the GPU
+  serves, what a human is told about it, whether a scope owns the card, and the one
+  `asyncio.Condition` all three are published and waited on under. `publish(model, report)` is the
+  `ResidencyPublisher` every observer is handed, `publish_report(report)` the one writer that
+  touches display alone (boot recovery's), `await_resident(model)` the acquire's queue, and
+  `enter_scope`/`leave_scope` the scope flag; `report` and `scope_active` are lock-free reads,
+  which is what lets `Health` answer during a load. It is held by the manager and deliberately not
+  exported, like `HandoffClaim` beside it. All split off for
+  the line cap along the seam the manager already draws: it owns *when* and *who may*, they own
+  *what the host is asked to do*, *how many attempts the way back gets*,
+  *what a cancellation may not abandon*, and *what the answer about the GPU currently is*, with
+  opposite failure
   directions (the swap in raises `SwapFailedError`, one restore attempt answers a bool because the
   policy over it retries). The fit check sits inside `swap_in` between the last `stop` and the `start`, which
   is the only instant free memory means anything: everything the handoff means to unload is gone
@@ -1735,10 +1752,13 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   the standing residency is missing, and it returns having done nothing while a scope is active,
   since starting a peer while the deep model is alone on the card is the one forbidden move. It
   takes no lease: a peer is never the resident, so holding one across a control call would park a
-  turn behind a status probe for nothing.
+  turn behind a status probe for nothing. `standing_tiers` is the record below, handed out for the
+  one caller that writes it from outside a swap: boot recovery, which converges before the seam
+  serves and again whenever the daemon is replaced (ADR-0030 boot-verdict addendum).
 - `StandingTiers(placer=None)` in `residency_tiers.py` is which peers of the cortex are missing
   from the standing residency (ADR-0030 tier-outage addendum), held by the manager and written by
-  the swap back's best-effort restart: `mark_missing(model)` on a `ModelHostError` from that
+  `restart_evicted` wherever it runs, which is the swap back and boot recovery both:
+  `mark_missing(model)` on a `ModelHostError` from that
   start, `mark_standing(model)` on one the host accepted. `missing` is the sorted snapshot a
   retry pass iterates. Marking closes the placer's GPU, and only an emptied record reopens it, so
   a second tier still down keeps it shut; a deployment with no pool (`placer=None`) still keeps
@@ -1746,7 +1766,9 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   `residency()` returns: a **serving** report gains a detail naming what is down, and a report
   that is not serving is handed back untouched, which is the down-versus-evicted rule as code (a
   peer stopped for the length of a handoff is where the swap put it, and the window's own words
-  win). `retry_missing(host, tiers)` is one pass: per missing tier a `status`, then `READY` marks
+  win). That detail names the state and not the cause (`the model host is not running <tiers>, so
+  delegated work is running on the CPU`), because a boot that recorded a tier has had no deep task
+  to blame it on. `retry_missing(host, tiers)` is one pass: per missing tier a `status`, then `READY` marks
   it standing, `LOADING` is left alone, and anything else gets a `start`, with readiness observed
   on a later pass rather than gated inside this one. It never raises.
 - `TierHealer(heal, *, interval_s=DEFAULT_TIER_HEAL_INTERVAL_S)` in `residency_heal.py` is the
@@ -1756,15 +1778,18 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   is on the stop signal so shutdown is never held for the interval). Deliberately generic about
   the pass, taking a coroutine factory, so the judgement about whether a handoff is in flight
   stays with the manager.
-- `BootWatch(host, plan, *, clock, sleeper)` in `residency_watch.py` is which supervisor daemon
-  every belief above was formed against (ADR-0030's host-generation addendum). The manager holds
-  one, seeds it from `publish_boot_residency`, and calls `reconcile(publish)` as the first thing
+- `BootWatch(host, plan, tiers, *, clock, sleeper)` in `residency_watch.py` is which supervisor
+  daemon every belief above was formed against (ADR-0030's host-generation addendum). The manager
+  holds one, hands it the same peer record, seeds it from `publish_boot_residency`, and calls
+  `reconcile(publish)` as the first thing
   a swap does, before anything is evicted. `observe(boot_id) -> bool` is the whole decision and it
   is pure: `None` is no evidence and keeps what was remembered (a daemon too old to name its boot,
   and the twin, both answer that way), a first answer is a seed, and anything else is a
   replacement, remembered at once so one restart reconciles once. A replacement then runs
   `converge_residency` and publishes what it observed, so the manager's resident, the seam's
-  report and the machine are rebuilt from one reading; a convergence that could not settle the
+  report, the peer record and the machine are rebuilt from one reading (which tiers were missing
+  was a statement about a child table the replaced daemon took with it); a convergence that could
+  not settle the
   cortex publishes that nothing is resident and raises `SwapFailedError`, deliberately unlike the
   boot publish, which leaves the resident alone because there the seed is only an assumption while
   here the beliefs are known to have been formed against a process that is gone. It then re-reads

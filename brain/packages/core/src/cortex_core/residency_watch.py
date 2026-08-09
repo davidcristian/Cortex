@@ -10,6 +10,7 @@ from cortex_core.residency_state import (
     RESIDENCY_SERVING,
     ResidencyPublisher,
 )
+from cortex_core.residency_tiers import StandingTiers
 from cortex_core.swap_recovery import converge_residency
 
 _logger = logging.getLogger(__name__)
@@ -19,10 +20,17 @@ class BootWatch:
     """The daemon this brain last spoke to, and what speaking to a different one costs."""
 
     def __init__(
-        self, host: ModelHost, plan: ResidencyPlan, *, clock: Clock, sleeper: Sleeper
+        self,
+        host: ModelHost,
+        plan: ResidencyPlan,
+        tiers: StandingTiers,
+        *,
+        clock: Clock,
+        sleeper: Sleeper,
     ) -> None:
         self._host = host
         self._plan = plan
+        self._tiers = tiers
         self._clock = clock
         self._sleeper = sleeper
         self._seen: str | None = None
@@ -66,7 +74,7 @@ class BootWatch:
     async def _converge(self, publish: ResidencyPublisher) -> None:
         """Put the machine back into the standing shape, and publish what that actually found."""
         if await converge_residency(
-            self._host, self._plan, clock=self._clock, sleeper=self._sleeper
+            self._host, self._plan, self._tiers, clock=self._clock, sleeper=self._sleeper
         ):
             await publish(self._plan.cortex_model, RESIDENCY_SERVING)
             return

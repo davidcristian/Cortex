@@ -8,7 +8,7 @@ from cortex_core.ports import ModelHost, SubagentPlacer
 from cortex_core.residency_state import ResidencyReport
 
 TIERS_MISSING_DETAIL = (
-    "{models} did not come back after a deep task, so delegated work is running on the CPU"
+    "the model host is not running {models}, so delegated work is running on the CPU"
 )
 
 _logger = logging.getLogger(__name__)
@@ -32,7 +32,11 @@ class StandingTiers:
         return self._placer
 
     def mark_missing(self, model: str) -> None:
-        """Record that the host would not run ``model``, and stop placing spawns on the GPU."""
+        """Record that the host **refused** to run ``model``, and stop placing spawns on the GPU.
+
+        Refused, never merely stopped: this is called where a ``start`` raised, from the swap
+        back's restart and from boot recovery's convergence, and from nowhere else.
+        """
         self._missing.add(model)
         if self._placer is not None:
             self._placer.close_gpu()

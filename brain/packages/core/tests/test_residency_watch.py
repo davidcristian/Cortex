@@ -14,6 +14,7 @@ from cortex_core import (
     ResidencyPlan,
     ResidencyReport,
     ScriptedModelHost,
+    StandingTiers,
     SwapFailedError,
 )
 from cortex_core.residency_watch import BootWatch
@@ -44,10 +45,13 @@ class _Published:
         self.writes.append((model, report))
 
 
-def _watch(host: ScriptedModelHost, plan: ResidencyPlan | None = None) -> BootWatch:
+def _watch(
+    host: ScriptedModelHost, plan: ResidencyPlan | None = None, tiers: StandingTiers | None = None
+) -> BootWatch:
     return BootWatch(
         host,
         plan if plan is not None else _plan(),
+        tiers if tiers is not None else StandingTiers(),
         clock=TickingClock(),
         sleeper=RecordingSleeper(),
     )
@@ -114,6 +118,21 @@ async def test_a_replaced_daemon_is_converged_and_the_finding_is_published(
     assert "the model host has been replaced since the last handoff" in caplog.text
     assert host.running == {"cortex", "subagent-gpu"}
     assert published.writes == [("cortex", RESIDENCY_SERVING)]
+
+
+async def test_a_peer_the_fresh_daemon_will_not_run_is_recorded_and_the_handoff_proceeds() -> None:
+    """A replacement rebuilds the peer record too, and a peer is never a reason to refuse."""
+    host = ScriptedModelHost(
+        running=["cortex"], boot_id="daemon-a", fail={("start", "subagent-gpu"): "no such device"}
+    )
+    tiers = StandingTiers()
+    watch = _watch(host, _plan(evict_models=("subagent-gpu",)), tiers)
+    published = _Published()
+    await watch.seed()
+    host.boot = "daemon-b"
+    await watch.reconcile(published)
+    assert published.writes == [("cortex", RESIDENCY_SERVING)]
+    assert tiers.missing == ("subagent-gpu",)
 
 
 async def test_one_restart_is_reconciled_once_however_many_handoffs_follow() -> None:

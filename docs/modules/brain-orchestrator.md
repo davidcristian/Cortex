@@ -523,11 +523,16 @@ The service:
   backend leases through (hence `build_inference_backend(..., manager=...)`) and the residency
   scope the conductor drives, the Redis `HandoffStore`, the `ResidencyPlan`, and the `TierHealer`
   that retries a peer tier the swap back could not restart. With it wired,
-  `run_from_env` runs `recover_handoffs` before serving (a handoff cannot outlive its process)
-  and publishes its answer onto the manager with `publish_boot_residency(serving=…)`, so a boot
+  `run_from_env` runs `recover_handoffs` before serving (a handoff cannot outlive its process),
+  handing it `swap.manager.standing_tiers` so a peer tier that will not run is written into the
+  manager's own record rather than into that answer (ADR-0030 boot-verdict addendum),
+  and publishes what it observed about the **cortex** onto the manager with
+  `publish_boot_residency(serving=…)`, so a boot
   that could not settle the cortex is amber from the first probe instead of green over a GPU
-  serving nothing; starts that healer in the same call, after the publish, since a pass run
-  first would be retrying against beliefs the seed had not replaced yet, and stops it in the
+  serving nothing, while a boot whose only casualty is a delegation tier stays green and names
+  that tier; starts that healer in the same call, after the publish, since a pass run
+  first would be retrying against beliefs the seed had not replaced yet (and a boot that marked a
+  tier is exactly the case its first pass has work to do on), and stops it in the
   runtime's own `close`, before the store and the control client it spends;
   registers `escalate_to_brain`; hands that same manager to `serve` inside
   `SeamPorts` as the seam's `residency` reporter (which is what makes `Health` honest mid

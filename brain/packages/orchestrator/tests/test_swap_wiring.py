@@ -20,16 +20,20 @@ from cortex_core import (
     ESCALATE_TOOL_NAME,
     RESIDENCY_BOOT_FAILED,
     RESIDENCY_DEEP,
+    TIERS_MISSING_DETAIL,
     AsyncioSleeper,
     Clock,
     ControlBounds,
     InMemoryBodyGateway,
     ModelHostState,
+    PlacementRequest,
+    PlacementTarget,
     ScriptedModelHost,
     Sleeper,
     SubagentPlacer,
     SwappingModelManager,
     SystemClock,
+    VramBudgetPlacer,
 )
 from cortex_model_manager import HttpModelHost, ModelHostConfig
 from cortex_orchestrator import (
@@ -41,6 +45,7 @@ from cortex_orchestrator import (
     build_builtin_tools,
     build_swap_runtime,
     check_control_deadline,
+    recover_boot_residency,
     run_from_env,
     swap_builders,
     swap_closer,
@@ -235,6 +240,34 @@ async def test_the_enabled_runtime_is_the_one_lease_and_the_one_residency() -> N
     async with runtime.manager.swap_scope("brain"), runtime.manager.acquire("brain") as lease:
         assert lease.endpoint == "http://llama-brain:8081"
     await swap_closer(runtime)()
+
+
+async def test_a_boot_whose_peer_tier_is_down_still_says_the_brain_is_ready() -> None:
+    """A delegation tier that will not start is not the usual assistant failing to come up."""
+    placer = VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0)
+    runtime = build_swap_runtime(
+        _enabled(evict_models=("subagent-gpu",)),
+        BrainRuntimeConfig(),
+        InferenceConfig(),
+        SystemClock(),
+        AsyncioSleeper(),
+        _fake_handoff_store,
+        placer,
+    )
+    assert runtime is not None
+    broken = ScriptedModelHost(
+        running=["cortex"], fail={("start", "subagent-gpu"): "no such device"}
+    )
+    try:
+        await recover_boot_residency(replace(runtime, host=broken), SystemClock())
+        await runtime.healer.aclose()
+        report = runtime.manager.residency()
+        assert report.serving is True
+        assert report.detail == TIERS_MISSING_DETAIL.format(models="subagent-gpu")
+        spawn = PlacementRequest("subagent", vram_gb=2.0, cpus=1.0, memory_gb=1.0)
+        assert placer.place(spawn).target is PlacementTarget.CPU
+    finally:
+        await swap_closer(runtime)()
 
 
 async def test_the_supervisor_backend_builds_the_real_adapter_at_the_configured_endpoint(

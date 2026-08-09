@@ -139,7 +139,12 @@ async def recover_boot_residency(swap: SwapRuntime | None, clock: Clock) -> None
     if swap is None:
         return
     converged = await recover_handoffs(
-        swap.handoffs, swap.host, swap.plan, clock=clock, sleeper=AsyncioSleeper()
+        swap.handoffs,
+        swap.host,
+        swap.plan,
+        swap.manager.standing_tiers,
+        clock=clock,
+        sleeper=AsyncioSleeper(),
     )
     await swap.manager.publish_boot_residency(serving=converged)
     swap.healer.start()

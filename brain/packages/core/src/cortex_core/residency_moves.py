@@ -92,12 +92,12 @@ async def restore_standing(
         return False
     if state is not ModelHostState.READY:
         return False
-    await _restart_evicted(host, plan, tiers)
+    await restart_evicted(host, plan, tiers)
     return True
 
 
-async def _restart_evicted(host: ModelHost, plan: ResidencyPlan, tiers: StandingTiers) -> None:
-    """Put back every tier the swap in evicted, so the standing residency is whole again."""
+async def restart_evicted(host: ModelHost, plan: ResidencyPlan, tiers: StandingTiers) -> None:
+    """Put back every tier a swap or a crash left evicted, so the standing residency is whole."""
     for evicted in plan.evict_models:
         try:
             await host.start(evicted)

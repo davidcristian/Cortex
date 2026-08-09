@@ -7,16 +7,24 @@ from cortex_core.handoff import HandoffState
 from cortex_core.health_gate import await_model_ready
 from cortex_core.model_host import ModelHostState, ResidencyPlan
 from cortex_core.ports import Clock, HandoffStore, ModelHost, Sleeper
+from cortex_core.residency_moves import restart_evicted
+from cortex_core.residency_tiers import StandingTiers
 
 _logger = logging.getLogger(__name__)
 
 
 async def recover_handoffs(
-    handoffs: HandoffStore, host: ModelHost, plan: ResidencyPlan, *, clock: Clock, sleeper: Sleeper
+    handoffs: HandoffStore,
+    host: ModelHost,
+    plan: ResidencyPlan,
+    tiers: StandingTiers,
+    *,
+    clock: Clock,
+    sleeper: Sleeper,
 ) -> bool:
     """Fail a crash-stranded handoff, converge the GPU, and answer whether the cortex serves."""
     await _fail_stranded_handoff(handoffs)
-    return await converge_residency(host, plan, clock=clock, sleeper=sleeper)
+    return await converge_residency(host, plan, tiers, clock=clock, sleeper=sleeper)
 
 
 async def _fail_stranded_handoff(handoffs: HandoffStore) -> None:
@@ -35,24 +43,39 @@ async def _fail_stranded_handoff(handoffs: HandoffStore) -> None:
 
 
 async def converge_residency(
-    host: ModelHost, plan: ResidencyPlan, *, clock: Clock, sleeper: Sleeper
+    host: ModelHost, plan: ResidencyPlan, tiers: StandingTiers, *, clock: Clock, sleeper: Sleeper
 ) -> bool:
     """Clear the GPU, settle the cortex on it, put the standing residency back, and report."""
+    for peer in plan.evict_models:
+        await _clear_peer(host, peer)
     try:
-        for model in (*plan.evict_models, plan.brain_model):
-            if await host.status(model) is not ModelHostState.STOPPED:
-                _logger.warning(
-                    "stopping a model left running by an interrupted handoff",
-                    extra={"model": model},
-                )
-                await host.stop(model)
+        if await host.status(plan.brain_model) is not ModelHostState.STOPPED:
+            _logger.warning(
+                "stopping a model left running by an interrupted handoff",
+                extra={"model": plan.brain_model},
+            )
+            await host.stop(plan.brain_model)
         settled = await _settle_cortex(host, plan, clock=clock, sleeper=sleeper)
-        for model in plan.evict_models:
-            await host.start(model)
     except ModelHostError:
         _logger.exception("the model host was unreachable during boot recovery")
         return False
+    await restart_evicted(host, plan, tiers)
     return settled
+
+
+async def _clear_peer(host: ModelHost, model: str) -> None:
+    """Take one evictable peer off the card before the cortex loads, or say why it could not."""
+    try:
+        if await host.status(model) is not ModelHostState.STOPPED:
+            _logger.warning(
+                "stopping a model left running by an interrupted handoff", extra={"model": model}
+            )
+            await host.stop(model)
+    except ModelHostError:
+        _logger.exception(
+            "a tier the standing residency includes could not be cleared at boot",
+            extra={"model": model},
+        )
 
 
 async def _settle_cortex(
