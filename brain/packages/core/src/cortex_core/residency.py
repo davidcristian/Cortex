@@ -1,7 +1,6 @@
 """The GPU's residency: lease the resident model, and swap which model that is (ADR-0030 d5)."""
 
 import asyncio
-import logging
 from collections.abc import AsyncGenerator, Mapping
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 
@@ -24,8 +23,6 @@ from cortex_core.residency_state import (
 )
 from cortex_core.residency_tiers import StandingTiers, retry_missing
 from cortex_core.residency_watch import BootWatch
-
-_logger = logging.getLogger(__name__)
 
 
 class SwappingModelManager:
