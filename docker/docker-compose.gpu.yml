@@ -130,9 +130,11 @@ services:
       # model immediately after. Keep the sum of these two AND the probe timeout (5 s, which a
       # status queued on the same per-model lock can add to a stop) BELOW the brain's
       # CORTEX_MODELHOST_TIMEOUT_S (60 s), or a slow-but-correct eviction reads as a dead sidecar.
-      # The grace is not slack: measured, an idle llama-server exits in ~0.14 s but one with a
-      # request in flight ignores SIGTERM and is killed after the full grace, so this is what
-      # evicting a busy tier really costs. GET /health reports the two the daemon was given.
+      # GET /health reports all three, and the brain reads them at boot and refuses to serve when
+      # its own deadline does not clear the sum, so breaking this rule now fails the stack up
+      # front instead of one handoff later. The grace is not slack: measured, an idle
+      # llama-server exits in ~0.14 s but one with a request in flight ignores SIGTERM and is
+      # killed after the full grace, so this is what evicting a busy tier really costs.
       CORTEX_MODELHOST_STOP_GRACE_S: "${CORTEX_MODELHOST_STOP_GRACE_S:-10}"
       CORTEX_MODELHOST_REAP_TIMEOUT_S: "${CORTEX_MODELHOST_REAP_TIMEOUT_S:-30}"
       CORTEX_MODELHOST_PROBE_TIMEOUT_S: "${CORTEX_MODELHOST_PROBE_TIMEOUT_S:-5}"

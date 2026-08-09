@@ -12,7 +12,7 @@ boundaries exclusively as the typed errors in ``errors.py``.
 from contextlib import AbstractAsyncContextManager
 from typing import Protocol
 
-from cortex_core.model_host import DeviceMemory, ModelHostState
+from cortex_core.model_host import ControlBounds, DeviceMemory, ModelHostState
 from cortex_core.residency_state import ResidencyReport
 
 
@@ -40,6 +40,15 @@ class ModelHost(Protocol):
     ``None`` is a real answer, meaning **this host cannot see a card**, and it is deliberately not
     an error: a deployment with no GPU visible to the supervisor is a normal one (CI, the scripted
     backend), while a swap that requires a fit treats an absent reading as a refusal.
+
+    ``control_bounds`` is the fifth verb and the second that is not about a process: how long this
+    host's own slowest call may legitimately take. It sits here for the same three reasons the
+    card reading does (one caller, one daemon, one ``GET /health`` on one client) and answers
+    ``None`` the same way, because a host that supervises no process has no stop to bound. Its
+    caller is the composition root rather than the swap: the deadline the brain bounds a control
+    call with is separate env from the bounds the host was given, and read at wiring time the two
+    can be compared instead of merely documented. Nothing in a swap asks it, which is deliberate,
+    since env cannot change under a running process and a per-call read would buy nothing.
     """
 
     async def start(self, model: str) -> None: ...
@@ -49,6 +58,8 @@ class ModelHost(Protocol):
     async def status(self, model: str) -> ModelHostState: ...
 
     async def device_memory(self) -> DeviceMemory | None: ...
+
+    async def control_bounds(self) -> ControlBounds | None: ...
 
 
 class ResidencyController(Protocol):

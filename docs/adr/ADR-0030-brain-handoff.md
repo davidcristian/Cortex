@@ -1972,3 +1972,114 @@ a mutation result taken without clearing it is not evidence.
 - **It does not ask the server for anything.** No request changed, because this build volunteers
   the figure. A build that does not would need `timings_per_token`, and the adapter would then be
   changing every request in the repo to serve one phase.
+
+## Deadline-pairing addendum (2026-08-09): the timeout rule is checked, not only written down
+
+The audit round above left the timeout pairing **documented rather than enforced**, and gave the
+reason: the sidecar's bounds and the brain's control deadline are two containers' environment
+variables, and neither process can read the other's. That reason went half false the same day, when
+`GET /health` began reporting the two stop bounds the daemon was actually given. This finishes the
+other half and does the comparison, closing the refinement that round opened.
+
+**Re-derived from the tree before anything was designed**, as the backlog's own warning demands,
+and the entry held on every point. `api.py` published `stop_grace_s` and `reap_timeout_s` and not
+`probe_timeout_s`, which existed on `ModelHostConfig` and was spent in exactly one place, the
+`httpx.Timeout` on the readiness probe's client. `build_control_client` took a float and compared
+it with nothing. The shipped arithmetic still cleared: 5 + 10 + 30 = 45 under a 60 s deadline.
+
+### The decision
+
+1. **The daemon publishes all three terms.** `probe_timeout_s` joins the other two on `GET
+   /health`, and the three travel as one frozen core value, `ControlBounds`, beside `DeviceMemory`:
+   `worst_case_stop_s` is their sum and `clears(deadline_s)` is the rule, strict, because a
+   deadline equal to the sum times out on the very call the sum describes. The supervisor's
+   two-term `StopBounds` is gone, since a two-term value is exactly the reading that stated this
+   rule wrong the first time.
+2. **The supervisor is what holds it**, handed the probe's deadline although it spends none of it.
+   That deadline is a bound on a supervisor operation whoever pays it: `status` probes inside the
+   same per-model lock a `stop` takes, so a queued stop waits it out. One object can therefore
+   state the whole worst case of its own slowest call, and the API stays a serializer with no
+   arithmetic and no second source.
+3. **`ModelHost` gains a fifth verb**, `control_bounds() -> ControlBounds | None`, off the same
+   `GET /health` on the same client as the card reading, and `None` the same way: a host that
+   supervises no process has no stop to bound, which is what the scriptable twin genuinely is. The
+   shared contract suite drives it over both implementations.
+4. **The composition root compares, and refuses.** `check_control_deadline` runs in
+   `swap_builders.py`, where the adapter is wired, and the root gates the runtime through it on its
+   way out of the builder, before the backends, stores and tools below it exist. A host that
+   answers bounds the configured deadline does not clear raises `ControlDeadlineError` naming every
+   term, after releasing what the runtime already holds, since the root's shutdown hook is not
+   armed that early. Boot recovery moved into that same module in the same change, as
+   `recover_boot_residency`: `wiring.py` had reached the line cap, and the swap's two boot-time
+   concerns belong beside the swap's other wiring rather than in the file that reads env.
+5. **Only an answered mismatch refuses.** A host that cannot be asked is logged at warning and let
+   through, and a host that answers no bounds is logged at info.
+
+### Why wiring time is right here and was wrong for the card
+
+The co-residency addendum above refused to check its own figure at wiring time, and the argument
+was about what it was checking: free device memory moves by the gigabyte while a machine runs, so a
+boot reading is stale by the first handoff. Three env values are the opposite kind of fact. They
+cannot change under a running container, so one reading answers for the life of the process, and
+the check costs one request at boot instead of one per swap step. The two decisions point in
+opposite directions because the two quantities do.
+
+### The cost the entry named, and what it turned out to be
+
+The entry priced this as the brain gaining a wiring-time dependency on the sidecar answering,
+"which today it deliberately does not". That is half right. The dependency already exists:
+`recover_handoffs` runs at startup, before the seam serves, and issues `status`, `stop` and `start`
+against this very sidecar. What it deliberately does not do is **raise**, and its own module says
+why: a compose restart policy revives a daemon whose boot default is cortex-up, so a brain that
+refused to start beside a sidecar that is merely down would be worse than one that logs and serves.
+So the real cost was never the request; it was the risk of turning a tolerant boot dependency into
+a fatal one. Tolerating unreachability and refusing only an answered mismatch keeps the tolerant
+dependency exactly as tolerant as it was.
+
+**Refusing rather than logging is the other half of that judgement, and it is a judgement.** A
+mispaired deadline is static: no restart policy heals it, and only an operator editing env does.
+Its failure is intermittent, because a stop pays the whole SIGTERM grace only when the tier it
+evicts was answering (10.09 s measured busy against 0.40 s idle), so a mispaired stack works
+through every quiet eviction and aborts the one that mattered. A boot refusal is how this repo
+already treats an escalation with no model host and a co-residency flag with no measured fit, and
+this is the same kind of misconfiguration read from a running container instead of from env.
+
+### Proven able to fail before being trusted
+
+Each mutation was applied to production code alone, `__pycache__` cleared, and the whole `packages`
+suite re-run, so the counts below are what actually reddened rather than what was aimed at.
+
+- Making `clears` answer `True` whatever the numbers reddens **4**: the boundary case in
+  `test_model_host.py` and all three refusal cases.
+- Dropping the refusal itself (logging the mismatch and serving anyway) reddens **3**, those same
+  three, which is what separates the arithmetic from the policy over it.
+- Refusing an unreachable host as well as an answered mismatch reddens **1**,
+  `test_a_host_that_cannot_be_asked_leaves_the_pairing_unchecked`, so the tolerance is pinned as
+  deliberately as the refusal.
+- Dropping `probe_timeout_s` from the health body reddens **2**, the API's own health case and the
+  shared contract's supervisor leg; no scripted case reddens, the twin echoing what it was handed.
+- Reading a partial set of bounds as bounds (guarding only the first term) reddens **2**, the
+  negative and the bool rows of the adapter's parameterization.
+- Dropping the composition root's own call reddens **1**, and only the case that drives
+  `run_from_env`, which is why that case exists beside the ones that drive the check directly.
+
+One thing the first attempt got wrong is worth recording: that root-level case originally hung
+instead of failing, because a root that never refuses goes on to `serve`, which returns for nothing
+a test can arrange. It is bounded by `asyncio.wait_for` now. A mutation that hangs the suite is not
+a proof that it reddens.
+
+### What this deliberately does not do
+
+- **It does not re-read the bounds while the process runs.** Env cannot change under a container,
+  so the only way the answer goes stale is a sidecar that restarts under a running brain with a
+  changed environment. That is the same staleness, with the same fix (a generation the brain can
+  compare on `GET /health`), as the residency-reconvergence refinement already open in
+  [refinements/inference-model-manager.md](../refinements/inference-model-manager.md), so it is
+  folded into that entry rather than counted beside it.
+- **It does not register the pairing in the constant scan.** `crosscheck.py` ties a value spelled
+  in several places by equality or by pairwise order; this is a **sum of three** values under a
+  fourth, which no registry entry can express. The tie is a test instead, reading both containers'
+  shipped defaults at once and asserting the pair still clears, which is stronger than the comment
+  that used to add them up.
+- **It does not bound anything new.** No timeout moved, no default changed, and a stack whose
+  numbers already paired boots byte for byte as it did, one `GET /health` heavier.

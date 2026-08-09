@@ -25,9 +25,9 @@ import pytest
 import uvicorn
 from starlette.applications import Starlette
 
+from cortex_core import ControlBounds
 from cortex_model_manager import (
     ModelHostConfig,
-    StopBounds,
     build_model_host,
     build_supervisor,
     main,
@@ -56,14 +56,17 @@ async def test_the_wiring_hands_over_every_timing_knob_it_reads(
     Nothing else in this process observes these three, so without this the root could ignore all
     of them: the daemon would evict on the defaults while the runbook's pairing rule was being
     reasoned about the numbers the deployment set. The probe client's deadline is asserted the way
-    the brain-side twin asserts its control client's.
+    the brain-side twin asserts its control client's, and again on the supervisor, which spends
+    none of it and is what publishes the whole worst case the brain checks against.
     """
     monkeypatch.setenv("CORTEX_MODELHOST_STOP_GRACE_S", "7.5")
     monkeypatch.setenv("CORTEX_MODELHOST_REAP_TIMEOUT_S", "11.25")
     monkeypatch.setenv("CORTEX_MODELHOST_PROBE_TIMEOUT_S", "3.25")
     supervisor, client = build_supervisor(ModelHostConfig())
     try:
-        assert supervisor.stop_bounds == StopBounds(stop_grace_s=7.5, reap_timeout_s=11.25)
+        assert supervisor.control_bounds == ControlBounds(
+            probe_timeout_s=3.25, stop_grace_s=7.5, reap_timeout_s=11.25
+        )
         assert client.timeout == httpx.Timeout(3.25)
     finally:
         await client.aclose()

@@ -21,7 +21,12 @@ Distrust-green proofs, measured across ``packages/model_manager`` one mutation a
   contract suite's supervisor cases;
 - dropping the tier and the exit code from the FAILED log line's own message (leaving them in
   ``extra``, which no stdlib formatter renders) reddens exactly 1,
-  ``test_a_failed_state_is_a_normal_answer_and_is_logged_with_its_detail``.
+  ``test_a_failed_state_is_a_normal_answer_and_is_logged_with_its_detail``;
+- reading a partial set of control bounds as bounds (guarding only the first of the three terms)
+  reddens 2, the negative-bound and bool-bound rows of
+  ``test_a_health_body_without_all_three_bounds_is_no_bounds``. The other rows stay green under
+  that mutation because their missing term is the guarded one, which is why the parameterization
+  varies **which** term is unreadable rather than only how.
 """
 
 import logging
@@ -30,7 +35,7 @@ from http import HTTPStatus
 import httpx
 import pytest
 
-from cortex_core import DeviceMemory, ModelHostError, ModelHostState
+from cortex_core import ControlBounds, DeviceMemory, ModelHostError, ModelHostState
 from cortex_model_manager import HttpModelHost
 
 _ENDPOINT = "http://model-host:9300"
@@ -195,6 +200,73 @@ async def test_the_card_is_read_off_the_health_route_and_nowhere_else() -> None:
 )
 async def test_a_health_body_without_two_figures_is_no_reading(body: dict[str, object]) -> None:
     assert await _host(_health(body)).device_memory() is None
+
+
+async def test_the_control_bounds_are_read_off_the_same_health_route() -> None:
+    """The fifth verb's wire, asked once at wiring time and never inside a swap step."""
+    seen: list[tuple[str, str]] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        seen.append((request.method, request.url.path))
+        return httpx.Response(
+            HTTPStatus.OK,
+            json={
+                "status": "ok",
+                "probe_timeout_s": 5.0,
+                "stop_grace_s": 10.0,
+                "reap_timeout_s": 30.0,
+            },
+        )
+
+    bounds = await _host(httpx.MockTransport(handle)).control_bounds()
+    assert bounds == ControlBounds(probe_timeout_s=5.0, stop_grace_s=10.0, reap_timeout_s=30.0)
+    assert seen == [("GET", "/health")]
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        # A daemon older than the probe-timeout field: two thirds of the rule is not the rule, and
+        # a sum missing a term would pass a deadline the whole one fails.
+        {"status": "ok", "stop_grace_s": 10.0, "reap_timeout_s": 30.0},
+        # A daemon that is not this daemon at all.
+        {"status": "ok"},
+        # A bound that is not a number bounds nothing.
+        {
+            "status": "ok",
+            "probe_timeout_s": "five",
+            "stop_grace_s": 10.0,
+            "reap_timeout_s": 30.0,
+        },
+        # Nor does a negative one, which would shrink the worst case it is meant to state.
+        {
+            "status": "ok",
+            "probe_timeout_s": 5.0,
+            "stop_grace_s": -10.0,
+            "reap_timeout_s": 30.0,
+        },
+        # ``True`` is an int to Python and a second count to nobody.
+        {
+            "status": "ok",
+            "probe_timeout_s": 5.0,
+            "stop_grace_s": 10.0,
+            "reap_timeout_s": True,
+        },
+    ],
+)
+async def test_a_health_body_without_all_three_bounds_is_no_bounds(body: dict[str, object]) -> None:
+    assert await _host(_health(body)).control_bounds() is None
+
+
+async def test_a_sidecar_that_cannot_answer_about_its_bounds_is_a_typed_error() -> None:
+    """The composition root decides what an unreachable host means; the adapter only reports."""
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        del request
+        return httpx.Response(HTTPStatus.SERVICE_UNAVAILABLE, text="the supervisor is wedged")
+
+    with pytest.raises(ModelHostError, match="for the bounds of its own control calls"):
+        await _host(httpx.MockTransport(handle)).control_bounds()
 
 
 async def test_a_sidecar_that_cannot_answer_about_the_card_is_a_typed_error() -> None:

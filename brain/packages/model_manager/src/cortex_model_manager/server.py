@@ -40,6 +40,11 @@ def build_supervisor(config: ModelHostConfig) -> tuple[ModelSupervisor, httpx.As
     were handed them: nothing else in this process observes them, so a knob dropped here would
     silently change how long an eviction may take by tens of seconds while the runbook's pairing
     rule went on being reasoned about the configured numbers.
+
+    The probe's deadline is handed over **twice on purpose**: once to the client that spends it,
+    and once to the supervisor, which spends none of it and is the only object here that can
+    state the whole worst case of its own slowest call. That statement is what ``GET /health``
+    publishes and what the brain checks its own control deadline against.
     """
     client = httpx.AsyncClient(timeout=httpx.Timeout(config.probe_timeout_s))
     supervisor = ModelSupervisor(
@@ -48,6 +53,7 @@ def build_supervisor(config: ModelHostConfig) -> tuple[ModelSupervisor, httpx.As
         HttpHealthProbe(client),
         stop_grace_s=config.stop_grace_s,
         reap_timeout_s=config.reap_timeout_s,
+        probe_timeout_s=config.probe_timeout_s,
     )
     return supervisor, client
 

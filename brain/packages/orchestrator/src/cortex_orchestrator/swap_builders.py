@@ -13,26 +13,36 @@ this stream's dispatcher, and the conductor that drives it) are assembled by the
 because they carry the stream's own confirmer and progress sink.
 """
 
+import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
 import httpx
 
 from cortex_core import (
+    AsyncioSleeper,
     Clock,
     HandoffStore,
     ModelHost,
+    ModelHostError,
     ResidencyPlan,
     ScriptedModelHost,
     Sleeper,
     SubagentPlacer,
     SwappingModelManager,
+    recover_handoffs,
 )
 from cortex_model_manager import HttpModelHost
 from cortex_orchestrator.builders import noop_aclose
 from cortex_orchestrator.config import BrainRuntimeConfig, InferenceConfig
 from cortex_orchestrator.config_swap import SwapConfig
 from cortex_session import RedisHandoffStore
+
+_logger = logging.getLogger(__name__)
+
+
+class ControlDeadlineError(RuntimeError):
+    """The control deadline this brain was given does not clear its model host's worst stop."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -115,6 +125,89 @@ def build_control_client(timeout_s: float) -> httpx.AsyncClient:
     (``config_swap.DEFAULT_MODELHOST_TIMEOUT_S``).
     """
     return httpx.AsyncClient(timeout=httpx.Timeout(timeout_s))
+
+
+async def check_control_deadline(swap: SwapRuntime | None, deadline_s: float) -> SwapRuntime | None:
+    """Refuse a deployment whose model host can outlast the deadline the brain bounds it with.
+
+    The pairing (``probe_timeout_s + stop_grace_s + reap_timeout_s`` under
+    ``CORTEX_MODELHOST_TIMEOUT_S``) spans two containers' env, so it used to be documented in
+    three places and enforced in none. It is checkable now because the host reports the three
+    bounds it was really given, and this is where it is checked: at wiring time, once, on the
+    object that will spend the deadline.
+
+    **Three outcomes, and only one of them refuses.** A host that answers bounds the deadline
+    does not clear is a static misconfiguration whose failure is intermittent (a stop pays the
+    whole grace only when the tier it evicts was busy), so it is refused loudly here rather than
+    discovered inside one user's handoff, exactly as an escalation without a model host is. A
+    host that cannot be asked is **not** refused: boot recovery already argues that a brain must
+    start beside a sidecar that is down, since the restart policy revives one whose own boot
+    default is cortex-up, and an unreachable sidecar is a condition that heals itself while a
+    mispaired deadline is not. A host that answers no bounds at all is the scriptable twin, which
+    stops no process and therefore has no stop to bound.
+
+    The runtime is handed straight back, so the composition root gates on the way through rather
+    than holding an unchecked one for a statement. A refusal releases what that runtime already
+    holds before it raises, because the root's own shutdown hook is not armed until it returns.
+    """
+    if swap is None:
+        return swap
+    try:
+        bounds = await swap.host.control_bounds()
+    except ModelHostError as err:
+        _logger.warning(
+            "the model host could not be asked for its control bounds; the deadline pairing is "
+            "unchecked: deadline_s=%s error=%s",
+            deadline_s,
+            err,
+            extra={"deadline_s": deadline_s, "error": str(err)},
+        )
+        return swap
+    if bounds is None:
+        _logger.info(
+            "the model host reports no control bounds, so nothing bounds its stop to check "
+            "against: deadline_s=%s",
+            deadline_s,
+            extra={"deadline_s": deadline_s},
+        )
+        return swap
+    if bounds.clears(deadline_s):
+        _logger.info(
+            "the control deadline clears the model host's worst stop: deadline_s=%s worst_s=%s",
+            deadline_s,
+            bounds.worst_case_stop_s,
+            extra={"deadline_s": deadline_s, "worst_s": bounds.worst_case_stop_s},
+        )
+        return swap
+    msg = (
+        f"CORTEX_MODELHOST_TIMEOUT_S is {deadline_s} s and the model host's worst stop is "
+        f"{bounds.worst_case_stop_s} s (probe {bounds.probe_timeout_s} s, grace "
+        f"{bounds.stop_grace_s} s, reap {bounds.reap_timeout_s} s), so a control call would time "
+        "out on an eviction that was still working and abort the handoff that asked for it. "
+        "Raise the brain's deadline above that sum, or lower the sidecar's own bounds "
+        "(docs/runbooks/model-swap.md)"
+    )
+    _logger.error(msg, extra={"deadline_s": deadline_s, "worst_s": bounds.worst_case_stop_s})
+    await swap.close()
+    raise ControlDeadlineError(msg)
+
+
+async def recover_boot_residency(swap: SwapRuntime | None, clock: Clock) -> None:
+    """Fail a crash-stranded handoff, converge the GPU, and publish what it observed.
+
+    Boot recovery (ADR-0030 decision 4): a handoff cannot outlive its process, so any record a
+    crash left behind is failed and the GPU is converged back onto the cortex before the seam
+    serves its first turn. What it observed is published onto the manager (decision 6), because a
+    boot that could not settle the cortex must not leave the seam answering ready off the
+    manager's optimistic seed while every turn fails. Nothing here raises: a boot that cannot
+    reach the model host still serves, and the report is what says so.
+    """
+    if swap is None:
+        return
+    converged = await recover_handoffs(
+        swap.handoffs, swap.host, swap.plan, clock=clock, sleeper=AsyncioSleeper()
+    )
+    await swap.manager.publish_boot_residency(serving=converged)
 
 
 def swap_closer(swap: SwapRuntime | None) -> Callable[[], Awaitable[None]]:

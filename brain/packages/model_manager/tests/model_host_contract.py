@@ -24,7 +24,7 @@ implementation where nothing can be mid-load.
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
-from cortex_core import DeviceMemory, ModelHost, ModelHostState
+from cortex_core import ControlBounds, DeviceMemory, ModelHost, ModelHostState
 
 # Two ids, so the swap-shaped check can watch one go down as the other comes up. Both fixtures
 # declare exactly these.
@@ -43,6 +43,11 @@ class HostUnderTest:
     world-condition, added with the fit check: what the GPU this host supervises reports, or
     ``None`` for a host that can see none. ``aclose`` releases whatever the fixture built (the real
     adapter holds an HTTP client).
+
+    ``bounds`` is not a world-condition but a wiring fact: the timing each fixture built its host
+    with, which the host then has to report back. It is a field rather than a knob because these
+    three are env in the real deployment, fixed for the life of a container, so a setter would
+    model something that cannot happen.
     """
 
     host: ModelHost
@@ -50,6 +55,7 @@ class HostUnderTest:
     die: Callable[[str], None]
     card: Callable[[DeviceMemory | None], None]
     aclose: Callable[[], Awaitable[None]]
+    bounds: ControlBounds
 
 
 async def check_a_model_nobody_started_reports_stopped(subject: HostUnderTest) -> None:
@@ -173,6 +179,18 @@ async def check_a_host_with_a_card_reports_what_is_free_and_how_big_it_is(
     assert await subject.host.device_memory() == DeviceMemory(free_mib=20033, total_mib=24463)
 
 
+async def check_a_host_reports_the_control_bounds_it_was_wired_with(
+    subject: HostUnderTest,
+) -> None:
+    """All three terms of the pairing rule, off the host that was given them.
+
+    The composition root refuses to serve when their sum reaches the deadline it bounds a control
+    call with, so an implementation that reported the shipped defaults, or dropped the probe term
+    the other two cannot imply, would let a mispaired deployment through the one check there is.
+    """
+    assert await subject.host.control_bounds() == subject.bounds
+
+
 ALL_CHECKS: tuple[Callable[[HostUnderTest], Awaitable[None]], ...] = (
     check_a_model_nobody_started_reports_stopped,
     check_start_begins_a_load_and_is_idempotent,
@@ -183,4 +201,5 @@ ALL_CHECKS: tuple[Callable[[HostUnderTest], Awaitable[None]], ...] = (
     check_a_swap_leaves_only_the_model_it_swapped_in,
     check_a_host_with_no_card_reports_no_device_memory,
     check_a_host_with_a_card_reports_what_is_free_and_how_big_it_is,
+    check_a_host_reports_the_control_bounds_it_was_wired_with,
 )
