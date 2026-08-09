@@ -377,6 +377,95 @@ def test_main_fails_a_message_whose_fence_is_left_open(
     assert "code fence nothing closes" in capsys.readouterr().err
 
 
+# ── how far the paste exemption reaches ────────────────────────────────────────
+
+# The two shapes this repo's own gate commands carry: cargo's argument separator, which the
+# dash ban reads as punctuation, and a hash that really resolves.
+_SEPARATOR = "cargo llvm-cov -- --nocapture"
+
+
+@pytest.mark.parametrize(
+    "lines",
+    [
+        ["feat: subject", "```", _SEPARATOR, "```"],
+        ["feat: subject", "~~~bash", _SEPARATOR, "~~~"],
+        ["feat: subject", f"    $ {_SEPARATOR}"],
+    ],
+)
+def test_a_separator_inside_a_paste_is_not_punctuation(lines: list[str]) -> None:
+    # cargo's own argument separator, which no restructured sentence can remove.
+    assert commitlint.check_body_lines(lines, Path()) == []
+
+
+@pytest.mark.parametrize("dash", [EM, EN])
+def test_a_unicode_dash_inside_a_paste_is_exempt_too(dash: str) -> None:
+    # Verbatim output can carry one, and altering a paste is the failure the kind exemption
+    # exists to prevent; the exemption is keyed on the kind, never on the character.
+    lines = ["feat: subject", "```", f"error: expected {dash} found nothing", "```"]
+    assert commitlint.check_body_lines(lines, Path()) == []
+
+
+@pytest.mark.parametrize(
+    "lines",
+    [
+        ["feat: subject", _SEPARATOR],  # never fenced at all
+        ["feat: subject", "```", _SEPARATOR, "```", _SEPARATOR],  # after the fence closed
+        ["feat: subject", f"$ {_SEPARATOR}", _SEPARATOR],  # the prompt marks its own line
+    ],
+)
+def test_the_same_separator_outside_a_paste_still_fails(lines: list[str]) -> None:
+    # An exemption that outlives its block is the gate not holding.
+    (problem,) = commitlint.check_body_lines(lines, Path())
+    assert "a spaced ASCII --" in problem
+
+
+def test_a_dash_in_the_subject_is_never_pasted() -> None:
+    # Line 1 is the header: the fence toggle starts below it, so no message can exempt its own
+    # subject by opening a block. The fenced separator beside it is exempt, so this is one
+    # complaint rather than two.
+    lines = [f"feat: add the thing {EM} and more", "```", _SEPARATOR, "```"]
+    (problem,) = commitlint.check_body_lines(lines, Path())
+    assert "an em dash" in problem
+
+
+def test_an_unclosed_fence_is_still_reported_beside_the_prose_rules() -> None:
+    problems = commitlint.check_body_lines(["feat: subject", "```", _SEPARATOR], Path())
+    assert len(problems) == 1
+    assert "opens a code fence nothing closes" in problems[0]
+
+
+def test_a_volatile_reference_inside_a_paste_is_still_flagged() -> None:
+    # Not exempt, and deliberately: the ban is about the message still reading correctly once
+    # the thing it points at moves, which does not care who typed the pointer.
+    lines = ["docs: quote the record", "```", "grep -n 'ADR-0026' docs/adr/*.md", "```"]
+    (problem,) = commitlint.check_body_lines(lines, Path())
+    assert "decision-record number" in problem
+
+
+def test_a_resolving_hash_inside_a_paste_is_still_flagged(repo: Path) -> None:
+    sha = subprocess.run(  # noqa: S603 -- fixed argv, no shell
+        ["git", "-C", str(repo), "rev-parse", "--short", "HEAD"],  # noqa: S607 -- git on PATH
+        capture_output=True,
+        text=True,
+        check=True,
+        env=_clean_env(),
+    ).stdout.strip()
+    lines = ["docs: quote the record", "```", f"git show {sha}", "```"]
+    (problem,) = commitlint.check_body_lines(lines, repo)
+    assert "a rewrite invalidates it" in problem
+
+
+def test_main_passes_a_message_whose_fenced_paste_carries_a_separator(tmp_path: Path) -> None:
+    msg = _write(tmp_path, f"docs: record the run\n\nThe gate is:\n\n```\n{_SEPARATOR}\n```\n")
+    assert commitlint.main([msg, "--repo", str(tmp_path)]) == 0
+
+
+def test_classify_lines_marks_a_fence_and_its_contents() -> None:
+    classified, opened_at = commitlint.classify_lines(["feat: subject", "```", _SEPARATOR, "```"])
+    assert opened_at is None
+    assert [line.pasted for line in classified] == [False, True, True, True]
+
+
 # ── whole-message wiring ───────────────────────────────────────────────────────
 
 

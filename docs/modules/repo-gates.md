@@ -155,17 +155,23 @@ unit-tested core function). `composemounts.py` is the one module that is not a C
   fails, and `too_wide` exempts one whose longest word alone is over the wrap, since a URL, a
   path, or a long identifier has nowhere to break and demanding a rewrite that cannot exist
   would train authors to ignore the gate. Four 73-character lines reached master before this
-  landed, which is what it was added for. `check_widths` adds the two exemptions that turn on
-  the line's KIND rather than its width, which is why the wrap walks the message instead of
-  reading each line alone (ADR-0026's 2026-08-09 addendum): a line between two fences
-  (` ``` ` or `~~~`, an info string included) and a line whose first token is a bare `$` are
-  pastes, and moving a newline inside one changes what it says. A fence left open at the end of
-  the walk is a violation naming the line that opened it, since otherwise one stray fence
-  exempts every line after it while the gate still exits 0. A leading indent is deliberately
-  NOT a signal: all 9 four-space-indented lines in this repo's history are prose. A
+  landed, which is what it was added for. `classify_lines` is the one walk that decides a
+  line's KIND, pairing each line with whether it is a paste and reporting any fence left open
+  (ADR-0026's two 2026-08-09 addenda): a line between two fences (` ``` ` or `~~~`, an info
+  string included, the markers themselves counted as part of the block) and a line whose first
+  token is a bare `$` are pastes, and moving a newline inside one changes what it says. Line 1
+  is the header, prose by construction, so no message exempts its own subject. A fence left
+  open at the end of the walk is a violation naming the line that opened it, since otherwise
+  one stray fence exempts every line after it while the gate still exits 0. A leading indent is
+  deliberately NOT a signal: all 9 four-space-indented lines in this repo's history are prose. A
   `BREAKING CHANGE:` footer is not exempt either, being prose over a token no newline harms.
-  The exemption is width only: a fenced paste is still held to the three rules below, so a
-  bare `--` separator or a resolving hash inside one is still reported (a recorded deferral).
+  **A paste is exempt from the wrap and from the dash ban, and from nothing else**, the split
+  being what each rule is for: those two are about the text as typed and have no remedy inside
+  a paste (a reflowed command and a stripped `--` both say something else), while the
+  volatile-reference ban and the hash check are about the message still reading correctly after
+  what it points at moves, which does not care who typed the pointer and which keeps its remedy,
+  `git show <sha>` carrying everything the paste carried. So a fenced
+  `cargo llvm-cov -- --nocapture` passes and a fenced `git show` of a resolving hash does not.
   Across the WHOLE
   message (subject and body) it also bans a dash used as punctuation (em dash, en dash,
   spaced ASCII `--`, since a message is pure prose) and volatile references: a slice

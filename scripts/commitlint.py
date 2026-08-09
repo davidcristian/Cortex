@@ -21,12 +21,20 @@ Beyond the header, the whole message must satisfy three rules that apply to the 
 
 - **No dash as punctuation.** Em dash, spaced en dash, and spaced ASCII ``--`` are all
   banned, since a commit message is pure prose. Source files are laxer and keep ``--`` as
-  the inline-reason idiom; ``dashcheck.py`` owns that side.
+  the inline-reason idiom; ``dashcheck.py`` owns that side. A paste is exempt from this rule
+  as well as from the wrap, because the ban is on a dash used as PUNCTUATION and verbatim
+  text punctuates nothing: ``cargo llvm-cov -- --nocapture`` spells cargo's own argument
+  separator, and the rule's remedy, restructuring the sentence, does not exist for words the
+  author did not write.
 - **No volatile references.** A message must still read correctly once the planning docs
   move on, so it may not cite a slice number, a decision-record number, the roadmap, or
   any numbered pointer into a mutable doc. Commit hashes are checked against the object
   database, so only a hash that actually resolves is reported: a rewrite invalidates it,
-  and hex-looking strings that are not commits stay legal.
+  and hex-looking strings that are not commits stay legal. **A paste is not exempt from
+  either**, and that is the line the kind exemption stops at: this rule is about the message
+  still reading correctly after the thing it points at moves, which does not care who typed
+  the pointer, and its remedy survives a paste, since ``git show <sha>`` says what the paste
+  meant while a reflowed command does not.
 """
 
 import argparse
@@ -35,6 +43,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from typing import NamedTuple
 
 MAX_HEADER_LENGTH = 72
 
@@ -143,26 +152,52 @@ def is_pasted_command(line: str) -> bool:
     return _PROMPT.match(line) is not None
 
 
-def check_widths(lines: list[str]) -> list[str]:
+class Line(NamedTuple):
+    """One message line, paired with whether it is a paste rather than the author's prose."""
+
+    number: int
+    text: str
+    pasted: bool
+
+
+def classify_lines(lines: list[str]) -> tuple[list[Line], int | None]:
+    """Pair every line with its kind, and report the line an unclosed fence was opened on.
+
+    One walk answers for every rule that turns on a paste, because a fence is state no single
+    line carries and two walks would be two chances to disagree about where a block ends.
+    Line 1 is the header: it is prose by construction, since a subject cannot be a fence and
+    carries its own rules in ``check_header``, so the toggle starts below it. A fence marker
+    belongs to the block it delimits rather than to the prose around it, so it counts as a
+    paste too, which is what keeps its info string (```bash) out of the prose rules.
+    """
+    classified: list[Line] = []
+    opened_at: int | None = None
+    for number, text in enumerate(lines, start=1):
+        if number == 1:
+            classified.append(Line(number, text, pasted=False))
+        elif is_fence(text):
+            opened_at = None if opened_at is not None else number
+            classified.append(Line(number, text, pasted=True))
+        else:
+            pasted = opened_at is not None or is_pasted_command(text)
+            classified.append(Line(number, text, pasted=pasted))
+    return classified, opened_at
+
+
+def wrap_problems(classified: list[Line], opened_at: int | None) -> list[str]:
     """Return the wrap violations below the header, and an unclosed fence if one is left open.
 
-    The width rule is the only one here that turns on the line's KIND, so it walks the message
-    carrying the fence toggle rather than reading each line by itself. A fenced block and a
-    prompted paste say what they say because of where their newlines are, so the gate steps
-    over them instead of asking for a reflow that would change their meaning. A fence nobody
-    closes is a violation of its own: left silent, one stray fence would exempt every line
-    after it, which is the gate quietly ceasing to hold. Line 1 is the header, which carries
-    its own cap and its own sentence in ``check_header``, so one long subject is one complaint.
+    A fenced block and a prompted paste say what they say because of where their newlines are,
+    so the gate steps over them instead of asking for a reflow that would change their meaning.
+    A fence nobody closes is a violation of its own: left silent, one stray fence would exempt
+    every line after it, which is the gate quietly ceasing to hold.
     """
-    problems: list[str] = []
-    opened_at: int | None = None
-    for number, line in enumerate(lines[1:], start=2):
-        if is_fence(line):
-            opened_at = None if opened_at is not None else number
-        elif opened_at is None and not is_pasted_command(line) and too_wide(line):
-            problems.append(
-                f"line {number} is {len(line)} chars; AGENTS.md wraps the body at {MAX_BODY_WIDTH}"
-            )
+    problems = [
+        f"line {line.number} is {len(line.text)} chars; "
+        f"AGENTS.md wraps the body at {MAX_BODY_WIDTH}"
+        for line in classified
+        if line.number > 1 and not line.pasted and too_wide(line.text)
+    ]
     if opened_at is not None:
         problems.append(
             f"line {opened_at} opens a code fence nothing closes; "
@@ -171,22 +206,37 @@ def check_widths(lines: list[str]) -> list[str]:
     return problems
 
 
+def check_widths(lines: list[str]) -> list[str]:
+    """Return the wrap violations in a message, classifying its lines first."""
+    classified, opened_at = classify_lines(lines)
+    return wrap_problems(classified, opened_at)
+
+
 def check_body_lines(lines: list[str], repo: Path) -> list[str]:
-    """Return the width, dash, volatile-reference, and dangling-hash violations in a message."""
-    problems: list[str] = check_widths(lines)
-    for number, line in enumerate(lines, start=1):
-        for pattern, label in _DASHES:
-            if pattern.search(line):
-                problems.append(f"line {number} uses {label}; restructure the sentence")
+    """Return the width, dash, volatile-reference, and dangling-hash violations in a message.
+
+    The dash ban stops at a paste and the other two do not, which is the whole of the kind
+    exemption's reach: a dash inside a paste is not punctuation the author chose, while a
+    reference inside one goes stale on exactly the same rewrite as a reference outside it.
+    """
+    classified, opened_at = classify_lines(lines)
+    problems: list[str] = wrap_problems(classified, opened_at)
+    for number, text, pasted in classified:
+        if not pasted:
+            problems.extend(
+                f"line {number} uses {label}; restructure the sentence"
+                for pattern, label in _DASHES
+                if pattern.search(text)
+            )
         for pattern, label in _VOLATILE:
-            match = pattern.search(line)
+            match = pattern.search(text)
             if match is not None:
                 problems.append(
                     f"line {number} cites a {label} ({match.group(0)!r}); describe the substance"
                 )
         problems.extend(
             f"line {number} cites commit {token!r}; a rewrite invalidates it"
-            for token in _HEX.findall(line)
+            for token in _HEX.findall(text)
             if commit_exists(token, repo)
         )
     return problems
