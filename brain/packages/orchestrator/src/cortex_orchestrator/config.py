@@ -104,6 +104,7 @@ class InferenceConfig(BaseSettings):
     backend: InferenceBackendName = "echo"
     endpoint: str = ""
     vision: VisionMode = Field(default="auto", validation_alias="CORTEX_VISION")
+    stall_timeout_s: float = Field(default=120.0, gt=0)
 
     @model_validator(mode="after")
     def _llamacpp_needs_an_endpoint(self) -> "InferenceConfig":

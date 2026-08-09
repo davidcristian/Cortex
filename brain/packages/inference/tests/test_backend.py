@@ -202,6 +202,18 @@ async def test_transport_error_wraps_into_inference_error() -> None:
     assert isinstance(excinfo.value.__cause__, httpx.ConnectError)
 
 
+async def test_a_stalled_stream_is_named_apart_from_an_unreachable_server() -> None:
+    """The client's stall ceiling firing reads as its own failure, not as a dead server."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        msg = "timed out while reading the stream"
+        raise httpx.ReadTimeout(msg, request=request)
+
+    with pytest.raises(InferenceError, match=r"sent nothing for model 'cortex'") as excinfo:
+        await _collect(_backend(handler))
+    assert isinstance(excinfo.value.__cause__, httpx.ReadTimeout)
+
+
 async def test_unavailable_model_wraps_into_inference_error() -> None:
     # _content_handler never runs here: acquire('brain') raises before any request is made.
     with pytest.raises(InferenceError, match="could not lease 'brain'") as excinfo:

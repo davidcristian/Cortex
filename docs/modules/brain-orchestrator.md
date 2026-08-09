@@ -66,7 +66,11 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   `vision: "auto" | "on" | "off" = "auto"` (`CORTEX_VISION`, note the bare name rather than the
   prefix, ADR-0029) decides whether `capture_screen` is advertised: `auto` probes the running
   server, `on`/`off` fix the answer for CI, for a deterministic test, and for a user who
-  wants capture off without editing compose.
+  wants capture off without editing compose. `stall_timeout_s: float = 120.0`
+  (`CORTEX_INFERENCE_STALL_TIMEOUT_S`, positive, ADR-0005 stall-ceiling addendum) is how long
+  this tier's stream may send **nothing** before the adapter gives up: a gap between chunks, not
+  a cap on the generation, so it is sized from the worst measured time to first token (17.5 s
+  contended) scaled for the deep tier, which streams through this same client after a handoff.
 - `MemoryConfig` uses env prefix `CORTEX_MEMORY_` (ADR-0008): `backend: "none" | "pgvector" =
   "none"` (`CORTEX_MEMORY_BACKEND`), `dsn: str = ""` (`CORTEX_MEMORY_DSN`),
   `embedder_endpoint: str = ""` (`CORTEX_MEMORY_EMBEDDER_ENDPOINT`), `embedder_model: str`
@@ -189,6 +193,10 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   `SubagentRosterEntry` (`endpoint` required; `gpu_endpoint` empty falls back to it;
   per-entry `vram_gb`/`cpus`/`memory_gb`; `description` advertised verbatim, per ADR-0018, set
   by `docker/docker-compose.subagents-roster.yml`). A key naming the default is rejected.
+  `stall_timeout_s: float = 600.0` (`CORTEX_SUBAGENTS_STALL_TIMEOUT_S`, positive) is the pool's
+  own version of the resident tier's ceiling and is the loose one of the two: it covers a CPU
+  call's own time to first token at about 0.35 tok/s, twice the longest whole subtask measured
+  on the shipped entry (ADR-0005 stall-ceiling addendum).
   `named_roster` (property) synthesizes the ready-to-dial mapping, with the flat-field default
   first, alternates sorted, fallbacks applied; empty unless `backend="llamacpp"`. Every entry in
   it must fit the whole budget (`cpus <= cpu_budget` and `memory_gb <= mem_budget_gb`, equality
@@ -373,9 +381,17 @@ The service:
 - `build_inference_backend(config: InferenceConfig, cortex_model: str) -> tuple[InferenceBackend, Callable[[], Awaitable[None]]]`
   picks the backend from config and returns it with the coroutine that releases it:
   `EchoInferenceBackend` + a no-op closer, or `LlamaCppBackend` over a
-  `SingleResidentModelManager(cortex_model, endpoint)` + the httpx client's `aclose`
-  (short connect timeout, no read deadline). The uniform closer keeps `run_from_env`'s
-  shutdown path backend-agnostic.
+  `SingleResidentModelManager(cortex_model, endpoint)` + the httpx client's `aclose`. The uniform
+  closer keeps `run_from_env`'s shutdown path backend-agnostic.
+- `build_generation_client(stall_timeout_s: float) -> httpx.AsyncClient` is the one place a
+  llama-server generation client is built, shared by `build_inference_backend` and
+  `build_subagents` (ADR-0005 stall-ceiling addendum). Connect, write and pool answer to
+  `LLAMACPP_CONNECT_TIMEOUT_S` (10 s, one knob for every tier, a dead server being dead at the
+  same speed everywhere); the read phase takes the caller's per-tier ceiling. httpx applies that
+  read bound to **one socket read**, so it detects a stall rather than capping a generation, and
+  seam backpressure does not trip it (the credit bound suspends the reader between reads, never
+  inside one). It replaced a `read=None` that let one wedged stream hold a model lease, and a
+  subagent admission, indefinitely.
 - `build_history_window(runtime, *, sessions, backend, clock) -> HistoryWindow | None`
   (`window_builders.py`, split from `builders.py` for the line cap when the summarizing window
   arrived) is the turn's history window (ADR-0014, ADR-0038 decision 9). It takes the runtime

@@ -7,13 +7,16 @@ historical record of what each deferral became, and the index at [index.md](inde
 recommended pickup order.
 
 **Open items:** 5, counted by reading the entries below rather than by adjusting the last number.
-The Intel NPU as a third placement target, a bounded admission wait, a read timeout on the subagent
-HTTP client, the drain bound against a fired task's lease, and admission reopening onto a tier that
-would not restart. The subagent VRAM ask came and went inside two days: the cortex reservation's
-re-measurement on 2026-08-07 opened it, having closed nothing this count had ever carried (it had
-been deferred at two ADRs and recorded on no index), so the count went 5 to 6 for an arrival with no
-matching departure; measuring the tier on 2026-08-08 took it back to 5. Both moves are the honest
-shape of that history rather than a bookkeeping slip.
+The Intel NPU as a third placement target, a bounded admission wait, the drain bound against a
+fired task's lease, admission reopening onto a tier that would not restart, and a total generation
+cap. The number is unmoved and the set is not: the read timeout on the subagent HTTP client landed
+2026-08-09 and opened the total generation cap in the same pass, one out and one in, which is the
+shape this file's own warning is about (a count that agrees with its header proves nobody
+miscounted and nothing else). Before that, the subagent VRAM ask came and went inside two days: the
+cortex reservation's re-measurement on 2026-08-07 opened it, having closed nothing this count had
+ever carried (it had been deferred at two ADRs and recorded on no index), so the count went 5 to 6
+for an arrival with no matching departure; measuring the tier on 2026-08-08 took it back to 5. All
+three moves are the honest shape of that history rather than a bookkeeping slip.
 
 **Resource governance in Slice 8.5 ([ADR-0012](../adr/ADR-0012-resource-governance.md)):** each behind
 the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
@@ -328,9 +331,50 @@ the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
   what the GPU is serving, for the seam's `Health` to answer with (`residency_state.py`), and it is
   deliberately narrow: it carries no per-tier state at all, so there is still nothing for a placer
   to read. Widening it is the same shape of change it always was, now with a place to put it.
-- **A read timeout on the subagent HTTP client.** *Fix when it bites.* The actual unbounded-wait
-  hazard under the admission budget: `build_subagents` builds
-  `httpx.Timeout(LLAMACPP_CONNECT_TIMEOUT_S, read=None)`, so one wedged `llama-server` stream holds
-  its admission forever and every queued peer waits behind it. `read=None` is deliberate (a
-  generation may legitimately stream for minutes on CPU), so the fix is a generous per-stream
-  ceiling, not a short one, and it belongs to the inference adapter (ADR-0005), not the scheduler.
+- **A read timeout on the subagent HTTP client landed 2026-08-09, on two clients rather than the
+  one this entry named ([ADR-0005 stall-ceiling addendum](../adr/ADR-0005-llamacpp-engine.md),
+  recorded at the [ADR-0012 read-timeout addendum](../adr/ADR-0012-resource-governance.md)).**
+  The entry read: "*Fix when it bites.* The actual unbounded-wait hazard under the admission
+  budget: `build_subagents` builds `httpx.Timeout(LLAMACPP_CONNECT_TIMEOUT_S, read=None)`, so one
+  wedged `llama-server` stream holds its admission forever and every queued peer waits behind it.
+  `read=None` is deliberate (a generation may legitimately stream for minutes on CPU), so the fix
+  is a generous per-stream ceiling, not a short one, and it belongs to the inference adapter
+  (ADR-0005), not the scheduler." Every word of that held except the count. **There were two
+  unbounded clients, not one**, and the second is the one that matters most: the resident tier's
+  (`builders.build_inference_backend`) carried the same `read=None`, and after a handoff the deep
+  model streams through that very object, so the site this entry missed serves the slowest model
+  in the lineup. Both are now built by `builders.build_generation_client`, and the reason the
+  entry could miss it is that `builders.py` documented the policy as shared ("one knob") while
+  naming only the connect phase.
+  The ceiling is what the entry asked for, generous and per stream, and it is **two** numbers
+  rather than one: `CORTEX_INFERENCE_STALL_TIMEOUT_S` 120 s and `CORTEX_SUBAGENTS_STALL_TIMEOUT_S`
+  600 s, because the worst legitimate silence differs by an order of magnitude between the tiers
+  and one number would have to be the loose one, parking a wedged cortex turn for the CPU pool's
+  whole allowance. The derivations are measurements: 17.5 s of contended time to first token
+  scaled by the deep tier's own cost for the first, and twice the 300 s upper end of a measured
+  whole CPU subtask for the second. What the entry could not have known, because the runbook note
+  postdates it, is that the pool's wire queue is shorter than its admission queue: a backend holds
+  its lease for the whole stream, so spawns of one entry on one target are serial **brain side**,
+  ahead of the request, and this ceiling covers one call's own first token rather than a peer's
+  generation. The semantics are the part worth repeating: httpx applies a read timeout to one
+  socket read, so this bounds the **gap between chunks** and never a generation's length, and seam
+  backpressure does not trip it.
+- **A total generation cap, for the subagent that keeps talking.** *Fix when it bites.* Opened
+  2026-08-09 by the close above, whose ceiling cannot see this: a stall detector fires on silence,
+  and a model in a repetition loop is never silent. Nothing in the shipped wiring bounds a
+  delegated generation's length (`n_predict: -1`, no `max_tokens` on the subagent path), so a
+  runaway subagent holds its admission and its entry's lease exactly as the wedged stream used to,
+  and at the CPU tier's 0.35 tok/s it can do so for a very long time while looking healthy the
+  whole way. **The trigger is the first delegated run observed running away**, which nothing has
+  seen yet; that it has not been seen is why this is recorded rather than built, since a cap set
+  without one measured runaway would be a guess about how long a legitimate answer is, and the
+  cost of guessing low is a truncated reply on every long subtask. Two shapes, and only one of
+  them is cheap: a **token** cap is expressible today, `GenerationBounds.max_tokens` already
+  riding the `InferenceBackend` port and already used by the recap fold, so it is a value threaded
+  from `SubagentsConfig` through the runner; a **wall-clock** cap is not, needing the same timeout
+  design and injected `Clock` as the bounded admission wait above, and it is the one that would
+  actually bound the pool's worst case, a token budget on a 0.35 tok/s tier still being minutes.
+  Its origin decision is the [ADR-0005 stall-ceiling addendum](../adr/ADR-0005-llamacpp-engine.md),
+  which declined it deliberately: converting an unbounded wait into a bounded reported failure is
+  a transport concern, while capping how much a model may say is a policy about answers, and
+  mixing the two would have shipped an unmeasured number inside a fix that needed none.

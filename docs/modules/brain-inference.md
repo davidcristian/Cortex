@@ -52,8 +52,14 @@ that would forbid the adapter from importing them.
      chunk's `choices` are, so a build closing on `{"choices": []}` is still heard. The event is
      emitted after the text it describes, a rate being unknowable before the tokens are counted.
   - The injected `http_client` owns timeouts/transport (the adapter sets none itself because a
-    generation may legitimately stream for a long time; the composition root gives it a
-    short connect timeout and no read deadline).
+    generation may legitimately stream for a long time; the composition root gives it a short
+    connect timeout and a generous **per-read stall ceiling**, ADR-0005 stall-ceiling addendum).
+    That ceiling bounds the gap between SSE chunks and never the request, so a reply that keeps
+    arriving is never cut off however long it runs, while one that stops arriving fails instead
+    of parking the model lease forever. It is sized per tier by the root
+    (`CORTEX_INFERENCE_STALL_TIMEOUT_S` 120 s for the resident and deep models,
+    `CORTEX_SUBAGENTS_STALL_TIMEOUT_S` 600 s for the CPU pool), and it has to clear the worst
+    legitimate **time to first token**, which is the longest silence a healthy server produces.
 
 **A non-2xx quotes the server.** `raise_for_status` alone would report a bare status, because
 the response is streamed and its body is never read, which makes the most likely
@@ -72,7 +78,10 @@ with the cause chained:
 
 - a `ModelManager` failure (e.g. `ModelUnavailableError` for a non-resident model) is
   caught as `ModelManagerError` and re-raised, so the core sees only `InferenceError`;
-- any transport or non-2xx status is caught as `httpx.HTTPError` and re-raised;
+- any transport or non-2xx status is caught as `httpx.HTTPError` and re-raised, with
+  `_transport_failure` naming a **stall** apart from a dead server: an `httpx.ReadTimeout` means
+  the client's ceiling fired on a server that took the request and then went quiet, which sends
+  an operator somewhere else entirely than "nothing answered" does;
 - a malformed streaming chunk (bad JSON, unexpected shape, non-string content) or a
   tool call whose accumulated arguments are not valid JSON raises `InferenceError`
   directly, since a silently skipped chunk would drop reply text or a tool call, the same

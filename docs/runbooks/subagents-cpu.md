@@ -40,6 +40,16 @@ CORTEX_SUBAGENTS_CPUS`, the effective admission concurrency under the ADR-0012 s
 the budget: an entry that could never be admitted now fails the brain at startup rather than at
 delegation time (ADR-0012 admission-wall addendum).
 
+> **A silent delegated stream is bounded, a slow one is not.**
+> `CORTEX_SUBAGENTS_STALL_TIMEOUT_S` (default 600 s) is how long a subagent's stream may send
+> **nothing** before the spawn fails with a message rather than holding its admission and every
+> queued peer behind it. It bounds the gap between chunks and never the length of a generation,
+> so raising `CORTEX_SUBAGENT_CTX_SIZE` or handing a subagent a long file does not need it
+> raised; a slower CPU than this one might. The default is twice the longest whole subtask
+> measured here, the CPU tier being the slow one on purpose (ADR-0005 stall-ceiling addendum).
+> A subagent that keeps *talking* is a different failure and is bounded by nothing yet
+> ([refinements/resource-governance.md](../refinements/resource-governance.md)).
+
 > **Admitted is not the same as concurrent.** Each roster entry holds one `LlamaCppBackend` per
 > placement target, and a backend holds its model lease for the whole stream, so two spawns of the
 > *same* entry on the same target run one after the other however many the budget admits. Measured

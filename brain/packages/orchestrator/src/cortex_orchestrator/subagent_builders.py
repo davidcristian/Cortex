@@ -24,7 +24,7 @@ from cortex_core import (
     UngatedToolRegistry,
 )
 from cortex_inference import LlamaCppBackend
-from cortex_orchestrator.builders import LLAMACPP_CONNECT_TIMEOUT_S, noop_aclose
+from cortex_orchestrator.builders import build_generation_client, noop_aclose
 from cortex_orchestrator.config_subagents import SubagentRosterEntry, SubagentsConfig
 from cortex_session import RedisTaskStore
 from cortex_tools import LoggingAuditSink
@@ -68,7 +68,7 @@ async def build_subagents(
     """The `spawn_subagents` tool, or None when delegation is disabled (ADR-0010/0012/0018)."""
     if config.backend == "none":
         return None, None, noop_aclose
-    client = httpx.AsyncClient(timeout=httpx.Timeout(LLAMACPP_CONNECT_TIMEOUT_S, read=None))
+    client = build_generation_client(config.stall_timeout_s)
     scheduler = ResourceBudgetScheduler(config.cpu_budget, config.mem_budget_gb)
     roster = SubagentRoster(
         entries={

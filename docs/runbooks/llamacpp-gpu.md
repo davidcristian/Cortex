@@ -27,6 +27,7 @@ design, AGENTS.md gate 3).
 | `CORTEX_IMAGE_MAX_TOKENS` | how many tokens one picture may occupy, and with it how much of a 4K screen the cortex can read. `1024` is the default, paired with `CORTEX_BODY_CAPTURE_MAX_EDGE=2048` on the brain; `0` hands the budget back to the model, which is the 266-token view that reads 13% of a 4K screen. See the legibility section below before changing it, and never set llama.cpp's `--image-max-tokens` by hand instead | `1024` |
 | `CORTEX_CTX_SIZE` | context window (KV size); **set it**. The model default (262144) alone eats ~8 GB | `16384` |
 | `CORTEX_NGL` | GPU layers to offload: `99` = all, `0` = CPU-only, partial = hybrid (ADR-0004 addendum) | `99` |
+| `CORTEX_INFERENCE_STALL_TIMEOUT_S` | **on the brain**: how long a resident or deep tier stream may send nothing before the turn fails. It bounds the gap between chunks, **never** the length of a generation, so a long answer is never cut off; size it above the worst legitimate time to first token, not above the longest reply. The default clears the 17.5 s a contended cortex took to its first token here with room for the deep tier, which streams through the same client after a handoff (ADR-0005 stall-ceiling addendum) | `120` |
 
 The brain-side logical id stays `CORTEX_MODEL_CORTEX=cortex` (ADR-0004); the adapter never
 sees the filename. Only the `model-host` sidecar does, which is where these variables are read

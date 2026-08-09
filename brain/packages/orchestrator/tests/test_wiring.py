@@ -18,6 +18,7 @@ from mcp.types import CallToolResult, ListToolsResult, TextContent, Tool
 from redis.asyncio import Redis
 
 import cortex_orchestrator.builders as builders_module
+import cortex_orchestrator.subagent_builders as subagent_builders_module
 from cortex_body_client import GrpcBodyGateway
 from cortex_core import (
     CAPTURE_SCREEN_TOOL_NAME,
@@ -32,6 +33,7 @@ from cortex_core import (
     EchoInferenceBackend,
     GenerationBounds,
     GlobalMemoryScope,
+    InferenceError,
     InferenceEvent,
     InMemoryBodyGateway,
     InMemorySessionStore,
@@ -204,6 +206,52 @@ async def test_build_inference_backend_selects_llamacpp_and_returns_a_closer() -
     backend, close = build_inference_backend(config, "cortex")
     assert isinstance(backend, LlamaCppBackend)
     await close()  # releases the httpx client
+
+
+async def test_the_generation_client_bounds_every_phase_including_the_read() -> None:
+    """The founding client passed ``read=None``, which is the wait nothing else bounded."""
+    client = builders_module.build_generation_client(45.5)
+    try:
+        assert client.timeout == httpx.Timeout(connect=10.0, read=45.5, write=10.0, pool=10.0)
+    finally:
+        await client.aclose()
+
+
+@asynccontextmanager
+async def _wedged_llama_server() -> AsyncGenerator[str]:
+    """A loopback server that answers with the SSE headers and then never sends a chunk."""
+    stop = asyncio.Event()
+
+    async def serve_wedged(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        await reader.readline()  # the request line; the small body needs no draining
+        writer.write(b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n\r\n")
+        await writer.drain()
+        await stop.wait()  # hold it open, sending nothing, until the test tears the server down
+        writer.close()
+
+    server = await asyncio.start_server(serve_wedged, "127.0.0.1", 0)
+    port = cast("int", server.sockets[0].getsockname()[1])
+    try:
+        yield f"http://127.0.0.1:{port}"
+    finally:
+        stop.set()
+        server.close()
+        await server.wait_closed()
+
+
+async def test_a_wedged_llama_server_fails_the_stream_instead_of_waiting_forever() -> None:
+    """End to end over a real socket: the configured ceiling reaches the wire and fires there."""
+    async with _wedged_llama_server() as endpoint:
+        config = InferenceConfig(backend="llamacpp", endpoint=endpoint, stall_timeout_s=0.25)
+        backend, close = build_inference_backend(config, "cortex")
+        try:
+            turn = Message(role=Role.USER, text="hello", at=datetime.now(UTC), turn_id="t-1")
+            async with asyncio.timeout(10.0):
+                with pytest.raises(InferenceError, match="sent nothing for model 'cortex'"):
+                    async for _event in backend.stream("cortex", [turn]):
+                        pass  # a wedged server streams nothing, so this body never runs
+        finally:
+            await close()
 
 
 async def test_build_memory_defaults_to_disabled() -> None:
@@ -504,6 +552,35 @@ def _roster_config() -> SubagentsConfig:
             )
         },
     )
+
+
+async def test_build_subagents_dials_its_llama_servers_under_its_own_stall_ceiling(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The pool's ceiling is the subagents' own number, not the resident tier's."""
+    seen: list[float] = []
+
+    def spy(stall_timeout_s: float) -> httpx.AsyncClient:
+        seen.append(stall_timeout_s)
+        return builders_module.build_generation_client(stall_timeout_s)
+
+    monkeypatch.setattr(subagent_builders_module, "build_generation_client", spy)
+    _spawn, _scheduler, close = await build_subagents(
+        SubagentsConfig(
+            backend="llamacpp",
+            endpoint="http://llama-subagent-cpu:8082",
+            gpu_endpoint="http://llama-subagent-gpu:8083",
+            stall_timeout_s=333.0,
+        ),
+        None,
+        "redis://sub:6379/0",
+        SystemClock(),
+        placer=VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.3),
+        task_store_factory=_fake_task_store,
+    )
+    await close()
+    # One client for the whole roster, built once with the configured seconds.
+    assert seen == [333.0]
 
 
 async def test_build_subagents_builds_the_config_roster_and_advertises_it() -> None:

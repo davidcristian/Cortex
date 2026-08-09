@@ -46,10 +46,17 @@ from cortex_tools import (
     streamable_http_session,
 )
 
-# Connect/write/pool time out fast on a dead server; reads have no deadline, since a
-# generation may legitimately stream for a long time (the adapter sets no timeout itself).
-# Public: `subagent_builders` dials its llama-servers with the same policy (one knob).
+# Connect/write/pool time out fast on a dead server, one knob for every tier: a dead server is
+# dead at the same speed everywhere. The read phase is the factory's argument, not this.
 LLAMACPP_CONNECT_TIMEOUT_S = 10.0
+
+
+def build_generation_client(stall_timeout_s: float) -> httpx.AsyncClient:
+    """The client a llama-server generation stream rides (ADR-0005 stall-ceiling addendum)."""
+    return httpx.AsyncClient(
+        timeout=httpx.Timeout(LLAMACPP_CONNECT_TIMEOUT_S, read=stall_timeout_s)
+    )
+
 
 _logger = logging.getLogger(__name__)
 
@@ -72,7 +79,7 @@ def build_inference_backend(
 ) -> tuple[InferenceBackend, Callable[[], Awaitable[None]]]:
     """Pick the backend from config; return it with the coroutine that releases it."""
     if config.backend == "llamacpp":
-        client = httpx.AsyncClient(timeout=httpx.Timeout(LLAMACPP_CONNECT_TIMEOUT_S, read=None))
+        client = build_generation_client(config.stall_timeout_s)
         leases = (
             manager
             if manager is not None
