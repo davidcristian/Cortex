@@ -38,10 +38,15 @@
 #   CORTEX_SUBAGENTS_ADMISSION_WAIT_S  how long a spawn may QUEUE for room under the budgets
 #                              below before it is refused instead of waiting for room forever
 #                              (ADR-0012 bounded-admission-wait addendum). Also left to the
-#                              brain's own default, which is twice the wait the last spawn of a
-#                              full batch takes under exactly these budgets, so raising
-#                              CPU_BUDGET or lowering CPUS shortens the real waits and never
-#                              needs this raised; queuing two full batches at once does
+#                              brain's own default, an upper bound over both placements: twice
+#                              the wait a full batch's last spawn takes while an entry's
+#                              admitted pair serializes on one target, four times the wait it
+#                              takes while that pair overlaps, which is what these budgets ship
+#                              beside the VRAM ask below. Raising CPU_BUDGET or lowering CPUS
+#                              shortens the real waits and never needs this raised; queuing two
+#                              full batches at once needs it raised only where the GPU path is
+#                              shut, the overlapping placement draining that queue inside the
+#                              default and the serial one not
 
 services:
   brain:

@@ -505,8 +505,9 @@ async def test_the_spec_omits_the_model_knob_when_subagents_hold_tools() -> None
     spec = _spec_of(SubagentRunner(store, roster, FixedClock(), tools=dispatcher))
     assert _model_property(spec) is None
     assert "default subagent model" in spec.description
-    # One model available means the subtasks share its backend and serialize; the note says so
-    # rather than leaving the blanket parallel impression (ADR-0012 addendum).
+    # One model available leaves no spread to advertise, so the note says the batch groups
+    # independent work rather than leaving the blanket parallel impression; its "one after another"
+    # understates the admitted pair's two-way overlap on purpose (ADR-0012 addendum).
     assert "run one after another" in spec.description
     assert "rather than running them in parallel" in spec.description
 
@@ -517,7 +518,7 @@ async def test_the_spec_omits_the_model_knob_for_a_single_entry_roster() -> None
     spec = _spec_of(_runner(store, EchoInferenceBackend(), "subagent"))
     assert _model_property(spec) is None
     assert "default subagent model" in spec.description
-    assert "run one after another" in spec.description  # single entry serializes too
+    assert "run one after another" in spec.description  # single entry, same conservative wording
 
 
 async def test_the_spec_advertises_the_batch_cap() -> None:

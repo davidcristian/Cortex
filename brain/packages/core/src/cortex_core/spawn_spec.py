@@ -56,7 +56,9 @@ _CHOICE_NOTE = (
     "read untrusted external content the robust default model is enforced regardless of the pick."
 )
 # Tools-enabled or a one-entry roster: every spawn runs on the one default model (ADR-0017 rule
-# 2b pins it), so no knob is advertised and, sharing one backend lease, the subtasks serialize.
+# 2b pins it), so no knob is advertised and the batch has no spread left to reach for. The note
+# carries the same conservative wording as the choice note above, understating the admitted pair's
+# two-way overlap rather than promising a speedup this wiring cannot give.
 _PINNED_NOTE = (
     " Every subtask runs on the deployment's default subagent model, so subtasks share its one "
     "backend and run one after another, a batch that groups independent subtasks rather than "
