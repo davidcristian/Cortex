@@ -927,3 +927,44 @@ Every test that can queue is wrapped in an `asyncio.timeout(10)`, because the de
 an unbounded wait and a mutation that hangs the suite proves nothing. That wrapper is itself
 witnessed: the first row's run took **139 s** against the suite's usual **98 s**, which is those
 four tests reaching their guard and failing rather than the run never ending.
+
+## Addendum (2026-08-09): `SubagentPlacer` learns that a target can be absent, not only full
+
+The companion to the co-residency-era addendum above, which taught this port *which residency* it
+is fit-testing against. That one is arithmetic: a handoff makes the card smaller and the resident
+term says so. This one is not arithmetic at all, and the distinction is the whole reason it is a
+second pair of verbs rather than a cleverer number.
+
+**The failure.** Restarting each `CORTEX_SWAP_EVICT_MODELS` tier after a brain handoff is
+deliberately best effort (ADR-0030 decision 4), so a peer that will not come back is logged and
+swallowed, and admission then reopens onto a `llama-server` that is not running. Every GPU-placed
+spawn afterwards dials a dead endpoint, fails at its backend, and is re-run on the CPU by the
+re-place this ADR's own addendum landed: correct, honest, and paying two loads to learn what the
+swap back already knew. The full argument, the down-versus-evicted rule, and what clears the
+record live at the ADR-0030 tier-outage addendum; what belongs here is the port.
+
+**The decision.** `SubagentPlacer` gains `close_gpu()` and `open_gpu()`, both sync and idempotent.
+While closed, `place` **must** answer CPU for every request without consulting the headroom.
+Neither verb moves the placed ledger, so a spawn placed before a close still releases the same
+amount after it, and an implementation with no GPU target of its own may make both no-ops, which
+is the same honest degenerate form the charge pair already allows.
+
+**Why not express it as a charge.** Two reasons, and the second is the one that would have bitten.
+A resident charged large enough to crowd the soft cap out would make the placer report "no room"
+where the truth is "no server", which is a lie a future reader would have to reverse-engineer. And
+the handoff pair heals itself: `charge_standing` fires whenever the cortex is serving again, so a
+tier outage encoded as a charge would be silently reopened by the next successful swap back. The
+two pairs are independent by contract, and `test_a_handoff_charge_does_not_reopen_a_closed_gpu`
+pins exactly that.
+
+**Why the placer keeps one bit while the record keeps one entry per tier.** The brain has no
+declared mapping from a hosted tier id to the GPU endpoint a roster entry dials, so the placer
+cannot skip *a* tier, only *the* GPU. The record behind it is per tier because that is what an
+operator reads and what the retry acts on. The conservative direction is the right one: over
+refusing the GPU costs decode rate, under refusing costs a dead load per spawn.
+
+**One implementation, one contract suite.** `VramBudgetPlacer` is still the only `SubagentPlacer`
+in the repo, and `test_placer.py` is where the port's checks live, so the new verbs are pinned
+there beside the old ones and exercised end to end in the core's `test_residency_tiers.py`, where
+a real residency scope is what writes them. Distrust green: consulting the headroom before the
+closed flag in `place` reddens 7 tests across two packages, two of them in `test_placer.py`.

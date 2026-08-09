@@ -41,16 +41,24 @@ class VramBudgetPlacer:
         # figure survives the window and can be charged again on the way out.
         self._resident_gb = cortex_reservation_gb
         self._placed_gb = 0.0
+        # Whether the tier a GPU placement lands on is believed to be running. Not arithmetic and
+        # deliberately not expressed as arithmetic (a resident charged large enough to crowd the
+        # cap out would say "no room" where the truth is "no server"), so it is its own bit,
+        # written by ``residency_tiers.py`` and read before the headroom is computed at all.
+        self._gpu_closed = False
 
     def place(self, request: PlacementRequest) -> Placement:
         """Reserve on GPU when it fits the headroom, else spill to CPU (reserving nothing).
 
         Headroom is ``soft_cap - resident - placed``; the boundary is inclusive, so a spawn that
         exactly fills the remaining headroom still lands on GPU. Whole-model only -- never a
-        partial GPU+CPU straddle for a 2-4B (verified worst-of-both-worlds, ADR-0012).
+        partial GPU+CPU straddle for a 2-4B (verified worst-of-both-worlds, ADR-0012). A closed
+        GPU short-circuits all of that: there is nowhere for a GPU placement to run, so the
+        headroom is not even consulted and the spawn goes straight to the CPU it would otherwise
+        reach only after a failed attempt and a re-run.
         """
         headroom = self._soft_cap_gb - self._resident_gb - self._placed_gb
-        if request.vram_gb <= headroom:
+        if not self._gpu_closed and request.vram_gb <= headroom:
             self._placed_gb += request.vram_gb
             return Placement(target=PlacementTarget.GPU, reserved_gb=request.vram_gb)
         return Placement(target=PlacementTarget.CPU, reserved_gb=0.0)
@@ -88,3 +96,18 @@ class VramBudgetPlacer:
         residency scope's exit does on every path it can take.
         """
         self._resident_gb = self._cortex_reservation_gb
+
+    def close_gpu(self) -> None:
+        """Stop placing on the GPU: the tier a GPU placement lands on is not running.
+
+        Separate from the charge pair on purpose (ADR-0030 tier-outage addendum). A handoff makes
+        the card smaller and the arithmetic is the honest way to say so; a tier that would not
+        restart makes the card *unreachable* for spawns, which no number about free memory
+        expresses. Keeping them apart is also what lets a handoff run its own charge and reversal
+        while a tier is down without either edge quietly reopening the GPU.
+        """
+        self._gpu_closed = True
+
+    def open_gpu(self) -> None:
+        """Place on the GPU again, once the standing residency is whole (idempotent)."""
+        self._gpu_closed = False

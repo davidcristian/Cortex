@@ -15,6 +15,7 @@ because they carry the stream's own confirmer and progress sink.
 
 import logging
 from collections.abc import Awaitable, Callable
+from contextlib import AsyncExitStack
 from dataclasses import dataclass
 
 import httpx
@@ -30,6 +31,7 @@ from cortex_core import (
     Sleeper,
     SubagentPlacer,
     SwappingModelManager,
+    TierHealer,
     recover_handoffs,
 )
 from cortex_model_manager import HttpModelHost
@@ -52,12 +54,18 @@ class SwapRuntime:
     ``manager`` is both the GPU lease (the ``ModelManager`` the inference backend leases
     through) and the residency scope the conductor drives, which is exactly why it must be the
     same object in both roles: a swap that did not hold the lease would preempt a live round.
+
+    ``healer`` is the one background loop this capability owns: it retries the peer tiers a swap
+    back could not restart (ADR-0030 tier-outage addendum). It is started by boot recovery and
+    stopped by ``close``, rather than by two more lines at a composition root already at its line
+    cap, which is also why it owns its own task.
     """
 
     host: ModelHost
     manager: SwappingModelManager
     handoffs: HandoffStore
     plan: ResidencyPlan
+    healer: TierHealer
     close: Callable[[], Awaitable[None]]
 
 
@@ -90,12 +98,15 @@ def build_swap_runtime(  # noqa: PLR0913 -- one more injected collaborator than 
     host, close_host = _build_model_host(swap, plan)
     endpoints = {plan.cortex_model: inference.endpoint, plan.brain_model: swap.brain_endpoint}
     handoffs = handoff_store_factory(runtime.redis_url)
+    manager = SwappingModelManager(host, endpoints, plan, clock, sleeper, placer)
+    healer = TierHealer(manager.heal_standing_tiers, interval_s=swap.swap_tier_heal_s)
     return SwapRuntime(
         host=host,
-        manager=SwappingModelManager(host, endpoints, plan, clock, sleeper, placer),
+        manager=manager,
         handoffs=handoffs,
         plan=plan,
-        close=_release_both(handoffs.aclose, close_host),
+        healer=healer,
+        close=_release_all(healer.aclose, handoffs.aclose, close_host),
     )
 
 
@@ -205,6 +216,11 @@ async def recover_boot_residency(swap: SwapRuntime | None, clock: Clock) -> None
     boot that could not settle the cortex must not leave the seam answering ready off the
     manager's optimistic seed while every turn fails. Nothing here raises: a boot that cannot
     reach the model host still serves, and the report is what says so.
+
+    The tier retry loop starts here too, at the one moment residency is as settled as this
+    process can make it, and deliberately after the publish: a pass that ran first would be
+    retrying against beliefs the boot seed had not replaced yet. Nothing is ever marked missing
+    at boot, so the loop's first passes ask the host nothing at all.
     """
     if swap is None:
         return
@@ -212,6 +228,7 @@ async def recover_boot_residency(swap: SwapRuntime | None, clock: Clock) -> None
         swap.handoffs, swap.host, swap.plan, clock=clock, sleeper=AsyncioSleeper()
     )
     await swap.manager.publish_boot_residency(serving=converged)
+    swap.healer.start()
 
 
 def swap_closer(swap: SwapRuntime | None) -> Callable[[], Awaitable[None]]:
@@ -219,15 +236,19 @@ def swap_closer(swap: SwapRuntime | None) -> Callable[[], Awaitable[None]]:
     return noop_aclose if swap is None else swap.close
 
 
-def _release_both(
-    store: Callable[[], Awaitable[None]], host: Callable[[], Awaitable[None]]
-) -> Callable[[], Awaitable[None]]:
-    """Release the handoff store and the model host's client, the second even if the first fails."""
+def _release_all(*releases: Callable[[], Awaitable[None]]) -> Callable[[], Awaitable[None]]:
+    """Run every release in the order given, each one even if an earlier one failed.
+
+    The order is the reverse of what the runtime acquired: the retry loop is stopped before the
+    store and the client it spends are closed, or a pass in flight would find a closed client.
+    The stack gives exactly the semantics the nested ``try``/``finally`` this replaces had for
+    two, so a release that raises still leaves the rest to run and does not become a shutdown
+    that stopped halfway.
+    """
 
     async def close() -> None:
-        try:
-            await store()
-        finally:
-            await host()
+        async with AsyncExitStack() as stack:
+            for release in reversed(releases):
+                stack.push_async_callback(release)
 
     return close

@@ -140,11 +140,19 @@ class BrainService(SessionRpcMixin, PreferenceRpcMixin, BrainServiceServicer):
         queue behind the swap it is reporting on. With no residency wired (escalation off, the
         default) nothing can make the brain not-ready and the answer is the unconditional ready
         it has always been.
+
+        A **serving** report may carry a detail too, and when it does that detail wins over this
+        server's version string: the standing residency is the cortex plus the peer tiers a
+        handoff evicts, so it can be whole enough to serve turns and still be missing one of them
+        (ADR-0030 tier-outage addendum). Saying so under a green dot is the honest reading, since
+        delegated work is running somewhere slower and nothing else on the seam would mention it.
         """
         del request, context  # part of the generated servicer signature; unused here
         report = None if self._residency is None else self._residency.residency()
         if report is not None and not report.serving:
             return HealthReply(ready=False, detail=report.detail)
+        if report is not None and report.detail:
+            return HealthReply(ready=True, detail=report.detail)
         return HealthReply(ready=True, detail=f"cortex-orchestrator {ORCHESTRATOR_VERSION}")
 
     async def Converse(  # noqa: N802 - method name is fixed by the gRPC codegen interface

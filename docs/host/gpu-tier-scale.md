@@ -618,6 +618,15 @@ the first time: co-residency and the NPU feasibility pass. They stay in that bac
 cost. See the last section of [index.md](index.md). **Co-residency was settled 2026-08-07**, by the
 agent in Docker rather than in a host sitting, and the NPU pass is what is left of this list.
 
+One more joined that list on 2026-08-09, from the pass that made a peer tier's failed restart a
+record the placer and the seam read (ADR-0030's tier-outage addendum): **the reopen branch, where
+a retry pass observes a real tier `ready` again and GPU placement resumes.** Its failure side was
+witnessed against the real sidecar over real HTTP that day, including a tier the daemon refuses
+outright and one that accepts a start and dies; what needs a loadable GGUF, and so needs the model
+drive mounted, is a tier that genuinely comes back. It is one `docker run` of `model-host` with a
+real artifact named and a few lines driving `retry_missing`, so it belongs to whichever session
+next has the mount rather than to a host sitting.
+
 Three more used to be listed here, on the premise that no card the agent has can run the cortex:
 the spontaneous-pick nudge's live uptake and the model passes behind session-history summarization
 and the reranker. Corrected 2026-07-19, since the dev GPU does run the cortex at 4K. What this

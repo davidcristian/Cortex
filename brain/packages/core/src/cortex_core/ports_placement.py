@@ -32,6 +32,19 @@ class SubagentPlacer(Protocol):
     the same amount after, because its VRAM did not go anywhere when the resident changed. An
     implementation that has no notion of a resident may implement both as no-ops, which is the
     honest degenerate form and not a violation.
+
+    ``close_gpu()`` and ``open_gpu()`` are the other pair, and they answer a different question:
+    not how much of the card is free, but whether the server a GPU placement lands on is running
+    at all (``residency_tiers.py``). While closed, ``place`` **must** answer CPU for every
+    request, whatever the headroom says, because a fit test cannot be right about a
+    ``llama-server`` that is not listening; the ledger is untouched by either verb, so a spawn
+    placed before a close still releases the same amount after it. Both are sync and idempotent,
+    and closing twice takes one open to reverse, since the caller counts tiers and this counts
+    nothing. An implementation with no GPU target of its own may implement both as no-ops, the
+    same honest degenerate form the charge pair allows. The two pairs are deliberately
+    independent: a handoff charge describes a card that changed hands and heals itself when it
+    changes back, while a close describes a tier that failed and is cleared only by something
+    observing it serve again.
     """
 
     def place(self, request: PlacementRequest) -> Placement: ...
@@ -41,3 +54,7 @@ class SubagentPlacer(Protocol):
     def charge_handoff(self, *, resident_gb: float) -> None: ...
 
     def charge_standing(self) -> None: ...
+
+    def close_gpu(self) -> None: ...
+
+    def open_gpu(self) -> None: ...
