@@ -506,14 +506,17 @@ async def test_a_restore_that_fails_once_retries_and_succeeds(
     """Decision 4 step 3's retry: the second attempt brings the cortex back, loudly noted."""
     host = ScriptedModelHost(running=["cortex"], fail_once={("start", "cortex"): "device busy"})
     manager = _manager(host)
-    with caplog.at_level(logging.WARNING, logger="cortex_core.residency"):
+    with caplog.at_level(logging.WARNING):
         async with manager.swap_scope("brain"):
             pass
     assert host.running == {"cortex"}
     assert host.calls.count(("start", "cortex")) == 2  # the failed attempt, then the retry
-    assert [record.message for record in caplog.records] == [
-        "the model host failed while restoring the cortex",
-        "restoring the cortex failed; retrying",
+    # Each record is pinned to the module that emits it, not only to its text: the attempt is
+    # reported where the attempt is made and the retry where the retries are counted, so a
+    # message that drifts to another module stops satisfying this test.
+    assert [(record.name, record.message) for record in caplog.records] == [
+        ("cortex_core.residency_moves", "the model host failed while restoring the cortex"),
+        ("cortex_core.residency_restore", "restoring the cortex failed; retrying"),
     ]
 
 
@@ -524,13 +527,18 @@ async def test_a_restore_that_never_succeeds_raises_loudly_and_leaves_nothing_re
     host = ScriptedModelHost(running=["cortex"], fail={("start", "cortex"): "no such device"})
     manager = _manager(host)
     with (
-        caplog.at_level(logging.WARNING, logger="cortex_core.residency"),
+        caplog.at_level(logging.WARNING, logger="cortex_core.residency_restore"),
         pytest.raises(ResidencyRestoreError, match="manual recovery is needed"),
     ):
         async with manager.swap_scope("brain"):
             pass
     assert host.calls.count(("start", "cortex")) == 2
-    assert any(record.levelno == logging.ERROR for record in caplog.records)
+    # The give-up is the module's own verdict, so the record that carries it has to come from
+    # the module that decides it; an error from any other one is a different event.
+    assert any(
+        record.levelno == logging.ERROR and record.name == "cortex_core.residency_restore"
+        for record in caplog.records
+    )
     # Nothing is resident, so an acquire says so rather than leasing a dead endpoint.
     with pytest.raises(ModelUnavailableError, match="resident: None"):
         async with manager.acquire("cortex"):
