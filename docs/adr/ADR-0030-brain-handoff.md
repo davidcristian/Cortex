@@ -224,8 +224,10 @@ cortex**; the swap back is the recovery path, not an optimization.
    handoff") instead of queuing; the runner already degrades that to an `ok=False` result
    ([runner.py:152](../../brain/packages/core/src/cortex_core/runner.py)). Refuse, not queue,
    because a brain-phase spawn queuing on a drained pool until swap-back would deadlock the
-   turn against its own drain. On timeout (one wedged CPU stream is a real hazard, given the
-   deliberate `read=None` client): **abort the handoff before anything is evicted**, mark the
+   turn against its own drain. On timeout (one wedged CPU stream is a real hazard, bounded since
+   the per read stall ceiling landed at the delegated pool's 600 s rather than not at all, which
+   is what the deliberate `read=None` client this line used to cite meant):
+   **abort the handoff before anything is evicted**, mark the
    record `FAILED`, tell the user, and continue on the cortex.
 3. **Swap in.** Enter the residency scope (decision 5): wait for the GPU lease to fall free
    (the swap never preempts a mid-stream round in v1), then `stop(cortex)`, `stop(gpu
