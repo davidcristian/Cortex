@@ -22,10 +22,15 @@ class Site(NamedTuple):
 
 
 class Mention(NamedTuple):
-    """One place that spends a value without declaring it, and the shape it appears in."""
+    """One place that spends a value without declaring it, and the shape it appears in.
+
+    ``occurrences`` unset asks only that the rendered needle appear. Set, it asks that it appear
+    exactly that many times, for a far side whose several occurrences must move together.
+    """
 
     path: str
     template: str
+    occurrences: int | None = None
 
 
 class Constant(NamedTuple):
@@ -129,9 +134,16 @@ CONSTANTS: tuple[Constant, ...] = (
             "leaves the reasoning unaccumulated and the chip unstyled (ADR-0020)"
         ),
         sites=(Site("brain/packages/core/src/cortex_core/output_channels.py", "THINKING_STATE"),),
+        # The component's two comparisons are one set: the same chip's class and its accessible
+        # name, both deciding on this one state. A rename applied to one of them leaves the other
+        # dead with the file still spelling the new value, which is what the count refuses.
         mentions=(
             Mention("body/app/src/overlay/turnState.ts", 'event.state === "{value}"'),
-            Mention("body/app/src/components/Message.tsx", 'message.statusState === "{value}"'),
+            Mention(
+                "body/app/src/components/Message.tsx",
+                'message.statusState === "{value}"',
+                occurrences=2,
+            ),
         ),
     ),
     Constant(
@@ -182,7 +194,10 @@ CONSTANTS: tuple[Constant, ...] = (
             "room a closing section hands back into one frame again (ADR-0035)"
         ),
         sites=(Site("body/app/src/overlay/morph.ts", "MORPHING_ATTRIBUTE"),),
-        mentions=(Mention(OVERLAY_CSS, "[{value}"),),
+        mentions=(
+            Mention(OVERLAY_CSS, "[{value}"),
+            Mention(OVERLAY_CSS, ':not([{value}="0"])', occurrences=2),
+        ),
     ),
     Constant(
         label="the shared easing curve",

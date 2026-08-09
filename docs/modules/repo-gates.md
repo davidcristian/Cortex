@@ -58,9 +58,18 @@ unit-tested core function). `composemounts.py` is the one module that is not a C
   bound now refuses, and a published `host:container` port pair whose host half alone carried the
   needle, which is a template question rather than a matcher one, so the compose publish is
   registered as `"127.0.0.1:{value}:{value}"` and the healthcheck dial beside it as its own
-  mention. A mention remains a presence check and not a census: a file spending the value twice
-  and losing one occurrence still passes, since what an entry ties is the spelling and not the
-  count.
+  mention.
+  **Counted where the occurrences are one set.** A mention is a presence check unless it carries
+  `occurrences`, so a file spending the value twice and losing one of them passes by default,
+  which is what a half applied rename looks like. `occurrences` pins an EXACT number of bounded
+  matches rather than a floor, because a floor cannot notice the far side has grown past it and so
+  widens itself by however much the tree drifted; a count below 1 is refused, zero being a mention
+  asking the value to be absent. It is opt in, and the survey that set it is in the ADR: two of the
+  fourteen registered mentions are counted, `Message.tsx` at 2 (the `className` and the
+  `aria-label` of one chip) and `overlay.css`'s `:not([{value}="0"])` at 2 (the two section share
+  caps, whose handover is symmetric or nothing), while the bare `[{value}` mention beside it stays
+  a presence check because its three rules are the sum of two unrelated features. Every mention
+  that occurs once is left unpinned, a count of one saying nothing a presence check does not.
   **`Relation`** is `EQUAL` by default; `ORDERED` holds an entry's sites to non-decreasing order
   in registry order, for a bound that must sit under another rather than match it. An ordering
   compares numbers only (a string under one is a fault), and it may carry no mentions, there being
@@ -78,7 +87,8 @@ unit-tested core function). `composemounts.py` is the one module that is not a C
   **Fails closed by design**, because a scan that cannot find its constants would agree with
   itself forever: a missing file, an unreadable or non-UTF-8 one, an unknown suffix, a name
   that is absent, one declared twice, a value it cannot reduce, a mention whose rendered needle is
-  absent or whose template carries no `{value}`, and a registry entry naming no declaring site or
+  absent or found a different number of times than it pins or whose template carries no `{value}`
+  or pins a count below 1, and a registry entry naming no declaring site or
   fewer than `MIN_PLACES` (2) places are each a fault, never a skip. Exit 0 with a summary; exit 1
   printing `label: detail` per fault; exit 2 if `--root` is not a directory.
 - `bindcheck.py [--root DIR]` holds every compose bind mount to landing somewhere git
@@ -172,7 +182,8 @@ unit-tested core function). `composemounts.py` is the one module that is not a C
   confined to one top-level tree; the overlay and its stylesheet are one tree and two languages,
   so suffix replaced tree when mentions landed. Two more invariants guard the widening itself: the
   registry must exercise both `Relation` members and both kinds of place, since a comparator no
-  entry uses is a gate that cannot fail.
+  entry uses is a gate that cannot fail. `test_the_registry_pins_at_least_one_occurrence_count`
+  holds the newest field to the same rule, a field no entry sets being a dead wire.
 - `bindcheck.py` does the same (`test_the_repo_itself_is_clean`), with a guard on the guard:
   `test_the_repo_really_declares_binds_for_this_gate_to_have_checked` fails if the reader ever
   finds fewer than six defaulted bind sources under `docker/`, so the clean verdict cannot go

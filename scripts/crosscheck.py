@@ -25,6 +25,10 @@ WORD_CHARACTER = re.compile(r"\w")
 # it counts mentions: a lone declaration plus one place that spends it is a real coupling.
 MIN_PLACES = 2
 
+# The floor under a pinned occurrence count. Zero would ask a mention to prove the value is
+# ABSENT, which is the opposite of a coupling, and a negative one asks nothing at all.
+MIN_OCCURRENCES = 1
+
 DECLARATIONS = {
     ".py": r"^{name}(?:\s*:[^=\n]*)?\s*=(?P<value>[^\n]*)$",
     ".rs": (
@@ -118,13 +122,25 @@ def bounded(needle: str) -> re.Pattern[str]:
 
 
 def check_mention(root: Path, mention: Mention, value: str | int) -> None:
-    """Raise unless the file spends ``value`` in the shape the mention names."""
+    """Raise unless the file spends ``value`` in the shape, and the number, the mention names."""
     if PLACEHOLDER not in mention.template:
         msg = f"mention {mention.template!r} carries no {PLACEHOLDER}, so it ties nothing"
         raise CrossCheckError(msg)
+    wanted = mention.occurrences
+    if wanted is not None and wanted < MIN_OCCURRENCES:
+        msg = f"mention {mention.template!r} pins {wanted} occurrences, which ties nothing"
+        raise CrossCheckError(msg)
     needle = mention.template.replace(PLACEHOLDER, str(value))
-    if not bounded(needle).search(_read(root, mention.path)):
-        msg = f"{mention.path} does not spell {needle!r} as a token of its own"
+    found = len(bounded(needle).findall(_read(root, mention.path)))
+    if wanted is None:
+        if not found:
+            msg = f"{mention.path} does not spell {needle!r} as a token of its own"
+            raise CrossCheckError(msg)
+    elif found != wanted:
+        msg = (
+            f"{mention.path} spells {needle!r} as a token of its own: found {found}, pinned "
+            f"{wanted}; move the whole set, or correct occurrences in couplings.py"
+        )
         raise CrossCheckError(msg)
 
 
