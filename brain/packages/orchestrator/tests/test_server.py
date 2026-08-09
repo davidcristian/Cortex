@@ -15,6 +15,7 @@ from cortex_core import (
     RESIDENCY_LOADING,
     RESIDENCY_LOST,
     RESIDENCY_RESTORING,
+    TIERS_MISSING_DETAIL,
     AsyncioSleeper,
     EchoInferenceBackend,
     InMemorySessionStore,
@@ -166,6 +167,30 @@ async def test_health_stays_not_ready_after_a_restore_that_gave_up() -> None:
             reply = await _health(BrainServiceStub(channel))
         assert reply.ready is False
         assert reply.detail == RESIDENCY_LOST.detail
+    finally:
+        await server.stop(grace=None)
+
+
+async def test_health_stays_ready_and_names_a_peer_tier_that_did_not_come_back() -> None:
+    """Serving and degraded at once, which is a sentence this reply could not say before."""
+    host = ScriptedModelHost(
+        running=["cortex", "subagent-gpu"], fail={("start", "subagent-gpu"): "no such device"}
+    )
+    manager = SwappingModelManager(
+        host,
+        {"cortex": "http://llama-cortex:8080", "brain": "http://llama-brain:8081"},
+        ResidencyPlan(cortex_model="cortex", brain_model="brain", evict_models=("subagent-gpu",)),
+        SystemClock(),
+        AsyncioSleeper(),
+    )
+    server, address = await _serving(manager)
+    try:
+        async with manager.swap_scope("brain"):
+            pass
+        async with aio.insecure_channel(address) as channel:
+            reply = await _health(BrainServiceStub(channel))
+        assert reply.ready is True
+        assert reply.detail == TIERS_MISSING_DETAIL.format(models="subagent-gpu")
     finally:
         await server.stop(grace=None)
 

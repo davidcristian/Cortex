@@ -2,6 +2,7 @@
 
 import logging
 from collections.abc import Awaitable, Callable
+from contextlib import AsyncExitStack
 from dataclasses import dataclass
 
 import httpx
@@ -17,6 +18,7 @@ from cortex_core import (
     Sleeper,
     SubagentPlacer,
     SwappingModelManager,
+    TierHealer,
     recover_handoffs,
 )
 from cortex_model_manager import HttpModelHost
@@ -40,6 +42,7 @@ class SwapRuntime:
     manager: SwappingModelManager
     handoffs: HandoffStore
     plan: ResidencyPlan
+    healer: TierHealer
     close: Callable[[], Awaitable[None]]
 
 
@@ -59,12 +62,15 @@ def build_swap_runtime(  # noqa: PLR0913 -- one more injected collaborator than 
     host, close_host = _build_model_host(swap, plan)
     endpoints = {plan.cortex_model: inference.endpoint, plan.brain_model: swap.brain_endpoint}
     handoffs = handoff_store_factory(runtime.redis_url)
+    manager = SwappingModelManager(host, endpoints, plan, clock, sleeper, placer)
+    healer = TierHealer(manager.heal_standing_tiers, interval_s=swap.swap_tier_heal_s)
     return SwapRuntime(
         host=host,
-        manager=SwappingModelManager(host, endpoints, plan, clock, sleeper, placer),
+        manager=manager,
         handoffs=handoffs,
         plan=plan,
-        close=_release_both(handoffs.aclose, close_host),
+        healer=healer,
+        close=_release_all(healer.aclose, handoffs.aclose, close_host),
     )
 
 
@@ -136,6 +142,7 @@ async def recover_boot_residency(swap: SwapRuntime | None, clock: Clock) -> None
         swap.handoffs, swap.host, swap.plan, clock=clock, sleeper=AsyncioSleeper()
     )
     await swap.manager.publish_boot_residency(serving=converged)
+    swap.healer.start()
 
 
 def swap_closer(swap: SwapRuntime | None) -> Callable[[], Awaitable[None]]:
@@ -143,15 +150,12 @@ def swap_closer(swap: SwapRuntime | None) -> Callable[[], Awaitable[None]]:
     return noop_aclose if swap is None else swap.close
 
 
-def _release_both(
-    store: Callable[[], Awaitable[None]], host: Callable[[], Awaitable[None]]
-) -> Callable[[], Awaitable[None]]:
-    """Release the handoff store and the model host's client, the second even if the first fails."""
+def _release_all(*releases: Callable[[], Awaitable[None]]) -> Callable[[], Awaitable[None]]:
+    """Run every release in the order given, each one even if an earlier one failed."""
 
     async def close() -> None:
-        try:
-            await store()
-        finally:
-            await host()
+        async with AsyncExitStack() as stack:
+            for release in reversed(releases):
+                stack.push_async_callback(release)
 
     return close

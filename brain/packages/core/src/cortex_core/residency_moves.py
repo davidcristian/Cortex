@@ -6,6 +6,7 @@ from collections.abc import Awaitable, Callable
 from cortex_core.errors import ModelHostError, SwapFailedError
 from cortex_core.model_host import ModelHostState, ResidencyPlan
 from cortex_core.ports import ModelHost
+from cortex_core.residency_tiers import StandingTiers
 
 # A readiness gate: poll one model until it settles or the plan's bound elapses. Passed in so
 # both moves are gated by the same policy their caller uses everywhere else.
@@ -79,13 +80,9 @@ async def _refuse_a_load_the_card_cannot_hold(
 
 
 async def restore_standing(
-    host: ModelHost, plan: ResidencyPlan, model: str, gate: ReadinessGate
+    host: ModelHost, plan: ResidencyPlan, model: str, gate: ReadinessGate, tiers: StandingTiers
 ) -> bool:
-    """One attempt at the standing residency: stop ``model``, bring the cortex and its peers up.
-
-    ``True`` only when the cortex is genuinely serving again, which is what the caller retries
-    on and what the next turn needs.
-    """
+    """One attempt at the standing residency: stop ``model``, bring the cortex and its peers up."""
     try:
         await host.stop(model)
         await host.start(plan.cortex_model)
@@ -95,11 +92,11 @@ async def restore_standing(
         return False
     if state is not ModelHostState.READY:
         return False
-    await _restart_evicted(host, plan)
+    await _restart_evicted(host, plan, tiers)
     return True
 
 
-async def _restart_evicted(host: ModelHost, plan: ResidencyPlan) -> None:
+async def _restart_evicted(host: ModelHost, plan: ResidencyPlan, tiers: StandingTiers) -> None:
     """Put back every tier the swap in evicted, so the standing residency is whole again."""
     for evicted in plan.evict_models:
         try:
@@ -108,3 +105,6 @@ async def _restart_evicted(host: ModelHost, plan: ResidencyPlan) -> None:
             _logger.exception(
                 "a tier evicted for the handoff could not be restarted", extra={"model": evicted}
             )
+            tiers.mark_missing(evicted)
+        else:
+            tiers.mark_standing(evicted)

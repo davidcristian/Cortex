@@ -821,7 +821,13 @@ unchanged):
   (`soft_cap − resident − placed`, the resident being the cortex outside a handoff and the deep
   model's declared cost inside one), reserving it on GPU or spilling to CPU; `release`
   frees it. The GPU/VRAM contract, separate from `ModelManager`'s lease and `SubagentScheduler`'s
-  budget. The three compose at `SubagentRunner`.
+  budget. The three compose at `SubagentRunner`. Two more sync verbs, `close_gpu()`/`open_gpu()`,
+  answer a question no number about free memory can (ADR-0030 tier-outage addendum): whether the
+  server a GPU placement lands on is running at all. While closed, `place` **must** answer CPU
+  whatever the headroom says; the ledger is untouched by either verb, both are idempotent, and an
+  implementation with no GPU target of its own may make both no-ops, exactly as the charge pair
+  allows. The two pairs are independent by contract: a handoff charge heals itself when the card
+  changes back, a close is cleared only by something observing the tier serve again.
 - `SubagentScheduler` (`admit(request) -> AbstractAsyncContextManager[None]`,
   `async drain(*, timeout_s) -> bool`, `undrain()`): a soft two-dimensional
   CPU/RAM budget for spawns (yields once the request's `cpus`/`memory_gb` fit the summed targets,
@@ -1725,6 +1731,31 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   reversal fires only once the cortex is genuinely serving again, so a restore that gave up keeps
   spawning on the CPU. With `brain_vram_mib` at zero there is no honest figure and the window is
   never entered, which is the shipped behaviour.
+  `heal_standing_tiers()` is the manager's one other public verb, one retry pass over the peers
+  the standing residency is missing, and it returns having done nothing while a scope is active,
+  since starting a peer while the deep model is alone on the card is the one forbidden move. It
+  takes no lease: a peer is never the resident, so holding one across a control call would park a
+  turn behind a status probe for nothing.
+- `StandingTiers(placer=None)` in `residency_tiers.py` is which peers of the cortex are missing
+  from the standing residency (ADR-0030 tier-outage addendum), held by the manager and written by
+  the swap back's best-effort restart: `mark_missing(model)` on a `ModelHostError` from that
+  start, `mark_standing(model)` on one the host accepted. `missing` is the sorted snapshot a
+  retry pass iterates. Marking closes the placer's GPU, and only an emptied record reopens it, so
+  a second tier still down keeps it shut; a deployment with no pool (`placer=None`) still keeps
+  the record, there simply being nothing to close. `note_on(report)` is what the manager's
+  `residency()` returns: a **serving** report gains a detail naming what is down, and a report
+  that is not serving is handed back untouched, which is the down-versus-evicted rule as code (a
+  peer stopped for the length of a handoff is where the swap put it, and the window's own words
+  win). `retry_missing(host, tiers)` is one pass: per missing tier a `status`, then `READY` marks
+  it standing, `LOADING` is left alone, and anything else gets a `start`, with readiness observed
+  on a later pass rather than gated inside this one. It never raises.
+- `TierHealer(heal, *, interval_s=DEFAULT_TIER_HEAL_INTERVAL_S)` in `residency_heal.py` is the
+  loop that keeps calling one such pass, and it owns its own task: `start()` (idempotent),
+  `aclose()` (signal, then wait out the in-flight pass), `run()` (the loop, whose pass guard
+  degrades an unenumerated bug to a skipped pass rather than a silently dead loop, and whose wait
+  is on the stop signal so shutdown is never held for the interval). Deliberately generic about
+  the pass, taking a coroutine factory, so the judgement about whether a handoff is in flight
+  stays with the manager.
 - `BootWatch(host, plan, *, clock, sleeper)` in `residency_watch.py` is which supervisor daemon
   every belief above was formed against (ADR-0030's host-generation addendum). The manager holds
   one, seeds it from `publish_boot_residency`, and calls `reconcile(publish)` as the first thing
@@ -1820,7 +1851,9 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   it back. The resident term is the cortex's reservation outside a handoff and the deep model's
   declared cost inside one: `charge_handoff(resident_gb=)` and `charge_standing()` are written by
   the residency scope at the swap's two edges (ADR-0030 handoff-window addendum), leave the placed
-  ledger untouched, and are idempotent. Sync and lock-free (single-threaded asyncio atomicity), so the concurrent batch races the
+  ledger untouched, and are idempotent. `close_gpu()`/`open_gpu()` are the other pair and are not
+  arithmetic at all: while closed, `place` short-circuits to CPU without consulting the headroom,
+  because a fit test cannot be right about a `llama-server` that is not listening. Sync and lock-free (single-threaded asyncio atomicity), so the concurrent batch races the
   ledger correctly. The ledger is live-resource state, rebuilt from zero. It is never durable state.
 - `ResourceBudgetScheduler(cpu_budget, mem_budget_gb, *, wait_timeout_s=DEFAULT_ADMISSION_WAIT_S)`
   is `SubagentScheduler` v2 (ADR-0012): pure

@@ -109,6 +109,8 @@ class BrainService(SessionRpcMixin, PreferenceRpcMixin, BrainServiceServicer):
         report = None if self._residency is None else self._residency.residency()
         if report is not None and not report.serving:
             return HealthReply(ready=False, detail=report.detail)
+        if report is not None and report.detail:
+            return HealthReply(ready=True, detail=report.detail)
         return HealthReply(ready=True, detail=f"cortex-orchestrator {ORCHESTRATOR_VERSION}")
 
     async def Converse(  # noqa: N802 - method name is fixed by the gRPC codegen interface

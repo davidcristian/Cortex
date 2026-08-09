@@ -6,10 +6,18 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 historical record of what each deferral became, and the index at [index.md](index.md) carries the
 recommended pickup order.
 
-**Open items:** 5, counted by reading the entries below rather than by adjusting the last number.
+**Open items:** 7, counted by reading the entries below rather than by adjusting the last number.
 The Intel NPU as a third placement target, a queue-depth bound, the drain bound against a
-fired task's lease, admission reopening onto a tier that would not restart, and a total generation
-cap. The number is unmoved and the set is not, twice on one day: the read timeout on the subagent
+fired task's lease, a total generation cap, and the three the tier-outage close opened: a retry
+that only asks about tiers it already believes are missing, a placer holding one bit for the card
+where the record holds one entry per tier, and boot recovery still calling a peer tier's failure
+the cortex being gone. The count went 5 to 7 on 2026-08-09 when **admission reopening onto a tier
+that would not restart** landed ahead of its trigger, one out and three in, which is this backlog
+working as intended rather than a close that failed to close: the record it wanted is built, and
+what replaces it are the three questions building it made askable for the first time (where else
+an outage can come from, how finely the placer can skip, and which of the two boot verdicts a peer
+belongs to). Twice earlier the same day the number was unmoved and the set was not: the read
+timeout on the subagent
 HTTP client landed 2026-08-09 and opened the total generation cap in the same pass, and hours later
 the bounded admission wait landed and opened the queue-depth bound it declined, one out and one in
 each time, which is the shape this file's own warning is about (a count that agrees with its header
@@ -17,7 +25,7 @@ proves nobody miscounted and nothing else). Before that, the subagent VRAM ask c
 two days: the cortex reservation's re-measurement on 2026-08-07 opened it, having closed nothing
 this count had ever carried (it had been deferred at two ADRs and recorded on no index), so the
 count went 5 to 6 for an arrival with no matching departure; measuring the tier on 2026-08-08 took
-it back to 5. All four moves are the honest shape of that history rather than a bookkeeping slip.
+it back to 5. All six moves are the honest shape of that history rather than a bookkeeping slip.
 
 **Resource governance in Slice 8.5 ([ADR-0012](../adr/ADR-0012-resource-governance.md)):** each behind
 the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
@@ -386,6 +394,79 @@ the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
   what the GPU is serving, for the seam's `Health` to answer with (`residency_state.py`), and it is
   deliberately narrow: it carries no per-tier state at all, so there is still nothing for a placer
   to read. Widening it is the same shape of change it always was, now with a place to put it.
+  **It landed 2026-08-09**, ahead of its trigger, recorded at the
+  [ADR-0030 tier-outage addendum](../adr/ADR-0030-brain-handoff.md) where the entry was opened and
+  at the [ADR-0012 addendum](../adr/ADR-0012-resource-governance.md) that owns the port. A peer
+  the swap back could not restart is now recorded in `StandingTiers` (`residency_tiers.py`), which
+  closes GPU placement, names the tier on a **serving** `Health` reply, and is retried every
+  `CORTEX_SWAP_TIER_HEAL_S` (30 s) by `TierHealer` until a pass sees the tier `ready`. Four things
+  about it, two of them corrections to this entry's own text.
+  **"This port stays unchanged" was the half that moved**, and it is the phrasing this file's own
+  index warns about. The scheduler really is untouched. The **placer** port is not: `place` is
+  synchronous, lock-free and argument-poor by design, so nothing can *ask* it whether a tier is
+  up, and the only shape that fits is being *told*, which is a verb. `SubagentPlacer` gained
+  `close_gpu()`/`open_gpu()`, deliberately not expressed as a charge, since a resident charged
+  large enough to crowd the cap out would say "no room" where the truth is "no server" **and**
+  would be silently reversed by the next successful `charge_standing`.
+  **"Widening `ResidencyReport`" was the other correction**, and the reason is a lifetime rather
+  than a shape: that value is republished at every residency transition, so down-ness written into
+  it would be dropped by the next swap in, which publishes `RESIDENCY_LOADING` and knows nothing
+  about peers. The record lives beside the report and is folded in on read, which is also what
+  keeps the swap to one writer of what the GPU is serving.
+  **The distinction the entry never named is the one the design turns on**: down versus merely
+  evicted. Only a `start` that **raised** marks, only a **serving** report is annotated, and the
+  handoff window is covered by the drain and the charge rather than by this, so a tier stopped for
+  the length of a swap never reads as a fault. **What the user sees needed no new surface**:
+  `HealthReply` already carries a detail beside `ready` and the overlay already renders a ready
+  detail as `Brain ready: <line>`, so a serving report with something to say simply wins the slot
+  the version string held, with no proto, Rust or TypeScript change.
+  **Its cost claim held and its harm claim shrank.** "A wasted GPU attempt per spawn" is exactly
+  what this removes. What it does not remove is a tier that dies **without** anybody having asked
+  it to restart, which was measured against a real sidecar the same day: a tier with a bad
+  artifact answers `200 loading` to a `start` and `failed` seconds later, so the restart loop marks
+  it standing and nothing notices. That is the first of the three entries below.
+- **The retry only asks about tiers it already believes are missing.** *Fix when it bites.* Opened
+  2026-08-09 by the close above, whose record is written at exactly one site, the swap back's
+  best-effort restart, and only where the host **refused**. Three shapes escape it: a peer that
+  accepted its start and then failed to load (measured against the real sidecar, `200 loading`
+  then `failed` with exit code 1), a peer that dies quietly between handoffs, and a peer a
+  deployment never started at all. In each the placer keeps sending spawns to a dead endpoint and
+  pays the dead attempt plus the CPU re-run this entry's parent exists to avoid. The fix is a
+  sweep: the same pass asking `status` for **every** `evict_models` tier rather than only the
+  marked ones, which costs one control call per tier per interval and closes the whole family. It
+  is not built now because a sweep that may `start` a tier is a much stronger thing to hold
+  correct against a handoff in flight than one that only retries a known failure, and because
+  gating the peers inside the swap back instead is the wrong end (it would spend the load bound
+  per tier inside the turn the user is waiting on). The trigger is the first deployment observed
+  running with a peer tier dead and nothing noticing, which is also the first one whose logs say
+  how often that happens.
+- **The placer holds one bit for the card, where the record holds one entry per tier.**
+  *Fix when it bites.* Opened 2026-08-09 by the same close. Any missing tier closes GPU placement
+  for the whole pool, because the brain has no declared mapping from a hosted tier id
+  (`CORTEX_SWAP_EVICT_MODELS`, a model-host roster name) to the GPU endpoint a roster entry dials
+  (`CORTEX_SUBAGENTS_GPU_ENDPOINT`, a URL). Today that mapping would have exactly one possible
+  value in every deployment this repo ships, so declaring it would be config nobody can get wrong
+  and nobody can get right either. The cost of the coarse lever is a deployment that lists a tier
+  the subagent pool never places on and loses GPU placement it did not need, which is decode rate
+  rather than correctness, and the conservative direction is deliberate (under refusing costs a
+  dead load per spawn). The fix is a declared tier id per roster entry, threaded into
+  `PlacementRequest` so the placer can skip one target rather than all of them. The trigger is a
+  deployment naming more than the subagent tier in `CORTEX_SWAP_EVICT_MODELS`, or a second
+  GPU-capable executor, which is the same condition the placement-aware CPU charging entry waits
+  on.
+- **Boot recovery still calls a peer tier's failure the cortex being gone.** *Fix when it bites.*
+  Opened 2026-08-09 by the same close, which refuses that conflation everywhere else and left this
+  one site alone. `converge_residency` starts every `evict_models` tier inside the same `try` that
+  decides whether the cortex was observed serving, so one peer that will not start makes the whole
+  convergence answer `False`, the composition root publishes `RESIDENCY_BOOT_FAILED`, and the
+  overlay goes amber with "the usual assistant did not come up at startup" over a cortex that is
+  serving turns perfectly well. The fix is the same record threaded through that function and
+  through `BootWatch._converge`, with the peers no longer deciding the cortex's verdict. It was
+  left out because those two call sites reach the record through the manager, which sits one line
+  under the file cap, so the change is a split rather than an argument; and because the retry
+  clears the placer half within a pass either way, leaving only the readiness lie. The trigger is
+  a boot observed reporting that lie, which needs a deployment that both evicts a tier and has one
+  that will not start.
 - **A read timeout on the subagent HTTP client landed 2026-08-09, on two clients rather than the
   one this entry named ([ADR-0005 stall-ceiling addendum](../adr/ADR-0005-llamacpp-engine.md),
   recorded at the [ADR-0012 read-timeout addendum](../adr/ADR-0012-resource-governance.md)).**

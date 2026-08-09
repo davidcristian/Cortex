@@ -21,6 +21,7 @@ from cortex_core.residency_state import (
     RESIDENCY_SERVING,
     ResidencyReport,
 )
+from cortex_core.residency_tiers import StandingTiers, retry_missing
 from cortex_core.residency_watch import BootWatch
 
 _logger = logging.getLogger(__name__)
@@ -44,6 +45,9 @@ class SwappingModelManager:
         self._clock = clock
         self._sleeper = sleeper
         self._placer = placer
+        # Which peers of the cortex the standing residency is missing (``residency_tiers.py``),
+        # written by the swap back's best-effort restart and read by the seam and by the retry.
+        self._tiers = StandingTiers(placer)
         # Which supervisor daemon every belief below was formed against (``residency_watch.py``).
         # It is asked once per handoff, because a daemon replaced under this process leaves all of
         # them describing a machine that no longer exists.
@@ -81,7 +85,7 @@ class SwappingModelManager:
 
     def residency(self) -> ResidencyReport:
         """What the GPU is serving right now, answered synchronously and without I/O."""
-        return self._report
+        return self._tiers.note_on(self._report)
 
     @asynccontextmanager
     async def swap_scope(self, model: str) -> AsyncGenerator[None, None]:
@@ -161,11 +165,16 @@ class SwappingModelManager:
             await swap_in(self._host, self._plan, model, self._gate)
             await self._set_resident(model, RESIDENCY_DEEP)
 
+    async def heal_standing_tiers(self) -> None:
+        """Retry every peer the standing residency is missing, unless a handoff owns the GPU."""
+        if self._scope_model is None:
+            await retry_missing(self._host, self._tiers)
+
     async def _restore(self, model: str) -> None:
         """Take the lease, then run the swap back's retry policy under it."""
         async with self._lock:
             await restore_with_retries(
-                self._host, self._plan, model, self._gate, self._set_resident, self._placer
+                self._host, self._plan, model, self._gate, self._set_resident, self._tiers
             )
 
     async def _gate(self, model: str) -> ModelHostState:

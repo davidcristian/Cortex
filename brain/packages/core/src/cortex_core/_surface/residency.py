@@ -14,6 +14,7 @@ from cortex_core.model_host import (
     ResidencyPlan,
 )
 from cortex_core.residency import SwappingModelManager
+from cortex_core.residency_heal import DEFAULT_TIER_HEAL_INTERVAL_S, TierHealer
 from cortex_core.residency_state import (
     RESIDENCY_BOOT_FAILED,
     RESIDENCY_DEEP,
@@ -23,6 +24,7 @@ from cortex_core.residency_state import (
     RESIDENCY_SERVING,
     ResidencyReport,
 )
+from cortex_core.residency_tiers import TIERS_MISSING_DETAIL, StandingTiers, retry_missing
 from cortex_core.swap_conductor import SwapConductor
 from cortex_core.swap_notes import (
     ALREADY_ACTIVE_NOTE,
@@ -46,6 +48,7 @@ __all__ = [
     "DEFAULT_HEALTH_POLL_INTERVAL_S",
     "DEFAULT_SWAP_DRAIN_TIMEOUT_S",
     "DEFAULT_SWAP_LOAD_TIMEOUT_S",
+    "DEFAULT_TIER_HEAL_INTERVAL_S",
     "DRAINING_DETAIL",
     "DRAIN_TIMEOUT_NOTE",
     "LOADING_DETAIL",
@@ -62,6 +65,7 @@ __all__ = [
     "STORE_FAILED_NOTE",
     "SWAPPING_STATE",
     "SWAP_FAILED_NOTE",
+    "TIERS_MISSING_DETAIL",
     "WORKING_DETAIL",
     "CadenceReading",
     "CadenceWatch",
@@ -76,9 +80,12 @@ __all__ = [
     "ResidencyPlan",
     "ResidencyReport",
     "SingleResidentModelManager",
+    "StandingTiers",
     "SwapConductor",
     "SwappingModelManager",
+    "TierHealer",
     "await_model_ready",
     "converge_residency",
     "recover_handoffs",
+    "retry_missing",
 ]
