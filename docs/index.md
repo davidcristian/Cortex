@@ -226,7 +226,9 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   by comparing declaration sites with each other rather than against a master. Its 2026-08-08
   addendum widens it to the couplings a declared equality could not reach: an ordering comparator
   for a bound that must sit under another, and a mention form for a far side that spends a value
-  without declaring it, in a compose string, a stylesheet, or a bare literal.
+  without declaring it, in a compose string, a stylesheet, or a bare literal. Its 2026-08-09
+  counted-mentions addendum lets a mention pin an exact number of occurrences, opt in, for the far
+  sides whose several spellings are one set that must move together.
 - [ADR-0030: Brain handoff (the real model swap)](adr/ADR-0030-brain-handoff.md): the Slice 11
   capstone design, **accepted**; every engineering sub-slice has landed, the deep-model pick was
   measured 2026-08-04 (gemma-4-31B QAT q4_0, ADR-0004), and the tier-scale swap remains because a

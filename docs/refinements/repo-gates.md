@@ -26,7 +26,10 @@ and corpus seeding are settled by that second instance, and what is left is the 
 driver going over gRPC meets, an arm that needs the container restarted and a result reported as an
 interval. The compose bind
 default that lands in the repo tree came off this list on 2026-08-08, ahead of its own trigger, as
-a fourth cross-tree scan whose rule is three-way rather than the one this entry sketched; the rest
+a fourth cross-tree scan whose rule is three-way rather than the one this entry sketched; a mention
+counting nothing came off it on 2026-08-09, on its trigger, as an opt-in exact occurrence count,
+and it is the one close that leaves this number where it found it, having been appended on
+2026-08-08 without ever being added to this list; the rest
 landed 2026-07-16, 2026-07-19, 2026-08-03 and 2026-08-06, the last of them the live pgvector run
 sharing the brain's `memories` table, closed ahead of its trigger rather than by it,
 see the outcome notes below the verbatim entries)
@@ -627,3 +630,43 @@ cross-language-constant addendum):**
   that must move together, the first being a state literal compared in two components rather than
   one, at which point the count is carrying real information and not just arithmetic about a
   stylesheet.
+
+  **Landed 2026-08-09, on the trigger, and the entry was right that it is a field rather than a
+  design.** `Mention.occurrences` is optional; `check_mention` counts bounded matches instead of
+  stopping at the first, and reports found against pinned
+  ([ADR-0029 counted-mentions addendum](../adr/ADR-0029-vision-screen-capture.md)). Both live
+  cases reproduced exactly as this entry describes them, counted against the tree rather than
+  taken on its word: `Message.tsx` spells `message.statusState === "thinking"` twice and
+  `overlay.css` reads `[data-morphing` in three rules, and each of the other eleven mentions the
+  registry carried that morning occurs exactly once.
+  **The comparison is exactly N rather than at least N**, which is the decision this entry left
+  open. A floor passes on a far side that grew past it, and having passed once it also passes when
+  that far side drops back, so the gate widens by however much the tree drifted with nothing
+  saying when; an exact count is falsifiable both ways and costs one integer in `couplings.py`
+  when an addition is deliberate. The disable risk the entry worried about is answered by the
+  field being opt in rather than by weakening the comparison.
+  **The stylesheet objection survived and shaped what got registered.** `Message.tsx` is pinned
+  at 2, its two comparisons being the `className` and the `aria-label` of one chip. The three
+  `[data-morphing` rules are **not** pinned at 3, because three is the sum of two unrelated
+  features (a scrollbar thumb hidden mid-roll, and two section share caps), which is exactly the
+  arithmetic this entry declined; the two share caps alone are a set, so they carry a narrower
+  mention of their own, `:not([{value}="0"])` at 2, with the bare presence check left standing
+  over all three. Everything spent once stays unpinned.
+  **Proven able to fail in both directions, on the real tree.** The rename applied everywhere but
+  `Message.tsx`'s second line exits 1 naming 1 against 2, and the same mutation under the scan as
+  it stood the day before exits 0, which is this entry's defect measured rather than asserted; a
+  third comparison added exits 1 naming 3 against 2; one of the two share-cap rules stripped exits
+  1 naming 1 against 2; and a fourth rule reading the attribute in an unpinned shape stays green,
+  which is the benign growth the design has to tolerate. Every perturbation was reverted and the
+  scan returned to `crosscheck OK` after each.
+  **No new deferral is opened, and that is a decision rather than an omission.** Two limits remain
+  and are written into the ADR beside the behaviour: a count is over one file, so there is no way
+  to say "six across three files", and it is over one rendered needle, so the same value spent in
+  another shape is invisible to it. Neither has a case in the tree, every other coupling being
+  single-file and single-shape, so filing either would inflate the backlog with a capability
+  nothing is waiting on; the entry above on the couplings the registry still cannot hold is where
+  a real one would join.
+  **One bookkeeping repair rides along.** This entry was appended on 2026-08-08 without being
+  added to the open list above or to the count in [index.md](index.md), both of which read 6 while
+  seven were open and named the same six. Closing it makes the number true rather than moving it,
+  and the six named there are unchanged.

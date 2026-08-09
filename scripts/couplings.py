@@ -17,6 +17,14 @@ why they must not.
   from the declaring site, so a rename on either side leaves the rendered needle unfound. It is
   also why a bare literal does not have to be promoted to a named constant first.
 
+A mention is a presence check by default: one bounded occurrence satisfies it however many the
+file spends, so a half applied rename that updates one of two identical comparisons leaves the
+gate green with the other one dead. `occurrences` closes that where a mention's several
+occurrences are one set, pinning an EXACT count rather than a floor. It is opt in on purpose: a
+floor cannot notice it has gone stale, and a count over a far side whose occurrences are
+independent of each other is arithmetic that reddens on every unrelated addition. Set it only
+where losing one occurrence is a defect rather than a design change.
+
 **`Relation`** says how a constant's sites must stand to each other. Most couplings are
 equalities. A few are orderings, where one side's bound has to sit under another's rather than
 equal it, and an ordering compares numbers only.
@@ -44,10 +52,15 @@ class Site(NamedTuple):
 
 
 class Mention(NamedTuple):
-    """One place that spends a value without declaring it, and the shape it appears in."""
+    """One place that spends a value without declaring it, and the shape it appears in.
+
+    ``occurrences`` unset asks only that the rendered needle appear. Set, it asks that it appear
+    exactly that many times, for a far side whose several occurrences must move together.
+    """
 
     path: str
     template: str
+    occurrences: int | None = None
 
 
 class Constant(NamedTuple):
@@ -151,9 +164,16 @@ CONSTANTS: tuple[Constant, ...] = (
             "leaves the reasoning unaccumulated and the chip unstyled (ADR-0020)"
         ),
         sites=(Site("brain/packages/core/src/cortex_core/output_channels.py", "THINKING_STATE"),),
+        # The component's two comparisons are one set: the same chip's class and its accessible
+        # name, both deciding on this one state. A rename applied to one of them leaves the other
+        # dead with the file still spelling the new value, which is what the count refuses.
         mentions=(
             Mention("body/app/src/overlay/turnState.ts", 'event.state === "{value}"'),
-            Mention("body/app/src/components/Message.tsx", 'message.statusState === "{value}"'),
+            Mention(
+                "body/app/src/components/Message.tsx",
+                'message.statusState === "{value}"',
+                occurrences=2,
+            ),
         ),
     ),
     Constant(
@@ -204,7 +224,14 @@ CONSTANTS: tuple[Constant, ...] = (
             "room a closing section hands back into one frame again (ADR-0035)"
         ),
         sites=(Site("body/app/src/overlay/morph.ts", "MORPHING_ATTRIBUTE"),),
-        mentions=(Mention(OVERLAY_CSS, "[{value}"),),
+        # Three rules read the attribute and the bare mention stays a presence check over all
+        # three, because three is the sum of two unrelated features: one hides a scrollbar thumb
+        # mid-roll, and the two below cap the sections' shares. The pair IS a set, the handover
+        # being symmetric or not at all, so it is pinned by a narrower template of its own.
+        mentions=(
+            Mention(OVERLAY_CSS, "[{value}"),
+            Mention(OVERLAY_CSS, ':not([{value}="0"])', occurrences=2),
+        ),
     ),
     Constant(
         label="the shared easing curve",
