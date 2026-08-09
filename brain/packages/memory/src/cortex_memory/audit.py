@@ -6,6 +6,14 @@ Each line carries the pool the store offered, the basis the policy ranked on, wh
 basis may be compared with each other, and one entry per kept hit: its memory id, the store's raw
 cosine, the policy's own rank key, and the untrusted-provenance bit.
 
+It also names the candidates the rank did **not** keep, by id and by the store's cosine, bounded
+and with a count of whatever the bound left out (ADR-0038 dropped-candidate addendum). A count
+alone could not tell "that memory was never a candidate" from "it was a candidate and the rank
+dropped it", which is the question an investigation actually arrives with, and the ranks that ship
+drop most of the pool. There is no rank key beside a dropped candidate's score because none
+exists: a rank records an opinion about what it kept, so the line says what was available rather
+than why the rank declined it.
+
 A line with no hits is read through its basis, which is why no separate flag is logged for one.
 `"basis": "demur"` is the model having read a pool and answered that none of it helps (ADR-0038
 abstention addendum); any other basis with an empty `hits` is a pool that held nothing to rank; and
@@ -15,7 +23,9 @@ it chose. Those are three different events and the trail was collapsing the firs
 What it deliberately does not carry is text. The query and the recalled memories are conversation
 content, and container logs are the wrong home for them; the port hands the whole audit over so a
 different sink may decide otherwise, and this one logs the query's *length* exactly as the tool
-audit logs a result's size rather than its bytes.
+audit logs a result's size rather than its bytes. A dropped candidate is the one place that choice
+is not the sink's: the value it is handed carries an id and a score and has no field for text, so
+there was nothing here to withhold.
 """
 
 import json
@@ -36,7 +46,7 @@ class LoggingRecallSink:
     """
 
     async def record(self, audit: RecallAudit) -> None:
-        """Log one recall: the pool, the basis, and each kept hit's id, score and rank key."""
+        """Log one recall: the pool, the basis, each kept hit's id, score and key, and the drops."""
         fields: dict[str, object] = {
             "session": audit.session_id,
             "query_chars": len(audit.query),
@@ -53,6 +63,11 @@ class LoggingRecallSink:
                 }
                 for ranked in audit.ranking.hits
             ],
+            "dropped": [
+                {"id": candidate.id, "score": candidate.score}
+                for candidate in audit.dropped.carried
+            ],
+            "dropped_omitted": audit.dropped.omitted,
             "at": audit.at.isoformat(),
         }
         payload = json.dumps(fields, ensure_ascii=False, sort_keys=True, default=str)

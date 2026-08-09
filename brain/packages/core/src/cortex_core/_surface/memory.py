@@ -7,7 +7,16 @@ wildcard re-exports, and it is this file's contract.
 
 from cortex_core.memory import GLOBAL_SCOPE, MemoryRecord, ScoredMemory
 from cortex_core.memory_cascade import SessionMemoryCascade
-from cortex_core.ranking import RankBasis, RankedMemory, Ranking, RecallAudit
+from cortex_core.ranking import (
+    DROPPED_TRAIL_LIMIT,
+    DroppedCandidate,
+    DroppedCandidates,
+    RankBasis,
+    RankedMemory,
+    Ranking,
+    RecallAudit,
+    dropped_candidates,
+)
 from cortex_core.recall import MemoryRecaller
 from cortex_core.rerank import RAW_RECALL_POLICY, RawRecallPolicy, RecallPolicy
 from cortex_core.rerank_judge import JudgeRecallPolicy
@@ -24,9 +33,12 @@ from cortex_core.scope import (
 )
 
 __all__ = [
+    "DROPPED_TRAIL_LIMIT",
     "GLOBAL_MEMORY_SCOPE",
     "GLOBAL_SCOPE",
     "RAW_RECALL_POLICY",
+    "DroppedCandidate",
+    "DroppedCandidates",
     "GlobalMemoryScope",
     "JudgeRecallPolicy",
     "MemoryRecaller",
@@ -44,4 +56,5 @@ __all__ = [
     "ScoredMemory",
     "SessionMemoryCascade",
     "SessionMemoryScope",
+    "dropped_candidates",
 ]

@@ -1,7 +1,7 @@
 """Behavior of the memory value types, in-memory fakes, and the MemoryRecaller use-case."""
 
 import uuid
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from datetime import UTC, datetime
 
 import pytest
@@ -402,12 +402,111 @@ async def test_a_declined_rank_reaches_the_turn_as_no_memories_and_the_trail_say
     assert audit.ranking.basis is RankBasis.DEMUR
 
 
+async def test_the_trail_names_the_candidates_the_policy_left_behind() -> None:
+    """The pool the caller never sees, by id and by the store's own score (ADR-0038 addendum).
+
+    The recaller is the only place that holds both the pool and the ranking, so this is where the
+    difference between them is taken. The expectation is read back off the store rather than
+    written down, which is what makes "the store's cosine, unchanged" an assertion.
+    """
+    store = InMemoryMemoryStore()
+    sink = RecordingRecallSink()
+    ids = iter([f"m{i}" for i in range(3)])
+    recaller = MemoryRecaller(
+        store,
+        HashEmbedder(),
+        _FixedClock(),
+        policy=_SpyRecallPolicy(),
+        audit=sink,
+        id_factory=lambda: next(ids),
+    )
+    for i in range(3):
+        await recaller.record(f"fact {i}", session_id="s")
+    await recaller.recall("fact 0", k=1, session_id="s")
+
+    pool = await store.search(await HashEmbedder().embed("fact 0"), k=3)
+    (audit,) = sink.audits
+    assert [ranked.hit.record.id for ranked in audit.ranking.hits] == [pool[0].record.id]
+    assert [(hit.record.id, hit.score) for hit in pool[1:]] == [
+        (candidate.id, candidate.score) for candidate in audit.dropped.carried
+    ]
+    assert audit.dropped.omitted == 0  # three candidates is nowhere near the bound
+
+
 async def test_recall_without_a_sink_records_nothing() -> None:
     """The founding silent path: an unwired audit is not an empty trail, it is no trail."""
     store = InMemoryMemoryStore()
     recaller = MemoryRecaller(store, HashEmbedder(), _FixedClock(), id_factory=lambda: "m0")
     await recaller.record("a fact", session_id="s")
     assert len(await recaller.recall("a fact", k=1, session_id="s")) == 1
+
+
+class _CountingPool(list[ScoredMemory]):
+    """A pool that counts how many times it is walked end to end."""
+
+    def __init__(self, hits: Sequence[ScoredMemory]) -> None:
+        super().__init__(hits)
+        self.walks = 0
+
+    def __iter__(self) -> Iterator[ScoredMemory]:
+        self.walks += 1
+        return super().__iter__()
+
+
+_READ_ONLY = "this store only ever serves its one pool"
+
+
+class _PoolStore:
+    """A MemoryStore that hands every search the one instrumented pool it was built with."""
+
+    def __init__(self, pool: _CountingPool) -> None:
+        self.pool = pool
+
+    async def add(self, record: MemoryRecord) -> None:
+        del record
+        raise AssertionError(_READ_ONLY)
+
+    async def search(
+        self, embedding: Sequence[float], *, k: int, scopes: Sequence[str] | None = None
+    ) -> Sequence[ScoredMemory]:
+        del embedding, k, scopes
+        return self.pool
+
+    async def delete_scope(self, scope: str) -> int:
+        del scope
+        raise AssertionError(_READ_ONLY)
+
+
+async def _walks_recalling(*, audited: bool) -> int:
+    """How many times one recall walks the candidate pool, with and without a trail wired."""
+    pool = _CountingPool(
+        [
+            ScoredMemory(
+                record=_record("a fact", (1.0, 0.0), record_id=f"m{i}"), score=0.9 - i / 10
+            )
+            for i in range(3)
+        ]
+    )
+    recaller = MemoryRecaller(
+        _PoolStore(pool),
+        HashEmbedder(),
+        _FixedClock(),
+        policy=_SpyRecallPolicy(),
+        audit=RecordingRecallSink() if audited else None,
+    )
+    await recaller.recall("a fact", k=1, session_id="s")
+    return pool.walks
+
+
+async def test_the_silent_path_assembles_no_record_for_a_sink_that_is_not_there() -> None:
+    """The trail is opt in and costs nothing off, which a widened record could quietly undo.
+
+    The whole audit, including the difference between the pool and the ranking, is built inside
+    the "is there a sink" guard. So the unaudited recall walks the pool once, for the policy, and
+    the audited one walks it exactly once more.
+    """
+    assert await _walks_recalling(audited=False) == 1
+    assert await _walks_recalling(audited=True) == 2
 
 
 async def test_session_scoped_recaller_does_not_cross_conversations() -> None:
