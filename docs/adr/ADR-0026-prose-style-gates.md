@@ -294,3 +294,76 @@ Proven able to fail, each on a planted repo with a real `git`: the flush block d
 complaints and exit 1, the flow mapping and the flow sequence each draw a refusal and exit 1, and
 a bind whose root landing is tracked draws one complaint naming `docker/docker/seed.sql`. Each
 returns to `bindcheck OK` once the landing is accounted for.
+
+## Addendum (2026-08-09): the wrap exempts a line's kind, and the footer is not one of them
+
+The 2026-07-19 addendum shipped one of the four exceptions and named what the other three want:
+a fence toggle carried through the walk, a heuristic for a pasted command, and a decision on
+whether a `BREAKING CHANGE:` footer is exempt at all or simply wrapped. All three are decided
+here, and two of the three answers are not the ones that were sketched.
+
+**The footer is not exempt. It wraps like the prose it is.** The argument is what the footer
+actually is: a token read by a machine over a value that is ordinary prose. Two machines could be
+reading it, and neither loses anything to a newline. Git is not one of them: git's trailer token
+has no space in it, so `BREAKING CHANGE:` is not a trailer at all, and
+`git interpret-trailers --parse` prints nothing for a message whose only footer is that one while
+printing `Co-authored-by:` and `Signed-off-by:` from the same message shape (git 2.43.0, run
+before this was written). The machine that does read it is a Conventional Commits parser, whose
+specification says a footer value may contain spaces and newlines and that parsing terminates at
+the next token. So wrapping preserves the whole value, and exempting the footer would carve a hole
+in the wrap for exactly the class of text the wrap exists for, keyed on a token rather than on
+anything about the words: a three-sentence footer would be exempt on all three sentences.
+
+**The defect the deferral feared is smaller than the record said, which is worth stating plainly.**
+Both the entry and the addendum above say the gate "can refuse a message the commit rules
+themselves require". What it refuses is a footer written unwrapped, never the footer: AGENTS.md
+mandates the footer and, on the same page, mandates the wrap, and the specification it cites
+permits the two together. Measured rather than argued, and on the gate exactly as it stood before
+this change: a footer written as one 139-character line exits 1, while the same footer wrapped
+over lines of 63, 63 and 11 exits 0. There is therefore no message shape this repo's own rules
+mandate that this gate cannot accept, and there never was one.
+
+**The pasted-command heuristic is an author's mark, not a leading indent, and that is measured.**
+The deferral proposed "a leading indent, a shell prompt". The indent half was tested against this
+repo's own history before being built: over 433 commits, 9 body lines are indented four spaces or
+more and every one of them is prose, nested bullet continuations in two messages, the one that
+wired the Tauri shell and one reporting VRAM measurements per model, while fenced lines and
+prompt-marked lines number 0. An indent-based exemption would
+have unwrapped ordinary sentences and exempted nothing that has ever been written here, which is
+the "exempts too much" failure in its purest form. What ships instead is `_PROMPT`, matching
+`^\s*\$ \S`: a line whose first token is a bare `$`, which is a mark an author writes on purpose
+and which prose does not carry.
+
+**The fence is a toggle over the walk, and a fence left open is itself a violation.** Any line
+whose first non-blank characters are ``` or `~~~` toggles the state, an info string (```bash)
+included, and the width rule does not measure a line between an open and a close. If the walk ends
+with a fence still open, `check_widths` reports the line that opened it, because the alternative is
+one stray fence silently exempting every line after it, which is a gate that has stopped holding
+while still exiting 0.
+
+**The exemption is width only, and that has a measured cost.** Inside a fence and after a prompt,
+the dash ban, the volatile-reference ban and the resolving-hash check still read every line. That
+is deliberate, since a citation does not stop being volatile for sitting in a paste, but it means
+two ordinary pastes are refused: `cargo llvm-cov -- --nocapture` draws the spaced-ASCII complaint,
+and `git show` with a short hash that resolves draws the hash complaint. Both were reproduced
+inside a fence rather than reasoned about, and the residue is recorded as its own deferral in the
+three places this repo requires: the entry in
+[docs/refinements/repo-gates.md](../refinements/repo-gates.md), its line in
+[docs/refinements/index.md](../refinements/index.md) under fix-when-it-bites, and this addendum.
+
+**What the gate still cannot see.** The fence toggle is not a CommonMark implementation: it does
+not require a closing fence to match the opener's character or length, and it knows nothing of
+indented code blocks, list context, or a fence nested in a fence. The prompt marks its own line and
+not the output printed under it, which wants a fence. And nothing here tells a paste from prose that
+merely resembles one, by design: both exemptions are author declarations, the only signal that does
+not guess.
+
+**Proven able to fail before being trusted**, running the real checker over nine message files. A
+73-character prose line exits 1; the same line after a closed fence exits 1 naming line 7, which is
+the leak that matters; a 104-character `docker compose` invocation exits 0 inside a fence and 0
+behind a `$` prompt; an unclosed fence exits 1 naming the line that opened it; a 77-character prose
+line indented four spaces under a bullet exits 1, which is the rejected heuristic held to its own
+measurement; a 125-character footer exits 1 while the same one over lines of 63 and 61 exits 0;
+and a fenced paste carrying a
+resolving hash and a bare `--` exits 1 on both, which is the deferral above measured rather than
+assumed.
