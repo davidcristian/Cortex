@@ -380,6 +380,62 @@ def test_every_mention_is_reported_rather_than_only_the_first(tmp_path: Path) ->
     assert "cannot read gone.css" in details[1]
 
 
+# ── counted mentions, where the occurrences are one set ────────────────────────
+
+
+def _compare(root: Path, declared: str, *spelled: str) -> None:
+    """A state literal declared once and compared against in a component, once per line given."""
+    (root / "channels.py").write_text(f'STATE = "{declared}"\n', encoding="utf-8")
+    lines = "".join(f'  aria-label={{s === "{one}" ? "x" : undefined}}\n' for one in spelled)
+    (root / "Message.tsx").write_text(f"<span\n{lines}/>\n", encoding="utf-8")
+
+
+def _counted(occurrences: int | None) -> crosscheck.Constant:
+    return crosscheck.Constant(
+        label="a compared state",
+        why="both comparisons decide on the same state",
+        sites=(crosscheck.Site("channels.py", "STATE"),),
+        mentions=(crosscheck.Mention("Message.tsx", 's === "{value}"', occurrences),),
+    )
+
+
+def test_a_counted_mention_holds_when_the_whole_set_is_spelled(tmp_path: Path) -> None:
+    _compare(tmp_path, "thinking", "thinking", "thinking")
+    assert crosscheck.check_constant(tmp_path, _counted(2)) == []
+
+
+def test_a_half_applied_rename_passes_a_presence_check_and_fails_a_counted_one(
+    tmp_path: Path,
+) -> None:
+    """The recorded defect, in one tree: one of two comparisons updated, the other left dead."""
+    _compare(tmp_path, "deliberating", "deliberating", "thinking")
+    assert crosscheck.check_constant(tmp_path, _counted(None)) == []
+    (fault,) = crosscheck.check_constant(tmp_path, _counted(2))
+    spelling = "spells 's === \"deliberating\"' as a token of its own: found 1, pinned 2"
+    assert spelling in fault.detail
+
+
+def test_a_counted_mention_fails_on_one_occurrence_too_many(tmp_path: Path) -> None:
+    """Exact rather than a floor: a set that grew is a set whose registry line is now stale."""
+    _compare(tmp_path, "thinking", "thinking", "thinking", "thinking")
+    (fault,) = crosscheck.check_constant(tmp_path, _counted(2))
+    assert "found 3, pinned 2" in fault.detail
+
+
+def test_a_counted_mention_on_a_file_that_cannot_be_read_is_a_fault(tmp_path: Path) -> None:
+    (tmp_path / "channels.py").write_text('STATE = "thinking"\n', encoding="utf-8")
+    (fault,) = crosscheck.check_constant(tmp_path, _counted(2))
+    assert "cannot read Message.tsx" in fault.detail
+
+
+@pytest.mark.parametrize("occurrences", [0, -1])
+def test_a_count_below_one_is_refused(tmp_path: Path, occurrences: int) -> None:
+    """Zero would ask a mention to prove the value ABSENT, which is the opposite of a coupling."""
+    _compare(tmp_path, "thinking", "thinking")
+    (fault,) = crosscheck.check_constant(tmp_path, _counted(occurrences))
+    assert f"pins {occurrences} occurrences, which ties nothing" in fault.detail
+
+
 def test_check_walks_the_whole_registry(tmp_path: Path) -> None:
     second = BYTE_CEILING._replace(label="another ceiling")
     faults = crosscheck.check(tmp_path, (BYTE_CEILING, second))
@@ -431,6 +487,18 @@ def test_the_registry_holds_couplings_of_both_kinds() -> None:
     """Same argument for the mention form: an unexercised site kind proves nothing."""
     assert any(constant.mentions for constant in crosscheck.CONSTANTS)
     assert any(len(constant.sites) > 1 for constant in crosscheck.CONSTANTS)
+
+
+def test_the_registry_pins_at_least_one_occurrence_count() -> None:
+    """A field no entry sets is a dead wire, and this repo declines those."""
+    counted = [
+        mention.occurrences
+        for constant in crosscheck.CONSTANTS
+        for mention in constant.mentions
+        if mention.occurrences is not None
+    ]
+    assert counted
+    assert all(count >= crosscheck.MIN_OCCURRENCES for count in counted)
 
 
 # ── the CLI ────────────────────────────────────────────────────────────────────

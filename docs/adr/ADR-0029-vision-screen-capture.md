@@ -1481,7 +1481,8 @@ comparisons mistyped exits 1". That file carries the comparison on two adjacent 
 asks whether the file spells the value at all, and mistyping one of two leaves the other standing:
 re-run today, that mutation exits 0. Mistyping **both** exits 1, and so does the rename at the
 declaring site, which is the drift a mention is for. The limit is now stated where the behaviour
-is: a mention is a presence check and not a census.
+is: a mention is a presence check and not a census. (That last sentence held until 2026-08-09, and
+the counted-mentions section below says what replaced it and what the mutation does today.)
 
 ### Bounded matching (2026-08-08): a mention that is contained is not a mention that is spelled
 
@@ -1503,6 +1504,64 @@ endpoints quoted whole. Proven able to fail, on the real tree: the container hal
 `MORPHING_ATTRIBUTE` shortened to `"data-morphin"` exits 1 where containment would have found it
 inside `[data-morphing]`. All three reverted to "crosscheck OK: 14 cross-tree constant(s) under ..
 agree".
+
+### Counted mentions (2026-08-09): a set that must move together is pinned exactly
+
+The bounded matcher above chose a word boundary over an occurrence count and recorded the count as
+deferred, on the argument that counting would tie a registry entry to how many times a stylesheet
+happens to spend a custom property. `Mention.occurrences` closes that deferral without disturbing
+the argument, because the count is **opt in**. Unset, which is what twelve of the fourteen
+registered mentions stay, a mention is the presence check it always was. Set, it pins an exact
+number of bounded occurrences, and the scan counts matches rather than stopping at the first.
+
+**Exactly N, not at least N, and the reason is that a floor cannot notice it has gone stale.**
+A floor of three passes on a far side that grew to four, and having passed it also passes when
+that far side later drops back to three, so the gate has quietly widened by however much the tree
+drifted and nothing says when. That is the gate-that-cannot-fail defect arriving by drift instead
+of by rename, which is the one failure mode this scan exists to remove. An exact count is
+falsifiable in both directions, and the price of a legitimate addition is one integer in
+`couplings.py`, on the line that already carries why the coupling exists. The objection that a
+gate failing on every benign addition is a gate people disable is real, and it is answered by the
+field being opt in rather than by weakening the comparison: a count is written only where losing
+one occurrence is a defect rather than a design change, so a stylesheet growing a rule reddens
+nothing unless someone deliberately declared those rules a closed set. A count below 1 is refused
+outright, zero being a mention that asks the value to be **absent**.
+
+**Two of fourteen are counted, and the survey that picked them is the deliverable.** Rendering
+every registered mention against the tree found exactly two far sides spending their value more
+than once, which is the pair the deferral named. `Message.tsx` spells
+`message.statusState === "thinking"` twice and is pinned at 2: they are the `className` and the
+`aria-label` of one chip, so losing either leaves a chip styled without a name or named without a
+style. `overlay.css` reads `[data-morphing` in three rules and is **not** pinned at 3, because
+three is the sum of two unrelated features, one hiding a scrollbar thumb mid-roll and two capping
+the sections' shares, and a number that is a sum is the arithmetic the deferral warned about. The
+two share caps are a genuine set, the handover being symmetric or not at all, so they are pinned
+by a narrower mention of their own, `:not([{value}="0"])` at 2, beside the bare presence check
+that still covers all three. Every other mention occurs once and is deliberately left unpinned: a
+count of one says nothing a presence check does not already say, and would only forbid a second
+legitimate use.
+
+**Proven able to fail before being trusted, on the real tree, in both directions.** One too few:
+`THINKING_STATE` renamed to `"deliberating"` with the rename applied to `output_channels.py`,
+`turnState.ts` and the first of `Message.tsx`'s two lines exits 1 with "spells
+'message.statusState === \"deliberating\"' as a token of its own: found 1, pinned 2". The same
+mutation run against the scan as it stood before this change exits 0, which is the
+defect stated as a difference rather than as a claim, and it is the mutation the correction above
+had to publish as unrunnable. One too many: a third `message.statusState === "thinking"` added to
+the same element exits 1 reporting 3 against 2. The narrower pair: deleting
+`:not([data-morphing="0"])` from one of the two share-cap rules exits 1 reporting 1 against 2. And
+the benign case stays green: a fourth rule reading `[data-morphing]`, of a shape the pinned template
+does not match, leaves the scan at "crosscheck OK: 14 cross-tree constant(s) under .. agree",
+which every one of the three mutations returned to on revert.
+
+**What a mention still cannot hold**, so the limit is written where the behaviour is rather than
+discovered again. A count is over one file, so a value spent in three files with two occurrences
+each needs three mentions and there is no way to say "six across the set". A count is over a
+rendered needle, so occurrences of the value in some other shape are invisible to it: the pinned
+pair above would not notice a third share cap written as `[data-morphing]:not([data-morphing="0"])`
+unless that shape were registered too. And the count is a number in a registry rather than a
+property of the far side, so it is stale the moment the far side moves and the gate's own failure
+is what says so, which is the trade this addendum takes on purpose.
 
 ## Addendum (2026-08-06): what a 4K desktop is actually legible at, and what the knob costs
 

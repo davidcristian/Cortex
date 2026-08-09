@@ -30,9 +30,15 @@ the file. Bare containment was not enough and had two passing violations to prov
 is a *prefix* of the one written down (`5005` inside `50051`) satisfied an `in` test, and so did a
 published `host:container` port pair whose host half alone carried the needle. So a rendered
 needle is bounded at each word-character edge, and a template is written to cover the whole of
-what it pins rather than a leading piece of it. A mention stays a presence check and not a census:
-a file that spends the value twice and loses one of them still passes, because what the gate ties
-is the spelling and not how many times it is spent.
+what it pins rather than a leading piece of it.
+
+A mention is a presence check unless it says otherwise, so a file that spends the value twice and
+loses one of them passes: what the gate ties is the spelling and not how many times it is spent.
+``Mention.occurrences`` says otherwise, and it pins an **exact** count rather than a floor,
+because a floor cannot notice that the far side has grown past it and so widens itself by however
+much the tree drifted. The exactness is affordable only because the field is opt in: a count is
+written where the occurrences are one set that must move together, and every other mention keeps
+the presence check, so no legitimate new rule reddens a gate about a coupling that never moved.
 
 And not every coupling is an equality: `Relation.ORDERED` holds a registry's sites to
 non-decreasing order instead, for the bounds that must sit under one another rather than match.
@@ -62,6 +68,10 @@ WORD_CHARACTER = re.compile(r"\w")
 # cannot fail this scan was written to remove. Two is therefore the floor, not a formality, and
 # it counts mentions: a lone declaration plus one place that spends it is a real coupling.
 MIN_PLACES = 2
+
+# The floor under a pinned occurrence count. Zero would ask a mention to prove the value is
+# ABSENT, which is the opposite of a coupling, and a negative one asks nothing at all.
+MIN_OCCURRENCES = 1
 
 # One declaration syntax per language, each matching only a module-level (Python, TypeScript) or
 # item-level (Rust) constant, and each capturing exactly the value expression. `{name}` is
@@ -162,13 +172,25 @@ def bounded(needle: str) -> re.Pattern[str]:
 
 
 def check_mention(root: Path, mention: Mention, value: str | int) -> None:
-    """Raise unless the file spends ``value`` in the shape the mention names."""
+    """Raise unless the file spends ``value`` in the shape, and the number, the mention names."""
     if PLACEHOLDER not in mention.template:
         msg = f"mention {mention.template!r} carries no {PLACEHOLDER}, so it ties nothing"
         raise CrossCheckError(msg)
+    wanted = mention.occurrences
+    if wanted is not None and wanted < MIN_OCCURRENCES:
+        msg = f"mention {mention.template!r} pins {wanted} occurrences, which ties nothing"
+        raise CrossCheckError(msg)
     needle = mention.template.replace(PLACEHOLDER, str(value))
-    if not bounded(needle).search(_read(root, mention.path)):
-        msg = f"{mention.path} does not spell {needle!r} as a token of its own"
+    found = len(bounded(needle).findall(_read(root, mention.path)))
+    if wanted is None:
+        if not found:
+            msg = f"{mention.path} does not spell {needle!r} as a token of its own"
+            raise CrossCheckError(msg)
+    elif found != wanted:
+        msg = (
+            f"{mention.path} spells {needle!r} as a token of its own: found {found}, pinned "
+            f"{wanted}; move the whole set, or correct occurrences in couplings.py"
+        )
         raise CrossCheckError(msg)
 
 
