@@ -9,13 +9,9 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 entries are the historical record of what each deferral became, and the index at
 [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** 6 (`cargo clippy` for the Tauri shell in CI, moved to fix-when-it-bites
-2026-07-16; standing test-order randomization, opened as fix-when-it-bites 2026-07-18; a paste
-being exempt from the wrap and from nothing else, opened as fix-when-it-bites 2026-08-09 behind
-the three exceptions the wrap gate did not ship, which closed the same day ahead of their trigger,
-so this number holds at 6 by exchange rather than by standing still: the fence and the `$` prompt
-landed, and what they leave is the dash ban, the volatile-reference ban and the hash check still
-reading a line inside a paste; the overlay stylesheet outside the line cap, opened as
+**Open items:** 5 (`cargo clippy` for the Tauri shell in CI, moved to fix-when-it-bites
+2026-07-16; standing test-order randomization, opened as fix-when-it-bites 2026-07-18; the
+overlay stylesheet outside the line cap, opened as
 fix-when-it-bites 2026-08-03 behind the cap reaching the overlay's TypeScript; the three
 couplings the widened constant scan still cannot hold, opened as fix-when-it-bites 2026-08-08
 when four of the five kinds its predecessor named were closed, which is the backlog working as
@@ -23,7 +19,8 @@ intended rather than a count standing still, and grown to four the same day by t
 codes the kinded body-gateway error currency now needs both sides to spell alike, folded into
 that entry rather than counted beside it, and still four on 2026-08-09 by exchange, the roll's
 duration closing onto a `--roll` custom property the sheet spells once and the spend side of a
-value-declaring property taking its place, folded in the same way; and the sixth, added 2026-08-08 by the turn-cost run
+value-declaring property taking its place, folded in the same way; and the fifth, added
+2026-08-08 by the turn-cost run
 that moved the recall default, whose harness never entered the repo, so the one measurement in
 that ADR that names no reproducing test is also the one whose result shipped, sharpened the same
 day when its trigger fired and the fold-under-load run committed a seam-spanning driver: placement
@@ -34,7 +31,11 @@ default that lands in the repo tree came off this list on 2026-08-08, ahead of i
 a fourth cross-tree scan whose rule is three-way rather than the one this entry sketched; a mention
 counting nothing came off it on 2026-08-09, on its trigger, as an opt-in exact occurrence count,
 and it is the one close that leaves this number where it found it, having been appended on
-2026-08-08 without ever being added to this list; the rest
+2026-08-08 without ever being added to this list; a paste being exempt from the wrap and from
+nothing else came off it later the same day, ahead of its trigger, as a per-rule answer rather
+than a blanket one, the dash ban joining the wrap inside a paste while the volatile-reference ban
+and the hash check stay, and it is a close that lowers this number rather than exchanging it, no
+entry opening behind it; the rest
 landed 2026-07-16, 2026-07-19, 2026-08-03 and 2026-08-06, the last of them the live pgvector run
 sharing the brain's `memories` table, closed ahead of its trigger rather than by it,
 see the outcome notes below the verbatim entries)
@@ -143,6 +144,44 @@ see the outcome notes below the verbatim entries)
   exempt. **Trigger:** the first commit whose paste carries either, at which point the author
   chooses between mangling the paste and bypassing the hook, which is exactly the outcome the entry
   above exists to prevent.
+
+  **Landed 2026-08-09, ahead of its trigger, and the narrower of the two readings it offered was
+  refused** ([ADR-0026 paste-reach addendum](../adr/ADR-0026-prose-style-gates.md)). **The trigger
+  had not fired and is reported rather than glossed:** over 437 commits the history holds 0 fenced
+  lines and 1 prompt-marked line, that one being the `docker compose` paste in the commit that
+  shipped the kind exemption hours earlier, and it carries neither a bare `--` (its dashes are all
+  attached flags) nor any hex token. What moved this is that the wall is one paste away rather than
+  hypothetical, the facility now being in use and the commands this repo would paste being its own
+  gate invocations: the `justfile` runs `cargo clippy ... -- -D warnings` twice and
+  `cargo test ... -- --ignored --nocapture` once, with the same shape in two runbooks.
+  **What it became:** a per-rule answer. `classify_lines` in `scripts/commitlint.py` is the fence
+  toggle and the prompt test lifted out of the wrap into one classification both the wrap and the
+  prose rules consume, so the file holds a single answer to where a block begins and ends. A paste
+  is exempt from the wrap and from the dash ban, and from the volatile-reference ban and the
+  resolving-hash check it is not. **The argument is what each rule is for rather than which is
+  convenient.** The wrap and the dash ban are about the text as typed, and the ban is specifically
+  on a dash used as punctuation, which verbatim text does not do: `--` in
+  `cargo llvm-cov -- --nocapture` is cargo's argument separator, and the rule's own remedy,
+  restructuring the sentence, does not exist for words the author did not write. The other two are
+  about the message's future rather than its typing, so who produced the characters is beside the
+  point, and their remedy survives a paste intact, `git show <sha>` carrying everything the
+  original carried where a reflowed command carries less.
+  **This entry's own narrower reading was refused**, that only the argument-separator `--` and a
+  hash inside a fence be exempt: a rule that exempts ASCII `--` inside a paste while still banning
+  an em dash there is a rule about character sets rather than kinds, and it fails on pasted program
+  output, which can carry one and which an author would then have to alter. All three banned forms
+  go, and the signal stays the author's declaration that the width exemption already reads.
+  **Proven able to fail before being trusted, with the defect reproduced first on the checker
+  exactly as it stood at the previous commit:** a fenced `cargo llvm-cov -- --nocapture` exits 1
+  there, the same behind a `$` prompt exits 1, a fenced em dash exits 1, and all three exit 0 now.
+  The leaks were measured, not assumed: the same separator unfenced exits 1, after the fence closes
+  exits 1, and on the line after a `$` prompt exits 1; an unclosed fence still exits 1 naming the
+  line that opened it; and inside a fence a `git show` of a resolving short hash and a
+  `grep -n 'ADR-0026'` each still exit 1. **No new deferral opens**, which is a decision: the two
+  residues, that a fence around prose launders it past the dash ban the way it already launders it
+  past the wrap, and that a paste of `git log --oneline` output is refused for being all hashes,
+  are the accepted costs of an author-declared exemption and of the column above, written beside
+  the behaviour in the ADR rather than filed as work.
 
 **Test-runner mechanics ([ADR-0002](../adr/ADR-0002-toolchain-gates.md)):**
 - **Standing test-order randomization.** Opened 2026-07-18, fix-when-it-bites, by a review that

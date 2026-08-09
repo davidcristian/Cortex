@@ -124,8 +124,9 @@ the subject style). Imperative mood is the one convention no machine checks:
   whose longest word alone is over the wrap (a URL, a path, a long identifier) is exempt, having
   nowhere to break. Two kinds of line are exempt by what they are rather than by their width,
   because reflowing a paste changes what it says: a line inside a code fence, and one whose first
-  token is a bare `$` prompt. A fence left open is itself reported. A `BREAKING CHANGE:` footer is
-  neither, so it wraps like the prose it is.
+  token is a bare `$` prompt. Those two kinds are how a message declares a paste, and a paste is
+  exempt from this rule and from the dash ban below, and from nothing else. A fence left open is
+  itself reported. A `BREAKING CHANGE:` footer is neither kind, so it wraps like the prose it is.
 - Types: `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `build`, `ci`, `chore`,
   `revert`. Breaking change: `!` after type/scope plus a `BREAKING CHANGE:` footer.
 - Scopes (optional, only when the change is contained to one area): `brain`, `body`,
@@ -136,10 +137,13 @@ the subject style). Imperative mood is the one convention no machine checks:
   entry, an audit, a commit hash, or any numbered pointer into a mutable doc (`gate 3`,
   `assumption 1`, `§5`). Describe the substance instead: name the capability, the
   decision, or the behaviour. Concrete code paths, package names, env vars, and
-  measurements are stable, so they stay welcome.
+  measurements are stable, so they stay welcome. A paste is **not** exempt: a pasted hash
+  stops resolving on the same rewrite a cited one does, and `git show <sha>` says what the
+  paste meant.
 - **No dashes as punctuation.** No em dash, en dash, or spaced `--` in a subject or
   body; restructure the sentence rather than swapping in another mark. Hyphenated words
-  and CLI flags (`--locked`) are unaffected.
+  and CLI flags (`--locked`) are unaffected, as is any line inside a paste, whose text
+  punctuates nothing and which the author did not write.
 - One logical change per commit (typically one slice, one fix, or one doc change).
   Every commit passes `just check`, which the pre-commit hook enforces.
 

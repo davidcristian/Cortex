@@ -6,6 +6,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from typing import NamedTuple
 
 MAX_HEADER_LENGTH = 72
 
@@ -103,17 +104,38 @@ def is_pasted_command(line: str) -> bool:
     return _PROMPT.match(line) is not None
 
 
-def check_widths(lines: list[str]) -> list[str]:
-    """Return the wrap violations below the header, and an unclosed fence if one is left open."""
-    problems: list[str] = []
+class Line(NamedTuple):
+    """One message line, paired with whether it is a paste rather than the author's prose."""
+
+    number: int
+    text: str
+    pasted: bool
+
+
+def classify_lines(lines: list[str]) -> tuple[list[Line], int | None]:
+    """Pair every line with its kind, and report the line an unclosed fence was opened on."""
+    classified: list[Line] = []
     opened_at: int | None = None
-    for number, line in enumerate(lines[1:], start=2):
-        if is_fence(line):
+    for number, text in enumerate(lines, start=1):
+        if number == 1:
+            classified.append(Line(number, text, pasted=False))
+        elif is_fence(text):
             opened_at = None if opened_at is not None else number
-        elif opened_at is None and not is_pasted_command(line) and too_wide(line):
-            problems.append(
-                f"line {number} is {len(line)} chars; AGENTS.md wraps the body at {MAX_BODY_WIDTH}"
-            )
+            classified.append(Line(number, text, pasted=True))
+        else:
+            pasted = opened_at is not None or is_pasted_command(text)
+            classified.append(Line(number, text, pasted=pasted))
+    return classified, opened_at
+
+
+def wrap_problems(classified: list[Line], opened_at: int | None) -> list[str]:
+    """Return the wrap violations below the header, and an unclosed fence if one is left open."""
+    problems = [
+        f"line {line.number} is {len(line.text)} chars; "
+        f"AGENTS.md wraps the body at {MAX_BODY_WIDTH}"
+        for line in classified
+        if line.number > 1 and not line.pasted and too_wide(line.text)
+    ]
     if opened_at is not None:
         problems.append(
             f"line {opened_at} opens a code fence nothing closes; "
@@ -122,22 +144,32 @@ def check_widths(lines: list[str]) -> list[str]:
     return problems
 
 
+def check_widths(lines: list[str]) -> list[str]:
+    """Return the wrap violations in a message, classifying its lines first."""
+    classified, opened_at = classify_lines(lines)
+    return wrap_problems(classified, opened_at)
+
+
 def check_body_lines(lines: list[str], repo: Path) -> list[str]:
     """Return the width, dash, volatile-reference, and dangling-hash violations in a message."""
-    problems: list[str] = check_widths(lines)
-    for number, line in enumerate(lines, start=1):
-        for pattern, label in _DASHES:
-            if pattern.search(line):
-                problems.append(f"line {number} uses {label}; restructure the sentence")
+    classified, opened_at = classify_lines(lines)
+    problems: list[str] = wrap_problems(classified, opened_at)
+    for number, text, pasted in classified:
+        if not pasted:
+            problems.extend(
+                f"line {number} uses {label}; restructure the sentence"
+                for pattern, label in _DASHES
+                if pattern.search(text)
+            )
         for pattern, label in _VOLATILE:
-            match = pattern.search(line)
+            match = pattern.search(text)
             if match is not None:
                 problems.append(
                     f"line {number} cites a {label} ({match.group(0)!r}); describe the substance"
                 )
         problems.extend(
             f"line {number} cites commit {token!r}; a rewrite invalidates it"
-            for token in _HEX.findall(line)
+            for token in _HEX.findall(text)
             if commit_exists(token, repo)
         )
     return problems

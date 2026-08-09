@@ -186,11 +186,14 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   native toast, the body's second OS capability).
 - [ADR-0026: Prose style gates](adr/ADR-0026-prose-style-gates.md): the no-dash-as-punctuation and
   no-volatile-reference rules get gates instead of goodwill, after a sweep found 3452 em-dash lines
-  and 144 of 148 non-conforming commit messages. `dashcheck.py` scans every text file (em dash
-  always, en dash only when spaced, so ranges and the minus sign stay legal; ASCII `--` stays the
+  and 144 of 148 non-conforming commit messages. `dashcheck.py` scans every text file (em dash and
+  en dash alike, spaced or not, since a range takes a plain hyphen, while the minus sign stays
+  legal; ASCII `--` stays the
   inline-reason idiom in files but is banned in messages, which are pure prose). `commitlint.py`
   grows from the header to the whole message and resolves hex tokens with `git cat-file`, so only a
-  hash that really is a commit is flagged. Escape hatch: `dashcheck: allow` plus a reason.
+  hash that really is a commit is flagged. Escape hatch: `dashcheck: allow` plus a reason. A
+  message declares a paste with a code fence or a `$` prompt, and a paste is exempt from the wrap
+  and from the dash ban, never from the volatile-reference ban or the hash check.
 - [ADR-0027: Structured turn provenance](adr/ADR-0027-turn-provenance.md): the convergence seam
   for four provenance deferrals (ADR-0013/0019/0022/0025). One frozen `TurnStamp`
   (`session_id` + `tainted` + `sources`) replaces the loose taint keyword:
