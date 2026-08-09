@@ -46,7 +46,6 @@ the GPU is serving right now, synchronously and without touching the lease, whic
 """
 
 import asyncio
-import logging
 from collections.abc import AsyncGenerator, Mapping
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 
@@ -69,8 +68,6 @@ from cortex_core.residency_state import (
 )
 from cortex_core.residency_tiers import StandingTiers, retry_missing
 from cortex_core.residency_watch import BootWatch
-
-_logger = logging.getLogger(__name__)
 
 
 class SwappingModelManager:
