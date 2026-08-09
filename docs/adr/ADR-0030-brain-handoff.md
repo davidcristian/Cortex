@@ -1139,9 +1139,10 @@ a user tuning by the two-term rule to a compliant-looking 20 + 35 would reach th
 abort a working handoff, so the rule is now written with all three terms in the runbook and at
 `DEFAULT_MODELHOST_TIMEOUT_S`. Moving the probe out from under the lock was rejected: a status that
 read the child, released the lock, then probed could report READY for a tier a concurrent stop had
-already ended, which is the readiness lie the lock exists to prevent. `GET /health` now reports the
-two stop bounds the daemon was actually given, so the pairing can be checked against a running
-container rather than against its env.
+already ended, which is the readiness lie the lock exists to prevent. `GET /health` reports from this
+round on the two stop bounds the daemon was actually given, so the pairing can be checked against a
+running container rather than against its env. The deadline-pairing addendum below then put
+`probe_timeout_s` on that same body, so it carries all three terms as of 2026-08-09.
 
 **The daemon's own log was empty, which mattered more than it looks.** `uvicorn.run` configures
 uvicorn's loggers and leaves root alone, so every INFO lifecycle line the sidecar logged was
