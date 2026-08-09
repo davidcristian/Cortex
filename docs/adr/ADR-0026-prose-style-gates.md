@@ -367,3 +367,105 @@ measurement; a 125-character footer exits 1 while the same one over lines of 63 
 and a fenced paste carrying a
 resolving hash and a bare `--` exits 1 on both, which is the deferral above measured rather than
 assumed.
+
+## Addendum (2026-08-09, later): the paste exemption reaches the dash ban and stops there
+
+The addendum above shipped the kind exemption as a **width** rule and recorded what that leaves
+as its own deferral: inside a fence and after a `$` prompt, the dash ban, the volatile-reference
+ban and the resolving-hash check still read every line, so `cargo llvm-cov -- --nocapture` and a
+`git show` of a live short hash are both refused inside a paste. Which of those three a paste has
+a claim on is decided here, rule by rule.
+
+**Landed ahead of its trigger, and the trigger is named rather than glossed.** The stated trigger
+was the first commit whose paste carries either shape. It has not fired: over 437 commits the
+history holds 0 fenced lines and 1 prompt-marked line, that one being the `docker compose` paste in
+the commit that shipped the kind exemption hours earlier, and it carries neither a bare `--` (its
+dashes are all attached flags) nor any hex token at all. What moved this instead is that the wall
+is now one paste away rather than hypothetical: the paste facility is in use as of that commit, and
+the commands this repo would paste are its own gate invocations. Three of those carry the separator
+in the `justfile` today, `cargo clippy ... -- -D warnings` twice and
+`cargo test ... -- --ignored --nocapture` once, with the same shape in two runbooks. An author
+pasting one of them meets exactly the choice the parent entry exists to prevent, between mangling
+the paste and bypassing the hook.
+
+**The rules split two and two, and the line between them is not "is this the author's prose".**
+
+| rule | exempt inside a paste | why |
+| --- | --- | --- |
+| the 72-column wrap | yes (shipped earlier) | a paste says what it says because of where its newlines are |
+| the dash ban (em, en, spaced ASCII `--`) | yes (this addendum) | the ban is on a dash used as PUNCTUATION, and verbatim text punctuates nothing |
+| the volatile-reference ban | **no** | the rule is about the message still reading correctly after the thing it points at moves |
+| the resolving-hash check | **no** | same, and a pasted hash goes stale on exactly the rewrite a cited one does |
+
+**The dash ban is exempt because its subject is absent, not because a paste is inconvenient.**
+ADR-0026 decision 2 bans ASCII `--` in a message on the reasoning that a commit message is pure
+prose, so ` -- ` there is an em dash in ASCII clothing. Inside a paste that premise fails: the text
+is not prose in any register, and `--` in `cargo llvm-cov -- --nocapture` is cargo's own argument
+separator, a token of a command line with no punctuating role to play. The remedy the rule
+prescribes settles it. Every rule states one, and this one's is "restructure the sentence"; a paste
+has no sentence to restructure, and the only two things an author can do instead are drop the paste
+or alter it, the second being precisely the "rewriting messages rather than checking them" failure
+the wrap exemption was built to avoid.
+
+**All three dash forms, not just the ASCII one.** The recorded entry offered a narrower reading,
+exempting "only the argument-separator `--` and a hash inside a fence", and the narrow half of it
+is refused. A rule that exempts ASCII `--` inside a paste while still banning U+2014 there is a
+rule about character sets rather than about kinds, and it fails the case that motivates it: pasted
+program output can carry an em dash, and an author who has to strip it is altering a paste to
+satisfy a gate. The exemption is keyed on the line's kind, which is an author declaration, exactly
+as the width exemption already is; making one rule read the kind and another read the character
+would leave two answers to "is this a paste" in one file.
+
+**The volatile-reference ban and the hash check are not exempt, and this is the sharper half of
+the decision.** The tempting symmetry is that a paste is not the author's prose, so no prose rule
+should reach it. That reading is wrong about what these two rules are for. The wrap and the dash
+ban are about the text as typed, and a paste was not typed. These two are about the message's
+**future**: a citation is banned because the message must still read correctly once the planning
+docs move on, and a resolving hash is banned because a rewrite invalidates it. Neither of those
+harms depends on who produced the characters. A pasted `git show` of a live short hash puts that
+hash in the commit message, and after the next rewrite it is a command that fails, in a message
+that no longer
+says what it meant; the parent entry conceded as much ("a hash pasted into a body still stops
+resolving after a rewrite") while proposing to exempt it anyway.
+
+The asymmetry that closes the argument is that **these two rules keep their remedy inside a
+paste**. Reflowing a command changes it, and stripping its `--` breaks it, so the wrap and the dash
+ban have no remedy there. But `git show <sha>` is a paste that says everything the original said,
+and a fenced grep can name a document instead of a decision number: the author loses nothing that
+the paste was carrying. A rule whose remedy survives has no claim on an exemption, and a rule whose
+remedy does not is where the exemption belongs. That is the whole of the boundary, and it is why
+the table above splits where it does rather than by which rules happen to be annoying.
+
+**One walk, not a second one.** `classify_lines` is the fence toggle and the prompt test lifted out
+of `check_widths` into a classification of its own, returning one `Line(number, text, pasted)` per
+line plus the line any unclosed fence opened. The wrap rule and the prose rules both consume it, so
+there is exactly one answer in the file to where a block begins and ends; two walks would have been
+two chances to disagree. Line 1 is the header, which is prose by construction (a subject cannot
+open a fence) and carries its own rules, so the toggle starts below it and no message can exempt
+its own subject. A fence marker counts as part of the block it delimits rather than as prose, which
+is what keeps an info string out of the prose rules.
+
+**Proven able to fail before being trusted**, running the real checker over real candidate
+messages, and with the defect reproduced first on the checker exactly as it stood at the previous
+commit. Under that one, a fenced `cargo llvm-cov -- --nocapture` exits 1, the same command behind a
+`$` prompt exits 1, and a fenced line carrying an em dash exits 1; under the checker as it now
+stands all three exit 0. **The leaks were tested rather than assumed**: the same separator with no
+fence around it exits 1, the same separator on the line after the fence closes exits 1 naming line
+6, the same separator on the line after a `$` prompt exits 1 (the prompt marks its own line, which
+is the recorded limit held to its own measurement), and a message whose fence is never closed exits
+1 naming the line that opened it, with the prose rules reporting nothing extra. **And the two rules
+a paste is not exempt from still fire inside one**: a fenced `git show` of this repo's own HEAD
+short hash, which really resolves, exits 1 on the hash, and a fenced `grep -n 'ADR-0026' docs/adr/*.md`
+exits 1 on the decision-record number. An em dash in program output printed under a `$` prompt
+rather than inside a fence exits 1, which is not a defect but the recorded limit: the prompt marks
+its own line and output wants a fence.
+
+**No new deferral opens, and that is a decision rather than an omission.** Two limits are worth
+writing down beside the behaviour instead. The exemption is an author declaration, so a fence
+around ordinary prose launders it past the dash ban as it already launders it past the wrap; that
+is the same "nothing here tells a paste from prose that merely resembles one" this ADR already
+records, and the alternative is a gate that guesses. And a paste of `git log --oneline` output is
+refused, every line of it being a hash, which is the accepted cost of the column above rather than
+a gap: such a paste is a message full of pointers that stop resolving, which is the case the rule
+was written for. Neither has an instance in the tree, and filing either would inflate the backlog
+with work nothing is waiting on.
