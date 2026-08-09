@@ -190,7 +190,10 @@ class RecallAuditSink(Protocol):
     ``record`` takes one ``RecallAudit`` per recall, awaited after the policy has selected, so a
     recall is audited whichever policy ran and whether or not it returned anything. The audit
     carries the ranking, meaning each kept hit's key and the basis naming what that key is, which
-    is the first code in the tree to read a policy's own rank key.
+    is the first code in the tree to read a policy's own rank key. It carries the candidates the
+    rank **dropped** too, by id and the store's cosine, bounded and counting what the bound left
+    out, and with no key beside them, a rank having no opinion to record about what it passed over
+    (ADR-0038 dropped-candidate addendum).
 
     The value carries conversation content (the query, the recalled text), so a sink decides what
     it keeps of them; the shipped ``LoggingRecallSink`` keeps neither, exactly as the tool audit's

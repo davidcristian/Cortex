@@ -2,7 +2,7 @@
 
 Deferred refinements from the Slice 5 memory work under [ADR-0008](../adr/ADR-0008-memory-v1.md): the memory store, its scoping seam, and the pure-core recall policies. Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** 8 (session+global union read policy, per-scope retention/eviction, cross-scope recall ranking, tiered / self-editing memory + summarization, write-salience policy, ANN index, a cross-encoder rank, auditing the candidates that were dropped). **The count fell from 9 to 8 later on 2026-08-08 and again nothing opened in its place**, when the geometric policies' missing refusal closed as **declined on measurement**: the entry's second trigger was a calibration run giving the floor a number, the run was done on the real embedder over this area's own corpus, and it found that no number exists, because the answerable and unanswerable populations overlap behind both embedding models the repo ships a path for. The two words that keep the area honest about it are that the mechanism was refuted rather than the goal abandoned: the shipped default still declines, it just does so by reading rather than by measuring distance. **The count fell from 10 to 9 earlier on 2026-08-08, and that one closed alone too**: the judge's default was the last entry here waiting on a decision rather than on work, the user asked for the end-to-end turn cost before calling it, the measurement came in at 0.515 s of time to first token against a control whose interval spans zero, and `CORTEX_MEMORY_RECALL` now ships as `judge`. Nothing opened in its place, the one thing it leaves behind being a caveat no run by this repo's author can retire. **The count held at 10 on 2026-08-07 because one item closed and one opened in the same change**, and it is written out here rather than left to arithmetic: the judge's abstention landed, and the close named what it does not reach, which is that the shipped geometric policies still hand a turn their nearest misses on a question memory cannot answer. **The tenth was added 2026-08-06 by the corpus widening, which found it; the two before it were added the same day, correcting a line and an index cell that had read 7.** The ranked-recall close did half of its own bookkeeping: it struck the model-based reranker and recall observability from this line when they landed, and it did not add the two deferrals the same close opened, which are written up at the end of the ranked-recall entry below and at [ADR-0038](../adr/ADR-0038-ranked-recall.md). A close that names what it opens and then leaves the header naming only what it shut loses an open item exactly as a count that fails to move does.
+**Open items:** 8 (session+global union read policy, per-scope retention/eviction, cross-scope recall ranking, tiered / self-editing memory + summarization, write-salience policy, ANN index, a cross-encoder rank, why a memory was never a candidate). **The count held at 8 on 2026-08-09 because one closed and one opened in the same change**, written out here rather than left to arithmetic: auditing the candidates a rank dropped landed ahead of its trigger, because the default moved to `judge` underneath it and a judge keeps about one note where the cosine kept five, so the recall trail was thinnest exactly where most of the pool now disappears. What opened in its place is the question that close's own line raises next, why an id is in neither the kept nor the dropped list, and the third of it that no reader can derive from config is behind `MemoryStore.search`, which returns the top rows and reports no total. **The count fell from 9 to 8 later on 2026-08-08 and again nothing opened in its place**, when the geometric policies' missing refusal closed as **declined on measurement**: the entry's second trigger was a calibration run giving the floor a number, the run was done on the real embedder over this area's own corpus, and it found that no number exists, because the answerable and unanswerable populations overlap behind both embedding models the repo ships a path for. The two words that keep the area honest about it are that the mechanism was refuted rather than the goal abandoned: the shipped default still declines, it just does so by reading rather than by measuring distance. **The count fell from 10 to 9 earlier on 2026-08-08, and that one closed alone too**: the judge's default was the last entry here waiting on a decision rather than on work, the user asked for the end-to-end turn cost before calling it, the measurement came in at 0.515 s of time to first token against a control whose interval spans zero, and `CORTEX_MEMORY_RECALL` now ships as `judge`. Nothing opened in its place, the one thing it leaves behind being a caveat no run by this repo's author can retire. **The count held at 10 on 2026-08-07 because one item closed and one opened in the same change**, and it is written out here rather than left to arithmetic: the judge's abstention landed, and the close named what it does not reach, which is that the shipped geometric policies still hand a turn their nearest misses on a question memory cannot answer. **The tenth was added 2026-08-06 by the corpus widening, which found it; the two before it were added the same day, correcting a line and an index cell that had read 7.** The ranked-recall close did half of its own bookkeeping: it struck the model-based reranker and recall observability from this line when they landed, and it did not add the two deferrals the same close opened, which are written up at the end of the ranked-recall entry below and at [ADR-0038](../adr/ADR-0038-ranked-recall.md). A close that names what it opens and then leaves the header naming only what it shut loses an open item exactly as a count that fails to move does.
 
 **Memory in Slice 5 ([ADR-0008](../adr/ADR-0008-memory-v1.md)):**
 - **Per-session / namespaced scoping landed 2026-07-06 ([ADR-0008 scoping addendum](../adr/ADR-0008-memory-v1.md)).**
@@ -201,6 +201,57 @@ Deferred refinements from the Slice 5 memory work under [ADR-0008](../adr/ADR-00
   cannot meet); and **auditing the candidates that were dropped**, which `RecallAudit` does not
   carry because a non-picked candidate's `SPREAD`/`SWEEP` key is not well defined (trigger: the
   first investigation that needs to know why a specific memory was *not* returned).
+  **The dropped candidates landed 2026-08-09, ahead of that trigger and because the default moved
+  under it** ([ADR-0038](../adr/ADR-0038-ranked-recall.md) dropped-candidate addendum). The entry
+  was filed as fix-when-it-bites against a trail nobody was reading yet; what changed is that
+  `CORTEX_MEMORY_RECALL` ships as `judge`, which is measured returning 1.17 notes where the cosine
+  returned 5, so the recall trail was thinnest exactly where most of the pool now disappears.
+  **The stated obstacle is real and answers itself.** There is no `SPREAD`/`SWEEP` key for a
+  candidate that never joined a kept set, and there is no `VERDICT` key either, since the judge
+  leaves an unhelpful note out of its order rather than scoring it low; under `ECHO` and `EMBER` a
+  key could be computed after the fact, which is not the same as having one, a `Ranking` carrying
+  keys for the hits it kept and for nothing else. What exists for every candidate under every basis
+  is the store's own cosine, the store having produced the pool, so the close logs the id and that
+  cosine and omits the key that does not apply. The line now carries
+  `dropped`, one id and score per candidate the rank passed over, and `dropped_omitted`, so an id
+  in neither `hits` nor `dropped` was never a candidate at all, which is the distinction an
+  investigation actually arrives with and the one a pool *count* could never draw. **What it
+  deliberately cannot say is why**: a rank has an opinion on record only about what it kept, so the
+  trail is an account of what was available. **Bounded at 20**, the whole pool a default deployment
+  fetches (`DEFAULT_RECALL_K` 5 at `pool_factor` 4), so a shipped line never truncates and the
+  bound bites only on a wider over-fetch, where a line growing with the pool would make the trail
+  the thing worth turning off; what it cuts is the tail of the store's own order and the count of
+  what it cut rides the line. Text is absent structurally rather than by the sink's restraint,
+  `DroppedCandidate` having no field that could hold any. Hexagonal placement is the core's
+  `dropped_candidates(pool, ranking)` for the difference and the bound, the sink for the emission
+  and nothing else. **Cost correction:** the entry priced nothing, and the shape it implied (a key
+  per dropped candidate) does not exist; what shipped is two value types, one pure function, one
+  required `RecallAudit` field and two log keys, all inside the existing `RecallAuditSink` port.
+  The audit stays opt in and off still costs nothing, the whole record being assembled inside
+  `MemoryRecaller.recall`'s `audit is not None` guard, which an instrumented pool counting its own
+  walks pins at 1 unaudited against 2 audited rather than leaving to inspection. **Opens one**, the
+  entry below: the line can now say a memory was never a candidate, and still cannot say why.
+- **The trail cannot say why a memory was never a candidate, opened 2026-08-09 by the
+  dropped-candidate close** ([ADR-0038](../adr/ADR-0038-ranked-recall.md) dropped-candidate
+  addendum). That close draws the line between "was a candidate and was dropped" and "was not a
+  candidate" and stops there, which is the whole of what its own entry asked for. The next question
+  is why an id is in neither list, and three answers the line cannot separate: the memory ranked
+  below the pool cutoff, its scope was not read, or it was never written. Two thirds of that is
+  thinner than it looks, which is why this is filed small rather than as an observability gap. The
+  scopes are fully determined by `CORTEX_MEMORY_SCOPE` and the `session` the line already carries
+  (`GlobalMemoryScope` reads everything, `SessionMemoryScope` reads that one session), and the
+  requested width is `k` times `CORTEX_MEMORY_RECALL_POOL_FACTOR`, so a reader holding the
+  deployment's config derives both and logging them would be a convenience rather than new
+  information. **What no reader can derive is the third that matters:** `pool_size` says how many
+  candidates came back, never how many there were, so a pool filled to the requested width cannot
+  be told from a store that held exactly that many, and a memory missing from a full line was
+  either cut by the cutoff or absent from the store with nothing on the line saying which.
+  **Cost correction ahead of time:** that half is *not* behind the unchanged port.
+  `MemoryStore.search` returns the top rows and reports no total, so the number would have to come
+  out of the store, meaning the port, both adapters, the fake, the contract test, and a count
+  alongside the ranked select in the pgvector one. **Trigger:** the first investigation whose
+  memory is not in the pool at all, or a deployment that has widened its pool and wants to know
+  whether it is wide enough.
 - **The judge's cost, which is the only reason its default is `raw`, fell twenty-fold on 2026-08-06
   ([ADR-0038](../adr/ADR-0038-ranked-recall.md) bounded-side-calls addendum), so the default is
   recommended for a move and the decision is the user's.** The rank's request now carries

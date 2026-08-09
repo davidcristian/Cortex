@@ -1381,3 +1381,118 @@ reply waits out the folds ahead of it.
 
 One, in [session-history.md](../refinements/session-history.md): a stalled consumer holding the
 GPU lease across the whole of its reply, with the numbers above.
+
+## Dropped-candidate addendum (2026-08-09): the trail names what the rank left behind
+
+The Deferred section above filed the audit of dropped candidates with a stated obstacle: a
+non-picked candidate's `SPREAD`/`SWEEP` key is not well defined, because an MMR objective depends
+on the kept set at each step and an unpicked candidate never joined one. That is true and it is not
+the whole question. The trigger it named, the first investigation that needs to know why a specific
+memory was *not* returned, has grown teeth since: `CORTEX_MEMORY_RECALL` ships as `judge` from the
+turn-cost addendum, and the judge is measured returning 1.17 notes where the cosine returned 5, so
+the shipped rank drops most of the pool on most turns. The trail was thinnest exactly where the
+most is now discarded.
+
+### Re-derived from the tree first, and one claim of the entry needed narrowing
+
+`LoggingRecallSink.record` (`cortex_memory/audit.py`) built its line from `session`,
+`query_chars`, `pool`, `k`, `basis`, `keys_comparable`, a `hits` list drawn only from
+`audit.ranking.hits`, and `at`. `pool` was a **count**: no candidate id left the recaller unless
+the rank kept it. So a memory absent from a line was indistinguishable from a memory the store
+never offered, which is the whole of the question an operator arrives with. Nothing text shaped was
+in the record already, and nothing text shaped is added here: the existing line logs the query's
+length rather than the query, exactly as the tool audit logs a result's size rather than its bytes.
+
+The entry's obstacle survives contact with the code and answers itself. A rank key for a dropped
+candidate does not exist for `SPREAD` and `SWEEP`, and it does not exist for `VERDICT` either,
+since the judge simply leaves a note out of its order rather than scoring it low. Under `ECHO` and
+`EMBER` one could be computed after the fact, which is not the same as having one: a `Ranking`
+carries keys for the hits it kept and for nothing else, and only the policy holds the parameters to
+work out another. What does exist, for every candidate and under every basis, is the **store's own
+cosine**, because the store produced the pool. So the answer is to log the id and that cosine and
+to omit the key that does not apply, rather than to invent one.
+
+### Decision
+
+1. **The core computes what was dropped; the sink emits it.** `ranking.py` gains
+   `DroppedCandidate` (an `id` and the store's `score`), `DroppedCandidates` (the bounded
+   `carried` tuple plus an `omitted` count), and the pure `dropped_candidates(pool, ranking, *,
+   limit)`, which is the one answer to "what did this rank leave behind" so no second consumer
+   derives it a second way. `RecallAudit` gains a required `dropped` field. `LoggingRecallSink`
+   grows two keys, `dropped` and `dropped_omitted`, and decides nothing.
+2. **Identity is the memory id, not the object**, so the difference is true of every basis,
+   including an empty ranking, where the whole pool is what was dropped. A refusal is the recall
+   whose trail most needs to say what was on offer.
+3. **No text, structurally.** `DroppedCandidate` has no field that could carry any: an id pairs
+   with the `memories` table when content is wanted, under whatever access reading the store
+   already requires. This is not restraint on the sink's part, which is the difference from the
+   kept hits, where the port hands over the whole `ScoredMemory` and the shipped sink declines to
+   log its text.
+4. **Bounded at twenty, and the number is sized from what ships.** A recall of `DEFAULT_RECALL_K`
+   (5) at the default `CORTEX_MEMORY_RECALL_POOL_FACTOR` (4) is a pool of 20, so a shipped
+   deployment never truncates its own trail and `dropped_omitted` reads 0 on every line. The bound
+   bites only where a deployment over-fetches wider than what ships, and there an audit line that
+   grew with the pool would make the trail the thing worth turning off, which is a defect of its
+   own. What a bound cuts is the tail of the store's own order, `MemoryStore.search` promising
+   most-similar first, so what survives is what the store rated highest. The count of what was cut
+   rides the line rather than being left to arithmetic over `pool` and `hits`, so a truncated list
+   is never read as the complete one.
+5. **The trail says what was available, never why the rank declined.** A dropped candidate's score
+   is the store's cosine and nothing beside it. Under `judge` this is the honest limit of the
+   mechanism: the model is asked which notes help and answers with an order, so a note it left out
+   carries no verdict at all, and reading its cosine as the reason would be reading geometry the
+   rank did not use. The line tells an operator that a memory was a candidate and was passed over.
+   Why it was passed over is a question for the rank, and the rank did not say.
+6. **Still opt in, and off costs nothing.** `CORTEX_MEMORY_RECALL_AUDIT` is unchanged and still
+   defaults to `False`, wiring no sink rather than a sink that drops. The whole `RecallAudit`,
+   including the difference between the pool and the ranking, is assembled inside
+   `MemoryRecaller.recall`'s `audit is not None` guard, so an unaudited recall walks the pool once
+   for the policy and never again. That is pinned rather than asserted: an instrumented pool counts
+   its own walks, and the test reads 1 unaudited against 2 audited.
+
+### Consequences
+
+- `RecallAudit` gained a required field, so every construction site says what the rank left
+  behind. There is one in production and one in the trail's own tests.
+- The `RecallAuditSink` port is unchanged in shape. A sink written against the old value would
+  not compile against the new one, which is the intended direction: the port carries more, and no
+  adapter is silently left emitting less.
+- No cross-tree coupling arrives with this. The bound is one declaration in one tree, and its
+  relation to the shipped pool width is a sizing argument rather than an equality any code depends
+  on, so `crosscheck.py` has nothing new to hold and the trail stays correct at any bound.
+
+### Distrust green
+
+Seven mutations, each run against the three suites that cover this path, each reddening only what
+it should:
+
+| Mutation | Result |
+| --- | --- |
+| the dropped set keeps the hits the rank kept | 5 failed |
+| the bound is removed | 1 failed |
+| `omitted` is hard zeroed | 1 failed |
+| a dropped candidate's score is not the store's cosine | 4 failed |
+| the sink logs no dropped ids | 2 failed |
+| the sink logs no omission count | 1 failed |
+| the record is assembled whether or not a sink is wired | 1 failed |
+
+The last row is the one the design point about paying nothing depends on, and it is the reason the
+walk counting pool exists: no assertion about a value can catch work done for a reader who is not
+there.
+
+### Deferred by this addendum
+
+Recorded in [memory.md](../refinements/memory.md) with its line on
+[the index](../refinements/index.md):
+
+- **The line can now say a memory was never a candidate, and still cannot say why.** Three causes
+  are indistinguishable on it: the memory ranked below the pool cutoff, its scope was not read, or
+  it was never written. Two of those are derivable by a reader holding the deployment's config,
+  since the scopes follow from `CORTEX_MEMORY_SCOPE` and the `session` already on the line and the
+  requested width is `k` times `CORTEX_MEMORY_RECALL_POOL_FACTOR`; logging them would be a
+  convenience. The third cause is not derivable at all: `pool_size` is how many candidates came
+  back and never how many there were, so a pool filled to the requested width cannot be told from a
+  store that held exactly that many. That half is **not** behind the unchanged port, `MemoryStore.search`
+  reporting no total, so it wants the port, both adapters, the fake, the contract test and a count
+  beside the ranked select. **Trigger:** the first investigation whose memory is not in the pool at
+  all, or a deployment that has widened its pool and wants to know whether it is wide enough.

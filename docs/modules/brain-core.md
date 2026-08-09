@@ -1235,8 +1235,11 @@ Use-case:
   An empty ranking is returned as no hits and never re-fetched or filled from the pool, so a policy
   that declines (the `DEMUR` basis) leaves the turn without a memory block at all.
   An optional `audit: RecallAuditSink` receives one `RecallAudit` per recall (the query, the pool
-  size, `k`, the ranking, the time) after selecting, so a recall is trailed whichever policy ran
-  (ADR-0038); `None` (the default) is the founding silent path. Stateless over the store: every memory
+  size, `k`, the ranking, the candidates the rank dropped, the time) after selecting, so a recall is
+  trailed whichever policy ran (ADR-0038); `None` (the default) is the founding silent path. The
+  whole record, `dropped_candidates(pool, ranking)` included, is built inside that `is not None`
+  guard, so an unaudited recall walks the pool once for the policy and never again (ADR-0038
+  dropped-candidate addendum). Stateless over the store: every memory
   lives in `MemoryStore`, so recall is identical across restarts and swaps. Wired into `TurnEngine`
   (retrieve-into-context, record-at-turn-end) when injected. The engine threads its `session_id`
   through both calls.
@@ -1302,8 +1305,23 @@ Use-case:
   ranking carrying hits is refused at construction, since a policy cannot both decline and return
   something; an empty ranking on any other basis is legal and means the pool held nothing to rank.
 - `RecallAudit` (`ranking.py`) is what a `RecallAuditSink` records: `session_id`, `query`,
-  `pool_size`, `k`, `ranking`, `at`. It carries conversation content, so a sink decides what it keeps
-  of it; the shipped `LoggingRecallSink` keeps none.
+  `pool_size`, `k`, `ranking`, `dropped`, `at`. It carries conversation content, so a sink decides
+  what it keeps of it; the shipped `LoggingRecallSink` keeps none.
+- `DroppedCandidate` / `DroppedCandidates` / `dropped_candidates(pool, ranking, *,
+  limit=DROPPED_TRAIL_LIMIT)` (`ranking.py`, ADR-0038 dropped-candidate addendum) are what the
+  audit says about the candidates the rank did **not** keep, without which a memory that never came
+  back reads the same as one the store never offered. `dropped_candidates` is the one derivation of
+  that difference: identity is the memory id, so it holds under every basis including an empty
+  ranking, where the whole pool was dropped. Each `DroppedCandidate` is an `id` and the store's raw
+  `score`, with **no rank key**, because a rank records an opinion about what it kept and the judge
+  simply leaves a note out of its order; the trail therefore says what was available and never why
+  the rank declined. There is no text field either, structurally rather than by a sink's restraint.
+  `DroppedCandidates` bounds it: `carried` is the head of the pool's own order (`MemoryStore.search`
+  promises most-similar first, so the bound cuts the tail the store rated lowest) and `omitted`
+  counts what the bound left out, carried rather than derived so a truncated list is never read as
+  a complete one. `DROPPED_TRAIL_LIMIT` is 20, the shipped pool width (`DEFAULT_RECALL_K` at the
+  default `CORTEX_MEMORY_RECALL_POOL_FACTOR`), so a shipped deployment never truncates and the
+  bound bites only on a wider over-fetch, where an unbounded line would grow with the pool.
 - `drain_text(backend, model, messages, *, schema=None, bounds=None)` (`drain.py`, ADR-0038) runs
   one completion
   to its end and closes the stream in a `finally`, so the adapter's `acquire` block is left before

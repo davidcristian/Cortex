@@ -6,7 +6,9 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from cortex_core import (
+    DROPPED_TRAIL_LIMIT,
     RAW_RECALL_POLICY,
+    DroppedCandidate,
     MemoryRecord,
     MmrRecallPolicy,
     RankBasis,
@@ -17,6 +19,7 @@ from cortex_core import (
     RecencyMmrRecallPolicy,
     RerankingRecallPolicy,
     ScoredMemory,
+    dropped_candidates,
 )
 
 _NOW = datetime(2026, 7, 19, 12, 0, 0, tzinfo=UTC)
@@ -322,3 +325,59 @@ async def test_an_mmr_key_falls_as_the_kept_set_grows() -> None:
     ranking = await _rank(_mmr(relevance_weight=0.5), [top, redundant], k=2)
     assert ranking.hits[0].key == pytest.approx(0.45)  # 0.5 * 0.90, nothing kept yet
     assert ranking.hits[1].key == pytest.approx(0.5 * 0.85 - 0.5 * 1.0)  # penalised by `top`
+
+
+# The pool a shipped recall actually offers: DEFAULT_RECALL_K (`turn_context.py`) at the default
+# CORTEX_MEMORY_RECALL_POOL_FACTOR, which the core cannot import since it is the orchestrator's.
+_SHIPPED_POOL = 5 * 4
+
+
+async def test_the_dropped_set_is_the_pool_minus_what_the_rank_kept() -> None:
+    """The half of "why these?" a pool size cannot answer (ADR-0038 dropped-candidate addendum).
+
+    A count says how many candidates were passed over; only their ids tell a memory that was never
+    offered from one the rank read and left behind.
+    """
+    pool = [_hit("a", 0.9, (1.0, 0.0)), _hit("b", 0.6, (0.0, 1.0)), _hit("c", 0.2, (1.0, 1.0))]
+    dropped = dropped_candidates(pool, await _rank(RawRecallPolicy(), pool, k=1))
+    assert dropped.carried == (
+        DroppedCandidate(id="b", score=0.6),
+        DroppedCandidate(id="c", score=0.2),
+    )
+    assert dropped.omitted == 0
+
+
+async def test_a_dropped_candidate_carries_the_stores_cosine_and_no_rank_key() -> None:
+    """A rank keys what it kept and has no opinion on record about what it passed over."""
+    pool = [_hit("a", 0.9, (1.0, 0.0)), _hit("b", 0.6, (0.0, 1.0))]
+    ranking = await _rank(_mmr(relevance_weight=0.5), pool, k=1)
+    assert ranking.hits[0].key == pytest.approx(0.45)  # the kept hit's key is not its cosine
+    assert dropped_candidates(pool, ranking).carried == (DroppedCandidate(id="b", score=0.6),)
+
+
+async def test_a_rank_that_kept_nothing_dropped_the_whole_pool() -> None:
+    """A refusal is exactly the recall whose trail most needs to say what was on offer."""
+    pool = [_hit("a", 0.9, (1.0, 0.0)), _hit("b", 0.6, (0.0, 1.0))]
+    declined = Ranking(hits=(), basis=RankBasis.DEMUR)
+    assert [candidate.id for candidate in dropped_candidates(pool, declined).carried] == ["a", "b"]
+
+
+async def test_the_bound_cuts_the_tail_of_the_pools_own_order_and_counts_what_it_cut() -> None:
+    """An audit line that grows with the pool is its own defect, so the trail is bounded.
+
+    The store's contract is most-similar first, so cutting the tail keeps the candidates it rated
+    highest, and the count is carried so a truncated list is never read as the complete one.
+    """
+    pool = [_hit(f"m{i}", 0.9 - i / 100, (1.0, 0.0)) for i in range(6)]
+    dropped = dropped_candidates(pool, await _rank(RawRecallPolicy(), pool, k=1), limit=2)
+    assert [candidate.id for candidate in dropped.carried] == ["m1", "m2"]
+    assert dropped.omitted == 3
+
+
+async def test_a_shipped_pool_never_reaches_the_bound() -> None:
+    """The sizing argument: the bound bites only past the width a deployment ships with."""
+    pool = [_hit(f"m{i}", 1.0 - i / 100, (1.0, 0.0)) for i in range(_SHIPPED_POOL)]
+    dropped = dropped_candidates(pool, await _rank(RawRecallPolicy(), pool, k=5))
+    assert len(dropped.carried) == _SHIPPED_POOL - 5
+    assert dropped.omitted == 0
+    assert _SHIPPED_POOL <= DROPPED_TRAIL_LIMIT  # the whole of a shipped pool fits, kept or not

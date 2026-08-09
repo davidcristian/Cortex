@@ -10,7 +10,7 @@ from uuid import uuid4
 
 from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.ports import Clock, Embedder, MemoryStore, RecallAuditSink
-from cortex_core.ranking import RecallAudit
+from cortex_core.ranking import RecallAudit, dropped_candidates
 from cortex_core.rerank import RAW_RECALL_POLICY, RecallPolicy
 from cortex_core.scope import GLOBAL_MEMORY_SCOPE, MemoryScope
 
@@ -84,6 +84,11 @@ class MemoryRecaller:
         turn context and the seam for no consumer. The ranking instead goes to the ``audit`` sink
         when one is wired, which is where "why did recall return these?" is answerable.
 
+        The audit also carries what the rank *dropped*, since a pool the caller never sees is the
+        other half of that question, and the whole record including that difference is assembled
+        inside the ``audit is not None`` guard: a deployment with no sink wired walks the pool once
+        for the policy and never again.
+
         **An empty ranking is an answer and is returned as one.** A policy may keep nothing, either
         because the store held nothing or because the model read the pool and declined it (the
         ``DEMUR`` basis, ADR-0038 abstention addendum), and this method neither re-runs the search
@@ -105,6 +110,7 @@ class MemoryRecaller:
                     pool_size=len(pool),
                     k=k,
                     ranking=ranking,
+                    dropped=dropped_candidates(pool, ranking),
                     at=now,
                 )
             )

@@ -354,7 +354,12 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   its own reply acquired, no session's facts in another's answer), at a price the argument never
   claimed to know, one reply waiting 5.41 s behind two folds that were not its own. The run refuses
   to report unless the streams provably contended, and it opened one deferral, a stalled consumer
-  holding the lease across its whole reply.
+  holding the lease across its whole reply. **The dropped-candidate addendum** gives the trail the
+  half a pool size cannot carry: every candidate the rank passed over, by id and by the store's
+  cosine, bounded at the width a default deployment fetches and counting anything past it, so a
+  memory that never came back stops reading like a memory the store never offered. It carries no
+  rank key for a drop, since the judge leaves an unhelpful note out of its order rather than scoring
+  it low, which makes the line an account of what was available and not of why the rank declined.
 
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 

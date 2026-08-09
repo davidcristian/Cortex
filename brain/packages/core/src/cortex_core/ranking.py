@@ -7,9 +7,11 @@ v1 ``select`` returned a bare sequence of hits, which said *which* memories a tu
 policies rank by three different quantities, one of them incomparable between hits. This module is
 the answer it pointed at instead: the policy's own quantity lives on the policy's own return type,
 carried with a named basis that says what the number is and whether two of them may be compared.
-Pure data, no I/O; ``RecallAudit`` is the value the ``RecallAuditSink`` port records.
+Pure data, no I/O; ``RecallAudit`` is the value the ``RecallAuditSink`` port records, and
+``dropped_candidates`` is the one answer to what a rank left in the pool.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -100,6 +102,72 @@ class Ranking:
         return tuple(ranked.hit for ranked in self.hits)
 
 
+# How many dropped candidates one recall's trail carries (ADR-0038 dropped-candidate addendum).
+# The shipped shape is a pool of twenty, five recalled at a pool factor of four, so a whole pool
+# fits and nothing is omitted; the bound bites only where a deployment over-fetches wider than what
+# ships, and there an unbounded line would grow with the pool until the trail itself is the thing
+# worth turning off. What a bound drops is the tail of the store's own order, the candidates the
+# store itself rated lowest, and the line says how many it dropped rather than hiding the cut.
+DROPPED_TRAIL_LIMIT = 20
+
+
+@dataclass(frozen=True, slots=True)
+class DroppedCandidate:
+    """A candidate the store offered and the rank did not keep: its id and the store's cosine.
+
+    ``score`` is the store's raw cosine, exactly as ``ScoredMemory.score`` means it, and there is
+    deliberately no rank key beside it. A ``Ranking`` carries keys for the hits it kept and for
+    nothing else, so no key for a passed-over candidate is on record anywhere: the judge leaves an
+    unhelpful note out of its order rather than scoring it low, and an MMR objective for an unpicked
+    candidate would depend on a kept set it never joined. Two bases could compute one after the
+    fact (``ECHO`` is the cosine already here, ``EMBER`` blends it with the age), but only the
+    policy holds the parameters, and the policy did not. So this type says what the store offered,
+    never why the rank declined it.
+
+    Text is absent by construction rather than by a sink's restraint, because nothing an
+    investigation needs from a dropped candidate is in its words: an id pairs with the store when
+    the content is wanted, under whatever access reading the store already requires.
+    """
+
+    id: str
+    score: float
+
+
+@dataclass(frozen=True, slots=True)
+class DroppedCandidates:
+    """What a rank left in the pool, bounded: the candidates carried, and how many more there were.
+
+    ``carried`` is in the pool's own order, which ``MemoryStore.search`` promises is most-similar
+    first, so a bound cuts the tail and keeps the candidates the store itself rated highest.
+    ``omitted`` is how many the bound left out, ``0`` whenever the whole dropped set fits. It is
+    carried rather than left to arithmetic over ``pool_size`` so that no reader mistakes a
+    truncated list for the complete one.
+    """
+
+    carried: tuple[DroppedCandidate, ...]
+    omitted: int
+
+
+def dropped_candidates(
+    pool: Sequence[ScoredMemory], ranking: Ranking, *, limit: int = DROPPED_TRAIL_LIMIT
+) -> DroppedCandidates:
+    """The pool minus what ``ranking`` kept, bounded to ``limit``, counting what the bound left out.
+
+    The one answer to "what did this rank leave behind", so a second consumer never derives it a
+    second way. Identity is the memory id: a candidate is dropped when no kept hit carries its id.
+    Membership is all this reads, so it is true of every basis, including a rank that kept nothing
+    at all, where the whole pool is what was dropped.
+    """
+    kept = {ranked.hit.record.id for ranked in ranking.hits}
+    dropped = [hit for hit in pool if hit.record.id not in kept]
+    return DroppedCandidates(
+        carried=tuple(
+            DroppedCandidate(id=hit.record.id, score=hit.score) for hit in dropped[:limit]
+        ),
+        omitted=max(len(dropped) - limit, 0),
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class RecallAudit:
     """One recall as its trail sees it: what was asked, how wide the pool was, and what ranked.
@@ -109,6 +177,12 @@ class RecallAudit:
     them, and the shipped ``LoggingRecallSink`` keeps neither (ADR-0038 decision 5). ``pool_size``
     is how many candidates the store returned for the policy to choose from, which together with
     ``len(ranking.hits)`` is what makes "why these?" answerable at all.
+
+    ``dropped`` is the other half of that question and the half a count cannot answer: which
+    candidates the rank passed over, by id and by the store's cosine, bounded (ADR-0038
+    dropped-candidate addendum). Without it a memory that never came back is indistinguishable
+    from one the store never offered, which is exactly the pair an investigation has to tell apart,
+    and the ranks that drop most of the pool are the ones that ship.
     """
 
     session_id: str
@@ -116,4 +190,5 @@ class RecallAudit:
     pool_size: int
     k: int
     ranking: Ranking
+    dropped: DroppedCandidates
     at: datetime
