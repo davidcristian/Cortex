@@ -18,7 +18,9 @@ couplings the widened constant scan still cannot hold, opened as fix-when-it-bit
 when four of the five kinds its predecessor named were closed, which is the backlog working as
 intended rather than a count standing still, and grown to four the same day by the gRPC status
 codes the kinded body-gateway error currency now needs both sides to spell alike, folded into
-that entry rather than counted beside it; and the sixth, added 2026-08-08 by the turn-cost run
+that entry rather than counted beside it, and still four on 2026-08-09 by exchange, the roll's
+duration closing onto a `--roll` custom property the sheet spells once and the spend side of a
+value-declaring property taking its place, folded in the same way; and the sixth, added 2026-08-08 by the turn-cost run
 that moved the recall default, whose harness never entered the repo, so the one measurement in
 that ADR that names no reproducing test is also the one whose result shipped, sharpened the same
 day when its trigger fired and the fold-under-load run committed a seam-spanning driver: placement
@@ -461,7 +463,9 @@ cross-language-constant addendum):**
   2026-08-08 behind the landing above, in the same shape its own parent had: a registry that now
   reaches four kinds of coupling makes each remaining one a decision rather than an absence.
   A fourth joined the same day and is folded in here rather than counted again, since it is the
-  same absence and a near-duplicate name would inflate the area.
+  same absence and a near-duplicate name would inflate the area. **Still four on 2026-08-09, by
+  exchange rather than by standing still:** the duration below closed, and the shape that closing
+  it left behind is written directly under it, folded in for the same reason the fourth was.
   **A membership, not an ordering.** `CAPTURE_MIME` (`"image/png"`) must stay inside the brain's
   `ALLOWED_MIME_TYPES`, which is a `frozenset` literal, so this wants a collection value form as
   well as a comparator, and the reducer refuses what it cannot reduce by policy rather than by
@@ -483,6 +487,39 @@ cross-language-constant addendum):**
   which is a stylesheet change and belongs with the stylesheet's own entry above. **Trigger:**
   either of those two, or the first frame that shows a CSS transition and the roll beside it on
   two clocks.
+  **Struck 2026-08-09**, by the second of the two ways it named, and with its own arithmetic
+  corrected first. The sheet spelled `0.3s` **seven** times and not thirty: six declarations and
+  one sentence about them, beside seven `300ms` that were every one of them prose in a comment, so
+  the number was never restated in the constant's own unit anywhere. Thirty inline sites made this
+  read like a sweep when it is two lines, which is the stale-account failure the index warns about.
+  `:root` now carries `--roll: 300ms` and the two rules that move WITH a roll spend it: the section
+  share caps' `max-height`, and the thoughts marker's turn. Both already said in their own comments
+  that the roll's clock was theirs, which is what made them identifiable as the roll rather than as
+  a duration that matches it. The other four declarations keep their literal on purpose, being the
+  panel's summon fade (paired with its own 0.44s spring, accompanying no roll) and the three
+  arrivals (`bubblein` on a bubble, `confirmin` on a chip and on a reminder row, each played on
+  something that has just appeared): tying them would mean a retune of the roll silently retunes
+  three features it has nothing to do with, which is the false tie this registry must not claim.
+  **The unit-aware value form turned out to be unnecessary rather than deferred**, which is the
+  finding: once the sheet spells the duration once, it spells it in the constant's own unit, and
+  the mention is `--roll: {value}ms;` against `MORPH_ROLL_MS` with nothing new in the scan. Every
+  rendered duration measured unchanged in headless Chromium at both `prefers-reduced-motion`
+  settings, and the gate was reddened on a drift in each direction before it was trusted
+  ([ADR-0029 addendum](../adr/ADR-0029-vision-screen-capture.md) of that date).
+  **A custom property's spend, where the TypeScript declares the value and not the name.** Opened
+  2026-08-09 by the close above, and folded in here rather than counted beside it for the reason
+  the gRPC pair was. A mention renders a value, so it reaches `--roll: 300ms` on `:root` and cannot
+  reach the two `var(--roll)` that spend it; the same is true of `--ease`, which has shipped that
+  way since the registry widened. Where the TypeScript declares the NAME instead
+  (`CEILING_PROPERTY`, `CHAT_FLOOR_PROPERTY`, `TRACE_ROW_PROPERTY`) the mention pins the spend
+  exactly, so the gap is not the mechanism but which half of the pair the constant happens to be.
+  What stands in for the gate today is the browser: a `var()` that resolves to nothing is invalid
+  at computed-value time and takes the whole declaration with it, so a mistyped spend loses the
+  transition outright rather than shifting it, which is visible in one look and was measured.
+  Closing it wants either a name constant in `overlay/morph.ts` that nothing imports, which is a
+  declaration existing only to be read by a gate, or a mention form that pins a rendered NAME
+  rather than a rendered value. **Trigger:** a third property in this shape, or the first spend
+  that is found mistyped.
   **A gRPC status code, spelled once per language's own casing.** Added 2026-08-08 with the
   gateway's kinded error currency ([ADR-0023](../adr/ADR-0023-body-gateway-volume.md)'s addendum
   of that date). The body writes `Status::resource_exhausted` and `Status::failed_precondition`;

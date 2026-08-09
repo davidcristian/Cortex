@@ -244,6 +244,26 @@ CONSTANTS: tuple[Constant, ...] = (
         mentions=(Mention(OVERLAY_CSS, "--ease: {value};"),),
     ),
     Constant(
+        label="the shared roll duration",
+        why=(
+            "a section's roll animates for this many milliseconds and the stylesheet restates it "
+            "as the --roll custom property the two rules that must move WITH a roll spend, so a "
+            "drift lands the section caps' handover and the thoughts marker's turn on a different "
+            "clock from the roll they accompany (ADR-0035/0037)"
+        ),
+        sites=(Site("body/app/src/overlay/morph.ts", "MORPH_ROLL_MS"),),
+        # No count, and the reason is that there is nothing to count. The sheet spells the number
+        # once, on :root, and the two rules that follow the roll spend `var(--roll)` rather than
+        # the value, so they are not occurrences a template could render into. Renaming the
+        # declaration is caught here, the needle carrying the property name; renaming a SPEND is
+        # caught by the browser instead, a var() that resolves to nothing being invalid at
+        # computed-value time and taking the whole transition with it. The four other 0.3s
+        # declarations in that file only coincide with the roll (the panel's summon fade and three
+        # arrival animations) and stay literal on purpose: pinning them would tie a retune of the
+        # roll to features it has nothing to do with.
+        mentions=(Mention(OVERLAY_CSS, "--roll: {value}ms;"),),
+    ),
+    Constant(
         label="the brain's seam port",
         why=(
             "the compose stack publishes this port and dials it in its own healthcheck, and the "

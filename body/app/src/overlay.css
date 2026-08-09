@@ -5,6 +5,19 @@
 :root {
   --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  /* How long a section's roll takes, and the one place this stylesheet spells it. `MORPH_ROLL_MS`
+     in `overlay/morph.ts` owns the number and every scripted roll animates for it; the two rules
+     that have to land WITH a roll spend this token rather than restating it, and
+     `scripts/crosscheck.py` renders that constant into `--roll: {value}ms;` so the two spellings
+     cannot drift apart. `--ease` above is the curve half of the same pair, tied the same way.
+
+     Only those two rules spend it. Four other declarations in this sheet happen to last just as
+     long and are deliberately left as `0.3s`: the panel's summon fade, which is paired with its own
+     0.44s spring and accompanies no roll, and the three arrivals (`bubblein` on a bubble,
+     `confirmin` on a chip and on a reminder row), which play on something that has just appeared
+     rather than beside a height that is moving. Spending the token there would mean retuning the
+     roll retunes them too, which is a coupling nothing in the tree asked for. */
+  --roll: 300ms;
   --font: -apple-system, "Segoe UI", system-ui, "Helvetica Neue", sans-serif;
   /* One utility face, for group legends in the console and nothing else. A monospace at label size
      with wide tracking reads as a caption for what is under it rather than as content, which is the
@@ -554,9 +567,10 @@
 /* AND THE HANDOVER ARRIVES ON THE ROLL'S OWN CLOCK, which is the other half of following the roll
    rather than the tree: reading the target moves the step from the end of the roll to its start, and
    a step at the start is still a step. Both caps ease instead, over the roll's own duration and
-   curve (0.3s and `--ease` are MORPH_ROLL_MS and EASING in `overlay/morph.ts`, restated here the way
-   the thoughts marker's turn restates them), so the room one section gives up is the room the other
-   takes, frame for frame, and the column's total never moves.
+   curve (`--roll` and `--ease` on `:root`, which are MORPH_ROLL_MS and EASING in
+   `overlay/morph.ts`, spent here the way the thoughts marker's turn spends them), so the room one
+   section gives up is the room the other takes, frame for frame, and the column's total never
+   moves.
 
    Both the wrapper and the card are eased, because the wrapper's cap is the share and the card's is
    the share less its air. The two can never cross: the card is `min(content, share - air)`, so with
@@ -583,7 +597,7 @@
 .view:has(> .collapse.aside):has(> .collapse:not(.aside)) > .collapse,
 .view:has(> .collapse.aside):has(> .collapse:not(.aside)) .switcher,
 .view:has(> .collapse.aside):has(> .collapse:not(.aside)) .reminders {
-  transition: max-height 0.3s var(--ease);
+  transition: max-height var(--roll) var(--ease);
 }
 /* Out of the flow so it cannot fight the arriving view for the panel's height, and bounded by the
    panel all the same. Without the `bottom`, a leaving view is laid out at its own natural height
@@ -1102,11 +1116,11 @@
   content: "›" / "";
   display: inline-block;
   margin-right: 6px;
-  /* The marker turns over the same 300ms the body rolls open in (MORPH_ROLL_MS in overlay/morph.ts,
-     which the roll and the panel's slide already share). It used to turn in 180ms, which was fine
-     against a body that appeared instantly and is not against one that unfolds: the marker would
-     arrive, and then the trace would. */
-  transition: transform 0.3s var(--ease);
+  /* The marker turns over the same `--roll` the body rolls open in (MORPH_ROLL_MS in
+     overlay/morph.ts, which the roll and the panel's slide already share). It used to turn in
+     180ms, which was fine against a body that appeared instantly and is not against one that
+     unfolds: the marker would arrive, and then the trace would. */
+  transition: transform var(--roll) var(--ease);
 }
 .thoughts-sum[aria-expanded="true"]::before {
   transform: rotate(90deg);

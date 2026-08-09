@@ -551,7 +551,13 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   share: `data-morphing` on the section makes the panel leave the height alone and carries the
   height the section is rolling to, which is what lets the panel take its bottom edge off the
   ceiling over that same roll (`MORPH_ROLL_MS`) instead of afterwards, capped at the height the
-  panel is allowed to reach. That publication has a second reader, the cascade: overlay.css matches
+  panel is allowed to reach. **That duration and that curve reach the cascade as two tokens**,
+  `--roll` and `--ease` on `:root`, each restating its constant once for the rules that have to
+  move with a roll rather than beside it (the section share caps' `max-height` and the thoughts
+  marker's turn), both tied to `overlay/morph.ts` by `scripts/crosscheck.py`. Four other
+  declarations in that sheet last exactly as long and stay literal on purpose, being coincidences
+  rather than the roll: the panel's summon fade and the three arrival animations. That publication
+  has a second reader, the cascade: overlay.css matches
   `[data-morphing="0"]` to know a section is rolling to nothing and stop counting it into the
   section budget's split a whole roll before React removes it. That cap goes on the ELEMENT for the length of the roll and not only on
   the prediction: a roll is not a placement, so the measuring cap `place` writes on its way in would

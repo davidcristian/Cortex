@@ -24,7 +24,9 @@ export const MORPHING_ATTRIBUTE = "data-morphing";
 export const TAB_SLACK_ATTRIBUTE = "data-tab-slack";
 
 /** How long a section's roll takes. Shared, because the panel's concurrent slide has to land with
- *  it: two movements at different speeds read as two movements. */
+ *  it: two movements at different speeds read as two movements. overlay.css spends it as the
+ *  `--roll` custom property, which restates this number once for the two rules that have to move
+ *  with a roll, the way `--ease` below restates the curve. */
 export const MORPH_ROLL_MS = 300;
 
 /** Dispatched (bubbling) by that element when it starts, and after the attribute above is set: that
