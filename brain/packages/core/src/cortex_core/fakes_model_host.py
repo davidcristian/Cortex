@@ -15,7 +15,7 @@ import asyncio
 from collections.abc import Iterable, Mapping
 
 from cortex_core.errors import ModelHostError
-from cortex_core.model_host import DeviceMemory, ModelHostState
+from cortex_core.model_host import ControlBounds, DeviceMemory, ModelHostState
 
 
 class ScriptedModelHost:
@@ -41,9 +41,14 @@ class ScriptedModelHost:
     The reading is a fixed value rather than a ledger over ``running``, deliberately: this twin
     models the port, and modelling VRAM arithmetic here would invent numbers no measurement
     backs.
+
+    ``control_bounds`` is the same shape once more, and ``None`` (the default) is again the honest
+    answer: a twin whose ``stop`` is a set removal has no SIGTERM grace and no reap to bound, so
+    the composition root's pairing check finds nothing to compare and says so. A test that needs
+    the check to have something to compare hands it bounds.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913 -- one knob per scripted condition, all keyword-only
         self,
         *,
         running: Iterable[str] = (),
@@ -52,9 +57,11 @@ class ScriptedModelHost:
         fail_once: Mapping[tuple[str, str], str] | None = None,
         pause_at: Iterable[tuple[str, str]] = (),
         device_memory: DeviceMemory | None = None,
+        control_bounds: ControlBounds | None = None,
     ) -> None:
         self.running: set[str] = set(running)
         self.device: DeviceMemory | None = device_memory
+        self.bounds: ControlBounds | None = control_bounds
         self.calls: list[tuple[str, str]] = []
         self.reached: dict[tuple[str, str], asyncio.Event] = {
             key: asyncio.Event() for key in pause_at
@@ -110,6 +117,17 @@ class ScriptedModelHost:
         self._check("device_memory", "")
         await self._pause("device_memory", "")
         return self.device
+
+    async def control_bounds(self) -> ControlBounds | None:
+        """The stop timing this twin claims to have been wired with, or ``None`` for none.
+
+        Logged and scriptable under an empty id like the card reading, and for the same reason:
+        the composition root asks this of a host that may be unreachable, so a twin that could
+        not refuse would leave that path untestable over fakes.
+        """
+        self._check("control_bounds", "")
+        await self._pause("control_bounds", "")
+        return self.bounds
 
     def _check(self, op: str, model: str) -> None:
         """Log the operation, then raise whatever failure was scripted for it."""

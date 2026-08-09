@@ -19,7 +19,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from cortex_core import DEFAULT_CORTEX_MODEL
 from cortex_model_manager.spec import ModelSpec, build_roster
-from cortex_model_manager.supervisor import DEFAULT_REAP_TIMEOUT_S, DEFAULT_STOP_GRACE_S
+from cortex_model_manager.supervisor import (
+    DEFAULT_PROBE_TIMEOUT_S,
+    DEFAULT_REAP_TIMEOUT_S,
+    DEFAULT_STOP_GRACE_S,
+)
 from cortex_model_manager.tiers import TierArgs, tier_spec
 
 # The cortex pick ADR-0004's addendum settled, identical to the compose default it replaces.
@@ -64,7 +68,7 @@ class ModelHostConfig(BaseSettings):
     models_root: str = "/models"
     stop_grace_s: float = Field(default=DEFAULT_STOP_GRACE_S, ge=0)
     reap_timeout_s: float = Field(default=DEFAULT_REAP_TIMEOUT_S, ge=0)
-    probe_timeout_s: float = Field(default=5.0, gt=0)
+    probe_timeout_s: float = Field(default=DEFAULT_PROBE_TIMEOUT_S, gt=0)
     # What answers "how much of the card is free" on GET /health. The NVIDIA container toolkit
     # injects this binary alongside the driver, so the default is right wherever a GPU is
     # reserved and absent (which reads as no card) wherever one is not; a deployment whose image

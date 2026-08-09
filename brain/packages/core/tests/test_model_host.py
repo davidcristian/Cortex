@@ -31,6 +31,7 @@ from cortex_core import (
     DEFAULT_SWAP_LOAD_TIMEOUT_S,
     AsyncioSleeper,
     Clock,
+    ControlBounds,
     DeviceMemory,
     ModelHost,
     ModelHostError,
@@ -95,6 +96,9 @@ class _LoadingThenReady:
     async def device_memory(self) -> DeviceMemory | None:
         return None
 
+    async def control_bounds(self) -> ControlBounds | None:
+        return None
+
 
 def test_the_plan_rejects_bounds_that_could_not_govern_a_swap() -> None:
     """Bounds a swap could not be governed by are boot-time misconfigurations, not surprises."""
@@ -127,6 +131,47 @@ def test_the_plan_defaults_its_bounds_to_the_documented_values() -> None:
     # A deployment that never measured its deep tier's rate judges no handoff by it.
     assert ResidencyPlan("c", "b").brain_decode_tps == 0.0
     assert _plan(brain_decode_tps=25.07).brain_decode_tps == 25.07
+
+
+def test_the_control_bounds_sum_every_term_one_stop_can_spend() -> None:
+    """All three, because a two-term reading of this rule is what shipped the pairing wrong.
+
+    The shipped numbers, and their sum is the figure the runbook writes out: a stop can pay a
+    queued status's probe deadline before it starts, then the SIGTERM grace, then the reap.
+    """
+    assert ControlBounds(5.0, 10.0, 30.0).worst_case_stop_s == 45.0
+
+
+def test_a_deadline_only_clears_the_worst_case_when_it_sits_strictly_above_it() -> None:
+    """The boundary is the whole point: equal is a timeout on the very call the sum describes.
+
+    The pair below is the tuning the ADR measured somebody reaching by the two-term rule (20 and
+    35 look like a compliant 55), which the probe timeout carries to exactly the 60 s deadline.
+    """
+    bounds = ControlBounds(probe_timeout_s=5.0, stop_grace_s=20.0, reap_timeout_s=35.0)
+    assert bounds.clears(61.0) is True
+    assert bounds.clears(60.0) is False
+    assert bounds.clears(45.0) is False
+    assert ControlBounds(5.0, 10.0, 30.0).clears(60.0) is True
+
+
+async def test_the_scripted_host_reports_the_bounds_it_was_given_and_none_by_default() -> None:
+    """A twin whose ``stop`` is a set removal has no grace and no reap, so it claims none.
+
+    The composition root's pairing check reads exactly this, and ``None`` is what tells it there
+    is nothing to compare rather than a sum it could act on.
+    """
+    assert await ScriptedModelHost().control_bounds() is None
+    wired = ControlBounds(probe_timeout_s=1.0, stop_grace_s=2.0, reap_timeout_s=3.0)
+    assert await ScriptedModelHost(control_bounds=wired).control_bounds() == wired
+
+
+async def test_the_bounds_read_can_be_scripted_to_fail_like_any_other_call() -> None:
+    """It reaches a real sidecar over HTTP, so an unreachable host has to be arrangeable."""
+    host = ScriptedModelHost(fail={("control_bounds", ""): "the supervisor is not there"})
+    with pytest.raises(ModelHostError, match="not there"):
+        await host.control_bounds()
+    assert host.calls == [("control_bounds", "")]
 
 
 async def test_the_scripted_host_starts_stops_and_reports_idempotently() -> None:

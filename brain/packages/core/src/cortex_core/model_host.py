@@ -70,6 +70,43 @@ class DeviceMemory:
 
 
 @dataclass(frozen=True, slots=True)
+class ControlBounds:
+    """How long one control call to a model host may legitimately take, in its three terms.
+
+    A ``stop`` answers only once its child is reaped, so it can spend the SIGTERM grace and then
+    the post-SIGKILL reap bound. The third term is the one an earlier reading of this rule missed:
+    ``status`` takes the **same per-model lock** and probes the child inside it, and a compose
+    healthcheck asks for a status every 30 s on exactly the tier a handoff evicts first, so a stop
+    queued behind a status spends that probe's deadline too before it starts.
+
+    The sum is therefore what a caller's own deadline has to clear, and that pairing used to live
+    only in prose (the runbook, the compose override, the brain's own default). This value is its
+    checkable form: the host reports the three numbers it was really given, and the brain compares
+    them against the deadline it was really given, in one place that can be unit tested without a
+    process anywhere. ``None`` rather than an instance of this is the honest answer from a host
+    that supervises no process at all, which is what the scriptable twin is.
+    """
+
+    probe_timeout_s: float
+    stop_grace_s: float
+    reap_timeout_s: float
+
+    @property
+    def worst_case_stop_s(self) -> float:
+        """The slowest legitimate stop: a queued probe, then the grace, then the reap."""
+        return self.probe_timeout_s + self.stop_grace_s + self.reap_timeout_s
+
+    def clears(self, deadline_s: float) -> bool:
+        """Whether ``deadline_s`` sits strictly above that worst case.
+
+        Strictly, because a caller whose deadline equals the sum times out on the very call the
+        sum describes, and that failure is the expensive one: an eviction that was working read
+        as a dead sidecar, in the middle of somebody's handoff.
+        """
+        return self.worst_case_stop_s < deadline_s
+
+
+@dataclass(frozen=True, slots=True)
 class ResidencyPlan:
     """Which models share the one GPU, and the bounds a swap between them respects (ADR-0030).
 

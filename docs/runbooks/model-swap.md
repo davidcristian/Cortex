@@ -69,13 +69,13 @@ right, or whether a load spilled anyway; for that, measure decode, exactly as be
 The same figure is honoured with co-residency off, where it is optional: it then guards the
 ordinary handoff on a card too small for the deep tier at all.
 
-**One pairing to keep, because nothing validates it for you.** The sidecar's `stop` answers only
-once the child is dead and reaped, so it can legitimately take `CORTEX_MODELHOST_STOP_GRACE_S`
-(10 s) plus `CORTEX_MODELHOST_REAP_TIMEOUT_S` (30 s) before replying, **plus**
-`CORTEX_MODELHOST_PROBE_TIMEOUT_S` (5 s) when a `status` got the tier's lock first: `status` holds
-the same per-model lock as `stop` and probes the child's `/health` inside it, and the compose
-healthcheck asks for a status every 30 s, so a queued one is the normal case, not a corner. So the
-rule is
+**One pairing to keep, and the brain now refuses to start when you break it.** The sidecar's
+`stop` answers only once the child is dead and reaped, so it can legitimately take
+`CORTEX_MODELHOST_STOP_GRACE_S` (10 s) plus `CORTEX_MODELHOST_REAP_TIMEOUT_S` (30 s) before
+replying, **plus** `CORTEX_MODELHOST_PROBE_TIMEOUT_S` (5 s) when a `status` got the tier's lock
+first: `status` holds the same per-model lock as `stop` and probes the child's `/health` inside it,
+and the compose healthcheck asks for a status every 30 s, so a queued one is the normal case, not a
+corner. So the rule is
 
     probe_timeout_s + stop_grace_s + reap_timeout_s  <  CORTEX_MODELHOST_TIMEOUT_S
 
@@ -85,8 +85,24 @@ behind a `GET /models/cortex` took **15.70 s**, that status itself taking **5.80
 probe timeout plus its request overhead. Both stops ended correctly (`stopped`, no `llama-server`
 left). Tuning by the grace and the reap alone (say 20 and 35, a compliant sum of 55) reaches 60 s,
 the control client times out, and the handoff aborts although the eviction was working.
-`GET /health` reports the two stop bounds the daemon actually got, which is how you check a running
-container rather than its env.
+
+`GET /health` reports all three bounds the daemon actually got, and the brain reads them once at
+boot: if `CORTEX_MODELHOST_TIMEOUT_S` does not sit strictly above their sum, the brain **refuses to
+serve** and says so in one line naming every term, so a mispaired stack fails at `docker compose
+up` instead of inside somebody's handoff:
+
+```
+CORTEX_MODELHOST_TIMEOUT_S is 60.0 s and the model host's worst stop is 60.0 s (probe 5.0 s,
+grace 20.0 s, reap 35.0 s), so a control call would time out on an eviction that was still
+working and abort the handoff that asked for it. Raise the brain's deadline above that sum, or
+lower the sidecar's own bounds
+```
+
+Raise `CORTEX_MODELHOST_TIMEOUT_S`, or lower whichever sidecar bound you had raised, and bring the
+stack up again. Two cases deliberately do **not** refuse: a `model-host` that is not answering yet
+(logged at warning, and the brain serves, because a sidecar that is merely down comes back on its
+own under the restart policy), and the `scripted` backend, which stops no process and so has no
+bounds to report.
 
 ## Bringing the real host up
 
@@ -201,7 +217,7 @@ drive `POST /models/{id}/start` by hand with the cortex stopped first. The live 
 ### The fit check, and what it is worth
 
 Since 2026-08-07 the sidecar answers `curl -s http://127.0.0.1:9300/health` with
-`device_free_mib` and `device_total_mib` beside the roster and the stop bounds, read with
+`device_free_mib` and `device_total_mib` beside the roster and the three timing bounds, read with
 `nvidia-smi` inside the container that holds the GPU reservation, and a swap compares
 `CORTEX_SWAP_BRAIN_VRAM_MIB` against the free figure between its last eviction and its load.
 Measured on this card the same day, with the cortex resident and the desktop quiet:

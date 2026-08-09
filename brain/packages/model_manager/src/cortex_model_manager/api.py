@@ -3,8 +3,8 @@
 Four routes and no more, because this API can start and stop processes on the container that
 holds the GPU and the models mount, and its client is the brain, which runs model-influenced code:
 
-    GET  /health                  the daemon is up, the roster it serves, its stop bounds, and
-                                  how much of the card is free
+    GET  /health                  the daemon is up, the roster it serves, the three bounds one
+                                  control call may spend, and how much of the card is free
     GET  /models/{id}             one model's state (stopped | loading | ready | failed)
     POST /models/{id}/start       begin loading it (idempotent)
     POST /models/{id}/stop        end it, returning once it is reaped (idempotent)
@@ -62,7 +62,7 @@ def build_app(
 
     async def health(request: Request) -> Response:
         del request
-        bounds = supervisor.stop_bounds
+        bounds = supervisor.control_bounds
         # Deliberately on this route and not a new one: it takes no per-model lock, so a caller
         # asking how much room is left can never queue behind a stop the way a `status` can, and
         # the brain reads it inside a swap step where that would cost a whole grace period.
@@ -71,6 +71,10 @@ def build_app(
             {
                 "status": "ok",
                 "models": list(supervisor.models),
+                # All three terms of the pairing rule, in the order the rule states them: a
+                # reader given only the two stop bounds can tune to a compliant-looking sum that
+                # the queued probe then carries past the brain's deadline.
+                "probe_timeout_s": bounds.probe_timeout_s,
                 "stop_grace_s": bounds.stop_grace_s,
                 "reap_timeout_s": bounds.reap_timeout_s,
                 "device_free_mib": None if memory is None else memory.free_mib,

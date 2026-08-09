@@ -145,8 +145,10 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   `CORTEX_MODELHOST_ENDPOINT` (required with it, and the one thing that makes a swap move actual
   weights, [brain-model-manager.md](brain-model-manager.md)); `modelhost_timeout_s`
   (`CORTEX_MODELHOST_TIMEOUT_S`, 60 s) bounds one control call and must stay **above** the
-  sidecar's own `stop` worst case (its SIGTERM grace plus its SIGKILL reap bound), since a stop
-  answers only once the child is reaped; `brain_model` (`CORTEX_MODEL_BRAIN`, default `brain`) and
+  sidecar's own `stop` worst case (its readiness-probe deadline, its SIGTERM grace and its SIGKILL
+  reap bound, since a stop answers only once the child is reaped and can queue behind a `status`
+  that probes inside the same lock), which `check_control_deadline` now enforces at boot rather
+  than leaving to the runbook; `brain_model` (`CORTEX_MODEL_BRAIN`, default `brain`) and
   `brain_endpoint`
   (`CORTEX_BRAIN_ENDPOINT`) are the deep tier's logical id and base URL; `evict_models`
   (`CORTEX_SWAP_EVICT_MODELS`) names further hosted tiers a swap must stop first (while the deep
@@ -501,7 +503,14 @@ The service:
   with no slot of its own and **without `capture_screen`** (ADR-0029: the root builds a second
   built-in set with `vision=None` for the deep tier, because the probe asked the cortex's endpoint
   and no brain-tier candidate on the mount carries a projector, so registration follows the tier
-  that will actually answer rather than the one that was probed). `swap_closer(swap)` releases the handoff store **and** the control client in the shutdown
+  that will actually answer rather than the one that was probed). The runtime is gated on its way out of the builder by `check_control_deadline(swap,
+  deadline_s)`, which asks the host for its own `ControlBounds` and raises `ControlDeadlineError`
+  when `CORTEX_MODELHOST_TIMEOUT_S` does not strictly clear their sum, releasing what the runtime
+  already holds first because the shutdown hook is not armed that early (ADR-0030's
+  deadline-pairing addendum). Only an **answered** mismatch refuses: a host that cannot be asked
+  is logged at warning and let through, since boot recovery already argues a brain must start
+  beside a sidecar that is merely down, and a host that reports no bounds at all is the scripted
+  one, which stops no process. `swap_closer(swap)` releases the handoff store **and** the control client in the shutdown
   `finally` (the client even when the store's own release raises, so one refused close cannot leak
   the other resource), or is a clean no-op when nothing was built. `build_subagents` returns its `ResourceBudgetScheduler` alongside
   the spawn tool for the same reason: the conductor must quiesce that very pool before a swap
