@@ -443,10 +443,17 @@ to 2651 MiB and thinking on. Six things to know about the setting you are now ru
   `CORTEX_IMAGE_MAX_TOKENS` emits the matching `--ubatch-size` for exactly that reason. The abort
   is build-dependent too: a cached `server-cuda` at b9870 survived what b10236 and b10276 abort on,
   which is one more reason to pin the image.
-- **What it still cannot read.** 15 px type on an unscaled monitor stays at 4 of 16 at every budget
-  tried, including 1982 tokens; 20 px spreadsheet cells in their usual grey reach 18 of 24. The
-  boundary is 21 px and up on the budget alone, 18 to 20 px with the 2048 px capture. Below that,
-  region capture is the fix and it is still deferred (docs/refinements/vision.md).
+- **What it still cannot read, and the one thing that reaches it.** 15 px type on an unscaled
+  monitor stays at 4 of 16 at every budget tried, including 1982 tokens; 20 px spreadsheet cells in
+  their usual grey reach 18 of 24. The boundary is 21 px and up on the budget alone, 18 to 20 px
+  with the 2048 px capture. Below that the fix is **pointing the capture at a window** rather than
+  raising the budget, measured 2026-08-10 on a rebuilt corpus with both arms in one session: 15 px
+  text goes from 5 of 12 on the shrunk screen to 9 or 10 of 12 on the crop, and a terminal at 100%
+  scaling from 2 of 7 to 5 of 7. Two conditions on that. The window must be **inside**
+  `CORTEX_BODY_CAPTURE_MAX_EDGE`, since a wider one is resampled exactly as the screen is and reads
+  no better. And it is a trade rather than an upgrade: over the whole corpus the crop reads fewer
+  strings, because it cannot see anything outside the window. The model makes that choice per call
+  (`capture_screen`'s `target`), and nothing here changes a default.
 - **A 2048 px capture moves a pathological screen closer to the ladder, and a real one is not
   close.** Through the body's own downscale and encoder, a 4K frame at 2048 px costs 243 KB as a
   text desktop, 1.98 MB as a photographic wallpaper under two windows, 3.59 MB as a full-screen
@@ -464,14 +471,21 @@ to 2651 MiB and thinking on. Six things to know about the setting you are now ru
 
 The re-runnable half is
 [`test_image_budget_live.py`](../../brain/packages/inference/tests/test_image_budget_live.py),
-which asserts the saturation, asserts the knob raises it, and proves the abort by stripping the
-micro-batch back off the shipped argv. Run it when llama.cpp is upgraded or the cortex pick
-changes; it needs the `cortex-model-host` image built, because the base tag drifts:
+which asserts the saturation, asserts the knob raises it, proves the abort by stripping the
+micro-batch back off the shipped argv, and carries the window-crop arm with its corpus beside it.
+Run it when llama.cpp is upgraded or the cortex pick changes; it needs the `cortex-model-host`
+image built, because the base tag drifts:
 
 ```
 cd brain && CORTEX_MODELS_DIR=<the host dir holding the GGUFs> \
   uv run pytest -m integration --no-cov -s packages/inference/tests/test_image_budget_live.py
 ```
+
+The crop arm alone is `-k window_crop`, and it is about 80 s a run once the model is loaded. If the
+server never becomes healthy while `docker logs` shows it serving, the published loopback port is
+not reachable from this shell (some WSL networking modes route `127.0.0.1` past the Linux
+`docker-proxy`); add `CORTEX_PROBE_HOST=container` and the probe asks the daemon for the
+container's own address instead.
 
 The byte half needs no GPU and no model, only the body's own downscaler and encoder. Re-run it
 when the capture edge, the byte ceiling, or the downscale filter moves:

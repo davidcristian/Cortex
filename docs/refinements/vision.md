@@ -6,7 +6,7 @@ downscale/encode/byte-bounding policy in pure `body_core`, a GDI Windows backend
 treated as untrusted and unfenceable content. Recorded when the slice landed on 2026-07-18; the
 index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** the user-attached image path, the window crop measured against 15 px text,
+**Open items:** the user-attached image path,
 JPEG or WebP for photographic screens,
 an `AttachmentStore` for accountability,
 per-source memory rules, a Windows.Graphics.Capture backend, multi-monitor and DPI reporting,
@@ -84,7 +84,16 @@ either, being counted already as multi-monitor reporting. **Eleven read one by o
 user-attached image path, this entry as the window measurement, JPEG or WebP, the `AttachmentStore`,
 per-source memory rules, a Windows.Graphics.Capture backend, multi-monitor and DPI reporting, the
 Linux and macOS backends, the uniform per-call deadline, carrying a picture across a swap (half
-open, counted), and pixel screening in the body.
+open, counted), and pixel screening in the body. A fourteenth, later still on 2026-08-10, which is
+the first of these three to move the count: the **measurement ran**, so the entry the thirteenth
+note renamed closes whole and the count moves 11 to 10. It closes on a measurement rather than on a
+win, and the bullet carries what it found in both directions, the 15 px row doubling on the crop
+and the whole-corpus reading going down. **Ten read one by one:** the user-attached image path,
+JPEG or WebP, the `AttachmentStore`, per-source memory rules, a Windows.Graphics.Capture backend,
+multi-monitor and DPI reporting, the Linux and macOS backends, the uniform per-call deadline,
+carrying a picture across a swap (half open, counted), and pixel screening in the body. The
+declined rectangle and the accepted residual stay uncounted, as they have been since each was
+written down.
 
 ## Vision in Slice 10 ([ADR-0029](../adr/ADR-0029-vision-screen-capture.md))
 
@@ -242,11 +251,31 @@ open, counted), and pixel screening in the body.
   card could promise the window or the screen. The other three legs are untouched and the gating is
   unchanged.
 
-  **Still open here, and it is the only thing left**: the measurement this whole fix was for,
-  whether a window-sized crop reaches the 15 px text that stayed at 4 of 16 at every budget tried.
-  It is agent-runnable through Docker against the real cortex, which is why it stays in this
-  backlog rather than moving to [docs/host/](../host/index.md), and it is runnable end to end for
-  the first time now that a target can be asked for. `display_index` is no longer named here: it is
+  **The measurement ran the same day, and it closes this entry**
+  ([ADR-0029](../adr/ADR-0029-vision-screen-capture.md)'s third addendum of 2026-08-10). Five
+  desktops, 47 ground-truth strings, both arms in one session on one server at the shipped budget
+  and capture edge, three runs at temperature 0. The 15 px row this entry was named for goes from
+  a flat **5 of 12** on the shrunk screen to **9 or 10 of 12** on the crop, and the clean case
+  inside it is the 100% scaled terminal, 2 of 7 against 5 of 7 in every run, where the shrunk
+  screen declined on the five it missed and the crop transcribed them character for character.
+  Three things temper it and are the reason the entry closes on a measurement rather than on a
+  win. Over all 47 the crop reads **worse** (29 to 31 against 32 to 33), because it cannot see the
+  five strings outside the window, so pointing at a window is a trade and the model makes it. On
+  the 42 strings both arms carry, everything above 15 px is level or a string or two worse on the
+  crop, which at five or six strings a row is noise but is not the predicted direction. And the
+  one window wider than the capture edge (2400 px) is resampled to the same 2048x1152 the screen
+  is and reads no better than it, which says the mechanism is **not being cropped** but being
+  **unresampled**: the earlier addendum's rule about keeping the region's long edge inside the
+  capture edge is the whole effect rather than a tuning note.
+
+  Two things the measurement turned up beside its number. The recorded legibility corpus was a
+  scratch harness and was never committed, so it had to be **rebuilt** to the same shape and the
+  control re-run rather than cited, and no number here may be read against the 2026-08-06 table.
+  And the transcription of the body's crop and downscale was proven equal to the Rust rather than
+  eyeballed: four cases through `Capture::from_bgra`, the PNG decoded back to pixels, checksums
+  identical, so `screen_image.rs` and the harness have not drifted.
+
+  `display_index` is no longer named here: it is
   the multi-monitor entry below, which already carries it and already says the target spent the
   field number it was being held for. A **new coupling** opened beside this landing rather than
   inside it, the proto enum against the schema strings the model reads, and it lives with the other
