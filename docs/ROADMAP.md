@@ -360,8 +360,10 @@ mitigated by a default change the same day; the fix for what the mitigation cann
 2026-08-10 as a **targeted capture**, the body half first (the seam carries a `CaptureTarget` and
 a shipping body honours it) and the brain half the same day, so `capture_screen` now takes a
 required target and the model chooses between the window the user is looking at and the whole
-display. What is left of that thread is one measurement, whether a window-sized crop reaches the
-15 px text no token budget did. See [runbooks/vision.md](runbooks/vision.md).
+display. That thread closed the same day on its own measurement: a window crop reads 15 px text 9
+or 10 times in 12 where the shrunk screen reads 5, and reads a whole desktop's worth of strings
+slightly worse, because it cannot see what is outside the window. See
+[runbooks/vision.md](runbooks/vision.md).
 
 The shape: a model-initiated built-in `capture_screen` tool over the unchanged `BodyGateway`
 (the volume precedent, so it inherits audit, the dispatch budget, taint marking, and
