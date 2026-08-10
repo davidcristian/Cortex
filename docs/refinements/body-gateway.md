@@ -64,7 +64,11 @@ behind the unchanged `BodyGateway`/`AudioControl`/`BodyService` seams.
   the brain's bound and the body's ceiling one number rather than two constants coupled by prose.
   `InjectInput` stays open, and is now the only unbuilt `BodyService` RPC, which is why the index
   **holds this area at 6** rather than decrementing it: half an entry closing does not close the
-  entry, and a count moved for a half-closed one is how an open deferral gets lost.
+  entry, and a count moved for a half-closed one is how an open deferral gets lost. **That 6 is
+  this sentence's own moment, 2026-07-18, and the area has read 5 since the next day**, when the
+  host-Windows validation above moved to [docs/host/](../host/index.md) and took its name off the
+  count. Corrected 2026-08-10 by a pass reading every entry against both counts: the rule the
+  sentence states is untouched, and only the number it happened to be illustrating had moved on.
   **Recorded at its origin ADR on 2026-07-19, closing a two-of-three gap
   ([ADR-0023 capture-closure addendum](../adr/ADR-0023-body-gateway-volume.md)).** The closure and
   the wrong cost claim had been written here and on the index while ADR-0023 still listed
