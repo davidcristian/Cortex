@@ -135,7 +135,8 @@ answers in words the question never used. Reproduce or reopen it behind another 
 with `packages/inference/tests/test_recall_floor_live.py`, which needs only the CPU embedder below.
 
 Set `CORTEX_MEMORY_RECALL_AUDIT=1` to turn that trail on: one `cortex.memory.recall` line per
-recall, in the brain's container logs, carrying the pool size, the rank basis, whether keys on that
+recall, in the brain's container logs, carrying the pool size, how many candidates were available
+to it, the rank basis, whether keys on that
 basis may be compared, and each kept hit's memory id, cosine score and rank key. It never carries
 text, neither the query nor a recalled memory, so a line names *which* memories came back and never
 what they said; pair an id with the `memories` table when you need the content. This is the answer
@@ -152,6 +153,27 @@ rather than scoring it low, so the line says what was available and not why the 
 And the list is bounded at 20, which is the whole pool a default deployment ever fetches (a recall
 of five at a pool factor of four): `dropped_omitted` says how many more there were, and it reads 0
 unless you have widened `CORTEX_MEMORY_RECALL_POOL_FACTOR` past what ships.
+
+`available` is what turns "never a candidate" from a name into a reading. It is the store's own
+count of the namespaces this recall was allowed to read, so compare it with `pool`:
+
+| Line | What it means | Where to look next |
+| --- | --- | --- |
+| `pool` equals `available` | The pool WAS everything readable. Nothing was cut. | The memory was never written, or it was written outside the read scopes. Check `scope` in the `memories` table. |
+| `pool` below `available` | The pool stopped at its requested width and the rest of the store went unseen. | The memory may simply have ranked below the cut. Widen `CORTEX_MEMORY_RECALL_POOL_FACTOR` and recall again. |
+
+That is also how to answer "is my pool wide enough": `available` says what share of the readable
+store a recall actually looks at, and a deployment that has widened its factor can watch the gap
+close. The requested width itself is not logged, because it needs no line of its own: where it
+matters it is exactly `pool`, and where it does not it explains nothing.
+
+The count is a second statement against Postgres rather than part of the ranked `SELECT`, and it
+is issued **only** when this trail is on, so leaving the audit off costs a recall nothing at all.
+It is cheap when on: it reads the `memories_scope_idx` btree as an index-only scan and never
+touches the embeddings, which measured about 2 ms against a 520 ms search over 100k rows, rising
+to roughly 25 ms on a table whose recent writes autovacuum has not yet caught up with. Because the
+count and the search are two reads and not one transaction, a `pool` above `available` is possible
+in principle and means only that a namespace was deleted between them.
 
     docker compose --project-directory . -f docker/docker-compose.yml \
       -f docker/docker-compose.gpu.yml -f docker/docker-compose.memory.yml logs -f brain \

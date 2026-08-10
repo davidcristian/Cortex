@@ -99,6 +99,7 @@ class RecallAudit:
     session_id: str
     query: str
     pool_size: int
+    available: int
     k: int
     ranking: Ranking
     dropped: DroppedCandidates

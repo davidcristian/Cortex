@@ -247,6 +247,10 @@ class FailingMemoryStore:
         del embedding, k, scopes
         return ()
 
+    async def count_candidates(self, *, scopes: Sequence[str] | None = None) -> int:
+        del scopes
+        return 0
+
     async def delete_scope(self, scope: str) -> int:
         del scope
         msg = "pgvector is down"

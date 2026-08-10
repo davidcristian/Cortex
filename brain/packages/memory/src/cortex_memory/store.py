@@ -24,6 +24,8 @@ _SELECT = (
 )
 _SEARCH_ALL = f"{_SELECT} ORDER BY embedding <=> $1::vector LIMIT $2"
 _SEARCH_SCOPED = f"{_SELECT} WHERE scope = ANY($3) ORDER BY embedding <=> $1::vector LIMIT $2"
+_COUNT_ALL = "SELECT count(*) AS total FROM memories"
+_COUNT_SCOPED = f"{_COUNT_ALL} WHERE scope = ANY($1)"
 # The forget primitive (ADR-0008 delete-scope addendum): drop one whole namespace. The
 # ``memories_scope_idx`` btree serves the equality, so no schema change is owed.
 _DELETE_SCOPE = "DELETE FROM memories WHERE scope = $1"
@@ -134,6 +136,21 @@ class PgVectorMemoryStore:
             raise MemoryStoreError(msg) from err
         except (KeyError, IndexError, TypeError, ValueError) as err:
             msg = "malformed memory row in search result"
+            raise MemoryStoreError(msg) from err
+
+    async def count_candidates(self, *, scopes: Sequence[str] | None = None) -> int:
+        """Return how many memories ``scopes`` holds, the width ``search`` ranked over."""
+        try:
+            if scopes is None:
+                rows = await self._db.fetch(_COUNT_ALL)
+            else:
+                rows = await self._db.fetch(_COUNT_SCOPED, list(scopes))
+            return int(rows[0]["total"])
+        except _WRAPPED as err:
+            msg = "counting memory candidates failed"
+            raise MemoryStoreError(msg) from err
+        except (KeyError, IndexError, TypeError, ValueError) as err:
+            msg = "malformed count in the memory store's reply"
             raise MemoryStoreError(msg) from err
 
     async def delete_scope(self, scope: str) -> int:

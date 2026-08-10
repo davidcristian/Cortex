@@ -54,9 +54,9 @@ class MemoryRecaller:
     async def recall(self, query: str, *, k: int, session_id: str) -> Sequence[ScoredMemory]:
         """Return the ``k`` most relevant memories to ``query`` within the turn's read-scopes."""
         embedding = await self._embedder.embed(query)
-        pool = await self._store.search(
-            embedding, k=self._policy.candidate_k(k), scopes=self._scope.read_scopes(session_id)
-        )
+        scopes = self._scope.read_scopes(session_id)
+        pool = await self._store.search(embedding, k=self._policy.candidate_k(k), scopes=scopes)
+        available = await self._count_candidates(scopes)
         now = self._clock.now()
         ranking = await self._policy.select(pool, query=query, now=now, k=k)
         if self._audit is not None:
@@ -65,6 +65,7 @@ class MemoryRecaller:
                     session_id=session_id,
                     query=query,
                     pool_size=len(pool),
+                    available=available,
                     k=k,
                     ranking=ranking,
                     dropped=dropped_candidates(pool, ranking),
@@ -72,3 +73,9 @@ class MemoryRecaller:
                 )
             )
         return ranking.memories
+
+    async def _count_candidates(self, scopes: Sequence[str] | None) -> int:
+        """How many memories the read scopes hold, or ``0`` when no trail is there to read it."""
+        if self._audit is None:
+            return 0
+        return await self._store.count_candidates(scopes=scopes)

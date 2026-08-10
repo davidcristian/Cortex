@@ -134,6 +134,40 @@ async def test_search_wraps_a_malformed_row() -> None:
         await PgVectorMemoryStore(FakeDatabase(rows=rows)).search((1.0,), k=1)
 
 
+async def test_count_candidates_asks_the_server_for_a_count_over_every_memory() -> None:
+    db = FakeDatabase(rows=[{"total": 4213}])
+    assert await PgVectorMemoryStore(db).count_candidates() == 4213
+    sql, args = db.calls[0]
+    assert sql == "SELECT count(*) AS total FROM memories"  # the server counts, not this adapter
+    assert args == ()  # no k, because the count is deliberately not bounded by the pool's width
+    assert "LIMIT" not in sql  # nor capped: the whole candidate set or nothing
+
+
+async def test_count_candidates_filters_by_the_same_scopes_search_would() -> None:
+    db = FakeDatabase(rows=[{"total": 7}])
+    assert await PgVectorMemoryStore(db).count_candidates(scopes=["conv-a", "conv-b"]) == 7
+    sql, args = db.calls[0]
+    assert sql == "SELECT count(*) AS total FROM memories WHERE scope = ANY($1)"
+    assert args == (["conv-a", "conv-b"],)
+
+
+async def test_count_candidates_wraps_a_backend_error() -> None:
+    db = FakeDatabase(fail=asyncpg.PostgresError("boom"))
+    with pytest.raises(MemoryStoreError, match="counting memory candidates failed") as excinfo:
+        await PgVectorMemoryStore(db).count_candidates()
+    assert isinstance(excinfo.value.__cause__, asyncpg.PostgresError)
+
+
+@pytest.mark.parametrize(
+    "rows", [[], [{"rows": 3}], [{"total": "not-a-number"}]], ids=["none", "unnamed", "unparsable"]
+)
+async def test_count_candidates_wraps_a_malformed_reply(rows: list[dict[str, object]]) -> None:
+    """An aggregate always answers with one named integer; anything else is a broken contract."""
+    with pytest.raises(MemoryStoreError, match="malformed count") as excinfo:
+        await PgVectorMemoryStore(FakeDatabase(rows=rows)).count_candidates()
+    assert isinstance(excinfo.value.__cause__, KeyError | IndexError | ValueError)
+
+
 async def test_delete_scope_executes_delete_and_returns_the_row_count() -> None:
     db = FakeDatabase(status="DELETE 3")
     removed = await PgVectorMemoryStore(db).delete_scope("conv-a")

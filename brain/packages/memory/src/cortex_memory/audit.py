@@ -12,11 +12,12 @@ class LoggingRecallSink:
     """RecallAuditSink writing one structured `logging` record per recall."""
 
     async def record(self, audit: RecallAudit) -> None:
-        """Log one recall: the pool, the basis, each kept hit's id, score and key, and the drops."""
+        """Log one recall: the pool, what it was drawn from, the basis, the hits, and the drops."""
         fields: dict[str, object] = {
             "session": audit.session_id,
             "query_chars": len(audit.query),
             "pool": audit.pool_size,
+            "available": audit.available,
             "k": audit.k,
             "basis": audit.ranking.basis.value,
             "keys_comparable": audit.ranking.basis.comparable,

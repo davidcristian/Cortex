@@ -1,7 +1,5 @@
 """Reference implementations of the ports (pure, deterministic, fully covered)."""
 
-import hashlib
-import math
 from collections.abc import AsyncIterator, Awaitable, Callable, Mapping, Sequence
 from datetime import UTC, datetime
 from typing import Any
@@ -9,15 +7,9 @@ from typing import Any
 from cortex_core.conversation import Message, Role
 from cortex_core.errors import InferenceError, ToolNotFoundError
 from cortex_core.inference import GenerationBounds, InferenceEvent, JsonSchema, TextChunk
-from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.progress import ProgressEvent
-from cortex_core.ranking import RecallAudit
 from cortex_core.subagents import SubagentResult, SubagentTask
 from cortex_core.tools import ConfirmationRequest, ToolCall, ToolInvocation, ToolResult, ToolSpec
-
-# The fake embedder's default vector width. Small (< a sha256 digest) so distinct texts
-# get distinct vectors without cycling the digest; the real nomic model is 768-dim.
-_FAKE_EMBED_DIM = 16
 
 
 class EchoInferenceBackend:
@@ -42,66 +34,6 @@ class EchoInferenceBackend:
         yield TextChunk("reply ")
         yield TextChunk(f"{len(user_messages)}:")
         yield TextChunk(f" {user_messages[-1].text}")
-
-
-class HashEmbedder:
-    """Deterministic, I/O-free Embedder for CI and the memory use-case tests."""
-
-    def __init__(self, dimension: int = _FAKE_EMBED_DIM) -> None:
-        self._dimension = dimension
-
-    async def embed(self, text: str) -> Sequence[float]:
-        """Return the deterministic pseudo-embedding of ``text``."""
-        digest = hashlib.sha256(text.encode("utf-8")).digest()
-        return tuple(float(digest[i % len(digest)]) - 127.5 for i in range(self._dimension))
-
-
-def _cosine(a: Sequence[float], b: Sequence[float]) -> float:
-    """Cosine similarity of two equal-length vectors; 0.0 if either has no magnitude."""
-    dot = sum(x * y for x, y in zip(a, b, strict=True))
-    magnitude = math.sqrt(sum(x * x for x in a)) * math.sqrt(sum(x * x for x in b))
-    if magnitude == 0:
-        return 0.0
-    return dot / magnitude
-
-
-class InMemoryMemoryStore:
-    """MemoryStore held in a list and meant for tests and single-process experiments only."""
-
-    def __init__(self) -> None:
-        self._records: list[MemoryRecord] = []
-
-    async def add(self, record: MemoryRecord) -> None:
-        """Persist one memory record."""
-        self._records.append(record)
-
-    async def search(
-        self, embedding: Sequence[float], *, k: int, scopes: Sequence[str] | None = None
-    ) -> Sequence[ScoredMemory]:
-        """Return the ``k`` records most similar to ``embedding``, most-similar first.
-
-        ``scopes`` restricts the candidate set to those namespaces (the pgvector
-        ``WHERE scope = ANY`` twin, ADR-0008 addendum); ``None`` ranks over all memories.
-        """
-        allowed = None if scopes is None else set(scopes)
-        scored = [
-            ScoredMemory(record=record, score=_cosine(embedding, record.embedding))
-            for record in self._records
-            if allowed is None or record.scope in allowed
-        ]
-        scored.sort(key=lambda hit: hit.score, reverse=True)
-        return tuple(scored[:k])
-
-    async def delete_scope(self, scope: str) -> int:
-        """Hard-delete every memory in ``scope``; return how many were removed (0 if none).
-
-        The in-memory twin of the pgvector ``DELETE FROM memories WHERE scope = $1`` (ADR-0008
-        delete-scope addendum): a removed memory simply stops being a search candidate.
-        """
-        kept = [record for record in self._records if record.scope != scope]
-        removed = len(self._records) - len(kept)
-        self._records = kept
-        return removed
 
 
 class InMemoryTaskStore:
@@ -200,22 +132,6 @@ class RecordingProgressSink:
     def events(self) -> Sequence[ProgressEvent]:
         """The progress events emitted so far, in order."""
         return tuple(self._events)
-
-
-class RecordingRecallSink:
-    """RecallAuditSink that keeps audits in a list so tests can assert the recall trail."""
-
-    def __init__(self) -> None:
-        self._audits: list[RecallAudit] = []
-
-    async def record(self, audit: RecallAudit) -> None:
-        """Append one recall audit to the recorded trail."""
-        self._audits.append(audit)
-
-    @property
-    def audits(self) -> Sequence[RecallAudit]:
-        """The recalls audited so far, in order."""
-        return tuple(self._audits)
 
 
 class SystemClock:

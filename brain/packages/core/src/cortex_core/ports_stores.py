@@ -34,13 +34,17 @@ class SessionStore(Protocol):
 
 
 class MemoryStore(Protocol):
-    """Durable, cross-session memory: append one record, retrieve the top-k, forget a namespace."""
+    """Durable, cross-session memory: append a record, retrieve the top-k, size the candidate
+    set, forget a namespace.
+    """
 
     async def add(self, record: MemoryRecord) -> None: ...
 
     async def search(
         self, embedding: Sequence[float], *, k: int, scopes: Sequence[str] | None = None
     ) -> Sequence[ScoredMemory]: ...
+
+    async def count_candidates(self, *, scopes: Sequence[str] | None = None) -> int: ...
 
     async def delete_scope(self, scope: str) -> int: ...
 

@@ -2,14 +2,11 @@
 
 from cortex_core.fakes import (
     EchoInferenceBackend,
-    HashEmbedder,
-    InMemoryMemoryStore,
     InMemoryTaskStore,
     InMemoryToolRegistry,
     RecordingAuditSink,
     RecordingConfirmer,
     RecordingProgressSink,
-    RecordingRecallSink,
     SystemClock,
 )
 from cortex_core.fakes_body import (
@@ -20,6 +17,7 @@ from cortex_core.fakes_body import (
 )
 from cortex_core.fakes_handoff import InMemoryHandoffStore
 from cortex_core.fakes_inference import ScriptedInferenceBackend
+from cortex_core.fakes_memory import HashEmbedder, InMemoryMemoryStore, RecordingRecallSink
 from cortex_core.fakes_model_host import ScriptedModelHost
 from cortex_core.fakes_preferences import InMemoryPreferenceStore
 from cortex_core.fakes_schedule import InMemoryScheduleStore

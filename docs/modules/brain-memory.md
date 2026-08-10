@@ -11,7 +11,8 @@ pool (the one hard rule).
 
 - `LoggingRecallSink()` is a `RecallAuditSink` (`audit.py`, ADR-0038). `record(audit)` writes one
   `cortex.memory.recall` line per recall, fields both JSON-serialized into the message and set as
-  `extra` attributes: the session, the query's *length*, the pool size, `k`, the rank basis, whether
+  `extra` attributes: the session, the query's *length*, the pool size, how many candidates were
+  available to it, `k`, the rank basis, whether
   keys on that basis may be compared, each kept hit's `id` / `score` / `key` / `tainted`, the
   candidates the rank dropped, and the time. It carries **no text at all**, neither the query nor a
   recalled memory, which is the tool audit's "size not content" stance applied to conversation
@@ -28,6 +29,12 @@ pool (the one hard rule).
     memory even a candidate?" and never "why did the rank decline it?". The sink decides none of
     that: the core's `dropped_candidates` takes the difference and applies the bound, and `record`
     only spells it out.
+  - `available` beside `pool` is how many candidates there were, against how many came back
+    (ADR-0038 candidate-count addendum). Equal, the pool was the whole readable store and an id on
+    neither list was never written or was written outside the read scopes; unequal, the pool was cut
+    at its requested width and an absent memory may only have ranked under the cut. That reading
+    needs nothing of the deployment's pool factor, which is why the requested width is not logged
+    beside it: where it would matter it equals `pool`, and where it would not it explains nothing.
 - `PgVectorMemoryStore(db: Database)` is a `MemoryStore`.
   - `add(record)` → `INSERT (id, text, embedding, scope, tainted, created_at)` with `embedding =
     $3::vector` (the vector passed as a pgvector text literal, e.g. `[0.1,0.2]`). `tainted` is the
@@ -38,6 +45,16 @@ pool (the one hard rule).
     `embedding::text`, so no driver-side vector-type registration is needed. A non-`None` `scopes`
     adds `WHERE scope = ANY($3)` to filter candidates to those namespaces before ranking (ADR-0008
     scoping addendum); `None` ranks over every memory.
+  - `count_candidates(*, scopes=None)` → `SELECT count(*) AS total FROM memories`, plus the same
+    `WHERE scope = ANY($1)` a scoped `search` applies, so the two describe one candidate set. The
+    server's own count and never a `len` over rows this adapter fetched, which is the distinction
+    the verb exists to draw (ADR-0038 candidate-count addendum). Deliberately a second statement
+    rather than a `count(*) OVER ()` on the ranked `SELECT`: the window function must buffer every
+    candidate row, embeddings included, before the `LIMIT` can apply, measured at 2.85x the plain
+    search over 100k rows, while this costs a small fraction of it because `memories_scope_idx`
+    serves it as an index-only scan that never touches the vectors. Exact rather than capped for
+    the same reason, there being nothing left to save. The two statements are not one transaction,
+    which `RecallAudit.available` documents.
   - `delete_scope(scope)` → `DELETE FROM memories WHERE scope = $1` (the `memories_scope_idx` btree
     serves the equality, so no schema change), returning the row count parsed from asyncpg's `DELETE
     n` command tag (0 when the scope holds none, a malformed tag wrapped as `MemoryStoreError`). A
@@ -52,8 +69,11 @@ pool (the one hard rule).
 
 **Error contract.** Every failure crosses the `MemoryStore` port as `MemoryStoreError` with
 the cause chained: asyncpg `PostgresError` / `InterfaceError` and socket `OSError` from
-add/search/close; a malformed result row (missing column, unparseable vector, naive
-timestamp) in `search`.
+add/search/count/close; a malformed result row (missing column, unparseable vector, naive
+timestamp) in `search`, and a reply carrying no readable integer total in `count_candidates`. A
+count that fails fails the recall that asked for it, rather than degrading to a number that is
+not the store's: the trail's own sink already fails a recall the same way, and an audit line that
+quietly invents a figure is worse than one that stops.
 
 **Schema (host/infra, not the adapter).** `CREATE EXTENSION vector;` + `memories(id text pk,
 text text, embedding vector, scope text not null default 'global', tainted boolean not null
@@ -81,6 +101,13 @@ stores float4, so embeddings roundtrip at single precision (irrelevant to simila
   bootstrapped from this same schema by `docker/postgres/live-contract-db.sql` through the compose,
   and the run refuses to start rather than falling back when it is absent (ADR-0002 addendum on the
   live pgvector database).
+- The shared checks in `tests/memory_contract.py` now drive **both** implementations rather than
+  only the live one: `tests/test_memory_store_contract.py` runs the same file over
+  `InMemoryMemoryStore` in CI (the `test_task_store_contract.py` arrangement, minus its second
+  implementation, since this adapter needs a server). Until then a check added to the shared file
+  reached CI only if someone remembered to write it a second time by hand in `cortex_core`'s tests,
+  which is how a count faked as a length over rows would have stayed invisible to everyone without
+  a database.
 
 **Dependencies.** cortex-core (the `MemoryStore` port, `MemoryRecord`/`ScoredMemory`, typed
 errors), asyncpg (+ asyncpg-stubs for typing). The composition root
