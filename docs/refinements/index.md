@@ -3599,7 +3599,13 @@ it exit 101 so the check is not vacuous. That run also corrected the entry's acc
 which claimed a `pkg-config` shim was required: pkg-config is real here, and what the check needs is
 `.pc` metadata, 47 `-dev` packages of it unpacked without sudo into a scratch prefix, which is the
 CI provisioning cost the decline rests on, measured rather than restated. Neither trigger fired,
-nothing opened or closed, and the repo-gates count was re-derived entry by entry and is still four.
+nothing opened or closed, and the repo-gates count was re-derived entry by entry and was four when
+that run ended. **It went to five later the same day, by an arrival neither trigger produced**, and
+the sentence above is left standing rather than rewritten because what it reports is what the run
+found: the sweep that carried the `MemoryStore` contract fix out to every port in both languages
+opened **the ports that have a fake, a real adapter and no shared check list**, which is a
+fix-when-it-bites entry and so belongs in this bucket, its trigger being the next port to gain a
+shared list or the first drift caught in the wild ([repo-gates.md](repo-gates.md)).
 
 ### Feature breadth, on request
 
