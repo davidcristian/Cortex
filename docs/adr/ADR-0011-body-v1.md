@@ -616,3 +616,32 @@ A 400-line `*.test.ts` and `*.test.tsx`, a 400-line `.ts` under `dist/`, `covera
 `node_modules/`, and `test-setup.ts` grown past 400 all exit 0, so each exclusion excludes what it
 claims and nothing else. The new scanner branches are covered by tests that fail under mutation:
 reverting `SOURCE_SUFFIXES` fails 6, dropping `*.test.ts` fails 1, dropping `dist` fails 2.
+
+## Addendum (2026-08-10): the declined shell clippy was run here, and the decline holds
+
+The fix-when-it-bites deferral above has two triggers, and only one of them is settled by reading a
+file. The 2026-08-09 backlog sweep read `.github/workflows/ci.yml` and confirmed the first (CI has
+gained no desktop stack), then left the second, shell findings outpacing the maintainer's local
+checks, resting on a read as well. That one is only settled by running the check, so it was run on
+2026-08-10.
+
+- **The shell is clean.** `cargo clippy --all-targets -- -D warnings` in `body/app/src-tauri` exits
+  0 over 978 lines in 12 files, where this ADR recorded 881 lines. So the wiring grew by a file and
+  97 lines and accumulated no finding, and the trigger has not fired.
+- **Proven able to fail first**, as the earlier reading did: a `useless_format` planted in
+  `src/tray.rs` makes the same command exit 101 on the lib and lib-test units, and it exits 0 again
+  with the file restored.
+- **The route this ADR records for the dev host is out of date.** It says pkg-config is absent and
+  a permissive shim stood in. `/usr/bin/pkg-config` is real there now, and no shim was needed: what
+  is missing is the `.pc` metadata, obtained without sudo by `apt-get download` plus `dpkg-deb -x`
+  into a scratch prefix outside the repo with `PKG_CONFIG_PATH` naming its two `pkgconfig`
+  directories.
+- **The decline is now measured rather than argued.** That prefix took **47 `-dev` packages** (6.0
+  MB fetched, 48 MB unpacked), discovered in six rounds because each `pkg-config` failure names
+  only the next missing `Requires`, from `dbus-1` and the gtk/webkit set down to `graphite2`,
+  `libthai`, `datrie`, `libsharpyuv` and `sysprof-capture-4`. None of those libraries is ever
+  loaded, since clippy does not link; they exist to get build scripts past a probe. The Rust half
+  is the cheap half, the Tauri graph type-checking in 22.6 s wall on a partly populated target
+  directory, so what a runner would pay for is provisioning, which `rust-cache` does not cache.
+  Both triggers stand and the deferral stays open in
+  [docs/refinements/repo-gates.md](../refinements/repo-gates.md).

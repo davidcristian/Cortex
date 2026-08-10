@@ -267,3 +267,30 @@ assumed on 2026-08-06 and assert relative properties (the reminder seam filters 
 `reminder_id`, the tools registry asserts membership in the tool list, the email reader asserts
 `INBOX` is among the folders), which is the property that makes sharing survivable when owning the
 store is not an option.
+
+## Addendum (2026-08-10): the shuffle re-run wider, still finding nothing, still not a gate
+
+The deferral above was checked on 2026-08-09 by a sweep that **read** the tree, which cannot settle
+a trigger whose subject is what happens when the order changes. It was re-measured on 2026-08-10 by
+running it, with the plugin still supplied for the run only so neither lockfile moved:
+`uv run --with pytest-randomly pytest -p randomly --randomly-seed=N` from `brain/` at seeds 1, 2, 3,
+20260810 and 987654321 (2306 tests, 65 integration-marked deselected) and from `scripts/` at the
+same five seeds (400 tests). Ten runs, all green, each still reaching the 100% line and branch
+coverage both `addopts` demand. `--collect-only` proves the order really moved: seeds 2 and 3 list
+the same 2306 node ids with none in the same position, seeds 1 and 2 list the same 400 in `scripts/`
+with two. The scope is wider than the 2026-07-18 check in two ways, the whole workspace at every
+seed rather than `packages/core` at three, and `scripts/`, which had never been shuffled.
+
+**The two failure kinds were separated in advance, and neither appeared.** A test failing on a
+sibling's leftover state is the order dependency the trigger names; a test failing because the
+plugin reseeds `random` per test is a property of the plugin. The second has no reachable consumer
+here: the only draw in the gated Python is `contrast.py`'s bootstrap resampler, which holds its own
+`random.Random(seed)` rather than the module global, and the per-turn marker id in
+`cortex_core.untrusted` comes from `secrets.token_hex`, which no seed reaches. So the standing-gate
+cost is the first half alone, a different order per run and a seed to recover from a log.
+
+**The recommendation is recorded, not taken**, a gate change being the maintainer's call: do not
+adopt it now. Ten shuffled runs found nothing for it to catch, and the reproducibility cost is
+real. The middle option worth naming if it ever looks worth it is a fixed `--randomly-seed` in
+`addopts`, one deterministic order that is not the collection order; it would have caught nothing
+here either.

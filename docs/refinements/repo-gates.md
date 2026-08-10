@@ -45,7 +45,15 @@ and the hash check stay, and it is a close that lowers this number rather than e
 entry opening behind it; the rest
 landed 2026-07-16, 2026-07-19, 2026-08-03 and 2026-08-06, the last of them the live pgvector run
 sharing the brain's `memories` table, closed ahead of its trigger rather than by it,
-see the outcome notes below the verbatim entries)
+see the outcome notes below the verbatim entries. **Still 4 on 2026-08-10**, re-derived entry by
+entry rather than carried, after the two triggers in this area that a command can settle were
+**run** rather than read, which is what the sweep the day before could not do: ten shuffled pytest
+runs, five seeds over the whole brain workspace and five over `scripts/`, are green with the
+collected order provably different per seed, and the Tauri shell's own
+`cargo clippy --all-targets -- -D warnings` exits 0 over the 978 lines it now holds, both proven
+able to fail first. Neither fired, so nothing opened and nothing closed, and the four are standing
+test-order randomization, the shell's `cargo clippy` in CI, the stylesheet outside the line cap,
+and the couplings entry)
 
 **Prose style ([ADR-0026](../adr/ADR-0026-prose-style-gates.md)):**
 - **Check the commit body's 72-column wrap, not only the header's length.** Opened 2026-07-18,
@@ -206,6 +214,47 @@ see the outcome notes below the verbatim entries)
   `pytest-randomly` to the brain (and `scripts/`) dev dependencies with the seed printed by the
   header it already emits. The `just check` recipes are unchanged for now
   ([ADR-0002 addendum](../adr/ADR-0002-toolchain-gates.md)).
+
+  **Run rather than read on 2026-08-10, at a wider scope, and the trigger did not fire.** The
+  fix-when-it-bites sweep of 2026-08-09 recorded on [index.md](index.md) reached this entry by
+  reading the tree, which cannot settle a trigger whose whole subject is what happens when the
+  order changes, so the measurement was repeated rather than the verdict carried forward. Same
+  recipe, the plugin supplied for the run only so neither lockfile moved:
+  `uv run --with pytest-randomly pytest -p randomly --randomly-seed=N`, from `brain/` at seeds 1,
+  2, 3, 20260810 and 987654321 (2306 tests each, 65 integration-marked deselected) and from
+  `scripts/` at the same five seeds (400 tests each). Ten runs, every one green, and every one
+  still reporting 100% line and branch coverage, which is asserted rather than eyeballed because
+  both `addopts` carry `--cov-fail-under=100` and a randomized run inherits it. The scope is wider
+  than the check recorded above in two ways: the whole brain workspace at every seed rather than
+  `packages/core` at three seeds and the workspace once, and the `scripts/` suite, which had never
+  been shuffled at all. That workspace has also grown from the 1642 tests this entry records to
+  2306, which is the other reason not to carry an old verdict forward. The shuffle was doing
+  something, proven the same way it was the first time: `--collect-only` under seeds 2 and 3 lists
+  the same 2306 node ids with **not one** in the same position, and under seeds 1 and 2 the
+  `scripts/` suite lists the same 400 with 2 in the same position.
+
+  **The two failure kinds were separated before the runs, and neither appeared.** A test that
+  fails because a sibling left state behind is the order dependency this entry waits for; a test
+  that fails because the plugin reseeds `random` before each test is a property of the plugin,
+  which this entry already predicts and which would say nothing about the suite. Nothing failed,
+  so neither is in the tree today, and the second kind turns out to have no reachable consumer in
+  either suite: the only draw in the whole of the gated Python is `scripts/contrast.py:161`, whose
+  bootstrap resampler is a `random.Random(seed)` instance of its own rather than the module global
+  the plugin reseeds (its tests pass the seed explicitly and assert the interval is a function of
+  it), and the one place that wants unpredictability, the per-turn marker id in
+  `cortex_core.untrusted`, draws from `secrets.token_hex`, which no seed reaches. So the cost this
+  entry weighs against adoption is really its first half alone, a different order every run and a
+  seed to recover from the log.
+
+  **Adoption stays the maintainer's call and is recommended against for now**, recorded here
+  rather than taken, since a gate change is not a measurement's to make. Ten shuffled runs over
+  two suites found nothing to catch, so a standing gate would buy protection against an order
+  dependency nobody has introduced yet at the price of a gate whose failures are not reproducible
+  without reading a seed out of a log. The honest middle option, if it ever looks worth it, is a
+  fixed `--randomly-seed` in `addopts`, which buys one deterministic order that is not the
+  collection order rather than a new one per run; it would have found nothing here either. The
+  trigger is unchanged and the entry stays open
+  ([ADR-0002 addendum on re-running the shuffle](../adr/ADR-0002-toolchain-gates.md)).
 - **The live contract runs shared the brain's own Redis keyspace.** Found and closed the same
   day, 2026-08-03, so it is recorded here as what it was rather than as work waiting. This is not
   a new deferral so much as an old one that had been mis-sized: the
@@ -457,6 +506,37 @@ see the outcome notes below the verbatim entries)
   rather than vacuously green. The heavier note is that assembling even a shim for a one-off
   local check mirrors the CI cost: the stack this host lacks is exactly the stack a CI runner
   would have to install on every shell change.
+
+  **Run rather than read on 2026-08-10: the second trigger was measured and did not fire.** The
+  2026-08-09 sweep settled the first trigger by reading `.github/workflows/ci.yml`, which is the
+  right instrument for a trigger about what CI installs, and it left the second one, shell
+  findings accumulating faster than the maintainer's local checks catch them, resting on a read as
+  well. Only running the check settles that one, so it was run.
+  `cargo clippy --all-targets -- -D warnings` in `body/app/src-tauri` exits 0 over the shell as it
+  stands, which is **978 lines in 12 files** rather than the 881 in 11 this entry records, so the
+  wiring grew by a file and 97 lines since the last reading and accumulated no finding, which is
+  the accumulation half of the trigger answered. Proven able to fail before being
+  trusted, the same way the reading above did it: a `useless_format` planted in `src/tray.rs`
+  makes that exact command exit 101, naming the lint on the lib and the lib-test unit, and it
+  exits 0 again with the file restored. This lints the shell; it does not run it, which still
+  wants a real Win32 desktop session ([host/](../host/index.md)).
+
+  **The route this entry records for this host is out of date, and the corrected one is the same
+  cost argument with a number on it.** It says the host has neither `pkg-config` nor the webkit
+  dev stack, so a permissive shim stood in. `/usr/bin/pkg-config` is real here now and no shim was
+  needed or written; what is missing is the `.pc` files, and the sudo-less way to get them is
+  `apt-get download` plus `dpkg-deb -x` into a scratch prefix outside the repo with
+  `PKG_CONFIG_PATH` naming its two `pkgconfig` directories. That took **47 `-dev` packages** (6.0
+  MB fetched, 48 MB unpacked), found in six rounds because each round's `pkg-config` failure names
+  only the next missing `Requires`: `dbus-1`, then gtk, pango, atk, gdk-pixbuf, harfbuzz,
+  webkit2gtk, javascriptcoregtk and libsoup, then the X, wayland, GL and image-codec packages
+  their `Requires.private` lines pull in, down to `graphite2`, `libthai`, `datrie`, `libsharpyuv`
+  and `sysprof-capture-4`. Not one of those libraries is ever loaded, clippy not linking; it is 47
+  packages of metadata to get build scripts past a probe. The Rust half is the cheap half, the
+  whole Tauri graph type-checking in 22.6 s wall here on a target directory that was already
+  partly populated, so what CI would be paying for is the provisioning rather than the compile,
+  and `rust-cache` caches none of it. That is this entry's decline measured rather than restated.
+  Both triggers stand and the entry stays open.
 
 **Gate reach ([ADR-0011](../adr/ADR-0011-body-v1.md) line-cap addendum):**
 - **The line cap did not cover the overlay at all, and had not since the overlay was gated.**
