@@ -59,8 +59,28 @@ pub(crate) async fn capture<S: ScreenCapture + 'static, N: Notify + 'static>(
     )
     .await?;
     Ok(CaptureScreenReply {
+        resolved_target: encoded_target(&capture).into(),
         image: Some(blob(&capture, captured_at_unix_ms)),
     })
+}
+
+/// Says on the reply which of the two things the picture is, so the brain can describe it
+/// honestly instead of calling a crop a shrunk screen.
+///
+/// Read from the encoded capture rather than from the request, which is the same predicate the
+/// receipt is picked by ([`announce`]) and deliberately so: the sentence the user is shown and the
+/// sentence the model reads then cannot disagree about what was sent. A window filling the display
+/// answers `Display`, because the picture really is the whole screen.
+///
+/// The resolved target and not the rectangle it resolved to. Coordinates would hand the model back
+/// the coordinate frame this seam declined to take from it, and the target is all an honest
+/// sentence needs.
+fn encoded_target(capture: &Capture) -> PbCaptureTarget {
+    if capture.covers_display() {
+        PbCaptureTarget::Display
+    } else {
+        PbCaptureTarget::Focus
+    }
 }
 
 /// Reads the wire's target enum as one of the two things the body knows how to point at.

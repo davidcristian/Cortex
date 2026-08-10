@@ -31,6 +31,7 @@ from grpc import aio
 from cortex_body_client.failures import kind_of
 from cortex_core import (
     BodyGatewayError,
+    CaptureTarget,
     ImageError,
     ImagePart,
     ScreenCapture,
@@ -48,9 +49,26 @@ from cortex_seam import (
     NotifyRequest,
     SetVolumeRequest,
 )
+from cortex_seam import CaptureTarget as CaptureTargetPb
 from cortex_seam import VolumeState as VolumeStatePb
 
 _Metadata = tuple[tuple[str, str], ...]
+
+# The two ends of the capture vocabulary, spelled out rather than derived from either side's
+# ordering. A positional coincidence (both zeroes meaning "the whole display") is not a coupling
+# a reader can check, and this is the one place the domain enum and the wire enum meet.
+#
+# Only the request direction needs a total map. The reply direction reads the wire value back
+# through the same pairs and falls to DISPLAY for anything else, which is proto3's rule for an
+# unrecognized enum and the honest reading besides: a body naming a target this brain does not
+# know sent a picture this brain can only describe as the screen it came off.
+_TARGET_TO_WIRE: dict[CaptureTarget, CaptureTargetPb] = {
+    CaptureTarget.DISPLAY: CaptureTargetPb.CAPTURE_TARGET_DISPLAY,
+    CaptureTarget.FOCUS: CaptureTargetPb.CAPTURE_TARGET_FOCUS,
+}
+_TARGET_FROM_WIRE: dict[int, CaptureTarget] = {
+    int(wire): target for target, wire in _TARGET_TO_WIRE.items()
+}
 
 # The most bytes one inbound gRPC message may carry on this channel, 16 MiB.
 #
@@ -141,8 +159,14 @@ class GrpcBodyGateway:
             raise BodyGatewayError(msg, kind=kind_of(err)) from err
         return reply.shown
 
-    async def capture_screen(self, *, max_edge: int = 0, max_bytes: int = 0) -> ScreenCapture:
-        """Read the host's primary display over ``BodyService.CaptureScreen`` (ADR-0029).
+    async def capture_screen(
+        self,
+        *,
+        max_edge: int = 0,
+        max_bytes: int = 0,
+        target: CaptureTarget = CaptureTarget.DISPLAY,
+    ) -> ScreenCapture:
+        """Read the host's screen over ``BodyService.CaptureScreen`` (ADR-0029).
 
         ``max_edge``/``max_bytes`` are hints on the wire and **bounds on the reply**: a zero
         asks for the body's own default and holds the reply to the domain constants only, and a
@@ -151,12 +175,20 @@ class GrpcBodyGateway:
         is an optimization and never a guarantee; ``ImagePart``'s own checks are the domain
         ceiling and cannot enforce a number this deployment chose.
 
+        ``target`` is the third thing the wire cannot guarantee, and it is the one the caller
+        cannot re-verify from the pixels: a crop and a shrunk screen are the same blob. So the
+        reply carries what the body actually pointed at, and that is what the returned value
+        reports, never the ask. An old body that sets nothing reads as ``DISPLAY``, which is
+        exactly what such a body can take.
+
         Attempted exactly once, with ``timeout`` seconds of patience. Every failure, including a
         bound the wire cannot carry and a reply this side refuses, becomes ``BodyGatewayError``,
         which the tool turns into a recoverable result rather than an exception.
         """
         try:
-            request = CaptureScreenRequest(max_edge=max_edge, max_bytes=max_bytes)
+            request = CaptureScreenRequest(
+                max_edge=max_edge, max_bytes=max_bytes, target=_TARGET_TO_WIRE[target]
+            )
         except ValueError as err:
             # A misconfigured bound must not escape as a bare ValueError: this port promises
             # BodyGatewayError as its only failure channel, and anything else kills the turn
@@ -202,6 +234,7 @@ def _to_capture(reply: CaptureScreenReply, *, max_edge: int, max_bytes: int) -> 
         source_width=blob.source_width or blob.width,
         source_height=blob.source_height or blob.height,
         captured_at=captured_at_from_unix_ms(blob.captured_at_unix_ms),
+        target=_TARGET_FROM_WIRE.get(reply.resolved_target, CaptureTarget.DISPLAY),
     )
 
 

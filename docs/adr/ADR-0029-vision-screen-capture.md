@@ -2488,3 +2488,160 @@ The three records for this half are
 authored and has never seen a real desktop, is recorded in the existing capture sitting
 ([docs/host/windows-capture.md](../host/windows-capture.md)) rather than as a new one, since it
 needs the same bring-up as the checks already listed there.
+
+## Addendum (2026-08-10): the brain asks for a target, and the model is the one who picks
+
+The addendum above landed the body half and named three things the brain half owed: wording that
+does not call a crop a downscale, the repeat bound that stops being free once the tool takes an
+argument, and telling the model what the two options mean. All three are here, plus the reply-side
+field the first of them turned out to need. **The seam is unchanged in what it can do and changed
+in what it says back.**
+
+### The reply carries the resolved target, because the blob cannot say
+
+`describe()` renders "downscaled from WxH" from `ImageBlob.source_width`/`source_height`, and the
+body half deliberately kept those meaning the **display** on both paths. That is right for three
+consumers and it leaves the tool unable to tell the two pictures apart: a 1720x1200 crop of a
+2560x1440 desktop and a 2560x1440 desktop shrunk to 1720x1200 are the same blob. Told
+"downscaled from 2560x1440" about the first, the model reasons about a desktop it was never shown.
+
+So `CaptureScreenReply` gains `CaptureTarget resolved_target = 2`, reusing the request's enum
+rather than declaring a second vocabulary. Three properties are worth stating, because each was a
+choice:
+
+**It is the target and not the rectangle.** Region geometry on the reply would hand the model the
+coordinate frame this ADR declined to take from it one addendum ago, and it buys nothing the
+sentence needs. The consequence is honest and small: when a window is itself larger than the
+capture edge and gets resampled, the reply cannot say so, so `describe()` claims nothing either
+way rather than guessing. The design point of the window target is that a window inside the edge
+crosses pixel for pixel, and the crop's own size is exactly the geometry that stays off this wire.
+
+**It is read off what was encoded, not off what was asked for.** `Capture::covers_display()`
+already existed for the receipt, and the reply spends the same predicate. That is the property
+worth having: **the sentence the user is shown and the sentence the model reads are picked by one
+predicate**, so a maximised window honestly reports a screen capture on both surfaces and no
+arrangement of window and display can make the two disagree. A body that answered a whole frame to
+a targeted request cannot make either claim a window.
+
+**Its zero is `CAPTURE_TARGET_DISPLAY`, which makes an old body readable rather than merely safe.**
+A body predating the field leaves the zero, and the only picture such a body can take is the whole
+display, so the default is a reading of the truth rather than a fallback. The brain also maps an
+enum value it does not know onto `DISPLAY`, which is proto3's own rule and the same reasoning one
+level up: a newer body naming a third target still sent a picture, and the honest thing this brain
+can say about it is the screen it came off.
+
+### `describe()` says one of two things, and the window sentence names what is missing
+
+The display sentence is unchanged, byte for byte, which keeps every recorded measurement of it
+valid. The window sentence is new:
+
+```
+screen capture of one window, cropped out of the 2560x1440 primary display: 1720x1200 image/png,
+taken at 2026-07-25T10:14:03+00:00. The rest of the screen was not captured. The picture is
+attached to this message as an image part; it cannot be fenced as text.
+```
+
+It names the display as what the picture was **cut out of** rather than shrunk from, and it says
+outright that the rest of the screen is absent. That last clause is the only part with an action
+behind it: a model that cannot find what it was asked about now knows the reason might be that it
+is looking at one window, and it can ask again for the display. Both strings keep this ADR's
+standing rule that the stand-in text carries **no window title and no coordinates**, which matters
+more than usual here, because that string is what `wrap_untrusted` fences, what `extract_urls`
+scans, and what the audit sink logs verbatim.
+
+### The schema makes the model choose, and refuses rather than defaults
+
+`ToolSpec.parameters` gains one property, `target`, a string enum, and `"required": ["target"]`.
+The description is written as instruction rather than as documentation, because its whole job is
+to move the pick: the window target is the one that keeps small text readable, and it is the right
+choice whenever the user is asking about one thing in front of them, while the display target is
+for a question about the screen as a whole. It also tells the model what to do with a `NoTarget`
+answer, which is to ask again for the display, since that error means a bare desktop.
+
+**The enum's strings are derived from the domain `CaptureTarget` rather than restated beside it**
+(`_TARGET_NAMES`), so a third target cannot reach the wire while the model is still being offered
+two. That closes the half of this vocabulary's coupling that a gate can hold. The other half, the
+Python enum against the proto's, is generated on both sides and `scripts/crosscheck.py`
+structurally cannot parse either; it is recorded with the other couplings the scan cannot hold in
+[docs/refinements/repo-gates.md](../refinements/repo-gates.md) rather than registered.
+
+**A missing target is a tool error, not a default**, and the reasoning is not tidiness. The
+default it would take is the whole screen, which is both the more exposing picture and the less
+legible one, so quietly choosing it on an ambiguous call is the wrong direction twice over. An
+unrecognized string is a tool error for the ordinary reason: the model chose it and can correct
+it, and a raise would kill the turn instead of the call. Neither path reaches the body, so neither
+takes a picture, fires a receipt, or taints the turn.
+
+### `RepeatSalience`'s free bound is now a paid one, and the number is four
+
+Decision 7 said captures per turn need no counter: `RepeatSalience` bounds identical dispatches at
+`MAX_IDENTICAL_DISPATCHES = 2` and `capture_screen` took no arguments, so every call was
+byte-identical. Read against the code rather than the paragraph, identity is `name` plus
+`arguments` compared structurally (`_asks_the_same` in `tool_salience.py`), with an absolute
+refusal of a twin **within** a round and a cap of two **across** a loop. An argument therefore
+makes each distinct spelling its own identity.
+
+**The ceiling is two captures per target and four per loop**, and the two words doing work are
+"per target" rather than "per spelling":
+
+- It is not six. The third spelling a model can produce is the empty one, and that is refused
+  before the body is called, so it costs a dispatch and takes no picture.
+- It is not unbounded. The match is exact, so `Display` beside `display` is refused rather than
+  accepted as a synonym. This is the one place where being strict with the model is what buys the
+  bound: every spelling this tool accepts is worth another two captures.
+- Nothing about the round clause changed, so one round still cannot spend a target's whole
+  allowance on the same picture twice before either result has been read.
+
+Four is defensible on what the second target is. Two pictures of the window and two of the screen
+is what a model that legitimately re-looks does, each is still charged to the same
+`MAX_TOOL_DISPATCHES` pool and the same turn budget, and both are still bounded by the salience
+policy rather than by hope. The test says the number out loud
+(`test_two_captures_per_target_is_what_a_loop_gets_now`) so the next person to add an argument here
+meets the arithmetic instead of rediscovering it.
+
+### The port takes a keyword, and the value object is refused until it is earned
+
+`ruff.toml` pins `max-args = 6`, so `capture_screen(*, max_edge, max_bytes, target)` fits with room
+for the `display_index` that is already named as the next field. A frozen request value bundling
+all three was considered and refused: the two bounds are deployment configuration, fixed for the
+tool's whole life and already bundled once as `CaptureBounds`, while the target is chosen by the
+model on every call, so one value over all three would join two things that are not one thing, and
+one over the target alone would wrap a single field. When `display_index` lands there are two
+per-call fields with one author, and that is the moment such a value earns itself; the linter still
+will not be forcing it at five arguments, so the change will be made for the right reason.
+
+### One input to the ungated decision has moved, and the decision has not
+
+Decision 5 ships `capture_screen` ungated on four legs, one of which was that a confirm card could
+not describe what would be captured **because the call takes no arguments**. It takes one now. A
+card could say "the window you are looking at" or "your whole screen", which is a promise worth
+something to a user, so that leg is gone rather than weakened.
+
+The other three are untouched: a screen read is neither outbound nor irreversible, a gated call on
+a tainted turn is hard-denied with the confirmer never consulted (so gating would make "read this
+email, then look at my screen" structurally impossible and let a first capture self-deny a second),
+and confirmation fatigue is unchanged. **The gating is deliberately not changed here.** This is
+recorded because decision 5 is the decision this ADR names as the most worth overruling, and the
+maintainer should overrule it knowing the argument is now one leg shorter rather than discovering
+that later. The three **live** places that asserted the sentence are corrected, since a docstring
+and a module doc describe the tree as it is: `screen_tool.py`'s module docstring,
+[docs/modules/brain-orchestrator.md](../modules/brain-orchestrator.md), and the overlay
+indicator's own explanation of why it exists (`body/app/src/components/CaptureDot.tsx`). Decision 5
+and decision 7 keep their own wording, this addendum being their correction, which is how every
+other superseded sentence in this ADR is handled.
+
+The indicator's two **labels** stay exactly as they are. They over-report a window read as a screen
+read, and that is the direction the outcome addendum designed for: a window is part of the screen,
+so "looked at your screen" is coarse and true, `ToolOutcome` carries no target, and adding one
+would buy a finer claim on the one surface where a coarser true claim is the safer failure.
+
+### What this does not do
+
+It does not add a `display_index`, so a multi-monitor desktop still captures the primary display.
+It does not change taint, the opaque bit, retention, the byte ceiling, or what the body does with a
+target: every byte figure in the addendum above stands, since the body's code is untouched apart
+from filling one reply field. And it does not answer the measurement this whole thread was for,
+whether a window-sized crop reaches the 15 px text that stayed at 4 of 16 at every token budget
+tried. That is now runnable for the first time, because a target can be asked for end to end, and
+it stays on [docs/refinements/vision.md](../refinements/vision.md) as what the region and window
+entry is still open for.

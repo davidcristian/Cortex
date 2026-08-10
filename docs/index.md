@@ -244,7 +244,13 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   window is resolved by walking the desktop's Z-order rather than by `GetForegroundWindow`, which
   is the overlay itself whenever a capture runs; the crop is pure core, so `source_width`/
   `source_height` keep meaning the display; and the receipt gains a second fixed sentence for a
-  window. The brain does not ask for one yet.
+  window. Its second addendum of that date lands the **brain half**: `capture_screen` takes a
+  required `target` and the description steers the pick, `CaptureScreenReply.resolved_target`
+  says what the body actually pointed at (read off what it encoded, so it and the OS receipt
+  cannot disagree, and the target rather than the rectangle), and `describe()` renders a window
+  as a crop out of the display rather than as a shrunk screen. The free repeat bound becomes two
+  captures per target and four a loop; the ungated decision loses one of its four legs, a confirm
+  card now having something to promise, and is deliberately not changed.
 - [ADR-0030: Brain handoff (the real model swap)](adr/ADR-0030-brain-handoff.md): the Slice 11
   capstone design, **accepted**; every engineering sub-slice has landed, the deep-model pick was
   measured 2026-08-04 (gemma-4-31B QAT q4_0, ADR-0004), and the tier-scale swap remains because a
@@ -462,7 +468,7 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
   and `CORTEX_VISION`), the agent-Docker half with the projector and the `/props` probe, the
   host-only Windows half including the one check nothing can stand in for (capture while the
   overlay is visible and confirm the assistant cannot see it), what the body can be pointed at
-  now that a capture carries a target, what a capture does to the turn,
+  now that a capture carries a target and how the model chooses, what a capture does to the turn,
   and how to gate or disable it.
 - [runbooks/body-overlay.md](runbooks/body-overlay.md) covers Slice 8: run the overlay in a browser
   (fake bridge) or as the real Tauri app on Windows (hotkey → overlay → live brain).

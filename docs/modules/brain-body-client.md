@@ -17,8 +17,8 @@ state (the one hard rule). The composition root owns the channel's lifecycle.
   - `set_volume(*, level=None, mute=None) -> VolumeState` calls `BodyService.SetVolume` with
     proto **explicit presence** (a `None` field is left unset, so the body sets level, mute, or
     both), and reports the state after.
-  - `capture_screen(*, max_edge=0, max_bytes=0) -> ScreenCapture` calls
-    `BodyService.CaptureScreen` and maps `ImageBlob` onto the core value, building an
+  - `capture_screen(*, max_edge=0, max_bytes=0, target=CaptureTarget.DISPLAY) -> ScreenCapture`
+    calls `BodyService.CaptureScreen` and maps `ImageBlob` onto the core value, building an
     `ImagePart` (which re-checks the mime, the declared size, and the byte count) and reading
     `captured_at_unix_ms` as an aware UTC datetime. A reply with no blob at all is refused: a
     body that answers OK to a capture it did not take would otherwise read as a screen of
@@ -34,6 +34,15 @@ state (the one hard rule). The composition root owns the channel's lifecycle.
     config's own `ge`/`le` refuse at boot) fails as a `BodyGatewayError` too, since the request
     is built inside the mapping: this port promises one failure channel, and a bare `ValueError`
     from the wire types would kill the turn instead of the capture.
+    `target` crosses through `_TARGET_TO_WIRE`, the one place the domain enum and the wire enum
+    meet, spelled out pair by pair rather than derived from either side's ordering. It is the
+    third thing the wire cannot guarantee and the **one the receiver cannot re-verify from the
+    payload**, a crop and a shrunk screen being the same blob with the same `source_*`, so the
+    reply's own `resolved_target` is what the returned `ScreenCapture` reports and the ask is
+    never echoed. A body that sets nothing leaves the proto3 zero, which reads as `DISPLAY` and
+    is the truth about a body predating the field; a value this brain does not know reads as
+    `DISPLAY` too, for proto3's own reason and because the screen a picture came off is the
+    honest thing to say about it.
   - All attach the seam token as `x-cortex-seam-token` metadata when `token` is non-empty
     (built once at construction; ADR-0016, mirrored for this direction), and no metadata when
     empty, which matches the tokenless body server.

@@ -109,7 +109,10 @@ line cap.
     `source_height`, which stay the **display's** even when the picture is one window, and
     `captured_at_unix_ms`). `resolve_target` is where proto3's unknown-enum rule is spent: a
     value this body does not name reads as `CaptureTarget::Display`, which is the only honest
-    answer and is the picture this seam has always sent. Error mapping, one code per variant so
+    answer and is the picture this seam has always sent. `encoded_target` fills the reply's
+    `resolved_target` from `Capture::covers_display()`, the same predicate the receipt is picked
+    by, so the sentence the user is shown and the sentence the brain shows the model cannot
+    disagree about one picture. Error mapping, one code per variant so
     the brain
     can tell them apart: `NoDisplay -> FailedPrecondition`, `NoTarget -> FailedPrecondition`
     (host state again: it works the moment a window is on screen), `Disabled ->

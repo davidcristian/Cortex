@@ -12,14 +12,19 @@ const LABELS: Record<CaptureClaim, string> = {
   read: "The assistant looked at your screen during this reply",
 };
 
+/* Neither label distinguishes one window from the whole screen, and that is not an omission the
+ * capture target reopened. `ToolOutcome` carries a name and a bit, so nothing here could tell
+ * them apart without a wider event, and a window IS part of the screen, so the coarser sentence
+ * is true of both. Over-reporting is the direction this surface is built to fail in. */
+
 /**
  * The header's screen-capture indicator (ADR-0029): lit from the moment the assistant asks to
  * look at the user's screen until the turn ends.
  *
  * A **consent surface**, not decoration. The capture tool ships without an approval card (a
- * screen read is neither outbound nor irreversible, and the card could not say what will be
- * captured, since the call takes no arguments), so what the user is owed instead is a plain
- * statement that it happened. It stays lit for the whole turn rather than blinking past with
+ * screen read is neither outbound nor irreversible, and a gated call on a tainted turn is denied
+ * before the card is ever shown), so what the user is owed instead is a plain statement that it
+ * happened. It stays lit for the whole turn rather than blinking past with
  * the tool chip, because "the assistant went for my screen during this reply" is the fact, not
  * "a tool ran for a moment". The body fires its own OS notification independently; this is the
  * half the user is already looking at.

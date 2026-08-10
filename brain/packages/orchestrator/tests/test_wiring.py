@@ -940,7 +940,9 @@ async def test_the_capture_bounds_reach_the_body_through_the_built_tool() -> Non
         None, body, vision=CaptureBounds(max_edge=1280, max_bytes=4_000_000)
     )
     capture = next(tool for tool in builtins if tool.spec.name == CAPTURE_SCREEN_TOOL_NAME)
-    await capture.invoke(ToolCall(id="c1", name=CAPTURE_SCREEN_TOOL_NAME, arguments={}))
+    await capture.invoke(
+        ToolCall(id="c1", name=CAPTURE_SCREEN_TOOL_NAME, arguments={"target": "display"})
+    )
     assert [(ask.max_edge, ask.max_bytes) for ask in body.captures] == [(1280, 4_000_000)]
 
 

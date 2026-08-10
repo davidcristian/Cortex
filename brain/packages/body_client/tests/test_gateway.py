@@ -14,13 +14,14 @@ came to be announced as an unreachable body.
 import asyncio
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from typing import cast
 
 import grpc
 import pytest
 from grpc import aio
 
 from cortex_body_client import MAX_RECEIVE_BYTES, GrpcBodyGateway
-from cortex_core import MAX_IMAGE_BYTES, BodyFailure, BodyGatewayError
+from cortex_core import MAX_IMAGE_BYTES, BodyFailure, BodyGatewayError, CaptureTarget
 from cortex_seam import (
     SEAM_TOKEN_HEADER,
     BodyServiceServicer,
@@ -33,6 +34,7 @@ from cortex_seam import (
     SetVolumeRequest,
     add_BodyServiceServicer_to_server,
 )
+from cortex_seam import CaptureTarget as CaptureTargetPb
 from cortex_seam import VolumeState as VolumeStatePb
 
 _TOKEN = "sekrit-seam-token"  # noqa: S105 - test seam token, not a real secret
@@ -55,10 +57,14 @@ class FakeBody(BodyServiceServicer):
         blob: ImageBlob | None = None,
         no_image: bool = False,
         capture_delay_s: float = 0.0,
+        resolved_target: CaptureTargetPb = CaptureTargetPb.CAPTURE_TARGET_DISPLAY,
     ) -> None:
         self.level = level
         self.muted = muted
         self.blob = blob
+        # Typed as the wire enum, which is an int on this generated surface, so a body naming a
+        # target this brain does not know can still be scripted the way a newer body sends one.
+        self.resolved_target = resolved_target
         self.no_image = no_image
         self.capture_delay_s = capture_delay_s
         self.captured: CaptureScreenRequest | None = None
@@ -128,7 +134,7 @@ class FakeBody(BodyServiceServicer):
             await asyncio.sleep(self.capture_delay_s)
         if self.no_image:
             return CaptureScreenReply()
-        return CaptureScreenReply(image=self.blob)
+        return CaptureScreenReply(image=self.blob, resolved_target=self.resolved_target)
 
 
 async def _serve(servicer: BodyServiceServicer) -> tuple[str, aio.Server]:
@@ -273,6 +279,7 @@ async def test_capture_screen_maps_the_blob_and_sends_both_hints() -> None:
     assert (capture.source_width, capture.source_height) == (2560, 1440)
     assert capture.captured_at.isoformat() == "2026-07-14T03:34:03+00:00"
     assert capture.downscaled is True
+    assert capture.target is CaptureTarget.DISPLAY
     assert fake.captured == CaptureScreenRequest(max_edge=1600, max_bytes=MAX_IMAGE_BYTES)
 
 
@@ -281,6 +288,43 @@ async def test_capture_screen_defaults_send_no_hints_at_all() -> None:
     async with _gateway(fake) as gateway:
         await gateway.capture_screen()
     assert fake.captured == CaptureScreenRequest(max_edge=0, max_bytes=0)
+
+
+async def test_the_target_reaches_the_wire_as_the_enum_the_body_reads() -> None:
+    fake = FakeBody(blob=_blob())
+    async with _gateway(fake) as gateway:
+        await gateway.capture_screen(target=CaptureTarget.FOCUS)
+    assert fake.captured is not None
+    assert fake.captured.target == CaptureTargetPb.CAPTURE_TARGET_FOCUS
+
+
+async def test_what_the_body_says_it_pointed_at_is_what_the_capture_reports() -> None:
+    """The one thing on this reply the receiver cannot re-derive from the payload: a crop and a
+    shrunk screen are the same blob, and `source_width`/`source_height` are the display's on
+    both paths. So the answer is read off the reply and never off the ask."""
+    fake = FakeBody(blob=_blob(), resolved_target=CaptureTargetPb.CAPTURE_TARGET_FOCUS)
+    async with _gateway(fake) as gateway:
+        capture = await gateway.capture_screen(target=CaptureTarget.DISPLAY)
+    assert capture.target is CaptureTarget.FOCUS
+
+
+async def test_a_body_that_names_no_target_reads_as_the_whole_display() -> None:
+    """A body predating the field leaves the proto3 zero, which is DISPLAY, and that is a
+    reading rather than a guess: the only picture such a body can take is the whole display."""
+    fake = FakeBody(blob=_blob())
+    async with _gateway(fake) as gateway:
+        capture = await gateway.capture_screen(target=CaptureTarget.FOCUS)
+    assert capture.target is CaptureTarget.DISPLAY
+
+
+async def test_a_target_this_brain_does_not_know_reads_as_the_whole_display() -> None:
+    """Proto3's own rule for an unrecognized enum, spent here rather than raising: a newer body
+    naming a third target still sent a picture, and the honest thing this brain can say about it
+    is the screen it came off."""
+    fake = FakeBody(blob=_blob(), resolved_target=cast("CaptureTargetPb", 99))
+    async with _gateway(fake) as gateway:
+        capture = await gateway.capture_screen()
+    assert capture.target is CaptureTarget.DISPLAY
 
 
 async def test_a_capture_at_the_display_size_is_not_downscaled() -> None:

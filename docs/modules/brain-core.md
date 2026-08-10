@@ -471,11 +471,25 @@ Body-gateway domain (Slice 9, ADR-0023; Slice 10, ADR-0029; in `body.py`):
 
 - `VolumeState` is a frozen value: `level: float` (0-1), `muted: bool`. One reading of the host's
   system volume (the shape both `get_volume` and `set_volume` return across the brain→body seam).
+- `CaptureTarget` is the two-member enum a capture is pointed at, `DISPLAY` (the whole primary
+  display, the wire's zero and the behaviour every capture had before the target existed) and
+  `FOCUS` (the window the user is looking at). The domain mirror of the seam's enum and of the
+  body's Rust one, so no wire type reaches the core. Its member **values** (`"display"`,
+  `"focus"`) are the strings the model picks between in the `capture_screen` schema, which is
+  derived from this enum rather than restating it; the remaining half of that coupling, these
+  members against the proto's, is generated on both sides and is recorded in
+  [../refinements/repo-gates.md](../refinements/repo-gates.md).
 - `ScreenCapture` is a frozen value: `image: ImagePart`, `source_width`/`source_height: int`,
-  `captured_at: datetime`, plus a `downscaled` property. One picture of the host's primary
-  display. The image size is what arrived *after* the body's downscale and the source size is
-  the display's own, which is what lets the capture tool tell the model it is looking at a
-  shrunk view rather than leaving it to guess why small text is illegible. The name matches the
+  `captured_at: datetime`, `target: CaptureTarget = DISPLAY`, plus a `downscaled` property. One
+  picture of the host's screen. The image size is what arrived *after* the body's downscale and
+  the source size is the display's own **on both paths**, saying how big the screen is and never
+  how big a crop was, which is what lets the capture tool tell the model it is looking at a
+  shrunk view rather than leaving it to guess why small text is illegible. `target` is the only
+  thing that tells a crop from a shrunk screen, since the blob looks the same either way; it is
+  what the body says it actually pointed at, read off what it encoded rather than off the ask, so
+  a window filling the display answers `DISPLAY` and the OS receipt says the same. `downscaled`
+  compares the image against the **display**, so it is meaningful for a display capture only, and
+  `describe` reads `target` first rather than asking. The name matches the
   body's Rust `ScreenCapture` trait on purpose: they are the two ends of one capability.
 - `captured_at_from_unix_ms(ms)` reads the seam's epoch milliseconds as an aware UTC datetime.
 
@@ -855,11 +869,18 @@ unchanged):
 - `BodyGateway` (in `ports_body.py`, re-exported here) provides `async get_volume() -> VolumeState`,
   `async set_volume(*, level=None, mute=None) -> VolumeState` (ADR-0023),
   `async notify(...) -> bool` (ADR-0025), and
-  `async capture_screen(*, max_edge=0, max_bytes=0) -> ScreenCapture` (ADR-0029, where both
-  arguments are hints on the wire and bounds on the reply: the body clamps both, an older body
+  `async capture_screen(*, max_edge=0, max_bytes=0, target=CaptureTarget.DISPLAY) ->
+  ScreenCapture` (ADR-0029, where the two size arguments
+  are hints on the wire and bounds on the reply: the body clamps both, an older body
   ignores both, so the adapter verifies the declared edge and the byte count against what it
   asked for, a zero meaning "the body's own default" and holding it to the domain ceiling
-  alone): the brain-side handle on
+  alone; `target` is the third thing the wire cannot guarantee and the one the caller cannot
+  re-verify from the pixels, so the reply carries what the body actually pointed at and the
+  returned `ScreenCapture` reports that rather than the ask. It is a keyword rather than a
+  request value on purpose: the bounds are deployment configuration and the target is the
+  model's per-call choice, so a value over all three would join two things that are not one,
+  and a `display_index` arriving beside the target is when one earns itself): the brain-side
+  handle on
   the host body's OS actions. A capture is attempted **exactly once and never retried**, because
   a repeat photographs a different screen and fires a second host receipt for one user intent. It is the first brain→body seam direction (the brain dials the body's
   `BodyService`). Absent kwargs leave that field alone; every failure surfaces as
@@ -1526,14 +1547,26 @@ Use-case:
   (`screen_tool.py`, `CAPTURE_SCREEN_TOOL_NAME`), the cortex's eyes over a `BodyGateway`
   (ADR-0029), cortex-only like every built-in. That structure matters more here than for
   volume: no subagent model on the mount carries a vision projector, and an image-bearing MCP
-  result would arrive as an empty non-error string. The spec takes **no arguments**, which is
-  also what bounds captures per turn for free, since `RepeatSalience` keys on name plus
-  arguments and caps identical dispatches at `MAX_IDENTICAL_DISPATCHES` (2).
+  result would arrive as an empty non-error string. The spec takes one **required** argument,
+  `target`, a string enum derived from `CaptureTarget`, and the description is written to steer
+  the pick: the window keeps small text readable and is right when the user is asking about one
+  thing in front of them, the display is right for a question about the screen as a whole. A
+  missing target is refused rather than defaulted (the default would be the more exposing and
+  less legible picture) and an unrecognized one is refused exactly (no case folding), both as
+  `is_error` `TRUSTED` results that never reach the body. That is also what fixes the repeat
+  bound: `RepeatSalience` keys on name plus arguments and caps identical dispatches at
+  `MAX_IDENTICAL_DISPATCHES` (2), so the ceiling is **two captures per target and four per
+  loop**, four rather than six because the empty spelling takes no picture and four rather than
+  unbounded because the vocabulary is closed and matched exactly.
   `gated=False` by default, with `CORTEX_TOOLS_GATED=send_email,capture_screen` as the
   documented zero-code user opt-in.
   **Success is `Trust.UNTRUSTED` and carries the picture**, so the turn is tainted through the
   ordinary ledger with no special case; the content is a brain-authored stand-in of integers and
-  a timestamp (`describe`), deliberately naming no window title, which is attacker-chosen text.
+  a timestamp (`describe`), deliberately naming no window title and no coordinates, both being
+  attacker-chosen or a coordinate frame this seam declines to carry. `describe` renders one of
+  two sentences off `capture.target`: the display sentence with its "downscaled from WxH" clause,
+  or a window sentence that names the display the picture was **cut out of** and says the rest of
+  the screen was not captured, which is the one fact a model can act on by asking again.
   **Every failure is `Trust.TRUSTED, is_error=True` with no images**: nothing untrusted arrived,
   so tainting on a dead body would gratuitously close the user's gated tools for the rest of a
   turn in which nothing was read. `CaptureBounds(max_edge, max_bytes)` is what the composition
@@ -1855,9 +1888,11 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   budget). Does not survive a restart, by design. The Redis adapter proves the hard rule.
 - `InMemoryBodyGateway` fakes `BodyGateway` in memory: `get_volume` returns the held `VolumeState`
   and `set_volume` clamps a present `level` to `[0,1]` before applying the given fields;
-  `capture_screen` records the hints it was sent as a `CaptureAsk` and answers the `capture`
-  kwarg or `default_capture()` (a 1x1 view of a 2x2 screen, so the downscaled branch is
-  exercised by default); a `fail`
+  `capture_screen` records the hints and the target it was sent as a `CaptureAsk` and answers the
+  `capture` kwarg or `default_capture()` (a 1x1 view of a 2x2 screen, so the downscaled branch is
+  exercised by default) **verbatim**, target included rather than echoed from the ask, which is
+  the adapter's behaviour: a focus request honestly coming back as a display capture is a window
+  filling the screen; a `fail`
   kwarg scripts a failing body (`BodyGatewayError`, whose `kind` the test chooses so the fake can
   stand in for any wire status). Contract twin of `cortex_body_client`'s
   `GrpcBodyGateway`, no live body.
