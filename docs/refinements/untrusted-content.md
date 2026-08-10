@@ -2,7 +2,7 @@
 
 This area originates in [ADR-0013](../adr/ADR-0013-untrusted-content.md) (Slice 6.5), whose deferrals grew into the output guardrail ([ADR-0015](../adr/ADR-0015-output-guardrail.md)), subagent model safety ([ADR-0017](../adr/ADR-0017-subagent-model-safety.md)), tainted-memory recording ([ADR-0019](../adr/ADR-0019-tainted-memory-recording.md)), and grammar-constrained subagent output ([ADR-0028](../adr/ADR-0028-grammar-constrained-subagents.md)). Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** the screening subagent, whitespace-split hosts, the full UTS-39 confusables set, mixed/other encodings, footer/boilerplate heuristics, a raw GBNF grammar alternative, a per-task caller-supplied schema, provenance across the stores, a fence-without-block recall mode, per-provenance eviction, per-remote-tool trust/gating overrides, the residue of a quoted injection replayed by the plain history window
+**Open items:** the screening subagent, whitespace-split hosts, the full UTS-39 confusables set, mixed/other encodings, a slashless authority URL, footer/boilerplate heuristics, a raw GBNF grammar alternative, a per-task caller-supplied schema, provenance across the stores, a fence-without-block recall mode, per-provenance eviction, per-remote-tool trust/gating overrides, the residue of a quoted injection replayed by the plain history window
 
 **Untrusted-content boundary in Slice 6.5 ([ADR-0013](../adr/ADR-0013-untrusted-content.md)):** each
 behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (or the new `Confirmer` port).
@@ -162,6 +162,73 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   layer. What stays deferred there: source-code escapes (`evil\u002eexample`, `\x2e`, `\056`,
   `%u002e`, `\.`, `https:\/\/…`), a bracketless percent-encoded separator or whole scheme
   (`https%3A//…`, `https%3A%2F%2F…`), and stacked references (`&amp;#58;`).
+- **The whole table those two entries left was priced 2026-08-10 ([ADR-0015 tenth
+  addendum](../adr/ADR-0015-output-guardrail.md)): one row closed, the rest declined with the
+  reason written down, and the tail they sit in stays open on its class.** The pass decided every row by
+  one question, asked of the shipped path rather than of the spelling: **is there a resolver in
+  this system's path for untrusted content that turns this spelling back into the attacker's
+  URL?** Tracing where guardrail output goes answered half of it and corrected the picture the
+  earlier entries carried. Nothing downstream of the filter resolves anything: the scrubbed text is
+  folded into `TextDelta` (`engine.py`), mapped to the wire (`converse_stream.py`), turned into a
+  delta by the body (`body/crates/rpc/src/converse.rs`), appended by the reducer
+  (`overlay/turnState.ts`) and rendered as a React **text child** (`WhisperBubble.tsx`,
+  `Message.tsx`), with no Markdown renderer, no HTML sink, no linkifier and no clipboard path in
+  the overlay's three runtime dependencies. **The overlay never makes any URL clickable**, so
+  "clickable" was never the criterion here: the resolver that matters on the reply side is the
+  browser the user pastes into, and that was run (`node`, which implements the same WHATWG URL
+  parsing every browser does) rather than reasoned about. **One row is live and it closed.** `https:\/\/evil.example/pay`
+  is not a rendering of the link, it is the link: the URL Standard skips `/` and `\` alike in a
+  special scheme's authority and converts a path backslash to a solidus, so `new URL` returns the
+  plain link for the JSON-escaped spelling, for `https:\\…`, for `https:/\…` and for a path
+  backslash. The first three anchored **nothing**, so both policies were blind to them (the severe
+  shape a fourth time), and the fourth carried a second identity the collected set never held, the
+  CJK-dot shape. Both directions were measured through a real `TaintLedger` and a real streaming
+  filter fed one character at a time, and the collected side is the worse one: untrusted content
+  that writes its link JSON-escaped put nothing in the ledger, so the *plain* link in the reply was
+  not redacted either. The fix is the eighth addendum's shape, grammar and identity only, no seam
+  change: the backslash joins the solidus table so every mixture is generated, `_spellings` now
+  generates entity references for every glyph HTML names (so `&#92;`/`&bsol;` join `&#47;`/`&sol;`,
+  1125 generated combinations all folding), and `_fold_special_slashes` gives the identity the
+  parser's own rule, scoped to the schemes it holds for, so `mailto:a\b@x` keeps its backslash.
+  **Each decline names its resolver and its absence.** A source-code escape is resolved
+  by a compiler that is not here, and the parser that *is* here reads the escaped host
+  `evil\u002eexample` as the host `evil` with the rest in the path. The identity now says that too,
+  so folding the backslash did not admit these rows, it sharpened the decline. `%u002e` is not a
+  percent-escape at all and the parser refuses the URL outright. A bracketless percent-encoded
+  separator is resolved by nobody, now confirmed: `new URL` throws. Stacked
+  references still need two passes, and the one place a second pass exists already composes to a
+  catch, measured rather than assumed: an HTML email spelling `https&amp;#58;//…` reaches the ledger
+  as `https&#58;//…` because the sidecar's `html_to_text` is the first pass, and the shipped grammar
+  anchors that. The one resolver that would reopen a declined row is a **Markdown renderer**
+  (CommonMark backslash-escapes any ASCII punctuation, so `evil\.example` would render live), and
+  there is none in this repo; that is the trigger, and it reopens the row as a family rather than as
+  a spelling. The accepted cost is a JavaScript regex literal (`/^https:\/\/example\.com/`), which
+  strict mode on a tainted turn now redacts as it already redacted the same snippet written plainly;
+  the default policy still replaces only what the ledger collected. Eleven tests, each
+  mutation-proven with `__pycache__` cleared and each mutation verified applied, plus every two-way
+  split point of six probes under both policies. **The pricing itself moves no count**, on the
+  convention the two entries above set rather than by copying it: what closed was a row in a table,
+  never counted as an entry, and the counted tail it belongs to, "mixed/other encodings past
+  percent + HTML", is still open. The area's count does move, by one, and the entry below is the
+  reason and says so. What it is open *on* has changed, and that is the honest residue of this pass: every
+  spelling its table carried is now priced, so the tail is open on the class and not on a list, and
+  its next reader owes it a candidate encoding put to the question above rather than a row picked
+  off a table.
+- **A slashless authority URL, found in passing by that pass and opened rather than chased
+  (2026-08-10, [ADR-0015 tenth addendum](../adr/ADR-0015-output-guardrail.md)).** Running the
+  resolver over the table turned up a live spelling on none of its rows: a special scheme whose
+  authority carries **fewer than two slashes**. `new URL("https:evil.example/pay")` is
+  `https://evil.example/pay`, and so is the one-slash form, because the same special-authority
+  states that skip a backslash tolerate a missing slash. Measured against the shipped module rather
+  than read off the regex: `extract_urls` returns nothing for it and a real streaming filter passes
+  the reply through untouched under **both** policies, the severe shape a fifth time. It is not
+  fixable in this area's usual shape, which is why it is an entry and not a row: every widening so
+  far constrains the spelling of a separator that is present, and this one must admit a separator
+  that is absent, so the anchor needs a **host-shaped lookahead** it has never needed (`https:`
+  followed by any non-space run is the prose the fullwidth pass deliberately protected, `https：no
+  slashes here`). The one precedent is `_DATA_ANCHOR`, a single scheme's MIME shape rather than a
+  host grammar. Its cost is therefore a false-positive budget to design, not a table entry to
+  generate, and it is counted from the day it opened.
 - **The structured redaction event for the overlay closed 2026-07-16 as declined
   ([ADR-0015 addendum](../adr/ADR-0015-output-guardrail.md)).** Read against the shipped path,
   the inline marker the guardrail already emits meets the user need a structured event would, and

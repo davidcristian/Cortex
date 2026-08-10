@@ -589,9 +589,12 @@ the two having split at the line cap as the seventh addendum landed):
   scheme separator counts in its ASCII spelling or its **fullwidth** one (`https：//`, `https:／／`,
   generated from a two-entry colon and solidus table), or as an **HTML character reference**
   (`https&#58;//`, `&#x3a;`, `&colon;`, `&#47;`/`&sol;` for the solidi, zero-padded or
-  semicolon-less, generated per character from its codepoint, ADR-0015 ninth addendum). The matcher
+  semicolon-less, generated per character from its codepoint, ADR-0015 ninth addendum), or with a
+  **backslash** for either solidus (`https:\/\/evil.example`, the JSON-escaped spelling, plus its own
+  references `&#92;`/`&bsol;`, admitted because a URL parser reads a backslash as a solidus in a
+  special scheme, ADR-0015 tenth addendum). The matcher
   runs before any normalization, so each of those anchored nothing and so escaped both policies
-  until it was generated into the table (ADR-0015 eighth + ninth addenda). Seven
+  until it was generated into the table (ADR-0015 eighth + ninth + tenth addenda). Eight
   **obfuscation-resistant** passes (in `url_identity.py`) reduce a rewritten link to its plain
   identity, in a fixed order so each feeds the next (ADR-0015 addenda):
   **escape decoding** to a bounded fixpoint (HTML character references `evil&#46;com`→`evil.com` the
@@ -607,9 +610,13 @@ the two having split at the line cap as the seventh addendum landed):
   (Cyrillic/Greek Latin-lookalikes → ASCII, e.g. Cyrillic `расе`→`pace`), and an **IDNA label
   separator** fold (`evil。example`→`evil.example`: the stdlib's own IDNA codec splits a host on
   `.`/`。`/`．`/`｡`, and NFKC maps `｡` onto `。` rather than to a dot, so the two ideographic stops
-  survived it, ADR-0015 eighth addendum). So a defanged, encoded,
-  zero-width-split, punycoded, fullwidth, CJK-dotted, or homoglyph link normalizes to the same
-  identity as its plain twin. A *transform* in
+  survived it, ADR-0015 eighth addendum), and a **special-scheme backslash** fold
+  (`https:\/\/evil.example`→`https://evil.example`: the URL Standard skips `/` and `\` alike in a
+  special scheme's authority and converts a path backslash, so this is the parser's reading and not
+  a resemblance; the authority slash run collapses to one pair with it, and an opaque `mailto:`
+  keeps its backslashes, ADR-0015 tenth addendum). So a defanged, encoded,
+  zero-width-split, punycoded, fullwidth, CJK-dotted, backslashed, or homoglyph link normalizes to
+  the same identity as its plain twin. A *transform* in
   the reply is caught, not only verbatim reproduction. The passes compose (a percent-encoded
   homoglyph decodes, then folds). Both sides of the defense use it, namely collection
   (`TaintLedger.observe`) and the user-message allowlist, so a collected URL and its reappearance
@@ -621,9 +628,11 @@ the two having split at the line cap as the seventh addendum landed):
   only what **one rendering pass** resolves, so `&COLON;` (which HTML does not resolve),
   `&#58123` (one five-digit reference, not a colon), and `&amp;#58;` (which renders as text) are
   not links (ADR-0015 ninth addendum). Held deliberately
-  out (they would over-redact prose, need a dependency, or are resolved by no renderer): bare
-  addresses/domains, whitespace-split defang (`evil dot com`), the *full* UTS-39 confusables set,
-  and source-layer or bracketless URL-layer escapes of the separator (`\x2e`, `https%3A//`).
+  out (they would over-redact prose, need a dependency, or no resolver in this path undoes them):
+  bare addresses/domains, whitespace-split defang (`evil dot com`), the *full* UTS-39 confusables
+  set, and source-layer or bracketless URL-layer escapes of the separator (`\x2e`, `https%3A//`,
+  `&amp;#58;`), each measured against a real URL parser, which resolves an escaped host to a
+  *different* host and refuses the other two outright (ADR-0015 tenth addendum).
 - `TaintView` (protocol) exposes the **live** taint signals the guardrail reads at scan time
   (`tainted: bool`, `opaque: bool`, `untrusted_urls: AbstractSet[str]`); the turn's
   `TaintLedger` already

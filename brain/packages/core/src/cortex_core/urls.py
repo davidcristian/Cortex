@@ -1,19 +1,21 @@
-"""The URL *grammar* behind the output guardrail's laundering defense (ADR-0015)."""
+r"""The URL *grammar* behind the output guardrail's laundering defense (ADR-0015)."""
 
 import re
 
-from cortex_core.url_identity import normalize_url
+from cortex_core.url_identity import SPECIAL_SCHEMES, normalize_url
 
-_AUTHORITY_WORDS = ("https", "http", "hxxps", "hxxp", "ftp")
+_AUTHORITY_WORDS = (*SPECIAL_SCHEMES, "hxxps", "hxxp")
 _OPAQUE_WORDS = ("mailto", "tel")
 
 _BRACKETS = (("[", "]"), ("(", ")"), ("{", "}"))
 
 _COLONS = (":", "\uff1a")
-_SOLIDI = ("/", "\uff0f")
+_SOLIDI = ("/", "\\", "\uff0f")
 
-# The HTML name of each separator character, for the named reference (`&colon;`, `&sol;`).
-_ENTITY_NAMES = {":": "colon", "/": "sol"}
+# The HTML name of each separator character, for the named reference (`&colon;`, `&sol;`, `&bsol;`).
+# Membership is also what says which characters carry references at all: HTML names exactly the
+# ASCII ones, and a fullwidth twin is reached through NFKC in the identity rather than by spelling.
+_ENTITY_NAMES = {":": "colon", "/": "sol", "\\": "bsol"}
 
 
 def _entity_forms(char: str) -> tuple[str, ...]:
@@ -28,8 +30,9 @@ def _entity_forms(char: str) -> tuple[str, ...]:
 
 
 def _spellings(plain: tuple[str, ...]) -> str:
-    """One separator character's alternation: its plain glyphs, then its entity references."""
-    return f"(?:{'|'.join((*(re.escape(g) for g in plain), *_entity_forms(plain[0])))})"
+    """One separator position's alternation: its plain glyphs, then their entity references."""
+    forms = tuple(f for g in plain if g in _ENTITY_NAMES for f in _entity_forms(g))
+    return f"(?:{'|'.join((*(re.escape(g) for g in plain), *forms))})"
 
 
 _COLON_SPELLING = _spellings(_COLONS)

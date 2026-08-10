@@ -26,6 +26,8 @@ _DEFANG_COLON = rf"{_OPEN_BRACKET}:{_CLOSE_BRACKET}"
 # identity, and preserved outside a redaction. Shared with the redactor.
 TRAILING_PUNCTUATION = ".,;:!?"
 
+SPECIAL_SCHEMES = ("https", "http", "ftp")
+
 # Ends the authority (host[:port]) component: from here on a URL is case-sensitive.
 _AUTHORITY_END = re.compile(r"[/?#]")
 
@@ -132,14 +134,26 @@ def _fold_label_dots(url: str) -> str:
     return url.translate(_LABEL_DOTS)
 
 
+_SPECIAL_AUTHORITY = re.compile(rf"\A((?:{'|'.join(SPECIAL_SCHEMES)}):)[/\\]+", re.IGNORECASE)
+
+
+def _fold_special_slashes(url: str) -> str:
+    r"""Fold a special scheme's backslashes to the solidi a URL parser reads them as."""
+    match = _SPECIAL_AUTHORITY.match(url)
+    if match is None:
+        return url
+    rest = url[match.end() :].replace("\\", "/")
+    return f"{match.group(1)}//{rest}"
+
+
 def normalize_url(url: str) -> str:
     """One URL's identity: escapes decoded (to a fixpoint), defang refanged, format characters
-    stripped, punycode decoded, NFKC-folded, confusables folded, trailing prose punctuation dropped,
-    scheme+authority lowered.
+    stripped, punycode decoded, NFKC-folded, confusables and label dots folded, a special scheme's
+    backslashes folded to solidi, trailing prose punctuation dropped, scheme+authority lowered.
     """
     plain = _strip_format_chars(_refang(_decode_escapes(url)))
     normalized = unicodedata.normalize("NFKC", _decode_punycode(plain))
-    folded = _fold_label_dots(_fold_confusables(normalized))
+    folded = _fold_special_slashes(_fold_label_dots(_fold_confusables(normalized)))
     trimmed = folded.rstrip(TRAILING_PUNCTUATION)
     head, sep, tail = trimmed.partition("://")
     cut = _AUTHORITY_END.search(tail)
