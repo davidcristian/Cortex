@@ -37,7 +37,10 @@ proves nobody miscounted and nothing else). Before that, the subagent VRAM ask c
 two days: the cortex reservation's re-measurement on 2026-08-07 opened it, having closed nothing
 this count had ever carried (it had been deferred at two ADRs and recorded on no index), so the
 count went 5 to 6 for an arrival with no matching departure; measuring the tier on 2026-08-08 took
-it back to 5. All six moves are the honest shape of that history rather than a bookkeeping slip.
+it back to 5. All seven moves are the honest shape of that history rather than a bookkeeping slip.
+This sentence read six until 2026-08-10: the decline at the head of this paragraph was prepended as
+a seventh move and the tally under it was not touched, which is the same omission one paragraph up
+describes and the reason a summary of a running record has to be re-read whenever the record grows.
 
 **Resource governance in Slice 8.5 ([ADR-0012](../adr/ADR-0012-resource-governance.md)):** each behind
 the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
