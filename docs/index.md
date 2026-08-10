@@ -250,7 +250,12 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   cannot disagree, and the target rather than the rectangle), and `describe()` renders a window
   as a crop out of the display rather than as a shrunk screen. The free repeat bound becomes two
   captures per target and four a loop; the ungated decision loses one of its four legs, a confirm
-  card now having something to promise, and is deliberately not changed.
+  card now having something to promise, and is deliberately not changed. Its third addendum of that
+  date is the measurement the other two were for: on a rebuilt corpus with both arms in one
+  session, a window crop reads 15 px text 9 or 10 times in 12 where the shrunk screen reads 5, and
+  reads the whole 47 string corpus slightly **worse**, since it cannot see what is outside the
+  window. The mechanism is being unresampled rather than being cropped, so a window wider than the
+  capture edge gets none of it.
 - [ADR-0030: Brain handoff (the real model swap)](adr/ADR-0030-brain-handoff.md): the Slice 11
   capstone design, **accepted**; every engineering sub-slice has landed, the deep-model pick was
   measured 2026-08-04 (gemma-4-31B QAT q4_0, ADR-0004), and the tier-scale swap remains because a

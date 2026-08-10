@@ -2645,3 +2645,155 @@ whether a window-sized crop reaches the 15 px text that stayed at 4 of 16 at eve
 tried. That is now runnable for the first time, because a target can be asked for end to end, and
 it stays on [docs/refinements/vision.md](../refinements/vision.md) as what the region and window
 entry is still open for.
+
+## Addendum (2026-08-10): what a window crop is worth, and the one row where it is worth a lot
+
+The measurement the two addenda above hand forward has run. The short answer is that the window
+crop does exactly one thing well, it is the thing it was built for, and it costs something real:
+**15 px text on an unscaled monitor goes from a flat 5 of 12 to 9 or 10 of 12, while the whole
+corpus reads slightly worse than the shrunk screen does**, because a capture pointed at one window
+cannot see the rest of the screen.
+
+### Agent-validated (2026-08-10, real cortex plus projector on the 24 GB card)
+
+**The corpus had to be rebuilt, and that is the first finding.** The 2026-08-06 legibility corpus
+was a scratch harness: only its numbers were recorded, and
+`packages/inference/tests/test_image_budget_live.py`, which that addendum calls "the re-runnable
+half", carries the token and abort arms and never carried the corpus. So the five desktops are
+built again in [desktop_corpus.py](../../brain/packages/inference/tests/desktop_corpus.py), to the
+same **shape** and not the same bytes: five 3840x2160 desktops, 47 ground-truth strings, the same
+size ladder from 15 px to 52 px, dark and light themes, full contrast and spreadsheet grey. Two
+deliberate differences from the recorded run follow from the rebuild, and both are reasons no
+number here may be compared with the recorded table. The renderer is the repo's own 5x8 bitmap
+font supersampled six times and box-filtered down rather than FreeType, which gives grey-edged
+strokes whose weight tracks the type size (a 15 px string draws an 11 px cap out of roughly 1.5 px
+strokes) but keeps a bitmap grid's letterforms. And a cap height here is 0.7 em rounded half up, so
+18, 21 and 30 px draw one pixel more cap than a real face does. **The control is therefore re-run
+rather than cited**: every number below, on both arms, was measured in this session against this
+corpus.
+
+**The crop-selection rule, stated before it was applied.** Each desktop is laid out as a
+wallpaper, a taskbar, a background window and **one focused application window**, and the window's
+rectangle is written into the scene before any ground-truth string is placed. The crop arm reads
+exactly that rectangle, which is what `CapturedFrame::window` would carry for the window a Z-order
+walk resolved. Whether a string is inside the crop is then **computed** from the box it was drawn
+into rather than declared, so the split between what the crop can see and what it cannot is a
+property of the layout and not of the scoring. It comes out at 42 inside and 5 outside: a taskbar
+clock on two desktops, and the title bar of a background window on three. The windows are sized
+the way real ones are rather than to fit the capture edge, so four of the five are inside the
+2048 px edge and one (a 2400 px wide spreadsheet) is not, which turns out to matter more than
+anything else in the table.
+
+**The pipeline is a transcription, and it was proven equal to the Rust rather than eyeballed.**
+`scaled_dimensions`, the identity arm and `box_filter` are rewritten in
+[screen_paint.py](../../brain/packages/inference/tests/screen_paint.py) from
+`body/crates/core/src/os/screen_image.rs`, including the `Region` crop the same file's `downscale`
+now takes. Four cases (a whole frame at an edge above it and below it, and two crops, one inside
+the edge and one not) were run through `Capture::from_bgra` in a scratch Rust test, the PNG decoded
+back to pixels, and an FNV checksum of those pixels compared with the Python transcription's: all
+four matched exactly, dimensions and bytes. The pipeline has **not** drifted, and the crop the
+seam would carry is the picture that was scored.
+
+**What each arm sent.** One llama-server, the shipped cortex argv from `ModelHostConfig` at the
+default `CORTEX_IMAGE_MAX_TOKENS=1024`, and the shipped `BodyConfig().capture_max_edge` of 2048 px.
+Both arms build their request out of shipped code (`CaptureScreenTool` over an in-memory body,
+`describe`'s stand-in sentence, `result_message`'s fence, `security_preamble_message`, the
+inference adapter's own wire mapper) and the ask is byte-identical between them, so the arms differ
+in the picture and in the one sentence the shipped tool writes about it, which is exactly what
+differs in production.
+
+| desktop | window | display arm | focus arm |
+|---|---|---|---|
+| editor | 2000x1400 | 2048x1152 resampled, 23 kB, 1756 to 1762 tokens | 2000x1400 untouched, 21 kB, 1751 to 1753 tokens |
+| terminal | 1500x950 | 2048x1152 resampled, 29 kB, 1701 to 1703 tokens | 1500x950 untouched, 22 kB, 1321 to 1323 tokens |
+| spreadsheet | 2400x1350 | 2048x1152 resampled, 18 kB, 1749 to 1753 tokens | 2048x1152 **resampled**, 14 kB, 1760 to 1768 tokens |
+| browser | 1750x1600 | 2048x1152 resampled, 24 kB, 1763 tokens | 1750x1600 untouched, 21 kB, 1756 to 1758 tokens |
+| chat | 1300x1500 | 2048x1152 resampled, 23 kB, 1754 to 1758 tokens | 1300x1500 untouched, 16 kB, 1592 to 1598 tokens |
+
+**The reading, over three runs at temperature 0** (the ranges are the engine's own nondeterminism,
+not a knob):
+
+| arm | scope | read | wrong | declined | of |
+|---|---|---|---|---|---|
+| display | inside the window | 27 to 28 | 9 to 10 | 5 | 42 |
+| display | outside it | 5 | 0 | 0 | 5 |
+| focus | inside the window | 29 to 31 | 10 to 12 | 0 to 3 | 42 |
+| focus | outside it | 0 | 1 | 4 | 5 |
+
+Hits per physical type size, on the 42 strings both arms carry, pooled over the three runs:
+
+| size | cap height | display | focus |
+|---|---|---|---|
+| **15 px** | 11 px | **15/36** | **29/36** |
+| 18 px | 13 px | 12/15 | 9/15 |
+| 20 px | 14 px | 15/33 | 16/33 |
+| 21 px | 15 px | 16/18 | 15/18 |
+| 26 px | 18 px | 15/15 | 12/15 |
+| 30 px | 21 px | 6/6 | 6/6 |
+| 52 px | 36 px | 3/3 | 3/3 |
+
+### What the number says, and what it does not
+
+**The 15 px row is the result, and it is not subtle.** Five of twelve in every one of the three
+runs on the shrunk screen, against nine or ten of twelve on the crop. The clean case inside it is
+the 100% scaled terminal, which is entirely 15 px type: 2 of 7 against 5 of 7 in all three runs,
+and the shrunk screen **declined** on the five it missed while the crop transcribed them character
+for character (`43450 B`, `9317`, `/srv/models/cx.gguf`, `184.6s`). That is the residue this whole
+thread was for, and a crop reaches it where three token budgets did not.
+
+**Nothing else moved, and the total moved the wrong way.** Over all 47 strings the shrunk screen
+reads 32 to 33 and the crop reads 29 to 31, because the crop cannot see the five strings outside
+the window and answers four of them "unreadable" and one wrongly. On the 42 strings both arms
+carry, 27 to 28 against 29 to 31 is an edge of two or three strings, and all of it is the 15 px
+row: at 18, 21 and 26 px the crop is one or two strings **worse** in every run. With five or six
+strings per size row that is not separable from noise, and it is not the direction the design
+predicted either, so the honest statement is that above the smallest size the two arms are level
+and the measurement cannot tell them apart.
+
+**A window wider than the capture edge gets none of this.** The spreadsheet's 2400 px window is
+resampled to the same 2048x1152 the whole screen is, and it reads 4 to 6 against the whole screen's
+7. Being cropped is not the mechanism. Being **unresampled** is, and the rule the earlier addendum
+derived (keep the region's long edge at or under the capture edge) is not advice about efficiency,
+it is the whole effect. A window that misses it can read no better than the screen it was cut out
+of, and on this corpus it read slightly worse.
+
+**The crop does not reduce fabrication.** Wrong answers are 9 to 10 on the shrunk screen and 10 to
+12 on the crop. What the crop converts is declines into readings, not inventions into truths, which
+is consistent with what the earlier addendum found about the model's willingness to guess.
+
+**The crop is cheaper, which was never the argument but is now measured.** The picture is 14 to
+22 kB against 18 to 29 kB, and a small window costs fewer image tokens: the terminal crop is 1321
+prompt tokens against the whole screen's 1701, because a 1500x950 picture tiles into fewer of them.
+
+**What this licenses.** `screen_tool.py`'s tool description tells the model that `focus` is "cut
+out of the screen at full detail, so small text stays readable", and that sentence is supported at
+the bottom of the size range for a window inside the capture edge, which is the case it was written
+for. It does **not** license making `focus` the default: a whole-corpus reading that goes down is
+what a wrong pick costs, and the pick is the model's. It does not license a legibility claim for a
+window wider than the capture edge. And it does not narrow the confabulation finding above, which
+was measured under a differently worded ask; this ask says outright that a wrong transcription is
+worse than declining, and this cortex does decline under it, so the two are not in conflict and
+neither is a statement about the other's wording.
+
+### One environment fact the harness had to grow a knob for
+
+The first run of this arm failed as an unhealthy server for 180 s while `llama-server` was up and
+serving inside the container. The published loopback port is not reachable from this WSL
+distribution in its current networking mode: a connection to `127.0.0.1:8080` does not arrive at
+the Linux `docker-proxy` that `ss` shows listening there, while the container's own address on the
+bridge answers at once. `CORTEX_PROBE_HOST=container` makes the probe ask the daemon where the
+container is instead, and the default is unchanged, so the documented loopback path is still what a
+machine without the quirk uses. It is recorded here because a run that fails this way looks exactly
+like a model that will not load.
+
+### Records
+
+The three records for this measurement are
+[docs/refinements/vision.md](../refinements/vision.md), its line on
+[docs/refinements/index.md](../refinements/index.md), and this addendum. The re-runnable half is
+the fourth arm of
+[`test_image_budget_live.py`](../../brain/packages/inference/tests/test_image_budget_live.py) with
+its corpus and probe beside it, and the run command is in
+[docs/runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md). The region and window entry
+**closes** on this: what it was open for was this measurement, the measurement has run, and the
+vision area count moves 11 to 10, re-derived entry by entry rather than decremented.
