@@ -66,25 +66,36 @@ _TARGETS: tuple[CaptureTarget, ...] = tuple(CaptureTarget)
 _TARGET_NAMES: tuple[str, ...] = tuple(target.value for target in _TARGETS)
 _TARGET_BY_NAME: dict[str, CaptureTarget] = {target.value: target for target in _TARGETS}
 
-# Written as instruction rather than as documentation: its whole job is to make the model pick
-# the window when the user is asking about one thing in front of them, which is the case the
-# 4K legibility measurement said the token budget alone cannot rescue.
+# Written as instruction rather than as documentation, and worded off the measurement rather than
+# off what the design expected of it (ADR-0029's window-crop addendum). The crop wins in exactly
+# one place, 15 px text going from 5 of 12 to 9 or 10 of 12, it is level at every size above that,
+# and over a whole desktop it reads worse than the shrunk screen because it cannot see anything
+# outside the window. So the text steers the pick toward small text in one thing rather than
+# toward the window in general, and it says out loud what a window costs. The detail claim is
+# conditional because the mechanism is being unresampled rather than being cropped: a window wider
+# than the capture edge is resampled exactly as the screen is and reads no better than it. Neither
+# the model nor this tool can tell whether that happened, which is a deferral recorded in
+# docs/refinements/vision.md rather than a field on the reply.
 _DESCRIPTION = (
     "Take a picture of the user's screen and look at it. Use this when the user asks about what "
     "is on their screen, or refers to something you cannot see. The picture is attached to your "
     "view of the result. Always name a target. Use 'focus' for the window the user is looking "
-    "at: it is cut out of the screen at full detail, so small text stays readable, and it is "
-    "the right choice whenever the question is about one thing in front of them, such as a "
-    "document, an error, a page, or a message. Use 'display' for the whole screen: it is shrunk "
-    "to fit, so fine print may be lost, and it is the right choice only when the question is "
-    "about the screen as a whole, such as what is open or where something is. If 'focus' comes "
-    "back saying there is no window to capture, the user is looking at a bare desktop, so ask "
-    "again with 'display'."
+    "at: it is cut out of the screen rather than shrunk down, so a window that is not oversized "
+    "keeps its own detail and small text in it stays readable. That is the one thing it is "
+    "better at, and it costs everything else: no other window, no taskbar, and nothing outside "
+    "that window is in the picture, and a window too large to send whole is shrunk exactly as "
+    "the screen is. Use 'display' for the whole screen: it is shrunk to fit, so fine print may "
+    "be lost, and it is the only target that shows what else is open or where something is. So "
+    "pick 'focus' when the answer turns on reading something small or exact in one thing in "
+    "front of the user, such as an error, a figure, or a line of a document, and 'display' "
+    "otherwise. If 'focus' comes back saying there is no window to capture, the user is looking "
+    "at a bare desktop, so ask again with 'display'."
 )
 
 _TARGET_HELP = (
-    "'focus' for the window the user is looking at (full detail, small text readable), "
-    "'display' for the whole screen (shrunk to fit)."
+    "'focus' for the window the user is looking at (cut out of the screen, so small text in it "
+    "stays readable unless the window is very large, and nothing outside it is captured), "
+    "'display' for the whole screen (shrunk to fit, so fine print may be lost)."
 )
 _TARGET_REQUIRED = f"capture_screen requires 'target': {_TARGET_HELP}"
 _BAD_TARGET = f"'target' must be one of: {', '.join(_TARGET_NAMES)}"
@@ -95,8 +106,12 @@ def _parse_target(arguments: Mapping[str, Any]) -> CaptureTarget | str:
 
     Never raises and never guesses. A missing target is refused rather than defaulted, on two
     grounds that point the same way. The default it would take is the **whole screen**, which is
-    both the more exposing picture and the less legible one, so quietly choosing it on an
-    ambiguous call is the wrong direction twice over. And every spelling this tool accepts is
+    the more exposing of the two pictures, and choosing the wider one for a question the model has
+    not said is about the screen as a whole is the wrong direction. (This used to claim the whole
+    screen was the less legible picture too. The window-crop measurement narrows that to the
+    smallest text on the screen: over a whole desktop the shrunk screen reads *more* of it, since
+    a crop cannot see past its window. The exposure leg is untouched and carries the decision.)
+    And every spelling this tool accepts is
     another two captures a loop can take, since repeat detection keys on the arguments as
     written: refusing an omitted or unrecognized target costs a dispatch and takes no picture,
     which is what keeps the bound at two per target rather than two per way of asking. For the
@@ -147,7 +162,12 @@ def describe(capture: ScreenCapture) -> str:
     It claims **nothing** about whether the window itself was then shrunk, because the reply does
     not say and this is not the place to guess. The crop's own size is region geometry, which
     this seam declines to carry in either direction, and the whole design point of the window
-    target is that a window inside the capture edge crosses pixel for pixel.
+    target is that a window inside the capture edge crosses pixel for pixel. The window-crop
+    measurement priced that silence rather than removing it: one of its five windows was wider
+    than the capture edge, was resampled to exactly what the whole screen is resampled to, and
+    read no better than it. Telling the two apart wants one bit on the reply, and it is recorded
+    in docs/refinements/vision.md rather than built, on the ground that the sentence it would
+    write is the sentence this ADR already measured the model not to act on.
 
     Which sentence is used is the body's answer (``capture.target``) rather than what was asked
     for, so a window filling the display reads as a display capture, exactly as the OS receipt

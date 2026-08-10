@@ -255,7 +255,12 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   session, a window crop reads 15 px text 9 or 10 times in 12 where the shrunk screen reads 5, and
   reads the whole 47 string corpus slightly **worse**, since it cannot see what is outside the
   window. The mechanism is being unresampled rather than being cropped, so a window wider than the
-  capture edge gets none of it.
+  capture edge gets none of it. Its fourth addendum spends that measurement on the shipped text:
+  the tool description stops promising full detail unconditionally, steers `focus` at small text in
+  one thing rather than at one thing in general, and says out loud that a window costs everything
+  outside it, with both copies of the steer held by a test. Saying on the reply whether a window
+  was resampled is **deferred** with a trigger, since its only consumer is a caption and a caption
+  is the one intervention this ADR has measured twice and found inert.
 - [ADR-0030: Brain handoff (the real model swap)](adr/ADR-0030-brain-handoff.md): the Slice 11
   capstone design, **accepted**; every engineering sub-slice has landed, the deep-model pick was
   measured 2026-08-04 (gemma-4-31B QAT q4_0, ADR-0004), and the tier-scale swap remains because a

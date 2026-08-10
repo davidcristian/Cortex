@@ -66,10 +66,20 @@ windows are.
 
 **The model is the one who chooses**, as of 2026-08-10. `capture_screen` takes one required
 argument, `target`, whose two values are `focus` and `display`, and the tool description tells the
-model which to reach for: the window when the question is about one thing in front of the user,
-the display when it is about the screen as a whole. There is no default. A call that names no
-target, or names one outside the two, comes back as a tool error and takes no picture, which is
-also what keeps the repeat bound honest (below).
+model which to reach for. There is no default. A call that names no target, or names one outside
+the two, comes back as a tool error and takes no picture, which is also what keeps the repeat
+bound honest (below).
+
+**What the description tells it, and why it is narrower than it first was.** The window is
+steered as the picture for **small text in one thing**, an error, a figure, a line to transcribe,
+and the display for everything else. That is where the measurement of the same day put it: a
+window crop takes 15 px text from 5 of 12 to 9 or 10 of 12, is level at every size above that, and
+over a whole 47 string desktop corpus reads *worse* than the shrunk screen (29 to 31 against 32 to
+33) because it cannot see past its window. The description says that cost out loud, and it no
+longer promises full detail: the mechanism is being **unresampled**, not being cropped, so a
+window wider than `CORTEX_BODY_CAPTURE_MAX_EDGE` is resampled to exactly what the whole screen is
+resampled to and reads no better than it. Nothing on the reply says which of those two happened,
+deliberately for now ([../refinements/vision.md](../refinements/vision.md)).
 
 Two things to know about the focused window:
 
@@ -185,7 +195,9 @@ them: [docs/host/windows-capture.md](../host/windows-capture.md).
    model host and `CORTEX_BODY_CAPTURE_MAX_EDGE=2048` here, and **both are the default now**; a
    bigger PNG alone changes nothing. What they cost and the type sizes they still cannot reach (15
    px on an unscaled monitor is unreadable at every budget tried) are in
-   [llamacpp-gpu.md](llamacpp-gpu.md).
+   [llamacpp-gpu.md](llamacpp-gpu.md). That last residue is the one thing a `focus` capture does
+   reach, measured 2026-08-10, and only while the window fits the capture edge, so a whole-screen
+   read of 15 px type is still expected to fail and is not worth debugging.
 
 ## What a capture does to the turn
 

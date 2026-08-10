@@ -1549,10 +1549,16 @@ Use-case:
   volume: no subagent model on the mount carries a vision projector, and an image-bearing MCP
   result would arrive as an empty non-error string. The spec takes one **required** argument,
   `target`, a string enum derived from `CaptureTarget`, and the description is written to steer
-  the pick: the window keeps small text readable and is right when the user is asking about one
-  thing in front of them, the display is right for a question about the screen as a whole. A
-  missing target is refused rather than defaulted (the default would be the more exposing and
-  less legible picture) and an unrecognized one is refused exactly (no case folding), both as
+  the pick, off the window-crop measurement rather than off what the design expected of it
+  (ADR-0029's window-crop addendum): the window is the better picture for **small text in one
+  thing** and for nothing else, it costs everything outside that window, and the detail it buys
+  is conditional on the window fitting the capture edge, since the mechanism is being unresampled
+  rather than being cropped. The display is right for every other question, the screen as a whole
+  included. Neither the description nor `_TARGET_HELP` promises full detail, because a window
+  wider than the edge is resampled exactly as the screen is and nothing on this side can tell. A
+  missing target is refused rather than defaulted (the default would be the more exposing picture,
+  and widening silently on a question the model never scoped to the screen is the wrong
+  direction) and an unrecognized one is refused exactly (no case folding), both as
   `is_error` `TRUSTED` results that never reach the body. That is also what fixes the repeat
   bound: `RepeatSalience` keys on name plus arguments and caps identical dispatches at
   `MAX_IDENTICAL_DISPATCHES` (2), so the ceiling is **two captures per target and four per

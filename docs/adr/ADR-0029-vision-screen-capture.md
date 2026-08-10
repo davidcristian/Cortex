@@ -2797,3 +2797,134 @@ its corpus and probe beside it, and the run command is in
 [docs/runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md). The region and window entry
 **closes** on this: what it was open for was this measurement, the measurement has run, and the
 vision area count moves 11 to 10, re-derived entry by entry rather than decremented.
+
+## Addendum (2026-08-10): the steer is rewritten off the measurement, and the reply stays silent about a resample
+
+The addendum above measured the window crop and named one shipped sentence it only partly
+licenses. This one corrects that sentence and every restatement of it, and it settles the field the
+correction raises. **Nothing about the seam, the gating, the taint, or the consent surfaces
+changes; what changes is what the model is told.**
+
+### The claim that was wrong, and the two ways it was wrong
+
+`screen_tool.py` told the model that `focus` "is cut out of the screen at full detail, so small
+text stays readable, and it is the right choice whenever the question is about one thing in front
+of them", with `_TARGET_HELP` repeating it as "(full detail, small text readable)". Both halves
+overreach the data.
+
+**The detail is conditional and the condition is invisible.** The crop's advantage is being
+**unresampled**, not being cropped. A window whose long edge is inside the capture edge crosses
+pixel for pixel; one wider than it goes through the very same box filter the whole display does,
+lands at the very same 2048x1152, and read 4 to 6 of its strings against the whole screen's 7. One
+of the five measured desktops was that case, a 2400 px spreadsheet, which is not an exotic window
+on a 4K display. Neither the model nor the tool can find out which happened, so "full detail" was
+an unconditional promise about a conditional property.
+
+**The preference was general and the win is not.** The crop is a large, repeatable gain at 15 px
+(5 of 12 to 9 or 10 of 12, and 2 of 7 to 5 of 7 on the 100% scaled terminal in every run), level at
+18, 21 and 26 px, and a net **loss** over all 47 strings (29 to 31 against 32 to 33) because it
+cannot see anything outside the window. "The right choice whenever the question is about one thing"
+therefore steered toward a trade the corpus says is only worth taking for small text, and it never
+said what the trade costs.
+
+### What it says now
+
+The text stays instruction rather than turning into a hedge, because the model still has to make a
+confident pick and the data does support one:
+
+- `focus` is "cut out of the screen rather than shrunk down, so a window that is not oversized
+  keeps its own detail and small text in it stays readable", followed by what that costs: "no other
+  window, no taskbar, and nothing outside that window is in the picture, and a window too large to
+  send whole is shrunk exactly as the screen is".
+- `display` keeps its shrunk-to-fit sentence and gains the thing only it can do, showing "what else
+  is open or where something is".
+- The rule is stated once, at the end, in the terms the measurement supports: pick `focus` "when
+  the answer turns on reading something small or exact in one thing in front of the user, such as
+  an error, a figure, or a line of a document, and 'display' otherwise".
+- The bare-desktop retry is unchanged, being the one recovery the model can act on and untouched by
+  any of this.
+
+`_TARGET_HELP` carries the same two facts in schema-sized form, because a copy left behind is a
+lie the model still reads: the window is "cut out of the screen, so small text in it stays readable
+unless the window is very large, and nothing outside it is captured".
+
+**Held by a test rather than by this paragraph.** `test_the_steer_promises_only_what_the_window
+_crop_measurement_supports` asserts over **both** strings that neither says "full detail", that
+both name small text, and that the description carries the cost clause and the retry. It was proved
+able to fail three ways before being trusted: restoring "at full detail" reddens it, softening
+"shrunk exactly as the screen is" to "shrunk a bit" reddens it, and dropping the outside-the-window
+clause from `_TARGET_HELP` reddens it.
+
+### One more restatement was wrong, in a place nobody was looking
+
+`_parse_target`'s docstring justified refusing a missing target on the whole screen being "both the
+more exposing picture and the less legible one". The second leg is now false as a blanket claim:
+over a desktop the shrunk screen reads **more** than a crop, and only the smallest type goes the
+other way. The refusal is unchanged and did not need that leg. It stands on exposure (widening
+silently on a question the model never scoped to the whole screen is the wrong direction) and on
+the repeat bound (a spelling that captures is worth two captures to a loop), and the docstring, its
+test, and the module doc now say so.
+
+### Decision: the reply does not say whether the picture was resampled, and the bit is recorded instead
+
+The correction above raises an obvious field. The model asks for `focus`, gets a window too wide to
+fit, and receives a picture exactly as lossy as a screenshot. The body knows which happened, since
+the identity arm of `downscale` either fired or it did not, and `Capture` already holds both the
+crop and the bound; a `bool` on `CaptureScreenReply` would be symmetric with `resolved_target` and
+would let `describe()` name which of the two pictures arrived. **It is deferred**, on three grounds
+in descending weight.
+
+**The mechanism it would drive is already measured not to work.** The bit's only consumer is a
+sentence in the stand-in text, and this ADR has a direct measurement of that exact intervention:
+with `describe()`'s source size in front of it, saying in so many words that the picture is a
+shrunk view, and with "unreadable" offered as an allowed answer, the shipped cortex declined on
+**3 of 47** illegible strings and confidently invented the other 38. The window-crop run says the
+same thing from the other side: the crop converts declines into readings and does not reduce
+fabrication. A second caption about shrinking is therefore a field, a regeneration and two line-cap
+splits bought for a behaviour this ADR has twice failed to observe.
+
+**The cheaper half of the value landed here instead.** What the model can actually act on is
+knowing before the pick that `focus` is not a guarantee, and the description now says exactly that.
+That reaches the model at the moment of the decision rather than after the picture, costs no wire
+change, and is held by a test.
+
+**The cost is real and lands on files with no room.** It is a fourth proto regeneration on this path
+in one day, and it reaches `screen_policy.rs` (286 of 300, so a field plus its accessor forces a
+split), `screen_tool.py`, `gateway.py` (263 of 300), the seam facade, both fakes, six test files and
+six docs. That is a slice, not a follow-up, and it is worth doing when something else opens the same
+reply.
+
+What is **not** a reason: honesty. The silence is a real gap in what `describe()` can say, and this
+ADR's standing rule is that the stand-in text claims nothing it cannot support, which is why
+`describe()` already refuses to guess here. The deferral is that the gap is not currently reachable
+by any behaviour we can measure, not that it does not exist. It is recorded in
+[docs/refinements/vision.md](../refinements/vision.md) with the trigger written down: it lands with
+the next change that opens `CaptureScreenReply` (a `display_index`, or the region picker the
+rectangle decline waits on), or the day a caption is measured to change what this cortex does with
+a picture it cannot read.
+
+### What else carried the same over-claim, and what did not
+
+Corrected: `screen_tool.py`'s `_DESCRIPTION`, `_TARGET_HELP`, the comment above them and
+`_parse_target`'s docstring; [docs/modules/brain-core.md](../modules/brain-core.md)'s account of
+the spec; and [docs/runbooks/vision.md](../runbooks/vision.md), which restated the general
+preference and now carries the measurement's own scope, plus a note on its expect-rather-than-debug
+list that a `focus` capture is the one thing that reaches 15 px type and only while the window
+fits.
+
+Checked and found already honest, which is worth recording so the next sweep does not re-open them:
+`describe()`'s two sentences make no legibility claim at all, and its docstring already said it
+claims nothing about whether the window was shrunk (it now also says what that silence was measured
+to cost); `screen_image.rs` and `screen_policy.rs` phrase the identity arm as "a region already
+inside the bound" and "a window already inside the capture edge", which is the condition stated
+correctly; and the overlay's `CaptureDot.tsx` comment is about the two **labels** deliberately not
+distinguishing a window from a screen, which is a different decision and unaffected. Decision 1
+through decision 15 and the three earlier addenda of this date keep their own wording; this
+addendum is their correction, which is how every superseded sentence in this ADR is handled.
+
+### Records
+
+The three records are [docs/refinements/vision.md](../refinements/vision.md), its line on
+[docs/refinements/index.md](../refinements/index.md), and this addendum. The area count moves
+**10 to 11**, re-derived entry by entry rather than incremented: the resampled bit is new work,
+knowingly punted, with a trigger, which is exactly what this backlog counts.

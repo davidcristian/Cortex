@@ -362,8 +362,10 @@ a shipping body honours it) and the brain half the same day, so `capture_screen`
 required target and the model chooses between the window the user is looking at and the whole
 display. That thread closed the same day on its own measurement: a window crop reads 15 px text 9
 or 10 times in 12 where the shrunk screen reads 5, and reads a whole desktop's worth of strings
-slightly worse, because it cannot see what is outside the window. See
-[runbooks/vision.md](runbooks/vision.md).
+slightly worse, because it cannot see what is outside the window. The shipped steer was rewritten
+against that number later the same day, since it had promised full detail unconditionally where
+the mechanism is really being unresampled, and it now points the model at small text in one thing
+and says what a window costs. See [runbooks/vision.md](runbooks/vision.md).
 
 The shape: a model-initiated built-in `capture_screen` tool over the unchanged `BodyGateway`
 (the volume precedent, so it inherits audit, the dispatch budget, taint marking, and
