@@ -791,9 +791,15 @@ unchanged):
 - `Embedder` provides `async embed(text) -> Sequence[float]`: one stateless call, text to vector.
   Dimension is fixed by the deployment's model (ADR-0008); the core assumes no value.
 - `MemoryStore` provides `async add(record) -> None`, `async search(embedding, *, k, scopes=None) ->
-  Sequence[ScoredMemory]` (top-`k` by similarity, most-similar first), and `async delete_scope(scope)
+  Sequence[ScoredMemory]` (top-`k` by similarity, most-similar first), `async
+  count_candidates(*, scopes=None) -> int`, and `async delete_scope(scope)
   -> int`. `scopes` restricts the candidate set to those namespaces (ADR-0008 scoping addendum);
-  `None` (the default) ranks over ALL memories (the global-space behavior). `delete_scope` hard-deletes
+  `None` (the default) ranks over ALL memories (the global-space behavior). `count_candidates`
+  answers how wide that same candidate set is, which `search` structurally cannot, since it returns
+  the top rows and a pool filled to its requested width reads exactly like a store that held that
+  many (ADR-0038 candidate-count addendum). It must be the store's OWN count and never a length
+  over rows some search returned, which is the whole distinction it draws; the contract test pins
+  that with more memories than the widest pool a shipped deployment fetches. `delete_scope` hard-deletes
   every memory in one namespace and returns how many it removed (0 when empty), the forget primitive a
   session-delete cascade and a per-scope eviction policy each named (ADR-0008 delete-scope addendum);
   it takes a single required scope and no wildcard, so a namespace is dropped only when named, and a
@@ -1286,11 +1292,16 @@ Use-case:
   An empty ranking is returned as no hits and never re-fetched or filled from the pool, so a policy
   that declines (the `DEMUR` basis) leaves the turn without a memory block at all.
   An optional `audit: RecallAuditSink` receives one `RecallAudit` per recall (the query, the pool
-  size, `k`, the ranking, the candidates the rank dropped, the time) after selecting, so a recall is
+  size, how many candidates were available, `k`, the ranking, the candidates the rank dropped, the
+  time) after selecting, so a recall is
   trailed whichever policy ran (ADR-0038); `None` (the default) is the founding silent path. The
   whole record, `dropped_candidates(pool, ranking)` included, is built inside that `is not None`
   guard, so an unaudited recall walks the pool once for the policy and never again (ADR-0038
-  dropped-candidate addendum). Stateless over the store: every memory
+  dropped-candidate addendum). `_count_candidates` rides the same guard and is the one read that
+  reaches the store for the trail alone, so a silent recall issues no counting query at all; it
+  runs straight after the search rather than after the rank, because the two are separate reads and
+  a model rank sits between them for the best part of a second (ADR-0038 candidate-count addendum).
+  Stateless over the store: every memory
   lives in `MemoryStore`, so recall is identical across restarts and swaps. Wired into `TurnEngine`
   (retrieve-into-context, record-at-turn-end) when injected. The engine threads its `session_id`
   through both calls.
@@ -1356,8 +1367,14 @@ Use-case:
   ranking carrying hits is refused at construction, since a policy cannot both decline and return
   something; an empty ranking on any other basis is legal and means the pool held nothing to rank.
 - `RecallAudit` (`ranking.py`) is what a `RecallAuditSink` records: `session_id`, `query`,
-  `pool_size`, `k`, `ranking`, `dropped`, `at`. It carries conversation content, so a sink decides
-  what it keeps of it; the shipped `LoggingRecallSink` keeps none.
+  `pool_size`, `available`, `k`, `ranking`, `dropped`, `at`. It carries conversation content, so a
+  sink decides what it keeps of it; the shipped `LoggingRecallSink` keeps none. `available` is the
+  store's own count of the read scopes (ADR-0038 candidate-count addendum) and is what makes "never
+  a candidate" readable rather than merely nameable: equal to `pool_size` the pool WAS the whole
+  readable store, so an id on neither list was never written or was written outside the scopes;
+  below it the pool was cut and an absent memory may only have ranked under the cutoff. The two
+  numbers come from two reads rather than one transaction, so `available` describes the store as of
+  a moment beside the search rather than an invariant tied to `pool_size`.
 - `DroppedCandidate` / `DroppedCandidates` / `dropped_candidates(pool, ranking, *,
   limit=DROPPED_TRAIL_LIMIT)` (`ranking.py`, ADR-0038 dropped-candidate addendum) are what the
   audit says about the candidates the rank did **not** keep, without which a memory that never came
@@ -1878,13 +1895,19 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   loop instead of consuming time, so a poll loop's *schedule* is asserted rather than its
   elapsed time. Both live in `fakes_sleeper.py`.
 - `InMemoryMemoryStore` is a list-backed `MemoryStore` ranking by cosine similarity in Python;
-  behavioral twin of the pgvector adapter (Slice 5 host half) behind the same contract. A
+  behavioral twin of the pgvector adapter (Slice 5 host half) behind the same contract, which
+  `packages/memory/tests/test_memory_store_contract.py` runs over it in CI from the same file the
+  live pgvector run uses. A
   zero-magnitude vector scores 0.0; `scopes` filters candidates by namespace before ranking
-  (the `WHERE scope = ANY` twin). Does not survive a restart, by design.
+  (the `WHERE scope = ANY` twin) and selects the same set `count_candidates` sizes. Does not
+  survive a restart, by design.
 - `HashEmbedder(dimension=16)` is a deterministic, I/O-free `Embedder`: identical text always
   yields the identical vector (so a stored memory is its own strongest cosine match), distinct
   text a distinct vector. Carries no semantics. It is the CI/tests stand-in for the real nomic
   adapter (Slice 5 host half). Never emits an all-zero vector.
+- Those two and `RecordingRecallSink` live in `fakes_memory.py`, split from `fakes.py` for the line
+  cap as `count_candidates` landed (the `fakes_session.py` precedent): a recall test wants an
+  embedder, a store and somewhere for the trail to land, and nothing else in `fakes.py` takes part.
 - `InMemoryToolRegistry({name: (spec, handler)})` is a dict-backed `ToolRegistry`; contract
   twin of the MCP adapter (Slice 6). A handler maps call arguments to result text; `invoke`
   raises `ToolNotFoundError` for an unknown name. No server, fully deterministic.

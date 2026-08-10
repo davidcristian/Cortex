@@ -63,13 +63,21 @@ class SessionStore(Protocol):
 
 
 class MemoryStore(Protocol):
-    """Durable, cross-session memory: append one record, retrieve the top-k, forget a namespace.
+    """Durable, cross-session memory: append a record, retrieve the top-k, size the candidate
+    set, forget a namespace.
 
     ``add`` persists one ``MemoryRecord`` that the caller builds (id, timestamp, embedding,
     scope), so the store only translates, as ``SessionStore.append`` does. ``search`` returns
     the ``k`` records whose embeddings are most similar to ``embedding``, most-similar first;
     ``scopes`` restricts the candidate set to those namespaces (ADR-0008 scoping addendum) and
     defaults to ``None``, which ranks over ALL memories, the global-space v1 behavior.
+    ``count_candidates`` answers how many memories that same candidate set holds, which
+    ``search`` structurally cannot: it returns the top rows, so a pool filled to the requested
+    width is indistinguishable from a store that held exactly that many (ADR-0038
+    candidate-count addendum). It must be the store's OWN count and never a length over rows
+    some search returned, because the whole distinction it draws is between a memory that
+    ranked below the cutoff and one that was never there. ``scopes`` means exactly what it
+    means for ``search``, so the two describe one candidate set.
     ``delete_scope`` hard-deletes every memory in one namespace and returns how many it removed
     (0 when empty), the forget primitive a session-delete cascade and a per-scope eviction policy
     each named (ADR-0008 delete-scope addendum). It takes a single required scope and no wildcard,
@@ -83,6 +91,8 @@ class MemoryStore(Protocol):
     async def search(
         self, embedding: Sequence[float], *, k: int, scopes: Sequence[str] | None = None
     ) -> Sequence[ScoredMemory]: ...
+
+    async def count_candidates(self, *, scopes: Sequence[str] | None = None) -> int: ...
 
     async def delete_scope(self, scope: str) -> int: ...
 

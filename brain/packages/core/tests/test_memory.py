@@ -363,6 +363,55 @@ async def test_recall_audits_the_ranking_when_a_sink_is_wired() -> None:
     assert [ranked.hit.record.id for ranked in audit.ranking.hits] == ["m0"]
 
 
+async def test_the_trail_says_how_many_candidates_there_were_not_only_how_many_came_back() -> None:
+    """A pool at its requested width and a store that held exactly that many are two events.
+
+    Nine memories, a pool of four: the numbers must differ, because equal ones are the line's way
+    of saying the pool WAS the whole readable store and an id on neither list was never written.
+    An `available` measured off the pool would report the cutoff back to itself and read equal
+    here (ADR-0038 candidate-count addendum).
+    """
+    store = InMemoryMemoryStore()
+    sink = RecordingRecallSink()
+    ids = iter([f"m{i}" for i in range(9)])
+    recaller = MemoryRecaller(
+        store,
+        HashEmbedder(),
+        _FixedClock(),
+        policy=_SpyRecallPolicy(),
+        audit=sink,
+        id_factory=lambda: next(ids),
+    )
+    for i in range(9):
+        await recaller.record(f"fact {i}", session_id="s")
+    await recaller.recall("fact 0", k=1, session_id="s")
+
+    (audit,) = sink.audits
+    assert audit.pool_size == 4  # candidate_k(1), the width the policy asked the store for
+    assert audit.available == 9  # and what the store had to offer it, which nothing else reports
+
+
+async def test_the_counted_candidates_are_the_read_scopes_and_not_the_whole_store() -> None:
+    """The count means nothing unless it counts the same set the search ranked over.
+
+    Under session scoping, a recall in one conversation must not be told that the other
+    conversation's memories were available to it: they were never candidates.
+    """
+    store = InMemoryMemoryStore()
+    sink = RecordingRecallSink()
+    recaller = MemoryRecaller(
+        store, HashEmbedder(), _FixedClock(), scope=SessionMemoryScope(), audit=sink
+    )
+    for i in range(4):
+        await recaller.record(f"fact {i}", session_id="conv-a")
+    await recaller.record("only one here", session_id="conv-b")
+
+    await recaller.recall("fact 0", k=5, session_id="conv-b")
+
+    (audit,) = sink.audits
+    assert audit.available == 1  # conv-b's own namespace, not the five memories the store holds
+
+
 class _DecliningRecallPolicy:
     """A RecallPolicy that reads the pool and keeps none of it, the judge's refusal in a fake."""
 
@@ -461,6 +510,7 @@ class _PoolStore:
 
     def __init__(self, pool: _CountingPool) -> None:
         self.pool = pool
+        self.counts = 0
 
     async def add(self, record: MemoryRecord) -> None:
         del record
@@ -472,13 +522,18 @@ class _PoolStore:
         del embedding, k, scopes
         return self.pool
 
+    async def count_candidates(self, *, scopes: Sequence[str] | None = None) -> int:
+        del scopes
+        self.counts += 1
+        return len(self.pool)  # len() does not iterate, so answering costs the pool no walk
+
     async def delete_scope(self, scope: str) -> int:
         del scope
         raise AssertionError(_READ_ONLY)
 
 
-async def _walks_recalling(*, audited: bool) -> int:
-    """How many times one recall walks the candidate pool, with and without a trail wired."""
+async def _reads_recalling(*, audited: bool) -> tuple[int, int]:
+    """What one recall costs the store, trail on and off: pool walks, then counting queries."""
     pool = _CountingPool(
         [
             ScoredMemory(
@@ -487,15 +542,16 @@ async def _walks_recalling(*, audited: bool) -> int:
             for i in range(3)
         ]
     )
+    store = _PoolStore(pool)
     recaller = MemoryRecaller(
-        _PoolStore(pool),
+        store,
         HashEmbedder(),
         _FixedClock(),
         policy=_SpyRecallPolicy(),
         audit=RecordingRecallSink() if audited else None,
     )
     await recaller.recall("a fact", k=1, session_id="s")
-    return pool.walks
+    return pool.walks, store.counts
 
 
 async def test_the_silent_path_assembles_no_record_for_a_sink_that_is_not_there() -> None:
@@ -503,10 +559,13 @@ async def test_the_silent_path_assembles_no_record_for_a_sink_that_is_not_there(
 
     The whole audit, including the difference between the pool and the ranking, is built inside
     the "is there a sink" guard. So the unaudited recall walks the pool once, for the policy, and
-    the audited one walks it exactly once more.
+    the audited one walks it exactly once more. The store's own count of the candidate set is
+    inside the same guard and is the one read here that reaches a database (ADR-0038
+    candidate-count addendum), so a silent recall must issue none of them at all: no assertion
+    about a logged value can catch a query run for a reader who is not there.
     """
-    assert await _walks_recalling(audited=False) == 1
-    assert await _walks_recalling(audited=True) == 2
+    assert await _reads_recalling(audited=False) == (1, 0)
+    assert await _reads_recalling(audited=True) == (2, 1)
 
 
 async def test_session_scoped_recaller_does_not_cross_conversations() -> None:

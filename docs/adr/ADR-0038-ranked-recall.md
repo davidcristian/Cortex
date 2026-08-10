@@ -1679,3 +1679,186 @@ never hand it.
 `CORTEX_MEMORY_*` knob reach the dockerized brain, was a defect and is fixed rather than filed. The
 per-question layout was built rather than deferred, this run having proved in its own numbers that
 the interval alone misreads.
+
+## Candidate-count addendum (2026-08-10): the trail says what the pool was drawn from
+
+The dropped-candidate addendum above taught the line to separate "was a candidate and the rank
+passed it over" from "was not a candidate", and stopped there, which is exactly what its own entry
+had asked for. It opened the next question in the same breath: an id in neither `hits` nor
+`dropped` has three possible explanations, and the line could tell them apart for none of them.
+The memory ranked below the pool cutoff, or its scope was not read, or it was never written.
+
+### The trigger did not fire, and the work was taken anyway
+
+This is recorded plainly because the bookkeeping is worth more than the appearance. The entry's
+trigger was the first investigation whose memory is not in the pool at all, or a deployment that
+has widened its pool and wants to know whether it is wide enough. **Neither has happened.** No
+investigation has run and no pool has been widened. It was taken because the user asked for the
+backlog to be worked and this entry's only blocker was its trigger rather than a cost argument or
+an undecided question, and because the same thing that gave the dropped-candidate close its urgency
+gives this one its: `CORTEX_MEMORY_RECALL` ships as `judge`, which keeps about one note where the
+cosine kept five, so the trail is thinnest exactly where most of the pool now disappears. A
+deferral taken ahead of its trigger is a decision like any other and is written down as one.
+
+### Re-derived from the tree first, and one of the entry's own claims did not hold
+
+The entry filed itself small on the ground that two of the three causes are derivable by a reader
+holding the deployment's config, so logging them would be convenience rather than information. Read
+against the code, one of those two is exactly right and the other is not.
+
+**The scopes claim holds exactly.** `GlobalMemoryScope.read_scopes` returns `None`, which is every
+namespace, and `SessionMemoryScope.read_scopes` returns the one `session_id` (`scope.py`). The line
+already carries `session`, so `CORTEX_MEMORY_SCOPE` plus that field determines the read scopes with
+nothing left over.
+
+**The requested-width claim does not.** The entry says the requested width is `k` times
+`CORTEX_MEMORY_RECALL_POOL_FACTOR`. That is true of the judge and the three heuristic policies, and
+false of `RawRecallPolicy`, whose `candidate_k(k)` is `k` with no over-fetch at all (`rerank.py`),
+which is what `CORTEX_MEMORY_RECALL=raw` still selects as the shipped opt-out. It is false a second
+way on a fallback line, where the emitted basis is the fallback's while the width was the judge's,
+so a reader deriving the width from the basis derives the wrong one precisely when the model could
+not be reached.
+
+That correction turns out not to cost anything, because the fix makes the derivation unnecessary
+rather than merely easier. See the decision below.
+
+### The third cause, and why it is the only one worth a field
+
+`pool_size` is how many candidates came back and never how many there were. A pool filled to its
+requested width is byte-for-byte the same line as a store that held exactly that many, so a memory
+missing from a full line was either cut by the cutoff or absent from the store, and nothing on the
+line says which. No reader derives that from any config, because it is a property of the data
+rather than of the deployment.
+
+The entry priced this correctly and ahead of time: it is **not** behind the unchanged port.
+`MemoryStore.search` returns the top rows and reports no total, so the number has to come out of
+the store. That is the port, both adapters, the fake, the contract test, and a count beside the
+ranked select in the pgvector one. The shape survived contact with the tree unchanged.
+
+### What the count cost, measured rather than assumed
+
+The obvious worry is that an exact total means a second full scan on the hot path of every recall,
+and that a bounded or capped count is therefore the honest design. Measured, that worry is
+backwards, and the measurement also rules out the shape that looks cheapest on paper.
+
+Postgres 16 with pgvector, the shipped `memories` schema, 768-dim vectors, `k` 20, timed over six
+repetitions per shape at two table sizes:
+
+| Shape | 20k rows | 100k rows |
+| --- | --- | --- |
+| the ranked `SELECT`, unscoped | 290 ms | 520 ms |
+| the ranked `SELECT`, scoped to 3 of 50 namespaces | 19 ms | 88 ms |
+| `count(*)`, unscoped | 0.45 ms | 2.0 ms |
+| `count(*)`, scoped | 0.12 ms | 0.18 ms |
+| `count(*)` capped at 200 | 0.09 ms | 0.09 ms |
+| the ranked `SELECT` plus `count(*) OVER ()` | 293 ms | **1480 ms** |
+
+Three readings, and each one decides something.
+
+**The count is not a second scan of what the search scanned.** `EXPLAIN (ANALYZE, BUFFERS)` shows an
+Index Only Scan over `memories_scope_idx` with `Heap Fetches: 0`, 21 shared buffers at 20k rows: the
+btree that already exists for the scope filter serves the count, and it never touches the 87 MB of
+heap the vectors live in. What makes the search expensive is detoasting every row and computing a
+768-dimension distance for it, and the count does neither. So the count is not a fraction of the
+search's cost by luck; it is cheap for a structural reason that holds as the table grows, which the
+two sizes bear out (the ratio stays under one percent).
+
+**A cap buys nothing worth having.** Capping saves at most 2 ms against a 520 ms search, and it
+pays for that by turning an exact number into "at least this many", which is the weaker answer to
+both halves of the question the entry asked. Exact it is. The honest worst case was measured too:
+on a table with 5,000 unvacuumed inserts, where the visibility map is dirty and every row costs a
+heap fetch, the unscoped count rose to 22 to 31 ms at 105k rows, still under 6% of the search, and
+autovacuum retires it.
+
+**The one-statement shape is the expensive one.** Folding the total into the ranked select as
+`count(*) OVER ()` is the design that needs no second round trip and no consistency caveat, and it
+costs **2.85x the plain search** at 100k rows. The plan says why: `WindowAgg (actual
+time=36.313..1504.610 rows=100000)` sits under the `Limit`, so the whole target list, including
+`embedding::text` for every one of the 100,000 rows, is materialized before the top-20 heapsort can
+discard it. At 20k rows this is invisible, which is the trap: it would have shipped looking free
+and grown into the most expensive statement in the recall path. Two statements it is, and the
+consistency caveat is documented rather than papered over.
+
+### Decision
+
+1. **A new port verb, not a wider `search`.** `MemoryStore.count_candidates(*, scopes=None) -> int`
+   answers how wide the candidate set is; `search` is untouched and still means "the top `k`". The
+   `scopes` argument means exactly what it means for `search`, which is what makes the two describe
+   one set. Widening `search`'s return would have made every caller pay for a number only the trail
+   reads, and there is one production caller besides.
+2. **The store's own count, never a length over rows.** This is the whole distinction the verb
+   draws: a count that stops where a search stopped reports the cutoff back to itself and says
+   nothing. The pgvector adapter issues `SELECT count(*) AS total FROM memories` with the same
+   `WHERE scope = ANY` a scoped search applies; the in-memory twin counts the same filtered list it
+   would have ranked.
+3. **`RecallAudit` gains a required `available`, and the reading is a comparison.** Equal to
+   `pool_size`, the pool WAS the whole readable store, so an id on neither list was never written or
+   was written outside the read scopes. Below it, the pool was cut and an absent memory may only
+   have ranked under the cutoff. `LoggingRecallSink` grows one key and decides nothing.
+4. **The requested width is still not logged, and now for a better reason than the entry's.** The
+   entry called it derivable, which is false under `raw` and on a fallback line. It need not be
+   derived at all: where the width would matter, meaning the pool was cut, it is exactly
+   `pool_size`; where it would not, nothing was cut and it explains nothing. `available` makes the
+   width redundant rather than merely inferable, so the correction costs no field.
+5. **Counted only when a sink is wired, and counted next to the search.** The call sits inside
+   `MemoryRecaller`'s `audit is not None` guard, so an unaudited recall issues no counting query at
+   all and the trail stays free when off, which is the dropped-candidate close's design point
+   carried forward to the one read here that reaches a database. It runs straight after the search
+   rather than after the rank, because these are two reads and not one transaction and a model rank
+   sits between them for the best part of a second; adjacent statements are as close as two reads
+   get to one moment.
+6. **A failed count fails the recall.** It is not swallowed into a `None` or a guessed figure. The
+   count travels the same pool and the same connection as the search that just succeeded, so a
+   failure there is a real store failure, and the trail's own sink already fails a recall the same
+   way. An audit line that invents a number is worse than one that stops.
+
+### Consequences
+
+- `RecallAudit` gained a second required field in two days. Both are the same kind of change and
+  the same intended direction: the port carries more, and no adapter is left silently emitting
+  less because its value type still compiles.
+- The contract test is now run over **both** implementations rather than only the live one.
+  `memory_contract.ALL_CHECKS` was driven solely by the integration run against real pgvector,
+  while the fake was checked by hand in `cortex_core`'s own tests, so a check added to the shared
+  file reached CI only if someone remembered to write it twice.
+  `packages/memory/tests/test_memory_store_contract.py` closes that with the arrangement
+  `TaskStore` and `ScheduleStore` already use. A count faked as a length over rows is exactly the
+  defect that gap would have hidden from everyone without a database.
+- The memory area's three fakes (`HashEmbedder`, `InMemoryMemoryStore`, `RecordingRecallSink`) moved
+  to `fakes_memory.py` under the line cap as the new verb landed, the `fakes_session.py` precedent.
+- No cross-tree coupling arrives. The contract check's size is a floor sized from the shipped pool
+  width rather than an equality anything depends on, so `crosscheck.py` has nothing new to hold.
+
+### Distrust green
+
+Eight mutations, six against the CI suites and two against real Postgres, each reddening only what
+it should:
+
+| Mutation | Result |
+| --- | --- |
+| the count stops at the pool cutoff | 1 failed (the contract check, over the fake) |
+| the recaller measures `available` off the pool it already holds | 2 failed |
+| the count ignores its scope filter | 2 failed |
+| the sink drops the `available` key | 1 failed |
+| the count is issued whether or not a sink is wired | 1 failed |
+| the pgvector count is bounded by a `LIMIT` | 2 failed |
+| **live:** the adapter answers with `len(rows)` over a cutoff-limited select | 1 failed |
+| **live:** the count ignores the scopes the search filtered on | 1 failed |
+
+The first row is the one that had to be fixed rather than merely watched. The contract check was
+written with three memories, which a count capped at anything from three upward passes; it caught
+the mutation only once the check held more memories than the widest pool a shipped deployment
+fetches. A check whose size lets the defect agree with it by luck is the gate that cannot fail, and
+this one was one number away from being it.
+
+### Verified live
+
+The `integration` suite against real Postgres + pgvector in its own `cortex_contract` database:
+`1 passed, 39 deselected`, the three new checks included. The two live mutations above were run
+against the same store and reddened `check_count_candidates_sizes_the_set_a_search_ranked` on
+`20 != 25`.
+
+### Deferred by this addendum
+
+**Nothing.** The two derivable causes are answered by not building them, argued in decision 4
+rather than filed, and the count is exact so there is no bound to revisit.

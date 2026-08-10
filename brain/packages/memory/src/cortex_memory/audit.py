@@ -14,6 +14,14 @@ drop most of the pool. There is no rank key beside a dropped candidate's score b
 exists: a rank records an opinion about what it kept, so the line says what was available rather
 than why the rank declined it.
 
+Beside `pool`, which is how many candidates came back, the line carries `available`, which is how
+many there were (ADR-0038 candidate-count addendum). Equal, the pool was the whole readable store
+and an id on neither list was never written or was written outside the read scopes. Unequal, the
+pool was cut at its requested width and an absent memory may only have ranked below the cut. That
+reading needs no knowledge of the deployment's pool factor, which is why the requested width is
+not logged beside it: where it would matter it equals `pool`, and where it would not it explains
+nothing.
+
 A line with no hits is read through its basis, which is why no separate flag is logged for one.
 `"basis": "demur"` is the model having read a pool and answered that none of it helps (ADR-0038
 abstention addendum); any other basis with an empty `hits` is a pool that held nothing to rank; and
@@ -46,11 +54,12 @@ class LoggingRecallSink:
     """
 
     async def record(self, audit: RecallAudit) -> None:
-        """Log one recall: the pool, the basis, each kept hit's id, score and key, and the drops."""
+        """Log one recall: the pool, what it was drawn from, the basis, the hits, and the drops."""
         fields: dict[str, object] = {
             "session": audit.session_id,
             "query_chars": len(audit.query),
             "pool": audit.pool_size,
+            "available": audit.available,
             "k": audit.k,
             "basis": audit.ranking.basis.value,
             "keys_comparable": audit.ranking.basis.comparable,
