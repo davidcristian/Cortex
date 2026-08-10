@@ -34,6 +34,7 @@ def _audit(
     basis: RankBasis = RankBasis.EMBER,
     ranking: Ranking | None = None,
     pool_size: int = 20,
+    available: int = 20,
     dropped: DroppedCandidates | None = None,
 ) -> RecallAudit:
     record = MemoryRecord(id="m1", text=_PRIVATE, embedding=(1.0, 0.0), at=_AT, tainted=True)
@@ -42,6 +43,7 @@ def _audit(
         session_id="s1",
         query="what goes in the recipe?",
         pool_size=pool_size,
+        available=available,
         k=5,
         ranking=ranking if ranking is not None else Ranking(hits=(ranked,), basis=basis),
         dropped=dropped if dropped is not None else DroppedCandidates(carried=(), omitted=0),
@@ -66,6 +68,27 @@ async def test_the_trail_carries_the_pool_the_basis_and_each_hits_rank_key(
     assert payload["basis"] == "ember"
     assert payload["keys_comparable"] is True
     assert payload["hits"] == [{"id": "m1", "key": 0.71, "score": 0.87, "tainted": True}]
+
+
+async def test_a_full_pool_and_an_exhausted_store_are_different_lines(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A pool of 20 says nothing on its own about what it was drawn from (ADR-0038 count addendum).
+
+    Same pool, same hits, two stores: one holding exactly those 20 and one holding 4213. Only
+    `available` separates them, and it is the whole of what makes "never a candidate" readable, so
+    a line missing it cannot answer the question the dropped ids raised.
+    """
+    with caplog.at_level(logging.INFO, logger="cortex.memory.recall"):
+        await LoggingRecallSink().record(_audit(pool_size=20, available=20))
+    exhausted = _logged(caplog)
+    caplog.clear()
+    with caplog.at_level(logging.INFO, logger="cortex.memory.recall"):
+        await LoggingRecallSink().record(_audit(pool_size=20, available=4213))
+    truncated = _logged(caplog)
+
+    assert (exhausted["pool"], exhausted["available"]) == (20, 20)  # the pool WAS the store
+    assert (truncated["pool"], truncated["available"]) == (20, 4213)  # the pool was cut
 
 
 async def test_the_trail_says_when_its_keys_may_not_be_compared(

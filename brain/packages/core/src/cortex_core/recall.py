@@ -87,7 +87,9 @@ class MemoryRecaller:
         The audit also carries what the rank *dropped*, since a pool the caller never sees is the
         other half of that question, and the whole record including that difference is assembled
         inside the ``audit is not None`` guard: a deployment with no sink wired walks the pool once
-        for the policy and never again.
+        for the policy and never again. The store's own count of the read scopes rides the same
+        guard for the same reason (ADR-0038 candidate-count addendum), and it is what tells a pool
+        that filled to its requested width from a store that held exactly that many.
 
         **An empty ranking is an answer and is returned as one.** A policy may keep nothing, either
         because the store held nothing or because the model read the pool and declined it (the
@@ -97,9 +99,9 @@ class MemoryRecaller:
         distinguishes a considered refusal from an empty store by the basis it carries.
         """
         embedding = await self._embedder.embed(query)
-        pool = await self._store.search(
-            embedding, k=self._policy.candidate_k(k), scopes=self._scope.read_scopes(session_id)
-        )
+        scopes = self._scope.read_scopes(session_id)
+        pool = await self._store.search(embedding, k=self._policy.candidate_k(k), scopes=scopes)
+        available = await self._count_candidates(scopes)
         now = self._clock.now()
         ranking = await self._policy.select(pool, query=query, now=now, k=k)
         if self._audit is not None:
@@ -108,6 +110,7 @@ class MemoryRecaller:
                     session_id=session_id,
                     query=query,
                     pool_size=len(pool),
+                    available=available,
                     k=k,
                     ranking=ranking,
                     dropped=dropped_candidates(pool, ranking),
@@ -115,3 +118,18 @@ class MemoryRecaller:
                 )
             )
         return ranking.memories
+
+    async def _count_candidates(self, scopes: Sequence[str] | None) -> int:
+        """How many memories the read scopes hold, or ``0`` when no trail is there to read it.
+
+        Asked of the store rather than measured off the pool, which is the whole point: a length
+        over returned rows would report the cutoff back to itself. Asked here, straight after the
+        search rather than after the rank, because these are two reads and not one transaction,
+        and a model rank sits between them for the best part of a second; adjacent statements are
+        the closest two reads get to describing one moment. Asked only when a sink exists, so the
+        silent path stays at exactly one store read and the ``0`` never reaches a line, the record
+        being assembled under the same condition.
+        """
+        if self._audit is None:
+            return 0
+        return await self._store.count_candidates(scopes=scopes)

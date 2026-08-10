@@ -183,11 +183,21 @@ class RecallAudit:
     dropped-candidate addendum). Without it a memory that never came back is indistinguishable
     from one the store never offered, which is exactly the pair an investigation has to tell apart,
     and the ranks that drop most of the pool are the ones that ship.
+
+    ``available`` is how many candidates the read scopes held, which is the store's own count and
+    not a length over the rows it returned (ADR-0038 candidate-count addendum). It is what makes
+    "never a candidate" readable rather than merely nameable: ``pool_size == available`` says the
+    pool WAS the whole readable store, so a memory absent from the line was never written or was
+    written outside the scopes, while ``pool_size < available`` says the pool was cut and an
+    absent memory may simply have ranked below the cutoff. The two numbers come from two reads
+    rather than one transaction, so ``available`` describes the store as of a moment beside the
+    search rather than an invariant tied to ``pool_size``.
     """
 
     session_id: str
     query: str
     pool_size: int
+    available: int
     k: int
     ranking: Ranking
     dropped: DroppedCandidates

@@ -15,6 +15,13 @@ from cortex_core import GLOBAL_SCOPE, MemoryRecord, MemoryStore
 
 _AT = datetime(2026, 7, 3, 12, 0, 0, tzinfo=UTC)
 
+# More memories than the widest pool a shipped deployment over-fetches (``DEFAULT_RECALL_K`` 5 at
+# ``CORTEX_MEMORY_RECALL_POOL_FACTOR`` 4), so that a ``count_candidates`` which stops at any cutoff
+# a search would have applied is over-counted here rather than agreeing by luck. Sized from what
+# ships for the same reason ``DROPPED_TRAIL_LIMIT`` is, and it is a floor rather than an equality,
+# so no cross-tree coupling rides on it.
+_WIDER_THAN_ANY_POOL = 25
+
 
 def _id() -> str:
     return f"contract-{uuid4()}"
@@ -90,6 +97,39 @@ async def check_scope_filter_isolates_and_unions(store: MemoryStore) -> None:
     assert {a.id, b.id} <= {hit.record.id for hit in both}  # a union of the two scopes
 
 
+async def check_count_candidates_sizes_the_set_a_search_ranked(store: MemoryStore) -> None:
+    """The count is the store's own total, never the length of a result some search returned.
+
+    ``_WIDER_THAN_ANY_POOL`` memories, a search for one. An adapter that answered with ``len(rows)``
+    over anything it fetched reads back its own cutoff, which is the one substitution this verb
+    exists to rule out, and the size is what makes that catchable: a check holding three memories
+    passes any implementation capped at three or more, including one capped at the pool width a
+    shipped deployment actually fetches.
+    """
+    scope = f"contract-count-{uuid4()}"
+    for i in range(_WIDER_THAN_ANY_POOL):
+        await store.add(make_record(f"counted {i}", (1.0, 0.0, 0.0), scope=scope))
+    assert len(await store.search((1.0, 0.0, 0.0), k=1, scopes=[scope])) == 1
+    assert await store.count_candidates(scopes=[scope]) == _WIDER_THAN_ANY_POOL
+
+
+async def check_count_candidates_honours_the_same_scope_filter(store: MemoryStore) -> None:
+    """``scopes`` selects the same candidate set it selects for ``search``; ``None`` spans all."""
+    a = make_record("scope-a memory", (1.0, 0.0, 0.0), scope=f"contract-ca-{uuid4()}")
+    b = make_record("scope-b memory", (0.0, 1.0, 0.0), scope=f"contract-cb-{uuid4()}")
+    await store.add(a)
+    await store.add(b)
+    assert await store.count_candidates(scopes=[a.scope]) == 1  # isolated
+    assert await store.count_candidates(scopes=[a.scope, b.scope]) == 2  # unioned
+    assert await store.count_candidates() == 2  # unfiltered spans every namespace
+
+
+async def check_count_candidates_of_nothing_is_zero(store: MemoryStore) -> None:
+    """An empty store and an unwritten namespace both count 0, and neither is an error."""
+    assert await store.count_candidates() == 0
+    assert await store.count_candidates(scopes=[f"contract-unwritten-{uuid4()}"]) == 0
+
+
 async def check_delete_scope_removes_a_namespace(store: MemoryStore) -> None:
     """``delete_scope`` hard-deletes exactly its namespace, counts it, and spares the rest."""
     scope = f"contract-del-{uuid4()}"
@@ -116,6 +156,9 @@ ALL_CHECKS = (
     check_top_k_truncates,
     check_roundtrip_fidelity,
     check_scope_filter_isolates_and_unions,
+    check_count_candidates_sizes_the_set_a_search_ranked,
+    check_count_candidates_honours_the_same_scope_filter,
+    check_count_candidates_of_nothing_is_zero,
     check_delete_scope_removes_a_namespace,
     check_delete_scope_without_matches_returns_zero,
 )
