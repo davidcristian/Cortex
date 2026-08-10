@@ -563,7 +563,8 @@ The service:
   `build_cortex_tools(registry, builtins, clock, confirmer=..., policy=...)` over the
   built-in set
   `build_builtin_tools(spawn_tool, body, schedule_tools=..., escalation=..., vision=...)`
-  assembles **once**
+  assembles **once** (both in `dispatch_builders.py`, split from `builders.py` for the
+  300-line cap and re-exported there, so importers are unchanged)
   (the one-sequence bundling that keeps the builder under the six-argument ceiling as
   capabilities accumulate, ADR-0025 d7): delegation, the two volume built-ins when a
   `BodyGateway` is threaded in (ADR-0023), `capture_screen` when a body is threaded in **and**

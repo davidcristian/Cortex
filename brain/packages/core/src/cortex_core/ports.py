@@ -5,12 +5,12 @@ from contextlib import AbstractAsyncContextManager
 from datetime import datetime
 from typing import Protocol
 
-from cortex_core.body import ScreenCapture, VolumeState
 from cortex_core.conversation import Message
 from cortex_core.events import TurnEvent
 from cortex_core.inference import GenerationBounds, InferenceEvent, JsonSchema
 from cortex_core.model import ModelLease
 from cortex_core.placement import PlacementRequest
+from cortex_core.ports_body import BodyGateway
 from cortex_core.ports_models import ModelHost, ResidencyController, ResidencyReporter
 from cortex_core.ports_placement import SubagentPlacer
 from cortex_core.ports_stores import (
@@ -124,22 +124,6 @@ class Confirmer(Protocol):
     """
 
     async def confirm(self, request: ConfirmationRequest) -> bool: ...
-
-
-class BodyGateway(Protocol):
-    """Calls the host body to read or change an OS setting over the brain→body seam (ADR-0023)."""
-
-    async def get_volume(self) -> VolumeState: ...
-
-    async def set_volume(
-        self, *, level: float | None = None, mute: bool | None = None
-    ) -> VolumeState: ...
-
-    async def notify(
-        self, *, title: str, body: str, reminder_id: str, tainted: bool = False
-    ) -> bool: ...
-
-    async def capture_screen(self, *, max_edge: int = 0, max_bytes: int = 0) -> ScreenCapture: ...
 
 
 class SubagentScheduler(Protocol):

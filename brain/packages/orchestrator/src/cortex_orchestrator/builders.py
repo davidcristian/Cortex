@@ -1,50 +1,44 @@
 """Adapter builders for the composition root: pick each port's adapter from config."""
 
 import logging
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable
 from functools import partial
 
 import httpx
 
 from cortex_body_client import GrpcBodyGateway
 from cortex_core import (
-    DEFAULT_DISPATCH_POLICY,
     AggregateToolRegistry,
     BodyGateway,
-    BuiltinTool,
-    CaptureBounds,
-    CaptureScreenTool,
-    Clock,
-    CompositeToolRegistry,
-    Confirmer,
-    DispatchPolicy,
     EchoInferenceBackend,
-    EscalateToBrainTool,
     FilteredToolRegistry,
     GatedToolRegistry,
-    GetVolumeTool,
     InferenceBackend,
     ModelManager,
-    SetVolumeTool,
-    SightedToolRegistry,
     SingleResidentModelManager,
     SkipUnavailableToolRegistry,
-    SpawnSubagentsTool,
     StrictUrlRedactingGuardrail,
-    ToolDispatcher,
     ToolError,
     ToolRegistry,
     UrlRedactingGuardrail,
-    VisionProbe,
 )
 from cortex_inference import LlamaCppBackend
 from cortex_orchestrator.config import BodyConfig, InferenceConfig
 from cortex_orchestrator.config_tools import ToolsConfig
-from cortex_tools import (
-    LoggingAuditSink,
-    ReconnectingMcpToolRegistry,
-    streamable_http_session,
-)
+from cortex_orchestrator.dispatch_builders import build_builtin_tools, build_cortex_tools
+from cortex_tools import ReconnectingMcpToolRegistry, streamable_http_session
+
+__all__ = [
+    "LLAMACPP_CONNECT_TIMEOUT_S",
+    "build_body_gateway",
+    "build_builtin_tools",
+    "build_cortex_tools",
+    "build_generation_client",
+    "build_inference_backend",
+    "build_output_guardrail",
+    "build_tool_registry",
+    "noop_aclose",
+]
 
 # Connect/write/pool time out fast on a dead server, one knob for every tier: a dead server is
 # dead at the same speed everywhere. The read phase is the factory's argument, not this.
@@ -130,51 +124,4 @@ async def build_body_gateway(
         return None, noop_aclose
     return await GrpcBodyGateway.connect(
         config.endpoint, token=token, capture_timeout_s=config.capture_timeout_s
-    )
-
-
-def build_builtin_tools(
-    spawn_tool: SpawnSubagentsTool | None,
-    body: BodyGateway | None,
-    schedule_tools: Sequence[BuiltinTool] = (),
-    *,
-    escalation: bool = False,
-    vision: CaptureBounds | None = None,
-) -> list[BuiltinTool]:
-    """The cortex's built-in set, assembled once by the wiring (ADR-0025 decision 7)."""
-    builtins: list[BuiltinTool] = [spawn_tool] if spawn_tool is not None else []
-    if body is not None:
-        builtins.append(GetVolumeTool(body))
-        builtins.append(SetVolumeTool(body))
-        if vision is not None:
-            builtins.append(
-                CaptureScreenTool(body, max_edge=vision.max_edge, max_bytes=vision.max_bytes)
-            )
-    if escalation:
-        builtins.append(EscalateToBrainTool())
-    builtins.extend(schedule_tools)
-    return builtins
-
-
-def build_cortex_tools(
-    tool_registry: ToolRegistry | None,
-    builtins: Sequence[BuiltinTool],
-    clock: Clock,
-    *,
-    confirmer: Confirmer | None = None,
-    policy: DispatchPolicy = DEFAULT_DISPATCH_POLICY,
-    vision: VisionProbe | None = None,
-) -> ToolDispatcher | None:
-    """The cortex's audited dispatcher: the built-in set merged with the MCP tools."""
-    if not builtins and tool_registry is None:
-        return None
-    registry: ToolRegistry = CompositeToolRegistry(builtins, remote=tool_registry)
-    if vision is not None:
-        registry = SightedToolRegistry(registry, vision)
-    return ToolDispatcher(
-        registry,
-        LoggingAuditSink(),
-        clock,
-        confirmer=confirmer,
-        policy=policy,
     )
