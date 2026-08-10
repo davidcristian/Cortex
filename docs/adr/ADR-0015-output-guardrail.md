@@ -806,3 +806,183 @@ and dropping the digit-run guard redden one each. The first fixture written for 
 did **not** redden it (a semicolon-less reference followed by digits cannot reach an authority
 scheme's slashes anyway), so the test was replaced with the opaque-scheme form
 (`mailto&#58123@evil.example`) that does. `urls.py` is 252 lines, inside the cap.
+
+## Addendum (2026-08-10): a backslash where a special scheme takes a solidus, and the rows the same test declines
+
+Prices the whole table the eighth addendum left and the ninth shortened. One row closes, the
+others decline with the reason written down, and the deferred tail they belong to stays open on the class
+rather than on any named spelling. The close is **grammar and identity only, with no seam change**:
+both `OutputGuardrail` policies, the `TaintLedger`, `TaintView`, the streaming filter, and the
+config are untouched, redact and strict mode inherit the wider matching for free, and a clean or
+untainted turn is byte-identical to before. Still **deterministic and dependency-free** (stdlib
+only).
+
+### The question each row is decided by, and where it was asked
+
+The eighth addendum decided its rows on whether the reader has to decode anything, and the ninth
+sharpened that to a layer. This pass states the test as one question and asks it of every row:
+**is there a resolver in this system's path for untrusted content that turns this spelling back
+into the attacker's URL?** A spelling no resolver undoes is a decline however much it looks like a
+link, and a spelling some resolver undoes is live however unfamiliar it looks.
+
+Answering it needed the path traced rather than assumed, so here it is, end to end. The reply is
+scrubbed at `engine.py` (`open_output_channels`, the filter over the turn's live `TaintView`) and
+the scrubbed text is what is both shown and persisted. From there it is folded into `TextDelta`
+(`engine.py`), mapped onto the wire event (`converse_stream.py`), turned into `TurnEvent::Delta`
+by the body (`body/crates/rpc/src/converse.rs`), appended to the bubble's `content` by the reducer
+(`body/app/src/overlay/turnState.ts`, the `delta` case) and rendered as a React **text child**
+(`body/app/src/components/WhisperBubble.tsx`, `Message.tsx`). That is the whole of it: the overlay
+has three runtime dependencies (`react`, `react-dom`, `@tauri-apps/api`), no Markdown renderer, no
+HTML sink, no linkifier, and no clipboard or shell-open path. **Nothing downstream of the guardrail
+resolves anything at all, and nothing downstream makes any URL clickable**, so the resolver that
+matters on the reply side is the one the user pastes into: a browser's URL parser. On the
+collection side the picture is different and was measured too, since `extract_urls` serves both
+sides: an HTML email is unescaped once by the sidecar before the ledger ever sees it
+(`brain/packages/email/src/cortex_email/reader.py` calling `html_to_text`, whose stdlib parser
+converts character references), while a file read through a tool arrives raw.
+
+So the resolver test was run rather than argued, in `node`, which implements the same WHATWG URL
+parsing every browser and the overlay's own webview do, against `https://evil.example/pay`:
+
+| Reply spelling | `new URL(...)` resolves to | Resolver in the picture? |
+|---|---|---|
+| `https:\/\/evil.example/pay` (JSON-escaped slashes) | `https://evil.example/pay` | **yes, the URL parser itself** |
+| `https:\\evil.example/pay`, `https:/\evil.example/pay` | `https://evil.example/pay` | **yes, same rule** |
+| `https://evil.example\pay` (backslash in the path) | `https://evil.example/pay` | **yes, same rule** |
+| `https://evil\u002eexample/pay` | `https://evil/u002eexample/pay` | no |
+| `https://evil\x2eexample/pay`, `\056`, `\U0000002e` | `https://evil/x2eexample/pay` (and so on) | no |
+| `https://evil\.example/pay` | `https://evil/.example/pay` | no |
+| `https://evil%u002eexample/pay` | parse error | no |
+| `https%3A//evil.example/pay`, `https%3A%2F%2F…` | parse error | no |
+| `https&amp;#58;//evil.example/pay` | parse error | no |
+
+### The backslash is the resolver's own solidus, which is why this row closes
+
+The URL Standard's special-authority states skip `/` and `\` alike, and its path state converts a
+backslash to a solidus, for the **special** schemes (`http`, `https`, `ftp` among what this grammar
+matches). So `https:\/\/evil.example/pay` is not a rendering of the link and not a source-code
+escape of one: it **is** the link, the way `https://evil。example/pay` is. The reader decodes
+nothing, because there is nothing to decode; they copy what they see and land on the attacker's
+host. That the spelling is also what a JSON document and a JavaScript regex literal write is what
+makes it reachable: a file read through a tool arrives raw, so the ledger sees the escaped
+spelling and the model can quote it either way round.
+
+Measured against the shipped module before any change, driven end to end through a real
+`TaintLedger` and a real streaming filter fed **one character at a time**, in both directions,
+since a mismatch of identities leaks whichever side spells it oddly:
+
+| Spelling | `extract_urls` before | reply side, redact | reply side, strict | collected side, redact | After |
+|---|---|---|---|---|---|
+| `https://evil.example/pay` (control) | the link | redacted | redacted | redacted | unchanged |
+| `https:\/\/evil.example/pay` | `frozenset()` | **leaked** | **leaked** | **leaked** | redacted |
+| `https:\\evil.example/pay` | `frozenset()` | **leaked** | **leaked** | **leaked** | redacted |
+| `https:/\evil.example/pay` | `frozenset()` | **leaked** | **leaked** | **leaked** | redacted |
+| `https://evil.example\pay` | a second identity | **leaked** | redacted | **leaked** | redacted |
+
+The first three anchored **no match at all**, so both policies were blind to them, the severe shape
+the seventh, eighth and ninth addenda each found once. The fourth is the eighth addendum's other
+shape, a match whose identity the collected set does not hold, which only the default policy misses.
+The "collected side" column is the asymmetry that makes this worth closing even though a leak needs
+the model to spell one side plainly: untrusted content that writes its link JSON-escaped put
+**nothing** in the ledger, so the plain link in the reply was not redacted either.
+
+### The family, generated from the character rather than listed
+
+`_SOLIDI` gains the backslash beside the ASCII and fullwidth solidus, so every mixture is generated
+from the tables as before and `https:\/`, `https:/\`, `https:\\` and a fullwidth partner all
+anchor. Two consequences were taken deliberately rather than discovered later:
+
+- **The references come with it.** `_spellings` now generates entity forms for every glyph HTML
+  names rather than for the table's first entry only, so `&#92;`, `&#x5c;` and `&bsol;` join
+  `&#47;`/`&sol;` at the same position, on the ninth addendum's own reasoning: one rendering pass
+  turns the reference into a backslash, and the parser then reads that as a solidus. All 1125
+  combinations of the colon and solidus spellings were generated and checked, and every one folds
+  to the plain link.
+- **The identity gained the parser's rule, not a special case for the separator.**
+  `_fold_special_slashes` (pass 8) folds a special scheme's backslashes to solidi wherever they
+  stand and collapses the run of authority slashes to one pair, so `https:\/\/host`, `https:\\host`
+  and `https:////host` share one identity with `https://host`, and a path backslash folds by the
+  same rule that folds a separator one. It is scoped to the schemes the rule holds for, so
+  `mailto:a\b@evil.example` keeps its backslash.
+
+`SPECIAL_SCHEMES` lives in `url_identity.py`, where the fold that reads it lives, and `urls.py`
+builds `_AUTHORITY_WORDS` on top of it by adding the defanged `hxxp` twins, so the two tables
+cannot drift. The fullwidth reverse solidus U+FF3C stays **out** of the matcher on the same
+measurement that put the backslash in: a parser refuses it, so unlike U+FF0F it has no reading to
+inherit. Its identity would fold anyway if some other anchor ever admitted it, since NFKC runs
+before pass 8.
+
+### What each declined row is declined on
+
+- **Source-code escapes** (`evil\u002eexample`, `\U0000002e`, `\x2e`, `\056`, `\.`) are resolved by
+  a compiler or interpreter that is nowhere in this path, and the resolver that **is** in the path
+  reads them as a different host: `https://evil\u002eexample/pay` resolves to
+  `https://evil/u002eexample/pay`, because the backslash ends the host. The identity now says
+  exactly that, which is a stronger decline than the eighth addendum's: folding the backslash did
+  not admit these, it made the guardrail agree with the parser that they are not the link. The one
+  resolver that would change this verdict is a **Markdown renderer**, since CommonMark
+  backslash-escapes any ASCII punctuation and an autolinking renderer would then make `evil\.example`
+  live. There is none here, and that is the trigger: if the overlay ever renders Markdown, this row
+  reopens as a family (every CommonMark backslash escape), not as one spelling.
+- **`%u002e`** is not a percent-escape at all (a non-standard IE-era form), and the parser refuses
+  the URL outright.
+- **A bracketless percent-encoded separator or scheme** (`https%3A//…`, `https%3A%2F%2F…`) is
+  unchanged from the ninth addendum and now confirmed by the parser: percent-decoding runs only
+  inside a string already recognized as a URL, and nothing recognizes one here, so `new URL` throws.
+- **Stacked references** (`https&amp;#58;//…`) still need two rendering passes, and the parser
+  refuses the single-pass text. The one place a second pass exists composes to a catch already, and
+  that was measured rather than assumed: an HTML email body reading `https&amp;#58;//evil.example/pay`
+  arrives at the ledger as `https&#58;//evil.example/pay` (the sidecar's `html_to_text` is the first
+  pass) and the ninth addendum's grammar anchors it, folding it to the plain link.
+
+### False positives, which are the real cost of widening a matcher
+
+The new surface is a scheme word, a colon spelling, and two solidus spellings of which at least one
+is a backslash or its reference. Prose does not write that, but **code does**: a JavaScript regex
+literal `/^https:\/\/example\.com/` is now a match, and under **strict** mode on a tainted turn it
+is redacted. That cost is accepted for two reasons. Strict mode already redacts the same snippet
+written with plain slashes, so this is the existing over-redaction reaching a spelling it used to
+miss rather than a new kind of loss; and under the default policy a match is replaced only when its
+identity is one the ledger **collected**, so a code snippet nobody's untrusted content mentioned
+streams through untouched. What the widening still cannot reach, checked: a Windows path
+(`C:\Users\me\report.txt`, no scheme word), prose that spells the reference (`escape a backslash as
+&bsol; in HTML`), a scheme word with one separator character and no host (`https:\ nothing here`),
+and `&BSOL;`, which HTML does not resolve. The guardrail also remains `off`-able.
+
+Eleven new behaviour tests, each mutation-proven against the final code with `__pycache__` cleared
+between runs and each mutation verified to have applied: dropping the backslash from the solidus
+table reddens nine, dropping the identity fold reddens nine (a different nine, since strict mode
+catches an anchored match whatever its identity), leaving the authority slash run verbatim reddens
+eight, generating references for the first glyph only reddens two, dropping the `bsol` name reddens
+the same two, and unscoping the fold so an opaque scheme loses its backslashes reddens the negative
+that says `mailto:a\b@evil.example` keeps them. The streaming behaviour was verified at every
+two-way split point of six probes under both policies (540 splits), each agreeing with the
+whole-string feed.
+
+### One found in passing, recorded and not chased
+
+Running the resolver over the table turned up a spelling that is on no row of it: a special scheme
+whose authority carries **fewer than two slashes**. `new URL("https:evil.example/pay")` is
+`https://evil.example/pay`, and so is `https:/evil.example/pay`, because the same
+special-authority states that skip a backslash tolerate a missing slash. The shipped matcher
+requires both solidi, so `extract_urls("https:evil.example/pay")` is empty and a real streaming
+filter passes the reply through untouched under **both** policies, the severe shape again;
+measured, not read off the regex.
+
+It is deliberately **not** closed here, and not because it is small. Every widening this ADR has
+landed constrains the *spelling* of a separator that is already there, and this one has to admit a
+separator that is missing, which means the anchor needs something it has never needed: a
+host-shaped lookahead, since `https:` followed by any non-space run is exactly the prose the eighth
+addendum protected (`https：no slashes here`, a scheme named in a sentence). The nearest precedent
+is `_DATA_ANCHOR`, which is one scheme's MIME shape rather than a general host grammar. That is a
+design decision with its own false-positive budget, so it is recorded as its own backlog entry
+rather than bolted onto this pass.
+
+### What stays open
+
+The tail all of this came out of, "mixed/other encodings past percent + HTML", **stays open**, and
+after this pass it is open on the class rather than on any named row: every spelling its table
+carried is now priced. What it owes its next reader is a method rather than a list, and the method
+is the question at the top of this addendum, asked of a candidate encoding rather than of a
+spelling somebody happened to write down. Also unchanged: whitespace-split defang (`evil dot com`),
+the full UTS-39 confusables set (still a dependency), and footer/boilerplate heuristics.
