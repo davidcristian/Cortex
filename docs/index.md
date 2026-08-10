@@ -22,7 +22,10 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
 - [ADR-0001: Founding architecture](adr/ADR-0001-architecture.md): hexagonal on both
   sides, polyglot split with a gRPC seam (no FFI), external state as swap safety, the
   engine behind `InferenceBackend` (originally vLLM, now superseded by ADR-0005),
-  Redis + Postgres/pgvector, toolchain gates; open questions.
+  Redis + Postgres/pgvector, toolchain gates; open questions. Its contract-test
+  addendum is the port inventory for both languages: every port, its shared check
+  list if it has one, and which implementations CI actually drives it against,
+  written down so the next parity sweep reads rather than re-derives.
 - [ADR-0002: Toolchain and gate mechanics](adr/ADR-0002-toolchain-gates.md): nightly
   for Rust branch coverage, the JSON branch gate, `scripts/` as a standalone project,
   the `_generated` marker, tests-outside-source, ruff ALL, pre-commit = `just check`;

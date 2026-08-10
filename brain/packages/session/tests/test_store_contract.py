@@ -2,9 +2,17 @@
 
 The in-memory fake and the Redis adapter (backed by fakeredis) must be observably
 interchangeable behind the port. That is this slice's ports-before-adapters gate.
+
+The suite is driven from `contract.ALL_CHECKS` rather than from a hand-written test per check.
+The distinction is the whole gate: until this was parametrized, that tuple was read only by the
+integration-marked live-Redis run, so a check appended to the shared file reached CI only if
+somebody also remembered to write a wrapper here. The list agreed at the time only because
+nobody had yet forgotten. Every other store in this directory (task, schedule, handoff,
+preference) already parametrized over its own tuple, so this was the last restated one.
 """
 
 import json
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import cast
 
@@ -27,48 +35,11 @@ def store(request: pytest.FixtureRequest) -> SessionStore:
     return RedisSessionStore(FakeAsyncRedis(server=FakeServer()))
 
 
-async def test_unknown_session_has_empty_history(store: SessionStore) -> None:
-    await contract.check_empty_history(store)
-
-
-async def test_append_then_history_preserves_order(store: SessionStore) -> None:
-    await contract.check_append_then_history_order(store)
-
-
-async def test_sessions_are_isolated(store: SessionStore) -> None:
-    await contract.check_multi_session_isolation(store)
-
-
-async def test_messages_roundtrip_with_timezone_fidelity(store: SessionStore) -> None:
-    await contract.check_roundtrip_fidelity(store)
-
-
-async def test_list_sessions_orders_and_summarizes(store: SessionStore) -> None:
-    await contract.check_list_sessions_orders_and_summarizes(store)
-
-
-async def test_set_title_overrides_the_first_message(store: SessionStore) -> None:
-    await contract.check_set_title_overrides_the_first_message(store)
-
-
-async def test_delete_removes_the_session(store: SessionStore) -> None:
-    await contract.check_delete_removes_the_session(store)
-
-
-async def test_set_pinned_marks_and_clears_the_summary(store: SessionStore) -> None:
-    await contract.check_set_pinned_marks_and_clears_the_summary(store)
-
-
-async def test_a_pinned_chat_escapes_the_recency_window(store: SessionStore) -> None:
-    await contract.check_a_pinned_chat_escapes_the_recency_window(store)
-
-
-async def test_a_pinned_recent_chat_is_not_duplicated(store: SessionStore) -> None:
-    await contract.check_a_pinned_recent_chat_is_not_duplicated(store)
-
-
-async def test_append_refuses_an_image_bearing_message(store: SessionStore) -> None:
-    await contract.check_append_refuses_an_image_bearing_message(store)
+@pytest.mark.parametrize("check", contract.ALL_CHECKS)
+async def test_session_store_contract(
+    store: SessionStore, check: Callable[[SessionStore], Awaitable[None]]
+) -> None:
+    await check(store)
 
 
 async def test_delete_leaves_no_orphaned_redis_key_or_index_member() -> None:
@@ -394,18 +365,6 @@ async def test_from_url_wires_a_client_for_the_given_or_default_url(
     await store.aclose()
     RedisSessionStore.from_url()
     assert seen == ["redis://example.invalid:6390/7", DEFAULT_REDIS_URL]
-
-
-async def test_recap_roundtrips_and_overwrites(store: SessionStore) -> None:
-    await contract.check_recap_is_absent_then_roundtrips_and_overwrites(store)
-
-
-async def test_recaps_are_per_session(store: SessionStore) -> None:
-    await contract.check_recaps_do_not_leak_between_sessions(store)
-
-
-async def test_recap_survives_a_reconnect(store: SessionStore) -> None:
-    await contract.check_recap_survives_a_reconnect(store)
 
 
 async def test_recap_persists_as_one_versioned_document_under_its_own_key() -> None:

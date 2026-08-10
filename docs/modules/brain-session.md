@@ -270,6 +270,13 @@ write, which on the live-Redis run is a real round trip to another process and s
 means the most: the recap crossing a model swap is exactly that read. The `list_sessions` check filters the global list to the ids it
 created, which narrows the read to one row but cannot rescue a check whose fixtures were crowded
 out of the window in the first place; that is the live runs' isolated database, below.
+Every one of those checks reaches CI through `contract.ALL_CHECKS`, which
+`tests/test_store_contract.py` parametrizes over the two-implementation fixture, and that is
+load-bearing rather than stylistic: until 2026-08-10 the tuple was read only by the
+integration-marked live-Redis run while this file restated all fourteen checks as hand-written
+wrappers, so a check appended to the shared file reached CI only if somebody also remembered to
+write it here (the ADR-0001 addendum on decision 2's contract-test half has the sweep, and the
+proof that the parametrized driver reddens where the restated one answered green).
 `tests/task_contract.py`
 does the same for the `TaskStore` (missing→None, task/result round-trip, timezone fidelity) over
 `InMemoryTaskStore` and `RedisTaskStore`, plus disconnected/corrupt-record failure tests.
