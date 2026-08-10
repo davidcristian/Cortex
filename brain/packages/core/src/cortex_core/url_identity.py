@@ -22,6 +22,9 @@ into one identity, never splitting one:
 6. Fold a *curated* table of cross-script confusable letters (Cyrillic/Greek Latin-lookalikes).
 7. Fold the *IDNA label separators* NFKC leaves standing (a U+3002 or U+FF61 stop between two
    labels), which the resolver reads as a dot; ADR-0015 eighth addendum.
+8. Fold a *special scheme's backslashes* to the solidi the URL parser reads them as, and its run
+   of authority slashes to one pair, so the JSON-escaped spelling of a link shares the link's
+   identity; ADR-0015 tenth addendum.
 
 Passes 3 and 4 landed in the seventh addendum. Deterministic and dependency-free (stdlib only), the
 line that keeps this out of the heuristic/screening-model layer. Pure state- and I/O-free.
@@ -52,6 +55,13 @@ _DEFANG_COLON = rf"{_OPEN_BRACKET}:{_CLOSE_BRACKET}"
 # Prose punctuation a URL match may drag along at its end is part of the sentence, never of the URL
 # identity, and preserved outside a redaction. Shared with the redactor.
 TRAILING_PUNCTUATION = ".,;:!?"
+
+# The schemes whose URLs a WHATWG parser reads a backslash in as a solidus (its *special* schemes,
+# less the ones this grammar does not match). It lives here rather than in the grammar because it is
+# the resolver's own notion, and `urls.py` builds its authority-scheme words on top of it, adding
+# the defanged `hxxp` twins, so the two tables cannot drift. Order matters to the alternation the
+# grammar builds: a longer word precedes the shorter one it starts with.
+SPECIAL_SCHEMES = ("https", "http", "ftp")
 
 # Ends the authority (host[:port]) component: from here on a URL is case-sensitive.
 _AUTHORITY_END = re.compile(r"[/?#]")
@@ -215,10 +225,37 @@ def _fold_label_dots(url: str) -> str:
     return url.translate(_LABEL_DOTS)
 
 
+# A special scheme, its colon, and the run of authority slashes after it, a backslash counting as
+# one. Like the label separators above this is the resolver's reading and not a judgement about
+# what looks alike: the URL Standard's special-authority states skip both `/` and `\`, so
+# `new URL("https:\/\/evil.example/pay")` in any WHATWG-conforming parser (every browser) is
+# `https://evil.example/pay`, and the JSON-escaped spelling of a link IS the link rather than a
+# rendering of one (ADR-0015 tenth addendum). Run after NFKC, which has already reduced the
+# fullwidth solidus, and after the refanger, which has already turned `hxxp` into `http`.
+_SPECIAL_AUTHORITY = re.compile(rf"\A((?:{'|'.join(SPECIAL_SCHEMES)}):)[/\\]+", re.IGNORECASE)
+
+
+def _fold_special_slashes(url: str) -> str:
+    r"""Fold a special scheme's backslashes to the solidi a URL parser reads them as.
+
+    Both halves are that parser's own rule: every backslash is a solidus, in the authority slashes
+    and in the path alike, and the run of them after the scheme's colon is skipped whole, so
+    `https:\/\/host`, `https:\\host` and `https:////host` all name `https://host`. Scoped to the
+    schemes where that holds, so an opaque `mailto:`/`tel:`/`data:` keeps its backslashes; and
+    merging-only like every pass here, since a query's backslash (which the parser does leave
+    alone) can now only share an identity with the same query's solidus, never split from itself.
+    """
+    match = _SPECIAL_AUTHORITY.match(url)
+    if match is None:
+        return url
+    rest = url[match.end() :].replace("\\", "/")
+    return f"{match.group(1)}//{rest}"
+
+
 def normalize_url(url: str) -> str:
     """One URL's identity: escapes decoded (to a fixpoint), defang refanged, format characters
-    stripped, punycode decoded, NFKC-folded, confusables folded, trailing prose punctuation dropped,
-    scheme+authority lowered.
+    stripped, punycode decoded, NFKC-folded, confusables and label dots folded, a special scheme's
+    backslashes folded to solidi, trailing prose punctuation dropped, scheme+authority lowered.
 
     The obfuscation-resistant passes run in the order the module docstring fixes, so that each feeds
     the next: decoding exposes an encoded defang token to the refanger and an encoded zero-width
@@ -231,7 +268,7 @@ def normalize_url(url: str) -> str:
     """
     plain = _strip_format_chars(_refang(_decode_escapes(url)))
     normalized = unicodedata.normalize("NFKC", _decode_punycode(plain))
-    folded = _fold_label_dots(_fold_confusables(normalized))
+    folded = _fold_special_slashes(_fold_label_dots(_fold_confusables(normalized)))
     trimmed = folded.rstrip(TRAILING_PUNCTUATION)
     head, sep, tail = trimmed.partition("://")
     cut = _AUTHORITY_END.search(tail)

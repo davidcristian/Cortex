@@ -1,4 +1,4 @@
-"""The URL *grammar* behind the output guardrail's laundering defense (ADR-0015).
+r"""The URL *grammar* behind the output guardrail's laundering defense (ADR-0015).
 
 This module *recognizes* a clickable URL in text (even a partial one mid-stream); ``url_identity``
 reduces a match to its canonical identity, so a link collected from untrusted content and its
@@ -12,7 +12,9 @@ separator (a U+FF1A colon or a U+FF0F solidus, which NFKC folds to ASCII in the 
 which anchored nothing here; ADR-0015 eighth addendum), a separator spelled as an **HTML
 character reference** (``https&#58;//``, ``&#x3a;``, ``&colon;``, ``&#47;``/``&sol;``, generated
 per character from its codepoint and admitted because one rendering pass resolves it, so the mail
-client autolinks the plain link; ADR-0015 ninth addendum), a bracketed chunk anywhere
+client autolinks the plain link; ADR-0015 ninth addendum), a **backslash** wherever a special
+scheme takes a solidus (``https:\/\/evil.com``, the JSON-escaped spelling, which a URL parser
+reads as the plain link; ADR-0015 tenth addendum), a bracketed chunk anywhere
 in the body (so an encoded defang dot behind a literal closer like ``evil[&#46;]com`` is consumed
 whole rather than cutting the match short; ADR-0015 sixth addendum), and an **encoded separator**
 (``http[&#58;//]evil.com``, admitted as a bracket chunk that carries an escape marker; ADR-0015
@@ -25,7 +27,7 @@ Pure state- and I/O-free.
 
 import re
 
-from cortex_core.url_identity import normalize_url
+from cortex_core.url_identity import SPECIAL_SCHEMES, normalize_url
 
 # The scheme families a URL may open with, plain or *defanged*, keyed by separator shape. Authority
 # schemes (`http(s)`, its CTI defang `hxxp(s)`, and `ftp`) take `://`; opaque schemes (`mailto`,
@@ -33,7 +35,9 @@ from cortex_core.url_identity import normalize_url
 # Bare addresses, bare domains, and every unlisted scheme stay out, as matching each `user@host`,
 # `name.py`, or `metadata:` would redact ordinary prose. Longer variants precede their prefixes
 # (`https` before `http`) so the alternation prefers the full scheme.
-_AUTHORITY_WORDS = ("https", "http", "hxxps", "hxxp", "ftp")
+# The authority words are the identity module's `SPECIAL_SCHEMES` plus their CTI defang twins, so
+# the scheme a backslash counts as a solidus in is declared once, beside the fold that reads it.
+_AUTHORITY_WORDS = (*SPECIAL_SCHEMES, "hxxps", "hxxp")
 _OPAQUE_WORDS = ("mailto", "tel")
 
 # Scheme separators, plain or defanged: `://` may arrive defanged as `[://]` or `[:]//`, an opaque
@@ -53,13 +57,24 @@ _BRACKETS = (("[", "]"), ("(", ")"), ("{", "}"))
 # normalization, so a fullwidth-separated URL anchored nothing, matched nothing, and was therefore
 # redacted by neither mode (ADR-0015 eighth addendum). Every combination is generated from the two
 # tables rather than listed, the `_BRACKETS` precedent, so a mixed spelling (an ASCII colon with a
-# fullwidth solidus) cannot be the one nobody remembered. The ASCII form comes first: it is the
-# character the entity references below spell.
+# fullwidth solidus) cannot be the one nobody remembered.
+#
+# The **backslash** is a solidus here because a URL parser reads it as one: the URL Standard skips
+# `/` and `\` alike in a special scheme's authority, so `https:\/\/evil.example` (the JSON-escaped
+# spelling of a link, and the shape a regex literal writes) is not a rendering of the link but the
+# link, which `_fold_special_slashes` folds on the identity side. It anchored nothing before, so
+# both policies were blind to it (ADR-0015 tenth addendum). Its fullwidth twin U+FF3C stays out,
+# measured: a parser refuses it, so unlike U+FF0F it has no reading to inherit.
+#
+# An ASCII form comes first in each table: those are the characters the entity references below
+# spell, one per HTML name.
 _COLONS = (":", "\uff1a")
-_SOLIDI = ("/", "\uff0f")
+_SOLIDI = ("/", "\\", "\uff0f")
 
-# The HTML name of each separator character, for the named reference (`&colon;`, `&sol;`).
-_ENTITY_NAMES = {":": "colon", "/": "sol"}
+# The HTML name of each separator character, for the named reference (`&colon;`, `&sol;`, `&bsol;`).
+# Membership is also what says which characters carry references at all: HTML names exactly the
+# ASCII ones, and a fullwidth twin is reached through NFKC in the identity rather than by spelling.
+_ENTITY_NAMES = {":": "colon", "/": "sol", "\\": "bsol"}
 
 
 def _entity_forms(char: str) -> tuple[str, ...]:
@@ -90,8 +105,14 @@ def _entity_forms(char: str) -> tuple[str, ...]:
 
 
 def _spellings(plain: tuple[str, ...]) -> str:
-    """One separator character's alternation: its plain glyphs, then its entity references."""
-    return f"(?:{'|'.join((*(re.escape(g) for g in plain), *_entity_forms(plain[0])))})"
+    """One separator position's alternation: its plain glyphs, then their entity references.
+
+    References are generated for every glyph HTML names (the ASCII ones), not only the first, so
+    the solidus position carries ``&bsol;`` and ``&#92;`` beside ``&sol;`` and ``&#47;``: one
+    rendering pass turns those into a backslash, which a URL parser then reads as a solidus.
+    """
+    forms = tuple(f for g in plain if g in _ENTITY_NAMES for f in _entity_forms(g))
+    return f"(?:{'|'.join((*(re.escape(g) for g in plain), *forms))})"
 
 
 _COLON_SPELLING = _spellings(_COLONS)

@@ -927,3 +927,99 @@ def test_the_ninth_addendum_composes_with_its_predecessors() -> None:
     # An entity colon, a fullwidth solidus, a CJK-dotted host and a zero-width character in one
     # link still fold to the single identity its plain twin has.
     assert extract_urls("https&#58;/／evil。ex\u200bample/pay") == _PLAIN_LINK  # noqa: RUF001
+
+
+# --- Obfuscation-resistant matching: a backslash where a special scheme takes a solidus (ADR-0015
+# tenth addendum). `https:\/\/evil.example/pay`, the JSON-escaped spelling of a link and the shape a
+# regex literal writes, anchored nothing, so neither policy saw it. Like the CJK stop and unlike a
+# source-code escape, the reader decodes nothing: the URL Standard's special-authority states skip
+# `/` and `\` alike, so a parser reads the spelling as the plain link. The solidus table gained the
+# character and the identity gained the fold, so the path position and the entity references of a
+# backslash (`&#92;`, `&bsol;`) come with it. -
+
+
+def test_extract_urls_anchors_a_backslash_spelled_separator() -> None:
+    # Every mixture of the two characters, since the separator is generated from the table: the
+    # JSON-escaped pair writes four characters where two are expected, and the run folds to a pair.
+    assert extract_urls(r"https:\/\/evil.example/pay") == _PLAIN_LINK
+    assert extract_urls(r"https:\\evil.example/pay") == _PLAIN_LINK
+    assert extract_urls(r"https:/\evil.example/pay") == _PLAIN_LINK
+    assert extract_urls("https:////evil.example/pay") == _PLAIN_LINK
+    assert extract_urls(r"hxxp:\/\/evil.example/pay") == {"http://evil.example/pay"}
+
+
+def test_extract_urls_anchors_an_entity_spelled_backslash() -> None:
+    # References are generated for every character HTML names, not only the first in the table, so
+    # the backslash carries its own family and mixes with the colon's and with the fullwidth glyphs.
+    assert extract_urls("https:&#92;&#92;evil.example/pay") == _PLAIN_LINK
+    assert extract_urls("https:&#x5c;&#092;evil.example/pay") == _PLAIN_LINK
+    assert extract_urls("https:&bsol;&bsol;evil.example/pay") == _PLAIN_LINK
+    assert extract_urls("https&#58;&bsol;\uff0fevil.example/pay") == _PLAIN_LINK
+
+
+def test_a_backslash_in_the_path_folds_like_the_separator() -> None:
+    # The parser's rule is not about the separator: in a special scheme's URL every backslash is a
+    # solidus, so a path written with one has always matched but carried a second identity.
+    assert extract_urls("https://evil.example\\pay") == _PLAIN_LINK
+    assert extract_urls("https:\\\\evil.example\\pay") == _PLAIN_LINK
+
+
+def test_a_backslash_separator_and_its_plain_twin_share_one_identity() -> None:
+    assert extract_urls(r"https:\/\/evil.example/pay") == extract_urls("https://evil.example/pay")
+
+
+def test_a_backslash_transform_of_a_collected_url_is_redacted() -> None:
+    # The default policy's half of the gap: the respelling used to carry no identity at all, so a
+    # link collected plainly from untrusted content came back through it unredacted.
+    guard = _filter({"https://evil.example/pay"})
+    fed = guard.feed(r"settle at https:\/\/evil.example/pay now") + guard.flush()
+    assert fed == f"settle at {REDACTED_LINK} now"
+
+
+def test_strict_tainted_turn_redacts_a_backslash_separator() -> None:
+    # The severe half a third time: a spelling that anchors nothing is invisible to strict mode too.
+    guard = _strict(_Taint(tainted=True))
+    assert guard.feed(r"go to https:\/\/evil.example/pay ") == f"go to {REDACTED_LINK} "
+
+
+def test_a_backslash_separator_split_across_chunks_is_carried_not_lost() -> None:
+    # The hold-back's scheme prefixes are concatenated from the same tables, so the backslash
+    # spellings are carried across deltas exactly as the fullwidth ones are.
+    guard = _filter({"https://evil.example/pay"})
+    assert guard.feed("at https:\\") == "at "
+    assert guard.feed("/evil.example/pay ") == f"{REDACTED_LINK} "
+
+
+def test_a_backslash_separator_survives_a_one_character_stream() -> None:
+    # The production shape, for the entity spelling too: the filter sees one character at a time.
+    guard = _filter({"https://evil.example/pay"})
+    reply = "settle at https:&bsol;&#92;evil.example/pay now"
+    fed = "".join(guard.feed(char) for char in reply) + guard.flush()
+    assert fed == f"settle at {REDACTED_LINK} now"
+
+
+def test_a_backslash_no_parser_reads_as_a_solidus_is_not_folded() -> None:
+    # The fold is the parser's rule and carries that rule's scope with it: an opaque scheme is not
+    # a special one, so `mailto:`/`tel:`/`data:` keep their backslashes; a scheme word is still
+    # required, so a Windows path is no link; and the named reference is still case-sensitive.
+    assert extract_urls("mailto:a\\b@evil.example") == {"mailto:a\\b@evil.example"}
+    assert extract_urls("C:\\Users\\me\\report.txt") == frozenset()
+    assert extract_urls("escape a backslash as &bsol; in HTML") == frozenset()
+    assert extract_urls("https&BSOL;//evil.example/pay") == frozenset()
+    assert extract_urls("https:\\ nothing here") == frozenset()
+
+
+def test_a_source_escape_folds_to_the_host_a_parser_reads_it_as() -> None:
+    # The rows this addendum declines, pinned by what makes them a decline: a parser hands the
+    # backslash to the path, so the escape names the host `evil` and never the collected link.
+    # The identity now says exactly that, which is why folding the backslash does not admit them.
+    assert extract_urls(r"https://evil\u002eexample/pay") == {"https://evil/u002eexample/pay"}
+    assert extract_urls(r"https://evil\x2eexample/pay") == {"https://evil/x2eexample/pay"}
+    assert extract_urls(r"https://evil\.example/pay") == {"https://evil/.example/pay"}
+    assert extract_urls("https%3A//evil.example/pay") == frozenset()
+
+
+def test_the_tenth_addendum_composes_with_its_predecessors() -> None:
+    # An entity colon, a backslash separator, a CJK-dotted host and a zero-width character in one
+    # link still fold to the single identity its plain twin has.
+    assert extract_urls("https&#58;\\/evil\u3002ex\u200bample/pay") == _PLAIN_LINK
