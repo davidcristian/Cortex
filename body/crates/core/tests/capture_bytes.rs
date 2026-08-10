@@ -38,7 +38,7 @@
 use std::fmt::Debug;
 
 use body_core::os::screen_policy::MAX_CAPTURE_BYTES;
-use body_core::{Capture, CaptureRequest, RawFrame};
+use body_core::{Capture, CaptureRequest, CapturedFrame, RawFrame, TargetRect};
 
 /// The display the desktop fixtures are built at: one 4K screen, which is what the capture path
 /// is bounded for and the size the legibility measurement was taken on. It is the default rather
@@ -274,8 +274,8 @@ fn uniform_noise() -> RawFrame {
 
 /// One frame through the real policy at one edge: the bytes that would cross the seam, and the
 /// size they came back at, which is how the halving ladder announces itself.
-fn measure(frame: &RawFrame, edge: u32) -> (usize, u32, u32) {
-    let capture = ok(Capture::from_bgra(frame, &CaptureRequest::new(edge)));
+fn measure(captured: &CapturedFrame, edge: u32) -> (usize, u32, u32) {
+    let capture = ok(Capture::from_bgra(captured, &CaptureRequest::new(edge)));
     (capture.data().len(), capture.width(), capture.height())
 }
 
@@ -289,10 +289,12 @@ fn measure(frame: &RawFrame, edge: u32) -> (usize, u32, u32) {
 /// requested edge itself, because `downscale` never upscales: a display already inside the bound
 /// crosses the seam pixel for pixel. Comparing against the request alone would call a 1920x1080
 /// desktop's untouched 1920x1080 capture a fired ladder, which is how this measurement first read.
-fn report(name: &str, frame: &RawFrame) -> bool {
-    let (body_bytes, ..) = measure(frame, BODY_EDGE);
-    let (brain_bytes, width, height) = measure(frame, BRAIN_EDGE);
-    let intact = width.max(height) == frame.width().max(frame.height()).min(BRAIN_EDGE);
+fn report(name: &str, frame: RawFrame) -> bool {
+    let captured = CapturedFrame::display(frame);
+    let (body_bytes, ..) = measure(&captured, BODY_EDGE);
+    let (brain_bytes, width, height) = measure(&captured, BRAIN_EDGE);
+    let display = captured.frame();
+    let intact = width.max(height) == display.width().max(display.height()).min(BRAIN_EDGE);
     let verdict = if intact {
         format!("{}% of the ceiling", brain_bytes * 100 / MAX_CAPTURE_BYTES)
     } else {
@@ -303,6 +305,55 @@ fn report(name: &str, frame: &RawFrame) -> bool {
          ({width}x{height}, {verdict})"
     );
     intact
+}
+
+/// One window of a display through the same policy: the bytes, and the size they came back at.
+fn report_window(name: &str, frame: &RawFrame, window: TargetRect) -> (usize, u32, u32) {
+    let captured = CapturedFrame::window(frame.clone(), window);
+    let (bytes, width, height) = measure(&captured, BRAIN_EDGE);
+    println!(
+        "  {name:<32} {BRAIN_EDGE} px: {bytes:>9} B ({width}x{height}, {}% of the ceiling)",
+        bytes * 100 / MAX_CAPTURE_BYTES
+    );
+    (bytes, width, height)
+}
+
+#[test]
+#[ignore = "byte measurement on 4K frames: run with --release -- --ignored --nocapture"]
+fn a_window_inside_the_capture_edge_crosses_at_its_own_resolution() {
+    // The reason a targeted capture is worth the seam change, in bytes. The same 4K desktop as
+    // the wallpaper row above: asked for whole, it is resampled to 2048 px and costs megabytes;
+    // asked for as the window the user is reading, it crosses the seam untouched, so every
+    // source pixel of the part that was asked about survives, at a fraction of the bytes.
+    println!("\nOne window of a 4K wallpaper desktop, through the real crop and encode:");
+    let frame = wallpaper_desktop(6);
+    let (whole_bytes, ..) = measure(&CapturedFrame::display(frame.clone()), BRAIN_EDGE);
+    println!("  the whole desktop, for scale     {BRAIN_EDGE} px: {whole_bytes:>9} B");
+
+    let (window_bytes, width, height) = report_window(
+        "a 1720x1200 text window",
+        &frame,
+        TargetRect::new(120, 140, 1840, 1340),
+    );
+    assert_eq!(
+        (width, height),
+        (1720, 1200),
+        "a window inside the capture edge must cross pixel for pixel, not resampled"
+    );
+    assert!(
+        window_bytes < whole_bytes,
+        "the window costs {window_bytes} B against the desktop's {whole_bytes} B"
+    );
+
+    // A maximised window is the whole display again, which is the case that must not become
+    // cheaper by accident: it is the same picture and it costs the same bytes.
+    let (maximised, width, height) = report_window(
+        "a maximised window",
+        &frame,
+        TargetRect::new(0, 0, 3840, 2160),
+    );
+    assert_eq!((width, height), (2048, 1152));
+    assert_eq!(maximised, whole_bytes);
 }
 
 #[test]
@@ -316,7 +367,7 @@ fn a_screen_worth_reading_text_off_stays_inside_the_ceiling_at_the_edge_the_brai
         ("photograph, heavy grain", full_screen_photograph(16)),
     ] {
         assert!(
-            report(name, &frame),
+            report(name, frame),
             "{name} fired the halving ladder at the {BRAIN_EDGE} px default, which would drop \
              the capture to 1024 px and undo the legibility the edge was raised to buy"
         );
@@ -330,12 +381,12 @@ fn the_ladder_still_fires_on_a_screen_no_one_has() {
     for grain in [0, 8, 16, 32, 64] {
         report(
             &format!("photograph, grain {grain}"),
-            &full_screen_photograph(grain),
+            full_screen_photograph(grain),
         );
     }
     println!("\nThe incompressible bound, which is not a screen anyone has:");
     assert!(
-        !report("uniform noise", &uniform_noise()),
+        !report("uniform noise", uniform_noise()),
         "uniform noise now fits inside {MAX_CAPTURE_BYTES} bytes at {BRAIN_EDGE} px, so either \
          the encoder or the ceiling moved and the margin recorded in the addendum is stale"
     );
@@ -352,7 +403,7 @@ fn a_display_nearer_the_requested_edge_is_the_expensive_one() {
         assert!(
             report(
                 &format!("photograph, grain 16, {}x{}", source.0, source.1),
-                &full_screen_photograph_on(source, 16),
+                full_screen_photograph_on(source, 16),
             ),
             "a {}x{} display fired the halving ladder on an ordinary grainy photograph, which \
              the 4K measurement behind the {BRAIN_EDGE} px default did not predict",
@@ -364,7 +415,7 @@ fn a_display_nearer_the_requested_edge_is_the_expensive_one() {
     for grain in [0, 8, 16, 32, 64] {
         report(
             &format!("photograph, grain {grain}, 2560x1440"),
-            &full_screen_photograph_on(WORST_DISPLAY, grain),
+            full_screen_photograph_on(WORST_DISPLAY, grain),
         );
     }
 }

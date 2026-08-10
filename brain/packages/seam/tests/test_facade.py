@@ -35,6 +35,27 @@ def test_image_blob_preserves_bytes_and_metadata() -> None:
     assert (decoded.width, decoded.height) == (8, 6)
 
 
+def test_an_unset_capture_target_is_the_whole_display() -> None:
+    # Zero is DISPLAY, which is what makes the new field safe in both directions: a brain that
+    # names no target asks for exactly the behaviour this seam has always had, and a body that
+    # does not know the field reads the same zero.
+    assert cortex_seam.CaptureTarget.CAPTURE_TARGET_DISPLAY == 0
+    assert cortex_seam.CaptureTarget.CAPTURE_TARGET_FOCUS == 1
+    request = cortex_seam.CaptureScreenRequest(max_edge=2048)
+    decoded = cortex_seam.CaptureScreenRequest.FromString(request.SerializeToString())
+    assert decoded.target == cortex_seam.CaptureTarget.CAPTURE_TARGET_DISPLAY
+    assert decoded.max_edge == 2048
+
+
+def test_a_capture_target_round_trips_on_the_wire() -> None:
+    request = cortex_seam.CaptureScreenRequest(
+        max_edge=2048, target=cortex_seam.CaptureTarget.CAPTURE_TARGET_FOCUS
+    )
+    decoded = cortex_seam.CaptureScreenRequest.FromString(request.SerializeToString())
+    assert decoded == request
+    assert decoded.target == cortex_seam.CaptureTarget.CAPTURE_TARGET_FOCUS
+
+
 def test_session_summary_round_trips_on_the_wire() -> None:
     summary = cortex_seam.SessionSummary(
         session_id="s-1", title="about cats", preview="cats are great", last_activity_unix_ms=1234

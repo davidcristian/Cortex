@@ -2327,3 +2327,164 @@ itself, so seeing those two rows produced by a real backend needs a Win32 sessio
 to lose. It is recorded as a seventh observation inside the existing capture sitting
 ([docs/host/windows-capture.md](../host/windows-capture.md)), not as a new sitting, because it is
 two extra prompts inside a bring-up that already has to happen.
+
+## Addendum (2026-08-10): the body can be pointed at a window, and the field landed with the honouring
+
+Decision 11 refused a `display_index` and a `region` because "a field the body ignores is a
+silently unhonored constraint the brain believes it set". The 2026-08-06 legibility measurement
+then demoted rather than declined them, and named the design input they had been waiting for: the
+binding quantity is **source pixels per image token**, so the fix for the residue the knob cannot
+reach is to cut the source region rather than to send a bigger picture. This addendum is the body
+half of that fix. **The body can now serve a targeted capture and honours the target; the brain
+does not ask for one yet.**
+
+That ordering is forced rather than chosen, and it is decision 11's own reasoning read the right
+way round. The rule was never "no field without a consumer" in the sense of a caller; it is that
+proto3 lets an older body ignore an unknown field, so the field and a body that honours it must
+land in the same commit. The 2026-07-18 correction admitted `max_bytes` on exactly this basis,
+saying it "is not the kind of field decision 11 rejected ... this one the v1 body honours". A
+brain that asks for a window is a separate, later change that can be written against a seam which
+already tells the truth.
+
+### The target is a closed vocabulary the body resolves, not a rectangle the model names
+
+`CaptureScreenRequest` gains `CaptureTarget target = 2`, an enum of two values:
+`CAPTURE_TARGET_DISPLAY = 0` (today's behaviour exactly, so an old brain against a new body is
+unchanged) and `CAPTURE_TARGET_FOCUS = 1`. Field 2 was protected by a comment reserving it for a
+display index rather than by a protobuf `reserved` statement, and spending it here is right: a
+target subsumes the ask that comment was holding the number for, and a `display_index` beside it
+is still open on the same entry.
+
+**A model-named rectangle is declined**, and this ADR's own measurement is the argument. Given the
+source size in the stand-in text and "unreadable" offered as an allowed answer, the shipped cortex
+declined on **3 of 47** ground-truth strings and confidently invented the other 38, inventing
+`50051` for a port and `Astra Systems` for a client that was not on the screen. A model that will
+not admit it cannot read a screen will not decline to name a rectangle either: it will name a
+wrong one. A wrong rectangle is not a cheap error, because it costs a second OS receipt and a
+second tainted read of the wrong part of the screen, and the user has no way to tell a wrong
+rectangle from a wrong reading of a right one.
+
+**What reopens it.** The day something can hand the model a coordinate frame it did not have to
+guess. The shape that would do it is an overlay-drawn region picker: the user drags a rectangle,
+the overlay hands the body physical coordinates, and the model is told a region exists rather than
+asked to invent one. That reopens the rectangle as a **privacy improvement** rather than a privacy
+widening, since a user-authored region sends strictly less than a display, which is the opposite
+of what a model-authored one risks. Nothing about this addendum blocks it: `TargetRect` is already
+the value a picker would produce, and the crop that consumes it is already gated.
+
+### The names are plain, and that is a judgement rather than a default
+
+AGENTS.md requires designed names for anything pickable or family-shaped. This is neither. It is
+protocol vocabulary whose end reader is a language model choosing between two options in a JSON
+schema, where legibility has measurable value and charm has none, and whose other readers are a
+generated Rust enum and a generated Python wrapper. Two one-word families were built and rejected
+for that reason and are recorded so the decision is not re-litigated as an oversight: **Wide** and
+**Near** (one metaphor, how far the eye is pulled in) and **Sweep** and **Settle** (what the gaze
+does). Both read well beside the window edges (Still, Lucid, Reverie, Trance) and the mark's
+movements of thought (Mull, Muse, Hunch, Tangent), and both would make a model guess. Renaming
+stays cheap for as long as nothing beyond the maintainer's own machine speaks this wire, which is
+the same rule the mark's storage keys were healed under.
+
+### `CAPTURE_TARGET_FOCUS` is the topmost capturable window, deliberately not `GetForegroundWindow`
+
+This is the correctness point the slice turns on. The user summons the overlay with the global
+hotkey and types the question into it, so **at the moment the tool runs the overlay is the
+foreground window**, and decision 10 has it set `WDA_EXCLUDEFROMCAPTURE` on itself. Cropping to
+the foreground window would therefore yield an absent or black rectangle on the common path rather
+than in an edge case.
+
+Resolution walks the desktop's child list from the front (`GetTopWindow`, then `GW_HWNDNEXT`) and
+takes the first window that is visible, not minimized, not DWM-cloaked, not a tool window, not the
+shell's own desktop window, titled, not this process's, and not display-affinity excluded. Each
+filter is one class of thing that is on screen and is not what the user is looking at, and three
+are worth naming: **cloaked** windows are `IsWindowVisible` true and render nothing (a closed
+store app, another virtual desktop), **tool windows** are what keeps the taskbar out of alt-tab
+and the taskbar is topmost so the walk would otherwise resolve to it every time, and the **title
+length** is read while the title itself never is, since a title is attacker-chosen text this ADR
+keeps out of the result. Bounds come from `DWMWA_EXTENDED_FRAME_BOUNDS` rather than
+`GetWindowRect`, which would include the invisible resize border and put a strip of the desktop
+behind the window along all four edges of the crop.
+
+**A bare desktop is a typed error, never a fallback.** `CaptureError::NoTarget` answers
+`FailedPrecondition`, which the brain already classifies as `UNREADY` and words as "the host is not
+in a state to capture the screen", so no brain change was needed for it to read correctly. Falling
+back to the whole display would widen what is captured without the receipt, the model, or the user
+knowing, which is the wrong direction for this path in particular.
+
+### The crop is pure core, and `source_width`/`source_height` keep meaning the display
+
+The backend still blits the whole display and reports the resolved rectangle **beside** the frame
+(`CapturedFrame`), and `body_core` does the cropping. This is the argument decision 7 already makes
+twice, with a second payoff here: the crop arithmetic is inside the 100% line and branch gate on
+Linux CI, and only the Z-order walk is `cfg(windows)` and unrunnable. The return value was widened
+rather than the trait method, so `ScreenCapture` stays one line. Clamping a window that hangs off
+an edge, and refusing one with nothing on the display, are core's too, so a backend reports what
+the OS said and nothing more.
+
+**A live trap the backlog entry did not have.** `Capture::encoded` derived `source_width` and
+`source_height` from whatever frame it was handed. A cropped frame flowing through unchanged would
+have made three consumers report the window as though it were the screen: `ImageBlob.source_*` on
+the wire, `ScreenCapture.downscaled` in `brain/packages/core/src/cortex_core/body.py`, and the
+"downscaled from WxH" clause of `describe()` in `screen_tool.py`. The value therefore carries the
+display's size and the crop's separately, and
+`a_window_target_crops_to_the_window_and_still_reports_the_display` pins it, because nothing else
+would have caught it.
+
+The crop is folded into `downscale` rather than materializing a cropped `RawFrame`: it costs no
+second copy of a 33 MB frame, and it means the identity arm of the downscaler is what carries a
+window that is already inside the capture edge, pixel for pixel.
+
+### The receipt gains a second body-owned sentence
+
+`CAPTURE_RECEIPT_BODY` becomes the pair `CAPTURE_RECEIPT_BODY_DISPLAY` ("A picture of your screen
+was sent to the assistant.") and `CAPTURE_RECEIPT_BODY_WINDOW` ("A picture of one window was sent
+to the assistant."), because the first over-states a window capture. Both are fixed and
+body-owned, per decision 5's rule that the notice may never be built from anything the brain sent,
+and **neither names the window**: a title is attacker-chosen text, which is why decision 3 keeps
+titles out of the result in the first place.
+
+The sentence is chosen by `Capture::covers_display()`, which reads what was **encoded** rather than
+what was asked for. Two consequences, both wanted: a window that covers the whole display honestly
+reports a screen capture, since the picture really is the whole screen; and a backend that answered
+a whole frame to a targeted request cannot make the notice claim a window.
+
+### The byte harness, re-run because the downscaler moved
+
+`body/crates/core/tests/capture_bytes.rs` says to re-run it when the capture edge, the byte
+ceiling, or the downscaler moves. A crop moves the downscaler's inputs, so it was re-run in release
+(`cargo test -p body-core --test capture_bytes --release -- --ignored --nocapture
+--test-threads=1`). **Every previously recorded number came back byte for byte identical**: 243431
+and 243155 for the text desktop, 1219153 and 1978393 for the wallpaper desktop, 2052503 and 3591544
+for the full-screen photograph, 2693875 and 4669961 under heavy grain, 3476339 and 6002130 at grain
+64, 3991818 for uniform noise at 1600 px with the ladder still firing at 2048 px, and 5016491 for
+the 2560x1440 worst case at 79% of the ceiling. So the whole-display path is unmoved by the crop,
+and the margins recorded in the legibility addendum stand as written.
+
+One new row, which is the byte-side case for the whole slice. The same 4K wallpaper desktop, asked
+for as the 1720x1200 window a person is reading rather than whole: **43450 B at 1720x1200,
+untouched**, against **1978393 B resampled to 2048x1152** for the desktop as a whole. Forty-five
+times fewer bytes, every source pixel of the part that was asked about kept, and no exposure to the
+halving ladder at all. A maximised window measures byte for byte identical to the whole display,
+which is the case that must not become cheaper by accident.
+
+### What this does not do, and what the brain half owes
+
+It does not change any capture that happens today: the brain sends no target, so every capture is
+the whole display. It does not add a `display_index`, so a multi-monitor desktop still captures the
+primary display and a focused window on a second monitor resolves to a rectangle with nothing on
+that display, which is the `NoTarget` error rather than a wrong picture. It does not touch gating,
+taint, the opaque bit, retention, or the byte ceiling.
+
+Three things are the brain half's, and they are named here so the next commit does not have to
+rediscover them. `describe()`'s "downscaled from WxH" clause reads oddly for a crop and wants
+wording that distinguishes a window from a shrunk screen. `RepeatSalience`'s free bound on
+identical dispatches stops being free the moment the tool takes an argument, since two captures
+with different targets are no longer byte-identical calls. And the model has to be told what the
+two options mean in a schema, which is the one place the plain names above are actually spent.
+
+The three records for this half are
+[docs/refinements/vision.md](../refinements/vision.md), its line on
+[docs/refinements/index.md](../refinements/index.md), and this addendum; the Z-order walk, which is
+authored and has never seen a real desktop, is recorded in the existing capture sitting
+([docs/host/windows-capture.md](../host/windows-capture.md)) rather than as a new one, since it
+needs the same bring-up as the checks already listed there.

@@ -14,7 +14,7 @@
 //! brain drives over `BodyService` (Slice 9, ADR-0023), the [`Notify`] seam that
 //! delivers a fired reminder as a native notification (Slice 9.5, ADR-0025), and the
 //! [`ScreenCapture`] seam that gives the cortex eyes (Slice 10, ADR-0029) along with the
-//! whole downscale, encode, and byte-ceiling policy that bounds what it may send.
+//! whole crop, downscale, encode, and byte-ceiling policy that bounds what it may send.
 //!
 //! No coverage escape is declared in this crate: every line of it is reachable from a test, which
 //! is the whole point of putting the capture's size policy here rather than in the `cfg(windows)`
@@ -30,9 +30,9 @@ pub mod transport;
 pub use hotkey::{HotkeyChord, HotkeyParseError, Modifier};
 pub use link::{LinkState, LinkStatus, probe_link};
 pub use os::{
-    Accelerator, AudioControl, AudioError, Capture, CaptureError, CaptureRequest,
-    DeniedScreenCapture, Hotkey, HotkeyCallback, HotkeyError, Notification, Notify, NotifyError,
-    RawFrame, ScreenCapture, VolumeChange, VolumeState,
+    Accelerator, AudioControl, AudioError, Capture, CaptureError, CaptureRequest, CaptureTarget,
+    CapturedFrame, DeniedScreenCapture, Hotkey, HotkeyCallback, HotkeyError, Notification, Notify,
+    NotifyError, RawFrame, ScreenCapture, TargetRect, VolumeChange, VolumeState,
 };
 pub use retry::{
     DEFAULT_PROBE_BUDGET, FullDelay, Randomness, RetryPlan, RetryPolicy, RetryingTransport,

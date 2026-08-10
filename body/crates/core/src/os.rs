@@ -7,8 +7,9 @@
 //! [`Notify`] for proactive reminder delivery (Slice 9.5, ADR-0025, in the [`notify`]
 //! submodule since this file is at the line cap); Slice 10 adds [`ScreenCapture`], the first
 //! OS capability whose return value is a payload rather than a status, split across the
-//! [`screen`] port, the [`screen_policy`] that bounds what may cross the seam (ADR-0029), and
-//! the private pixel arithmetic behind it; the input trait joins later. The overlay is summoned by a global
+//! [`screen`] port, the [`screen_policy`] that bounds what may cross the seam, the
+//! [`screen_target`] that says which pixels of the display were asked for (ADR-0029), and
+//! the private pixel arithmetic behind them; the input trait joins later. The overlay is summoned by a global
 //! hotkey whose chord is a [`HotkeyChord`]; a backend registers that chord with
 //! the OS and calls back on each press. Mapping a chord to the OS key identifier
 //! is pure and lives here ([`Accelerator`]); touching the OS is the adapter's job.
@@ -17,18 +18,20 @@ pub mod notify;
 pub mod screen;
 mod screen_image;
 pub mod screen_policy;
+pub mod screen_target;
 
 pub use notify::{
     MAX_TEXT_CHARS, Notification, Notify, NotifyError, UNTRUSTED_ATTRIBUTION, escape_xml,
 };
 pub use screen::{
-    CAPTURE_RECEIPT_BODY, CAPTURE_RECEIPT_ID, CAPTURE_RECEIPT_TITLE, CaptureError,
-    DeniedScreenCapture, RawFrame, ScreenCapture,
+    CAPTURE_RECEIPT_BODY_DISPLAY, CAPTURE_RECEIPT_BODY_WINDOW, CAPTURE_RECEIPT_ID,
+    CAPTURE_RECEIPT_TITLE, CaptureError, DeniedScreenCapture, RawFrame, ScreenCapture,
 };
 pub use screen_policy::{
     CAPTURE_MIME, Capture, CaptureRequest, DEFAULT_MAX_EDGE, MAX_CAPTURE_BYTES, MAX_EDGE_CEILING,
     MAX_SHRINK_ATTEMPTS, encode_png,
 };
+pub use screen_target::{CaptureTarget, CapturedFrame, TargetRect};
 
 use crate::hotkey::{HotkeyChord, Modifier};
 

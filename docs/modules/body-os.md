@@ -15,7 +15,13 @@ OS backend and the home of the **stub coverage escape-hatch policy** the ROADMAP
   (`GetDC` → `CreateCompatibleDC` → `CreateCompatibleBitmap` → `SelectObject` → `BitBlt` with
   `SRCCOPY | CAPTUREBLT` → `GetDIBits` with a **negative** header height, which is what asks for
   top-down rows), plus `exclude_from_capture(hwnd)`, the overlay's own
-  `SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)` call. It hands back raw BGRA and no policy:
+  `SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)` call. A targeted request adds the `focus`
+  module's Z-order walk (`GetTopWindow` then `GW_HWNDNEXT`, taking the first window that is
+  visible, not iconic, not DWM-cloaked, not a tool window, not the shell window, titled, not
+  this process's, and not display-affinity excluded; bounds from
+  `DWMWA_EXTENDED_FRAME_BOUNDS`), which is **not** `GetForegroundWindow`, because the overlay
+  is the foreground window whenever a capture runs and hides itself from capture besides.
+  It hands back raw BGRA and no policy:
   every size decision is in `body_core` where the coverage gate can see it. GDI was chosen over
   DXGI Desktop Duplication and `Windows.Graphics.Capture` because it needs no COM apartment
   (so it does not deepen the recorded unbalanced-`CoUninitialize` entry), holds no persistent
@@ -69,11 +75,16 @@ unpackaged app must own a Start Menu shortcut for (`CORTEX_TOAST_APP_ID` at the 
 
 Slice 10 adds a third port, `ScreenCapture` (ADR-0029), also `Send + Sync` and also
 synchronous. Its shape is deliberately unlike the other two: `capture(&CaptureRequest) ->
-Result<RawFrame, CaptureError>` hands back **raw BGRA pixels and no policy at all**. Every
-size decision (downscale, PNG encode, the byte ceiling and its shrink ladder) lives in pure
+Result<CapturedFrame, CaptureError>` hands back **raw BGRA pixels and no policy at all**. Every
+size decision (crop, downscale, PNG encode, the byte ceiling and its shrink ladder) lives in
+pure
 `body_core`, because a `cfg(windows)` backend is invisible to the coverage gate and the seam's
 size guarantee may not rest on code CI never measures. That is the `escape_xml` argument
-verbatim. `CaptureError` is `NoDisplay`/`Disabled`/`Backend`/`TooLarge`, and
+verbatim. The one thing only a backend can do is resolve the request's `CaptureTarget`, since
+only the OS knows where windows are, and even that is answered as a rectangle beside the whole
+frame rather than as a crop: widening the **return value** rather than the trait method keeps
+the port one line and the crop arithmetic gated.
+`CaptureError` is `NoDisplay`/`Disabled`/`Backend`/`NoTarget`/`TooLarge`, and
 `DeniedScreenCapture` (in `body_core`, not in a platform crate) is the real, gated backend a
 host wires when capture is switched off: refusing is a capability, not a missing platform.
 Input backends join later.

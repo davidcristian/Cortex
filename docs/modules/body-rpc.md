@@ -102,17 +102,26 @@ line cap.
     read from the OS on demand, a notification is fire and forget, and a capture's pixels live
     only for the call that returns them (the one hard rule).
   - `screen::capture(...)` (Slice 10, ADR-0029) owns the capture translation: it resolves the
-    wire's `max_edge`/`max_bytes` hints into a `body_core::CaptureRequest`, runs the blit, the
+    wire's `max_edge`/`max_bytes`/`target` fields into a `body_core::CaptureRequest`, runs the
+    blit, the
     pure-core `Capture::from_bgra` policy, the clock read, and the receipt inside **one**
     `off_worker` hop, then maps the `Capture` onto `ImageBlob` (including `source_width`/
-    `source_height` and `captured_at_unix_ms`). Error mapping, one code per variant so the brain
-    can tell them apart: `NoDisplay -> FailedPrecondition`, `Disabled -> PermissionDenied`,
+    `source_height`, which stay the **display's** even when the picture is one window, and
+    `captured_at_unix_ms`). `resolve_target` is where proto3's unknown-enum rule is spent: a
+    value this body does not name reads as `CaptureTarget::Display`, which is the only honest
+    answer and is the picture this seam has always sent. Error mapping, one code per variant so
+    the brain
+    can tell them apart: `NoDisplay -> FailedPrecondition`, `NoTarget -> FailedPrecondition`
+    (host state again: it works the moment a window is on screen), `Disabled ->
+    PermissionDenied`,
     `Backend -> Internal`, `TooLarge -> ResourceExhausted`. **Nothing this server answers is
     `Unavailable`**, which is the rule the brain's classifier rests on: tonic synthesizes that
     code client-side for a channel that cannot connect and grpc-python cannot tell a synthesized
     status from a sent one, so leaving it unspent makes it mean exactly "the call never arrived"
     (ADR-0023's 2026-08-08 addendum). The receipt is a
-    `body_core::Notification` built from the fixed body-owned `CAPTURE_RECEIPT_*` strings and
+    `body_core::Notification` built from the fixed body-owned `CAPTURE_RECEIPT_*` strings,
+    picking the screen sentence or the window one by `Capture::covers_display()`, which is what
+    was **sent** rather than what was asked for, and
     is **best effort**: by the time it runs the pixels have been read, so a dead notification
     service must not also cost the capability. `receipts` (the host's
     `CORTEX_HOST_CAPTURE_NOTIFY` switch, resolved by the shell) turns it off.

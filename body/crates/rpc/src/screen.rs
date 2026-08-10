@@ -1,10 +1,13 @@
 //! The `CaptureScreen` half of the body's `BodyService` server (ADR-0029): request
 //! translation, the pure-core policy call, the body-authored receipt, and the wire mapping.
 //!
-//! A thin adapter, like the rest of this crate. Nothing here decides how big a picture may be
-//! or how it is encoded; `body_core::Capture::from_bgra` owns all of that and is gated where
+//! A thin adapter, like the rest of this crate. Nothing here decides how big a picture may be,
+//! how it is encoded, or which part of the screen it is;
+//! `body_core::Capture::from_bgra` owns all of that and is gated where
 //! CI can see it. What lives here is what genuinely cannot: the clock read that timestamps the
-//! frame, and the ordering that fires the receipt on the same thread that took the picture.
+//! frame, the ordering that fires the receipt on the same thread that took the picture, and the
+//! one piece of wire vocabulary that has no core equivalent, an enum value this body does not
+//! name, which proto3 says to read as the default.
 //!
 //! Split out of [`crate::server`] so that file stays a table of one-line handlers with room
 //! for `InjectInput` later.
@@ -12,10 +15,16 @@
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use body_core::os::screen::{CAPTURE_RECEIPT_BODY, CAPTURE_RECEIPT_ID, CAPTURE_RECEIPT_TITLE};
-use body_core::{Capture, CaptureError, CaptureRequest, Notification, Notify, ScreenCapture};
+use body_core::os::screen::{
+    CAPTURE_RECEIPT_BODY_DISPLAY, CAPTURE_RECEIPT_BODY_WINDOW, CAPTURE_RECEIPT_ID,
+    CAPTURE_RECEIPT_TITLE,
+};
+use body_core::{
+    Capture, CaptureError, CaptureRequest, CaptureTarget, Notification, Notify, ScreenCapture,
+};
 use tonic::Status;
 
+use crate::generated::CaptureTarget as PbCaptureTarget;
 use crate::generated::{CaptureScreenReply, ImageBlob};
 use crate::server::off_worker;
 
@@ -32,9 +41,10 @@ pub(crate) async fn capture<S: ScreenCapture + 'static, N: Notify + 'static>(
     notifier: &Arc<N>,
     max_edge: u32,
     max_bytes: u32,
+    target: i32,
     receipts: bool,
 ) -> Result<CaptureScreenReply, Status> {
-    let request = CaptureRequest::bounded(max_edge, max_bytes);
+    let request = CaptureRequest::targeted(max_edge, max_bytes, resolve_target(target));
     let screen = Arc::clone(screen);
     let notifier = Arc::clone(notifier);
     let (capture, captured_at_unix_ms) = off_worker(
@@ -42,7 +52,7 @@ pub(crate) async fn capture<S: ScreenCapture + 'static, N: Notify + 'static>(
             let frame = screen.capture(&request)?;
             let taken = Capture::from_bgra(&frame, &request)?;
             let at = unix_millis();
-            announce(&notifier, receipts);
+            announce(&notifier, &taken, receipts);
             Ok::<_, CaptureError>((taken, at))
         },
         capture_error_to_status,
@@ -53,7 +63,26 @@ pub(crate) async fn capture<S: ScreenCapture + 'static, N: Notify + 'static>(
     })
 }
 
-/// Tells the user their screen was read, from fixed body-owned strings.
+/// Reads the wire's target enum as one of the two things the body knows how to point at.
+///
+/// A value the enum does not name reads as the whole display, which is proto3's own rule for an
+/// unrecognized enum and the only answer a body can honestly give: it is a newer brain asking
+/// for something this body cannot resolve, and the picture it gets back is the one this seam has
+/// always sent. The arm exists because the wire type is an `i32` on the far side of a network,
+/// so the value really can be anything.
+fn resolve_target(target: i32) -> CaptureTarget {
+    match PbCaptureTarget::try_from(target) {
+        Ok(PbCaptureTarget::Focus) => CaptureTarget::Focus,
+        Ok(PbCaptureTarget::Display) | Err(_) => CaptureTarget::Display,
+    }
+}
+
+/// Tells the user what was read, from fixed body-owned strings.
+///
+/// The sentence is picked by what the capture actually carries rather than by what the brain
+/// asked for: a targeted request that came back as the whole display says so, and a window
+/// filling the display honestly reports a screen capture. Neither string ever names the window,
+/// because a title is attacker-chosen text.
 ///
 /// **Best effort, and deliberately so.** By the time this runs the pixels have already been
 /// read, so refusing to answer because the notification service is down would not un-take the
@@ -61,14 +90,14 @@ pub(crate) async fn capture<S: ScreenCapture + 'static, N: Notify + 'static>(
 /// has the kill switch and the overlay indicator. The receipt is untainted because the body
 /// wrote every word of it: a notice describing untrusted content may never be built from that
 /// content.
-fn announce<N: Notify>(notifier: &Arc<N>, receipts: bool) {
+fn announce<N: Notify>(notifier: &Arc<N>, taken: &Capture, receipts: bool) {
     if receipts {
-        let receipt = Notification::new(
-            CAPTURE_RECEIPT_TITLE,
-            CAPTURE_RECEIPT_BODY,
-            CAPTURE_RECEIPT_ID,
-            false,
-        );
+        let body = if taken.covers_display() {
+            CAPTURE_RECEIPT_BODY_DISPLAY
+        } else {
+            CAPTURE_RECEIPT_BODY_WINDOW
+        };
+        let receipt = Notification::new(CAPTURE_RECEIPT_TITLE, body, CAPTURE_RECEIPT_ID, false);
         drop(notifier.show(&receipt));
     }
 }
@@ -100,10 +129,12 @@ fn blob(capture: &Capture, captured_at_unix_ms: i64) -> ImageBlob {
 /// Maps a [`CaptureError`] to the outbound gRPC [`Status`] the brain reads, on the same split
 /// the volume and notification mappings use. Every code here is chosen so the brain can
 /// classify it: a laptop with its lid shut is `FailedPrecondition` (host state, and it works
-/// again once the state is fixed), a host that switched capture off is `PermissionDenied` (a
-/// standing answer the brain should not retry into), a picture that stays too big even after
-/// the shrink ladder is `ResourceExhausted` (it was taken, and it will not fit), and a backend
-/// fault is `Internal`.
+/// again once the state is fixed), a desktop with no window worth pointing at is the same code
+/// for the same reason (it works again the moment one is on screen, and the brain's own reading
+/// of that code, "the host is not in a state to capture the screen", is exactly true of it), a
+/// host that switched capture off is `PermissionDenied` (a standing answer the brain should not
+/// retry into), a picture that stays too big even after the shrink ladder is `ResourceExhausted`
+/// (it was taken, and it will not fit), and a backend fault is `Internal`.
 ///
 /// **Nothing here says `Unavailable`.** tonic synthesizes that code client-side when a channel
 /// cannot connect, and the brain's grpc-python client cannot tell a synthesized status from a
@@ -114,6 +145,9 @@ fn capture_error_to_status(error: &CaptureError) -> Status {
     match error {
         CaptureError::NoDisplay(detail) => {
             Status::failed_precondition(format!("no display: {detail}"))
+        }
+        CaptureError::NoTarget(detail) => {
+            Status::failed_precondition(format!("no capture target: {detail}"))
         }
         CaptureError::Disabled => {
             Status::permission_denied("screen capture is disabled on this host")

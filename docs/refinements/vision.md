@@ -63,7 +63,15 @@ brain-side read the status code, was not a reason the distinction was already re
 but the reason the reader could not be told the truth. The bullet keeps both readings. The
 deferral this close opens is not this area's, so no name arrives to replace it here; it is a
 coupling the constant scan cannot hold, and it lives with the other three in
-[repo-gates.md](repo-gates.md).
+[repo-gates.md](repo-gates.md). A twelfth, on 2026-08-10, which moves no count and is the swap
+entry's bookkeeping rather than the legibility one's: **region and window capture** landed its
+**body half**, so the seam now carries a `CaptureTarget` and a shipping body honours it, while
+nothing asks for a window yet. Half an entry closing leaves the count where it was, because a cell
+decremented for a half-closed entry is how an open deferral gets lost, and what is still owed is
+the brain half, the `display_index` beside it, and the measurement of whether a window-sized crop
+reaches the 15 px text that defeated every budget. The bullet also gains a **declined**
+alternative, the model-named rectangle, with a written reopen trigger; like the accepted residual
+below it is uncounted, because a decline names no work until its trigger fires.
 
 ## Vision in Slice 10 ([ADR-0029](../adr/ADR-0029-vision-screen-capture.md))
 
@@ -147,6 +155,54 @@ coupling the constant scan cannot hold, and it lives with the other three in
   is required beside it because a multi-monitor bounding box makes that ratio worse, and a window
   handle would serve "read the window I am looking at" better than a rectangle, since the body
   knows window bounds and the model cannot express them.
+
+  **The body half landed 2026-08-10, and the rectangle was declined**
+  ([ADR-0029](../adr/ADR-0029-vision-screen-capture.md)'s addendum of that date). The seam carries
+  `CaptureScreenRequest.target`, a two-value `CaptureTarget` (`DISPLAY` = 0, which is today's
+  behaviour exactly, and `FOCUS`), and the shipping body honours it: the Windows backend resolves
+  the focused window by walking the desktop's Z-order, and pure core crops the frame to what it
+  found. The field and the honouring landed in one commit because that is what this entry's own
+  blocker actually said. "The fields ADR-0029 deliberately refused to add without a consumer" was
+  the wrong reading of the refusal, which was never about a caller: proto3 lets an older body
+  ignore an unknown field, so a knob the shipping body does not honour is a **silent lie** about a
+  constraint the brain believes it set, and the 2026-07-18 correction admitted `max_bytes` on
+  exactly that basis. A brain that asks is the next commit, and it is why this entry stays open.
+
+  **The estimate this entry carried was wrong in the cheap direction, for once.** "A seam change
+  with a design attached rather than an increment" priced the whole thing; the body half is one
+  proto field, one enum, one value type, a crop folded into the existing downscaler, a second
+  receipt sentence, and a Z-order walk. What it also turned up is a live trap the entry did not
+  have: `Capture` derived `source_width`/`source_height` from whatever frame it was handed, so a
+  cropped frame flowing through would have made three consumers (the wire's `ImageBlob`, the
+  brain's own capture value, and `describe()`'s "downscaled from WxH" clause) report the window as
+  though it were the screen. The display's size and the crop's are separate now, pinned by a test
+  written for that one thing.
+
+  **What a window is worth, in bytes.** Through the body's own crop and encoder, a 1720x1200 text
+  window of the 4K wallpaper desktop costs **43450 B untouched** where the same desktop whole
+  costs **1978393 B resampled to 2048 px**: forty-five times fewer bytes, every source pixel of
+  the part that was asked about kept, and no exposure to the halving ladder. Every previously
+  recorded row of [`capture_bytes.rs`](../../body/crates/core/tests/capture_bytes.rs) came back
+  byte for byte identical after the downscaler moved, so the margins the legibility addendum
+  records are unmoved.
+
+  **A model-named rectangle is declined, uncounted, and reopens on one thing.** The entry's own
+  design input said `region` wants physical display coordinates; what it did not say is who names
+  them. The 2026-08-06 measurement above answers that: with the source size in front of it and
+  "unreadable"
+  offered as an answer, the shipped cortex declined on 3 of 47 strings and invented the other 38,
+  so a model that will not admit it cannot read a screen will not decline to name a rectangle
+  either. A wrong rectangle costs a second OS receipt and a second tainted read of the wrong part
+  of the screen. It reopens the day something can hand the model a coordinate frame it did not
+  guess, and the shape that does it is an **overlay-drawn region picker**, which makes the
+  rectangle user-authored and therefore a privacy improvement rather than a privacy widening.
+  `TargetRect` is already the value such a picker would produce.
+
+  **Still open here**: the brain half (the tool argument, the schema the model reads, `describe()`
+  wording that does not call a crop a downscale, and the repeat bound that stops being free once
+  the tool takes an argument), `display_index` beside it, and the measurement this fix was
+  ultimately for, whether a window-sized crop reaches the 15 px text that stayed at 4 of 16 at
+  every budget tried.
 - **A cross-language check on the byte ceiling.** `MAX_CAPTURE_BYTES` (Rust) and
   `MAX_IMAGE_BYTES` (Python) are the same number, 6 MiB, and each is pinned to the literal
   `6291456` by a test in its own toolchain. **Nothing mechanical couples them**: an edit to one
@@ -331,8 +387,15 @@ coupling the constant scan cannot hold, and it lives with the other three in
   deliberately synchronous port, WinRT interop, a D3D11 staging copy, and a Windows 11 22H2 floor
   to control the border. Behind the unchanged `ScreenCapture` trait either way.
 - **Multi-monitor and DPI reporting.** v1 is the primary display only, in physical pixels.
-  `CaptureScreenRequest` reserves field 2 for a display index, and nothing enumerates monitors
-  yet, which is exactly why the field was left unassigned.
+  Nothing enumerates monitors yet, which is why no field names one.
+  **Corrected 2026-08-10:** this entry used to say `CaptureScreenRequest` *reserves field 2* for a
+  display index. It does not any more. Field 2 was held by a comment rather than by a protobuf
+  `reserved` statement, and the capture target spent it, on the argument that a target subsumes
+  the ask the number was being kept for. A display index needs the next free number when it
+  arrives, and it arrives with a body that honours it, which is the rule that put the target and
+  its Z-order walk in one commit. The focus target also gives this entry a first observable
+  consequence: a focused window on a second monitor resolves to a rectangle with nothing on the
+  captured display, so it answers `NoTarget` rather than a wrong picture.
 - **Linux and macOS `ScreenCapture` backends.** Both crates carry `unimplemented!()` stubs that
   satisfy the trait, like every other OS port.
 - **A uniform per-call deadline on `BodyService`.** Capture is the first call to carry one

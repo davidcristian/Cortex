@@ -286,13 +286,37 @@ service BodyService {
   rpc Notify(NotifyRequest) returns (NotifyReply);
 }
 
+// What the body points the camera at (ADR-0029). A closed vocabulary the body
+// resolves, never a rectangle the caller names: only the body knows where windows
+// are, and a caller that guessed one would spend a whole capture on the wrong part
+// of the screen. Zero is the whole display, so a caller that names nothing gets
+// exactly the behaviour this seam has always had.
+//
+// The names are plain rather than a designed family on purpose: this is protocol
+// vocabulary whose end reader is a language model choosing between two options, and
+// legibility beats charm there.
+enum CaptureTarget {
+  // The primary display, whole. The v1 behaviour and the proto3 default.
+  CAPTURE_TARGET_DISPLAY = 0;
+  // The topmost visible top-level window that is not the body's own and is not
+  // excluded from capture. Deliberately NOT the foreground window: the user summons
+  // the overlay to ask, so the overlay IS the foreground window when this runs, and
+  // it hides itself from capture, which would crop to an absent rectangle. The body
+  // answers FAILED_PRECONDITION when no such window is on screen rather than falling
+  // back to the display, because a silent fallback captures more than was asked for.
+  CAPTURE_TARGET_FOCUS = 1;
+}
+
 message CaptureScreenRequest {
   // Longest edge of the returned image, in physical pixels. 0 means "the body's
   // default" (1600). The body clamps it and, being proto3, may ignore it entirely,
   // so it is a hint the brain re-verifies on receipt, never a guarantee (ADR-0029).
   uint32 max_edge = 1;
-  // Field 2 is reserved for a display index once anything enumerates monitors;
-  // v1 is the primary display only.
+  // What to point at. The body honours this field as of the same commit that
+  // declared it: proto3 lets an older body ignore an unknown field, so a knob no
+  // shipping body reads is a silent lie about a constraint the brain believes it
+  // set. An unrecognized value reads as CAPTURE_TARGET_DISPLAY, which is v1.
+  CaptureTarget target = 2;
   // The most bytes the caller will accept, so the brain's own image budget and the
   // body's ceiling are one number instead of two constants coupled by prose. 0 means
   // "the body's own ceiling", and the body clamps anything larger down to it: this can

@@ -2,10 +2,12 @@
 //!
 //! A thin adapter (AGENTS.md gate 3): it asks the OS for the display's size, blits it into a
 //! memory bitmap, reads the pixels back as a top-down 32-bit DIB, and hands the raw BGRA bytes
-//! to the pure core. **Every size decision (the downscale, the PNG encode, the byte ceiling and
-//! its shrink ladder) lives in `body_core` and none of it is here**, because this crate is
-//! `cfg(windows)` and the coverage gate never measures it, so a policy left here would be a
-//! seam guarantee resting on code no gate can see.
+//! to the pure core. **Every size decision (the crop, the downscale, the PNG encode, the byte
+//! ceiling and its shrink ladder) lives in `body_core` and none of it is here**, because this
+//! crate is `cfg(windows)` and the coverage gate never measures it, so a policy left here would
+//! be a seam guarantee resting on code no gate can see. What this file does own is the part no
+//! gate could reach anyway: the blit, and the [`focus`](crate::focus) walk behind a targeted
+//! capture, which reports a rectangle for the core to crop to.
 //!
 //! GDI rather than DXGI Desktop Duplication or `Windows.Graphics.Capture` (ADR-0029): it needs
 //! no COM apartment, so it does not deepen the recorded unbalanced-`CoUninitialize` entry with
@@ -24,7 +26,9 @@
 //! [`ScreenCapture`]: body_core::ScreenCapture
 #![allow(unsafe_code)] // ADR-0029: GDI (GetDC/BitBlt/GetDIBits) is a raw Win32 FFI surface.
 
-use body_core::{CaptureError, CaptureRequest, RawFrame, ScreenCapture};
+use body_core::{
+    CaptureError, CaptureRequest, CaptureTarget, CapturedFrame, RawFrame, ScreenCapture, TargetRect,
+};
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Graphics::Gdi::{
     BI_RGB, BITMAPINFO, BITMAPINFOHEADER, BitBlt, CAPTUREBLT, CreateCompatibleBitmap,
@@ -62,12 +66,24 @@ impl Default for WindowsScreenCapture {
 }
 
 impl ScreenCapture for WindowsScreenCapture {
-    /// Blits the primary display and returns its raw BGRA pixels.
+    /// Blits the primary display and returns its raw BGRA pixels, with the request's target
+    /// resolved to a rectangle inside them.
     ///
-    /// `request` is accepted and not used: this backend always reads the whole display, and the
-    /// core re-applies the request's bounds to what comes back. A backend that could ask the OS
-    /// for a cheaper read would use it here.
-    fn capture(&self, _request: &CaptureRequest) -> Result<RawFrame, CaptureError> {
+    /// The blit is the whole display whatever the target is, and a targeted request adds only
+    /// the Z-order walk in [`crate::focus`] that says which part of it the caller meant. The
+    /// crop itself is `body_core`'s, for the same reason the downscale is: this file is
+    /// `cfg(windows)` and no gate can see it. The request's size hints stay unread here, since
+    /// GDI has no cheaper read to ask for; the core re-applies them to what comes back.
+    ///
+    /// The target is resolved **before** the blit, so the rectangle names a window that was on
+    /// screen at most one blit ago. Nothing can make that exact: a desktop is free to reorder
+    /// itself between any two Win32 calls, and the other order would be stale by the same
+    /// amount in the other direction.
+    fn capture(&self, request: &CaptureRequest) -> Result<CapturedFrame, CaptureError> {
+        let target = match request.target() {
+            CaptureTarget::Display => None,
+            CaptureTarget::Focus => Some(crate::focus::topmost_window()?),
+        };
         let (width, height) = display_size()?;
         // SAFETY: a null window handle names the whole screen, which is what is being captured.
         let screen = unsafe { GetDC(SCREEN) };
@@ -81,7 +97,16 @@ impl ScreenCapture for WindowsScreenCapture {
         unsafe {
             ReleaseDC(SCREEN, screen);
         }
-        RawFrame::new(width, height, taken?)
+        let frame = RawFrame::new(width, height, taken?)?;
+        Ok(framed(frame, target))
+    }
+}
+
+/// Pairs the display's pixels with the rectangle the target resolved to, if it resolved to one.
+fn framed(frame: RawFrame, target: Option<TargetRect>) -> CapturedFrame {
+    match target {
+        Some(window) => CapturedFrame::window(frame, window),
+        None => CapturedFrame::display(frame),
     }
 }
 

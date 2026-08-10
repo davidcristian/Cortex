@@ -5,7 +5,8 @@
 //! This module is the port and nothing else: the trait, the raw pixels that cross it, the
 //! failures it can report, the refusing backend a switched-off host wires, and the fixed
 //! strings of the receipt the body shows afterwards. Every size decision lives next door in
-//! [`screen_policy`](super::screen_policy), and the pixel arithmetic behind it in
+//! [`screen_policy`](super::screen_policy), what a capture is pointed at in
+//! [`screen_target`](super::screen_target), and the pixel arithmetic behind both in
 //! `screen_image`.
 //!
 //! Why the policy is core rather than backend: this is the [`escape_xml`] argument verbatim
@@ -17,6 +18,7 @@
 //! [`escape_xml`]: super::escape_xml
 
 use crate::os::screen_policy::CaptureRequest;
+use crate::os::screen_target::CapturedFrame;
 
 /// The heading of the body-authored receipt shown after a capture.
 ///
@@ -25,9 +27,19 @@ use crate::os::screen_policy::CaptureRequest;
 /// brain sent, or a brain that has been talked into it could word its own alibi.
 pub const CAPTURE_RECEIPT_TITLE: &str = "Screen captured";
 
-/// The message of the body-authored capture receipt. Says what happened in the user's terms
-/// and names no model, tool, or window title.
-pub const CAPTURE_RECEIPT_BODY: &str = "A picture of your screen was sent to the assistant.";
+/// The message of the body-authored capture receipt when the whole display was sent. Says what
+/// happened in the user's terms and names no model, tool, or window title.
+pub const CAPTURE_RECEIPT_BODY_DISPLAY: &str =
+    "A picture of your screen was sent to the assistant.";
+
+/// The message of the same receipt when only one window was sent.
+///
+/// A second **fixed** string rather than one sentence with the target interpolated, for the
+/// reason the first one is fixed: a receipt is body-owned wording, and the body picks between
+/// two sentences it wrote. It deliberately does **not** name the window. A title is
+/// attacker-chosen text, this ADR keeps titles out of the capture result for exactly that
+/// reason, and a notice about untrusted content is the last place to start quoting it.
+pub const CAPTURE_RECEIPT_BODY_WINDOW: &str = "A picture of one window was sent to the assistant.";
 
 /// The correlation id the capture receipt carries. `Notification` was shaped for reminders,
 /// so a capture borrows the field with a fixed body-owned marker rather than a reminder id.
@@ -48,6 +60,12 @@ pub enum CaptureError {
     /// a frame. `0` is a backend detail.
     #[error("the screen-capture backend failed: {0}")]
     Backend(String),
+    /// A targeted capture found nothing to point at: no window on this desktop passed the
+    /// resolution rules, or the one that did lies entirely off the captured display. `0` says
+    /// which. Never a silent fallback to the whole display, which would send more of the screen
+    /// than was asked for without the model or the receipt knowing.
+    #[error("there is no window to capture: {0}")]
+    NoTarget(String),
     /// The capture still exceeded [`MAX_CAPTURE_BYTES`] after the shrink ladder ran out.
     /// `0` is the smallest encoding reached, in bytes.
     #[error("the capture is too large for the seam even downscaled: {0} bytes")]
@@ -126,17 +144,22 @@ impl RawFrame {
 /// across async tasks. Backends are stateless, so nothing here violates the one hard rule;
 /// the pixels exist only for the duration of the call that returns them.
 pub trait ScreenCapture: Send + Sync {
-    /// Reads the primary display and returns its raw BGRA pixels.
+    /// Reads the primary display and returns its raw BGRA pixels, with the request's target
+    /// resolved to a rectangle inside them.
     ///
-    /// The backend does **not** downscale, encode, or bound anything; `request` is passed so
-    /// a future backend that can ask the OS for a cheaper read has the number, and the policy
-    /// in [`Capture::from_bgra`] re-applies it either way.
+    /// The backend does **not** downscale, encode, crop, or bound anything. It resolves the
+    /// target, because only the OS knows where windows are, and reports what it found beside
+    /// the whole frame; `request`'s size hints are passed so a future backend that can ask the
+    /// OS for a cheaper read has the numbers, and the policy in [`Capture::from_bgra`]
+    /// re-applies all of them either way. Widening the answer rather than the signature is
+    /// deliberate: the trait stays one method, and everything a crop can get wrong stays in
+    /// pure core where the coverage gate reaches it.
     ///
     /// # Errors
     ///
-    /// [`CaptureError`] if no display is available, capture is disabled on this host, or the
-    /// backend fails.
-    fn capture(&self, request: &CaptureRequest) -> Result<RawFrame, CaptureError>;
+    /// [`CaptureError`] if no display is available, capture is disabled on this host, a
+    /// targeted capture finds no window to point at, or the backend fails.
+    fn capture(&self, request: &CaptureRequest) -> Result<CapturedFrame, CaptureError>;
 }
 
 /// The [`ScreenCapture`] backend that always refuses, answering [`CaptureError::Disabled`].
@@ -149,7 +172,7 @@ pub trait ScreenCapture: Send + Sync {
 pub struct DeniedScreenCapture;
 
 impl ScreenCapture for DeniedScreenCapture {
-    fn capture(&self, _request: &CaptureRequest) -> Result<RawFrame, CaptureError> {
+    fn capture(&self, _request: &CaptureRequest) -> Result<CapturedFrame, CaptureError> {
         Err(CaptureError::Disabled)
     }
 }

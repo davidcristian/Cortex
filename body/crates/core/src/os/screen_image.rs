@@ -9,7 +9,8 @@
 //! Both steps are pure and fully gated, which is the point of doing them here instead of in
 //! the `cfg(windows)` backend that produces the frames.
 
-use crate::os::screen::CaptureError;
+use crate::os::screen::{CaptureError, RawFrame};
+use crate::os::screen_target::Region;
 
 /// An image the encoder can take: three bytes per pixel, red, green, blue, top-down.
 ///
@@ -40,25 +41,28 @@ impl Rgb {
     }
 }
 
-/// Shrinks `frame` so its longest edge is at most `bound`, dropping alpha either way.
+/// Reads `region` out of `frame` and shrinks it so its longest edge is at most `bound`,
+/// dropping alpha either way.
 ///
 /// A box filter, averaging each destination pixel over the source rectangle it covers. It is
 /// the cheap resampler that still tells the truth about a shrunk screen: dropping pixels
 /// instead (nearest neighbour) deletes exactly the thin strokes that text is made of, and a
 /// screenshot the model cannot read is the failure mode this whole slice is trying to avoid.
 ///
-/// The identity arm is separate and does no averaging, so a screen already inside the bound
-/// crosses the seam pixel-for-pixel.
-pub(crate) fn downscale(frame: &super::screen::RawFrame, bound: u32) -> Rgb {
-    let (width, height) = scaled_dimensions(frame.width(), frame.height(), bound);
-    if width == frame.width() && height == frame.height() {
-        return Rgb {
-            width,
-            height,
-            pixels: drop_alpha(frame.pixels()),
-        };
+/// The identity arm is separate and does no averaging, so a region already inside the bound
+/// crosses the seam pixel-for-pixel. That arm is the reason a targeted capture is worth having:
+/// a window inside the capture edge is carried at its own resolution, where the same desktop as
+/// a whole is resampled first and spends the same image tokens on fewer of the pixels the user
+/// asked about.
+///
+/// Cropping here rather than in a pre-cropped [`RawFrame`] keeps the display's own size intact
+/// for the size policy to report, and never copies a 4K frame twice.
+pub(crate) fn downscale(frame: &RawFrame, region: Region, bound: u32) -> Rgb {
+    let (width, height) = scaled_dimensions(region.width(), region.height(), bound);
+    if width == region.width() && height == region.height() {
+        return copy_region(frame, region);
     }
-    box_filter(frame, width, height)
+    box_filter(frame, region, width, height)
 }
 
 /// The size `width x height` shrinks to so its longest edge is at most `bound`, keeping the
@@ -85,25 +89,48 @@ fn scale_edge(value: u32, bound: u32, longest: u32) -> u32 {
     u32::try_from(scaled).unwrap_or(value).max(1)
 }
 
-/// Drops the undefined fourth byte of every BGRA pixel and reorders the rest to RGB.
-fn drop_alpha(pixels: &[u8]) -> Vec<u8> {
-    pixels
-        .chunks_exact(4)
-        .flat_map(|pixel| [pixel[2], pixel[1], pixel[0]])
-        .collect()
+/// Copies `region` out of `frame` unscaled, dropping the undefined fourth byte of every BGRA
+/// pixel and reordering the rest to RGB.
+///
+/// Row by row rather than in one pass, because the region's rows are not contiguous in a frame
+/// wider than they are. When the region *is* the whole frame this walks it in order and costs
+/// what a straight copy costs, which is the whole-display path and the common one.
+fn copy_region(frame: &RawFrame, region: Region) -> Rgb {
+    let source = frame.pixels();
+    let stride = frame.width() as usize;
+    let (width, height) = (region.width() as usize, region.height() as usize);
+    let mut pixels = Vec::with_capacity(width * height * 3);
+    for row in 0..height {
+        let start = ((region.y() as usize + row) * stride + region.x() as usize) * 4;
+        for pixel in source[start..start + width * 4].chunks_exact(4) {
+            pixels.extend_from_slice(&[pixel[2], pixel[1], pixel[0]]);
+        }
+    }
+    Rgb {
+        width: region.width(),
+        height: region.height(),
+        pixels,
+    }
 }
 
-/// Averages `frame` down to `width x height`.
+/// Averages `region` of `frame` down to `width x height`.
 ///
-/// Only ever called with a destination no larger than the source in either axis, which is what
+/// Only ever called with a destination no larger than the region in either axis, which is what
 /// makes the source rectangle for each destination pixel non-empty: with `dst <= src` the real
 /// span `src / dst` is at least one, so the floored start and end of consecutive destination
 /// columns always differ by at least one source column. That is why there is no empty-span
 /// guard here and no division by zero in [`average`].
-fn box_filter(frame: &super::screen::RawFrame, width: u32, height: u32) -> Rgb {
+///
+/// Every index is offset by the region's origin and strides by the **frame's** width, so the
+/// pixels outside the region are never read. `Region` is built only by
+/// [`CapturedFrame::region`](super::screen_target::CapturedFrame::region), which has already
+/// clamped it inside the frame, so the indexing needs no second bounds check of its own.
+fn box_filter(frame: &RawFrame, region: Region, width: u32, height: u32) -> Rgb {
     let source = frame.pixels();
-    let src_width = frame.width() as usize;
-    let src_height = frame.height() as usize;
+    let stride = frame.width() as usize;
+    let (off_x, off_y) = (region.x() as usize, region.y() as usize);
+    let src_width = region.width() as usize;
+    let src_height = region.height() as usize;
     let dst_width = width as usize;
     let dst_height = height as usize;
     let mut pixels = Vec::with_capacity(dst_width * dst_height * 3);
@@ -118,7 +145,7 @@ fn box_filter(frame: &super::screen::RawFrame, width: u32, height: u32) -> Rgb {
             let (mut blue, mut green, mut red, mut count) = (0_u64, 0_u64, 0_u64, 0_u64);
             for row in first_row..last_row {
                 for col in first_col..last_col {
-                    let at = (row * src_width + col) * 4;
+                    let at = ((off_y + row) * stride + off_x + col) * 4;
                     blue += u64::from(source[at]);
                     green += u64::from(source[at + 1]);
                     red += u64::from(source[at + 2]);

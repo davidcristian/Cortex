@@ -55,6 +55,38 @@ The other knobs, all optional:
 | `CORTEX_BODY_CAPTURE_TIMEOUT_S` | brain | `10.0` | The deadline on the capture call, the only one on this seam. Must be positive. |
 | `CORTEX_TOOLS_GATED` | brain | `escalate_to_brain,send_email` | Adding `capture_screen` here puts an approval card in front of every capture. See "if you want it gated" below. |
 
+## What the body can be pointed at
+
+`CaptureScreenRequest.target` names one of two things, and the body honours it as of the same
+commit that declared the field: `CAPTURE_TARGET_DISPLAY` (zero, the whole primary display, which
+is what every capture has always been) and `CAPTURE_TARGET_FOCUS` (the window the user is
+looking at). There is no rectangle to name and there will not be one until something can hand
+the model a coordinate frame; the body resolves the target itself, because only it knows where
+windows are.
+
+**Nothing asks for a window yet.** The brain sends no target, so every capture today is the
+whole display, byte for byte what it was before. The field and the body that honours it landed
+together on purpose: under proto3 an older body silently ignores an unknown field, so a knob the
+shipping body does not honour is a lie about a constraint the brain believes it set.
+
+Two things to know about the focused window when the brain does start asking:
+
+- It is **not** the foreground window. The user summons the overlay with the hotkey and types the
+  question into it, so the overlay is the foreground window at the moment a capture runs, and it
+  hides itself from capture. The body walks the desktop's Z-order from the front instead and
+  takes the first window that is visible, not minimized, not DWM-cloaked, not a tool window (the
+  taskbar is one), not the shell's desktop, titled, not the body's own, and not excluded from
+  capture.
+- A bare desktop is an **error**, not a whole-screen capture. The body answers
+  `FAILED_PRECONDITION`, which the brain reads as "the host is not in a state to capture the
+  screen". Falling back to the display would send more of the screen than was asked for with
+  neither the model nor the OS receipt knowing.
+
+The receipt says which happened, in the body's own words: "A picture of your screen was sent to
+the assistant." or "A picture of one window was sent to the assistant." It is chosen by what
+actually crossed the seam, so a maximised window that fills the display reports a screen
+capture, and neither sentence ever names the window, a title being attacker-chosen text.
+
 ## Agent half (Docker, a real projector and a real image)
 
 1. Name the projector beside the model, in the repo-root `.env`:

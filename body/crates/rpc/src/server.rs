@@ -94,9 +94,9 @@ impl<A: AudioControl + 'static, N: Notify + 'static, S: ScreenCapture + 'static>
         }))
     }
 
-    /// Reads the primary display for the cortex (ADR-0029). The pixels never touch this file:
-    /// the whole downscale, encode, and byte-ceiling policy is pure core, and the receipt that
-    /// tells the user it happened is body-authored.
+    /// Reads the display, or the window the request pointed at, for the cortex (ADR-0029). The
+    /// pixels never touch this file: the whole crop, downscale, encode, and byte-ceiling policy
+    /// is pure core, and the receipt that tells the user it happened is body-authored.
     async fn capture_screen(
         &self,
         request: Request<CaptureScreenRequest>,
@@ -104,12 +104,14 @@ impl<A: AudioControl + 'static, N: Notify + 'static, S: ScreenCapture + 'static>
         let CaptureScreenRequest {
             max_edge,
             max_bytes,
+            target,
         } = request.into_inner();
         let reply = crate::screen::capture(
             &self.screen,
             &self.notifier,
             max_edge,
             max_bytes,
+            target,
             self.receipts,
         )
         .await?;

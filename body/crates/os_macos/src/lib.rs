@@ -10,8 +10,8 @@
 #![cfg_attr(coverage, feature(coverage_attribute))]
 
 use body_core::{
-    AudioControl, AudioError, CaptureError, CaptureRequest, Hotkey, HotkeyCallback, HotkeyChord,
-    HotkeyError, Notification, Notify, NotifyError, RawFrame, ScreenCapture, VolumeChange,
+    AudioControl, AudioError, CaptureError, CaptureRequest, CapturedFrame, Hotkey, HotkeyCallback,
+    HotkeyChord, HotkeyError, Notification, Notify, NotifyError, ScreenCapture, VolumeChange,
     VolumeState,
 };
 
@@ -63,7 +63,7 @@ pub struct MacosScreenCapture;
 
 impl ScreenCapture for MacosScreenCapture {
     #[cfg_attr(coverage, coverage(off))]
-    fn capture(&self, _request: &CaptureRequest) -> Result<RawFrame, CaptureError> {
+    fn capture(&self, _request: &CaptureRequest) -> Result<CapturedFrame, CaptureError> {
         unimplemented!(
             "the macOS ScreenCapture backend is not implemented (Slice 10 is Windows-first)"
         )
