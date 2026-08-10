@@ -17,14 +17,15 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::thread::{self, ThreadId};
 
 use body_core::{
-    AudioControl, AudioError, Capture, CaptureError, CaptureRequest, DeniedScreenCapture,
-    Notification, Notify, NotifyError, RawFrame, ScreenCapture, VolumeChange, VolumeState,
+    AudioControl, AudioError, Capture, CaptureError, CaptureRequest, CaptureTarget, CapturedFrame,
+    DeniedScreenCapture, Notification, Notify, NotifyError, RawFrame, ScreenCapture, TargetRect,
+    VolumeChange, VolumeState,
 };
 use body_rpc::body_service;
 use body_rpc::generated::body_service_client::BodyServiceClient;
 use body_rpc::generated::{
-    CaptureScreenRequest, GetVolumeRequest, ImageBlob, InjectInputRequest, NotifyReply,
-    NotifyRequest, SetVolumeRequest, VolumeState as PbVolumeState,
+    CaptureScreenRequest, CaptureTarget as PbCaptureTarget, GetVolumeRequest, ImageBlob,
+    InjectInputRequest, NotifyReply, NotifyRequest, SetVolumeRequest, VolumeState as PbVolumeState,
 };
 use tokio::net::TcpListener;
 use tokio_stream::wrappers::TcpListenerStream;
@@ -645,6 +646,7 @@ struct FakeScreen {
 /// buffer is rejected there and the message the brain reads is production's, not the test's.
 enum Answer {
     Frame(RawFrame),
+    Window(RawFrame, TargetRect),
     Failure(CaptureError),
     Raw(u32, u32, Vec<u8>),
 }
@@ -652,6 +654,12 @@ enum Answer {
 impl FakeScreen {
     fn answering(frame: RawFrame) -> Self {
         Self::with(Answer::Frame(frame))
+    }
+
+    /// A backend that resolved a target to a window inside the frame, which is what the real
+    /// one does after its Z-order walk.
+    fn showing(frame: RawFrame, window: TargetRect) -> Self {
+        Self::with(Answer::Window(frame, window))
     }
 
     fn failing(error: CaptureError) -> Self {
@@ -684,16 +692,19 @@ impl FakeScreen {
 }
 
 impl ScreenCapture for FakeScreen {
-    fn capture(&self, request: &CaptureRequest) -> Result<RawFrame, CaptureError> {
+    fn capture(&self, request: &CaptureRequest) -> Result<CapturedFrame, CaptureError> {
         record(&self.threads, thread::current().id());
         self.seen
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .push(*request);
         match &self.answer {
-            Answer::Frame(frame) => Ok(frame.clone()),
+            Answer::Frame(frame) => Ok(CapturedFrame::display(frame.clone())),
+            Answer::Window(frame, window) => Ok(CapturedFrame::window(frame.clone(), *window)),
             Answer::Failure(error) => Err(error.clone()),
-            Answer::Raw(width, height, pixels) => RawFrame::new(*width, *height, pixels.clone()),
+            Answer::Raw(width, height, pixels) => {
+                RawFrame::new(*width, *height, pixels.clone()).map(CapturedFrame::display)
+            }
         }
     }
 }
@@ -725,6 +736,17 @@ async fn capture_bounded(
     max_edge: u32,
     max_bytes: u32,
 ) -> Result<ImageBlob, tonic::Status> {
+    capture_targeted(addr, max_edge, max_bytes, PbCaptureTarget::Display.into()).await
+}
+
+/// Runs one capture that names what to point at, as the raw wire integer so a value the enum
+/// does not name can be sent the way a newer brain would send one.
+async fn capture_targeted(
+    addr: SocketAddr,
+    max_edge: u32,
+    max_bytes: u32,
+    target: i32,
+) -> Result<ImageBlob, tonic::Status> {
     let mut client = connect(addr)
         .await
         .unwrap_or_else(|error| panic!("could not reach the body: {error}"));
@@ -732,6 +754,7 @@ async fn capture_bounded(
         .capture_screen(CaptureScreenRequest {
             max_edge,
             max_bytes,
+            target,
         })
         .await?
         .into_inner();
@@ -786,6 +809,150 @@ async fn an_unset_max_edge_reaches_the_backend_as_the_body_default() {
         .clone();
     assert_eq!(seen.len(), 1);
     assert_eq!(seen[0].max_edge(), 1600);
+}
+
+#[tokio::test]
+async fn a_targeted_capture_reaches_the_backend_as_a_target_and_crosses_cropped() {
+    // The whole point of landing the field and the body's honouring of it together: a knob a
+    // shipping body ignores is a silent lie under proto3, so this asserts both halves at once.
+    let screen = FakeScreen::showing(frame(40, 20), TargetRect::new(10, 5, 20, 15));
+    let requests = screen.requests();
+    let addr = spawn_screen(screen, FakeNotify::answering(true), true)
+        .await
+        .unwrap();
+
+    let blob = capture_targeted(addr, 0, 0, PbCaptureTarget::Focus.into())
+        .await
+        .unwrap();
+
+    let seen = requests
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .clone();
+    assert_eq!(seen.len(), 1);
+    assert_eq!(seen[0].target(), CaptureTarget::Focus);
+    // The picture is the window, and the source size is still the display's, which is what the
+    // brain shows the model as the size of the screen.
+    assert_eq!((blob.width, blob.height), (10, 10));
+    assert_eq!((blob.source_width, blob.source_height), (40, 20));
+}
+
+#[tokio::test]
+async fn a_target_this_body_does_not_know_reads_as_the_whole_display() {
+    // Proto3's own rule for an unrecognized enum, which is what a newer brain asking for
+    // something this body cannot resolve looks like on the wire.
+    let screen = FakeScreen::answering(frame(4, 4));
+    let requests = screen.requests();
+    let addr = spawn_screen(screen, FakeNotify::answering(true), true)
+        .await
+        .unwrap();
+
+    let blob = capture_targeted(addr, 0, 0, 99).await.unwrap();
+
+    assert_eq!((blob.width, blob.height), (4, 4));
+    let seen = requests
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .clone();
+    assert_eq!(seen[0].target(), CaptureTarget::Display);
+}
+
+#[tokio::test]
+async fn a_desktop_with_no_window_to_point_at_is_a_host_state_failure() {
+    let addr = spawn_screen(
+        FakeScreen::failing(CaptureError::NoTarget(String::from("a bare desktop"))),
+        FakeNotify::answering(true),
+        true,
+    )
+    .await
+    .unwrap();
+
+    let status = capture_targeted(addr, 0, 0, PbCaptureTarget::Focus.into())
+        .await
+        .unwrap_err();
+
+    // FailedPrecondition, like a shut lid: it is host state, and it works again the moment a
+    // window is on screen. The brain reads that code as "the host is not in a state to capture".
+    assert_eq!(status.code(), Code::FailedPrecondition);
+    assert_eq!(status.message(), "no capture target: a bare desktop");
+}
+
+#[tokio::test]
+async fn a_window_off_the_captured_display_is_refused_by_the_core_the_backend_fed() {
+    // The backend resolved a window; pure core found it has nothing on the display and refused.
+    // Nothing falls back to the whole screen, which is the widening this path must never do.
+    let notifier = FakeNotify::answering(true);
+    let addr = spawn_screen(
+        FakeScreen::showing(frame(40, 20), TargetRect::new(200, 200, 300, 300)),
+        notifier.clone(),
+        true,
+    )
+    .await
+    .unwrap();
+
+    let status = capture_targeted(addr, 0, 0, PbCaptureTarget::Focus.into())
+        .await
+        .unwrap_err();
+
+    assert_eq!(status.code(), Code::FailedPrecondition);
+    assert!(
+        status.message().starts_with("no capture target: "),
+        "{}",
+        status.message()
+    );
+    assert!(
+        notifier.seen().is_empty(),
+        "nothing was captured, so nothing may be announced"
+    );
+}
+
+#[tokio::test]
+async fn the_receipt_says_window_when_one_window_was_sent() {
+    let notifier = FakeNotify::answering(true);
+    let addr = spawn_screen(
+        FakeScreen::showing(frame(40, 20), TargetRect::new(0, 0, 20, 10)),
+        notifier.clone(),
+        true,
+    )
+    .await
+    .unwrap();
+
+    capture_targeted(addr, 0, 0, PbCaptureTarget::Focus.into())
+        .await
+        .unwrap();
+
+    let seen = notifier.seen();
+    assert_eq!(seen.len(), 1);
+    assert_eq!(seen[0].title(), "Screen captured");
+    assert_eq!(
+        seen[0].body(),
+        "A picture of one window was sent to the assistant."
+    );
+    assert!(!seen[0].tainted());
+}
+
+#[tokio::test]
+async fn a_window_filling_the_display_is_announced_as_a_screen_capture() {
+    // The sentence describes what was sent rather than what was asked for, so a maximised
+    // window whose frame reaches past every edge honestly reports a screen capture.
+    let notifier = FakeNotify::answering(true);
+    let addr = spawn_screen(
+        FakeScreen::showing(frame(40, 20), TargetRect::new(-4, -4, 44, 24)),
+        notifier.clone(),
+        true,
+    )
+    .await
+    .unwrap();
+
+    let blob = capture_targeted(addr, 0, 0, PbCaptureTarget::Focus.into())
+        .await
+        .unwrap();
+
+    assert_eq!((blob.width, blob.height), (40, 20));
+    assert_eq!(
+        notifier.seen()[0].body(),
+        "A picture of your screen was sent to the assistant."
+    );
 }
 
 #[tokio::test]
@@ -1015,7 +1182,11 @@ async fn a_backend_that_miscounts_its_buffer_is_caught_by_the_pure_core_frame_ch
 #[tokio::test]
 async fn the_blob_carries_exactly_what_the_core_encoded() {
     let source = frame(30, 12);
-    let expected = Capture::from_bgra(&source, &CaptureRequest::new(10)).unwrap();
+    let expected = Capture::from_bgra(
+        &CapturedFrame::display(source.clone()),
+        &CaptureRequest::new(10),
+    )
+    .unwrap();
     let addr = spawn_screen(
         FakeScreen::answering(source),
         FakeNotify::answering(true),

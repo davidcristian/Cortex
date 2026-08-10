@@ -1,10 +1,18 @@
 from google.protobuf.internal import containers as _containers
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from collections.abc import Iterable as _Iterable, Mapping as _Mapping
 from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
+
+class CaptureTarget(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    CAPTURE_TARGET_DISPLAY: _ClassVar[CaptureTarget]
+    CAPTURE_TARGET_FOCUS: _ClassVar[CaptureTarget]
+CAPTURE_TARGET_DISPLAY: CaptureTarget
+CAPTURE_TARGET_FOCUS: CaptureTarget
 
 class ClientEvent(_message.Message):
     __slots__ = ("session_id", "user_turn", "cancel", "confirm_response")
@@ -287,12 +295,14 @@ class AckReminderReply(_message.Message):
     def __init__(self, acked: _Optional[bool] = ...) -> None: ...
 
 class CaptureScreenRequest(_message.Message):
-    __slots__ = ("max_edge", "max_bytes")
+    __slots__ = ("max_edge", "target", "max_bytes")
     MAX_EDGE_FIELD_NUMBER: _ClassVar[int]
+    TARGET_FIELD_NUMBER: _ClassVar[int]
     MAX_BYTES_FIELD_NUMBER: _ClassVar[int]
     max_edge: int
+    target: CaptureTarget
     max_bytes: int
-    def __init__(self, max_edge: _Optional[int] = ..., max_bytes: _Optional[int] = ...) -> None: ...
+    def __init__(self, max_edge: _Optional[int] = ..., target: _Optional[_Union[CaptureTarget, str]] = ..., max_bytes: _Optional[int] = ...) -> None: ...
 
 class CaptureScreenReply(_message.Message):
     __slots__ = ("image",)

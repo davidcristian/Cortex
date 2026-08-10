@@ -8,10 +8,12 @@
 //! **never built or measured in CI** (AGENTS.md gate 3). The whole crate is `#[cfg(windows)]`:
 //! on Linux it compiles to nothing, keeping the workspace green and the coverage gate blind to
 //! it. Raw OS calls need `unsafe`, narrowly authorized for this crate (see `Cargo.toml`) and
-//! used in exactly three modules, each with its own scoped allow and its own authorization:
+//! used in exactly four modules, each with its own scoped allow and its own authorization:
 //! the `audio` module's Core Audio calls (ADR-0023), the `notify` module's one apartment
-//! initialization (ADR-0025), and the `screen` module's GDI blit plus the overlay's
-//! capture self-exclusion (ADR-0029). Every other crate keeps `unsafe_code = "forbid"`.
+//! initialization (ADR-0025), the `screen` module's GDI blit plus the overlay's
+//! capture self-exclusion, and the `focus` module's Z-order walk, which is how a targeted
+//! capture finds the window the user is looking at (both ADR-0029). Every other crate keeps
+//! `unsafe_code = "forbid"`.
 //!
 //! [`Hotkey`]: body_core::Hotkey
 //! [`AudioControl`]: body_core::AudioControl
@@ -20,6 +22,8 @@
 
 #[cfg(windows)]
 mod audio;
+#[cfg(windows)]
+mod focus;
 #[cfg(windows)]
 mod notify;
 #[cfg(windows)]

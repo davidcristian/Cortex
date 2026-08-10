@@ -14,9 +14,11 @@ body-core.workspace = true
 global-hotkey = "0.8"
 # Core Audio (IAudioEndpointVolume) for the volume backend (ADR-0023), the WinRT toast for the
 # notification backend (ADR-0025), and GDI plus the window-affinity call for the screen-capture
-# backend and the overlay's capture self-exclusion (ADR-0029). Those calls are `unsafe`,
-# authorized narrowly for this crate (see the `[lints]` note below); the WinRT projections
-# themselves are safe.
+# backend and the overlay's capture self-exclusion (ADR-0029). A targeted capture adds two more
+# surfaces to that last one: DWM, which is the only thing that can say whether a window is
+# cloaked or where its frame really is, and the process-id read that tells the body's own
+# windows from everyone else's. Those calls are `unsafe`, authorized narrowly for this crate
+# (see the `[lints]` note below); the WinRT projections themselves are safe.
 windows = { version = "0.58", features = [
   "Data_Xml_Dom",
   "Foundation",
@@ -25,6 +27,8 @@ windows = { version = "0.58", features = [
   "Win32_Media_Audio",
   "Win32_Media_Audio_Endpoints",
   "Win32_System_Com",
+  "Win32_System_Threading",
+  "Win32_Graphics_Dwm",
   "Win32_Graphics_Gdi",
   "Win32_UI_WindowsAndMessaging",
 ] }

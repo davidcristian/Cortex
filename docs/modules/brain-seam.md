@@ -20,10 +20,15 @@ imports seam names from `cortex_seam` and never from `cortex_seam._generated` di
   delete addendum), `SetSessionPinnedRequest`, `SetSessionPinnedReply` (the gated user-only pin
   toggle on the catalog, which lifts a chat above the recency window, ADR-0021 pinning addendum),
   `CaptureScreenRequest` (Slice 10, ADR-0029: `max_edge` and `max_bytes`, both proto3 hints
-  the body clamps and the brain re-verifies on receipt; field 2 is reserved for a display
-  index),
+  the body clamps and the brain re-verifies on receipt, plus `target`), `CaptureTarget`
+  (`CAPTURE_TARGET_DISPLAY` = 0, the whole primary display and the behaviour this seam shipped
+  with; `CAPTURE_TARGET_FOCUS` = 1, the window the user is looking at, which the **body**
+  resolves). The target is not a hint: it landed with the body that honours it, because under
+  proto3 a field the body ignores is a silent lie about a constraint the brain believes it set.
   `CaptureScreenReply`, `ImageBlob` (`data`, `mime_type`, `width`, `height`, plus
-  `source_width`/`source_height` before the body's downscale and `captured_at_unix_ms`), `GetVolumeRequest`, `SetVolumeRequest`,
+  `source_width`/`source_height`, which are the **display's** before the body's crop and
+  downscale even when the picture is one window, and `captured_at_unix_ms`),
+  `GetVolumeRequest`, `SetVolumeRequest`,
   `VolumeState`, `InjectInputRequest`, `TypeText`, `KeyChord`, `InjectInputReply`.
 - `BrainServiceServicer` (base class to implement), `BrainServiceStub` (client), and
   `add_BrainServiceServicer_to_server` belong to `BrainService`, hosted by the brain

@@ -1,9 +1,16 @@
 # The screen-capture sitting (tag W)
 
-One check with six observations inside it, in its own doc for three reasons: it has a different
+Two checks with twelve observations between them, in its own doc for three reasons: it has a
+different
 bring-up from the rest of the Windows work (a host kill switch, a receipt, its own env), its
 failure modes are **silent** rather than loud, and it carries the one observation nothing else in
 this repo can stand in for.
+
+(That count was read entry by entry on 2026-08-10 rather than carried forward. It said "1 check,
+six observations" here and "1 check, 7 observations" on [index.md](index.md), while the table
+below held six rows: the 2026-08-08 addition raised the index and not the doc, or the two never
+agreed. Six rows plus the self-exclusion check is what is actually written, and the second block
+below adds a second check and six more.)
 
 **Status: never attempted.** The backend has never captured a real pixel.
 
@@ -111,6 +118,50 @@ see the `FailedPrecondition` and `Internal` rows produced by a real backend rath
 constructed error is a Win32 session with a display to lose ([ADR-0023](../adr/ADR-0023-body-gateway-volume.md)'s
 2026-08-08 addendum). Everything else about the mapping is gated and green in CI.
 
+## The focus target (added 2026-08-10, and it has its own check)
+
+The body can now be pointed at **the window the user is looking at** rather than the whole
+display ([ADR-0029](../adr/ADR-0029-vision-screen-capture.md)'s 2026-08-10 addendum). The
+resolution is a walk down the desktop's Z-order in `body/crates/os_windows/src/focus.rs`, it is
+authored and clippy-linted for the Windows target from Linux, and **no walk in it has ever seen a
+real desktop**. Every predicate below is a documentation-derived claim about Win32 until this
+runs.
+
+**How to drive it, since nothing asks yet.** The brain sends no target, so an ordinary "what's on
+my screen?" exercises none of this. Either do this block after the brain half lands, when a
+question about a window is enough, or drive `BodyService.CaptureScreen` by hand with
+`target: CAPTURE_TARGET_FOCUS` (field 2 = 1) against the running body. The rest of the bring-up is
+the same as above, kill switch included.
+
+### Do this check first, for the same reason as the other one
+
+**Do.** With the overlay open and a browser behind it, ask for a targeted capture.
+
+**Pass.** The picture is the **browser**, and the overlay is not in it and is not what was
+resolved.
+
+**Fail.** The picture is the overlay, or is black, or is the taskbar. Black means the walk landed
+on a window that excludes itself from capture and the two guards that should have skipped it (this
+process's id, and the display affinity) both missed. The overlay means the self-injection loop is
+live through a second door, so treat it exactly like the first check's failure: `CORTEX_HOST_CAPTURE=0`,
+stop, record.
+
+### The other six observations
+
+| Observation | Pass looks like | Failure looks like |
+| --- | --- | --- |
+| It picks what the user is looking at | The frontmost ordinary window, whichever app it is | A window behind it, or one the user forgot was open |
+| The taskbar is never the answer | Never resolved, even with everything else minimized | A picture of the taskbar, which means the `WS_EX_TOOLWINDOW` filter did not hold |
+| A bare desktop is refused | The reply says **the host is not in a state to capture the screen**; no picture, no receipt | A picture of the wallpaper, which means the walk resolved the shell window or the wallpaper host and the refusal was silently widened into a screen capture |
+| The crop's edges are the window's | The picture stops at the window, with no strip of whatever is behind it along the edges | A few pixels of desktop on all four sides, which means `DWMWA_EXTENDED_FRAME_BOUNDS` was unavailable and `GetWindowRect`'s invisible resize border was used |
+| A window dragged half off the screen | The half that is on the display, cropped, no error | An error, or a stretched picture, or a panic |
+| A window on a second monitor | The same refusal sentence as a bare desktop, since v1 captures the primary display only | A picture of the primary display's pixels at that window's coordinates, which is the wrong part of the wrong screen |
+
+**And the receipt, which is the seventh thing to look at and is counted with the receipt row
+above rather than twice.** A targeted capture must say "A picture of one window was sent to the
+assistant." A window maximised to fill the display says "your screen" instead, deliberately: the
+sentence describes what was sent.
+
 ## What a pass buys
 
 The capture indicator says the assistant **asked** to look at the screen, which is all the seam
@@ -121,6 +172,9 @@ turns that argument from a design claim into a measured one.
 ## Record it
 
 A dated addendum to [ADR-0029](../adr/ADR-0029-vision-screen-capture.md), extending its
-"Still host-only" section with what was seen (especially the self-exclusion result and the
-latency number), and a note in [runbooks/vision.md](../runbooks/vision.md). Then delete this doc
-and its row in [index.md](index.md).
+"Still host-only" section with what was seen (especially the two self-exclusion results, the
+window the walk actually resolved, and the latency number), and a note in
+[runbooks/vision.md](../runbooks/vision.md). Then delete this doc
+and its row in [index.md](index.md). If only the display half runs (the focus block needs the
+brain to ask, or a hand-made request), record that half and leave the doc with the second block
+alone, correcting both counts.
