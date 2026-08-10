@@ -1,7 +1,9 @@
 //! The Windows [`ScreenCapture`] backend: a GDI `BitBlt` of the primary display.
 #![allow(unsafe_code)] // ADR-0029: GDI (GetDC/BitBlt/GetDIBits) is a raw Win32 FFI surface.
 
-use body_core::{CaptureError, CaptureRequest, RawFrame, ScreenCapture};
+use body_core::{
+    CaptureError, CaptureRequest, CaptureTarget, CapturedFrame, RawFrame, ScreenCapture, TargetRect,
+};
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Graphics::Gdi::{
     BI_RGB, BITMAPINFO, BITMAPINFOHEADER, BitBlt, CAPTUREBLT, CreateCompatibleBitmap,
@@ -34,8 +36,13 @@ impl Default for WindowsScreenCapture {
 }
 
 impl ScreenCapture for WindowsScreenCapture {
-    /// Blits the primary display and returns its raw BGRA pixels.
-    fn capture(&self, _request: &CaptureRequest) -> Result<RawFrame, CaptureError> {
+    /// Blits the primary display and returns its raw BGRA pixels, with the request's target
+    /// resolved to a rectangle inside them.
+    fn capture(&self, request: &CaptureRequest) -> Result<CapturedFrame, CaptureError> {
+        let target = match request.target() {
+            CaptureTarget::Display => None,
+            CaptureTarget::Focus => Some(crate::focus::topmost_window()?),
+        };
         let (width, height) = display_size()?;
         // SAFETY: a null window handle names the whole screen, which is what is being captured.
         let screen = unsafe { GetDC(SCREEN) };
@@ -49,7 +56,16 @@ impl ScreenCapture for WindowsScreenCapture {
         unsafe {
             ReleaseDC(SCREEN, screen);
         }
-        RawFrame::new(width, height, taken?)
+        let frame = RawFrame::new(width, height, taken?)?;
+        Ok(framed(frame, target))
+    }
+}
+
+/// Pairs the display's pixels with the rectangle the target resolved to, if it resolved to one.
+fn framed(frame: RawFrame, target: Option<TargetRect>) -> CapturedFrame {
+    match target {
+        Some(window) => CapturedFrame::window(frame, window),
+        None => CapturedFrame::display(frame),
     }
 }
 

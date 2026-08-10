@@ -5,9 +5,13 @@ edition.workspace = true
 publish.workspace = true
 description = "Windows OS backends for the Cortex body: hotkey, audio, toast (lib name: os_windows)"
 
+# Every backend here makes Windows OS calls, so the whole crate is `cfg(windows)` and builds to
+# nothing on Linux. The dependencies are Windows-only for the same reason.
 [target.'cfg(windows)'.dependencies]
 body-core.workspace = true
 global-hotkey = "0.8"
+# Core Audio for the volume backend, the WinRT toast for notifications, and GDI, DWM and the
+# process-id read for screen capture and the overlay's exclusion from it.
 windows = { version = "0.58", features = [
   "Data_Xml_Dom",
   "Foundation",
@@ -16,10 +20,15 @@ windows = { version = "0.58", features = [
   "Win32_Media_Audio",
   "Win32_Media_Audio_Endpoints",
   "Win32_System_Com",
+  "Win32_System_Threading",
+  "Win32_Graphics_Dwm",
   "Win32_Graphics_Gdi",
   "Win32_UI_WindowsAndMessaging",
 ] }
 
+# The workspace forbids `unsafe`, which the Win32 calls here need, so this crate denies it and
+# the four modules that make those calls re-enable it one at a time. `[lints]` is all or nothing,
+# so the other workspace lints are repeated below.
 [lints.rust]
 unsafe_code = "deny"
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)'] }

@@ -3,6 +3,8 @@
 #[cfg(windows)]
 mod audio;
 #[cfg(windows)]
+mod focus;
+#[cfg(windows)]
 mod notify;
 #[cfg(windows)]
 mod screen;

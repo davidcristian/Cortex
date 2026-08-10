@@ -1,8 +1,4 @@
-"""Typed facade over the committed wire code generated from proto/body.proto.
-
-Pure re-exports, no logic: everything the rest of the brain needs from the seam is
-imported from here, never from `cortex_seam._generated` directly.
-"""
+"""Typed facade over the committed wire code generated from proto/body.proto."""
 
 from collections.abc import Callable
 from typing import cast
@@ -16,6 +12,7 @@ from cortex_seam._generated.body_pb2 import (
     Cancel,
     CaptureScreenReply,
     CaptureScreenRequest,
+    CaptureTarget,
     ClientEvent,
     ConfirmRequest,
     ConfirmResolved,
@@ -62,9 +59,8 @@ from cortex_seam._generated.body_pb2 import (
     VolumeState,
 )
 
-# The generated gRPC module ships no .pyi (wire code is gate-exempt, ADR-0002 d4).
-# The classes re-export cleanly; the two untyped registration helpers are re-annotated
-# below so consumers see full types. Narrow, justified ignores only, never a blanket Any.
+# The generated gRPC module ships no .pyi, so the two registration helpers come back untyped
+# and are re-annotated below.
 from cortex_seam._generated.body_pb2_grpc import (  # pyright: ignore[reportMissingTypeStubs]
     BodyServiceServicer,
     BodyServiceStub,
@@ -81,10 +77,12 @@ from cortex_seam._generated.body_pb2_grpc import (  # pyright: ignore[reportMiss
 type _AddBodyServicer = Callable[[BodyServiceServicer, grpc.Server | aio.Server], None]
 type _AddBrainServicer = Callable[[BrainServiceServicer, grpc.Server | aio.Server], None]
 
-# N816 suppressed twice below: the mixedCase names are fixed by the gRPC codegen interface.
+# N816 is suppressed twice below: the gRPC code generator fixes these mixedCase names.
 add_BodyServiceServicer_to_server = cast("_AddBodyServicer", _untyped_add_body)  # noqa: N816
 add_BrainServiceServicer_to_server = cast("_AddBrainServicer", _untyped_add_brain)  # noqa: N816
 
+# The metadata key the shared token travels under, in both directions. The body declares its own
+# Rust constant of the same value twice, and `scripts/crosscheck.py` fails if the three differ.
 SEAM_TOKEN_HEADER = "x-cortex-seam-token"  # noqa: S105 - the header NAME, not a secret
 
 __all__ = [
@@ -98,6 +96,7 @@ __all__ = [
     "Cancel",
     "CaptureScreenReply",
     "CaptureScreenRequest",
+    "CaptureTarget",
     "ClientEvent",
     "ConfirmRequest",
     "ConfirmResolved",

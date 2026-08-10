@@ -188,13 +188,24 @@ service BodyService {
   rpc Notify(NotifyRequest) returns (NotifyReply);
 }
 
+// What the body points the camera at (ADR-0029).
+enum CaptureTarget {
+  // The primary display, whole. The v1 behaviour and the proto3 default.
+  CAPTURE_TARGET_DISPLAY = 0;
+  // The topmost visible top-level window that is not the body's own and is not excluded from
+  // capture.
+  CAPTURE_TARGET_FOCUS = 1;
+}
+
 message CaptureScreenRequest {
   // Longest edge of the returned image, in physical pixels. 0 means "the body's
   // default" (1600). The body clamps it and, being proto3, may ignore it entirely,
   // so it is a hint the brain re-verifies on receipt, never a guarantee (ADR-0029).
   uint32 max_edge = 1;
-  // Field 2 is reserved for a display index once anything enumerates monitors; v1 is the primary
-  // display only.
+  // What to point at.
+  CaptureTarget target = 2;
+  // The most bytes the caller will accept, so the brain's own image budget and the body's ceiling
+  // are one number instead of two constants coupled by prose.
   uint32 max_bytes = 3;
 }
 message CaptureScreenReply { ImageBlob image = 1; }

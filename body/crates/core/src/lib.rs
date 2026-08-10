@@ -10,9 +10,9 @@ pub mod transport;
 pub use hotkey::{HotkeyChord, HotkeyParseError, Modifier};
 pub use link::{LinkState, LinkStatus, probe_link};
 pub use os::{
-    Accelerator, AudioControl, AudioError, Capture, CaptureError, CaptureRequest,
-    DeniedScreenCapture, Hotkey, HotkeyCallback, HotkeyError, Notification, Notify, NotifyError,
-    RawFrame, ScreenCapture, VolumeChange, VolumeState,
+    Accelerator, AudioControl, AudioError, Capture, CaptureError, CaptureRequest, CaptureTarget,
+    CapturedFrame, DeniedScreenCapture, Hotkey, HotkeyCallback, HotkeyError, Notification, Notify,
+    NotifyError, RawFrame, ScreenCapture, TargetRect, VolumeChange, VolumeState,
 };
 pub use retry::{
     DEFAULT_PROBE_BUDGET, FullDelay, Randomness, RetryPlan, RetryPolicy, RetryingTransport,

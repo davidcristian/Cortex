@@ -3,13 +3,18 @@
 //! and the first whose *return value* is a payload rather than a status.
 
 use crate::os::screen_policy::CaptureRequest;
+use crate::os::screen_target::CapturedFrame;
 
 /// The heading of the body-authored receipt shown after a capture.
 pub const CAPTURE_RECEIPT_TITLE: &str = "Screen captured";
 
-/// The message of the body-authored capture receipt. Says what happened in the user's terms
-/// and names no model, tool, or window title.
-pub const CAPTURE_RECEIPT_BODY: &str = "A picture of your screen was sent to the assistant.";
+/// The message of the body-authored capture receipt when the whole display was sent. Says what
+/// happened in the user's terms and names no model, tool, or window title.
+pub const CAPTURE_RECEIPT_BODY_DISPLAY: &str =
+    "A picture of your screen was sent to the assistant.";
+
+/// The message of the same receipt when only one window was sent.
+pub const CAPTURE_RECEIPT_BODY_WINDOW: &str = "A picture of one window was sent to the assistant.";
 
 /// The correlation id the capture receipt carries. `Notification` was shaped for reminders,
 /// so a capture borrows the field with a fixed body-owned marker rather than a reminder id.
@@ -30,6 +35,10 @@ pub enum CaptureError {
     /// a frame. `0` is a backend detail.
     #[error("the screen-capture backend failed: {0}")]
     Backend(String),
+    /// A targeted capture found nothing to point at: no window on this desktop passed the
+    /// resolution rules, or the one that did lies entirely off the captured display.
+    #[error("there is no window to capture: {0}")]
+    NoTarget(String),
     /// The capture still exceeded [`MAX_CAPTURE_BYTES`] after the shrink ladder ran out.
     /// `0` is the smallest encoding reached, in bytes.
     #[error("the capture is too large for the seam even downscaled: {0} bytes")]
@@ -90,8 +99,9 @@ impl RawFrame {
 /// are stubs until built, per ADR-0011). The third OS capability the brain drives over
 /// `BodyService`, after [`AudioControl`](super::AudioControl) and [`Notify`](super::Notify).
 pub trait ScreenCapture: Send + Sync {
-    /// Reads the primary display and returns its raw BGRA pixels.
-    fn capture(&self, request: &CaptureRequest) -> Result<RawFrame, CaptureError>;
+    /// Reads the primary display and returns its raw BGRA pixels, with the request's target
+    /// resolved to a rectangle inside them.
+    fn capture(&self, request: &CaptureRequest) -> Result<CapturedFrame, CaptureError>;
 }
 
 /// The [`ScreenCapture`] backend that always refuses, answering [`CaptureError::Disabled`].
@@ -99,7 +109,7 @@ pub trait ScreenCapture: Send + Sync {
 pub struct DeniedScreenCapture;
 
 impl ScreenCapture for DeniedScreenCapture {
-    fn capture(&self, _request: &CaptureRequest) -> Result<RawFrame, CaptureError> {
+    fn capture(&self, _request: &CaptureRequest) -> Result<CapturedFrame, CaptureError> {
         Err(CaptureError::Disabled)
     }
 }

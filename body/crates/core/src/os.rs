@@ -6,18 +6,20 @@ pub mod notify;
 pub mod screen;
 mod screen_image;
 pub mod screen_policy;
+pub mod screen_target;
 
 pub use notify::{
     MAX_TEXT_CHARS, Notification, Notify, NotifyError, UNTRUSTED_ATTRIBUTION, escape_xml,
 };
 pub use screen::{
-    CAPTURE_RECEIPT_BODY, CAPTURE_RECEIPT_ID, CAPTURE_RECEIPT_TITLE, CaptureError,
-    DeniedScreenCapture, RawFrame, ScreenCapture,
+    CAPTURE_RECEIPT_BODY_DISPLAY, CAPTURE_RECEIPT_BODY_WINDOW, CAPTURE_RECEIPT_ID,
+    CAPTURE_RECEIPT_TITLE, CaptureError, DeniedScreenCapture, RawFrame, ScreenCapture,
 };
 pub use screen_policy::{
     CAPTURE_MIME, Capture, CaptureRequest, DEFAULT_MAX_EDGE, MAX_CAPTURE_BYTES, MAX_EDGE_CEILING,
     MAX_SHRINK_ATTEMPTS, encode_png,
 };
+pub use screen_target::{CaptureTarget, CapturedFrame, TargetRect};
 
 use crate::hotkey::{HotkeyChord, Modifier};
 

@@ -4,10 +4,16 @@
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use body_core::os::screen::{CAPTURE_RECEIPT_BODY, CAPTURE_RECEIPT_ID, CAPTURE_RECEIPT_TITLE};
-use body_core::{Capture, CaptureError, CaptureRequest, Notification, Notify, ScreenCapture};
+use body_core::os::screen::{
+    CAPTURE_RECEIPT_BODY_DISPLAY, CAPTURE_RECEIPT_BODY_WINDOW, CAPTURE_RECEIPT_ID,
+    CAPTURE_RECEIPT_TITLE,
+};
+use body_core::{
+    Capture, CaptureError, CaptureRequest, CaptureTarget, Notification, Notify, ScreenCapture,
+};
 use tonic::Status;
 
+use crate::generated::CaptureTarget as PbCaptureTarget;
 use crate::generated::{CaptureScreenReply, ImageBlob};
 use crate::server::off_worker;
 
@@ -17,9 +23,10 @@ pub(crate) async fn capture<S: ScreenCapture + 'static, N: Notify + 'static>(
     notifier: &Arc<N>,
     max_edge: u32,
     max_bytes: u32,
+    target: i32,
     receipts: bool,
 ) -> Result<CaptureScreenReply, Status> {
-    let request = CaptureRequest::bounded(max_edge, max_bytes);
+    let request = CaptureRequest::targeted(max_edge, max_bytes, resolve_target(target));
     let screen = Arc::clone(screen);
     let notifier = Arc::clone(notifier);
     let (capture, captured_at_unix_ms) = off_worker(
@@ -27,7 +34,7 @@ pub(crate) async fn capture<S: ScreenCapture + 'static, N: Notify + 'static>(
             let frame = screen.capture(&request)?;
             let taken = Capture::from_bgra(&frame, &request)?;
             let at = unix_millis();
-            announce(&notifier, receipts);
+            announce(&notifier, &taken, receipts);
             Ok::<_, CaptureError>((taken, at))
         },
         capture_error_to_status,
@@ -38,15 +45,23 @@ pub(crate) async fn capture<S: ScreenCapture + 'static, N: Notify + 'static>(
     })
 }
 
-/// Tells the user their screen was read, from fixed body-owned strings.
-fn announce<N: Notify>(notifier: &Arc<N>, receipts: bool) {
+/// Reads the wire's target enum as one of the two things the body knows how to point at.
+fn resolve_target(target: i32) -> CaptureTarget {
+    match PbCaptureTarget::try_from(target) {
+        Ok(PbCaptureTarget::Focus) => CaptureTarget::Focus,
+        Ok(PbCaptureTarget::Display) | Err(_) => CaptureTarget::Display,
+    }
+}
+
+/// Tells the user what was read, from fixed body-owned strings.
+fn announce<N: Notify>(notifier: &Arc<N>, taken: &Capture, receipts: bool) {
     if receipts {
-        let receipt = Notification::new(
-            CAPTURE_RECEIPT_TITLE,
-            CAPTURE_RECEIPT_BODY,
-            CAPTURE_RECEIPT_ID,
-            false,
-        );
+        let body = if taken.covers_display() {
+            CAPTURE_RECEIPT_BODY_DISPLAY
+        } else {
+            CAPTURE_RECEIPT_BODY_WINDOW
+        };
+        let receipt = Notification::new(CAPTURE_RECEIPT_TITLE, body, CAPTURE_RECEIPT_ID, false);
         drop(notifier.show(&receipt));
     }
 }
@@ -81,6 +96,9 @@ fn capture_error_to_status(error: &CaptureError) -> Status {
     match error {
         CaptureError::NoDisplay(detail) => {
             Status::failed_precondition(format!("no display: {detail}"))
+        }
+        CaptureError::NoTarget(detail) => {
+            Status::failed_precondition(format!("no capture target: {detail}"))
         }
         CaptureError::Disabled => {
             Status::permission_denied("screen capture is disabled on this host")

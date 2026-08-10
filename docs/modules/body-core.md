@@ -276,31 +276,48 @@ reminder delivery:
   value sanitizes rather than each backend because a fired reminder is the one string the
   body renders that **no output guardrail inspected** (ADR-0015 filters streamed replies, not
   store rows).
-The screen-capture port (`os::screen` + `os::screen_image`, ADR-0029) is the third OS
+The screen-capture port (`os::screen` + `os::screen_target` + `os::screen_image`, ADR-0029) is
+the third OS
 capability the brain drives, and the first whose return value is a payload. Unlike the other
-two, the port carries **no policy**: it hands back raw pixels and the pure core decides what
-crosses the seam.
+two, the port carries **no policy**: it hands back raw pixels plus the rectangle it resolved,
+and the pure core decides what crosses the seam.
 
-- `ScreenCapture` is the backend port: `capture(&self, &CaptureRequest) -> Result<RawFrame,
+- `ScreenCapture` is the backend port: `capture(&self, &CaptureRequest) -> Result<CapturedFrame,
   CaptureError>`, `Send + Sync` and synchronous for the same reasons as `AudioControl`.
 - `RawFrame::new(width, height, pixels) -> Result<RawFrame, CaptureError>` is BGRA straight
   from the OS, four bytes per pixel, top-down. It rejects a zero dimension or a buffer that is
   not `width * height * 4` bytes. The fourth byte is deliberately unspecified (GDI leaves it
   undefined), and the encoder drops it.
-- `CaptureRequest::bounded(max_edge, max_bytes)` resolves both proto3 hints: a zero edge
+- `CaptureTarget` is what a capture is pointed at, mirroring the wire enum: `Display` (the
+  whole primary display, the proto3 zero) or `Focus` (the topmost visible top-level window that
+  is neither the body's own nor excluded from capture). A closed vocabulary the body resolves,
+  never a rectangle the caller names, because the model that will not admit it cannot read a
+  screen will not decline to name a rectangle either.
+- `CapturedFrame::display(frame)` / `CapturedFrame::window(frame, TargetRect)` is what a
+  backend answers: the **whole display's** pixels either way, plus where in them the target
+  resolved to. `TargetRect::new(left, top, right, bottom)` is signed and unvalidated, exactly
+  as the OS reports it, since a window may hang off an edge or sit on another monitor.
+  Clamping that rectangle into the frame, and refusing one with nothing on the display
+  (`CaptureError::NoTarget`), is pure core's job and is gated here.
+- `CaptureRequest::targeted(max_edge, max_bytes, target)` resolves every proto3 hint: a zero
+  edge
   becomes `DEFAULT_MAX_EDGE` (1600) and a zero ceiling becomes `MAX_CAPTURE_BYTES` (6 MiB,
   `6 * 1024 * 1024`); an edge above `MAX_EDGE_CEILING` (4096) and a ceiling above
   `MAX_CAPTURE_BYTES` are clamped down. A caller can therefore only tighten this seam's
-  bounds, never loosen them. `CaptureRequest::new(max_edge)` is the same with the seam's own
-  ceiling.
-- `Capture::from_bgra(&RawFrame, &CaptureRequest) -> Result<Capture, CaptureError>` is the
-  whole policy: downscale so the long edge is at most `max_edge`, PNG-encode, and while the
+  bounds, never loosen them. The target needs no resolution here, the adapter having already
+  read the wire's unknown-enum case as `Display`. `CaptureRequest::bounded(max_edge,
+  max_bytes)` and `CaptureRequest::new(max_edge)` are the same for the whole display.
+- `Capture::from_bgra(&CapturedFrame, &CaptureRequest) -> Result<Capture, CaptureError>` is the
+  whole policy: crop to the resolved region, downscale so the long edge is at most `max_edge`,
+  PNG-encode, and while the
   result is over `max_bytes` halve the edge **that was actually reached** and retry, up to
   `MAX_SHRINK_ATTEMPTS` (2) times, then answer `CaptureError::TooLarge(bytes)`. Verifying
   after encoding is the only honest order: a flat desktop is kilobytes at 1600x900 and a
   photograph is megabytes. A `Capture` exposes `data`, `mime_type` (always `CAPTURE_MIME`,
-  `image/png`), `width`/`height` after the downscale, and `source_width`/`source_height`
-  before it. How much room the ceiling leaves at the 2048 px edge the brain asks for is
+  `image/png`), `width`/`height` after the crop and downscale, `source_width`/`source_height`
+  which are always the **display's** (never the crop's, since three consumers read them as the
+  size of the screen), and `covers_display()`, which is the one bit the receipt needs.
+  How much room the ceiling leaves at the 2048 px edge the brain asks for is
   measured by `tests/capture_bytes.rs`, which is `#[ignore]`d because it is seconds of CPU
   rather than a gate. The costliest display there is 2560x1440 rather than 4K, at 79% of the
   ceiling under heavy grain, because a display nearer the requested edge averages less of the
@@ -311,17 +328,25 @@ crosses the seam.
   test for it does.
 - `encode_png(width, height, rgb) -> Result<Vec<u8>, CaptureError>` is the encoder, public so
   its two rejects (a zero dimension, a buffer that is not `width * height * 3` bytes) can be
-  provoked by a caller. The downscaler is a box filter with a separate identity arm, so a
-  screen already inside the bound crosses pixel for pixel; averaging rather than dropping
-  pixels is what keeps thin strokes, which is to say text, legible after a shrink.
+  provoked by a caller. The downscaler reads its region out of the frame and is a box filter
+  with a separate identity arm, so a region already inside the bound crosses pixel for pixel;
+  averaging rather than dropping
+  pixels is what keeps thin strokes, which is to say text, legible after a shrink. That
+  identity arm is why a targeted capture is worth the seam change: measured through this code,
+  a 1720x1200 window of a 4K wallpaper desktop costs 43450 B untouched where the same desktop
+  whole costs 1978393 B resampled to 2048 px.
 - `CaptureError` (thiserror, `Clone`) is `NoDisplay(String)`, `Disabled`, `Backend(String)`,
-  `TooLarge(usize)`. `DeniedScreenCapture` is the unit backend that always answers `Disabled`;
+  `NoTarget(String)`, `TooLarge(usize)`. `DeniedScreenCapture` is the unit backend that always
+  answers `Disabled`;
   it is real gated code on every platform rather than a stub, because a host that switched
   capture off has to keep answering "no" under test.
-- `CAPTURE_RECEIPT_TITLE` / `CAPTURE_RECEIPT_BODY` / `CAPTURE_RECEIPT_ID` are the fixed,
-  body-owned strings of the notification a successful capture shows. They live here, beside
+- `CAPTURE_RECEIPT_TITLE` / `CAPTURE_RECEIPT_BODY_DISPLAY` / `CAPTURE_RECEIPT_BODY_WINDOW` /
+  `CAPTURE_RECEIPT_ID` are the fixed,
+  body-owned strings of the notification a successful capture shows, the two bodies being a
+  picture of the screen and a picture of one window. They live here, beside
   `UNTRUSTED_ATTRIBUTION`, for the same reason: the notice that tells the user their screen
-  was read may never be built from anything the brain sent.
+  was read may never be built from anything the brain sent. Neither names the window, a title
+  being attacker-chosen text.
 
 **Invariant (the byte ceiling).** `MAX_CAPTURE_BYTES` and the brain's
 `CORTEX_BODY_MAX_IMAGE_BYTES` are the same number, 6 MiB. Each is pinned to the literal

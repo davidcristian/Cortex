@@ -354,7 +354,11 @@ projector. The three measurements this repo could run on its own card have all r
 thinking needs disabling on a vision turn and `llama-server`'s `mmproj`-less error body text on
 2026-08-03, and the image arm of the injection-defence harness on 2026-08-04, which found the
 hardened preamble's content-manipulation clause holding over text and not over pixels. Each is
-recorded at that ADR with its entry in [refinements/vision.md](refinements/vision.md). See
+recorded at that ADR with its entry in [refinements/vision.md](refinements/vision.md). The
+headline risk this slice shipped with, small text on a 4K desktop, was measured 2026-08-06 and
+mitigated by a default change the same day; the fix for what the mitigation cannot reach began
+2026-08-10 with the **body half of a targeted capture**, so the seam now carries a
+`CaptureTarget` and a shipping body honours it while nothing asks for a window yet. See
 [runbooks/vision.md](runbooks/vision.md).
 
 The shape: a model-initiated built-in `capture_screen` tool over the unchanged `BodyGateway`

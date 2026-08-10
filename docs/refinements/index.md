@@ -74,7 +74,7 @@ entries from it never added the two it opened, and there the count did move and 
 | [email-confirmer.md](email-confirmer.md) | Email write, Confirmer, attachments, `ToolActivity` chip (ADR-0022) | 4 |
 | [body-gateway.md](body-gateway.md) | Body gateway, OS actions, hardened posture (ADR-0023) | 5 |
 | [scheduling.md](scheduling.md) | Scheduling and reminders, `TurnStamp` provenance (ADR-0025/0027) | 8 |
-| [vision.md](vision.md) | Screen capture, images, the pixel boundary (ADR-0029), one fewer since 2026-08-08 when `RESOURCE_EXHAUSTED` classification closed whole: the arithmetic the 2026-08-06 re-read published still holds, `CaptureError::TooLarge` being unreachable at the shipped byte ceiling at any edge the seam permits, but the wording defect that re-read folded in is reachable on an untouched install and was the trigger nobody had counted as the trigger, so the body's codes and the brain's reading of them landed together (ADR-0023) | 11 |
+| [vision.md](vision.md) | Screen capture, images, the pixel boundary (ADR-0029), one fewer since 2026-08-08 when `RESOURCE_EXHAUSTED` classification closed whole: the arithmetic the 2026-08-06 re-read published still holds, `CaptureError::TooLarge` being unreachable at the shipped byte ceiling at any edge the seam permits, but the wording defect that re-read folded in is reachable on an untouched install and was the trigger nobody had counted as the trigger, so the body's codes and the brain's reading of them landed together (ADR-0023). **Eleven still on 2026-08-10**, read entry by entry rather than carried forward, when region and window capture landed its body half: the seam carries a `CaptureTarget` and a shipping body honours it, since under proto3 a field no body reads is a silent lie rather than a spare knob, but nothing asks for a window yet, so the entry is half closed and a half close moves no count. The model-named rectangle was declined inside it and stays uncounted until an overlay-drawn region picker makes the rectangle user-authored | 11 |
 | [cross-cutting.md](cross-cutting.md) | Pointer input, OS backends, more roles | 3 |
 
 The counts are per area as extracted; a few threads appear in two areas (the cross-cutting
@@ -2528,6 +2528,30 @@ zero again and the item is closed in place at the top of this section rather tha
   quantity turns out to be source pixels per image token: `region` wants physical display
   coordinates rather than normalized ones, `display_index` is required beside it, and a window
   handle would serve the common ask better than either.
+
+  **The body half landed 2026-08-10 and the count holds at 11**, this being a half close of the
+  kind the swap entry established: the seam carries `CaptureScreenRequest.target` with a two-value
+  `CaptureTarget` (`DISPLAY` = 0, exactly today's behaviour, and `FOCUS`), and the shipping body
+  honours it by walking the desktop's Z-order and letting pure core crop to what it found. The
+  field and the honouring landed together because this entry's blocker was misread as "no
+  consumer": the refusal was always that proto3 lets an older body ignore an unknown field, so a
+  knob the shipping body does not honour is a silent lie about a constraint the brain believes it
+  set, which is the same reasoning that admitted `max_bytes`. This section's standing warning
+  lands the other way round for once, the body half being one field, one enum, a crop folded into
+  the existing downscaler and a second receipt sentence rather than the priced seam change; what
+  it did turn up is a trap the entry had no way to name, `source_width`/`source_height` silently
+  becoming the window's rather than the display's for the wire, the brain's capture value and
+  `describe()` alike. A window is worth a measured 43450 B untouched against 1978393 B for the
+  same 4K desktop whole, and a model-named rectangle is **declined, uncounted**, reopening only on
+  an overlay-drawn region picker that makes the rectangle user-authored. What keeps this entry
+  open is the brain half, `display_index`, and whether a window-sized crop finally reaches 15 px
+  text.
+
+  **It has outgrown this section's heading**, which is worth saying rather than leaving a reader
+  to notice: the seam change this entry was filed behind is done, so what remains is ordinary
+  work under an unchanged wire and the entry belongs under "Actionable now". It is left in place
+  rather than moved, because the paragraphs above are the record of how it got here and they read
+  in order; the heading is the stale thing, not the entry.
 - **A cross-language check on the byte ceiling** ([vision.md](vision.md)), open from 2026-07-18
   and **closed 2026-08-03** as `scripts/crosscheck.py`, the third cross-tree scan. Its cost
   estimate held ("one small script" beside `linecap.py` and `dashcheck.py`) and its diagnosis did
@@ -2863,8 +2887,11 @@ day, having been run and measured against the real cortex in Docker
   deliberate cost and reopens only if accountability outweighs zero retention (it is also the
   expensive half of carrying a picture across a swap, and the capability argument still says no,
   because no brain-tier candidate on the mount has a projector); **multi-monitor and DPI
-  reporting**, where nothing enumerates monitors, which is exactly why `CaptureScreenRequest` left
-  field 2 unassigned, so its consumer is the one region capture is already waiting for; and
+  reporting**, where nothing enumerates monitors, so its consumer is the one region capture is
+  already waiting for (the clause naming `CaptureScreenRequest`'s unassigned field 2 as the
+  evidence was corrected on 2026-08-10: the capture target spent that number, a target subsuming
+  the ask the comment was holding it for, so a display index takes the next free one and lands
+  with a body that honours it); and
   **pixel-level screening in the body**, the only side that knows what is on the screen before it
   crosses the seam and so the only side that could redact a region rather than refuse a whole
   capture, with nothing yet asking it to

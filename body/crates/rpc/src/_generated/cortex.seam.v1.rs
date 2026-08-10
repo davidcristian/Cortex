@@ -342,8 +342,12 @@ pub struct CaptureScreenRequest {
     /// so it is a hint the brain re-verifies on receipt, never a guarantee (ADR-0029).
     #[prost(uint32, tag = "1")]
     pub max_edge: u32,
-    /// Field 2 is reserved for a display index once anything enumerates monitors;
-    /// v1 is the primary display only.
+    /// What to point at. The body honours this field as of the same commit that
+    /// declared it: proto3 lets an older body ignore an unknown field, so a knob no
+    /// shipping body reads is a silent lie about a constraint the brain believes it
+    /// set. An unrecognized value reads as CAPTURE_TARGET_DISPLAY, which is v1.
+    #[prost(enumeration = "CaptureTarget", tag = "2")]
+    pub target: i32,
     /// The most bytes the caller will accept, so the brain's own image budget and the
     /// body's ceiling are one number instead of two constants coupled by prose. 0 means
     /// "the body's own ceiling", and the body clamps anything larger down to it: this can
@@ -446,6 +450,48 @@ pub struct NotifyRequest {
 pub struct NotifyReply {
     #[prost(bool, tag = "1")]
     pub shown: bool,
+}
+/// What the body points the camera at (ADR-0029). A closed vocabulary the body
+/// resolves, never a rectangle the caller names: only the body knows where windows
+/// are, and a caller that guessed one would spend a whole capture on the wrong part
+/// of the screen. Zero is the whole display, so a caller that names nothing gets
+/// exactly the behaviour this seam has always had.
+///
+/// The names are plain rather than a designed family on purpose: this is protocol
+/// vocabulary whose end reader is a language model choosing between two options, and
+/// legibility beats charm there.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum CaptureTarget {
+    /// The primary display, whole. The v1 behaviour and the proto3 default.
+    Display = 0,
+    /// The topmost visible top-level window that is not the body's own and is not
+    /// excluded from capture. Deliberately NOT the foreground window: the user summons
+    /// the overlay to ask, so the overlay IS the foreground window when this runs, and
+    /// it hides itself from capture, which would crop to an absent rectangle. The body
+    /// answers FAILED_PRECONDITION when no such window is on screen rather than falling
+    /// back to the display, because a silent fallback captures more than was asked for.
+    Focus = 1,
+}
+impl CaptureTarget {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Display => "CAPTURE_TARGET_DISPLAY",
+            Self::Focus => "CAPTURE_TARGET_FOCUS",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "CAPTURE_TARGET_DISPLAY" => Some(Self::Display),
+            "CAPTURE_TARGET_FOCUS" => Some(Self::Focus),
+            _ => None,
+        }
+    }
 }
 /// Generated client implementations.
 pub mod brain_service_client {

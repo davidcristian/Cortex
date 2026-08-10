@@ -234,7 +234,17 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   for a bound that must sit under another, and a mention form for a far side that spends a value
   without declaring it, in a compose string, a stylesheet, or a bare literal. Its 2026-08-09
   counted-mentions addendum lets a mention pin an exact number of occurrences, opt in, for the far
-  sides whose several spellings are one set that must move together.
+  sides whose several spellings are one set that must move together. Its 2026-08-10 addendum lands
+  the **body half of a targeted capture**: `CaptureScreenRequest.target` is a two-value
+  `CaptureTarget` (the whole display, which is the proto3 zero and today's behaviour, or the
+  window the user is looking at), and it landed in the same commit as the body that honours it,
+  because under proto3 a field an older body ignores is a silent lie about a constraint the brain
+  believes it set. A model-named rectangle is declined on this ADR's own measurement (the cortex
+  will not decline to name one it cannot see) and reopens on an overlay-drawn region picker. The
+  window is resolved by walking the desktop's Z-order rather than by `GetForegroundWindow`, which
+  is the overlay itself whenever a capture runs; the crop is pure core, so `source_width`/
+  `source_height` keep meaning the display; and the receipt gains a second fixed sentence for a
+  window. The brain does not ask for one yet.
 - [ADR-0030: Brain handoff (the real model swap)](adr/ADR-0030-brain-handoff.md): the Slice 11
   capstone design, **accepted**; every engineering sub-slice has landed, the deep-model pick was
   measured 2026-08-04 (gemma-4-31B QAT q4_0, ADR-0004), and the tier-scale swap remains because a
@@ -451,7 +461,8 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
   true before a capture can happen (`CORTEX_HOST_CAPTURE`, the overlay's own capture exclusion,
   and `CORTEX_VISION`), the agent-Docker half with the projector and the `/props` probe, the
   host-only Windows half including the one check nothing can stand in for (capture while the
-  overlay is visible and confirm the assistant cannot see it), what a capture does to the turn,
+  overlay is visible and confirm the assistant cannot see it), what the body can be pointed at
+  now that a capture carries a target, what a capture does to the turn,
   and how to gate or disable it.
 - [runbooks/body-overlay.md](runbooks/body-overlay.md) covers Slice 8: run the overlay in a browser
   (fake bridge) or as the real Tauri app on Windows (hotkey → overlay → live brain).

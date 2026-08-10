@@ -1,8 +1,9 @@
 //! The size policy of a screen capture (ADR-0029): how far to downscale, what to encode, and
 //! how many bytes may cross the seam.
 
-use crate::os::screen::{CaptureError, RawFrame};
+use crate::os::screen::CaptureError;
 use crate::os::screen_image::{Rgb, downscale};
+use crate::os::screen_target::{CaptureTarget, CapturedFrame, Region};
 
 pub use crate::os::screen_image::encode_png;
 
@@ -27,26 +28,34 @@ pub const MAX_SHRINK_ATTEMPTS: u32 = 2;
 /// and lossless keeps small text as legible as the downscale left it.
 pub const CAPTURE_MIME: &str = "image/png";
 
-/// One capture's resolved size policy: the wire's `max_edge` hint turned into a number the
-/// ladder can act on, plus the byte ceiling that capture is held to.
+/// One capture's resolved policy: the wire's `max_edge` hint turned into a number the ladder
+/// can act on, the byte ceiling that capture is held to, and what the caller asked the body to
+/// point at.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CaptureRequest {
     max_edge: u32,
     max_bytes: usize,
+    target: CaptureTarget,
 }
 
 impl CaptureRequest {
-    /// Resolves a raw wire `max_edge` into a request held to the seam's own
-    /// [`MAX_CAPTURE_BYTES`] ceiling.
+    /// Resolves a raw wire `max_edge` into a request for the whole display, held to the seam's
+    /// own [`MAX_CAPTURE_BYTES`] ceiling.
     #[must_use]
     pub const fn new(max_edge: u32) -> Self {
         Self::bounded(max_edge, 0)
     }
 
-    /// Resolves both raw wire hints into a request. This is what the `BodyService` handler
-    /// calls.
+    /// Resolves both raw size hints into a request for the whole display.
     #[must_use]
     pub const fn bounded(max_edge: u32, max_bytes: u32) -> Self {
+        Self::targeted(max_edge, max_bytes, CaptureTarget::Display)
+    }
+
+    /// Resolves every raw wire hint into a request. This is what the `BodyService` handler
+    /// calls.
+    #[must_use]
+    pub const fn targeted(max_edge: u32, max_bytes: u32, target: CaptureTarget) -> Self {
         let edge = if max_edge == 0 {
             DEFAULT_MAX_EDGE
         } else if max_edge > MAX_EDGE_CEILING {
@@ -63,6 +72,7 @@ impl CaptureRequest {
         Self {
             max_edge: edge,
             max_bytes: ceiling,
+            target,
         }
     }
 
@@ -77,6 +87,14 @@ impl CaptureRequest {
     pub const fn max_bytes(&self) -> usize {
         self.max_bytes
     }
+
+    /// What the backend is to point at. Unlike the two size hints this one is not a hint the
+    /// core re-applies afterwards: only the OS can resolve it, so the backend's answer is the
+    /// whole of it, and what core does with that answer is crop.
+    #[must_use]
+    pub const fn target(&self) -> CaptureTarget {
+        self.target
+    }
 }
 
 /// An encoded capture, bounded and ready for the wire.
@@ -87,18 +105,24 @@ pub struct Capture {
     height: u32,
     source_width: u32,
     source_height: u32,
+    covers_display: bool,
 }
 
 impl Capture {
-    /// Downscales, encodes, and bounds one raw frame.
-    pub fn from_bgra(frame: &RawFrame, request: &CaptureRequest) -> Result<Self, CaptureError> {
+    /// Crops, downscales, encodes, and bounds one captured frame.
+    pub fn from_bgra(
+        captured: &CapturedFrame,
+        request: &CaptureRequest,
+    ) -> Result<Self, CaptureError> {
+        let frame = captured.frame();
+        let region = captured.region()?;
         let mut edge = request.max_edge();
         let mut smallest = 0;
         for _ in 0..=MAX_SHRINK_ATTEMPTS {
-            let image = downscale(frame, edge);
+            let image = downscale(frame, region, edge);
             let data = encode_rung(&image);
             if data.len() <= request.max_bytes() {
-                return Ok(Self::encoded(data, &image, frame));
+                return Ok(Self::encoded(data, &image, captured, region));
             }
             smallest = data.len();
             edge = image.width().max(image.height()).div_ceil(2);
@@ -107,13 +131,15 @@ impl Capture {
     }
 
     /// Assembles the value once a rung of the ladder has come in under the ceiling.
-    fn encoded(data: Vec<u8>, image: &Rgb, frame: &RawFrame) -> Self {
+    fn encoded(data: Vec<u8>, image: &Rgb, captured: &CapturedFrame, region: Region) -> Self {
+        let frame = captured.frame();
         Self {
             data,
             width: image.width(),
             height: image.height(),
             source_width: frame.width(),
             source_height: frame.height(),
+            covers_display: region.covers(frame.width(), frame.height()),
         }
     }
 
@@ -151,6 +177,12 @@ impl Capture {
     #[must_use]
     pub const fn source_height(&self) -> u32 {
         self.source_height
+    }
+
+    /// Whether this picture is the whole display rather than one window of it.
+    #[must_use]
+    pub const fn covers_display(&self) -> bool {
+        self.covers_display
     }
 }
 
