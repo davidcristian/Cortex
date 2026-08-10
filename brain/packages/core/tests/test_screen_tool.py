@@ -98,6 +98,30 @@ def test_the_vocabulary_the_model_sees_is_the_vocabulary_the_seam_carries() -> N
     assert target["enum"] == ["display", "focus"]
 
 
+def test_the_steer_promises_only_what_the_window_crop_measurement_supports() -> None:
+    """The description is a model-facing contract, so it is held to the measurement.
+
+    A window crop is a large win on the smallest text (15 px goes 5 of 12 to 9 or 10 of 12) and a
+    loss over a whole desktop (29 to 31 of 47 against 32 to 33), because it cannot see past its
+    window. And the detail it buys is being **unresampled**, not being cropped, so it is
+    conditional on the window fitting the capture edge, which neither the model nor this tool can
+    check. Three properties follow and are pinned on **both** places the steer is spelled, the
+    description and the schema's own help, since a copy left behind is a lie the model still
+    reads: no unconditional promise of full detail, the cost of a window said out loud, and the
+    one recovery the model can act on kept.
+    """
+    spec = CaptureScreenTool(InMemoryBodyGateway()).spec
+    help_text = str(spec.parameters["properties"]["target"]["description"])
+
+    for text in (spec.description, help_text):
+        assert "full detail" not in text, "a window past the edge is resampled like the screen"
+        assert "small text" in text, "the one case the crop measurably wins"
+    assert "nothing outside that window is in the picture" in spec.description
+    assert "too large to send whole is shrunk exactly as the screen is" in spec.description
+    assert "nothing outside it is captured" in help_text
+    assert "ask again with 'display'" in spec.description
+
+
 async def test_a_capture_is_untrusted_and_carries_exactly_one_image() -> None:
     body = InMemoryBodyGateway(capture=_capture())
     result = await CaptureScreenTool(body).invoke(_call())
@@ -170,9 +194,12 @@ async def test_a_window_that_filled_the_screen_is_described_as_the_screen() -> N
 async def test_a_capture_with_no_target_is_refused_without_taking_a_picture() -> None:
     """Refused rather than defaulted, and the reason is not tidiness.
 
-    The default it would take is the whole screen, which is both the more exposing picture and
-    the less legible one. And a spelling that captures is worth two captures to a loop, so the
-    empty call taking none is what keeps the ceiling at two per target.
+    The default it would take is the whole screen, which is the more exposing of the two
+    pictures, and widening silently on a question the model never said was about the whole screen
+    is the wrong direction. (The legibility leg this used to lean on as well narrowed under the
+    window-crop measurement: the shrunk screen reads more of a desktop than a crop does, and only
+    the smallest text goes the other way.) And a spelling that captures is worth two captures to a
+    loop, so the empty call taking none is what keeps the ceiling at two per target.
     """
     body = InMemoryBodyGateway(capture=_capture())
     result = await CaptureScreenTool(body).invoke(
