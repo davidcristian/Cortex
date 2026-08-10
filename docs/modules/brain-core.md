@@ -646,8 +646,9 @@ the two having split at the line cap as the seventh addendum landed):
 
 Ports (`typing.Protocol`; failures cross them only as the typed errors below; the five
 state-store ports `SessionStore` / `MemoryStore` / `TaskStore` / `ScheduleStore` /
-`HandoffStore` / `PreferenceStore` live in `ports_stores.py` and are re-exported from `ports.py`, a line-cap
-split, so every `from cortex_core.ports import ...` and the `cortex_core` barrel are
+`HandoffStore` / `PreferenceStore` live in `ports_stores.py`, and `BodyGateway` in
+`ports_body.py`, all re-exported from `ports.py`, line-cap
+splits, so every `from cortex_core.ports import ...` and the `cortex_core` barrel are
 unchanged):
 
 - `SessionStore` provides `async append(session_id, message) -> None`,
@@ -851,7 +852,7 @@ unchanged):
   nothing killed (v1 never kills a subagent mid-stream), so the swap conductor must abort the
   handoff before evicting anything. `undrain` reverses the window; the conductor owes it in a
   `finally` (swap-back and abort alike), so admission always resumes. Both are idempotent.
-- `BodyGateway` provides `async get_volume() -> VolumeState`,
+- `BodyGateway` (in `ports_body.py`, re-exported here) provides `async get_volume() -> VolumeState`,
   `async set_volume(*, level=None, mute=None) -> VolumeState` (ADR-0023),
   `async notify(...) -> bool` (ADR-0025), and
   `async capture_screen(*, max_edge=0, max_bytes=0) -> ScreenCapture` (ADR-0029, where both

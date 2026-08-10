@@ -23,53 +23,55 @@ releases it, so the root's shutdown path is uniform whatever was picked:
   wrapped so the turns it drops arrive as a recap.
 - Output guardrail -> `UrlRedactingGuardrail` over CORTEX_OUTPUT_GUARDRAIL (ADR-0015), on by
   default (hardening ships enabled); `off` restores the unguarded stream.
+- Cortex tool set -> `dispatch_builders.py` (split for the 300-line cap as the built-in set
+  grew): the built-in tools and the audited `ToolDispatcher` over them, composed from pieces the
+  builders above already made rather than reaching anything itself.
+
+What is left here builds an adapter over something outside this process and returns the coroutine
+that releases it; the two factories re-exported from `dispatch_builders.py` open nothing, which is
+the seam between the modules. The explicit export list below carries those two, so every existing
+`from cortex_orchestrator.builders import ...` resolves unchanged.
 """
 
 import logging
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable
 from functools import partial
 
 import httpx
 
 from cortex_body_client import GrpcBodyGateway
 from cortex_core import (
-    DEFAULT_DISPATCH_POLICY,
     AggregateToolRegistry,
     BodyGateway,
-    BuiltinTool,
-    CaptureBounds,
-    CaptureScreenTool,
-    Clock,
-    CompositeToolRegistry,
-    Confirmer,
-    DispatchPolicy,
     EchoInferenceBackend,
-    EscalateToBrainTool,
     FilteredToolRegistry,
     GatedToolRegistry,
-    GetVolumeTool,
     InferenceBackend,
     ModelManager,
-    SetVolumeTool,
-    SightedToolRegistry,
     SingleResidentModelManager,
     SkipUnavailableToolRegistry,
-    SpawnSubagentsTool,
     StrictUrlRedactingGuardrail,
-    ToolDispatcher,
     ToolError,
     ToolRegistry,
     UrlRedactingGuardrail,
-    VisionProbe,
 )
 from cortex_inference import LlamaCppBackend
 from cortex_orchestrator.config import BodyConfig, InferenceConfig
 from cortex_orchestrator.config_tools import ToolsConfig
-from cortex_tools import (
-    LoggingAuditSink,
-    ReconnectingMcpToolRegistry,
-    streamable_http_session,
-)
+from cortex_orchestrator.dispatch_builders import build_builtin_tools, build_cortex_tools
+from cortex_tools import ReconnectingMcpToolRegistry, streamable_http_session
+
+__all__ = [
+    "LLAMACPP_CONNECT_TIMEOUT_S",
+    "build_body_gateway",
+    "build_builtin_tools",
+    "build_cortex_tools",
+    "build_generation_client",
+    "build_inference_backend",
+    "build_output_guardrail",
+    "build_tool_registry",
+    "noop_aclose",
+]
 
 # Connect/write/pool time out fast on a dead server, one knob for every tier: a dead server is
 # dead at the same speed everywhere. The read phase is the factory's argument, not this.
@@ -206,92 +208,4 @@ async def build_body_gateway(
         return None, noop_aclose
     return await GrpcBodyGateway.connect(
         config.endpoint, token=token, capture_timeout_s=config.capture_timeout_s
-    )
-
-
-def build_builtin_tools(
-    spawn_tool: SpawnSubagentsTool | None,
-    body: BodyGateway | None,
-    schedule_tools: Sequence[BuiltinTool] = (),
-    *,
-    escalation: bool = False,
-    vision: CaptureBounds | None = None,
-) -> list[BuiltinTool]:
-    """The cortex's built-in set, assembled once by the wiring (ADR-0025 decision 7).
-
-    The bundling that keeps `build_cortex_tools` under the six-argument ceiling as
-    capabilities accumulate: delegation (ADR-0010), the volume pair when the body is wired
-    (ADR-0023), and the schedule tools (`build_schedule_tools`, ADR-0025). Built-ins are
-    cortex-only by construction, so subagents never see any of these (ADR-0013).
-
-    `escalation` (ADR-0030) advertises `escalate_to_brain` only when a handoff can actually be
-    run: the wrapper, the conductor, and a model host all exist behind `CORTEX_ESCALATION`.
-    Advertising it otherwise would offer the model a tool that could only refuse, the same
-    honesty rule that keeps the volume pair out without a body and task scheduling out without
-    delegation.
-
-    `vision` (ADR-0029) is that same rule for `capture_screen`: it needs a body to take the
-    picture *and* a model that can see it, so it is advertised only when the composition root
-    has confirmed both. Offering it otherwise would spend the whole privacy cost of a screen
-    read (the capture taken, the user notified, the turn tainted) on an image nothing can read.
-    """
-    builtins: list[BuiltinTool] = [spawn_tool] if spawn_tool is not None else []
-    if body is not None:
-        builtins.append(GetVolumeTool(body))
-        builtins.append(SetVolumeTool(body))
-        if vision is not None:
-            builtins.append(
-                CaptureScreenTool(body, max_edge=vision.max_edge, max_bytes=vision.max_bytes)
-            )
-    if escalation:
-        builtins.append(EscalateToBrainTool())
-    builtins.extend(schedule_tools)
-    return builtins
-
-
-def build_cortex_tools(
-    tool_registry: ToolRegistry | None,
-    builtins: Sequence[BuiltinTool],
-    clock: Clock,
-    *,
-    confirmer: Confirmer | None = None,
-    policy: DispatchPolicy = DEFAULT_DISPATCH_POLICY,
-    vision: VisionProbe | None = None,
-) -> ToolDispatcher | None:
-    """The cortex's audited dispatcher: the built-in set merged with the MCP tools.
-
-    None when nothing is enabled (the Slice 3 turn path unchanged). `builtins` arrives
-    pre-assembled from `build_builtin_tools` (one sequence, not one parameter per
-    capability). The `CompositeToolRegistry` gives the built-in tools precedence and
-    advertises the MCP tools alongside them; subagents receive the MCP subset without the
-    built-ins (depth-1, so a subagent never gets an OS action or a schedule verb, per
-    ADR-0013/0023/0025), wired in `build_subagents`, and always `confirmer=None`
-    (ADR-0013): only the cortex's dispatcher gets the stream's real confirmer (ADR-0022),
-    threaded per stream by the wiring's engine factory. A user gates any built-in by
-    naming it in the policy's `gated_names` (`CORTEX_TOOLS_GATED`), the dispatcher's backstop,
-    and prices any of them in its `costs` (`CORTEX_TOOLS_COSTS`), which is what the cortex's tool
-    loop charges each dispatch against its budget (ADR-0009 cost addendum); the policy's third
-    declaration, `salience` (`CORTEX_TOOLS_SALIENCE`), is what refuses a call that loop has
-    already made (ADR-0009 salience addendum). This is the dispatcher
-    the default `spawn_subagents` price applies to: built-ins are cortex-only, so the
-    subagent and ticker dispatchers never advertise it.
-
-    `vision` (ADR-0029 live-probe addendum) is the running server's own answer to whether the
-    model can read a picture, and wrapping the composite in `SightedToolRegistry` is what makes
-    `capture_screen` follow it: hidden from the advertisement and refused at the call while the
-    answer is no. Absent for `CORTEX_VISION=on|off` (the answer is fixed by the owner) and for
-    the deep tier's set (it carries no capture tool to gate), so the wrapper appears exactly
-    where the answer is discovered.
-    """
-    if not builtins and tool_registry is None:
-        return None
-    registry: ToolRegistry = CompositeToolRegistry(builtins, remote=tool_registry)
-    if vision is not None:
-        registry = SightedToolRegistry(registry, vision)
-    return ToolDispatcher(
-        registry,
-        LoggingAuditSink(),
-        clock,
-        confirmer=confirmer,
-        policy=policy,
     )
