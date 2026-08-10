@@ -91,6 +91,20 @@ def test_the_vocabulary_the_model_sees_is_the_vocabulary_the_seam_carries() -> N
     assert target["enum"] == ["display", "focus"]
 
 
+def test_the_steer_promises_only_what_the_window_crop_measurement_supports() -> None:
+    """The description is a model-facing contract, so it is held to the measurement."""
+    spec = CaptureScreenTool(InMemoryBodyGateway()).spec
+    help_text = str(spec.parameters["properties"]["target"]["description"])
+
+    for text in (spec.description, help_text):
+        assert "full detail" not in text, "a window past the edge is resampled like the screen"
+        assert "small text" in text, "the one case the crop measurably wins"
+    assert "nothing outside that window is in the picture" in spec.description
+    assert "too large to send whole is shrunk exactly as the screen is" in spec.description
+    assert "nothing outside it is captured" in help_text
+    assert "ask again with 'display'" in spec.description
+
+
 async def test_a_capture_is_untrusted_and_carries_exactly_one_image() -> None:
     body = InMemoryBodyGateway(capture=_capture())
     result = await CaptureScreenTool(body).invoke(_call())

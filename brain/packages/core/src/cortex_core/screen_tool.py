@@ -1,4 +1,4 @@
-"""The ``capture_screen`` built-in: the cortex reads the user's screen (ADR-0029)."""
+"""The ``capture_screen`` built-in: the cortex reads the user's screen."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -12,36 +12,34 @@ from cortex_core.tools import ToolCall, ToolResult, ToolSpec, Trust
 
 CAPTURE_SCREEN_TOOL_NAME = "capture_screen"
 
-# The infinitive the shared per-kind lead completes, so a refused capture says the body refused
-# and only a capture that never reached the body says so.
 _ACTION = "capture the screen"
 
-# The vocabulary the model picks between, derived from the domain enum rather than restated, so
-# a third target cannot reach the wire without reaching the schema. Declaration order, not
-# alphabetical: it puts the whole display first, which is what this seam's zero means.
 _TARGETS: tuple[CaptureTarget, ...] = tuple(CaptureTarget)
 _TARGET_NAMES: tuple[str, ...] = tuple(target.value for target in _TARGETS)
 _TARGET_BY_NAME: dict[str, CaptureTarget] = {target.value: target for target in _TARGETS}
 
-# Written as instruction rather than as documentation: its whole job is to make the model pick
-# the window when the user is asking about one thing in front of them, which is the case the
-# 4K legibility measurement said the token budget alone cannot rescue.
+# The wording follows the measurement: cropping to a window only helps small text (15 px
+# text went from 5 of 12 to 9 or 10 of 12) and reads worse over a whole desktop.
 _DESCRIPTION = (
     "Take a picture of the user's screen and look at it. Use this when the user asks about what "
     "is on their screen, or refers to something you cannot see. The picture is attached to your "
     "view of the result. Always name a target. Use 'focus' for the window the user is looking "
-    "at: it is cut out of the screen at full detail, so small text stays readable, and it is "
-    "the right choice whenever the question is about one thing in front of them, such as a "
-    "document, an error, a page, or a message. Use 'display' for the whole screen: it is shrunk "
-    "to fit, so fine print may be lost, and it is the right choice only when the question is "
-    "about the screen as a whole, such as what is open or where something is. If 'focus' comes "
-    "back saying there is no window to capture, the user is looking at a bare desktop, so ask "
-    "again with 'display'."
+    "at: it is cut out of the screen rather than shrunk down, so a window that is not oversized "
+    "keeps its own detail and small text in it stays readable. That is the one thing it is "
+    "better at, and it costs everything else: no other window, no taskbar, and nothing outside "
+    "that window is in the picture, and a window too large to send whole is shrunk exactly as "
+    "the screen is. Use 'display' for the whole screen: it is shrunk to fit, so fine print may "
+    "be lost, and it is the only target that shows what else is open or where something is. So "
+    "pick 'focus' when the answer turns on reading something small or exact in one thing in "
+    "front of the user, such as an error, a figure, or a line of a document, and 'display' "
+    "otherwise. If 'focus' comes back saying there is no window to capture, the user is looking "
+    "at a bare desktop, so ask again with 'display'."
 )
 
 _TARGET_HELP = (
-    "'focus' for the window the user is looking at (full detail, small text readable), "
-    "'display' for the whole screen (shrunk to fit)."
+    "'focus' for the window the user is looking at (cut out of the screen, so small text in it "
+    "stays readable unless the window is very large, and nothing outside it is captured), "
+    "'display' for the whole screen (shrunk to fit, so fine print may be lost)."
 )
 _TARGET_REQUIRED = f"capture_screen requires 'target': {_TARGET_HELP}"
 _BAD_TARGET = f"'target' must be one of: {', '.join(_TARGET_NAMES)}"
@@ -85,7 +83,7 @@ def describe(capture: ScreenCapture) -> str:
 
 
 class CaptureScreenTool:
-    """Built-in ``capture_screen`` tool over a ``BodyGateway`` (ADR-0029)."""
+    """Built-in ``capture_screen`` tool over a ``BodyGateway``."""
 
     def __init__(self, body: BodyGateway, *, max_edge: int = 0, max_bytes: int = 0) -> None:
         self._body = body
@@ -94,7 +92,7 @@ class CaptureScreenTool:
 
     @property
     def spec(self) -> ToolSpec:
-        """The one-argument, ungated spec advertised to the cortex."""
+        """The one-argument spec advertised to the cortex, which needs no confirmation."""
         return ToolSpec(
             name=CAPTURE_SCREEN_TOOL_NAME,
             description=_DESCRIPTION,
