@@ -56,6 +56,10 @@ _TIMED_OUT = BodyGatewayError(
 )
 
 
+# What the model sends for a whole-screen read; the tool requires the target explicitly.
+_DISPLAY = {"target": "display"}
+
+
 class _Clock:
     """Fixed clock: nothing here asserts on time."""
 
@@ -70,6 +74,8 @@ class _CallThenAnswer:
         self._name = name
         self._rounds = rounds
         self._seen = 0
+        # capture_screen requires a target, so the fake model names one the way a real one must.
+        self._arguments = _DISPLAY if name == CAPTURE_SCREEN_TOOL_NAME else {}
 
     async def stream(
         self,
@@ -83,7 +89,7 @@ class _CallThenAnswer:
         del model, messages, tools, schema, bounds
         self._seen += 1
         if self._seen <= self._rounds:
-            yield ToolCall(id=f"c{self._seen}", name=self._name, arguments={})
+            yield ToolCall(id=f"c{self._seen}", name=self._name, arguments=self._arguments)
             return
         yield TextChunk(text="done")
 
@@ -370,9 +376,9 @@ async def test_the_capture_that_reached_the_model_is_the_one_that_settles_ok() -
     body = InMemoryBodyGateway()
     tool = CaptureScreenTool(body)
 
-    result = await tool.invoke(ToolCall(id="c1", name=CAPTURE_SCREEN_TOOL_NAME, arguments={}))
+    result = await tool.invoke(ToolCall(id="c1", name=CAPTURE_SCREEN_TOOL_NAME, arguments=_DISPLAY))
     failed = await CaptureScreenTool(InMemoryBodyGateway(fail=_DISABLED)).invoke(
-        ToolCall(id="c2", name=CAPTURE_SCREEN_TOOL_NAME, arguments={})
+        ToolCall(id="c2", name=CAPTURE_SCREEN_TOOL_NAME, arguments=_DISPLAY)
     )
 
     assert (result.is_error, len(result.images)) == (False, 1)

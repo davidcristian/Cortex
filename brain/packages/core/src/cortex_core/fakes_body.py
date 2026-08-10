@@ -15,7 +15,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from cortex_core.body import ScreenCapture, VolumeState
+from cortex_core.body import CaptureTarget, ScreenCapture, VolumeState
 from cortex_core.errors import BodyGatewayError
 from cortex_core.images import ImagePart
 
@@ -36,6 +36,7 @@ class CaptureAsk:
 
     max_edge: int
     max_bytes: int
+    target: CaptureTarget
 
 
 # A one-pixel PNG, the smallest thing that satisfies ``ImagePart`` without a fixture file.
@@ -105,11 +106,24 @@ class InMemoryBodyGateway:
         )
         return self._shown
 
-    async def capture_screen(self, *, max_edge: int = 0, max_bytes: int = 0) -> ScreenCapture:
-        """Record the hints and answer the scripted capture, or raise the failure."""
+    async def capture_screen(
+        self,
+        *,
+        max_edge: int = 0,
+        max_bytes: int = 0,
+        target: CaptureTarget = CaptureTarget.DISPLAY,
+    ) -> ScreenCapture:
+        """Record what was asked for and answer the scripted capture, or raise the failure.
+
+        The scripted capture is answered **verbatim**, target included, rather than being
+        rewritten to match the ask. That is the real body's behaviour: what a reply says it
+        points at is read off the picture that was encoded, so a focus request can honestly come
+        back as a display capture (a window filling the screen), and a test that wants the
+        window sentence scripts a window capture.
+        """
         if self._fail is not None:
             raise self._fail
-        self._captures.append(CaptureAsk(max_edge=max_edge, max_bytes=max_bytes))
+        self._captures.append(CaptureAsk(max_edge=max_edge, max_bytes=max_bytes, target=target))
         return self._capture
 
     @property

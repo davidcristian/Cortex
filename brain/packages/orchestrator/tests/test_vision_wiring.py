@@ -276,7 +276,7 @@ async def test_a_capture_the_model_can_no_longer_read_reads_no_pixels(
     root.scripted.rescript([False])
 
     result = await root.dispatchers[0].dispatch(
-        ToolCall(id="c1", name=CAPTURE_SCREEN_TOOL_NAME, arguments={})
+        ToolCall(id="c1", name=CAPTURE_SCREEN_TOOL_NAME, arguments={"target": "display"})
     )
 
     assert result.is_error is True
@@ -329,7 +329,9 @@ async def test_the_capture_bounds_the_tool_asks_for_come_from_body_config(
     capture = next(
         tool for tool in root.builtin_sets[0] if tool.spec.name == CAPTURE_SCREEN_TOOL_NAME
     )
-    await capture.invoke(ToolCall(id="c1", name=CAPTURE_SCREEN_TOOL_NAME, arguments={}))
+    await capture.invoke(
+        ToolCall(id="c1", name=CAPTURE_SCREEN_TOOL_NAME, arguments={"target": "display"})
+    )
     assert [(ask.max_edge, ask.max_bytes) for ask in await root.captures()] == [(1280, 4_000_000)]
 
 

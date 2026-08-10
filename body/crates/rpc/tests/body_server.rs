@@ -24,8 +24,9 @@ use body_core::{
 use body_rpc::body_service;
 use body_rpc::generated::body_service_client::BodyServiceClient;
 use body_rpc::generated::{
-    CaptureScreenRequest, CaptureTarget as PbCaptureTarget, GetVolumeRequest, ImageBlob,
-    InjectInputRequest, NotifyReply, NotifyRequest, SetVolumeRequest, VolumeState as PbVolumeState,
+    CaptureScreenReply, CaptureScreenRequest, CaptureTarget as PbCaptureTarget, GetVolumeRequest,
+    ImageBlob, InjectInputRequest, NotifyReply, NotifyRequest, SetVolumeRequest,
+    VolumeState as PbVolumeState,
 };
 use tokio::net::TcpListener;
 use tokio_stream::wrappers::TcpListenerStream;
@@ -747,20 +748,31 @@ async fn capture_targeted(
     max_bytes: u32,
     target: i32,
 ) -> Result<ImageBlob, tonic::Status> {
+    let reply = capture_reply(addr, max_edge, max_bytes, target).await?;
+    Ok(reply
+        .image
+        .unwrap_or_else(|| panic!("the reply carried no image")))
+}
+
+/// Runs one capture and hands back the whole reply, for the assertions that are about what the
+/// body says it pointed at rather than about the pixels.
+async fn capture_reply(
+    addr: SocketAddr,
+    max_edge: u32,
+    max_bytes: u32,
+    target: i32,
+) -> Result<CaptureScreenReply, tonic::Status> {
     let mut client = connect(addr)
         .await
         .unwrap_or_else(|error| panic!("could not reach the body: {error}"));
-    let reply = client
+    Ok(client
         .capture_screen(CaptureScreenRequest {
             max_edge,
             max_bytes,
             target,
         })
         .await?
-        .into_inner();
-    Ok(reply
-        .image
-        .unwrap_or_else(|| panic!("the reply carried no image")))
+        .into_inner())
 }
 
 #[tokio::test]
@@ -934,7 +946,9 @@ async fn the_receipt_says_window_when_one_window_was_sent() {
 #[tokio::test]
 async fn a_window_filling_the_display_is_announced_as_a_screen_capture() {
     // The sentence describes what was sent rather than what was asked for, so a maximised
-    // window whose frame reaches past every edge honestly reports a screen capture.
+    // window whose frame reaches past every edge honestly reports a screen capture. The reply's
+    // resolved target is read off the same predicate, which is what keeps the sentence the user
+    // is shown and the sentence the model reads from disagreeing about one picture.
     let notifier = FakeNotify::answering(true);
     let addr = spawn_screen(
         FakeScreen::showing(frame(40, 20), TargetRect::new(-4, -4, 44, 24)),
@@ -944,15 +958,47 @@ async fn a_window_filling_the_display_is_announced_as_a_screen_capture() {
     .await
     .unwrap();
 
-    let blob = capture_targeted(addr, 0, 0, PbCaptureTarget::Focus.into())
+    let reply = capture_reply(addr, 0, 0, PbCaptureTarget::Focus.into())
         .await
         .unwrap();
 
+    let blob = reply.image.unwrap();
     assert_eq!((blob.width, blob.height), (40, 20));
+    assert_eq!(reply.resolved_target, i32::from(PbCaptureTarget::Display));
     assert_eq!(
         notifier.seen()[0].body(),
         "A picture of your screen was sent to the assistant."
     );
+}
+
+#[tokio::test]
+async fn the_reply_says_which_of_the_two_things_the_picture_is() {
+    // The brain cannot tell a crop from a shrunk screen out of the blob alone: `source_width` and
+    // `source_height` are the display's on both paths, deliberately. This field is how it can say
+    // honestly what it was shown, and a window that is genuinely a window reads as one.
+    let windowed_at = spawn_screen(
+        FakeScreen::showing(frame(40, 20), TargetRect::new(10, 5, 20, 15)),
+        FakeNotify::answering(true),
+        true,
+    )
+    .await
+    .unwrap();
+    let windowed = capture_reply(windowed_at, 0, 0, PbCaptureTarget::Focus.into())
+        .await
+        .unwrap();
+    assert_eq!(windowed.resolved_target, i32::from(PbCaptureTarget::Focus));
+
+    let whole_at = spawn_screen(
+        FakeScreen::answering(frame(40, 20)),
+        FakeNotify::answering(true),
+        true,
+    )
+    .await
+    .unwrap();
+    let whole = capture_reply(whole_at, 0, 0, PbCaptureTarget::Display.into())
+        .await
+        .unwrap();
+    assert_eq!(whole.resolved_target, i32::from(PbCaptureTarget::Display));
 }
 
 #[tokio::test]

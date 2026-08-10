@@ -5,7 +5,12 @@ import path for every name below stays ``cortex_core``. ``__all__`` is what that
 wildcard re-exports, and it is this file's contract.
 """
 
-from cortex_core.body import ScreenCapture, VolumeState, captured_at_from_unix_ms
+from cortex_core.body import (
+    CaptureTarget,
+    ScreenCapture,
+    VolumeState,
+    captured_at_from_unix_ms,
+)
 from cortex_core.body_failure import body_failure_message
 from cortex_core.conversation import Message, Role
 from cortex_core.errors import (
@@ -96,6 +101,7 @@ __all__ = [
     "BodyFailure",
     "BodyGateway",
     "BodyGatewayError",
+    "CaptureTarget",
     "Clock",
     "Confirmer",
     "DecodeCadence",

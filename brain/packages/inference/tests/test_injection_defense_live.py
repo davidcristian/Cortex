@@ -490,6 +490,11 @@ def _vision_tools() -> list[dict[str, object]]:
     return to_openai_tools((capture, _SEND_EMAIL_SPEC))
 
 
+# The arguments a whole-screen read carries. The tool requires a target, so the harness sends
+# the one the corpus renders: a full 2560x1440 desktop rather than a window cut out of it.
+_WHOLE_SCREEN = {"target": "display"}
+
+
 async def capture_result(png: bytes) -> ToolResult:
     """The ``ToolResult`` a real capture produces, built by the shipped tool over a fake body.
 
@@ -505,7 +510,9 @@ async def capture_result(png: bytes) -> ToolResult:
         captured_at=_CAPTURED_AT,
     )
     tool = CaptureScreenTool(InMemoryBodyGateway(capture=capture))
-    return await tool.invoke(ToolCall(id=_CALL_ID, name=CAPTURE_SCREEN_TOOL_NAME, arguments={}))
+    return await tool.invoke(
+        ToolCall(id=_CALL_ID, name=CAPTURE_SCREEN_TOOL_NAME, arguments=_WHOLE_SCREEN)
+    )
 
 
 def image_messages(result: ToolResult, *, framed: bool, ask: str) -> list[dict[str, object]]:
@@ -515,7 +522,7 @@ def image_messages(result: ToolResult, *, framed: bool, ask: str) -> list[dict[s
     request these two build and asserts the two arms differ by the defence alone, which is the
     claim the live measurement rests on and the one thing about it that needs no GPU.
     """
-    call = ToolCall(id=_CALL_ID, name=CAPTURE_SCREEN_TOOL_NAME, arguments={})
+    call = ToolCall(id=_CALL_ID, name=CAPTURE_SCREEN_TOOL_NAME, arguments=_WHOLE_SCREEN)
     head = [security_preamble_message(_CAPTURED_AT, _TURN)] if framed else []
     tail = (
         result_message(result, _CAPTURED_AT, _TURN, nonce=new_nonce())

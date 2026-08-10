@@ -10,7 +10,7 @@ exclusively as the typed ``BodyGatewayError`` in ``errors.py``.
 
 from typing import Protocol
 
-from cortex_core.body import ScreenCapture, VolumeState
+from cortex_core.body import CaptureTarget, ScreenCapture, VolumeState
 
 
 class BodyGateway(Protocol):
@@ -24,9 +24,9 @@ class BodyGateway(Protocol):
     half of reminder delivery), returning whether the body displayed it (``False`` or an error
     leaves the reminder deliverable for the pull path; ``tainted`` marks attacker-influenced
     text so the body can badge it and must render it inert). ``capture_screen`` (ADR-0029)
-    reads the host's primary display and returns a domain ``ScreenCapture``; ``max_edge`` and
+    reads the host's screen and returns a domain ``ScreenCapture``; ``max_edge`` and
     ``max_bytes`` are hints the body clamps and may ignore, so the caller re-verifies the reply
-    it gets. Failures (the body unreachable,
+    it gets, and ``target`` names which of two things to point at. Failures (the body unreachable,
     an OS error, an unimplemented capability) surface as ``BodyGatewayError``, which callers
     turn into recoverable outcomes. The port is deliberately abstract so the connectivity
     fallback (a body-initiated tunnel, ADR-0001 Q3) is a later adapter, not a seam change.
@@ -37,6 +37,17 @@ class BodyGateway(Protocol):
     fire a second host receipt for one user intent. Nothing in the brain retries a body call
     today, so the correct posture already holds; it is written down here so a future retry
     decorator has to exclude this method deliberately.
+
+    **``target`` is a keyword and not a request value, deliberately.** The obvious alternative
+    was a frozen value bundling the two size bounds with it, which would buy headroom against
+    ``max-args = 6`` before the known-next ``display_index`` needs it. It was refused because
+    the three do not share an author or a lifetime: the bounds are deployment configuration,
+    fixed for the tool's whole life and already bundled once as ``CaptureBounds``, while the
+    target is chosen by the model on every call. A value over all three would join two things
+    that are not one thing, and one over the target alone would be a wrapper around a single
+    field. The moment a ``display_index`` lands there are two per-call fields with one author,
+    and that is when such a value earns itself; the linter will still not be forcing it, five
+    arguments being inside the ceiling.
     """
 
     async def get_volume(self) -> VolumeState: ...
@@ -49,4 +60,10 @@ class BodyGateway(Protocol):
         self, *, title: str, body: str, reminder_id: str, tainted: bool = False
     ) -> bool: ...
 
-    async def capture_screen(self, *, max_edge: int = 0, max_bytes: int = 0) -> ScreenCapture: ...
+    async def capture_screen(
+        self,
+        *,
+        max_edge: int = 0,
+        max_bytes: int = 0,
+        target: CaptureTarget = CaptureTarget.DISPLAY,
+    ) -> ScreenCapture: ...

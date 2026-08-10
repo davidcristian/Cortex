@@ -356,10 +356,12 @@ thinking needs disabling on a vision turn and `llama-server`'s `mmproj`-less err
 hardened preamble's content-manipulation clause holding over text and not over pixels. Each is
 recorded at that ADR with its entry in [refinements/vision.md](refinements/vision.md). The
 headline risk this slice shipped with, small text on a 4K desktop, was measured 2026-08-06 and
-mitigated by a default change the same day; the fix for what the mitigation cannot reach began
-2026-08-10 with the **body half of a targeted capture**, so the seam now carries a
-`CaptureTarget` and a shipping body honours it while nothing asks for a window yet. See
-[runbooks/vision.md](runbooks/vision.md).
+mitigated by a default change the same day; the fix for what the mitigation cannot reach landed
+2026-08-10 as a **targeted capture**, the body half first (the seam carries a `CaptureTarget` and
+a shipping body honours it) and the brain half the same day, so `capture_screen` now takes a
+required target and the model chooses between the window the user is looking at and the whole
+display. What is left of that thread is one measurement, whether a window-sized crop reaches the
+15 px text no token budget did. See [runbooks/vision.md](runbooks/vision.md).
 
 The shape: a model-initiated built-in `capture_screen` tool over the unchanged `BodyGateway`
 (the volume precedent, so it inherits audit, the dispatch budget, taint marking, and

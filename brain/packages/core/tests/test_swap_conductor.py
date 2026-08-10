@@ -494,7 +494,7 @@ async def test_a_turn_that_looked_at_the_screen_after_escalating_ends_with_a_not
         chunks=("handing this over",),
         tool_calls=(
             ToolCall(id="c1", name=ESCALATE_TOOL_NAME, arguments={"brief": harness.BRIEF}),
-            ToolCall(id="c2", name=CAPTURE_SCREEN_TOOL_NAME, arguments={}),
+            ToolCall(id="c2", name=CAPTURE_SCREEN_TOOL_NAME, arguments={"target": "display"}),
         ),
     )
     context = ToolLoopContext(

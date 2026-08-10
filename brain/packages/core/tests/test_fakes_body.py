@@ -8,6 +8,7 @@ import pytest
 from cortex_core import (
     BodyGatewayError,
     CaptureAsk,
+    CaptureTarget,
     ImagePart,
     InMemoryBodyGateway,
     ScreenCapture,
@@ -40,11 +41,27 @@ async def test_notify_raises_the_scripted_failure() -> None:
 
 async def test_capture_screen_records_the_hints_and_answers_the_default() -> None:
     gateway = InMemoryBodyGateway()
-    capture = await gateway.capture_screen(max_edge=1600, max_bytes=6291456)
-    assert gateway.captures == (CaptureAsk(max_edge=1600, max_bytes=6291456),)
+    capture = await gateway.capture_screen(
+        max_edge=1600, max_bytes=6291456, target=CaptureTarget.FOCUS
+    )
+    assert gateway.captures == (
+        CaptureAsk(max_edge=1600, max_bytes=6291456, target=CaptureTarget.FOCUS),
+    )
     assert capture.image.mime_type == "image/png"
     assert (capture.image.width, capture.image.height) == (1, 1)
     assert capture.captured_at.tzinfo is not None
+
+
+async def test_a_capture_the_fake_was_given_is_answered_whatever_was_asked_for() -> None:
+    """The fake is the adapter's twin, and the adapter reports what the body says it pointed at.
+
+    A focus request answered by a display capture is not a bug in either: it is a window filling
+    the screen. Rewriting the scripted capture to match the ask would make the fake the one place
+    in the system where the reply echoes the request.
+    """
+    gateway = InMemoryBodyGateway()
+    capture = await gateway.capture_screen(target=CaptureTarget.FOCUS)
+    assert capture.target is CaptureTarget.DISPLAY
 
 
 async def test_capture_screen_answers_a_scripted_capture() -> None:
@@ -53,10 +70,11 @@ async def test_capture_screen_answers_a_scripted_capture() -> None:
         source_width=1600,
         source_height=1200,
         captured_at=datetime(2026, 1, 2, 3, 4, tzinfo=UTC),
+        target=CaptureTarget.FOCUS,
     )
     gateway = InMemoryBodyGateway(capture=scripted)
     assert await gateway.capture_screen() == scripted
-    assert gateway.captures == (CaptureAsk(max_edge=0, max_bytes=0),)
+    assert gateway.captures == (CaptureAsk(max_edge=0, max_bytes=0, target=CaptureTarget.DISPLAY),)
 
 
 async def test_capture_screen_raises_the_scripted_failure() -> None:
