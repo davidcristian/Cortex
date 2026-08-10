@@ -9,7 +9,7 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 entries are the historical record of what each deferral became, and the index at
 [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** 4 (`cargo clippy` for the Tauri shell in CI, moved to fix-when-it-bites
+**Open items:** 5 (`cargo clippy` for the Tauri shell in CI, moved to fix-when-it-bites
 2026-07-16; standing test-order randomization, opened as fix-when-it-bites 2026-07-18; the
 overlay stylesheet outside the line cap, opened as
 fix-when-it-bites 2026-08-03 behind the cap reaching the overlay's TypeScript; the five
@@ -53,7 +53,13 @@ collected order provably different per seed, and the Tauri shell's own
 `cargo clippy --all-targets -- -D warnings` exits 0 over the 978 lines it now holds, both proven
 able to fail first. Neither fired, so nothing opened and nothing closed, and the four are standing
 test-order randomization, the shell's `cargo clippy` in CI, the stylesheet outside the line cap,
-and the couplings entry)
+and the couplings entry. **Five later that same day**, by arrival: the sweep that carried the
+`MemoryStore` contract fix out to every port in both languages closed its own finding inside
+itself, `SessionStore` having had the identical defect and now reading its shared tuple in CI, and
+opened the half it could only measure, that four Python ports plus most of a fifth, every Rust
+port, and the overlay's `BrainBridge` have no shared check list at all. Five is read entry by
+entry rather than incremented: standing test-order randomization, the shell's `cargo clippy` in CI,
+the stylesheet outside the line cap, the couplings entry, and the ports without a contract suite)
 
 **Prose style ([ADR-0026](../adr/ADR-0026-prose-style-gates.md)):**
 - **Check the commit body's 72-column wrap, not only the header's length.** Opened 2026-07-18,
@@ -938,3 +944,54 @@ cross-language-constant addendum):**
   added to the open list above or to the count in [index.md](index.md), both of which read 6 while
   seven were open and named the same six. Closing it makes the number true rather than moving it,
   and the six named there are unchanged.
+
+- **The ports-before-adapters gate is per port, and several ports do not have one.**
+  *Fix when it bites.* Opened 2026-08-10 by the sweep that followed the `MemoryStore` contract
+  fix out to every port in both languages, recorded with its full inventory in the
+  [ADR-0001](../adr/ADR-0001-architecture.md) addendum on decision 2's contract-test half.
+  The sweep's own finding closed inside it: `SessionStore` had the same defect the memory port
+  had just been fixed for, its shared tuple read only by the integration-marked live-Redis run
+  while the CI driver restated all fourteen checks by hand, and it now parametrizes over the
+  tuple like the other four stores in that directory. What stays open is the larger half the
+  sweep could only measure.
+
+  **Four Python ports have a fake and a real adapter and no shared check list**, `Embedder`,
+  `ToolRegistry`, `BodyGateway` and `Confirmer`, with `InferenceBackend` a fifth in part: its
+  decode-cadence arm is contract-tested over both implementations and the rest of the
+  streaming contract is restated between the core's suite for `ScriptedInferenceBackend` and
+  the adapter's own. None of the five is blocked on hardware. Each already has a CI-runnable
+  real adapter, over `MockTransport` for the embedder and the backend, a fake MCP session for
+  the registry, a real loopback `BodyService` for the gateway, and the seam's fake for the
+  confirmer, so what is missing is the shared file and its two drivers rather than any way to
+  run one.
+
+  **The Rust workspace has no shared check list for any port**, and the shape there is worse
+  than a restated list, being a restated fake: `FakeAudio`, `FakeNotify`, `FakeScreen` and
+  `FakeBrain` are each hand-written twice with independent expectations, once under
+  `body/crates/core/tests/` and again under `body/crates/rpc/tests/`. The generic helpers that
+  look like the missing driver (`register_via`, `get_via`, `show_via`, `capture_via`, `probe`)
+  hold no assertions at all; they prove the trait is usable as a bound. The real OS adapters
+  are `cfg(windows)` and so are neither compiled nor run by CI, which is gate 3 and not a
+  defect, but it does mean a shared list would be the only artifact holding the Windows
+  backends to the same description their fakes are held to, and it would be ready the day the
+  host runs it.
+
+  **The overlay's `BrainBridge` is the sharpest single case**, having three implementations of
+  which one is tested, while `body/app/vite.config.ts` names `tauriBridge.ts` and
+  `demoBridge.ts` in its coverage `exclude` list. The 100% threshold is therefore met with two
+  thirds of that port unmeasured, which is the same class of thing this sweep was looking for:
+  a gate that reads green over code it was never pointed at.
+
+  **Why deferred rather than done.** The ports named above come to five in Python counting the
+  partial one, seven in Rust and one in the overlay, and writing contract suites for them is a
+  slice with its own design questions (what a write-only port owes, whether a Rust list is a
+  generic function or a table of function pointers, whether the overlay's fake and its Tauri
+  bridge can share a driver at all when one answers from a record and the other crosses an IPC
+  boundary), while the sweep that found them was scoped to one pass and one commit. The ADR
+  addendum's tables are the worklist, port by port, with the ports that legitimately cannot
+  share checks already argued out of it so the next reader does not re-derive them.
+
+  **Trigger:** the next port to gain a shared check list, which should adopt the arrangement
+  the nine existing ones share rather than invent a tenth; or the first drift caught in the
+  wild, meaning a check that passes against a fake and fails against its adapter in a way a
+  shared list would have named.
