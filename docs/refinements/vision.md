@@ -6,7 +6,7 @@ downscale/encode/byte-bounding policy in pure `body_core`, a GDI Windows backend
 treated as untrusted and unfenceable content. Recorded when the slice landed on 2026-07-18; the
 index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** the user-attached image path, region and window capture,
+**Open items:** the user-attached image path, the window crop measured against 15 px text,
 JPEG or WebP for photographic screens,
 an `AttachmentStore` for accountability,
 per-source memory rules, a Windows.Graphics.Capture backend, multi-monitor and DPI reporting,
@@ -71,7 +71,20 @@ decremented for a half-closed entry is how an open deferral gets lost, and what 
 the brain half, the `display_index` beside it, and the measurement of whether a window-sized crop
 reaches the 15 px text that defeated every budget. The bullet also gains a **declined**
 alternative, the model-named rectangle, with a written reopen trigger; like the accepted residual
-below it is uncounted, because a decline names no work until its trigger fires.
+below it is uncounted, because a decline names no work until its trigger fires. A thirteenth, later
+on 2026-08-10, which moves no count either and is the same entry's second half: the **brain half**
+landed, so the tool takes a target, the model picks it, the reply says which of the two things the
+picture is, and `describe()` stops calling a crop a shrunk screen. That leaves nothing built-shaped
+in the entry, so its **name changes** rather than leaving: what is still owed is the measurement the
+whole thread was for, whether a window-sized crop reaches the 15 px text that stayed at 4 of 16 at
+every token budget tried, and that is what the Open items line names now. One name out and one in on
+one bullet, folded here rather than split into a near-duplicate entry, so the count holds at 11 and
+is re-derived below entry by entry rather than carried. `display_index` does not stay on this line
+either, being counted already as multi-monitor reporting. **Eleven read one by one:** the
+user-attached image path, this entry as the window measurement, JPEG or WebP, the `AttachmentStore`,
+per-source memory rules, a Windows.Graphics.Capture backend, multi-monitor and DPI reporting, the
+Linux and macOS backends, the uniform per-call deadline, carrying a picture across a swap (half
+open, counted), and pixel screening in the body.
 
 ## Vision in Slice 10 ([ADR-0029](../adr/ADR-0029-vision-screen-capture.md))
 
@@ -198,11 +211,46 @@ below it is uncounted, because a decline names no work until its trigger fires.
   rectangle user-authored and therefore a privacy improvement rather than a privacy widening.
   `TargetRect` is already the value such a picker would produce.
 
-  **Still open here**: the brain half (the tool argument, the schema the model reads, `describe()`
-  wording that does not call a crop a downscale, and the repeat bound that stops being free once
-  the tool takes an argument), `display_index` beside it, and the measurement this fix was
-  ultimately for, whether a window-sized crop reaches the 15 px text that stayed at 4 of 16 at
-  every budget tried.
+  **The brain half landed later the same day, and the entry is a measurement now**
+  ([ADR-0029](../adr/ADR-0029-vision-screen-capture.md)'s second addendum of that date). All three
+  things the body half handed forward are done: `capture_screen` takes a required `target`, the
+  model picks it from a schema derived from the domain enum, and `describe()` renders a window as
+  a crop out of the display rather than as a shrunk screen.
+
+  Two things that half turned up which the body half's own list did not have. The first is that
+  **the honest sentence needed a reply-side field**: `source_width`/`source_height` are the
+  display's on both paths, deliberately, so a crop and a shrunk screen are the same blob and the
+  brain could not tell them apart from the payload. `CaptureScreenReply.resolved_target` closes
+  that, read off what the body encoded rather than off the ask, which is the same predicate the OS
+  receipt is picked by, so the sentence the user sees and the sentence the model reads cannot
+  disagree about one picture. It carries the target and not the rectangle, because coordinates on
+  the reply would hand back the frame the rectangle decline just refused to take.
+
+  The second is the bound, and it is worse than the body half predicted and still defensible.
+  Decision 7's free cap was two captures a loop because every call was byte-identical. Read against
+  `tool_salience.py` rather than against the paragraph, identity is name plus arguments, so **each
+  target is its own identity and the ceiling is two per target, four a loop**. Four rather than six
+  is a property of the tool: a call naming no target is refused before the body is reached, so the
+  empty spelling costs a dispatch and takes no picture. Four rather than unbounded is the exact
+  match, since every accepted synonym would buy another two, which is the one place being strict
+  with the model is what buys the bound. The number is asserted out loud in a test rather than left
+  to be rediscovered.
+
+  One input to a decision moved without moving the decision, and is recorded at the ADR so the
+  maintainer can overrule it knowingly: capture ships **ungated** partly because a confirm card
+  could not describe what would be captured, the call taking no arguments. It takes one now, so a
+  card could promise the window or the screen. The other three legs are untouched and the gating is
+  unchanged.
+
+  **Still open here, and it is the only thing left**: the measurement this whole fix was for,
+  whether a window-sized crop reaches the 15 px text that stayed at 4 of 16 at every budget tried.
+  It is agent-runnable through Docker against the real cortex, which is why it stays in this
+  backlog rather than moving to [docs/host/](../host/index.md), and it is runnable end to end for
+  the first time now that a target can be asked for. `display_index` is no longer named here: it is
+  the multi-monitor entry below, which already carries it and already says the target spent the
+  field number it was being held for. A **new coupling** opened beside this landing rather than
+  inside it, the proto enum against the schema strings the model reads, and it lives with the other
+  couplings the constant scan cannot hold in [repo-gates.md](repo-gates.md).
 - **A cross-language check on the byte ceiling.** `MAX_CAPTURE_BYTES` (Rust) and
   `MAX_IMAGE_BYTES` (Python) are the same number, 6 MiB, and each is pinned to the literal
   `6291456` by a test in its own toolchain. **Nothing mechanical couples them**: an edit to one

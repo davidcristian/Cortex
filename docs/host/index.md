@@ -241,9 +241,12 @@ host line.
 
 **W, each with its own bring-up:**
 
-- **The whole GDI capture path** ([windows-capture.md](windows-capture.md)): one check with seven
-  observations, its own kill switch, and the self-exclusion observation to be made first rather
-  than last.
+- **The whole GDI capture path** ([windows-capture.md](windows-capture.md)): two checks with
+  twelve observations, its own kill switch, and a self-exclusion observation to be made first
+  rather than last in each of them. This bullet read "one check with seven observations" until
+  2026-08-10, having been left behind when the focus target added the second check; the row in
+  the table above had moved and this one had not, which is the arithmetic the two are meant to
+  agree on.
 - **The OS-window half of the overlay polish** ([overlay-polish.md](overlay-polish.md)): the one
   **authoring** item here. Blocked on nothing; it is reviewed rather than passed.
 - **What the live region is spoken as** ([overlay-screen-reader.md](overlay-screen-reader.md)):

@@ -47,6 +47,25 @@ def test_an_unset_capture_target_is_the_whole_display() -> None:
     assert decoded.max_edge == 2048
 
 
+def test_a_reply_that_names_no_target_reads_as_the_whole_display() -> None:
+    # The same zero on the other direction, and the reason the reply field is safe to add: a
+    # body predating it can only have taken a whole-display picture, so the default is a
+    # reading rather than a guess.
+    reply = cortex_seam.CaptureScreenReply(image=cortex_seam.ImageBlob(width=4, height=4))
+    decoded = cortex_seam.CaptureScreenReply.FromString(reply.SerializeToString())
+    assert decoded.resolved_target == cortex_seam.CaptureTarget.CAPTURE_TARGET_DISPLAY
+
+
+def test_a_resolved_capture_target_round_trips_on_the_wire() -> None:
+    reply = cortex_seam.CaptureScreenReply(
+        image=cortex_seam.ImageBlob(width=4, height=4),
+        resolved_target=cortex_seam.CaptureTarget.CAPTURE_TARGET_FOCUS,
+    )
+    decoded = cortex_seam.CaptureScreenReply.FromString(reply.SerializeToString())
+    assert decoded == reply
+    assert decoded.resolved_target == cortex_seam.CaptureTarget.CAPTURE_TARGET_FOCUS
+
+
 def test_a_capture_target_round_trips_on_the_wire() -> None:
     request = cortex_seam.CaptureScreenRequest(
         max_edge=2048, target=cortex_seam.CaptureTarget.CAPTURE_TARGET_FOCUS

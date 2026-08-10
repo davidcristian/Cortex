@@ -16,6 +16,7 @@ from cortex_core import (
     BodyGatewayError,
     CaptureBounds,
     CaptureScreenTool,
+    CaptureTarget,
     DispatchPolicy,
     ImagePart,
     InMemoryBodyGateway,
@@ -37,18 +38,23 @@ _PNG = b"\x89PNG\r\n\x1a\n"
 
 
 def _capture(
-    *, width: int = 1600, height: int = 900, source: tuple[int, int] = (2560, 1440)
+    *,
+    width: int = 1600,
+    height: int = 900,
+    source: tuple[int, int] = (2560, 1440),
+    target: CaptureTarget = CaptureTarget.DISPLAY,
 ) -> ScreenCapture:
     return ScreenCapture(
         image=ImagePart(data=_PNG, mime_type="image/png", width=width, height=height),
         source_width=source[0],
         source_height=source[1],
         captured_at=datetime(2026, 7, 25, 10, 14, 3, tzinfo=UTC),
+        target=target,
     )
 
 
-def _call() -> ToolCall:
-    return ToolCall(id="c1", name=CAPTURE_SCREEN_TOOL_NAME, arguments={})
+def _call(target: str = "display") -> ToolCall:
+    return ToolCall(id="c1", name=CAPTURE_SCREEN_TOOL_NAME, arguments={"target": target})
 
 
 async def _send(_arguments: Mapping[str, object]) -> str:
@@ -69,12 +75,20 @@ def _email_dispatcher(confirmer: RecordingConfirmer) -> tuple[ToolDispatcher, Re
     return dispatcher, audit
 
 
-async def test_the_spec_is_ungated_and_takes_no_arguments() -> None:
+async def test_the_spec_is_ungated_and_makes_the_model_name_a_target() -> None:
     tool = CaptureScreenTool(InMemoryBodyGateway())
     spec = tool.spec
     assert spec.name == "capture_screen"
     assert spec.gated is False
-    assert spec.parameters["properties"] == {}
+    assert spec.parameters["required"] == ["target"]
+
+
+def test_the_vocabulary_the_model_sees_is_the_vocabulary_the_seam_carries() -> None:
+    """The one half of the enum coupling a gate can hold, held."""
+    schema = CaptureScreenTool(InMemoryBodyGateway()).spec.parameters
+    target = schema["properties"]["target"]
+    assert target["enum"] == [member.value for member in CaptureTarget]
+    assert target["enum"] == ["display", "focus"]
 
 
 async def test_a_capture_is_untrusted_and_carries_exactly_one_image() -> None:
@@ -109,6 +123,82 @@ async def test_the_configured_bounds_reach_the_body() -> None:
     body = InMemoryBodyGateway(capture=_capture())
     await CaptureScreenTool(body, max_edge=1280, max_bytes=4096).invoke(_call())
     assert [(ask.max_edge, ask.max_bytes) for ask in body.captures] == [(1280, 4096)]
+
+
+async def test_the_target_the_model_named_reaches_the_body() -> None:
+    body = InMemoryBodyGateway(capture=_capture())
+    tool = CaptureScreenTool(body)
+    await tool.invoke(_call("focus"))
+    await tool.invoke(_call("display"))
+    assert [ask.target for ask in body.captures] == [CaptureTarget.FOCUS, CaptureTarget.DISPLAY]
+
+
+async def test_a_window_capture_is_described_as_a_crop_and_not_as_a_shrunk_screen() -> None:
+    """The reply's own answer picks the sentence, so the model is never told about a desktop it
+    was not shown. A window fitting the capture edge was not resampled at all, and even one that
+    was is not a view of the whole 2560x1440 display."""
+    windowed = _capture(width=1720, height=1200, target=CaptureTarget.FOCUS)
+    result = await CaptureScreenTool(InMemoryBodyGateway(capture=windowed)).invoke(_call("focus"))
+
+    assert result.content == (
+        "screen capture of one window, cropped out of the 2560x1440 primary display: "
+        "1720x1200 image/png, taken at 2026-07-25T10:14:03+00:00. "
+        "The rest of the screen was not captured. "
+        "The picture is attached to this message as an image part; it cannot be fenced as text."
+    )
+    assert "downscaled" not in result.content
+
+
+async def test_a_window_that_filled_the_screen_is_described_as_the_screen() -> None:
+    """The body reads the reply's target off what it encoded rather than off the ask, and the
+    receipt the user sees is picked by the same predicate, so a maximised window cannot make the
+    two surfaces disagree. Asking for the window and being told "display" is not a failure."""
+    body = InMemoryBodyGateway(capture=_capture(target=CaptureTarget.DISPLAY))
+    result = await CaptureScreenTool(body).invoke(_call("focus"))
+
+    assert result.content.startswith("screen capture of the primary display: 1600x900 image/png,")
+    assert [ask.target for ask in body.captures] == [CaptureTarget.FOCUS]
+
+
+async def test_a_capture_with_no_target_is_refused_without_taking_a_picture() -> None:
+    """Refused rather than defaulted, and the reason is not tidiness."""
+    body = InMemoryBodyGateway(capture=_capture())
+    result = await CaptureScreenTool(body).invoke(
+        ToolCall(id="c1", name=CAPTURE_SCREEN_TOOL_NAME, arguments={})
+    )
+
+    assert result.is_error is True
+    assert result.trust is Trust.TRUSTED
+    assert result.images == ()
+    assert result.content.startswith("capture_screen requires 'target'")
+    assert list(body.captures) == [], "nothing was captured, so nothing may taint the turn"
+
+
+@pytest.mark.parametrize("named", ["window", "DISPLAY", "", "focus "])
+async def test_a_target_outside_the_vocabulary_is_a_tool_error_and_never_a_raise(
+    named: str,
+) -> None:
+    """The model chose it and the model can correct it, so this is a result rather than an
+    exception that would kill the turn. The match is exact on purpose: accepting ``DISPLAY``
+    beside ``display`` would add a whole call identity that takes pictures."""
+    body = InMemoryBodyGateway(capture=_capture())
+    result = await CaptureScreenTool(body).invoke(_call(named))
+
+    assert result.is_error is True
+    assert result.trust is Trust.TRUSTED
+    assert result.content == "'target' must be one of: display, focus"
+    assert list(body.captures) == []
+
+
+async def test_a_target_that_is_not_a_string_is_refused_like_a_missing_one() -> None:
+    body = InMemoryBodyGateway(capture=_capture())
+    result = await CaptureScreenTool(body).invoke(
+        ToolCall(id="c1", name=CAPTURE_SCREEN_TOOL_NAME, arguments={"target": 1})
+    )
+
+    assert result.is_error is True
+    assert result.content.startswith("capture_screen requires 'target'")
+    assert list(body.captures) == []
 
 
 async def test_an_unreachable_body_is_a_trusted_error_with_no_pixels() -> None:
@@ -226,20 +316,41 @@ async def test_the_audit_line_carries_no_image_bytes_on_either_path() -> None:
         assert _PNG not in result.content.encode()
 
 
-async def test_two_identical_captures_are_all_a_turn_gets() -> None:
-    """No new counter: the spec takes no arguments, so every call is byte-identical and the
-    existing identical-dispatch cap bounds captures per turn for free."""
+async def test_two_captures_per_target_is_what_a_loop_gets_now() -> None:
+    """The bound the target argument moved, said out loud rather than left to be discovered."""
     salience = RepeatSalience()
     rounds: list[list[ToolCall]] = []
-    admitted: list[bool] = []
-    for _ in range(3):
+    admitted: list[tuple[str, bool]] = []
+    for _round in range(3):
         rounds.append([])
-        verdict = salience.admits(_call(), rounds)
-        admitted.append(verdict)
-        if verdict:
-            rounds[-1].append(_call())
-    assert admitted == [True, True, False]
+        for target in ("display", "focus"):
+            verdict = salience.admits(_call(target), rounds)
+            admitted.append((target, verdict))
+            if verdict:
+                rounds[-1].append(_call(target))
+
+    assert admitted == [
+        ("display", True),
+        ("focus", True),
+        ("display", True),
+        ("focus", True),
+        ("display", False),
+        ("focus", False),
+    ]
+    assert sum(1 for _target, verdict in admitted if verdict) == 2 * MAX_IDENTICAL_DISPATCHES
     assert MAX_IDENTICAL_DISPATCHES == 2
+
+
+async def test_a_second_identical_target_in_one_round_is_refused_outright() -> None:
+    """The within-a-round clause is absolute, and it is what stops one round from spending the
+    whole per-target allowance on the same picture twice before either result is read."""
+    salience = RepeatSalience()
+    first_round: list[list[ToolCall]] = [[]]
+
+    assert salience.admits(_call("focus"), first_round) is True
+    first_round[-1].append(_call("focus"))
+    assert salience.admits(_call("focus"), first_round) is False
+    assert salience.admits(_call("display"), first_round) is True
 
 
 def test_the_tool_name_is_the_one_the_owner_puts_in_the_gated_list() -> None:

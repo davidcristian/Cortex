@@ -8,6 +8,7 @@ from grpc import aio
 from cortex_body_client.failures import kind_of
 from cortex_core import (
     BodyGatewayError,
+    CaptureTarget,
     ImageError,
     ImagePart,
     ScreenCapture,
@@ -25,9 +26,18 @@ from cortex_seam import (
     NotifyRequest,
     SetVolumeRequest,
 )
+from cortex_seam import CaptureTarget as CaptureTargetPb
 from cortex_seam import VolumeState as VolumeStatePb
 
 _Metadata = tuple[tuple[str, str], ...]
+
+_TARGET_TO_WIRE: dict[CaptureTarget, CaptureTargetPb] = {
+    CaptureTarget.DISPLAY: CaptureTargetPb.CAPTURE_TARGET_DISPLAY,
+    CaptureTarget.FOCUS: CaptureTargetPb.CAPTURE_TARGET_FOCUS,
+}
+_TARGET_FROM_WIRE: dict[int, CaptureTarget] = {
+    int(wire): target for target, wire in _TARGET_TO_WIRE.items()
+}
 
 MAX_RECEIVE_BYTES = 16 * 1024 * 1024
 
@@ -98,10 +108,18 @@ class GrpcBodyGateway:
             raise BodyGatewayError(msg, kind=kind_of(err)) from err
         return reply.shown
 
-    async def capture_screen(self, *, max_edge: int = 0, max_bytes: int = 0) -> ScreenCapture:
-        """Read the host's primary display over ``BodyService.CaptureScreen`` (ADR-0029)."""
+    async def capture_screen(
+        self,
+        *,
+        max_edge: int = 0,
+        max_bytes: int = 0,
+        target: CaptureTarget = CaptureTarget.DISPLAY,
+    ) -> ScreenCapture:
+        """Read the host's screen over ``BodyService.CaptureScreen`` (ADR-0029)."""
         try:
-            request = CaptureScreenRequest(max_edge=max_edge, max_bytes=max_bytes)
+            request = CaptureScreenRequest(
+                max_edge=max_edge, max_bytes=max_bytes, target=_TARGET_TO_WIRE[target]
+            )
         except ValueError as err:
             # A misconfigured bound must not escape as a bare ValueError: this port promises
             # BodyGatewayError as its only failure channel, and anything else kills the turn
@@ -142,6 +160,7 @@ def _to_capture(reply: CaptureScreenReply, *, max_edge: int, max_bytes: int) -> 
         source_width=blob.source_width or blob.width,
         source_height=blob.source_height or blob.height,
         captured_at=captured_at_from_unix_ms(blob.captured_at_unix_ms),
+        target=_TARGET_FROM_WIRE.get(reply.resolved_target, CaptureTarget.DISPLAY),
     )
 
 

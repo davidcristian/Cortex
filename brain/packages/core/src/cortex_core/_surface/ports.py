@@ -1,6 +1,11 @@
 """Public core names for the ports themselves plus the vocabulary every one of them speaks."""
 
-from cortex_core.body import ScreenCapture, VolumeState, captured_at_from_unix_ms
+from cortex_core.body import (
+    CaptureTarget,
+    ScreenCapture,
+    VolumeState,
+    captured_at_from_unix_ms,
+)
 from cortex_core.body_failure import body_failure_message
 from cortex_core.conversation import Message, Role
 from cortex_core.errors import (
@@ -91,6 +96,7 @@ __all__ = [
     "BodyFailure",
     "BodyGateway",
     "BodyGatewayError",
+    "CaptureTarget",
     "Clock",
     "Confirmer",
     "DecodeCadence",

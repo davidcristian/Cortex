@@ -41,8 +41,19 @@ pub(crate) async fn capture<S: ScreenCapture + 'static, N: Notify + 'static>(
     )
     .await?;
     Ok(CaptureScreenReply {
+        resolved_target: encoded_target(&capture).into(),
         image: Some(blob(&capture, captured_at_unix_ms)),
     })
+}
+
+/// Says on the reply which of the two things the picture is, so the brain can describe it
+/// honestly instead of calling a crop a shrunk screen.
+fn encoded_target(capture: &Capture) -> PbCaptureTarget {
+    if capture.covers_display() {
+        PbCaptureTarget::Display
+    } else {
+        PbCaptureTarget::Focus
+    }
 }
 
 /// Reads the wire's target enum as one of the two things the body knows how to point at.

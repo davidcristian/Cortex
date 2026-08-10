@@ -576,10 +576,11 @@ The service:
   (ADR-0030), all merged
   with the MCP tools via a `CompositeToolRegistry`, or `None` when nothing is enabled (the
   Slice 3 turn path). The volume, capture, and schedule built-ins are ungated by default
-  (`capture_screen` because a screen read is neither outbound nor irreversible, the confirm card
-  could not describe what it will capture since the call takes no arguments, and a gated call on
-  a tainted turn is hard-denied with the confirmer never consulted, which would make "read this
-  email, then look at my screen" structurally impossible);
+  (`capture_screen` because a screen read is neither outbound nor irreversible, and a gated call
+  on a tainted turn is hard-denied with the confirmer never consulted, which would make "read this
+  email, then look at my screen" structurally impossible; the leg about a confirm card having
+  nothing to describe **retired 2026-08-10**, the call now carrying a target a card could name,
+  which is recorded at ADR-0029 as an input that moved without moving the decision);
   a user gates any by name in `CORTEX_TOOLS_GATED` (the dispatcher's authoritative backstop)
   and prices any by name in `CORTEX_TOOLS_COSTS`. All three declarations travel as one
   `DispatchPolicy`, so the cortex, the subagents, and the ticker are built from the same value

@@ -208,7 +208,12 @@ message CaptureScreenRequest {
   // are one number instead of two constants coupled by prose.
   uint32 max_bytes = 3;
 }
-message CaptureScreenReply { ImageBlob image = 1; }
+message CaptureScreenReply {
+  ImageBlob image = 1;
+  // What the body actually pointed at, so the brain can say honestly what was read instead of
+  // describing a crop as a shrunk screen (ADR-0029).
+  CaptureTarget resolved_target = 2;
+}
 
 message ImageBlob {
   bytes data = 1;

@@ -12,14 +12,19 @@ entries are the historical record of what each deferral became, and the index at
 **Open items:** 4 (`cargo clippy` for the Tauri shell in CI, moved to fix-when-it-bites
 2026-07-16; standing test-order randomization, opened as fix-when-it-bites 2026-07-18; the
 overlay stylesheet outside the line cap, opened as
-fix-when-it-bites 2026-08-03 behind the cap reaching the overlay's TypeScript; the three
+fix-when-it-bites 2026-08-03 behind the cap reaching the overlay's TypeScript; the five
 couplings the widened constant scan still cannot hold, opened as fix-when-it-bites 2026-08-08
 when four of the five kinds its predecessor named were closed, which is the backlog working as
 intended rather than a count standing still, and grown to four the same day by the gRPC status
 codes the kinded body-gateway error currency now needs both sides to spell alike, folded into
 that entry rather than counted beside it, and still four on 2026-08-09 by exchange, the roll's
 duration closing onto a `--roll` custom property the sheet spells once and the spend side of a
-value-declaring property taking its place, folded in the same way. The end-to-end turn-cost
+value-declaring property taking its place, folded in the same way, and **five on 2026-08-10** by
+arrival rather than exchange, the capture target's proto enum against the schema strings the model
+picks between being the first coupling here with generated code on **both** sides, which leaves the
+scan nothing to parse in either place. That growth does not move this area's number, which counts
+entries and not couplings and stays 4; the entry is where a coupling's arrival is recorded, exactly
+as the gRPC status codes were. The end-to-end turn-cost
 harness came off this list on 2026-08-09, on the trigger it had been narrowed by, and the answer
 to both halves it had left is one division of labour rather than one clever test: an arm is a
 container configuration, so the restarts live in a `just turn-cost` recipe, which puts the arms in
@@ -583,13 +588,15 @@ cross-language-constant addendum):**
   uses is the same defect in a wider gate. **Landed ahead of the trigger**, which was the first
   coupling that actually drifts; nothing had drifted, and each capability was reddened on the real
   tree instead, once per capability. **What this opens** is the entry below.
-- **The four couplings the widened registry still cannot hold.** *Fix when it bites.* Opened
+- **The five couplings the widened registry still cannot hold.** *Fix when it bites.* Opened
   2026-08-08 behind the landing above, in the same shape its own parent had: a registry that now
   reaches four kinds of coupling makes each remaining one a decision rather than an absence.
   A fourth joined the same day and is folded in here rather than counted again, since it is the
   same absence and a near-duplicate name would inflate the area. **Still four on 2026-08-09, by
   exchange rather than by standing still:** the duration below closed, and the shape that closing
   it left behind is written directly under it, folded in for the same reason the fourth was.
+  **Five on 2026-08-10**, by arrival this time, the capture target's two spellings of one
+  vocabulary; it is written last, and it is the first here whose both sides are generated.
   **A membership, not an ordering.** `CAPTURE_MIME` (`"image/png"`) must stay inside the brain's
   `ALLOWED_MIME_TYPES`, which is a `frozenset` literal, so this wants a collection value form as
   well as a comparator, and the reducer refuses what it cannot reduce by policy rather than by
@@ -655,6 +662,26 @@ cross-language-constant addendum):**
   pair today is prose in both module docs plus a test table on each side, which is exactly what
   the registry exists to replace. **Trigger:** a third caller of the same table, or a case-aware
   mention form arriving for another reason.
+  **A vocabulary generated on both sides, spelled a third time by hand for the model.** Added
+  2026-08-10 with the brain half of the targeted capture
+  ([ADR-0029](../adr/ADR-0029-vision-screen-capture.md)'s second addendum of that date). The proto
+  declares `CaptureTarget` with `CAPTURE_TARGET_DISPLAY` and `CAPTURE_TARGET_FOCUS`; `body_core`
+  and `cortex_core` each mirror it as a hand-written enum; and the strings the model picks between
+  in `capture_screen`'s JSON schema are a third spelling again. Half of that is already held
+  without the scan, and by construction rather than by a gate: the schema list is **derived** from
+  `cortex_core.CaptureTarget`'s member values (`_TARGET_NAMES` in `screen_tool.py`), so a third
+  target cannot reach the model's vocabulary and the domain's separately. What no scan can hold is
+  the other half, the two hand-written enums against the proto's. This is the first entry here with
+  generated code on **both** sides of the coupling, which is why it is structurally out of reach
+  rather than merely awkward: `crosscheck.py` reads declarations out of source, and a protobuf enum
+  becomes a serialized descriptor in one tree and a `#[derive]`d Rust enum in the other, with no
+  literal in either place for a template to match. Registering it would mean reading the `.proto`
+  itself, which is a parser this repo does not have and a fifth kind of place for the registry to
+  know about. What holds it today is the compiler on the Rust side (a `match` over
+  `PbCaptureTarget` is exhaustive, so a new proto value fails the build) and nothing at all on the
+  Python side, where a new value would simply never be produced. **Trigger:** the third value on
+  this enum, which is also the first one whose addition the Rust side cannot catch for the Python
+  side, or a `.proto` reader arriving in the scan for another reason.
 
 **Repo gates ([ADR-0026](../adr/ADR-0026-prose-style-gates.md)):**
 - **The fail-open `scripts/` gate config closed 2026-07-12

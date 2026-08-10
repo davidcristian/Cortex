@@ -2,8 +2,16 @@
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from enum import Enum
 
 from cortex_core.images import ImagePart
+
+
+class CaptureTarget(Enum):
+    """What a capture is pointed at: the whole primary display, or one window (ADR-0029)."""
+
+    DISPLAY = "display"
+    FOCUS = "focus"
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,10 +34,11 @@ class ScreenCapture:
     source_width: int
     source_height: int
     captured_at: datetime
+    target: CaptureTarget = CaptureTarget.DISPLAY
 
     @property
     def downscaled(self) -> bool:
-        """Whether the body shrank the display to fit, so the tool can say so."""
+        """Whether the picture is smaller than the **display**, so the tool can say so."""
         return (self.image.width, self.image.height) != (self.source_width, self.source_height)
 
 

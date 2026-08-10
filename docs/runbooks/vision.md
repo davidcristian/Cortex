@@ -64,12 +64,14 @@ looking at). There is no rectangle to name and there will not be one until somet
 the model a coordinate frame; the body resolves the target itself, because only it knows where
 windows are.
 
-**Nothing asks for a window yet.** The brain sends no target, so every capture today is the
-whole display, byte for byte what it was before. The field and the body that honours it landed
-together on purpose: under proto3 an older body silently ignores an unknown field, so a knob the
-shipping body does not honour is a lie about a constraint the brain believes it set.
+**The model is the one who chooses**, as of 2026-08-10. `capture_screen` takes one required
+argument, `target`, whose two values are `focus` and `display`, and the tool description tells the
+model which to reach for: the window when the question is about one thing in front of the user,
+the display when it is about the screen as a whole. There is no default. A call that names no
+target, or names one outside the two, comes back as a tool error and takes no picture, which is
+also what keeps the repeat bound honest (below).
 
-Two things to know about the focused window when the brain does start asking:
+Two things to know about the focused window:
 
 - It is **not** the foreground window. The user summons the overlay with the hotkey and types the
   question into it, so the overlay is the foreground window at the moment a capture runs, and it
@@ -86,6 +88,17 @@ The receipt says which happened, in the body's own words: "A picture of your scr
 the assistant." or "A picture of one window was sent to the assistant." It is chosen by what
 actually crossed the seam, so a maximised window that fills the display reports a screen
 capture, and neither sentence ever names the window, a title being attacker-chosen text.
+
+The reply tells the brain the same thing, picked by the same rule, which is why the model is
+never told a crop was a shrunk screen. A window capture reads to the model as "screen capture of
+one window, cropped out of the 2560x1440 primary display", followed by the fact it can act on:
+the rest of the screen was not captured, so it can ask again for the display. Like the receipt,
+that sentence names no window title and no coordinates.
+
+**The overlay's capture ring does not distinguish the two.** It says "The assistant looked at
+your screen during this reply" for a window read as well, deliberately: a window is part of the
+screen, so the coarser sentence is true, and over-reporting is the direction a privacy indicator
+should fail in.
 
 ## Agent half (Docker, a real projector and a real image)
 
@@ -196,8 +209,11 @@ Worth knowing before the first surprise, because it is all deliberate:
   no memory. A reopened chat shows the reply and no evidence of what was seen, and the audit
   line records dimensions, a byte count and a timestamp only. A later dispute about what a
   capture contained genuinely cannot be answered from the store.
-- At most **two** captures per turn, for free: the tool takes no arguments, so every call is
-  identical and the existing repeat bound applies.
+- At most **two** captures per target and **four** per turn. Repeat detection keys on the tool
+  name plus its arguments, so each target is its own identity and the old free bound of two
+  doubled when the tool gained one. It is four rather than six because a call naming no target is
+  refused before the body is reached, and four rather than unbounded because the two spellings
+  are matched exactly, `Display` being refused rather than accepted beside `display`.
 
 ## If you want it gated
 
@@ -208,11 +224,12 @@ CORTEX_TOOLS_GATED=escalate_to_brain,send_email,capture_screen
 CORTEX_TOOLS_GATE_REASONS__capture_screen=the assistant will take a picture of your whole screen
 ```
 
-Know what it buys and costs. It buys an approval before every screen read. It costs the flagship
-interaction an approval card that cannot say what will be captured (the call takes no
-arguments), and it makes "read this email, then look at my screen" structurally impossible,
-because a gated call on a tainted turn is denied outright and a first capture then self-denies a
-second. The receipt and the kill switch are the chosen mitigation instead.
+Know what it buys and costs. It buys an approval before every screen read, and since 2026-08-10
+that approval can say something: the call carries a target, so a card could promise "the window
+you are looking at" rather than only "a picture". What it still costs is the interaction: it makes
+"read this email, then look at my screen" structurally impossible, because a gated call on a
+tainted turn is denied outright and a first capture then self-denies a second, and it adds a card
+to the flagship gesture. The receipt and the kill switch are the chosen mitigation instead.
 
 ## Turning it off
 

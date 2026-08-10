@@ -360,6 +360,19 @@ pub struct CaptureScreenRequest {
 pub struct CaptureScreenReply {
     #[prost(message, optional, tag = "1")]
     pub image: ::core::option::Option<ImageBlob>,
+    /// What the body actually pointed at, so the brain can say honestly what was read
+    /// instead of describing a crop as a shrunk screen (ADR-0029). Read off the picture
+    /// that was encoded rather than off the request, exactly like the receipt the user
+    /// sees, so the two consent surfaces cannot disagree: a window filling the display
+    /// answers CAPTURE_TARGET_DISPLAY, because the picture really is the whole screen.
+    /// The zero is DISPLAY, so a body that does not set it is read correctly, every
+    /// capture such a body can take being the whole display.
+    ///
+    /// The resolved target and not the rectangle it resolved to. Coordinates on the
+    /// reply would hand the model the coordinate frame this seam declined to take from
+    /// it, and a target is enough for an honest sentence.
+    #[prost(enumeration = "CaptureTarget", tag = "2")]
+    pub resolved_target: i32,
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct ImageBlob {
