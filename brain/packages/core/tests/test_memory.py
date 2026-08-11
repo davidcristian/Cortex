@@ -14,6 +14,7 @@ from cortex_core import (
     InMemoryMemoryStore,
     MemoryRecaller,
     MemoryRecord,
+    MemoryStoreError,
     RankBasis,
     RankedMemory,
     Ranking,
@@ -117,6 +118,28 @@ async def test_delete_scope_without_matches_returns_zero() -> None:
     await store.add(_record("a1", (1.0, 0.0), record_id="a1", scope="conv-a"))
     assert await store.delete_scope("conv-x") == 0  # nothing matched, no error
     assert len(await store.search([1.0, 0.0], k=5)) == 1  # the store is untouched
+
+
+async def test_a_store_told_to_fail_takes_every_verb_away_the_way_a_lost_backend_does() -> None:
+    """The twin's failure knob, matching ``HashEmbedder.fail_with`` on the other port.
+
+    An unreachable Postgres does not fail selectively, so neither does this: the check walks all
+    four verbs rather than the one a caller happens to test with, because a fake that kept
+    answering counts while refusing searches would be a condition no deployment has and would let
+    a degraded path pass while the real one still fell over.
+    """
+    store = InMemoryMemoryStore()
+    await store.add(_record("a1", (1.0, 0.0), record_id="a1", scope="conv-a"))
+    store.fail_with(MemoryStoreError("the memory store is unreachable"))
+
+    with pytest.raises(MemoryStoreError, match="unreachable"):
+        await store.add(_record("a2", (1.0, 0.0), record_id="a2", scope="conv-a"))
+    with pytest.raises(MemoryStoreError, match="unreachable"):
+        await store.search([1.0, 0.0], k=5)
+    with pytest.raises(MemoryStoreError, match="unreachable"):
+        await store.count_candidates()
+    with pytest.raises(MemoryStoreError, match="unreachable"):
+        await store.delete_scope("conv-a")
 
 
 def test_the_recaller_exposes_no_forget_verb_so_no_turn_can_delete_memory() -> None:

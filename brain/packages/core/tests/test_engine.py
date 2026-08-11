@@ -11,11 +11,14 @@ from cortex_core import (
     DEFAULT_CORTEX_MODEL,
     DENIED_MSG,
     ESCALATE_TOOL_NAME,
+    FORGOING_DETAIL,
+    FORGOING_STATE,
     REDACTED_LINK,
     SECURITY_PREAMBLE,
     CharBudgetHistoryWindow,
     CompositeToolRegistry,
     EchoInferenceBackend,
+    EmbedderError,
     EscalateToBrainTool,
     EscalationSlot,
     GenerationBounds,
@@ -33,13 +36,17 @@ from cortex_core import (
     JudgeRecallPolicy,
     MemoryRecaller,
     MemoryRecord,
+    MemoryStoreError,
     Message,
     Provenance,
+    Ranking,
     ReasoningChunk,
     RecordingAuditSink,
     RecordingConfirmer,
+    RecordingProgressSink,
     Role,
     ScheduleTaskTool,
+    ScoredMemory,
     SessionMemoryScope,
     SourceKind,
     StatusUpdate,
@@ -448,6 +455,212 @@ async def test_session_scope_keeps_one_conversations_memory_out_of_another() -> 
     # A recorded in its own scope; B's scope is empty until B records its own turn.
     assert await recaller.recall("hello", k=5, session_id="conv-a") != ()
     assert await recaller.recall("hello", k=5, session_id="conv-b") != ()  # only B's own now
+
+
+async def test_a_dead_embedder_costs_the_turn_its_memories_and_not_the_turn() -> None:
+    """The degraded read (ADR-0008 unavailable-memory addendum), from the turn's own outside.
+
+    The store holds a memory the query matches, so the only thing between the turn and its notes
+    is the embedding server, and it is gone. The turn must answer anyway, and it must answer with
+    exactly the prompt a memory-less turn sends: no memory block, and no claim about the store.
+    """
+    mem_store = InMemoryMemoryStore()
+    embedder = HashEmbedder()
+    await mem_store.add(
+        MemoryRecord(
+            id="mem-1",
+            text="I love pizza",
+            embedding=tuple(await embedder.embed("pizza")),
+            at=_START,
+        )
+    )
+    embedder.fail_with(EmbedderError("connection refused"))
+    recaller = MemoryRecaller(mem_store, embedder, SystemClock())
+    backend = RecordingBackend(("ok",))
+    store = InMemorySessionStore()
+    engine = TurnEngine(
+        store,
+        backend,
+        TickingClock(),
+        capabilities=TurnCapabilities(memory=recaller),
+        turn_id_factory=lambda: "t-1",
+    )
+
+    events = await _collect(engine.handle_turn("s", "pizza"))
+
+    assert events[-1] == TurnCompleted(turn_id="t-1", full_text="ok")
+    _, messages = backend.calls[0]
+    assert [m.text for m in messages] == [PLAIN_SECURITY_PREAMBLE, "pizza"]
+    # The conversation itself is untouched: a lost recall costs notes, never the exchange.
+    assert [m.text for m in await store.history("s")] == ["pizza", "ok"]
+
+
+async def test_an_unreachable_memory_store_costs_the_turn_its_memories_and_not_the_turn() -> None:
+    """The other half of the same outage: the embedder answers and Postgres does not."""
+    mem_store = InMemoryMemoryStore()
+    embedder = HashEmbedder()
+    await mem_store.add(
+        MemoryRecord(
+            id="mem-1",
+            text="I love pizza",
+            embedding=tuple(await embedder.embed("pizza")),
+            at=_START,
+        )
+    )
+    mem_store.fail_with(MemoryStoreError("memory search failed"))
+    recaller = MemoryRecaller(mem_store, embedder, SystemClock())
+    backend = RecordingBackend(("ok",))
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        backend,
+        TickingClock(),
+        capabilities=TurnCapabilities(memory=recaller),
+        turn_id_factory=lambda: "t-1",
+    )
+
+    events = await _collect(engine.handle_turn("s", "pizza"))
+
+    assert events[-1] == TurnCompleted(turn_id="t-1", full_text="ok")
+    _, messages = backend.calls[0]
+    assert [m.text for m in messages] == [PLAIN_SECURITY_PREAMBLE, "pizza"]
+
+
+async def test_a_turn_answered_without_its_memory_says_so_on_the_stream() -> None:
+    """Silence is the failure mode a degraded recall would otherwise have.
+
+    A turn that quietly forgets is indistinguishable, from where the user sits, from a turn that
+    had nothing to remember, and only the second of those is honest. So the same side channel a
+    fold narrates itself on carries one app-authored status, before the reply the user is about
+    to read is produced without its notes.
+    """
+    embedder = HashEmbedder()
+    embedder.fail_with(EmbedderError("connection refused"))
+    recaller = MemoryRecaller(InMemoryMemoryStore(), embedder, SystemClock())
+    progress = RecordingProgressSink()
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        RecordingBackend(("ok",)),
+        TickingClock(),
+        capabilities=TurnCapabilities(memory=recaller, progress=progress),
+        turn_id_factory=lambda: "t-1",
+    )
+
+    await _collect(engine.handle_turn("s", "pizza"))
+
+    assert list(progress.events) == [StatusUpdate(state=FORGOING_STATE, detail=FORGOING_DETAIL)]
+
+
+async def test_a_recall_that_worked_says_nothing_on_the_stream() -> None:
+    """The status is the outage's, not recall's: a healthy turn narrates no memory at all."""
+    progress = RecordingProgressSink()
+    recaller = MemoryRecaller(InMemoryMemoryStore(), HashEmbedder(), SystemClock())
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        RecordingBackend(("ok",)),
+        TickingClock(),
+        capabilities=TurnCapabilities(memory=recaller, progress=progress),
+        turn_id_factory=lambda: "t-1",
+    )
+
+    await _collect(engine.handle_turn("s", "pizza"))
+
+    assert list(progress.events) == []
+
+
+class _BrokenRecallPolicy:
+    """A ``RecallPolicy`` with a bug in it: the failure that must NOT be degraded away."""
+
+    def candidate_k(self, k: int) -> int:
+        return k
+
+    async def select(
+        self, hits: Sequence[ScoredMemory], *, query: str, now: datetime, k: int
+    ) -> Ranking:
+        del hits, query, now, k
+        msg = "a DEMUR ranking declines, so it carries no hits"
+        raise ValueError(msg)
+
+
+async def test_a_programming_error_in_the_recall_path_still_fails_the_turn() -> None:
+    """The line between an outage and a defect, asserted from the side that must not move.
+
+    ``EmbedderError`` and ``MemoryStoreError`` are what an adapter raises when its backend could
+    not be reached or could not answer. Anything else in the same call is this code being wrong,
+    and a turn that swallowed it would hide the defect behind a thinner answer for ever.
+    """
+    recaller = MemoryRecaller(
+        InMemoryMemoryStore(), HashEmbedder(), SystemClock(), policy=_BrokenRecallPolicy()
+    )
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        RecordingBackend(("ok",)),
+        TickingClock(),
+        capabilities=TurnCapabilities(memory=recaller),
+        turn_id_factory=lambda: "t-1",
+    )
+
+    with pytest.raises(ValueError, match="DEMUR"):
+        await _collect(engine.handle_turn("s", "pizza"))
+
+
+class _UnwritableMemoryStore(InMemoryMemoryStore):
+    """A store that reads and will not write: a full disk, or a read replica taking an INSERT."""
+
+    async def add(self, record: MemoryRecord) -> None:
+        msg = f"adding memory {record.id!r} failed"
+        raise MemoryStoreError(msg)
+
+
+async def test_a_memory_write_that_fails_leaves_the_turn_and_the_conversation_whole() -> None:
+    """The degraded write, which is a different argument from the degraded read.
+
+    By the time the exchange is recorded the reply has already streamed and the assistant
+    message is already in the session store, so raising here cannot save the memory: it is
+    lost either way, and raising only replaces a turn the user has read with an error. What
+    the user asked to be remembered is still in the conversation, which is the copy they can
+    see; what is lost is a derived index entry, and it is logged rather than raised.
+    """
+    recaller = MemoryRecaller(_UnwritableMemoryStore(), HashEmbedder(), SystemClock())
+    store = InMemorySessionStore()
+    progress = RecordingProgressSink()
+    engine = TurnEngine(
+        store,
+        RecordingBackend(("ok",)),
+        TickingClock(),
+        capabilities=TurnCapabilities(memory=recaller, progress=progress),
+        turn_id_factory=lambda: "t-1",
+    )
+
+    events = await _collect(engine.handle_turn("s", "remember this"))
+
+    assert events[-1] == TurnCompleted(turn_id="t-1", full_text="ok")
+    assert [m.text for m in await store.history("s")] == ["remember this", "ok"]
+    # And nothing is said on the stream: the reply is already written, so a chip raised here and
+    # killed by the completion a moment later would be a flicker rather than a surface, and the
+    # outage that reaches the write reaches the recall of every later turn, which does speak.
+    assert list(progress.events) == []
+
+
+def _explode() -> str:
+    msg = "the id factory is broken"
+    raise ValueError(msg)
+
+
+async def test_a_programming_error_on_the_write_path_still_fails_the_turn() -> None:
+    """The same line on the write side: only the two port errors are an outage."""
+    recaller = MemoryRecaller(
+        InMemoryMemoryStore(), HashEmbedder(), SystemClock(), id_factory=_explode
+    )
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        RecordingBackend(("ok",)),
+        TickingClock(),
+        capabilities=TurnCapabilities(memory=recaller),
+        turn_id_factory=lambda: "t-1",
+    )
+
+    with pytest.raises(ValueError, match="id factory"):
+        await _collect(engine.handle_turn("s", "remember this"))
 
 
 def _read_tool() -> ToolSpec:

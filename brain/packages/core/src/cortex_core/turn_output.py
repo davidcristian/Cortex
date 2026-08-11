@@ -11,14 +11,18 @@ The loop itself lives in ``tool_loop.py`` (what runs), the context assembly in
 I/O is through the ports its callers hand in.
 """
 
+import logging
 from collections.abc import AsyncGenerator, Iterator
 
+from cortex_core.errors import EmbedderError, MemoryStoreError
 from cortex_core.events import TextDelta, ToolActivity, ToolOutcome, TurnEvent
 from cortex_core.guardrail import OutputFilter
 from cortex_core.loop_events import ReasoningDelta, StepOutcome, ToolStep
 from cortex_core.output_channels import ThinkingChannel
 from cortex_core.turn_context import TurnCapabilities
 from cortex_core.untrusted import TaintLedger
+
+_logger = logging.getLogger(__name__)
 
 # One turn's two guarded output channels: the reply filter (``None`` when unguarded) and the
 # thinking status channel, as ``open_output_channels`` returns them.
@@ -105,10 +109,26 @@ async def record_exchange(
     is false for vision: a capture turn's assistant reply *is* a transcription of the screen. A
     user who switched recording on did not ask for their password manager to be summarized into
     Postgres.
+
+    **A write the memory backend refuses is logged and not raised** (ADR-0008 unavailable-memory
+    addendum), and the argument is not the read's. Nothing here can be saved by failing: the reply
+    has already streamed and the assistant message is already in the session store by the time
+    this runs, so the embedding or the insert has already failed and raising would only replace a
+    turn the user has read with an error, losing the memory just the same. What is lost is a
+    derived index entry rather than the exchange, which stays in the conversation the user can
+    scroll to, so the record owed is a loud one on the operator's log rather than a broken turn.
+    It is an ``error`` and the read's is a ``warning`` for the difference between a turn that
+    answered thinly and durable state that no longer matches the conversation beside it.
     """
     if taint.opaque:
         return
     if caps.memory is not None and (not taint.tainted or caps.record_tainted_memory):
-        await caps.memory.record(
-            render_exchange(query, reply), session_id=session_id, tainted=taint.tainted
-        )
+        try:
+            await caps.memory.record(
+                render_exchange(query, reply), session_id=session_id, tainted=taint.tainted
+            )
+        except (EmbedderError, MemoryStoreError):
+            _logger.exception(
+                "memory write unavailable; this exchange was not recorded to memory",
+                extra={"session_id": session_id},
+            )

@@ -12,7 +12,7 @@ import hashlib
 import math
 from collections.abc import Sequence
 
-from cortex_core.errors import EmbedderError
+from cortex_core.errors import EmbedderError, MemoryStoreError
 from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.ranking import RecallAudit
 
@@ -67,10 +67,27 @@ class InMemoryMemoryStore:
     Ranks by cosine similarity in Python; it is the behavioral twin of the pgvector adapter
     (Slice 5 host half) behind the same contract. Like ``InMemorySessionStore`` it does NOT
     survive a restart. The durable store is what proves the hard rule.
+
+    ``fail_with`` is ``HashEmbedder``'s knob for the other port of the pair, and it exists for
+    the same reason: the port's only failure channel is ``MemoryStoreError``, and a twin that
+    cannot raise it cannot stand in for the adapter in any test of what an unreachable Postgres
+    does to a recall or to a write. It takes EVERY verb away rather than one, because that is
+    what losing a backend does; a store that failed only its writes would be a condition no
+    deployment has.
     """
 
     def __init__(self) -> None:
         self._records: list[MemoryRecord] = []
+        self._failure: MemoryStoreError | None = None
+
+    def fail_with(self, error: MemoryStoreError) -> None:
+        """Make every later call raise ``error``: a backend taken away mid-run."""
+        self._failure = error
+
+    def _guard(self) -> None:
+        """Raise the scripted failure, if one is armed, before any verb does its work."""
+        if self._failure is not None:
+            raise self._failure
 
     def _in_scopes(self, scopes: Sequence[str] | None) -> list[MemoryRecord]:
         """The candidate set ``scopes`` selects, which ``search`` ranks and ``count`` sizes."""
@@ -79,6 +96,7 @@ class InMemoryMemoryStore:
 
     async def add(self, record: MemoryRecord) -> None:
         """Persist one memory record."""
+        self._guard()
         self._records.append(record)
 
     async def search(
@@ -89,6 +107,7 @@ class InMemoryMemoryStore:
         ``scopes`` restricts the candidate set to those namespaces (the pgvector
         ``WHERE scope = ANY`` twin, ADR-0008 addendum); ``None`` ranks over all memories.
         """
+        self._guard()
         scored = [
             ScoredMemory(record=record, score=_cosine(embedding, record.embedding))
             for record in self._in_scopes(scopes)
@@ -104,6 +123,7 @@ class InMemoryMemoryStore:
         not derived from any search result: a length over returned rows is exactly the answer
         this verb exists to replace.
         """
+        self._guard()
         return len(self._in_scopes(scopes))
 
     async def delete_scope(self, scope: str) -> int:
@@ -112,6 +132,7 @@ class InMemoryMemoryStore:
         The in-memory twin of the pgvector ``DELETE FROM memories WHERE scope = $1`` (ADR-0008
         delete-scope addendum): a removed memory simply stops being a search candidate.
         """
+        self._guard()
         kept = [record for record in self._records if record.scope != scope]
         removed = len(self._records) - len(kept)
         self._records = kept
