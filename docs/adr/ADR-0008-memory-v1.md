@@ -668,3 +668,42 @@ chained into a `MemoryStoreError` ("memory search failed", "adding memory '…' 
 answered `TurnCompleted`. The one failure mode that stays outside this decision, and correctly so,
 is `PgVectorMemoryStore.connect` at composition time: a brain whose store is unreachable at
 startup fails to start rather than serving memory-less turns forever.
+
+## Addendum (2026-08-11): the port's failure channel becomes a shared check, on both arms
+
+The second residue of the addendum above is closed here. The degradation it installed catches
+`MemoryStoreError` in the core, which is sound only if every implementation of the port really
+does wrap its backend's failures in that type, and until now nothing checked that: the fake was
+tested for it in `cortex_core`'s own suite, the pgvector adapter in `test_pgvector.py`, twice
+rather than once, and a third implementation would have owed the promise with nothing to hold it
+to. `InMemoryMemoryStore.fail_with` arrived as a knob for the close rather than as a check both
+implementations answer, which is exactly what this fixes.
+
+**The shape is the `Embedder` list's.** Every check in
+`brain/packages/memory/tests/memory_contract.py` now takes a `MemoryStoreUnderTest`, which is the
+implementation plus the one condition of the world no verb can create, `break_backend`. The knob
+is awaited, unlike the embedder's, because taking a real backend away is I/O. The new check,
+`check_a_lost_backend_crosses_the_port_as_memory_store_error`, writes a memory, breaks the
+backend, and requires `add`, `search`, `count_candidates` and `delete_scope` each to answer
+`MemoryStoreError` rather than the driver's own exception, naming the leaked type when one gets
+through. All four verbs rather than one: a store that wrapped its searches while letting a driver
+exception out of `add` would pass a one-verb check and still take down the write half of the
+degradation this rests on.
+
+**The real arm breaks for real.** The live driver hands `break_backend` the adapter's own
+`aclose`, so the pool `PgVectorMemoryStore` owns is genuinely closed and asyncpg raises
+`InterfaceError('pool is closed')` from inside each verb; what the check reads is the adapter's
+own translation and never a stand-in for it. The cost is a store per check in
+`test_pgvector_live.py`, since one check ends by destroying its own, and `aclose` is idempotent so
+the broken arm still closes exactly once. The knob exercises the `InterfaceError` arm of the
+adapter's `_WRAPPED`; the socket-level `OSError` arm is what the stopped-container run above
+settled, and the server-side `PostgresError` arm is held by the canned-row suite, so all three are
+held and only one of them here.
+
+**Neither implementation leaked**, so this records a guarantee held rather than a defect fixed,
+which for a promise two suites were already making separately is the outcome worth having. Proven
+able to fail before being trusted, once per arm: `InMemoryMemoryStore._guard` rewritten to raise
+`RuntimeError` reddened the fake arm alone, one failed and ten passed, and
+`PgVectorMemoryStore.search` narrowed to catch only `asyncpg.PostgresError` reddened the live arm
+alone against real Postgres, after the ten checks before it had passed. Both breaks were restored
+and both suites re-run green.
