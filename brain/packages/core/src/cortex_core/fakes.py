@@ -124,6 +124,10 @@ class RecordingConfirmer:
         self._answer = answer
         self._requests: list[ConfirmationRequest] = []
 
+    def answer_with(self, *, approved: bool) -> None:
+        """Answer every later ask with ``approved``: the person changing their mind."""
+        self._answer = approved
+
     async def confirm(self, request: ConfirmationRequest) -> bool:
         """Record the request and return the fixed answer."""
         self._requests.append(request)

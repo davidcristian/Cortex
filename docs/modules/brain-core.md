@@ -1956,6 +1956,10 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   tests can assert the audit trail.
 - `RecordingConfirmer(*, answer)` is a `Confirmer` returning a fixed `answer` and recording each
   `ConfirmationRequest` in `.requests`, so gate tests can assert what was confirmed (ADR-0013).
+  `answer_with(approved=...)` changes the answer between two asks, which is what lets the fake
+  stand in for a person: the real confirmer's next answer is whatever the overlay sends next, and
+  `packages/orchestrator/tests/confirmer_contract.py` asks both implementations about two
+  different calls in one run.
 - `RecordingProgressSink` is a `ProgressSink` recording each emitted `ProgressEvent` in `.events`
   (a tuple), so tests can assert the batch's scale and each subagent's tool steps a turn surfaced
   (ADR-0010 progress addendum). Records unconditionally, where the real `SeamProgressSink` drops
