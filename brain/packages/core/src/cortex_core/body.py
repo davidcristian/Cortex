@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
 
+from cortex_core.errors import BodyGatewayError
 from cortex_core.images import ImagePart
 
 
@@ -95,3 +96,31 @@ def captured_at_from_unix_ms(unix_ms: int) -> datetime:
     reads back as the epoch, which is visibly not a capture time.
     """
     return datetime.fromtimestamp(unix_ms / 1000, tz=UTC)
+
+
+def hold_to_the_bounds_asked_for(
+    *, width: int, height: int, byte_count: int, max_edge: int, max_bytes: int
+) -> None:
+    """Refuse a capture outside the bounds this call asked the body for (ADR-0029 decision 7).
+
+    A domain rule rather than a wire one, which is why it lives here and not in the gRPC adapter.
+    Every ``BodyGateway`` owes it: the bounds are a deployment's own budget, they are only ever
+    *hints* on the way out (an older body silently ignores a proto3 field it does not know, so a
+    request hint is an optimization and never a guarantee), and ``ImagePart``'s domain ceiling
+    cannot enforce a number this deployment chose. A zero asked for the body's own default, so
+    there is no number to hold it to. The message says which bound was broken, because a capture
+    that costs the turn a megabyte it was told not to spend is not a capture worth having.
+    """
+    edge = max(width, height)
+    if max_edge and edge > max_edge:
+        msg = (
+            f"body capture_screen answered {width}x{height}, over the {max_edge} px "
+            "edge it was asked for"
+        )
+        raise BodyGatewayError(msg)
+    if max_bytes and byte_count > max_bytes:
+        msg = (
+            f"body capture_screen answered {byte_count} bytes, over the {max_bytes} byte "
+            "budget it was asked for"
+        )
+        raise BodyGatewayError(msg)

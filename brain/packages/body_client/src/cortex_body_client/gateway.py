@@ -37,6 +37,7 @@ from cortex_core import (
     ScreenCapture,
     VolumeState,
     captured_at_from_unix_ms,
+    hold_to_the_bounds_asked_for,
 )
 from cortex_seam import (
     SEAM_TOKEN_HEADER,
@@ -44,7 +45,6 @@ from cortex_seam import (
     CaptureScreenReply,
     CaptureScreenRequest,
     GetVolumeRequest,
-    ImageBlob,
     NotifyReply,
     NotifyRequest,
     SetVolumeRequest,
@@ -218,7 +218,13 @@ def _to_capture(reply: CaptureScreenReply, *, max_edge: int, max_bytes: int) -> 
         msg = "body capture_screen returned no image"
         raise BodyGatewayError(msg)
     blob = reply.image
-    _hold_to_the_bounds_asked_for(blob, max_edge=max_edge, max_bytes=max_bytes)
+    hold_to_the_bounds_asked_for(
+        width=blob.width,
+        height=blob.height,
+        byte_count=len(blob.data),
+        max_edge=max_edge,
+        max_bytes=max_bytes,
+    )
     try:
         image = ImagePart(
             data=blob.data,
@@ -236,28 +242,3 @@ def _to_capture(reply: CaptureScreenReply, *, max_edge: int, max_bytes: int) -> 
         captured_at=captured_at_from_unix_ms(blob.captured_at_unix_ms),
         target=_TARGET_FROM_WIRE.get(reply.resolved_target, CaptureTarget.DISPLAY),
     )
-
-
-def _hold_to_the_bounds_asked_for(blob: ImageBlob, *, max_edge: int, max_bytes: int) -> None:
-    """Refuse a reply outside the bounds this call asked the body for (ADR-0029 decision 7).
-
-    The receiver verifies after receipt, because a proto3 request field an older body ignores is
-    a constraint the brain only believes it set. A zero asked for the body's own default, so
-    there is no number to hold it to and only the domain ceiling in ``ImagePart`` applies. The
-    body clamps both bounds down to its own, so a reply outside them is a body that did not
-    honour the request at all, and the message says which number it broke: a capture that costs
-    the turn a megabyte it was told not to spend is not a capture worth having.
-    """
-    edge = max(blob.width, blob.height)
-    if max_edge and edge > max_edge:
-        msg = (
-            f"body capture_screen answered {blob.width}x{blob.height}, over the {max_edge} px "
-            "edge it was asked for"
-        )
-        raise BodyGatewayError(msg)
-    if max_bytes and len(blob.data) > max_bytes:
-        msg = (
-            f"body capture_screen answered {len(blob.data)} bytes, over the {max_bytes} byte "
-            "budget it was asked for"
-        )
-        raise BodyGatewayError(msg)

@@ -138,7 +138,7 @@ needs a real server and runs on the host.
 | `InferenceBackend` | `ScriptedInferenceBackend` | `LlamaCppBackend` | `inference/tests/cadence_contract.py`, decode cadence only | yes | yes, over `MockTransport` | yes, restated |
 | `Embedder` | `HashEmbedder` | `LlamaCppEmbedder` | `embedding/tests/embedder_contract.py` | yes | yes, over `MockTransport` | yes, restated |
 | `ToolRegistry` | `InMemoryToolRegistry` | `McpToolRegistry`, and the `ReconnectingMcpToolRegistry` over it | `tools/tests/registry_contract.py` | yes | yes, both, over a serving `McpSession` | yes |
-| `BodyGateway` | `InMemoryBodyGateway` | `GrpcBodyGateway` | none | n/a | n/a | yes |
+| `BodyGateway` | `InMemoryBodyGateway` | `GrpcBodyGateway` | `body_client/tests/gateway_contract.py` | yes | yes, over a real loopback `BodyService` | yes |
 | `Confirmer` | `RecordingConfirmer` | `SeamConfirmer` | none | n/a | n/a | no |
 | `ToolAuditSink` | `RecordingAuditSink` | `LoggingAuditSink` | none, and by design | n/a | n/a | no |
 | `RecallAuditSink` | `RecordingRecallSink` | `LoggingRecallSink` | none, and by design | n/a | n/a | no |
@@ -422,3 +422,45 @@ backend check reddens on the `in-memory` arm alone. And with a listing cache add
 because that wrapper builds a fresh inner registry per call and is structurally immune to the
 defect. That last one is why both MCP arms are in the list rather than one: they are not the same
 implementation of this promise. Each break was restored.
+
+### `BodyGateway`
+
+`brain/packages/body_client/tests/gateway_contract.py` holds ten checks, the fixed capture every
+fixture's body answers and the `GatewayUnderTest` a check runs against;
+`test_gateway_contract.py` runs the list over `InMemoryBodyGateway` and over `GrpcBodyGateway`
+talking to a `BodyService` served on loopback, so nothing on the adapter's side of the port is
+stubbed: real protobuf, a real HTTP/2 connection, the generated stub. The ten are the volume read,
+the write that touches only the field it was given, the write that reports the state after it, the
+clamp, the notification that reaches the body with its taint bit, the decline that answers `False`
+rather than raising, the capture that reports what the body pointed at rather than what was asked,
+the capture refused for breaking the bound it asked for, the capture attempted exactly once, and
+the single `BodyGatewayError` every verb fails with.
+
+**Where the two legitimately diverge.** The level is a 32-bit float on the wire and a Python one
+in the fake, so every level in the file is exact in both and the checks are about which field
+moved rather than how many bits survived the trip. And the clamp happens in different places, the
+fake doing it where it stands and the adapter's answer arriving already clamped by the body, so
+the check asks only that a legal state comes back. Both are written into
+[docs/modules/brain-body-client.md](../modules/brain-body-client.md).
+
+**What it found: the fake handed back a capture the adapter would have refused.** A non-zero
+`max_edge`/`max_bytes` is a bound on the *reply*, because a proto3 field an older body ignores is
+a constraint the brain only believes it set, and `GrpcBodyGateway` has verified it on receipt
+since the capture slice. `InMemoryBodyGateway` did not: it answered its scripted capture verbatim
+whatever bound the call asked for. So a core test could watch a turn accept a picture production
+would have thrown away, which is the fake being *more permissive* than the adapter it stands in
+for, the direction that hides defects rather than inventing them. The rule is domain logic and not
+wire translation, so it moved into the core as `hold_to_the_bounds_asked_for` and both
+implementations now call it, which is also one fewer place for the two to drift apart. The fake
+additionally gained `fail_with` and `show_notifications`, since a body that goes away mid-run and
+a host that switches toasts off are conditions two of the checks need and construction arguments
+cannot supply.
+
+**Proven able to fail, four times, once per side.** With the bounds rule taken back out of the
+fake, the refusal check reddens on the `in-memory` arm alone (1 failed, 19 passed), which is the
+defect above measured rather than asserted. With the adapter sending a zero for an absent level
+instead of leaving the field unset, the presence check reddens on the `grpc` arm alone, which is
+the mute that would silence the host. With the adapter stamping the asked target onto the answer
+instead of reading the body's, the target check reddens the same way. And with the fake recording
+a notification without its taint bit, the notification check reddens on `in-memory`. Each break
+was restored.
