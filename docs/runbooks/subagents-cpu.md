@@ -77,7 +77,7 @@ delegation time (ADR-0012 admission-wall addendum).
 > measured again on 2026-08-11 at 410.5 s for an extraction and 623.8 s for a summarization, so the
 > waits below understate their own inputs; re-deriving the bound wants a batch measured rather than
 > single subtasks and is filed in
-> [refinements/resource-governance.md](../refinements/resource-governance.md). With the GPU path open the pair overlaps and the last of the
+> [refinements/index.md#resource-governance](../refinements/index.md#resource-governance). With the GPU path open the pair overlaps and the last of the
 > batch is admitted about 900 s in, which is what these defaults ship; with it shut the pair
 > serializes and the same spawn waits about 1800 s. The bound is twice the serial figure, so it is
 > an upper bound over both placements rather than the wait either one produces (ADR-0012

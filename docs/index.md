@@ -8,12 +8,12 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   the body/brain split, ports & traits, the two portability seams.
 - [ROADMAP.md](ROADMAP.md) lists ordered vertical slices; which slice proves which gate; the
   Phase 0 assumptions & risks list.
-- [refinements/](refinements/index.md) is the consolidated deferred-refinements backlog (every
-  follow-up, one self-contained doc per area, by origin ADR), with an index carrying a blurb
-  per doc, the recommended pickup order, and what blocks each open item. Moved out of the
-  ROADMAP on 2026-07-15.
-- [host/](host/index.md) is the work only the maintainer can perform, one self-contained doc
-  per sitting, each item tagged with the capability it needs: a real Win32 desktop session, or a
+- [refinements/](refinements/index.md) is the consolidated deferred-refinements backlog: one
+  self-contained file per task under `tasks/`, each carrying its own status, with an index whose
+  open set and roll call are generated from those files by `just backlog` (ADR-0039). Moved out
+  of the ROADMAP on 2026-07-15 and split per task on 2026-08-11.
+- [host/](host/index.md) is the work only the host's own hardware can perform, in the same
+  shape, each item tagged with the capability it needs: a real Win32 desktop session, or a
   24 GB GPU. Deferred *design* lives in refinements; this holds code that is written and needs
   hardware the dev machine does not have. Moved out of the ROADMAP on 2026-07-19.
 
@@ -408,6 +408,16 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   zero) and revises the whole-turn figure upward to 0.979 s, almost all of the excess sitting in
   the one question memory cannot answer, where a rank that declines leaves the model saying at
   length that it does not know.
+
+- [ADR-0039: One file per backlog task, and an index nobody writes by hand](adr/ADR-0039-backlog-per-task.md):
+  the two backlogs had reached 15,021 lines across 24 files, and the same status was written in
+  three places (the entry, its area header, the index cell), which drifted exactly as three
+  restatements do. The layout removes the restatements rather than checking them: one task is one
+  file under `tasks/`, its `**Status:**` line is the only place its state is written, numbers are
+  stable identities (`R-042`, `H-007`) that are never reused, and the index's open set and roll
+  call are rendered from the files by `just backlog`. `backlogcheck.py` is the fifth cross-tree
+  scan and fails on a stale index, a status outside the grammar, a title restating one, a waiting
+  state that does not name its trigger, or a relative link that no longer resolves.
 
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 

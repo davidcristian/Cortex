@@ -66,7 +66,7 @@ re-rasterized every frame or it goes soft.
    rectangle ghosting behind the sculpted edge. So a live edge paints `--panel-solid`, a new
    per-theme token, instead of glass-over-blur. In the v1 window the ground behind the panel is
    opaque (design/overlay-ux.md §4), so nothing is visibly lost today; the trade is refiled with
-   the transparent-window pass in `docs/refinements/body-overlay.md`.
+   the transparent-window pass in `docs/refinements/index.md#body-overlay`.
 
 8. **The glow is the send button's trick, and Trance is the one written exception.** A smolder is
    two strokes riding the outline, cross-faded by CSS opacity (gradients cannot interpolate):

@@ -79,7 +79,7 @@ over a whole 47 string desktop corpus reads *worse* than the shrunk screen (29 t
 longer promises full detail: the mechanism is being **unresampled**, not being cropped, so a
 window wider than `CORTEX_BODY_CAPTURE_MAX_EDGE` is resampled to exactly what the whole screen is
 resampled to and reads no better than it. Nothing on the reply says which of those two happened,
-deliberately for now ([../refinements/vision.md](../refinements/vision.md)).
+deliberately for now ([../refinements/index.md#vision](../refinements/index.md#vision)).
 
 Two things to know about the focused window:
 
@@ -164,7 +164,7 @@ take today; it starts the reply in about 1.2 s when it is taken.
 ## Host-only half (Windows, a real desktop)
 
 What this closes, what a pass and a failure look like for each observation, and where to record
-them: [docs/host/windows-capture.md](../host/windows-capture.md).
+them: [docs/host/index.md#windows-capture](../host/index.md#windows-capture).
 
 1. Build and run the Tauri app on Windows with the switch on:
    ```

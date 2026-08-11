@@ -36,7 +36,7 @@ landed, so the box lurched by words and whole lines ahead of anything visible.
    losing tiles; what lands is simply the overlay's streaming effect, and nothing freezes a
    storage key because nothing is stored. Making the voice a picked style beside the theme, the
    iris and the dream (the Face's fourth row) is a recorded refinement in
-   [refinements/body-overlay.md](../refinements/body-overlay.md), viable because the effect
+   [refinements/index.md#body-overlay](../refinements/index.md#body-overlay), viable because the effect
    lands behind one component seam.
 
 2. **Letters condense on a continuous front, paced not timed.** The engine

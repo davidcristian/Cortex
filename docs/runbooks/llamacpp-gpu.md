@@ -298,7 +298,7 @@ this section named, and the fifth is what running it added.
   `CalledProcessError ... exit status 125` with the daemon's reason captured rather than printed.
   So the pytest failure names a port and not a stack: run `docker ps` to find what holds 8080.
   `just down-gpu` plus the two verifying commands in
-  [docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md) is the clean way in.
+  [docs/host/index.md#gpu-tier-scale](../host/index.md#gpu-tier-scale) is the clean way in.
 - **The flag adds rows, it does not select them.** Collection goes from 7 rows to 11 with
   `CORTEX_PROBE_BRAIN=1` set, since the four deep candidates join the cortex and subagent matrix.
   `-k` narrows it, and `-k "31B"` selects the pick's row alone (`1 selected, 10 deselected`), which
@@ -640,7 +640,7 @@ safety default.
   q4_0 on CPU), embedder (nomic-embed-text-v1.5 Q8_0 on CPU) and, since 2026-08-04, brain
   (gemma-4-31B QAT q4_0) are all settled and recorded in
   [ADR-0004](../adr/ADR-0004-model-lineup.md). The brain pick unblocks the rest of the tier-scale
-  work in [docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md), whose remaining items need a
+  work in [docs/host/index.md#gpu-tier-scale](../host/index.md#gpu-tier-scale), whose remaining items need a
   handoff the overlay has to approve.
 - **The brain tier's own reasoning budget is a deployment fact worth knowing.** The brain sends no
   `max_tokens` and llama-server defaults to `n_predict = -1`, so a turn is bounded by

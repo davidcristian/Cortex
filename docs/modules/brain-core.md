@@ -478,7 +478,7 @@ Body-gateway domain (Slice 9, ADR-0023; Slice 10, ADR-0029; in `body.py`):
   `"focus"`) are the strings the model picks between in the `capture_screen` schema, which is
   derived from this enum rather than restating it; the remaining half of that coupling, these
   members against the proto's, is generated on both sides and is recorded in
-  [../refinements/repo-gates.md](../refinements/repo-gates.md).
+  [../refinements/index.md#repo-gates](../refinements/index.md#repo-gates).
 - `ScreenCapture` is a frozen value: `image: ImagePart`, `source_width`/`source_height: int`,
   `captured_at: datetime`, `target: CaptureTarget = DISPLAY`, plus a `downscaled` property. One
   picture of the host's screen. The image size is what arrived *after* the body's downscale and
@@ -2020,7 +2020,7 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   the other port of the pair and takes **every** verb away rather than one, an unreachable
   Postgres not failing selectively; it is what lets a test drive the degraded read and write
   (ADR-0008 unavailable-memory addendum). Unlike the embedder's, it is not yet a check on the
-  shared `MemoryStore` list, which is recorded in [../refinements/memory.md](../refinements/memory.md).
+  shared `MemoryStore` list, which is recorded in [../refinements/index.md#memory](../refinements/index.md#memory).
 - `HashEmbedder(dimension=16)` is a deterministic, I/O-free `Embedder`: identical text always
   yields the identical vector (so a stored memory is its own strongest cosine match), distinct
   text a distinct vector. Carries no semantics. It is the CI/tests stand-in for the real nomic

@@ -120,7 +120,7 @@ Traced in a browser at 60Hz: opening the switcher jumped, closing it eased, open
   one animation, at most one per render.
 - A single reminder leaving the stack still vanishes in one frame rather than rolling up, since
   `Collapse` wraps the stack and not each row. The history absorbs the slack (decision 6), so what
-  is left is one row's worth of instant. Recorded in `docs/refinements/body-overlay.md`.
+  is left is one row's worth of instant. Recorded in `docs/refinements/index.md#body-overlay`.
   **Closed 2026-08-03** ([ADR-0035 addendum](ADR-0035-console-and-motion.md)), and this bullet was
   out of date within a day: the stack wrapped each row from 2026-07-20 and the roll was already
   right. What that first version actually cost was the ack, which it delayed behind a 300ms timer

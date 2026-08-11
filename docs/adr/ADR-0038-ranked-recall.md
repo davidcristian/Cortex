@@ -5,8 +5,8 @@ Date: 2026-08-06. Status: accepted.
 ## Context
 
 Two deferred refinements in two areas had been recorded for weeks as one design problem:
-session-history summarization ([session-history.md](../refinements/session-history.md)) and the
-model-based reranker ([memory.md](../refinements/memory.md)). Both were blocked on a synchronous
+session-history summarization ([session-history](../refinements/index.md#session-history)) and the
+model-based reranker ([memory](../refinements/index.md#memory)). Both were blocked on a synchronous
 `select` going async (`HistoryWindow.select`, `RecallPolicy.select`), both inherited the same
 non-reentrant GPU-lease hazard, and a third entry, the blended-relevance field, had been
 **declined** in ADR-0008's relevance-field addendum for want of a consumer while explicitly saying
@@ -223,8 +223,8 @@ Reproduce: `packages/inference/tests/test_rerank_judge_live.py`, integration-mar
 
 ## Deferred
 
-Recorded in [session-history.md](../refinements/session-history.md) and
-[memory.md](../refinements/memory.md) with their lines on
+Recorded in [session-history](../refinements/index.md#session-history) and
+[memory](../refinements/index.md#memory) with their lines on
 [the index](../refinements/index.md):
 
 - **The summarizing history window itself.** Its design question is settled by decision 9 and its

@@ -93,7 +93,7 @@ a trace, which is why every claim below carries the measurement it rests on.
      composer, which is where a summon puts it and where the draft still is. The rest of the tab
      list pattern (a roving `tabindex` and arrow keys along the strip) and a leaving pane that is
      untabbable as well as unannounced (which wants `inert`, and so React 19) are deferred and
-     written down in [refinements/body-overlay.md](../refinements/body-overlay.md). **Both landed
+     written down in [refinements/index.md#body-overlay](../refinements/index.md#body-overlay). **Both landed
      on 2026-08-03**, in the addendum below on the strip's keyboard, which also records that the
      React 19 half of that parenthesis was wrong: only the type is missing from React 18.
    - **The two state modules the merge lengthened were split rather than left over the cap.**
@@ -105,7 +105,7 @@ a trace, which is why every claim below carries the measurement it rests on.
      stays over (`bridge/demoBridge.ts`, 326): its split would produce a module no test imports,
      buying 49 lines for a new coverage exclusion, and widening that list is the worse trade. Both
      the split and that refusal are recorded in
-     [refinements/body-overlay.md](../refinements/body-overlay.md).
+     [refinements/index.md#body-overlay](../refinements/index.md#body-overlay).
 
 2. **A view change centres; coming BACK to the chat restores.** ADR-0034 decision 2 re-centred
    every view change, the return trip included, so a look at settings moved the conversation to
@@ -215,7 +215,7 @@ a trace, which is why every claim below carries the measurement it rests on.
    while the panel is still scaling in. And a touch that lands mid-roll leaves the session pinned
    to the ride-along's PREDICTED centre rather than to the height the roll actually reached, since
    the placement that would have corrected it is no longer an arrival: 2.1px at a 900px viewport,
-   which is the prediction's own error and is recorded in `docs/refinements/body-overlay.md`.
+   which is the prediction's own error and is recorded in `docs/refinements/index.md#body-overlay`.
 
 9. **Heights are read off the layout box, not the rendered one.** `getBoundingClientRect` reports
    the box after transforms, and the panel is scaled through every summon (`scale(0.92)` easing to
@@ -309,7 +309,7 @@ a trace, which is why every claim below carries the measurement it rests on.
     Worst step measured anywhere is 0.39px, the panel is never below its pre-send height at any
     frame in any configuration, and the fix (reading the used height with its sub-pixels) is a
     harness change across every test that fakes `offsetHeight`, so it is filed in
-    `docs/refinements/body-overlay.md` rather than taken.
+    `docs/refinements/index.md#body-overlay` rather than taken.
 
 14. **A roll says when it starts, because not every roll is a render.** ADR-0034 decision 5 gave
     the panel two ways to learn about a section: the attribute, found by the layout effect of
@@ -379,7 +379,7 @@ a trace, which is why every claim below carries the measurement it rests on.
     content still. Without it, the content under a closing offscreen trace slides up by the height
     of it, which is exactly what the opening direction already does and the symmetric half of
     decision 14. Doing that deliberately, by animating the scroll on the roll's own clock, is the
-    refinement already filed for the same box in `docs/refinements/body-overlay.md`.
+    refinement already filed for the same box in `docs/refinements/index.md#body-overlay`.
 
 16. **The ceiling is a whole number of pixels, because the same number is written to the DOM and
     then predicted against.** `maxHeight` had one caller round it on the way out to `max-height` and
@@ -536,7 +536,7 @@ a trace, which is why every claim below carries the measurement it rests on.
     stack's `30vh` are 504px of a 547px panel at 720px, and once the pill is at its floor there is
     nothing else to give. Forced with a 300px ceiling, the pill floors at 84px with its text and
     its button inside it and the hint strip 34.75px out, so the degradation is bounded and it is
-    the old one. Recorded in `docs/refinements/body-overlay.md`.
+    the old one. Recorded in `docs/refinements/index.md#body-overlay`.
 
 20. **A window that cuts a line fades it, and the writer's line is never the faded one.** Decision
     19 spends a deficit out of the draft's window, and the ceiling spends the same way: past 120px
@@ -662,7 +662,7 @@ a trace, which is why every claim below carries the measurement it rests on.
   console that stays on screen (measured at 900x900 after the merge, and true of the two sheets the
   merge replaced, neither of which `newChat` cleared either). The merge neither caused it nor fixed
   it, and which way it should go is a question for the user rather than a defect, so it is recorded
-  in [refinements/body-overlay.md](../refinements/body-overlay.md).
+  in [refinements/index.md#body-overlay](../refinements/index.md#body-overlay).
 - **The panel's geometry went from one hook to four modules beside it.** `overlay/panelGeometry.ts`
   is the pure arithmetic (the clamp, the centre, the whole-pixel ceiling and the pacing, no DOM in
   any of it), `overlay/panelMemory.ts` is what the panel remembers between placements and how it
@@ -685,7 +685,7 @@ a trace, which is why every claim below carries the measurement it rests on.
   trip all move the composer 0px, where before decision 8 they moved it 40, 13 and 3. It still
   bites on a conversation tall enough to reach the ceiling, and the alternative (re-pinning to the
   clamped edge, and saving the pre-roll edge per section to hand back when it rolls shut) is a
-  design the user has not been asked for. Recorded in `docs/refinements/body-overlay.md`.
+  design the user has not been asked for. Recorded in `docs/refinements/index.md#body-overlay`.
   - **This consequence was already false when it was written, and its rarity number was wrong on
     top of that. Corrected 2026-08-06** (clamped-shrink addendum below). The edge clamp it depends
     on was deleted later the same evening by the "growth caps at the top" addendum's first item, so
@@ -699,7 +699,7 @@ a trace, which is why every claim below carries the measurement it rests on.
   by neither keeps a placement computed for the height it used to have. The demo's canned chat
   settles 1.9px after its last render, which now reads as at most 1px of the centre it should have
   been given, the placement being centred rather than derived from the ceiling. Recorded in
-  `docs/refinements/body-overlay.md`.
+  `docs/refinements/index.md#body-overlay`.
 - **Decision 12's floor is a number in a stylesheet, so the empty state and the floor can drift
   apart.** Nothing checks that 185px is still what `.empty` renders to; a heavier mark or a third
   example chip makes the panel dip again by the difference, and a lighter one buys dead space.
@@ -710,7 +710,7 @@ a trace, which is why every claim below carries the measurement it rests on.
   it came from, and one structural test keeps the column the floor sits on from being refactored
   away. Measuring the rendered empty state once and publishing it as a custom property is the
   version that cannot drift, and it is the same probe decision 22's assumed rail width wants.
-  Recorded in `docs/refinements/body-overlay.md`.
+  Recorded in `docs/refinements/index.md#body-overlay`.
 - **Decision 13 matches two heights by hand, which is the same kind of frozen number one level
   down.** `--trace-row` is the chip's box written out, so changing the chip's padding, border or
   font size grows the chip past the token and leaves the settled row short by the difference
@@ -742,7 +742,7 @@ a trace, which is why every claim below carries the measurement it rests on.
   with a trace at its `28vh` cap. Following the tail instead is the wrong fix, since that scrolls
   the trace's own top edge away as it grows. The right one is a scroll animation sharing the roll's
   clock and curve, moving by as much of the growth as falls below the fold and no more, and it is
-  recorded in `docs/refinements/body-overlay.md`.
+  recorded in `docs/refinements/index.md#body-overlay`.
 - **The reserved slack sits above the bubbles, so a first send into an otherwise empty panel shows
   it.** With the reminder stack dismissed, the user bubble and the reply sit against the composer
   with roughly the empty state's height blank above them until the conversation grows into it. That
@@ -750,7 +750,7 @@ a trace, which is why every claim below carries the measurement it rests on.
   slack under the last bubble, where `scrollTop = scrollHeight` scrolls the newest bubble out of
   sight to reach it. Worth a user's eye rather than a fix, since the fix is the defect.
 - **Decision 22 buys stillness with two tradeoffs it does not solve**, both recorded in
-  [refinements/body-overlay.md](../refinements/body-overlay.md). The rail's width is **assumed,
+  [refinements/index.md#body-overlay](../refinements/index.md#body-overlay). The rail's width is **assumed,
   not measured**: every container's padding arithmetic takes the reserved band to be `--rail`,
   which is true wherever `::-webkit-scrollbar` sets it. Chromium honours `scrollbar-width` **over**
   the pseudo-elements when both are set (measured: `thin` beside the 6px webkit rail reserves

@@ -56,10 +56,10 @@ tree at the commit this ADR lands on:
   `HealthReply` already carries `ready` + `detail`
   ([body.proto:138](../../proto/body.proto)). The overlay indicator already classifies a
   future `ready=false` as amber Degraded, and the streamed-status deferral names this slice as
-  the producer that makes it real ([body-overlay.md](../refinements/body-overlay.md)).
+  the producer that makes it real ([body-overlay](../refinements/index.md#body-overlay)).
 - **The body is one turn per `Converse` call.** The overlay opens a fresh stream per submit
   and the transport sends exactly one `UserTurn`
-  ([body-overlay.md](../refinements/body-overlay.md), read against
+  ([body-overlay](../refinements/index.md#body-overlay), read against
   `body/crates/rpc/src/converse.rs`). Anything the user must see during a handoff therefore
   has to ride the escalating turn's own event stream, or wait for a body seam change.
 - **VRAM (ADR-0004, measured):** 24 GB GPU, soft cap 14 GB (`CORTEX_VRAM_SOFT_CAP_GB`), cortex
@@ -419,7 +419,7 @@ GPU-placed subagent for a handoff to evict, where when this was written it had n
 6. **S11.f, honesty surfaces.** `Health` residency state + the swapping `StatusUpdate`s;
    overlay untouched by design.
 7. **S11.g, host-side capstone.** The brain pick (**done 2026-08-04**: ADR-0004 has its addendum
-   and `docs/host/gpu-tier-scale.md` item 1 its record), the live
+   and `docs/host/index.md#gpu-tier-scale` item 1 its record), the live
    tier-scale swap + chaos kill on the 24 GB machine, measured swap timings,
    `docs/runbooks/model-swap.md`, and the ~31B injection-harness run
    (`CORTEX_PROBE_BRAIN=1`), whose result feeds back into decision 1's tainted-escalation
@@ -433,24 +433,24 @@ The four entries under "Blocked on Slice 11" in
 (nothing lands with a design), and the area docs are updated only as slices deliver.
 
 - **Model-manager process lifecycle, co-residency, and the real swap**
-  ([inference-model-manager.md](../refinements/inference-model-manager.md)): lifecycle and
+  ([inference-model-manager](../refinements/index.md#inference-model-manager)): lifecycle and
   the real swap are decisions 3-5 (S11.d/e). **Co-residency stays deferred** (decision 8
   records the v1 brain-runs-alone rule and the refinement's shape).
 - **`SubagentScheduler.drain()`, CUDA-OOM re-place, the real GPU-placed runtime**
-  ([resource-governance.md](../refinements/resource-governance.md)): drain is decision 4 /
+  ([resource-governance](../refinements/index.md#resource-governance)): drain is decision 4 /
   S11.b with refuse-not-queue semantics; the GPU-placed runtime and cgroup caps land in
   S11.e inside the model-host; CUDA-OOM re-place lands in S11.e as a single CPU re-run after
   a GPU-placed failure, recorded in the result's detail. **Placement-aware CPU charging stays
   declined-as-recorded**; its reopening condition (a second GPU-capable executor) is noted in
   decision 8 but not built.
 - **Taint/provenance persistence across a mid-turn swap, and the ~31B injection-harness run**
-  ([untrusted-content.md](../refinements/untrusted-content.md)): the persistence is decision
+  ([untrusted-content](../refinements/index.md#untrusted-content)): the persistence is decision
   2's record schema (S11.a) exactly as the entry flagged ("provenance rides on the stored
   tool-step context"); the harness run is S11.g and gates any future relaxation of the
   tainted-turn escalation denial. **It ran on 2026-08-04**, by the agent rather than the user
   once the hardware premise that filed it turned out to be false, and the gate it held is open:
   the relaxation is now a judgement rather than a missing number (the last addendum here).
-- **Streamed brain status** ([body-overlay.md](../refinements/body-overlay.md)): decision 6
+- **Streamed brain status** ([body-overlay](../refinements/index.md#body-overlay)): decision 6
   delivers the *producer* (`Health` earns `ready=false` between turns, with truthful detail),
   which is the entry's named blocker. **The push stream itself stays deferred**: the landed
   probe-on-summon indicator plus the escalating stream's own status events cover personal
@@ -459,8 +459,8 @@ The four entries under "Blocked on Slice 11" in
 
 Adjacent entries this slice deliberately does not deliver, but whose recorded triggers it
 meets: safe `converse` reconnect dedup and the real Stop/abort
-([seam-transport.md](../refinements/seam-transport.md),
-[body-overlay.md](../refinements/body-overlay.md)) both name "mid-turn compute becomes
+([seam-transport](../refinements/index.md#seam-transport),
+[body-overlay](../refinements/index.md#body-overlay)) both name "mid-turn compute becomes
 expensive/evictable under the real swap" as their trigger. v1 never evicts mid-stream
 (decision 5), so the pressure arrives with usage, not with this design; they stay
 fix-when-it-bites with their triggers now live.

@@ -177,7 +177,7 @@ CI-half increments (each small, green under `just check`, no GPU):
 - The real process-lifecycle `ModelManager` adapter (the deferred `cortex_model_manager` package,
   ADR-0007) whose `acquire` performs the swap; placement-aware CPU charging; the Intel NPU as a third
   `PlacementTarget` (recorded in
-  [refinements/resource-governance.md](../refinements/resource-governance.md), which since
+  [refinements/index.md#resource-governance](../refinements/index.md#resource-governance), which since
   2026-07-19 also carries the two feasibility unknowns the ROADMAP used to hold).
 
 **Deferred to the host half (user):** two real `llama-server` sidecars (GPU `-ngl 99` + CPU `-ngl 0`)

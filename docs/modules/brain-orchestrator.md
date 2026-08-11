@@ -658,7 +658,7 @@ The service:
   body cannot tell a delegated activity from the turn's own.
   `UserTurn.images` are **still ignored**: vision arrived as a model-initiated capture
   (ADR-0029), and the user-attached image path is a recorded deferral
-  (`docs/refinements/vision.md`) rather than a promise about a coming slice.
+  (`docs/refinements/index.md#vision`) rather than a promise about a coming slice.
 - Turns run one at a time per stream, but dispatch never blocks on the running turn:
   a `UserTurn` arriving mid-turn is queued and starts when the in-flight turn
   finishes, while later client events (a `Cancel` above all) are still acted on

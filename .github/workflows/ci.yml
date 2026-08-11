@@ -72,6 +72,7 @@ jobs:
       - run: just check-dashcheck
       - run: just check-crosscheck
       - run: just check-bindcheck
+      - run: just check-backlog
 
   python:
     needs: changes
