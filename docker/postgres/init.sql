@@ -3,8 +3,12 @@
 -- cortex_memory's MemoryStore port (ADR-0008); the adapter assumes it already exists.
 --
 -- The embedding column is an UNBOUNDED vector (any dimension) and UNINDEXED: exact cosine
--- scan, which is fine at personal scale. An ANN index (hnsw/ivfflat) needs a fixed
--- dimension and is a later tuning step (ADR-0008 risk: index tuning deferred).
+-- scan. Measured 2026-08-11 (ADR-0004 ANN-index addendum), that costs 21 ms at a thousand
+-- memories and 1,478 ms at 220,000, so it is fine for the first months of daily use and is
+-- the whole turn after several years. An ANN index (hnsw/ivfflat) answers 268 times faster
+-- and needs a FIXED dimension, which would end the "swap the embedder, no migration"
+-- property ADR-0004 decision 4 keeps; it stays deferred on recall quality rather than on
+-- cost (ADR-0008 risk: index tuning deferred).
 --
 -- `scope` is the memory's namespace (ADR-0008 scoping addendum): `MemoryScope` chooses it
 -- per turn and `search` filters on it (`WHERE scope = ANY`). DEFAULT 'global' makes the
