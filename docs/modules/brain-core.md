@@ -829,7 +829,12 @@ unchanged):
   `async invoke(call) -> ToolResult` (run one call; `is_error` reflects a tool-level
   failure). An unknown tool or a transport failure raises `ToolError`
   (`ToolNotFoundError` for the name). The dispatcher, not the registry, turns that into an
-  error result.
+  error result. Two clauses the shared contract in `packages/tools/tests/registry_contract.py`
+  pins: a listing is **read at the call and never remembered**, since the aggregating and gating
+  combinators resolve ownership by walking it on every invoke, and an unknown name is safe rather
+  than uniform, since a remote registry can only relay what its server says and an MCP server
+  answers one with an error *result*. What every implementation owes is that a name it does not
+  serve never comes back as a success.
 - `ToolAuditSink` has `async record(invocation) -> None`: every dispatched call is written
   here, success or failure (the AGENTS.md audit requirement).
 - `Confirmer` has `async confirm(request: ConfirmationRequest) -> bool` (ADR-0013): approves or
@@ -1933,8 +1938,14 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   cap as `count_candidates` landed (the `fakes_session.py` precedent): a recall test wants an
   embedder, a store and somewhere for the trail to land, and nothing else in `fakes.py` takes part.
 - `InMemoryToolRegistry({name: (spec, handler)})` is a dict-backed `ToolRegistry`; contract
-  twin of the MCP adapter (Slice 6). A handler maps call arguments to result text; `invoke`
-  raises `ToolNotFoundError` for an unknown name. No server, fully deterministic.
+  twin of the MCP adapter (Slice 6). A handler maps call arguments to result text, or to a whole
+  `ToolResult` when the tool has to have run and *failed*, which is the port's central `is_error`
+  case and the one thing result text alone cannot say; either way the call's own id is stamped on,
+  so a handler never has to know it. `invoke` raises `ToolNotFoundError` for an unknown name.
+  `serve(tools)` replaces the set mid-run, which is how a check moves a world the port promises to
+  re-read, and `fail_with(ToolError(...))` takes the registry away the way a dead sidecar does;
+  `packages/tools/tests/registry_contract.py` needs all three to hold this fake to the same six
+  checks the MCP adapter answers. No server, fully deterministic.
 - `RecordingAuditSink` is a `ToolAuditSink` that keeps invocations in a list (`.records`) so
   tests can assert the audit trail.
 - `RecordingConfirmer(*, answer)` is a `Confirmer` returning a fixed `answer` and recording each

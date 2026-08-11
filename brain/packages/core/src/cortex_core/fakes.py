@@ -7,11 +7,12 @@ three (embedder, store, recall trail) in ``fakes_memory.py`` (both line-cap spli
 """
 
 from collections.abc import AsyncIterator, Awaitable, Callable, Mapping, Sequence
+from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Any
 
 from cortex_core.conversation import Message, Role
-from cortex_core.errors import InferenceError, ToolNotFoundError
+from cortex_core.errors import InferenceError, ToolError, ToolNotFoundError
 from cortex_core.inference import GenerationBounds, InferenceEvent, JsonSchema, TextChunk
 from cortex_core.progress import ProgressEvent
 from cortex_core.subagents import SubagentResult, SubagentTask
@@ -78,33 +79,56 @@ class InMemoryTaskStore:
         return self._results.get(task_id)
 
 
-_ToolHandler = Callable[[Mapping[str, Any]], Awaitable[str]]
+_ToolAnswer = str | ToolResult
+_ToolHandler = Callable[[Mapping[str, Any]], Awaitable[_ToolAnswer]]
 
 
 class InMemoryToolRegistry:
     """ToolRegistry held in a dict as the contract twin of the MCP adapter (ADR-0009).
 
     Constructed with ``{name: (spec, handler)}``, where a handler maps call arguments to
-    result text. ``invoke`` raises ``ToolNotFoundError`` for an unknown name and lets a
-    handler's own ``ToolError`` propagate (the dispatcher turns it into an error result).
-    For tests, CI, and single-process experiments, with no server and fully deterministic.
+    result text, or to a whole ``ToolResult`` when the tool has to have **run and failed**:
+    that is the port's central case (``is_error`` reflects the tool, not the dispatch) and
+    text alone cannot say it. The call's own id is stamped on either answer, so a handler
+    never has to know it. ``invoke`` raises ``ToolNotFoundError`` for an unknown name and lets
+    a handler's own ``ToolError`` propagate (the dispatcher turns it into an error result).
+    ``serve`` replaces the tool set mid-run, which is how a test moves a world the port
+    promises to re-read, and ``fail_with`` takes the whole registry away the way a dead
+    sidecar does. For tests, CI, and single-process experiments, with no server and fully
+    deterministic.
     """
 
     def __init__(self, tools: Mapping[str, tuple[ToolSpec, _ToolHandler]]) -> None:
         self._tools = dict(tools)
+        self._failure: ToolError | None = None
+
+    def serve(self, tools: Mapping[str, tuple[ToolSpec, _ToolHandler]]) -> None:
+        """Replace the served tool set from here on: a sidecar whose tools changed mid-turn."""
+        self._tools = dict(tools)
+
+    def fail_with(self, error: ToolError) -> None:
+        """Make every later call raise ``error``: the registry's backend taken away."""
+        self._failure = error
 
     async def describe_tools(self) -> Sequence[ToolSpec]:
-        """List the registered tool specs, in insertion order."""
+        """List the currently registered tool specs, in insertion order."""
+        if self._failure is not None:
+            raise self._failure
         return tuple(spec for spec, _ in self._tools.values())
 
     async def invoke(self, call: ToolCall) -> ToolResult:
         """Run the named tool's handler; raise ToolNotFoundError when it is not registered."""
+        if self._failure is not None:
+            raise self._failure
         entry = self._tools.get(call.name)
         if entry is None:
             msg = f"unknown tool {call.name!r}"
             raise ToolNotFoundError(msg)
         _, handler = entry
-        return ToolResult(call_id=call.id, content=await handler(call.arguments))
+        answer = await handler(call.arguments)
+        if isinstance(answer, str):
+            return ToolResult(call_id=call.id, content=answer)
+        return replace(answer, call_id=call.id)
 
 
 class RecordingAuditSink:

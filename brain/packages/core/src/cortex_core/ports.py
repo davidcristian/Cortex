@@ -167,6 +167,19 @@ class ToolRegistry(Protocol):
     reflects whether the *tool* failed. A dispatch failure (unknown tool, transport) surfaces
     as ``ToolError`` (``ToolNotFoundError`` for an unknown name); the dispatcher, not the
     registry, turns that into an error result the model can read.
+
+    **A listing is read at the call, never remembered.** ``AggregateToolRegistry`` and
+    ``UngatedToolRegistry`` resolve ownership and gating by walking ``describe_tools`` on every
+    invoke, so an implementation answering from a set it cached at construction would route to a
+    tool its server has since dropped, and would advertise a gated one as ungated.
+
+    **What an unknown name looks like depends on who is asked, and only the safety half is
+    common.** The core's own registries know their whole set and raise ``ToolNotFoundError``. A
+    remote one can only report what its server says, and an MCP server answers an unknown tool
+    with an error *result*, so ``McpToolRegistry`` returns ``is_error`` there rather than raising.
+    What every implementation owes is that a name it does not serve never comes back as a
+    successful result; a caller that needs the distinction resolves ownership by a live walk
+    first, which is exactly what the aggregate does before it routes.
     """
 
     async def describe_tools(self) -> Sequence[ToolSpec]: ...
