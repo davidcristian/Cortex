@@ -8,12 +8,19 @@ recommended pickup order.
 
 **Open items:** 7, counted by reading the entries below rather than by adjusting the last number.
 The Intel NPU as a third placement target, a queue-depth bound,
-two of the three the tier-outage close opened (a retry
-that only asks about tiers it already believes are missing, and a placer holding one bit for the
+one of the three the tier-outage close opened (a placer holding one bit for the
 card where the record holds one entry per tier), the two the total generation cap opened as it
 closed (a finish reason the port does not carry, so a capped completion looks like a finished one,
-and the whole-subtask figure two derivations rest on being out by a factor of two), and the brain
-learning at boot that escalation cannot work and then forgetting it. The count held at 7 later on
+and the whole-subtask figure two derivations rest on being out by a factor of two), the brain
+learning at boot that escalation cannot work and then forgetting it, and the sweep's start fenced
+against a handoff but not serialized with one. The count held at 7 later still on 2026-08-11 when
+**the retry that only asked about tiers it already believed were missing** landed ahead of its
+trigger, one out and one in: a pass now reads `status` for every evictable tier and writes what it
+hears, and what takes its place is the start already on the wire when a handoff begins, which the
+supervisor's own per-model lock orders. **This sentence named that closed entry and missed the open
+one until it was re-read on 2026-08-11**, with the total right across both errors, which is the
+cancellation the index's third warning describes and which only naming the entries catches. The
+count held at 7 later on
 2026-08-11 when **the deep model's clearing deciding the cortex's verdict at boot** landed ahead of
 its trigger, one out and one in: the port has the narrower failure that entry asked for, an
 unrostered deep tier is a green boot and a loud line rather than an amber dot, and what takes its
@@ -52,9 +59,10 @@ proves nobody miscounted and nothing else). Before that, the subagent VRAM ask c
 two days: the cortex reservation's re-measurement on 2026-08-07 opened it, having closed nothing
 this count had ever carried (it had been deferred at two ADRs and recorded on no index), so the
 count went 5 to 6 for an arrival with no matching departure; measuring the tier on 2026-08-08 took
-it back to 5. All eight moves are the honest shape of that history rather than a bookkeeping slip.
-This sentence read six until 2026-08-10 and seven until 2026-08-11: each time a move was prepended
-at the head of this paragraph the tally under it was left where it was, which is the same omission
+it back to 5. All ten moves are the honest shape of that history rather than a bookkeeping slip.
+This sentence read six until 2026-08-10, seven until earlier on 2026-08-11, and eight for the
+hours after two further moves had been prepended that same day: each time a move goes in at the
+head of this paragraph the tally under it is left where it was, which is the same omission
 one paragraph up describes and the reason a summary of a running record has to be re-read whenever
 the record grows. It is counted here by reading the moves above rather than by adding one.
 

@@ -65,7 +65,10 @@ closed: the overlay's `BrainBridge` has a shared check list of thirteen checks d
 implementations CI can run, and `demoBridge.ts` and its script came out of the overlay's coverage
 `exclude` behind it, which leaves that entry open on the four Python ports, the streaming half of
 a fifth, and every Rust row. A row closing inside an entry is recorded there and moves no number
-here, the same treatment a coupling's arrival gets in the entry above it)
+here, the same treatment a coupling's arrival gets in the entry above it. **Still five later that
+same day**, when the four Python ports that sentence left open gained lists of their own,
+`Embedder`, `ToolRegistry`, `BodyGateway` and `Confirmer`, one commit each, so what that entry is
+open on now is the streaming half of `InferenceBackend` and every Rust row)
 
 **Prose style ([ADR-0026](../adr/ADR-0026-prose-style-gates.md)):**
 - **Check the commit body's 72-column wrap, not only the header's length.** Opened 2026-07-18,
