@@ -113,7 +113,7 @@ native-toast push. A toast the host shows is delivery, so the ticker acks the it
 overlay will not show it again; a declined or failed push leaves it deliverable and the pull path
 delivers. There is no proactive re-push beyond that next pull (a re-push without a per-fire
 delivery id would double-deliver; deferred, see
-[docs/refinements/scheduling.md](../refinements/scheduling.md)).
+[docs/refinements/index.md#scheduling](../refinements/index.md#scheduling)).
 
 **Turning the backend off strands stored deliverables** until re-enabled (the records
 persist; nothing lists or fires them).
@@ -138,7 +138,7 @@ cd brain && uv run pytest -m integration --no-cov \
 
 ## Host-only half on Windows
 
-What these close and where to record them: [docs/host/windows-desktop.md](../host/windows-desktop.md).
+What these close and where to record them: [docs/host/index.md#windows-desktop](../host/index.md#windows-desktop).
 
 - **The native toast** (the push half) **landed 2026-07-16** as the `body_core::os::Notify`
   port with a real `WindowsNotify` WinRT backend (ADR-0025 notify addendum). The inert-text
@@ -161,7 +161,7 @@ What these close and where to record them: [docs/host/windows-desktop.md](../hos
      usual borrowed one), or test from an installed build, whose shortcut carries
      `dev.cortex.body`, the default.
   Clicking the toast does nothing by design for now (deferred, see
-  [docs/refinements/scheduling.md](../refinements/scheduling.md)).
+  [docs/refinements/index.md#scheduling](../refinements/index.md#scheduling)).
 - **The overlay reminder surface** (the pull half) **landed 2026-07-14** and is CI-gated over
   the fake bridge, so what remains here is looking at it on the real hotkey path: summon the
   overlay with something due and the card stack sits above the history, each card carrying its

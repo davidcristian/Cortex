@@ -77,11 +77,11 @@ true and stayed unenforced: `SEAM_TOKEN_HEADER` is declared by hand three times,
 no test anywhere compared them. `scripts/crosscheck.py` now does, as one entry in its registry
 of cross-language constants; the mechanism and why the seam token is in it are argued in
 [ADR-0029](ADR-0029-vision-screen-capture.md)'s cross-language-constant addendum, and the scan
-is documented in [docs/modules/repo-gates.md](../modules/repo-gates.md). Nothing about the token
+is documented in [docs/modules/repo-gates](../modules/repo-gates.md). Nothing about the token
 itself changes here.
 
 The compose healthcheck in `docker/docker-compose.yml` holds a **fourth** copy, inline in a
 one-line Python command rather than as a declaration, so the gate does not reach it: a rename
 would still break the healthcheck silently. That is recorded as an open deferral in
-[docs/refinements/repo-gates.md](../refinements/repo-gates.md) rather than solved by teaching a
+[docs/refinements/index.md#repo-gates](../refinements/index.md#repo-gates) rather than solved by teaching a
 constant scanner to read a shell string embedded in YAML.

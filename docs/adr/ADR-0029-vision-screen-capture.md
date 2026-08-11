@@ -777,7 +777,7 @@ for; per-monitor DPI behaviour; the receipt appearing; GDI's black-rectangle beh
 hardware-overlay and DRM-protected surfaces; and hotkey-to-answer latency with its vision
 surcharge.
 
-Deferrals are recorded in `docs/refinements/vision.md` with their index lines.
+Deferrals are recorded in `docs/refinements/index.md#vision` with their index lines.
 
 ## Addendum (2026-07-19): what three adversarial audits found, and what changed
 
@@ -839,7 +839,7 @@ tree are green. The lesson is about the harness, not the gate: a mutation probe 
 worktree.
 
 Every fix carries a mutation proof naming the test it reddens, and the three-place refinement
-records for what it opened are in `docs/refinements/vision.md` with their index lines.
+records for what it opened are in `docs/refinements/index.md#vision` with their index lines.
 
 
 ## Addendum (2026-07-19): two agent-Docker measurements were owed and tracked nowhere
@@ -852,7 +852,7 @@ this slice owed only its host-side Windows pass. They are:
 
 1. **Whether thinking needs disabling on a vision turn** under the shipped parts payload. The
    disable-thinking lever itself is a separate open entry
-   ([docs/refinements/inference-model-manager.md](../refinements/inference-model-manager.md), where
+   ([docs/refinements/index.md#inference-model-manager](../refinements/index.md#inference-model-manager), where
    it sits as fix-when-it-bites beside token-budget capping); what is unmeasured is whether a
    vision turn is the case that needs it.
 2. **`llama-server`'s `mmproj`-less error body text.** This one is load-bearing rather than
@@ -864,7 +864,7 @@ this slice owed only its host-side Windows pass. They are:
 recorded. [AGENTS.md](../../AGENTS.md) states that "on the host" includes the agent, and the same
 8 GB dev GPU that drove the real cortex beside its projector on 2026-07-18 is enough for both, so
 neither waits on the host's hardware. They are now one entry in
-[docs/refinements/vision.md](../refinements/vision.md) with its line in
+[docs/refinements/index.md#vision](../refinements/index.md#vision) with its line in
 [docs/refinements/index.md](../refinements/index.md) under **actionable now**, alongside the image
 arm of the injection harness, which this ADR's own closeout leaves as one corpus of one.
 
@@ -882,7 +882,7 @@ No code changed here; this is a records correction at the origin ADR.
 
 ## Addendum (2026-07-19): the host-only list moves out, and one item on it was never a Windows item
 
-The host-side half of this slice moved to [docs/host/windows-capture.md](../host/windows-capture.md) with
+The host-side half of this slice moved to [docs/host/index.md#windows-capture](../host/index.md#windows-capture) with
 its wording kept verbatim, when work needing the host's hardware was extracted from the ROADMAP
 and the refinements backlog into its own directory. Nothing about the work changed. The "Still
 host-only" section above remains the ADR's own statement of what it owes; the new doc adds the
@@ -894,7 +894,7 @@ rest of the sitting a measurement of a system that is already unsound.
 list ends with "the resident VRAM figure with the projector loaded on the 24 GB GPU". That is not a
 Windows item: it has no OS-native content and needs no desktop session. It was filed under the GPU
 capability instead, as an eighth item in
-[docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md).
+[docs/host/index.md#gpu-tier-scale](../host/index.md#gpu-tier-scale).
 
 **Corrected later the same day: that filing was wrong, and the item is withdrawn.** The paragraph
 above claimed the clause "existed in exactly one sentence in this repo" and therefore owed the
@@ -904,7 +904,7 @@ written: [ADR-0004](ADR-0004-model-lineup.md)'s 2026-06-29 addendum records
 24 GB card ... 16K context, single slot, all layers on GPU", which is the
 production context and the deployment's own slot count (the model host runs the cortex tier at
 `parallel=1`). The [llamacpp-gpu.md](../runbooks/llamacpp-gpu.md) table and
-[vision.md](../runbooks/vision.md)'s "What the projector costs" carry the same number, and this
+[vision](../runbooks/vision.md)'s "What the projector costs" carry the same number, and this
 ADR's decision 14 leans on it in as many words: "The 11.3 GB default is ADR-0004's **with-mmproj**
 measurement". So the Consequences clause is a restatement of a measurement already held, not a gap,
 and the honest correction is the one this addendum now makes rather than a sitting invented for it.
@@ -919,7 +919,7 @@ No code changed here; this is a records correction at the origin ADR.
 Decision 7 above states the invariant ("one ceiling, two enforcers") and this ADR's
 2026-07-18 interpretation section records what was missing: "each side pins the literal in its
 own test; nothing mechanical couples them, which is recorded as a deferral". That deferral, in
-[docs/refinements/vision.md](../refinements/vision.md), asked for "a repo-gate scan asserting
+[docs/refinements/index.md#vision](../refinements/index.md#vision), asked for "a repo-gate scan asserting
 the two literals match", beside `linecap.py` and `dashcheck.py`. It is now
 `scripts/crosscheck.py`, wired into `just check` and into CI's unconditional `cross-tree` job.
 
@@ -950,7 +950,7 @@ wrong thing, since it can only ever compare a tree with itself.
    only entry is a pair is a registry in name only: the three-site case is what proves the shape
    generalizes past two. A wider survey found several more couplings of other kinds, and
    registering those is a decision this addendum does not make; it is
-   [docs/refinements/repo-gates.md](../refinements/repo-gates.md).
+   [docs/refinements/index.md#repo-gates](../refinements/index.md#repo-gates).
 3. **No master, and `proto/body.proto` is not one.** Sites are compared with each other, never
    against a value declared in the registry. Protobuf has no constant, so a number could live
    there only as a comment, which is a third uncoupled copy rather than a source of truth: the
@@ -992,10 +992,10 @@ the rule they enforce ([ADR-0011](ADR-0011-body-v1.md)'s line-cap addendum,
 there is none. The seam token's entry is the one thing this addendum records that ADR-0029 does
 not own, and it is registered under a mechanism argued here rather than a rule decided here,
 with a pointer left at ADR-0016. The scan itself is documented in
-[docs/modules/repo-gates.md](../modules/repo-gates.md) beside the other two.
+[docs/modules/repo-gates](../modules/repo-gates.md) beside the other two.
 
 **Deferred by this addendum** (recorded in
-[docs/refinements/repo-gates.md](../refinements/repo-gates.md)): the couplings the registry
+[docs/refinements/index.md#repo-gates](../refinements/index.md#repo-gates)): the couplings the registry
 holds no entry for, in three kinds. Relations the equality comparator cannot express (the body's
 `MAX_EDGE_CEILING` at or below the brain's `MAX_IMAGE_EDGE`, `CAPTURE_MIME` inside
 `ALLOWED_MIME_TYPES`, the client's `MAX_RECEIVE_BYTES` above both ceilings); copies that are not
@@ -1058,7 +1058,7 @@ are for the open-ended "what is on my screen?"; a narrow ask ("what is the total
 screen?") skipped the think on some image runs and answered in 1.8 s, so the tendency belongs to
 the open question rather than to the picture alone. The
 disable-thinking lever stays the separate open entry it was, in
-[docs/refinements/inference-model-manager.md](../refinements/inference-model-manager.md), now with a
+[docs/refinements/index.md#inference-model-manager](../refinements/index.md#inference-model-manager), now with a
 latency number behind it instead of an emptiness risk.
 
 **`llama-server`'s `mmproj`-less error body says what this ADR assumed it would.** A second server
@@ -1102,7 +1102,7 @@ every number above was taken with that message in place.
 **No code changed for either measurement**, beyond the canary, which is the outcome this ADR wanted:
 the excerpt was built for a string nobody had read, and the string turned out to be the one it was
 built for. The refinement entry that tracked both closes in
-[docs/refinements/vision.md](../refinements/vision.md), with its line on
+[docs/refinements/index.md#vision](../refinements/index.md#vision), with its line on
 [docs/refinements/index.md](../refinements/index.md); the image arm of the injection harness is the
 last of this ADR's four agent-Docker measurements still owed.
 
@@ -1397,7 +1397,7 @@ carried the canary), that a canary reaches its replies off `chrome`, and that it
 the same sitting was 0 of 10 framed against 5 of 10 unframed. An unrun candidate in a lineup is
 this harness's normal state, as `BRAIN_CANDIDATES` has been since it was written.
 
-The three records for this closure are [docs/refinements/vision.md](../refinements/vision.md), its
+The three records for this closure are [docs/refinements/index.md#vision](../refinements/index.md#vision), its
 line on [docs/refinements/index.md](../refinements/index.md), and this addendum. The procedure,
 including the four things about this arm that bite before the model does, is in
 [docs/runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md) beside the brain tier's row.
@@ -1813,7 +1813,7 @@ the model does not: "read the window I am looking at" is a request the model can
 pixels. Those are three fields with a consumer each, which is the bar decision 11 set.
 
 The three records for this measurement are
-[docs/refinements/vision.md](../refinements/vision.md), its line on
+[docs/refinements/index.md#vision](../refinements/index.md#vision), its line on
 [docs/refinements/index.md](../refinements/index.md), and this addendum. The procedure and the
 recommended setting are in [docs/runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md), and the
 re-runnable half is `packages/inference/tests/test_image_budget_live.py`, which asserts the
@@ -2082,7 +2082,7 @@ were the other two considered.
 
 It does not give the brain any notification of a model host restarting. Nothing pushes; the probe
 pulls, at the two moments it matters. A per-tier residency generation would still be worth having
-for the other things it was asked for (`docs/refinements/model-manager.md`), and this work neither
+for the other things it was asked for (`docs/refinements/index.md#inference-model-manager`), and this work neither
 needs it nor supplies it. It also does not change the deep tier, which carries no capture tool to
 gate, and it does not touch the body: the host-side switches, the self-exclusion, and the byte
 ceilings are all as they were.
@@ -2186,7 +2186,7 @@ It compares against `min(the display's long edge, the requested edge)` now, whic
 policy should have produced. A measurement gate that reddens for the wrong reason would have been
 read as a defect in the capture path and sent the next reader to rewrite the ladder.
 
-The three records for this re-read are [docs/refinements/vision.md](../refinements/vision.md), its
+The three records for this re-read are [docs/refinements/index.md#vision](../refinements/index.md#vision), its
 line and its bucket entry on [docs/refinements/index.md](../refinements/index.md), and this
 addendum. The area count deliberately does not move: the entry was confirmed, not closed.
 
@@ -2285,7 +2285,7 @@ emit for outcomes alone or a surface that treats a missing ending the way the ca
 treats one, by leaving the claim where the announcement put it.
 
 The three records for this decline are
-[docs/refinements/subagents.md](../refinements/subagents.md), its row and its bucket entry on
+[docs/refinements/index.md#subagents](../refinements/index.md#subagents), its row and its bucket entry on
 [docs/refinements/index.md](../refinements/index.md), and this addendum. The area count moves 3 to
 2: a decline is a close.
 
@@ -2325,7 +2325,7 @@ across the language boundary, with the real tonic `body_service` over loopback (
 What that cannot reach is a status a stub never emits: `NoDisplay` and `Backend` come out of GDI
 itself, so seeing those two rows produced by a real backend needs a Win32 session with a display
 to lose. It is recorded as a seventh observation inside the existing capture sitting
-([docs/host/windows-capture.md](../host/windows-capture.md)), not as a new sitting, because it is
+([docs/host/index.md#windows-capture](../host/index.md#windows-capture)), not as a new sitting, because it is
 two extra prompts inside a bring-up that already has to happen.
 
 ## Addendum (2026-08-10): the body can be pointed at a window, and the field landed with the honouring
@@ -2483,10 +2483,10 @@ with different targets are no longer byte-identical calls. And the model has to 
 two options mean in a schema, which is the one place the plain names above are actually spent.
 
 The three records for this half are
-[docs/refinements/vision.md](../refinements/vision.md), its line on
+[docs/refinements/index.md#vision](../refinements/index.md#vision), its line on
 [docs/refinements/index.md](../refinements/index.md), and this addendum; the Z-order walk, which is
 authored and has never seen a real desktop, is recorded in the existing capture sitting
-([docs/host/windows-capture.md](../host/windows-capture.md)) rather than as a new one, since it
+([docs/host/index.md#windows-capture](../host/index.md#windows-capture)) rather than as a new one, since it
 needs the same bring-up as the checks already listed there.
 
 ## Addendum (2026-08-10): the brain asks for a target, and the model is the one who picks
@@ -2563,7 +2563,7 @@ answer, which is to ask again for the display, since that error means a bare des
 two. That closes the half of this vocabulary's coupling that a gate can hold. The other half, the
 Python enum against the proto's, is generated on both sides and `scripts/crosscheck.py`
 structurally cannot parse either; it is recorded with the other couplings the scan cannot hold in
-[docs/refinements/repo-gates.md](../refinements/repo-gates.md) rather than registered.
+[docs/refinements/index.md#repo-gates](../refinements/index.md#repo-gates) rather than registered.
 
 **A missing target is a tool error, not a default**, and the reasoning is not tidiness. The
 default it would take is the whole screen, which is both the more exposing picture and the less
@@ -2643,7 +2643,7 @@ target: every byte figure in the addendum above stands, since the body's code is
 from filling one reply field. And it does not answer the measurement this whole thread was for,
 whether a window-sized crop reaches the 15 px text that stayed at 4 of 16 at every token budget
 tried. That is now runnable for the first time, because a target can be asked for end to end, and
-it stays on [docs/refinements/vision.md](../refinements/vision.md) as what the region and window
+it stays on [docs/refinements/index.md#vision](../refinements/index.md#vision) as what the region and window
 entry is still open for.
 
 ## Addendum (2026-08-10): what a window crop is worth, and the one row where it is worth a lot
@@ -2789,7 +2789,7 @@ like a model that will not load.
 ### Records
 
 The three records for this measurement are
-[docs/refinements/vision.md](../refinements/vision.md), its line on
+[docs/refinements/index.md#vision](../refinements/index.md#vision), its line on
 [docs/refinements/index.md](../refinements/index.md), and this addendum. The re-runnable half is
 the fourth arm of
 [`test_image_budget_live.py`](../../brain/packages/inference/tests/test_image_budget_live.py) with
@@ -2898,7 +2898,7 @@ What is **not** a reason: honesty. The silence is a real gap in what `describe()
 ADR's standing rule is that the stand-in text claims nothing it cannot support, which is why
 `describe()` already refuses to guess here. The deferral is that the gap is not currently reachable
 by any behaviour we can measure, not that it does not exist. It is recorded in
-[docs/refinements/vision.md](../refinements/vision.md) with the trigger written down: it lands with
+[docs/refinements/index.md#vision](../refinements/index.md#vision) with the trigger written down: it lands with
 the next change that opens `CaptureScreenReply` (a `display_index`, or the region picker the
 rectangle decline waits on), or the day a caption is measured to change what this cortex does with
 a picture it cannot read.
@@ -2907,7 +2907,7 @@ a picture it cannot read.
 
 Corrected: `screen_tool.py`'s `_DESCRIPTION`, `_TARGET_HELP`, the comment above them and
 `_parse_target`'s docstring; [docs/modules/brain-core.md](../modules/brain-core.md)'s account of
-the spec; and [docs/runbooks/vision.md](../runbooks/vision.md), which restated the general
+the spec; and [docs/runbooks/vision](../runbooks/vision.md), which restated the general
 preference and now carries the measurement's own scope, plus a note on its expect-rather-than-debug
 list that a `focus` capture is the one thing that reaches 15 px type and only while the window
 fits.
@@ -2924,7 +2924,7 @@ addendum is their correction, which is how every superseded sentence in this ADR
 
 ### Records
 
-The three records are [docs/refinements/vision.md](../refinements/vision.md), its line on
+The three records are [docs/refinements/index.md#vision](../refinements/index.md#vision), its line on
 [docs/refinements/index.md](../refinements/index.md), and this addendum. The area count moves
 **10 to 11**, re-derived entry by entry rather than incremented: the resampled bit is new work,
 knowingly punted, with a trigger, which is exactly what this backlog counts.
@@ -2987,7 +2987,7 @@ entry, a comparator nothing uses being the same defect as a gate that cannot fai
 
 ### Records
 
-The three records are [docs/refinements/repo-gates.md](../refinements/repo-gates.md), its line on
+The three records are [docs/refinements/index.md#repo-gates](../refinements/index.md#repo-gates), its line on
 [docs/refinements/index.md](../refinements/index.md), and this addendum. No count moves on either:
 the couplings entry stays open on the four couplings the registry still cannot hold, and a coupling
 leaving that entry is recorded inside it exactly as an arriving one is.
@@ -3050,7 +3050,7 @@ name whose spends matter one at a time.
 
 ### Records
 
-The three records are [docs/refinements/repo-gates.md](../refinements/repo-gates.md), its line on
+The three records are [docs/refinements/index.md#repo-gates](../refinements/index.md#repo-gates), its line on
 [docs/refinements/index.md](../refinements/index.md), and this addendum. No count moves: the
 couplings entry stays open on the three couplings the registry still cannot hold, and what this
 close leaves behind is narrower than the entry it came from, so it is written inside it rather than

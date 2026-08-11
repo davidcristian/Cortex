@@ -177,7 +177,7 @@ CI-half increments (each small, green under `just check`, no GPU):
 - The real process-lifecycle `ModelManager` adapter (the deferred `cortex_model_manager` package,
   ADR-0007) whose `acquire` performs the swap; placement-aware CPU charging; the Intel NPU as a third
   `PlacementTarget` (recorded in
-  [refinements/resource-governance.md](../refinements/resource-governance.md), which since
+  [refinements/index.md#resource-governance](../refinements/index.md#resource-governance), which since
   2026-07-19 also carries the two feasibility unknowns the ROADMAP used to hold).
 
 **Deferred to the host half (user):** two real `llama-server` sidecars (GPU `-ngl 99` + CPU `-ngl 0`)
@@ -214,7 +214,7 @@ Config gains, at the composition root only: `CORTEX_VRAM_SOFT_CAP_GB`, `CORTEX_V
 ## Addendum (2026-07-16): the admission wall refuses as a value; placement-aware charging declined
 
 Two deferrals recorded above closed together on the backlog pass that read them against the tree
-([docs/refinements/resource-governance.md](../refinements/resource-governance.md)): **a hard budget
+([docs/refinements/index.md#resource-governance](../refinements/index.md#resource-governance)): **a hard budget
 wall** and **placement-aware CPU charging**. Both entries described themselves as tweaks behind the
 same unchanged `SubagentScheduler` port. Neither was, for opposite reasons.
 
@@ -452,10 +452,10 @@ a load thrash rather than fail.
 subagent is only ever placed on the GPU when `CORTEX_SUBAGENTS_VRAM_GB` fits under the soft cap
 minus the resident cortex, which needs a card that holds the cortex first. The measured `vram_gb`
 and budget numbers stay host-side with it. Recorded in
-[docs/refinements/resource-governance.md](../refinements/resource-governance.md) and its
+[docs/refinements/index.md#resource-governance](../refinements/index.md#resource-governance) and its
 [index](../refinements/index.md) until 2026-07-19, when host-side work was extracted into its own
 directory; both this validation and the placeholder cap numbers now live in
-[docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md), with the sentences above kept verbatim
+[docs/host/index.md#gpu-tier-scale](../host/index.md#gpu-tier-scale), with the sentences above kept verbatim
 there and pointer stubs left behind.
 
 ## Addendum (2026-07-19): the GPU-placed-subagent validation splits, mechanism here and arithmetic host-side
@@ -472,7 +472,7 @@ of that card's 8188 MiB.
 **What is true instead, and it is narrower.** The card holds the cortex with roughly 470 MiB to
 spare, so nothing multi-GB fits *beside* it. A GPU placement **beside a resident cortex**, which is
 the arithmetic this ADR budgets for, therefore stays host-side and stays item 6 of
-[docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md), with the measured `vram_gb` and budget
+[docs/host/index.md#gpu-tier-scale](../host/index.md#gpu-tier-scale), with the measured `vram_gb` and budget
 numbers. The cgroup cap placeholders are unaffected and stay host-side for their own reason, which
 is the tier pair.
 
@@ -485,7 +485,7 @@ that proves is the route from a GPU verdict to an `-ngl 99` process plus the led
 for it, which is the same mechanism-versus-tier-scale split the model swap already runs on
 ([ADR-0030](ADR-0030-brain-handoff.md)). It is recorded as actionable now in
 [docs/refinements/index.md](../refinements/index.md), with the reasoning in
-[docs/refinements/resource-governance.md](../refinements/resource-governance.md). Nobody has run it
+[docs/refinements/index.md#resource-governance](../refinements/index.md#resource-governance). Nobody has run it
 yet, so the "never fired against a real placement" sentence above stays true until somebody does.
 
 No code changed here; this is a records correction at the origin ADR.
@@ -780,7 +780,7 @@ answered here rather than silently absorbed, which is what the pin they replace 
 ledger charges one tier's whole footprint per spawn, while the tier is a standing process that a
 second spawn allocates nothing on. So the refusal of that second spawn is a decode-speed choice
 dressed as a memory one. That is the older modelling gap recorded in
-[refinements/inference-model-manager.md](../refinements/inference-model-manager.md), unchanged by
+[refinements/index.md#inference-model-manager](../refinements/index.md#inference-model-manager), unchanged by
 this and now the honest reading of what the second placement means. The roster's alternate entry
 (`docker-compose.subagents-roster.yml`, `vram_gb` 2.5) is deliberately left alone: no GPU executor
 exists for it, its `gpu_endpoint` falling back to its own CPU server, so its figure charges a
@@ -813,7 +813,7 @@ the shipped entry.
 ceiling now refuses a stream that has gone quiet, but neither bounds a subagent that keeps
 producing tokens: a repetition loop holds its admission exactly as the wedged stream used to. That
 is filed as the total generation cap in
-[refinements/resource-governance.md](../refinements/resource-governance.md), the one deferral this
+[refinements/index.md#resource-governance](../refinements/index.md#resource-governance), the one deferral this
 close opened.
 
 ## Addendum (2026-08-09): the admission wait is bounded, and the queue-depth half is not
@@ -915,7 +915,7 @@ each drain in a fraction of the time five asking 2.0 do, and depth cannot tell t
 the whole hour before it is told, so the model hears "refused" an hour late instead of at once, and
 `MAX_SPAWN_BATCH` plus depth-1 are still the only things bounding how long that queue can get.
 Filed as its own deferral in
-[refinements/resource-governance.md](../refinements/resource-governance.md), with the trigger that
+[refinements/index.md#resource-governance](../refinements/index.md#resource-governance), with the trigger that
 makes it worth its guess: the first deployment observed hitting this bound, which is also the first
 one with a measured drain rate to derive a depth from.
 

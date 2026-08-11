@@ -265,7 +265,7 @@ The deep-model pick this ADR left open, and the injection table's line that the 
 "opt-in and not yet run", are the two things here that only the 24 GB card can close. Both
 now have a written home with a procedure, a pass, a fail, and a "record it" line pointing back at
 this file: items 1 and 5 of
-[docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md), whose index is
+[docs/host/index.md#gpu-tier-scale](../host/index.md#gpu-tier-scale), whose index is
 [docs/host/](../host/index.md). Nothing about the work changed; this is the third of the three
 records [AGENTS.md](../../AGENTS.md) requires for a host item, which this ADR was missing.
 
@@ -417,7 +417,7 @@ as headroom; the headroom is really 5.4 GiB.
 Decision 4's schema note above says the `memories.embedding` column is an unbounded `vector` so
 switching embedder or dimension needs no migration, and adds in parentheses that an ANN index
 would. That parenthesis was the whole of the argument for deferring the index, and the deferred
-entry it produced (`docs/refinements/memory.md`) carried a second claim beside it, written into
+entry it produced (`docs/refinements/index.md#memory`) carried a second claim beside it, written into
 `docker/postgres/init.sql` and `docs/modules/brain-memory.md` alike: that an exact cosine scan is
 "fine at personal scale". Both halves were measured today against real pgvector 0.8.4 on
 PostgreSQL 16.14, the shipped `pgvector/pgvector:pg16` image from

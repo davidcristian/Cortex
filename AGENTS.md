@@ -81,16 +81,17 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    rule, ADR-0006, so only the unconditional line-cap job sees them).
 4. **Doc-first Definition of Done.** Per slice: design doc/ADR → define or adjust the
    port → tests → implementation → module doc + runbook updates → **record every consciously
-   deferred refinement in `docs/refinements/` (the area doc plus its line in
-   [docs/refinements/index.md](docs/refinements/index.md), and at its origin ADR)**. A change
+   deferred refinement in `docs/refinements/` (one file per task under `tasks/`, plus its dated
+   addendum at the origin ADR)**, per [ADR-0039](docs/adr/ADR-0039-backlog-per-task.md). A change
    that touches code but not docs is incomplete; a refinement knowingly punted but not written
    down is a lost decision. That directory is the one place none is lost, so updating it is part
-   of finishing a slice, not an afterthought. Its companion is
-   [docs/host/](docs/host/index.md), recorded the same way (its sitting doc, its line on that
-   index, and its origin ADR) and holding the other kind of not-done: work that is built but
-   needs hardware this repo is not developed on, meaning a real Win32 desktop session or a 24 GB
-   GPU. Anything the agent can reach, including GPU and model behavior via Docker, belongs in
-   neither and is done now. Every module has a short contract
+   of finishing a slice, not an afterthought. **A task's status lives on its own `**Status:**`
+   line and nowhere else**, and [docs/refinements/index.md](docs/refinements/index.md) is
+   generated from those files by `just backlog`, so never edit the index by hand. Its companion is
+   [docs/host/](docs/host/index.md), recorded the same way and holding the other kind of not-done:
+   work that is built but needs hardware this repo is not developed on, meaning a real Win32
+   desktop session or a 24 GB GPU. Anything the agent can reach, including GPU and model behavior
+   via Docker, belongs in neither and is done now. Every module has a short contract
    doc in `docs/modules/` (purpose, public contract, invariants, dependencies) that lets a
    future agent work on it without reading the tree.
 5. **Types & quality.** Python: `ruff` (lint + format) clean; `pyright` in strict mode
@@ -101,17 +102,19 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    config via env only.
 6. **`just check` is the single gate**, running ruff, pyright, pytest + coverage,
    `cargo fmt --check`, clippy, `cargo test`, `cargo llvm-cov`, the overlay's typecheck and
-   Vitest coverage, and the four cross-tree scans: the line cap, which reaches all three
+   Vitest coverage, and the five cross-tree scans: the line cap, which reaches all three
    toolchains; `dashcheck.py`, which bans a dash used as punctuation in any text file
    (ADR-0026); `crosscheck.py`, which ties every value this repo spells in more than one place,
    whether the far side declares it, orders itself against it, carries it among the several it
    accepts, or merely spends it inside a string, a stylesheet or a bare literal, down to the
    name a stylesheet spends it under (ADR-0029
-   cross-language-constant addendum); and `bindcheck.py`, which holds every compose bind
+   cross-language-constant addendum); `bindcheck.py`, which holds every compose bind
    mount to resolving outside the repo, onto a path git tracks, or onto one git ignores, so
    no `docker compose up`
-   materializes a container-written directory the index would take (ADR-0026 bind addendum).
-   All four run unconditionally, in CI too. Pre-commit mirrors it. Run it
+   materializes a container-written directory the index would take (ADR-0026 bind addendum);
+   and `backlogcheck.py`, which holds each backlog index to the task files it describes and
+   every link in them to resolving, so a status can be written in exactly one place
+   (ADR-0039). All five run unconditionally, in CI too. Pre-commit mirrors it. Run it
    before declaring anything done.
 
 ## Commits
@@ -191,9 +194,10 @@ Entries marked *(planned)* are target layout; docs/ROADMAP.md says which slice d
 ```
 proto/            body↔brain gRPC contract (source of truth for the seam)
 docs/             ARCHITECTURE.md, index.md, ROADMAP.md, adr/, modules/, runbooks/,
-                  refinements/ (deferred-refinements backlog + ordered index),
+                  refinements/ (deferred-refinements backlog: one file per task under tasks/
+                  + a generated index, ADR-0039),
                   host/ (work only the host's hardware can do: a Win32 desktop session or a
-                  24 GB GPU, one doc per sitting + ordered index), assets/ (logo)
+                  24 GB GPU, same shape), assets/ (logo)
 brain/            Python workspace (uv), dockerized (brain/Dockerfile)
   packages/       core (pure logic + ports), seam (committed gRPC stubs + typed facade),
                   orchestrator (hosts BrainService), session (Redis SessionStore +
@@ -219,11 +223,14 @@ scripts/          repo gates, plus the one module here that gates nothing, contr
                   halves the line cap split it into) + values.py (what a value reduces to and
                   how a constant's readings must stand), bindcheck.py (no compose bind
                   default lands unignored in the tree) + composemounts.py (its compose
-                  reader), coverage_gate.py (Rust branches), ci_paths.py (CI path
+                  reader), backlogcheck.py (each backlog index still matches its task files,
+                  ADR-0039) + backlog.py (task-file grammar) and backlogindex.py (what the
+                  index renders), coverage_gate.py (Rust branches), ci_paths.py (CI path
                   classifier), commitlint.py (commit-message style)
 .github/          GPU-less CI running the same `just` recipes as local dev
-justfile          `just check` + check-*; proto, up/down, brain-serve, seam-health, turn-cost
-                  (`just check` runs the four cross-tree scans before the per-tree ones;
+justfile          `just check` + check-*; proto, up/down, brain-serve, seam-health, turn-cost,
+                  backlog (regenerate each backlog index from its task files)
+                  (`just check` runs the five cross-tree scans before the per-tree ones;
                   `turn-cost` is the A/B/A live measurement, where the container restarts
                   between arms live, ADR-0038)
 docker/           Compose stack (run via `just up`/`up-gpu`, or `docker compose --project-directory .

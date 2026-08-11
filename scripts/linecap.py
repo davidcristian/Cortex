@@ -7,8 +7,8 @@ directories (`_generated`, ADR-0001 decision 7) are exempt.
 The scan covers all three of the repo's gated toolchains: Python, Rust, and the overlay's
 TypeScript (ADR-0011 line-cap addendum). It deliberately does not cover the stylesheet,
 the markup, or `proto/body.proto`, which are not modules the cap's split-by-responsibility
-remedy applies to; see that addendum for the argument and docs/refinements/repo-gates.md
-for what stays unmeasured.
+remedy applies to; see that addendum for the argument and the repo-gates tasks in
+docs/refinements/ for what stays unmeasured.
 """
 
 import argparse

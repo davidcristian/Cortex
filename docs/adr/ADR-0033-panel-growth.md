@@ -66,7 +66,7 @@ from one height to the next.
   on purpose; it is bounded by the panel being a single element with a handful of children.
 - Exit animations are not covered: React unmounts a removed section immediately, so a closing
   switcher collapses through the panel's height ease but the list itself vanishes rather than
-  sliding out. Recorded in `docs/refinements/body-overlay.md` rather than solved here, because
+  sliding out. Recorded in `docs/refinements/index.md#body-overlay` rather than solved here, because
   animating unmount means keeping the element mounted through its exit.
 
 ## Addendum (2026-07-21): an arriving aside is counted off the raw height

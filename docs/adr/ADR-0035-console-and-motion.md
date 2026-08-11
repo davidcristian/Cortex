@@ -93,7 +93,7 @@ a trace, which is why every claim below carries the measurement it rests on.
      composer, which is where a summon puts it and where the draft still is. The rest of the tab
      list pattern (a roving `tabindex` and arrow keys along the strip) and a leaving pane that is
      untabbable as well as unannounced (which wants `inert`, and so React 19) are deferred and
-     written down in [refinements/body-overlay.md](../refinements/body-overlay.md). **Both landed
+     written down in [refinements/index.md#body-overlay](../refinements/index.md#body-overlay). **Both landed
      on 2026-08-03**, in the addendum below on the strip's keyboard, which also records that the
      React 19 half of that parenthesis was wrong: only the type is missing from React 18.
    - **The two state modules the merge lengthened were split rather than left over the cap.**
@@ -105,7 +105,7 @@ a trace, which is why every claim below carries the measurement it rests on.
      stays over (`bridge/demoBridge.ts`, 326): its split would produce a module no test imports,
      buying 49 lines for a new coverage exclusion, and widening that list is the worse trade. Both
      the split and that refusal are recorded in
-     [refinements/body-overlay.md](../refinements/body-overlay.md).
+     [refinements/index.md#body-overlay](../refinements/index.md#body-overlay).
 
 2. **A view change centres; coming BACK to the chat restores.** ADR-0034 decision 2 re-centred
    every view change, the return trip included, so a look at settings moved the conversation to
@@ -215,7 +215,7 @@ a trace, which is why every claim below carries the measurement it rests on.
    while the panel is still scaling in. And a touch that lands mid-roll leaves the session pinned
    to the ride-along's PREDICTED centre rather than to the height the roll actually reached, since
    the placement that would have corrected it is no longer an arrival: 2.1px at a 900px viewport,
-   which is the prediction's own error and is recorded in `docs/refinements/body-overlay.md`.
+   which is the prediction's own error and is recorded in `docs/refinements/index.md#body-overlay`.
 
 9. **Heights are read off the layout box, not the rendered one.** `getBoundingClientRect` reports
    the box after transforms, and the panel is scaled through every summon (`scale(0.92)` easing to
@@ -309,7 +309,7 @@ a trace, which is why every claim below carries the measurement it rests on.
     Worst step measured anywhere is 0.39px, the panel is never below its pre-send height at any
     frame in any configuration, and the fix (reading the used height with its sub-pixels) is a
     harness change across every test that fakes `offsetHeight`, so it is filed in
-    `docs/refinements/body-overlay.md` rather than taken.
+    `docs/refinements/index.md#body-overlay` rather than taken.
 
 14. **A roll says when it starts, because not every roll is a render.** ADR-0034 decision 5 gave
     the panel two ways to learn about a section: the attribute, found by the layout effect of
@@ -379,7 +379,7 @@ a trace, which is why every claim below carries the measurement it rests on.
     content still. Without it, the content under a closing offscreen trace slides up by the height
     of it, which is exactly what the opening direction already does and the symmetric half of
     decision 14. Doing that deliberately, by animating the scroll on the roll's own clock, is the
-    refinement already filed for the same box in `docs/refinements/body-overlay.md`.
+    refinement already filed for the same box in `docs/refinements/index.md#body-overlay`.
 
 16. **The ceiling is a whole number of pixels, because the same number is written to the DOM and
     then predicted against.** `maxHeight` had one caller round it on the way out to `max-height` and
@@ -536,7 +536,7 @@ a trace, which is why every claim below carries the measurement it rests on.
     stack's `30vh` are 504px of a 547px panel at 720px, and once the pill is at its floor there is
     nothing else to give. Forced with a 300px ceiling, the pill floors at 84px with its text and
     its button inside it and the hint strip 34.75px out, so the degradation is bounded and it is
-    the old one. Recorded in `docs/refinements/body-overlay.md`.
+    the old one. Recorded in `docs/refinements/index.md#body-overlay`.
 
 20. **A window that cuts a line fades it, and the writer's line is never the faded one.** Decision
     19 spends a deficit out of the draft's window, and the ceiling spends the same way: past 120px
@@ -662,7 +662,7 @@ a trace, which is why every claim below carries the measurement it rests on.
   console that stays on screen (measured at 900x900 after the merge, and true of the two sheets the
   merge replaced, neither of which `newChat` cleared either). The merge neither caused it nor fixed
   it, and which way it should go is a question for the user rather than a defect, so it is recorded
-  in [refinements/body-overlay.md](../refinements/body-overlay.md).
+  in [refinements/index.md#body-overlay](../refinements/index.md#body-overlay).
 - **The panel's geometry went from one hook to four modules beside it.** `overlay/panelGeometry.ts`
   is the pure arithmetic (the clamp, the centre, the whole-pixel ceiling and the pacing, no DOM in
   any of it), `overlay/panelMemory.ts` is what the panel remembers between placements and how it
@@ -685,7 +685,7 @@ a trace, which is why every claim below carries the measurement it rests on.
   trip all move the composer 0px, where before decision 8 they moved it 40, 13 and 3. It still
   bites on a conversation tall enough to reach the ceiling, and the alternative (re-pinning to the
   clamped edge, and saving the pre-roll edge per section to hand back when it rolls shut) is a
-  design the user has not been asked for. Recorded in `docs/refinements/body-overlay.md`.
+  design the user has not been asked for. Recorded in `docs/refinements/index.md#body-overlay`.
   - **This consequence was already false when it was written, and its rarity number was wrong on
     top of that. Corrected 2026-08-06** (clamped-shrink addendum below). The edge clamp it depends
     on was deleted later the same evening by the "growth caps at the top" addendum's first item, so
@@ -699,7 +699,7 @@ a trace, which is why every claim below carries the measurement it rests on.
   by neither keeps a placement computed for the height it used to have. The demo's canned chat
   settles 1.9px after its last render, which now reads as at most 1px of the centre it should have
   been given, the placement being centred rather than derived from the ceiling. Recorded in
-  `docs/refinements/body-overlay.md`.
+  `docs/refinements/index.md#body-overlay`.
 - **Decision 12's floor is a number in a stylesheet, so the empty state and the floor can drift
   apart.** Nothing checks that 185px is still what `.empty` renders to; a heavier mark or a third
   example chip makes the panel dip again by the difference, and a lighter one buys dead space.
@@ -710,7 +710,7 @@ a trace, which is why every claim below carries the measurement it rests on.
   it came from, and one structural test keeps the column the floor sits on from being refactored
   away. Measuring the rendered empty state once and publishing it as a custom property is the
   version that cannot drift, and it is the same probe decision 22's assumed rail width wants.
-  Recorded in `docs/refinements/body-overlay.md`.
+  Recorded in `docs/refinements/index.md#body-overlay`.
 - **Decision 13 matches two heights by hand, which is the same kind of frozen number one level
   down.** `--trace-row` is the chip's box written out, so changing the chip's padding, border or
   font size grows the chip past the token and leaves the settled row short by the difference
@@ -742,7 +742,7 @@ a trace, which is why every claim below carries the measurement it rests on.
   with a trace at its `28vh` cap. Following the tail instead is the wrong fix, since that scrolls
   the trace's own top edge away as it grows. The right one is a scroll animation sharing the roll's
   clock and curve, moving by as much of the growth as falls below the fold and no more, and it is
-  recorded in `docs/refinements/body-overlay.md`.
+  recorded in `docs/refinements/index.md#body-overlay`.
 - **The reserved slack sits above the bubbles, so a first send into an otherwise empty panel shows
   it.** With the reminder stack dismissed, the user bubble and the reply sit against the composer
   with roughly the empty state's height blank above them until the conversation grows into it. That
@@ -750,7 +750,7 @@ a trace, which is why every claim below carries the measurement it rests on.
   slack under the last bubble, where `scrollTop = scrollHeight` scrolls the newest bubble out of
   sight to reach it. Worth a user's eye rather than a fix, since the fix is the defect.
 - **Decision 22 buys stillness with two tradeoffs it does not solve**, both recorded in
-  [refinements/body-overlay.md](../refinements/body-overlay.md). The rail's width is **assumed,
+  [refinements/index.md#body-overlay](../refinements/index.md#body-overlay). The rail's width is **assumed,
   not measured**: every container's padding arithmetic takes the reserved band to be `--rail`,
   which is true wherever `::-webkit-scrollbar` sets it. Chromium honours `scrollbar-width` **over**
   the pseudo-elements when both are set (measured: `thin` beside the 6px webkit rail reserves
@@ -1343,7 +1343,7 @@ have the same shape of exit (a deleted chat leaves the list the moment the write
 want the same treatment, but they need their own DOM restructure, their own hover and pinned rules
 re-checked against the wrapper, and their own frame trace, so they are a second surface rather than
 a free line. That is recorded as a deferral in
-[docs/refinements/body-overlay.md](../refinements/body-overlay.md).
+[docs/refinements/index.md#body-overlay](../refinements/index.md#body-overlay).
 
 ## Addendum, 2026-08-03: the panel watches its own box, and an arrival counts the same aside a placement counts
 
@@ -1481,7 +1481,7 @@ The frame the animation hands the element back reads 168, the frame after reads 
 residue then eases 40px to 128 over about 120ms, monotonic, with no step anywhere. So the second
 growth waits, at most the 380ms ceiling of decision 7 and in practice much less, and then arrives
 the way every other growth does. It is recorded as a deferral in
-[docs/refinements/body-overlay.md](../refinements/body-overlay.md), because waiting is still not
+[docs/refinements/index.md#body-overlay](../refinements/index.md#body-overlay), because waiting is still not
 following, and the obvious alternative, retargeting the move in flight on every frame of it, is the
 harm decision 11 and the mid-stream-retarget deferral are both about.
 
@@ -1927,7 +1927,7 @@ that means choosing between two shapes (make the rows options and give the list 
 `aria-activedescendant`, or drop the listbox role and let it be the list of composite rows it
 already behaves like) and reconciling whichever wins with Ctrl+Up and Ctrl+Down, which cycle
 sessions without moving focus at all. It is recorded in
-[refinements/body-overlay.md](../refinements/body-overlay.md).
+[refinements/index.md#body-overlay](../refinements/index.md#body-overlay).
 
 **A section rolling shut stays tabbable, and deliberately.** `.collapse` hides its overflow while
 its height animates to zero, and clipped content keeps its place in the tab order. It
@@ -2062,7 +2062,7 @@ measured above. Rolling the line in as well was considered and is worse in the o
 first chat arriving into an empty list would then add the new row's 50px instantly and only
 afterwards roll the 39px line away, an overshoot larger than the snap it removes. One flag cannot
 make both directions smooth, so the line is left instant and the case is filed in
-[refinements/body-overlay.md](../refinements/body-overlay.md). Answered later the same day by the
+[refinements/index.md#body-overlay](../refinements/index.md#body-overlay). Answered later the same day by the
 addendum below, which found that it is not one flag: the direction that must be instant is a plain
 unmount, and the line now grows in over the leaving row's own roll.
 
@@ -2157,7 +2157,7 @@ presses walk the header title through three chats while focus stays on the heade
 and the first press closes the switcher under it. The listbox shape would have answered this by
 moving focus, so the rejected shape takes the answer with it; what fits this one is a polite live
 region naming the chat that arrived. Recorded in
-[refinements/body-overlay.md](../refinements/body-overlay.md) and on its index.
+[refinements/index.md#body-overlay](../refinements/index.md#body-overlay) and on its index.
 
 **The header's chats button still shares the list's accessible name.** Both are "Recent chats",
 read in the same pass and left alone: they announce with different roles, so the button and the list
@@ -2317,7 +2317,7 @@ anchoring out of the history, because the position already had two deciders and 
 third. Both left the same thing behind: at the panel's ceiling there is no room for the panel to
 absorb a trace, so the growth goes into the log's scroll range instead and the end of the reply
 slides out under the composer, and nothing in the overlay answered it. This closes the refinement
-filed for it in [body-overlay.md](../refinements/body-overlay.md).
+filed for it in [body-overlay](../refinements/index.md#body-overlay).
 
 1. **The rule is the tail pin, held across a roll.** Whether the reader is at the tail is the claim
    the log already keeps and already restores (`overlay/useLogScroll.ts`), and the reader at the
@@ -2415,7 +2415,7 @@ happens outside the box, which means the panel and not the log dispatching to th
 measurements across the summon, a new chat and a reminder ack, where the panel is doing plenty of
 moving on its own account. It is exactly reversible (closing the switcher reads 3px again) and the
 reader can scroll, so it is filed rather than bundled
-([body-overlay.md](../refinements/body-overlay.md)).
+([body-overlay](../refinements/index.md#body-overlay)).
 
 ## Addendum, 2026-08-04: a chat swap says which chat arrived, unless its door already said it
 
@@ -2536,13 +2536,13 @@ way, the stack rolling away as the history fills; and confirming a delete loses 
 The live region reads regardless of focus, so nothing here depends on it, but a reader is left with
 no place in the panel to continue from. It is a focus question rather than an announcement one, it
 predates this work, and it is filed as its own deferral
-([refinements/body-overlay.md](../refinements/body-overlay.md)).
+([refinements/index.md#body-overlay](../refinements/index.md#body-overlay)).
 
 **Nobody has heard it.** What is proved here is the accessibility tree and the DOM mutations, which
 is the standard every other accessibility pass in this ADR applied (the tab strip, `withdrawn`, the
 switcher's role), and it is what this machine can prove. Whether a given screen reader re-speaks an
 identical string is its own decision; a listen would ride the standing Windows bring-up
-([host/windows-desktop.md](../host/windows-desktop.md)) rather than open a sitting of its own.
+([host/index.md#windows-desktop](../host/index.md#windows-desktop)) rather than open a sitting of its own.
 
 **Nothing else announces.** A turn's reply, a tool chip, a reminder arriving and the switcher's own
 open and close are all still silent, deliberately: this region exists for the one thing that
@@ -2553,7 +2553,7 @@ replaces the whole panel without moving anything.
 The log-ride addendum above closed the trace's half of one defect and filed the other: a section
 rolling in the panel's chrome takes the log's window away exactly as a trace takes its content, and
 the ride never heard those rolls. This closes the filed entry
-([body-overlay.md](../refinements/body-overlay.md)). It is one line of subscription and one rule
+([body-overlay](../refinements/index.md#body-overlay)). It is one line of subscription and one rule
 about the cap, and both of the entry's guesses about the shape of it were wrong in ways worth
 recording.
 
@@ -2860,7 +2860,7 @@ pressing Delete, confirming the delete of a chat that is not the open one, and a
 each take the pressed control away without replacing the conversation, so `arrival` never hears
 about them and each reads `<body>` afterwards (the ack after its roll, the rest at once). They want
 answers of their own shape rather than the composer, and are filed as one deferral
-([refinements/body-overlay.md](../refinements/body-overlay.md)).
+([refinements/index.md#body-overlay](../refinements/index.md#body-overlay)).
 
 **A draft still belongs to no chat.** The field is never unmounted, so its text survives a swap:
 "half a question" typed into one chat is still there, caret at 15, after `Ctrl+↓` loads another. That
@@ -2967,7 +2967,7 @@ rounded target to fractional heights, which puts its prediction the same 0.25px 
 2px below which nothing is animated at all. It is deferred because the reading is one line and the
 harness around it is not: the roll stand-in every per-row exit is asserted through is shared by three
 test files. Filed with the numbers in
-[refinements/body-overlay.md](../refinements/body-overlay.md), and **landed hours later the same
+[refinements/index.md#body-overlay](../refinements/index.md#body-overlay), and **landed hours later the same
 day**: the addendum below has the trace and the harness change.
 
 **The other boxes that measure themselves are unchanged too.** The console's tab slack, the panel
@@ -3286,7 +3286,7 @@ least was the open-chat guard, which reddened exactly the test that says the swa
 **A modified chord still reaches the overlay from inside an editor.** `Ctrl+N` pressed while renaming
 mints a new chat and takes the switcher with it, discarding the edit in progress. That is arguably
 right, a chord being a deliberate act rather than a character, and it is not measured either way here.
-Recorded in [refinements/body-overlay.md](../refinements/body-overlay.md).
+Recorded in [refinements/index.md#body-overlay](../refinements/index.md#body-overlay).
 
 **Nothing announces where the caret went.** Every landing above puts focus on a control whose
 accessible name says what it is ("Delete Reminders and recurrence", "Cancel delete", the pencil naming
@@ -3364,7 +3364,7 @@ carry it.
 whole number to fractional heights for the length of a streamed reply. It is the same shape as the
 defect above and is read from the code rather than measured: the bubble is never handed back to
 layout the way a section is, so the visible symptom may not exist. Filed unmeasured in
-[refinements/body-overlay.md](../refinements/body-overlay.md), where the first move is a live trace
+[refinements/index.md#body-overlay](../refinements/index.md#body-overlay), where the first move is a live trace
 and not a change. **Traced and closed the next day**, in the addendum below: the symptom is indeed
 absent and the number was wrong for a different reason than either doc had.
 
@@ -3523,7 +3523,7 @@ addendum removes one door onto that (the same key from inside an editor) and lea
 not a one-liner: the switcher closes four ways, two of which already answer through the arrival rule
 above, and a rule for the other two has to move the caret only when the caret is inside the list, or
 `Ctrl+K` from the composer would pull the reader out of a sentence. Filed in
-[refinements/body-overlay.md](../refinements/body-overlay.md), where the first move is the caret
+[refinements/index.md#body-overlay](../refinements/index.md#body-overlay), where the first move is the caret
 rule's own trace across the roll.
 
 **And a held chord says nothing about being held.** The press is stopped and the editor stays as it
@@ -3727,7 +3727,7 @@ observable here.** The tree says the region mutates once, politely, with the rig
 and VoiceOver each decide what to do with that, and the interesting case is the delete that also
 swaps, where the same commit moves the caret into the composer and the focus announcement competes
 with the queued polite one. Filed as a Windows sitting in
-[host/overlay-screen-reader.md](../host/overlay-screen-reader.md), which is where the overlay runs
+[host/index.md#overlay-screen-reader](../host/index.md#overlay-screen-reader), which is where the overlay runs
 natively and where a screen reader can be pointed at it.
 
 **A list that shrinks for a reason the reader did not cause stays silent.** `remindersLoaded`
@@ -3745,7 +3745,7 @@ wants a callback through the panel, the chat view and the row plus a controller 
 action, where every sentence added here was already at a reducer arm. The third is a policy the
 entry would have to settle: a chord fires per keydown, and keydown repeats, so it is the one
 sentence here a reader can raise dozens of times without moving. Left in
-[refinements/body-overlay.md](../refinements/body-overlay.md) with those three written down.
+[refinements/index.md#body-overlay](../refinements/index.md#body-overlay) with those three written down.
 
 ## Addendum, 2026-08-07: the whisper's roll publishes the number its own box carries
 
@@ -3996,7 +3996,7 @@ leaves the caret in the field, six Shift+Tab presses from a row; the header's ch
 on the button, three Tab presses of header ahead of the first row. That is the mirror question and
 it is a decision rather than a line, since moving the caret into an opening list would pull a reader
 out of a half typed sentence, would have to choose a row, and would have to answer an empty list.
-Filed in [refinements/body-overlay.md](../refinements/body-overlay.md).
+Filed in [refinements/index.md#body-overlay](../refinements/index.md#body-overlay).
 
 **A dismissed panel still drops the caret on `<body>`**, and that is a decline rather than a
 deferral. Escape and the tuck button take the whole panel out of the tree's reach with `inert`,
@@ -4186,13 +4186,13 @@ own measurement rather than by this rule.
 **`Ctrl+K` still toggles a section nobody can see.** From a tucked panel and from behind an open
 console the list opens with its rows mounted and unreachable, and the only thing that changed here
 is that the overlay no longer claims otherwise. Whether the key should refuse instead is filed in
-[refinements/body-overlay.md](../refinements/body-overlay.md). **Answered by the addendum below on
+[refinements/index.md#body-overlay](../refinements/index.md#body-overlay). **Answered by the addendum below on
 2026-08-07**, for the whole key table rather than for the one key: it summons instead, and off the
 chat it opens rather than toggling.
 
 **And nothing is claimed about how a reader SPEAKS this.** The shape was pickable from the tree, and
 the delivery is a Windows sitting with NVDA, filed at
-[host/overlay-screen-reader.md](../host/overlay-screen-reader.md) with the sentences the same sitting
+[host/index.md#overlay-screen-reader](../host/index.md#overlay-screen-reader) with the sentences the same sitting
 already owes.
 
 ## Addendum, 2026-08-07: a held chord stays silent, and the reason is what a hold cannot know

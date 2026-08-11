@@ -141,7 +141,7 @@ narrow pager wraps long lines, it does not truncate them), which is why this is 
 trigger rather than built.
 
 It is a deferral in the ordinary sense and is recorded in all three places this repo requires: the
-entry lives in [docs/refinements/repo-gates.md](../refinements/repo-gates.md) beside this ADR's
+entry lives in [docs/refinements/index.md#repo-gates](../refinements/index.md#repo-gates) beside this ADR's
 other prose-style items, its line is in [docs/refinements/index.md](../refinements/index.md) under
 fix-when-it-bites, and this addendum is the origin record. Until it lands, the 72-column body wrap
 stands as convention exactly the way imperative mood does under this ADR's decision: stated in
@@ -181,7 +181,7 @@ Closing that gap wants a **line-kind** exemption rather than a word-width one: a
 carried through the walk, a heuristic for a pasted command (a leading indent, a shell prompt), and
 a decision on whether a footer is exempt at all or simply wrapped like any other prose. That is
 recorded as its own deferral in the three places this repo requires, replacing its parent: the
-entry in [docs/refinements/repo-gates.md](../refinements/repo-gates.md), its line in
+entry in [docs/refinements/index.md#repo-gates](../refinements/index.md#repo-gates), its line in
 [docs/refinements/index.md](../refinements/index.md) under fix-when-it-bites, and this addendum.
 
 **Why this addendum exists at all is worth stating.** The landing changed a gate's behaviour, and
@@ -348,7 +348,7 @@ two ordinary pastes are refused: `cargo llvm-cov -- --nocapture` draws the space
 and `git show` with a short hash that resolves draws the hash complaint. Both were reproduced
 inside a fence rather than reasoned about, and the residue is recorded as its own deferral in the
 three places this repo requires: the entry in
-[docs/refinements/repo-gates.md](../refinements/repo-gates.md), its line in
+[docs/refinements/index.md#repo-gates](../refinements/index.md#repo-gates), its line in
 [docs/refinements/index.md](../refinements/index.md) under fix-when-it-bites, and this addendum.
 
 **What the gate still cannot see.** The fence toggle is not a CommonMark implementation: it does

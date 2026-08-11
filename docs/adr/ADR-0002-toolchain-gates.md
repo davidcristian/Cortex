@@ -82,7 +82,7 @@ by reading the seed out of the log, and the plugin also reseeds `random` per tes
 behaviour change for any test that draws. Both are defensible, but they are a gate-policy
 decision with a real cost at personal scale, and the measured shuffles above found nothing for
 them to catch. Recorded as a fix-when-it-bites deferral in
-[docs/refinements/repo-gates.md](../refinements/repo-gates.md) with its trigger: a test that
+[docs/refinements/index.md#repo-gates](../refinements/index.md#repo-gates) with its trigger: a test that
 passes alone and fails in a suite, or any order-dependent flake.
 
 ## Addendum (2026-08-03): a live contract run gets a Redis database of its own
@@ -174,7 +174,7 @@ and `check_ranks_by_similarity` asserts an exact top-2, both of which hold today
 that table happens to be empty. That was measured rather than assumed: with Postgres up and the
 table empty the suite passes, and inserting a single real (non `contract-`) memory row reddens
 `check_empty_search` at `memory_contract.py:36` with no code changed. Recorded in
-[docs/refinements/repo-gates.md](../refinements/repo-gates.md).
+[docs/refinements/index.md#repo-gates](../refinements/index.md#repo-gates).
 
 ## Addendum (2026-08-06): the live pgvector run gets a Postgres database of its own
 
@@ -294,3 +294,42 @@ adopt it now. Ten shuffled runs found nothing for it to catch, and the reproduci
 real. The middle option worth naming if it ever looks worth it is a fixed `--randomly-seed` in
 `addopts`, one deterministic order that is not the collection order; it would have caught nothing
 here either.
+
+## Addendum (2026-08-11): the coverage run excludes build scripts, which newer nightlies instrument
+
+Decision 1 puts the branch-coverage step on nightly, and the rust CI job installs the channel
+rather than a dated toolchain, so the step runs on whatever nightly exists the day it runs. That
+drifted into a failure the local gate could not see. In CI the gate failed
+`--fail-under-lines 100` with totals of 99.40% lines, 99.55% regions and 99.06% branches while the
+same commit measured 100% on all four metrics here, every Rust test passing on both sides.
+
+The whole difference is one new row. Holding cargo-llvm-cov at 0.8.7 and moving only the
+toolchain, rustc 1.98.0-nightly (2026-07-01) omits Cargo build scripts from the report entirely,
+and rustc 1.99.0-nightly (2026-08-10) instruments them: `crates/rpc/build.rs` appears at 41.18%
+lines, 53.85% regions and 50.00% branches, adding 17 instrumented lines of which 10 are
+unreachable, which is what carried the totals under the threshold.
+
+**No test can reach that code, and the reason is structural rather than a gap in the suite.** That
+build script regenerates the committed seam stubs only when `CORTEX_REGEN_PROTO=1` with `protoc`
+on `PATH`; normal builds and CI take its early return, as the script's own module doc says. It
+runs at build time under cargo, not inside a test binary, so no test in the workspace can execute
+the regeneration arm. A build script is build tooling, and gate 3's rule that real toolchain calls
+live behind manually run checks is the same rule read one level out.
+
+So the coverage run excludes build scripts, `--ignore-filename-regex '/_generated/|/build[.]rs$'`,
+which widens decision 4's exclusion from generated code to the generator alongside it. The pattern
+spells the dot as a character class rather than a backslash escape because it travels through a
+just recipe line before llvm-cov sees it. **Measured rather than assumed:** under 1.99.0-nightly
+the exclusion returns the totals to 1655 lines, 232 functions, 1311 regions and 104 branches with
+none missed, which are exactly the figures the older nightly reported before the drift, and the
+measured file set is identical to that run's, so the exclusion drops the build script and nothing
+else. Both nightlies now pass the gate and `coverage_gate.py`. The shell's build script
+(`body/app/src-tauri/build.rs`) never entered the measurement, its workspace being excluded, and
+the pattern covers it regardless.
+
+What this does not fix is the drift itself: the channel stays unpinned, so the next upstream
+instrumentation change can break the gate again with no change in this repo, and it will surface
+on whichever pull request runs next rather than on the commit that caused it. Pinning trades that
+for a nightly that silently goes stale and that dependabot cannot bump, since the toolchain is a
+channel string rather than an action SHA. That trade is the maintainer's call and is recorded
+open in [R-274](../refinements/tasks/274-unpinned-nightly-drifts-the-coverage-gate.md).

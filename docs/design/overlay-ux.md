@@ -70,7 +70,7 @@ ground. One swap at three speeds reads as the window coming apart and going back
   paints under the content so nothing soft crosses a glyph, and a liquid panel trades its
   backdrop blur for the near-solid `--panel-solid` token because Chromium composites the blur
   un-clipped by a path (invisible in the v1 opaque window; refiled with the transparent-window
-  pass in [refinements/body-overlay.md](../refinements/body-overlay.md)).
+  pass in [refinements/index.md#body-overlay](../refinements/index.md#body-overlay)).
 - **Scrollbars are reserved chrome, never a widget** (landed 2026-07-20). Every scroll region (the
   history, the switcher, the reminder stack, an open Thoughts trace, an approval draft, the
   console's rows, the composer field) wears one `--rail: 6px` bar: a rounded 4px thumb
@@ -98,7 +98,7 @@ ground. One swap at three speeds reads as the window coming apart and going back
   which is the property that matters; Firefox is not a target, so the asymmetry is accepted rather
   than given its own numbers. That one and the switcher/reminder cards spending their whole 6px
   inset on the rail are the two tradeoffs this pass accepts, and both are filed with their triggers
-  and their fixes in [refinements/body-overlay.md](../refinements/body-overlay.md) and at
+  and their fixes in [refinements/index.md#body-overlay](../refinements/index.md#body-overlay) and at
   [ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 22.
 - **Typography:** a clean modern sans for everything (system stack in v1; a licensed sans inlined
   as a `@font-face` data URI later; no CDN). Assistant text ~15px/1.5, never cramped. Sleek, not
@@ -506,7 +506,7 @@ panel floats over the desktop (a first pass bled through the panel and left a wi
 waits to be done properly with **click-through** on the empty margins), morphing the window to a
 true *screen* corner (v1's orb sits at the window's own corner), and **hide-on-blur** (v1 toggles
 with the hotkey instead). Host bring-up and the running list of these deferrals live in
-[body-overlay.md](../runbooks/body-overlay.md).
+[body-overlay](../runbooks/body-overlay.md).
 
 ## 5. Chats, history, and sessions
 

@@ -328,7 +328,7 @@ a tick. What is *not* proven is readiness beyond liveness: the brain's `Health` 
 `ready = True` unconditionally today (`server.py`), so "answered any call" and "ready" are the
 same fact, which is why a streamed turn event is allowed to set green.
 
-**Deferred, recorded in [docs/refinements/body-overlay.md](../refinements/body-overlay.md):**
+**Deferred, recorded in [docs/refinements/index.md#body-overlay](../refinements/index.md#body-overlay):**
 **streamed brain status**, the push half this deferral originally assumed. It stays unbuilt
 because nothing produces a status the overlay cannot ask for: `Health` has no not-ready path,
 and a mid-turn `StatusUpdate` already reaches the overlay on the stream. When the model manager
@@ -351,7 +351,7 @@ userspace `libdbus-1-dev` prefix with a `pkg-config` shim, `os_windows` against 
 `windows` crate on the `x86_64-pc-windows-msvc` target, which clippy can type-check without
 an MSVC toolchain because it never links.
 
-**Deferred here, recorded in [docs/refinements/repo-gates.md](../refinements/repo-gates.md):**
+**Deferred here, recorded in [docs/refinements/index.md#repo-gates](../refinements/index.md#repo-gates):**
 **folding `cargo fmt --check` and `cargo clippy` for both trees into `just check`.** The
 format half is nearly free (rustfmt only parses, and it alone would have caught three of the
 eight); the lint half costs a `rustup target add` plus a `windows`-crate fetch for
@@ -380,7 +380,7 @@ sharpened "fmt plus clippy for both trees" into three real gaps and one non-gap:
   so no MSVC toolchain; a `needless_return` proved invisible to native `--workspace` clippy and
   caught by the windows-target clippy.
 - **Shell clippy stays deferred**, recorded in
-  [docs/refinements/repo-gates.md](../refinements/repo-gates.md): it needs the shell to compile
+  [docs/refinements/index.md#repo-gates](../refinements/index.md#repo-gates): it needs the shell to compile
   (Linux GTK/webkit/dbus dev packages and a cold Tauri build), too heavy for every `body/`
   change, so it remains the one lint a shell change can dirty unseen. The toolchain-linked full
   build of either tree stays host-side, as the Risks section says.
@@ -391,7 +391,7 @@ Decision 1 deferred both multi-turn-within-one-stream and the explicit proto `Ca
 drop-to-cancel covering v1. Reading that deferral against the code today shows the proto and the
 whole server half are already built and proven; what remains is body-side only, its two parts are
 coupled, and its value trigger is Slice 11, so it stays deferred and moves to fix-when-it-bites
-(recorded in [docs/refinements/body-overlay.md](../refinements/body-overlay.md)).
+(recorded in [docs/refinements/index.md#body-overlay](../refinements/index.md#body-overlay)).
 
 - **The proto `Cancel` exists** (`proto/body.proto` `Cancel cancel = 3`, in the seam since the
   first proto commit) and round-trips (`test_client_event_oneof_carries_a_cancel`).
@@ -429,7 +429,7 @@ coupled, and its value trigger is Slice 11, so it stays deferred and moves to fi
 The "recorded deferral partly lands" addendum above left one residual: `cargo clippy` for the
 Tauri shell in CI. Reading it against what CI actually installs settled it against wiring, and it
 moves to fix-when-it-bites (recorded in
-[docs/refinements/repo-gates.md](../refinements/repo-gates.md)).
+[docs/refinements/index.md#repo-gates](../refinements/index.md#repo-gates)).
 
 - **What the rust CI job installs today.** Nothing at the system level. `.github/workflows/ci.yml`
   gives the rust job rust nightly plus stable (rustfmt, clippy, the `x86_64-pc-windows-msvc`
@@ -488,7 +488,7 @@ No code changed here; this is a records correction at the origin ADR.
 
 The list is a records fix only if it can be read in both directions. It could not: an audit that
 walked from these lines into [docs/host/](../host/index.md) found the first two named nothing
-there. Both are now check 0 of [docs/host/windows-desktop.md](../host/windows-desktop.md), which
+there. Both are now check 0 of [docs/host/index.md#windows-desktop](../host/index.md#windows-desktop), which
 is the sitting's own bring-up written down as a check, numbered 0 so the existing items keep the
 numbers other ADRs cite. The mapping, line for line:
 
@@ -497,7 +497,7 @@ numbers other ADRs cite. The mapping, line for line:
 - `confirm_response` into an open turn → check 3.
 - `list_sessions` / `session_messages` → check 4.
 - `check_link` behind the connection indicator → check 6.
-- The overlay polish pass → [docs/host/overlay-polish.md](../host/overlay-polish.md).
+- The overlay polish pass → [docs/host/index.md#overlay-polish](../host/index.md#overlay-polish).
 - The toolchain-linked full build → the standing item at the end of the same doc.
 
 Why the two that went missing were the obvious ones is worth keeping: they are what you do before
@@ -555,7 +555,7 @@ kept saying the cap covers "`.py` and `.rs`" while decision 6 above it had been 
 overlay grew from a prompt box to 65 non-test TypeScript modules under a rule nothing measured.
 
 **What that let through, measured on 2026-08-03 rather than assumed.** Two entries in
-[docs/refinements/body-overlay.md](../refinements/body-overlay.md) had tracked overlay files as cap
+[docs/refinements/index.md#body-overlay](../refinements/index.md#body-overlay) had tracked overlay files as cap
 violations by eye, and eye-tracking failed exactly as an ungated rule does. The closed entry and the
 open one both call `bridge/demoBridge.ts` at 326 "the last overlay source above 300"; at the moment
 that was written `overlay/panelPlacement.ts` stood at **371**, and it fell to 295 on 2026-08-02 as a
@@ -567,7 +567,7 @@ signature of a rule enforced by attention.
    `just check-linecap`, because the cap is about cognitive load and does not care which toolchain a
    file is in. `SKIPPED_DIRS` gains `dist` and `coverage`, the overlay's own build output as listed
    in `body/app/.gitignore`; that also makes true a sentence
-   [docs/modules/repo-gates.md](../modules/repo-gates.md) had been asserting since dashcheck landed,
+   [docs/modules/repo-gates](../modules/repo-gates.md) had been asserting since dashcheck landed,
    that dashcheck skips the same directories as the line cap minus `tests` and `_generated`, and a
    test in `scripts/tests/test_linecap.py` now holds the two lists to it.
 2. **A test file is whatever that toolchain's runner calls a test.** `SKIPPED_FILE_PATTERNS` gains
@@ -585,7 +585,7 @@ signature of a rule enforced by attention.
    and capping it would put the gate in direct conflict with this repo's
    own architecture invariant that the seam is "defined once in proto/body.proto". A gate that
    demands a violation of AGENTS.md is worse than no gate. The CSS is recorded as an open deferral in
-   [docs/refinements/repo-gates.md](../refinements/repo-gates.md); the proto is a decision, not a
+   [docs/refinements/index.md#repo-gates](../refinements/index.md#repo-gates); the proto is a decision, not a
    deferral. `scripts/tests/test_linecap.py` pins all three so dropping one is a deliberate edit.
 4. **`demoBridge.ts` was split rather than exempted.** Its open refinement entry had argued for
    waiting, on the grounds that lifting the canned script into a constants module "would cost a new
@@ -648,4 +648,4 @@ checks, resting on a read as well. That one is only settled by running the check
   is the cheap half, the Tauri graph type-checking in 22.6 s wall on a partly populated target
   directory, so what a runner would pay for is provisioning, which `rust-cache` does not cache.
   Both triggers stand and the deferral stays open in
-  [docs/refinements/repo-gates.md](../refinements/repo-gates.md).
+  [docs/refinements/index.md#repo-gates](../refinements/index.md#repo-gates).

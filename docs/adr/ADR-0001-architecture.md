@@ -269,7 +269,7 @@ by the addendum below; the Python and Rust rows are as the sweep left them, and 
 above has been updated to what the tree now holds.
 
 Building those suites is a slice, not a sweep, so it is deferred and recorded in
-[docs/refinements/repo-gates.md](../refinements/repo-gates.md) rather than attempted here. The
+[docs/refinements/index.md#repo-gates](../refinements/index.md#repo-gates) rather than attempted here. The
 tables above are that slice's worklist. It is being taken one port per commit from 2026-08-11,
 each port with its own section in the last addendum below; the rows move in the tables as they
 land, so a row reading `none` is genuinely still open.

@@ -230,7 +230,7 @@ trigger named: a brain that starts answering `RESOURCE_EXHAUSTED` or `ABORTED`.
 
 Still deferred: safe `converse` reconnect-before-first-event (unchanged: it needs a replayable
 request and a signature change), the retry budget / circuit breaker, and now the retryable-code
-table above, all recorded in `docs/refinements/seam-transport.md`.
+table above, all recorded in `docs/refinements/index.md#seam-transport`.
 
 ## Addendum (2026-07-16): safe `converse` reconnect-before-first-event, sharpened and deferred
 
@@ -288,6 +288,6 @@ as terminal (the user resends), so the cost of the safe mechanism is disproporti
 The trigger that would justify building it: mid-turn brain evictions becoming routine once the real
 model swap lands (the model-manager work), and turns long or expensive enough that silently
 re-running one on resend is worse than paying for dedup. Until then `converse` stays unretried and
-the sharpened entry moves to fix-when-it-bites in `docs/refinements/seam-transport.md`.
+the sharpened entry moves to fix-when-it-bites in `docs/refinements/index.md#seam-transport`.
 `SeamMethod::Converse` is unchanged: this is not a path that flips it to repeatable, it is the
 reason it is not.

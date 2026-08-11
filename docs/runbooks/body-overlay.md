@@ -28,7 +28,7 @@ just check-overlay     # npm ci + tsc --noEmit + Vitest at 100% line+branch
 
 ## B. The Tauri app on Windows (host validation)
 
-This section is the procedure; [docs/host/windows-desktop.md](../host/windows-desktop.md) is the
+This section is the procedure; [docs/host/index.md#windows-desktop](../host/index.md#windows-desktop) is the
 checklist that says which of these are still owed, what each proves, and where the result goes.
 
 ### Prerequisites (Windows)

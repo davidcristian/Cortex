@@ -5,8 +5,8 @@ Date: 2026-08-06. Status: accepted.
 ## Context
 
 Two deferred refinements in two areas had been recorded for weeks as one design problem:
-session-history summarization ([session-history.md](../refinements/session-history.md)) and the
-model-based reranker ([memory.md](../refinements/memory.md)). Both were blocked on a synchronous
+session-history summarization ([session-history](../refinements/index.md#session-history)) and the
+model-based reranker ([memory](../refinements/index.md#memory)). Both were blocked on a synchronous
 `select` going async (`HistoryWindow.select`, `RecallPolicy.select`), both inherited the same
 non-reentrant GPU-lease hazard, and a third entry, the blended-relevance field, had been
 **declined** in ADR-0008's relevance-field addendum for want of a consumer while explicitly saying
@@ -223,8 +223,8 @@ Reproduce: `packages/inference/tests/test_rerank_judge_live.py`, integration-mar
 
 ## Deferred
 
-Recorded in [session-history.md](../refinements/session-history.md) and
-[memory.md](../refinements/memory.md) with their lines on
+Recorded in [session-history](../refinements/index.md#session-history) and
+[memory](../refinements/index.md#memory) with their lines on
 [the index](../refinements/index.md):
 
 - **The summarizing history window itself.** Its design question is settled by decision 9 and its
@@ -819,7 +819,7 @@ the query to its fallback, so the caller receives the cosine's top three irrelev
 fallback's basis on the ranking. The one behaviour the judge has that no geometric policy can
 imitate, declining to answer, is the one behaviour the policy cannot express, and it is
 indistinguishable at the port from an unreachable model. That is a real defect and it is recorded
-as a deferral rather than fixed here (`docs/refinements/memory.md`): the fix is a third `RankBasis`
+as a deferral rather than fixed here (`docs/refinements/index.md#memory`): the fix is a third `RankBasis`
 separating a considered abstention from a failure to rank, and it changes what a recall may return
 to a turn, which is a wider blast radius than a measurement's closing commit should carry.
 
@@ -954,7 +954,7 @@ not in the answer.
 
 ### Deferred by this addendum
 
-Recorded in [memory.md](../refinements/memory.md) with its line on
+Recorded in [memory](../refinements/index.md#memory) with its line on
 [the index](../refinements/index.md):
 
 - **A geometric policy still cannot decline.** The refusal is the judge's alone. `RawRecallPolicy`
@@ -1077,14 +1077,14 @@ default.
 hand built by an interested party. What the flip changes about that is who is exposed to it. The
 judge is now what a real conversation meets, so the standing objection is answered by use rather
 than by another staged corpus, and the audit trail is how a disagreement gets diagnosed after the
-fact. The remaining entries in [docs/refinements/memory.md](../refinements/memory.md) say what is
+fact. The remaining entries in [docs/refinements/index.md#memory](../refinements/index.md#memory) say what is
 still open, and one of them changed shape here: the relevance floor was filed as the gap left for
 "every deployment that has not opted into the judge", and it is now the gap left for a deployment
 that opts **out** of it.
 
 ### Deferred by this addendum
 
-Recorded in [repo-gates.md](../refinements/repo-gates.md) with its line on
+Recorded in [repo-gates](../refinements/index.md#repo-gates) with its line on
 [the index](../refinements/index.md):
 
 - **This measurement's harness is not in the repo.** Every other run in this ADR names an
@@ -1261,7 +1261,7 @@ those terms.
 asserts, or on a signal that is not an absolute cosine. The one already-filed candidate is the
 **cross-encoder rank**, which reads the pair rather than measuring the distance and so is the same
 kind of thing as the judge rather than the same kind as a floor; it stays deferred on its own
-trigger in [memory.md](../refinements/memory.md).
+trigger in [memory](../refinements/index.md#memory).
 
 ### Deferred by this addendum
 
@@ -1386,7 +1386,7 @@ reply waits out the folds ahead of it.
 
 ### Deferred by this addendum
 
-One, in [session-history.md](../refinements/session-history.md): a stalled consumer holding the
+One, in [session-history](../refinements/index.md#session-history): a stalled consumer holding the
 GPU lease across the whole of its reply, with the numbers above.
 
 ## Dropped-candidate addendum (2026-08-09): the trail names what the rank left behind
@@ -1489,7 +1489,7 @@ there.
 
 ### Deferred by this addendum
 
-Recorded in [memory.md](../refinements/memory.md) with its line on
+Recorded in [memory](../refinements/index.md#memory) with its line on
 [the index](../refinements/index.md):
 
 - **The line can now say a memory was never a candidate, and still cannot say why.** Three causes

@@ -27,7 +27,7 @@ class CaptureTarget(Enum):
     schema from the enum rather than restating it is what keeps a third target from reaching the
     wire without reaching the model, and it is the only half of that coupling a gate can hold;
     the other half, these members against the proto's, is generated on both sides and is
-    recorded in ``docs/refinements/repo-gates.md``.
+    recorded in ``docs/refinements/index.md#repo-gates``.
 
     ``DISPLAY`` is the wire's zero and the behaviour every capture had before the target existed,
     which is what makes it the honest reading of a reply from a body that sets no target at all.

@@ -90,7 +90,7 @@ def test_the_vocabulary_the_model_sees_is_the_vocabulary_the_seam_carries() -> N
     The schema's strings are derived from ``CaptureTarget`` rather than restated beside it, so a
     third target cannot reach the wire while the model is still offered two. The other half,
     these members against the proto's, is generated on both sides and no scan can parse it; it
-    is recorded in docs/refinements/repo-gates.md instead.
+    is recorded in docs/refinements/index.md#repo-gates instead.
     """
     schema = CaptureScreenTool(InMemoryBodyGateway()).spec.parameters
     target = schema["properties"]["target"]

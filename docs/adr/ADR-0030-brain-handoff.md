@@ -56,10 +56,10 @@ tree at the commit this ADR lands on:
   `HealthReply` already carries `ready` + `detail`
   ([body.proto:138](../../proto/body.proto)). The overlay indicator already classifies a
   future `ready=false` as amber Degraded, and the streamed-status deferral names this slice as
-  the producer that makes it real ([body-overlay.md](../refinements/body-overlay.md)).
+  the producer that makes it real ([body-overlay](../refinements/index.md#body-overlay)).
 - **The body is one turn per `Converse` call.** The overlay opens a fresh stream per submit
   and the transport sends exactly one `UserTurn`
-  ([body-overlay.md](../refinements/body-overlay.md), read against
+  ([body-overlay](../refinements/index.md#body-overlay), read against
   `body/crates/rpc/src/converse.rs`). Anything the user must see during a handoff therefore
   has to ride the escalating turn's own event stream, or wait for a body seam change.
 - **VRAM (ADR-0004, measured):** 24 GB GPU, soft cap 14 GB (`CORTEX_VRAM_SOFT_CAP_GB`), cortex
@@ -419,7 +419,7 @@ GPU-placed subagent for a handoff to evict, where when this was written it had n
 6. **S11.f, honesty surfaces.** `Health` residency state + the swapping `StatusUpdate`s;
    overlay untouched by design.
 7. **S11.g, host-side capstone.** The brain pick (**done 2026-08-04**: ADR-0004 has its addendum
-   and `docs/host/gpu-tier-scale.md` item 1 its record), the live
+   and `docs/host/index.md#gpu-tier-scale` item 1 its record), the live
    tier-scale swap + chaos kill on the 24 GB machine, measured swap timings,
    `docs/runbooks/model-swap.md`, and the ~31B injection-harness run
    (`CORTEX_PROBE_BRAIN=1`), whose result feeds back into decision 1's tainted-escalation
@@ -433,24 +433,24 @@ The four entries under "Blocked on Slice 11" in
 (nothing lands with a design), and the area docs are updated only as slices deliver.
 
 - **Model-manager process lifecycle, co-residency, and the real swap**
-  ([inference-model-manager.md](../refinements/inference-model-manager.md)): lifecycle and
+  ([inference-model-manager](../refinements/index.md#inference-model-manager)): lifecycle and
   the real swap are decisions 3-5 (S11.d/e). **Co-residency stays deferred** (decision 8
   records the v1 brain-runs-alone rule and the refinement's shape).
 - **`SubagentScheduler.drain()`, CUDA-OOM re-place, the real GPU-placed runtime**
-  ([resource-governance.md](../refinements/resource-governance.md)): drain is decision 4 /
+  ([resource-governance](../refinements/index.md#resource-governance)): drain is decision 4 /
   S11.b with refuse-not-queue semantics; the GPU-placed runtime and cgroup caps land in
   S11.e inside the model-host; CUDA-OOM re-place lands in S11.e as a single CPU re-run after
   a GPU-placed failure, recorded in the result's detail. **Placement-aware CPU charging stays
   declined-as-recorded**; its reopening condition (a second GPU-capable executor) is noted in
   decision 8 but not built.
 - **Taint/provenance persistence across a mid-turn swap, and the ~31B injection-harness run**
-  ([untrusted-content.md](../refinements/untrusted-content.md)): the persistence is decision
+  ([untrusted-content](../refinements/index.md#untrusted-content)): the persistence is decision
   2's record schema (S11.a) exactly as the entry flagged ("provenance rides on the stored
   tool-step context"); the harness run is S11.g and gates any future relaxation of the
   tainted-turn escalation denial. **It ran on 2026-08-04**, by the agent rather than the user
   once the hardware premise that filed it turned out to be false, and the gate it held is open:
   the relaxation is now a judgement rather than a missing number (the last addendum here).
-- **Streamed brain status** ([body-overlay.md](../refinements/body-overlay.md)): decision 6
+- **Streamed brain status** ([body-overlay](../refinements/index.md#body-overlay)): decision 6
   delivers the *producer* (`Health` earns `ready=false` between turns, with truthful detail),
   which is the entry's named blocker. **The push stream itself stays deferred**: the landed
   probe-on-summon indicator plus the escalating stream's own status events cover personal
@@ -459,8 +459,8 @@ The four entries under "Blocked on Slice 11" in
 
 Adjacent entries this slice deliberately does not deliver, but whose recorded triggers it
 meets: safe `converse` reconnect dedup and the real Stop/abort
-([seam-transport.md](../refinements/seam-transport.md),
-[body-overlay.md](../refinements/body-overlay.md)) both name "mid-turn compute becomes
+([seam-transport](../refinements/index.md#seam-transport),
+[body-overlay](../refinements/index.md#body-overlay)) both name "mid-turn compute becomes
 expensive/evictable under the real swap" as their trigger. v1 never evicts mid-stream
 (decision 5), so the pressure arrives with usage, not with this design; they stay
 fix-when-it-bites with their triggers now live.
@@ -512,7 +512,7 @@ said "this slice lands after the vision slice", but the repo sequenced the hando
 ahead of ADR-0029, which remains designed and unimplemented: `Message` carries no pixels and no
 `opaque` bit exists. The trigger sub-slice's opaque-turn refusal therefore has nothing to check
 today, and a stand-in check would be a gate that cannot fail (AGENTS.md, distrust green). It is
-recorded as a deferred refinement in `docs/refinements/untrusted-content.md` (indexed under
+recorded as a deferred refinement in `docs/refinements/index.md#untrusted-content` (indexed under
 "actionable, but a seam change comes first") and lands with the vision slice's pixel-taint
 increment, as decision 1 specifies: the handoff record already refuses what the session stores
 refuse, and the tool then answers an image-bearing turn with a typed refusal telling the model
@@ -543,7 +543,7 @@ rather than as a mechanism. The refusal is pinned end to end through the real to
 tools and the real conductor, and deleting it (or moving a word of the note) reddens that test.
 What the record still does **not** carry is the `opaque` bit itself, so `taint_ledger()` rebuilds
 it at `False`: sound only because no opaque turn can reach a record now, and recorded as a
-deferral in `docs/refinements/vision.md` with its index line, beside the pixels-across-a-swap
+deferral in `docs/refinements/index.md#vision` with its index line, beside the pixels-across-a-swap
 entry this ADR's sibling named. **That deferral closed 2026-08-03**: the record carries the bit,
 as defence in depth behind the unchanged refusal, and the addendum at the end of this ADR has
 the schema change and its proofs.
@@ -635,7 +635,7 @@ cancellation during the swap back abandoned the restore midway, leaving the proc
 resident model and every later turn failing; the restore now runs as a shielded task that a
 cancellation waits for, because the swap back is the recovery path and not an optimization. The
 cost of that fix (a disconnect mid handoff holds the stream's teardown until the cortex is back)
-is recorded in `docs/refinements/seam-transport.md`.
+is recorded in `docs/refinements/index.md#seam-transport`.
 
 **Slicing correction, and one deferral this creates.** Decision 9 item 6 bundles the swapping
 `StatusUpdate`s with the honest `Health` into the honesty-surfaces sub-slice, but decision 6
@@ -645,9 +645,9 @@ The `Health` half is untouched (the servicer still answers `ready=true` uncondit
 is what that sub-slice now delivers on its own; decision 4 step 3's "surface `ready=false` with a
 loud log" is therefore the loud log alone for now. The streamed-brain-status backlog entry is
 updated to say exactly that. Two further deferrals are recorded with it: resuming a crashed
-handoff from its record (`docs/refinements/inference-model-manager.md`), which this ADR names and
+handoff from its record (`docs/refinements/index.md#inference-model-manager`), which this ADR names and
 which needs the request-identity design the reconnect entry also needs, and the drain bound
-sitting below a fired task's schedule lease (`docs/refinements/resource-governance.md`), which
+sitting below a fired task's schedule lease (`docs/refinements/index.md#resource-governance`), which
 was read at the time as making an escalation during scheduled work abort every time under the
 shipped defaults. The addendum of 2026-08-09 below traced that reading to the code and declined
 it: the drain waits on an in-flight admission, never on a lease, so the number it is really up
@@ -800,7 +800,7 @@ case, and `_prepare` calls the claim instead of `active()`, keeping the refusal 
 
 **Trigger:** a second process that can swap. A second brain replica, a CLI or worker sharing the
 same Redis, or a supervisor sidecar that performs swaps itself. Recorded in
-[docs/refinements/inference-model-manager.md](../refinements/inference-model-manager.md) and its
+[docs/refinements/index.md#inference-model-manager](../refinements/index.md#inference-model-manager) and its
 [index](../refinements/index.md).
 
 ## Addendum (2026-07-18): the swap back is uninterruptible, and a status is pinned to its work
@@ -823,7 +823,7 @@ second arrives while the first is still unwinding. The contract is now what it a
 once the restore is genuinely done, so the ordering the scope promises (restored, then released)
 holds however many times the turn is cancelled. The bound is the restore itself, not the number
 of cancellations, and the cost is the one already recorded in
-[seam-transport.md](../refinements/seam-transport.md): a teardown mid handoff waits for the
+[seam-transport](../refinements/index.md#seam-transport): a teardown mid handoff waits for the
 cortex. The conductor's `undrain` keeps its single `finally`, which already runs after the swap
 generator's `aclose` and therefore after the restore; what was missing was never that ordering
 but the guarantee underneath it, and the gate now holds both (hoisting the `undrain` above that
@@ -929,7 +929,7 @@ honesty-surfaces sub-slice introduces: a tier known to be down, so the placer sk
 something retries the start, after which `undrain` can reopen unconditionally because admission no
 longer implies that every tier is serving. **Trigger:** a deployment that evicts a tier at all
 (`CORTEX_SWAP_EVICT_MODELS` non-empty over the real model host) and sees one refuse to restart.
-Recorded in [docs/refinements/resource-governance.md](../refinements/resource-governance.md) and
+Recorded in [docs/refinements/index.md#resource-governance](../refinements/index.md#resource-governance) and
 its [index](../refinements/index.md).
 
 **Two more assertions that could not fail, and one comment that read as a claim.** The species this
@@ -1073,7 +1073,7 @@ a boot id or generation counter on `GET /health` that the manager compares, and 
 called from somewhere other than startup, which pairs naturally with the residency state the
 honesty-surfaces sub-slice introduces. **Trigger:** a sidecar that restarts under a live handoff more
 than once. Recorded in
-[docs/refinements/inference-model-manager.md](../refinements/inference-model-manager.md) and its
+[docs/refinements/index.md#inference-model-manager](../refinements/index.md#inference-model-manager) and its
 [index](../refinements/index.md).
 
 **Two claims elsewhere that this landing falsified, corrected rather than left.**
@@ -1181,7 +1181,7 @@ health probe's client, not to the supervisor) and a fail-closed check in `build_
 and it costs the brain a wiring-time dependency on the sidecar answering, which today it
 deliberately does not have. **Trigger:** a user tuning either side's timing, or any report of a
 handoff aborting with `ModelHostError` on an eviction that in fact completed. Recorded in
-[docs/refinements/inference-model-manager.md](../refinements/inference-model-manager.md) and its
+[docs/refinements/index.md#inference-model-manager](../refinements/index.md#inference-model-manager) and its
 [index](../refinements/index.md).
 
 **And the records the landing left stale, now correct.** ADR-0012's host half was declared landed
@@ -1376,7 +1376,7 @@ above gives: the dev GPU is 8 GB.
 **Where the host-only half is tracked.** The three things this ADR leaves to the 24 GB machine, the
 tier-scale swap, the chaos kill against a real deep-model process, and the measured swap timings,
 now have a written home with a bring-up, a pass, a fail, and a "record it" line pointing back here:
-items 2, 3 and 4 of [docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md), indexed at
+items 2, 3 and 4 of [docs/host/index.md#gpu-tier-scale](../host/index.md#gpu-tier-scale), indexed at
 [docs/host/](../host/index.md). The five risks this ADR flags for maintainer review stay here, which is
 where a decision belongs, and are listed on that index as pointers so they survive the ROADMAP
 slimming. Nothing about the work changed.
@@ -1655,7 +1655,7 @@ decision the maintainer made, and a later reader should be able to tell them apa
 - **No fit check.** See above; recorded, not built.
 
 Both deferrals are written up in
-[refinements/inference-model-manager.md](../refinements/inference-model-manager.md) with their lines
+[refinements/index.md#inference-model-manager](../refinements/index.md#inference-model-manager) with their lines
 in that backlog's index.
 
 ## Addendum (2026-08-07, later): the co-residency flag is checked, at the one instant it can be
@@ -1760,7 +1760,7 @@ behind a unit that would need converting at the seam where the two numbers meet.
 ### What this deliberately does not do
 
 - **No spill detection.** Recorded as a refinement in
-  [refinements/inference-model-manager.md](../refinements/inference-model-manager.md): the brain
+  [refinements/index.md#inference-model-manager](../refinements/index.md#inference-model-manager): the brain
   would have to read llama.cpp's own `timings.predicted_per_second` after a handoff and say so when
   it collapses. That is the only instrument that separates a fit from a spill, and it is the honest
   residue of a check that can only see the room beforehand.
@@ -1964,7 +1964,7 @@ a mutation result taken without clearing it is not evidence.
 - **It does not act.** The watch has one actor, the operator reading the log, and that is argued
   above rather than assumed. The obvious next actor, a handoff that stops promising co-residency
   once it has watched itself spill, is recorded as a deferral in
-  [refinements/inference-model-manager.md](../refinements/inference-model-manager.md) rather than
+  [refinements/index.md#inference-model-manager](../refinements/index.md#inference-model-manager) rather than
   built, because it latches a working feature off on evidence one turn wide and `ResidencyPlan` is
   a frozen value with nowhere to keep the latch.
 - **It does not watch the cortex.** Only the deep phase carries a watch, since only a handoff
@@ -2080,7 +2080,7 @@ a proof that it reddens.
   so the only way the answer goes stale is a sidecar that restarts under a running brain with a
   changed environment. That is the same staleness, with the same fix (a generation the brain can
   compare on `GET /health`), as the residency-reconvergence refinement already open in
-  [refinements/inference-model-manager.md](../refinements/inference-model-manager.md), so it is
+  [refinements/index.md#inference-model-manager](../refinements/index.md#inference-model-manager), so it is
   folded into that entry rather than counted beside it.
 - **It does not register the pairing in the constant scan.** `crosscheck.py` ties a value spelled
   in several places by equality or by pairwise order; this is a **sum of three** values under a
@@ -2413,7 +2413,7 @@ the real `HttpModelHost` driving `_restart_evicted` and `retry_missing` over rea
   observed `READY` is the one branch no session without a loadable GGUF can witness; it is
   agent-runnable the moment the model drive is mounted, which by the
   [host index](../host/index.md)'s own rule makes it not host work, and it is listed at
-  [gpu-tier-scale.md](../host/gpu-tier-scale.md)'s "also possible on this hardware" section so it
+  [gpu-tier-scale](../host/index.md#gpu-tier-scale)'s "also possible on this hardware" section so it
   is not lost.
 
 ### What this deliberately does not do
@@ -2604,7 +2604,7 @@ above are corrected to quote what ships rather than what shipped.
   up, and it is deferred rather than fixed because the deep model is not a peer: it is the tier
   whose presence contradicts the residency the cortex needs, and treating a failure to clear it as
   cosmetic would let a boot report green over a card that is still holding it. Recorded with its
-  trigger in `docs/refinements/resource-governance.md`. **Closed on 2026-08-11 by the
+  trigger in `docs/refinements/index.md#resource-governance`. **Closed on 2026-08-11 by the
   unrostered-tier addendum below**, which gave the port the narrower failure this paragraph says it
   lacks, kept both other shapes amber, and found on the way that the same flat error was costing a
   misconfigured deployment its cortex at the first escalation rather than only a dot at boot.

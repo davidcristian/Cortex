@@ -116,7 +116,7 @@ client over the official SDK behind an injected session port, opt-in via
 `CORTEX_TOOLS_BACKEND`; and the standalone `cortex_email` FastMCP server, read-only
 enforced three ways over imap-tools. Both sidecars are live-validated, including the
 read-only mount blocking a write and the resident cortex natively emitting
-`read_text_file` through the audited loop ([runbooks/tools-mcp.md](runbooks/tools-mcp.md),
+`read_text_file` through the audited loop ([runbooks/tools-mcp](runbooks/tools-mcp.md),
 [runbooks/email-imap.md](runbooks/email-imap.md)). All later tools, including body-backed
 OS actions, go through this port.
 
@@ -180,7 +180,7 @@ of `ServerEvent`; a React + Vite overlay gated at 100% in its own path-filtered 
 the Tauri shell (`body/app/src-tauri`, `cortex-body`) host-native and outside the gated
 workspace. Validated on Windows against the GPU brain: the hotkey summons the overlay, the
 tray works, and a typed prompt streams a real reply token by token
-([runbooks/body-overlay.md](runbooks/body-overlay.md)).
+([runbooks/body-overlay](runbooks/body-overlay.md)).
 **Gate proven:** cfg-gated OS backends; stub coverage escape hatch policy.
 
 ## Slice 8.5 (Resource governance): revise the GPU/CPU managers
@@ -342,7 +342,7 @@ Any *side-effectful* scheduled action stays subject to the Slice 6.5 gate: a rem
 from injected external content must not silently fire an irreversible action. The design was
 adversarially reviewed before implementation and the landed diff again after, and real
 firing was validated end to end against live Redis
-([runbooks/scheduling.md](runbooks/scheduling.md)).
+([runbooks/scheduling](runbooks/scheduling.md)).
 **Gate proven:** durable scheduled state that survives a swap; the brain acting on its own
 initiative.
 
@@ -354,7 +354,7 @@ projector. The three measurements this repo could run on its own card have all r
 thinking needs disabling on a vision turn and `llama-server`'s `mmproj`-less error body text on
 2026-08-03, and the image arm of the injection-defence harness on 2026-08-04, which found the
 hardened preamble's content-manipulation clause holding over text and not over pixels. Each is
-recorded at that ADR with its entry in [refinements/vision.md](refinements/vision.md). The
+recorded at that ADR with its entry in [refinements/index.md#vision](refinements/index.md#vision). The
 headline risk this slice shipped with, small text on a 4K desktop, was measured 2026-08-06 and
 mitigated by a default change the same day; the fix for what the mitigation cannot reach landed
 2026-08-10 as a **targeted capture**, the body half first (the seam carries a `CaptureTarget` and
@@ -365,7 +365,7 @@ or 10 times in 12 where the shrunk screen reads 5, and reads a whole desktop's w
 slightly worse, because it cannot see what is outside the window. The shipped steer was rewritten
 against that number later the same day, since it had promised full detail unconditionally where
 the mechanism is really being unresampled, and it now points the model at small text in one thing
-and says what a window costs. See [runbooks/vision.md](runbooks/vision.md).
+and says what a window costs. See [runbooks/vision](runbooks/vision.md).
 
 The shape: a model-initiated built-in `capture_screen` tool over the unchanged `BodyGateway`
 (the volume precedent, so it inherits audit, the dispatch budget, taint marking, and
@@ -408,24 +408,24 @@ overlay change. Runbook: [runbooks/model-swap.md](runbooks/model-swap.md).
 
 ## Deferred refinements & later work
 
-Moved to [refinements/](refinements/index.md) on 2026-07-15: one self-contained doc per
-area with the entries kept verbatim, plus an index carrying a blurb per doc, the recommended
-pickup order, and what blocks each open item. Two of the four blocker classes this sentence once
-named are gone (corrected 2026-07-19): **host-side validation** moved to
-[host/](host/index.md), and nothing waits on **a pending slice** now that the last one has
-landed. What that index actually carries today is a seam or port change, a consumer that does not
-yet exist, a trigger that has not bitten yet, and hardware that fits two model tiers.
-The contract is unchanged and lives there now: every
-consciously deferred refinement is recorded in its area doc and on the index (and at its
-origin ADR) as part of finishing a slice. References elsewhere in this repo to "the ROADMAP's
-deferred-refinements section" resolve through this pointer.
+Moved to [refinements/](refinements/index.md) on 2026-07-15, and split one file per task on
+2026-08-11 ([ADR-0039](adr/ADR-0039-backlog-per-task.md)): every task carries its own status, and
+that index's open set is generated from the task files rather than maintained beside them. Two of
+the four blocker classes this sentence once named are gone (corrected 2026-07-19): **host-side
+validation** moved to [host/](host/index.md), and nothing waits on **a pending slice** now that
+the last one has landed. What that backlog actually carries today is a seam or port change, a
+consumer that does not yet exist, a trigger that has not bitten yet, and hardware that fits two
+model tiers. The contract is unchanged and lives there now: every consciously deferred refinement
+is recorded as a task file (and at its origin ADR) as part of finishing a slice. References
+elsewhere in this repo to "the ROADMAP's deferred-refinements section" resolve through this
+pointer.
 
 ## Host-side work
 
-Moved to [host/](host/index.md) on 2026-07-19, mirroring the extraction above: one
-self-contained doc per **sitting** rather than per area, with the load-bearing wording kept
-verbatim, plus an index carrying a blurb per doc, the prerequisites each sitting needs, the
-recommended order, a line per item, and what blocks each. Two capabilities, tagged per item
+Moved to [host/](host/index.md) on 2026-07-19, mirroring the extraction above, and split one file
+per item on 2026-08-11: the load-bearing wording is kept verbatim, and that index carries the
+prerequisites each **sitting** needs, the recommended order, and a generated roll call of every
+item with its status. Two capabilities, tagged per item
 because the layout must not assume they are one machine or two: a **real Win32 desktop
 session** for everything OS native, and a **24 GB GPU** for everything at tier scale.
 User *decisions* stay at their ADRs and are listed on that index rather than copied, so a

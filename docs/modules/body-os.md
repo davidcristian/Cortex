@@ -44,7 +44,7 @@ OS backend and the home of the **stub coverage escape-hatch policy** the ROADMAP
   each resolves its own COM interface inside the call and holds none across calls, so nothing
   `!Send` is ever moved between threads and a per-call `CoInitializeEx` is all either needs.
   Neither balances it with `CoUninitialize`, which is deliberate and recorded
-  (`docs/refinements/body-gateway.md`).
+  (`docs/refinements/index.md#body-gateway`).
 - **`os_linux`** (`os_linux`) provides `LinuxHotkey`, `LinuxAudioControl`, `LinuxNotify`, and
   `LinuxScreenCapture`,
   `unimplemented!()` stubs (Windows-first). Compiled and measured on Linux CI, so each stub method is

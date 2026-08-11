@@ -318,7 +318,7 @@ The three addenda above each carried **surfacing the blended relevance as a dist
 one reranker deferral behind the unchanged seam. That is a statement about its *cost*, and it had
 come to stand in for readiness. Read against the tree, the entry is **declined**: no behavior
 change, and the deferral moves to the backlog's dead-until-a-consumer list
-([docs/refinements/memory.md](../refinements/memory.md)). Two findings decide it.
+([docs/refinements/index.md#memory](../refinements/index.md#memory)). Two findings decide it.
 
 1. **Nothing reads a recall score.** `ScoredMemory.score` is produced by both store adapters
    (`PgVectorMemoryStore._to_scored`, `InMemoryMemoryStore.search`) and consumed only by the recall
@@ -368,7 +368,7 @@ not merely documented: making `RerankingRecallPolicy` emit its blend as the scor
 the `1 -` from the adapter's `SELECT` so it reports distance, fails the live contract check against
 real pgvector, which is where "higher = closer" is anchored.
 
-**Newly deferred, recorded in [docs/refinements/memory.md](../refinements/memory.md): recall
+**Newly deferred, recorded in [docs/refinements/index.md#memory](../refinements/index.md#memory): recall
 observability.** Answering the question this addendum answers took a throwaway script against the
 store, because the recall path emits nothing: no log line, no audit record, no way after the fact to
 see what a policy ranked by. That is a **new port plus a sink adapter** on the `ToolAuditSink`
@@ -385,7 +385,7 @@ go async, and it inherits a non-reentrant GPU-lease hazard "when the reranker ru
 already holds the lease." Audited against the code, the first cost is bounded and the second is
 misframed, but the reranker stays deferred, now with a sharper blocker, alongside the summarization
 half it shares a design with ([ADR-0014 summarization-audit
-addendum](ADR-0014-history-windowing.md), [docs/refinements/session-history.md](../refinements/session-history.md)).
+addendum](ADR-0014-history-windowing.md), [docs/refinements/index.md#session-history](../refinements/index.md#session-history)).
 
 **The async widening is clean and contained.** `RecallPolicy.select` has one production caller,
 `MemoryRecaller.recall` (`recall.py`), already an `async` method. Widening to `async` adds one `await`
@@ -411,12 +411,12 @@ recorded guidance is to change `select` once for all its consumers (a model rank
 field, an observability sink that reads a rank key) rather than twice. An async-only widening now
 would be that first of two changes. So the reranker reopens with the model manager's real GPU
 lifecycle, landing the async widening, the richer `select` return, and the model policy as one
-design. Recorded at [docs/refinements/memory.md](../refinements/memory.md).
+design. Recorded at [docs/refinements/index.md#memory](../refinements/index.md#memory).
 
 ## Addendum (2026-07-16): the delete/forget verb lands (`delete_scope`), the policies stay deferred
 
 Decision 2 shipped `MemoryStore` as `add` + `search` only. The tiered/self-editing entry's cost
-correction ([docs/refinements/memory.md](../refinements/memory.md)) had found that every richer
+correction ([docs/refinements/index.md#memory](../refinements/index.md#memory)) had found that every richer
 memory idea (tiering, self-editing, retention, eviction) needs verbs the port lacks. This addendum
 lands the **one** of those verbs with recorded consumers already waiting on it, and keeps the rest
 deferred, additively, behind an otherwise unchanged port.
@@ -424,7 +424,7 @@ deferred, additively, behind an otherwise unchanged port.
 1. **`MemoryStore.delete_scope(scope: str) -> int`.** It hard-deletes every memory in one namespace
    and returns how many rows it removed (0 when the scope holds none). It is the forget primitive two
    backlog entries named as their shared missing verb: the **session-delete cascade** (a session
-   delete could not honestly remove a session's derived memories, [session-read-seam.md](../refinements/session-read-seam.md))
+   delete could not honestly remove a session's derived memories, [session-read-seam](../refinements/index.md#session-read-seam))
    and **per-scope eviction** (the scoping addendum's deferred retention/eviction policy).
 
 2. **By scope, not by id, because the scope _is_ the session-to-memory link.** A memory carries no
@@ -454,12 +454,12 @@ deferred, additively, behind an otherwise unchanged port.
    This is the same fail-closed stance as the tainted-turn confirm decline (ADR-0022), stronger here
    because there is no tool at all rather than a denied one.
 
-**Consciously deferred (recorded in [docs/refinements/memory.md](../refinements/memory.md)), each
+**Consciously deferred (recorded in [docs/refinements/index.md#memory](../refinements/index.md#memory)), each
 for want of a consumer and no longer for a missing verb:** self-editing memory (**update** in
 place), **tiered** promote/demote/expire, **write-salience** (whose separate entry also needs
 `MemoryRecaller.record`'s non-optional return to widen), and the **per-scope retention _policy_**
 (the eviction verb now exists; a scheduler deciding what to evict when does not, and nothing drives
-one). **Per-provenance eviction** ([docs/refinements/untrusted-content.md](../refinements/untrusted-content.md))
+one). **Per-provenance eviction** ([docs/refinements/index.md#untrusted-content](../refinements/index.md#untrusted-content))
 is not served by `delete_scope`: a memory record stores only the `tainted` bit, not the ADR-0027
 structured provenance, so eviction by sender/URI wants a different filter and stays fix-when-it-bites.
 
@@ -492,7 +492,7 @@ reranker is the sequencing this ADR already gives: the declined blended-relevanc
 recall-observability entry resolve to the same `RecallPolicy.select` widening, and that widening
 should serve all three consumers in one change rather than go async alone. Read the paragraph above
 as saying that and nothing about a card. Corrected the same day in
-[docs/refinements/memory.md](../refinements/memory.md) and its
+[docs/refinements/index.md#memory](../refinements/index.md#memory) and its
 [index](../refinements/index.md).
 
 No code changed here; this is a records correction at the origin ADR.
@@ -502,7 +502,7 @@ No code changed here; this is a records correction at the origin ADR.
 Decision 7 says mounting PGDATA directly onto the Windows drive "is validated on the host as a
 *nice to have*, not the default". That check needs Docker on the host Windows host, so it is
 host work, and it now has a written home: the optional item at the end of
-[docs/host/windows-desktop.md](../host/windows-desktop.md), indexed at
+[docs/host/index.md#windows-desktop](../host/index.md#windows-desktop), indexed at
 [docs/host/](../host/index.md), which states plainly that nothing depends on the answer and that
 no procedure exists yet, so writing one is part of taking it. Its result comes back here as a dated
 addendum and to [runbooks/memory-pgvector.md](../runbooks/memory-pgvector.md).
@@ -531,7 +531,7 @@ The model rank ships as `JudgeRecallPolicy` and was measured against the shippin
 cortex rather than assumed: mean reciprocal rank 0.917 to 1.000, the correct note first 5 of 6 times
 against 6 of 6, on a small corpus built so the two rankings could disagree. Numbers, method and the
 honest caveats are in ADR-0038. What stays deferred in this area is recorded in
-[docs/refinements/memory.md](../refinements/memory.md) and its
+[docs/refinements/index.md#memory](../refinements/index.md#memory) and its
 [index](../refinements/index.md): a cross-encoder rank, which wants a scoring-model port rather than
 a chat completion, and auditing the candidates that were dropped, which the two MMR bases cannot
 give a well-defined key for.
@@ -568,7 +568,7 @@ It also established that there is no catch: `recall_memory_context` awaits `reca
 stopped embedding server or an unreachable Postgres fails the turn instead of costing it its
 recalled notes, which is the opposite of how every other optional capability here degrades. The
 remedy is a decision about where the catch belongs and whether the user is told, so it is recorded
-in [docs/refinements/memory.md](../refinements/memory.md) rather than taken here.
+in [docs/refinements/index.md#memory](../refinements/index.md#memory) rather than taken here.
 
 ## Addendum (2026-08-11): the unavailable-memory decision, read and write taken separately
 
@@ -652,7 +652,7 @@ to `ok=False`, a failed title is absorbed, and the summarizing window already ca
 `(InferenceError, SessionStoreError)` and falls back to the plain window. `SessionStoreError` on
 the conversation itself correctly fails the turn, that being the turn's own material. Memory was
 the one left, and it is closed here. Two residues are recorded rather than taken, both in
-[docs/refinements/memory.md](../refinements/memory.md): `MemoryStoreError` covers an unreachable
+[docs/refinements/index.md#memory](../refinements/index.md#memory): `MemoryStoreError` covers an unreachable
 backend and a malformed row alike, so a data defect now degrades wearing an outage's clothes, and
 the `MemoryStore` shared check list has no backend-failure check where the `Embedder` list has one,
 which is why `InMemoryMemoryStore.fail_with` arrived here as a twin of `HashEmbedder`'s rather than
