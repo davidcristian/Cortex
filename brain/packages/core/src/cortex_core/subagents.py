@@ -1,9 +1,10 @@
-"""Subagent value types: the delegated task and its result (pure data, no I/O, see ADR-0010).
+"""Subagent value types: the delegated task, the bounds one run gets, and its result.
 
-These live here, importing no ports, so ``ports.py`` can depend on them without a cycle
-exactly as ``tools.py`` and ``memory.py`` do. A subagent is a stateless function over a
-``TaskStore``: ``spawn_subagent`` writes a ``SubagentTask``, the runner reads it back by id and
-writes a ``SubagentResult``, and the cortex reads the result. Nothing lives in a model process.
+Pure data, no I/O, see ADR-0010. These live here, importing no ports, so ``ports.py`` can depend
+on them without a cycle exactly as ``tools.py`` and ``memory.py`` do. A subagent is a stateless
+function over a ``TaskStore``: ``spawn_subagent`` writes a ``SubagentTask``, the runner reads it
+back by id and writes a ``SubagentResult``, and the cortex reads the result. Nothing lives in a
+model process.
 """
 
 from dataclasses import dataclass
@@ -34,6 +35,71 @@ class SubagentTask:
         if self.at.tzinfo is None or self.at.tzinfo.utcoffset(self.at) is None:
             msg = "SubagentTask.at must be timezone-aware"
             raise ValueError(msg)
+
+
+@dataclass(frozen=True, slots=True)
+class AttemptBounds:
+    """How far one placed attempt at a task may go before it must stop (ADR-0005 total-cap
+    addendum).
+
+    Two knobs that answer the same question in the two units a runaway can be measured in, and
+    they are one value because a deployment that sets one and not the other has bounded half of
+    the failure. ``max_tokens`` becomes the ``GenerationBounds.max_tokens`` of every completion
+    the attempt asks for, so no single completion decodes forever; ``timeout_s`` is the deadline
+    on the whole attempt, every completion and every tool dispatch between them, so the admission
+    and the placement the attempt holds are released at a point in time rather than whenever the
+    model happens to stop.
+
+    Neither replaces the other. The token cap is what bounds a fast tier, where a deadline's worth
+    of decoding is an essay; the deadline is what bounds a slow one, where the pool's own measured
+    0.35 tok/s makes even a small token budget minutes of held admission.
+
+    The defaults are ``None`` and ``None``, meaning no cap and no deadline, so an attempt built
+    without bounds sends the request this repo has always sent and runs as long as it always did.
+    A deployment's numbers arrive from ``SubagentsConfig`` at the composition root.
+    """
+
+    max_tokens: int | None = None
+    timeout_s: float | None = None
+
+    def __post_init__(self) -> None:
+        if self.max_tokens is not None and self.max_tokens < 1:
+            msg = f"AttemptBounds.max_tokens must be at least 1, got {self.max_tokens}"
+            raise ValueError(msg)
+        if self.timeout_s is not None and self.timeout_s <= 0:
+            # Strictly positive rather than non-negative, unlike the admission wait, because the
+            # two zeros would mean opposite things: a zero wait is "never queue", a policy a
+            # deployment may want, while a zero deadline is "every attempt fails before it runs".
+            msg = f"AttemptBounds.timeout_s must be > 0, got {self.timeout_s}"
+            raise ValueError(msg)
+
+
+# What an attempt built without a deployment's numbers runs under: no cap, no deadline. A shared
+# frozen instance rather than a call in an argument default, the ``DEFAULT_DISPATCH_POLICY``
+# precedent.
+UNBOUNDED_ATTEMPT = AttemptBounds()
+
+# The shipped numbers, declared here beside the value they fill and imported by
+# ``SubagentsConfig`` rather than restated there, the ``DEFAULT_ADMISSION_WAIT_S`` precedent: one
+# declaration is stronger than any scan tying two, and nothing outside this language spells either.
+# Both derivations are measurements taken on the shipped CPU entry and are argued in full at the
+# ADR-0005 total-cap addendum.
+#
+# The cap is roughly five times the longest reply a narrow subtask produced there, a
+# summarization answering in 199 tokens where an extraction took 125 and a lookup 4. Sized from the
+# answer rather than from the context, the way the recap fold's six times and the title's eight
+# are: what makes a cap safe is that reaching it is itself the evidence, and a reply five times the
+# longest one this tier has been measured writing is a model that is talking rather than working.
+# The subagent server's own per-slot context sits above it, so this fires first and the prompt
+# keeps its half.
+DEFAULT_SUBAGENT_MAX_TOKENS = 1024
+# The deadline is four times the longest whole subtask measured on that tier, 623.8 s, the extra
+# doubling covering a tool-using run whose loop spends that on several rounds where the measurement
+# spent it on one. It also sits strictly between the two bounds either side of it, the pool's 600 s
+# stall ceiling and its 3600 s admission wait, so the three are ordered by the scope of what they
+# bound: one silent gap, then one whole run, then the queue for a run. ``SubagentsConfig`` refuses
+# to start unless the first of those orderings holds for the deployment's own numbers.
+DEFAULT_SUBAGENT_RUN_TIMEOUT_S = 2400.0
 
 
 @dataclass(frozen=True, slots=True)

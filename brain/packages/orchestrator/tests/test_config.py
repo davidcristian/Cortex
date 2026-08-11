@@ -12,6 +12,7 @@ from cortex_core import (
     MAX_TOOL_DISPATCHES,
     REPEAT_SALIENCE,
     SPAWN_TOOL_NAME,
+    AttemptBounds,
     PlacementRequest,
     PlacementTarget,
     VramBudgetPlacer,
@@ -583,6 +584,47 @@ def test_the_admission_wait_is_settable_including_zero_and_refuses_a_negative(
     monkeypatch.setenv("CORTEX_SUBAGENTS_ADMISSION_WAIT_S", "-1")
     with pytest.raises(ValidationError, match="admission_wait_s"):
         SubagentsConfig()
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_the_total_generation_cap_is_settable_and_both_halves_must_be_real_bounds(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Neither half has an off switch: the whole of this bound is that a run cannot be unbounded.
+
+    Zero tokens and a zero deadline would each be a spawn that fails before it produces anything,
+    which is not a policy any deployment wants, unlike the admission wait's zero above.
+    """
+    monkeypatch.setenv("CORTEX_SUBAGENTS_MAX_TOKENS", "512")
+    monkeypatch.setenv("CORTEX_SUBAGENTS_RUN_TIMEOUT_S", "900")
+    config = SubagentsConfig()
+    assert config.attempt_bounds == AttemptBounds(max_tokens=512, timeout_s=900.0)
+    monkeypatch.setenv("CORTEX_SUBAGENTS_MAX_TOKENS", "0")
+    with pytest.raises(ValidationError, match="max_tokens"):
+        SubagentsConfig()
+    monkeypatch.setenv("CORTEX_SUBAGENTS_MAX_TOKENS", "512")
+    monkeypatch.setenv("CORTEX_SUBAGENTS_RUN_TIMEOUT_S", "0")
+    with pytest.raises(ValidationError, match="run_timeout_s"):
+        SubagentsConfig()
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_a_run_deadline_that_would_hide_the_stall_ceiling_fails_the_brain_at_boot(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The precedence between the two bounds, made a wiring error rather than a doc claim.
+
+    Under a deadline at or below the ceiling, every wedged stream would be reported as a run that
+    would not stop, and the CPU re-run this repo schedules for a wedge would silently stop firing.
+    Equality fails for the same reason strict inequality is the relation: a ceiling that can only
+    tie is a ceiling that never reports.
+    """
+    monkeypatch.setenv("CORTEX_SUBAGENTS_STALL_TIMEOUT_S", "600")
+    monkeypatch.setenv("CORTEX_SUBAGENTS_RUN_TIMEOUT_S", "600")
+    with pytest.raises(ValidationError, match="must be greater than"):
+        SubagentsConfig()
+    monkeypatch.setenv("CORTEX_SUBAGENTS_RUN_TIMEOUT_S", "601")
+    assert SubagentsConfig().run_timeout_s == 601.0
 
 
 def _llamacpp_env(monkeypatch: pytest.MonkeyPatch) -> None:

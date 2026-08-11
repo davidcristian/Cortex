@@ -5,28 +5,43 @@ persist) and this one holds the run itself. The split exists because placement g
 attempt: ADR-0012 deferred, and ADR-0030 schedules, a **single CPU re-run after a GPU-placed
 failure**, which needs "run once and say what happened" to be separable from "store the outcome".
 
-So an attempt returns an ``AttemptOutcome`` rather than persisting a ``SubagentResult``. The
-distinction that makes the re-run correct is ``AttemptFailure``: a backend that did not answer is
-worth trying elsewhere, a model that answered outside its grammar is not, and keying the retry on
-``ok is False`` would re-run a malformed envelope on the CPU for nothing.
+So an attempt returns an ``AttemptOutcome`` rather than persisting a ``SubagentResult``. That
+outcome vocabulary (``AttemptFailure``, ``AttemptOutcome``, ``reran_on_cpu``) is shared with the
+runner that reads it, so it lives in ``subagent_outcome.py`` and is re-exported here, the
+``tool_loop``/``ToolLoopContext`` precedent; this module owns the running.
 """
 
+import asyncio
 import json
-from dataclasses import dataclass
-from enum import Enum
+from contextlib import aclosing
 
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
 from cortex_core.errors import InferenceError
 from cortex_core.events import ToolActivity
-from cortex_core.inference import JsonSchema
+from cortex_core.inference import GenerationBounds, JsonSchema
 from cortex_core.loop_events import ToolStep
 from cortex_core.ports import Clock, InferenceBackend
 from cortex_core.progress import ProgressSink
-from cortex_core.subagents import SubagentTask
+from cortex_core.subagent_outcome import AttemptFailure, AttemptOutcome, reran_on_cpu
+from cortex_core.subagents import UNBOUNDED_ATTEMPT, AttemptBounds, SubagentTask
 from cortex_core.tool_budget import DispatchBudget
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
 from cortex_core.untrusted import TaintLedger, new_nonce, security_preamble_message
+
+# Re-exported so every existing `from cortex_core.subagent_attempt import ...` keeps resolving
+# after the outcome split; the vocabulary itself now lives beside neither collaborator.
+__all__ = [
+    "GENERATION_DEADLINE_MSG",
+    "INNER_TIMEOUT_MSG",
+    "MALFORMED_ENVELOPE_MSG",
+    "REPLY_ENVELOPE",
+    "AttemptFailure",
+    "AttemptOutcome",
+    "PlacedAttempt",
+    "reran_on_cpu",
+    "task_messages",
+]
 
 # The fixed one-field reply envelope a constrained subagent is decoded into (ADR-0028): there is
 # no grammatical position for an appended footer, link, or section, so a jailbroken weak model
@@ -40,63 +55,22 @@ REPLY_ENVELOPE: JsonSchema = {
 
 MALFORMED_ENVELOPE_MSG = "subagent produced a malformed constrained reply"
 
-# What the store records about a re-placed run. ADR-0030 asks for the re-place to be recorded in
-# the result's detail, and a bare copy of either attempt's reason would hide that two loads were
-# spent on one task, which is the whole thing an operator reading a slow spawn wants to see.
-_RERAN_AND_ANSWERED = "the GPU attempt failed ({first}); re-ran on the CPU, which answered"
-_RERAN_AND_FAILED = "the GPU attempt failed ({first}); the CPU re-run failed too ({second})"
+# What the cortex reads when an attempt outran the deadline a delegated run is given (ADR-0005
+# total-cap addendum). Phrased like the runner's refusal template rather than like an answer: the
+# fragment on the outcome is what the model had said when the clock ran out, mid-sentence by
+# construction, so the guidance is to treat the subtask as unanswered and narrow it, never to read
+# the fragment as a short result. The bound is named in the message for the same reason the
+# admission wait names its own: the reader lands on the knob without going hunting.
+GENERATION_DEADLINE_MSG = (
+    "the subtask was still generating after {timeout_s:g}s, the whole a delegated run is given, "
+    "and was stopped where it stood; a run that reaches this bound is talking rather than "
+    "working, so treat the subtask as unanswered and narrow it before delegating it again"
+)
 
-
-class AttemptFailure(Enum):
-    """Why an attempt did not answer, or that it did. The retry decision reads exactly this.
-
-    ``INFERENCE`` is the placed backend failing to answer (a dead ``llama-server``, a stream that
-    died, a load that could not fit the GPU): the same task on another target may well succeed, so
-    this is the only failure a re-place can help. ``MALFORMED`` is the model answering outside its
-    constrained grammar, which is a property of the model and the prompt rather than of where it
-    ran, so re-placing it would spend a second load to be told the same thing.
-    """
-
-    NONE = "none"
-    INFERENCE = "inference"
-    MALFORMED = "malformed"
-
-
-@dataclass(frozen=True, slots=True)
-class AttemptOutcome:
-    """What one attempt produced: its text, why it failed if it did, and whether it read taint."""
-
-    text: str
-    failure: AttemptFailure = AttemptFailure.NONE
-    detail: str = ""
-    tainted: bool = False
-
-    @property
-    def ok(self) -> bool:
-        """Whether this attempt answered, which is what the persisted result's ``ok`` becomes."""
-        return self.failure is AttemptFailure.NONE
-
-
-def reran_on_cpu(first: AttemptOutcome, retried: AttemptOutcome) -> AttemptOutcome:
-    """Fold a GPU attempt that did not answer, plus its one CPU re-run, into one outcome.
-
-    The re-run's text and failure win, because it is the attempt that actually ran to an answer
-    (or to a second failure); the first attempt's partial text is dropped along with the context
-    that produced it. The taint is the **union**: a first attempt that read untrusted content
-    before its backend died did consume that content, and under-reporting taint is the one
-    direction that costs safety rather than precision (ADR-0013).
-    """
-    detail = (
-        _RERAN_AND_ANSWERED.format(first=first.detail)
-        if retried.ok
-        else _RERAN_AND_FAILED.format(first=first.detail, second=retried.detail)
-    )
-    return AttemptOutcome(
-        text=retried.text,
-        failure=retried.failure,
-        detail=detail,
-        tainted=first.tainted or retried.tainted,
-    )
+# What a bare ``TimeoutError`` from inside the run means, as opposed to the deadline above. A
+# socket that timed out or a tool that raised one is the backend failing to answer, which is the
+# retryable shape, so it is reported as one rather than as a bound this attempt never reached.
+INNER_TIMEOUT_MSG = "the subtask timed out below the delegated run's own deadline"
 
 
 def task_messages(task: SubagentTask) -> list[Message]:
@@ -126,13 +100,18 @@ def _unwrap_envelope(text: str) -> str | None:
 class PlacedAttempt:
     """Streams one task on one already-placed backend to an outcome, storing nothing.
 
-    Holds only what every attempt of every task shares (the clock, the subagents' dispatcher, and
-    whether a tool-less reply is constrained), so the runner can make two attempts of the same task
-    on different backends from one instance.
+    Holds only what every attempt of every task shares (the clock, the subagents' dispatcher,
+    whether a tool-less reply is constrained, and how far one attempt may go), so the runner can
+    make two attempts of the same task on different backends from one instance.
     """
 
     def __init__(
-        self, clock: Clock, tools: ToolDispatcher | None, *, constrain_output: bool
+        self,
+        clock: Clock,
+        tools: ToolDispatcher | None,
+        *,
+        constrain_output: bool,
+        bounds: AttemptBounds = UNBOUNDED_ATTEMPT,
     ) -> None:
         self._clock = clock
         self._tools = tools
@@ -140,6 +119,22 @@ class PlacedAttempt:
         # format-laundering on the weak-model niche. Gated to the tool-less path below so the JSON
         # grammar never fights llama.cpp's tool-calling grammar (ADR-0028 decision 3).
         self._constrain_output = constrain_output
+        # How far one attempt may go (ADR-0005 total-cap addendum). Shared across the runner's two
+        # attempts and armed fresh for each: a re-run handed the remains of a spent deadline would
+        # be refused before it began, turning the one transport failure a re-place exists for into
+        # a certain one.
+        self._bounds = bounds
+        # The token half said in the port's own vocabulary, built once because it is the same
+        # request shape for every completion of every attempt. ``thinking`` is left at its default,
+        # which emits no key at all, so the pairing ADR-0038 insists on (a cap on a reasoning model
+        # with thinking left ON deletes the reply rather than shortening it) is kept by the tier
+        # rather than by this request: every subagent server this repo ships starts with
+        # ``--chat-template-kwargs '{"enable_thinking": false}'`` (ADR-0010), and saying it again
+        # per request would change the request for a deployment whose template spells the flag
+        # differently.
+        self._generation = (
+            None if bounds.max_tokens is None else GenerationBounds(max_tokens=bounds.max_tokens)
+        )
 
     async def run(
         self,
@@ -156,6 +151,24 @@ class PlacedAttempt:
         fence nonce, so a re-run after a failed one inherits nothing from it. ``budget`` is the
         exception and deliberately so: it is the spawning turn's dispatch pool (ADR-0009 turn-wide
         addendum), a spend bound that a second attempt must keep spending from rather than reset.
+
+        The deadline is armed here, around the whole consumption, so it covers every completion
+        and every tool dispatch between them: what an attempt holds while it runs is an admission
+        slot, a placement and a model lease, and it holds all three across the tool loop rather
+        than across one completion (ADR-0005 total-cap addendum). Reaching it is a ``TRUNCATED``
+        outcome carrying the fragment produced so far, never an escaping exception, so a runaway
+        arrives at the cortex through the very path a dead backend does.
+
+        ``aclosing`` is the discipline ``tool_loop`` already applies to its own two generators,
+        applied to it: the cancellation a deadline delivers lands wherever the task is suspended,
+        and everywhere but one that is *inside* the loop generator, which therefore unwinds and
+        runs every ``finally`` on the way out, the model lease released with them. The exception
+        is a suspension in ``progress.emit`` below, where the loop generator is left at its yield
+        instead, and closing it at a point in the code rather than at asynchronous-generator
+        finalization is the same argument ``drain_text`` makes. Measured on this shape the two
+        release identically, because the backend's own stream is closed by the loop before any
+        step reaches that sink; what the wrapper buys is that the release stops depending on
+        where the timer happened to fire.
         """
         working = task_messages(task)
         # A tools-enabled subagent reads untrusted content too, so it gets the same standing rule
@@ -178,35 +191,67 @@ class PlacedAttempt:
             # (ADR-0027). The field grows onto the task when a consumer exists.
             session_id="",
             schema=REPLY_ENVELOPE if constrain else None,
+            # How far each of this loop's completions may decode. The rounds cap and this one
+            # multiply, so what they bound together is the attempt's decoding rather than one
+            # completion's (ADR-0005 total-cap addendum).
+            bounds=self._generation,
             # A run with no spawning turn is its own root and gets the default allowance, as
             # every run did before the turn-wide pool existed.
             budget=DispatchBudget() if budget is None else budget,
         )
         parts: list[str] = []
+        # Only reply text joins the answer. A reasoning delta is ephemeral status (the subagent
+        # tier runs thinking-off per ADR-0010, so none is expected, but drop one defensively). A
+        # tool step is this subagent's audited dispatch about to run: it surfaces onto the spawning
+        # stream's progress sink so the overlay's chip shows the delegated work (ADR-0010 progress
+        # addendum), never joining the answer. Both of its fields are registry-authored (copied off
+        # the matched ToolSpec), so no untrusted-derived text ever rides the sink and it needs no
+        # guardrail pass, the same argument the cortex's own ToolActivity makes. A step outcome
+        # (ADR-0029 outcome addendum) is dropped like a reasoning delta: it exists for the capture
+        # indicator, which is a consent surface over a cortex-only built-in a subagent can never
+        # call, so forwarding one would put an event on the seam with no consumer at either end,
+        # and the sink it would ride drops on a full buffer, so the pairing it would claim is not
+        # one this path can keep (ADR-0029 delegated-pairing addendum, where the decline is argued
+        # and where the two lines that reverse it are named). Append text incrementally (not a
+        # comprehension) so text produced before a mid-stream failure or a deadline survives.
+        # Built before the ``try`` rather than bound by an ``as``, so the handler below can ask it
+        # whether it was the thing that fired without depending on the block having been entered.
+        # ``None`` is a bound of no bound, so an unbounded deployment takes this same path rather
+        # than a branch of its own.
+        deadline = asyncio.timeout(self._bounds.timeout_s)
         try:
-            async for delta in stream_tool_loop(backend, model, working, context):
-                # Only reply text joins the answer. A reasoning delta is ephemeral status (the
-                # subagent tier runs thinking-off per ADR-0010, so none is expected, but drop one
-                # defensively). A tool step is this subagent's audited dispatch about to run: it
-                # surfaces onto the spawning stream's progress sink so the overlay's chip shows
-                # the delegated work (ADR-0010 progress addendum), never joining the answer. Both
-                # of its fields are registry-authored (copied off the matched ToolSpec), so no
-                # untrusted-derived text ever rides the sink and it needs no guardrail pass, the
-                # same argument the cortex's own ToolActivity makes. A step outcome (ADR-0029
-                # outcome addendum) is dropped like a reasoning delta: it exists for the
-                # capture indicator, which is a consent surface over a cortex-only built-in
-                # a subagent can never call, so forwarding one would put an event on the seam
-                # with no consumer at either end, and the sink it would ride drops on a full
-                # buffer, so the pairing it would claim is not one this path can keep
-                # (ADR-0029 delegated-pairing addendum, where the decline is argued and where
-                # the two lines that reverse it are named). Append text incrementally
-                # (not a comprehension) so text produced before a mid-stream failure survives.
-                if isinstance(delta, str):
-                    parts.append(delta)
-                elif isinstance(delta, ToolStep) and progress is not None:
-                    await progress.emit(
-                        ToolActivity(tool_name=delta.tool_name, summary=delta.summary)
-                    )
+            async with (
+                deadline,
+                aclosing(stream_tool_loop(backend, model, working, context)) as deltas,
+            ):
+                async for delta in deltas:
+                    if isinstance(delta, str):
+                        parts.append(delta)
+                    elif isinstance(delta, ToolStep) and progress is not None:
+                        await progress.emit(
+                            ToolActivity(tool_name=delta.tool_name, summary=delta.summary)
+                        )
+        except TimeoutError:
+            # Only an expired deadline is this attempt's own bound. A ``TimeoutError`` from
+            # anywhere else (a socket that timed out, a tool that raised one) is the backend not
+            # answering, and calling it a truncation would blame a bound that had not fired, or
+            # quote one an unbounded attempt does not have. Both arms sit ahead of the envelope
+            # check below on purpose: a stop that lands mid-envelope would otherwise be reported
+            # as a model breaking its grammar, sending the reader to the model rather than to
+            # whatever actually stopped it.
+            if not deadline.expired():
+                return AttemptOutcome(
+                    text="".join(parts),
+                    failure=AttemptFailure.INFERENCE,
+                    detail=INNER_TIMEOUT_MSG,
+                    tainted=taint.tainted,
+                )
+            return AttemptOutcome(
+                text="".join(parts),
+                failure=AttemptFailure.TRUNCATED,
+                detail=GENERATION_DEADLINE_MSG.format(timeout_s=self._bounds.timeout_s),
+                tainted=taint.tainted,
+            )
         except InferenceError as err:
             return AttemptOutcome(
                 text="".join(parts),

@@ -22,7 +22,7 @@ from cortex_core.cadence import CadenceWatch
 from cortex_core.conversation import Message
 from cortex_core.dispatch import DispatchRefusal, ToolDispatcher
 from cortex_core.handoff import EscalationSlot
-from cortex_core.inference import JsonSchema
+from cortex_core.inference import GenerationBounds, JsonSchema
 from cortex_core.loop_events import StepOutcome, ToolStep, step_summary
 from cortex_core.ports import Clock
 from cortex_core.progress import ProgressSink
@@ -41,7 +41,11 @@ class ToolLoopContext:
     those results; ``session_id`` is the originating chat the loop stamps onto each dispatch
     (ADR-0027; ``""`` for a session-less caller, e.g. a subagent); ``schema`` (ADR-0028), when
     set, constrains the model's output to that JSON Schema (a constrained tool-less subagent
-    envelope; ``None`` for the cortex and every tool-enabled path); ``budget`` (ADR-0009 budget
+    envelope; ``None`` for the cortex and every tool-enabled path); ``bounds`` (ADR-0005
+    total-cap addendum), when set, caps how far **each** of the loop's completions may decode,
+    which together with ``MAX_TOOL_STEPS`` is what makes an attempt's decoding finite (``None``,
+    the default, leaves every completion to the server's own ``n_predict: -1``, which is the
+    cortex turn and every caller that has not asked for a cap); ``budget`` (ADR-0009 budget
     addendum) caps what may be spent on dispatches across the loop's rounds. What each call
     spends comes from the dispatcher's ``ToolCostPolicy`` (ADR-0009 cost addendum), so the price
     of a tool travels with the gateway that runs it rather than being restated here.
@@ -72,6 +76,7 @@ class ToolLoopContext:
     nonce: str
     session_id: str
     schema: JsonSchema | None = None
+    bounds: GenerationBounds | None = None
     budget: DispatchBudget = field(default_factory=DispatchBudget)
     progress: ProgressSink | None = None
     escalation: EscalationSlot | None = None

@@ -47,16 +47,37 @@ delegation time (ADR-0012 admission-wall addendum).
 > so raising `CORTEX_SUBAGENT_CTX_SIZE` or handing a subagent a long file does not need it
 > raised; a slower CPU than this one might. The default is twice the longest whole subtask
 > measured here, the CPU tier being the slow one on purpose (ADR-0005 stall-ceiling addendum).
-> A subagent that keeps *talking* is a different failure and is bounded by nothing yet
-> ([refinements/resource-governance.md](../refinements/resource-governance.md)).
+
+> **A subagent that keeps talking is bounded too, in both of its units.**
+> `CORTEX_SUBAGENTS_MAX_TOKENS` (default 1024) is how far any one of a run's completions may
+> decode, and `CORTEX_SUBAGENTS_RUN_TIMEOUT_S` (default 2400 s) is the deadline on the whole run,
+> the tool dispatches between its completions included (ADR-0005 total-cap addendum). This is the
+> failure the ceiling above cannot see: a model in a repetition loop is never silent, so it holds
+> its admission and its entry's lease exactly as a wedged stream used to while looking healthy the
+> whole way. Reaching either is an `ok=False` result whose text names the bound, so the cortex
+> reads a refusal it can act on rather than a fragment that looks like an answer. Neither has an
+> off switch; the deadline must stay **above** `CORTEX_SUBAGENTS_STALL_TIMEOUT_S`, and the brain
+> refuses to start otherwise, since a wedge reported as a runaway loses the CPU re-run it deserves.
+> The numbers are this hardware's, measured over five subtask shapes on the shipped entry: the cap
+> is about five times the longest narrow reply (199 tokens, a summarization) and the deadline four
+> times the longest whole subtask (623.8 s, the same one), the extra doubling covering a tool-using
+> run whose loop spends on several rounds what that measurement spent on one completion. The
+> deadline also lands between the two bounds either side of it, above the stall ceiling and below
+> the admission wait, so a run can never hold its admission longer than a peer will queue for it.
+> What they cut is a model that is talking rather than one that is slow: the sixth shape, an
+> open-ended essay no narrow subtask should ask for, was cut at 577 tokens and 1958 s still writing.
 
 > **Queuing for room is bounded too, and generously.**
 > `CORTEX_SUBAGENTS_ADMISSION_WAIT_S` (default 3600 s) is how long a spawn may wait for the soft
 > budget to free room before it comes back refused, with the bound named in the message so the
 > reader lands on this knob. It is deliberately far above any legitimate wait these defaults can
 > produce: a full batch of 8 against `CPU_BUDGET=4.0` and `CPUS=2.0` admits two at a time, a whole
-> subtask measures 200 to 300 s here, and how soon that admitted pair frees its slots is a
-> placement question (the box below). With the GPU path open the pair overlaps and the last of the
+> subtask measured 200 to 300 s here when this bound was derived, and how soon that admitted pair
+> frees its slots is a placement question (the box below). That figure is an **underestimate**,
+> measured again on 2026-08-11 at 410.5 s for an extraction and 623.8 s for a summarization, so the
+> waits below understate their own inputs; re-deriving the bound wants a batch measured rather than
+> single subtasks and is filed in
+> [refinements/resource-governance.md](../refinements/resource-governance.md). With the GPU path open the pair overlaps and the last of the
 > batch is admitted about 900 s in, which is what these defaults ship; with it shut the pair
 > serializes and the same spawn waits about 1800 s. The bound is twice the serial figure, so it is
 > an upper bound over both placements rather than the wait either one produces (ADR-0012
