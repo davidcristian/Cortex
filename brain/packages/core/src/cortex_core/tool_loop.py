@@ -3,10 +3,11 @@
 Both the cortex ``TurnEngine`` and a ``SubagentRunner`` do the same thing: stream from a model
 with tools available; when the model emits tool calls, dispatch each through the audited
 ``ToolDispatcher`` and feed the results back; repeat until a final text answer, ``MAX_TOOL_STEPS``
-rounds, or a spent ``DispatchBudget`` (the four bounds are independent: rounds cap how long the
+rounds, or a spent ``DispatchBudget`` (the five bounds are independent: rounds cap how long the
 loop runs, the budget caps how much of the outside world it may touch, ADR-0009 budget addendum,
-the ``SaliencePolicy`` refuses a call this loop has already made, salience addendum, and
-``plan_round`` caps how wide one round may be, round-cap addendum; the
+the ``SaliencePolicy`` refuses a call this loop has already made, salience addendum,
+``plan_round`` caps how wide one round may be, round-cap addendum, and ``context.bounds`` caps how
+far any one completion decodes, ADR-0005 total-cap addendum; the
 budget is a pool the whole turn shares, so a spawned subagent draws from the same allowance
 rather than starting a fresh one, while salience and the round cap are per loop and per round,
 since a repeat is redundant only against the context that holds its answer and a round is only
@@ -68,13 +69,16 @@ async def stream_tool_loop(
 
     The loop advertises exactly the tools it can dispatch: the dispatcher's tools when present,
     none otherwise. With ``dispatcher`` None (or once the model stops calling tools) the loop
-    ends after one inference step. Four bounds apply: ``MAX_TOOL_STEPS`` rounds,
+    ends after one inference step. Five bounds apply: ``MAX_TOOL_STEPS`` rounds,
     ``context.budget`` summed across them (ADR-0009 budget addendum), each call charged the
     dispatcher's price for it (ADR-0009 cost addendum), the dispatcher's salience policy,
     which refuses a call this loop has already made (salience addendum) before it is charged,
-    and ``plan_round``, which drops the calls one round emits past ``MAX_CALLS_PER_ROUND`` and
+    ``plan_round``, which drops the calls one round emits past ``MAX_CALLS_PER_ROUND`` and
     refuses the one slot it keeps past the cap so the model reads what happened (round-cap
-    addendum). Once a call does not fit, the budget
+    addendum), and ``context.bounds``, which rides every completion this loop asks for so no
+    single one decodes without end (ADR-0005 total-cap addendum); rounds and that cap multiply,
+    so what they bound together is the decoding of a whole loop rather than of one completion.
+    Once a call does not fit, the budget
     closes: that call and every later one is refused by the dispatcher and audited, and the
     rounds that remain are how the model learns of it and still answers. The budget may be a
     pool shared with the loops of spawned subagents, in which case all of that is turn-wide.
@@ -102,7 +106,9 @@ async def stream_tool_loop(
     for _step in range(MAX_TOOL_STEPS):
         calls: list[ToolCall] = []
         step_text: list[str] = []
-        deltas = backend.stream(model, working, tools=specs, schema=context.schema)
+        deltas = backend.stream(
+            model, working, tools=specs, schema=context.schema, bounds=context.bounds
+        )
         try:
             async for event in deltas:
                 if isinstance(event, ToolCall):

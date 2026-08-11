@@ -637,6 +637,80 @@ async def test_build_subagents_hands_the_pool_its_configured_admission_bound() -
     await close()
 
 
+@asynccontextmanager
+async def _runaway_llama_server() -> AsyncGenerator[str]:
+    """A loopback server that streams SSE chunks and never stops: the repetition loop itself.
+
+    The mirror of the wedged one above, and the failure its ceiling cannot see. A stall detector
+    fires on silence and this server is never silent, so nothing but the run deadline ends it.
+    Faked at the socket rather than at the transport for the same reason the wedge is: the bound
+    under test has to reach real bytes on a real stream to have been proved at all.
+    """
+    stop = asyncio.Event()
+    chunk = b'data: {"choices":[{"delta":{"content":"and also, "}}]}\n\n'  # one SSE delta, forever
+
+    async def serve_runaway(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        await reader.readline()  # the request line; the small body needs no draining
+        writer.write(b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n\r\n")
+        try:
+            while not stop.is_set():
+                writer.write(chunk)
+                await writer.drain()
+        except (ConnectionResetError, BrokenPipeError):
+            pass  # the deadline closed the stream under us, which is the point of the test
+        writer.close()
+
+    server = await asyncio.start_server(serve_runaway, "127.0.0.1", 0)
+    port = cast("int", server.sockets[0].getsockname()[1])
+    try:
+        yield f"http://127.0.0.1:{port}"
+    finally:
+        stop.set()
+        server.close()
+        await server.wait_closed()
+
+
+async def test_a_subagent_that_never_stops_talking_is_stopped_over_a_real_socket() -> None:
+    """End to end over the wiring the deployment runs: config to socket to a reported refusal.
+
+    The whole chain in one assertion, because each link is uninteresting alone: the config's two
+    numbers become the runner's bounds, the deadline covers the stream the adapter is consuming,
+    and what the cortex reads is a refusal naming the bound rather than an answer or a hang. The
+    stall ceiling is set below the deadline here and never fires, which is the point: this server
+    talks without pause, so before the deadline this call did not return.
+    """
+    async with _runaway_llama_server() as endpoint:
+        config = SubagentsConfig(
+            backend="llamacpp",
+            endpoint=endpoint,
+            gpu_endpoint=endpoint,
+            stall_timeout_s=0.5,
+            run_timeout_s=1.0,
+        )
+        spawn, _scheduler, close = await build_subagents(
+            config,
+            None,
+            "redis://sub:6379/0",
+            SystemClock(),
+            placer=VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.3),
+            task_store_factory=_fake_task_store,
+        )
+        assert spawn is not None
+        try:
+            async with asyncio.timeout(20.0):
+                result = await spawn.invoke(
+                    ToolCall(
+                        id="c1",
+                        name="spawn_subagents",
+                        arguments={"instructions": ["say something short"]},
+                    )
+                )
+        finally:
+            await close()
+    assert "FAILED:" in result.content
+    assert "still generating after 1s" in result.content
+
+
 async def test_build_subagents_builds_the_config_roster_and_advertises_it() -> None:
     """A tool-less wiring with an alternate entry: the spec offers the choice (ADR-0018)."""
     spawn, _scheduler, close = await build_subagents(

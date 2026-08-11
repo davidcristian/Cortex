@@ -186,3 +186,222 @@ version would have proved the plumbing and never the bound. The test is wrapped 
 reddens it in ten seconds. Five mutations were run and each reddened a named test: `read=None`
 restored (2 tests), each builder's config value replaced by a literal (1 each), the stall arm
 dropped from the adapter's translator (2), and the positivity bound dropped from both knobs (2).
+
+## Addendum (2026-08-11): the total generation cap on a delegated run
+
+**Status:** Accepted. Closes "a total generation cap, for the subagent that keeps talking" from
+[docs/refinements/resource-governance.md](../refinements/resource-governance.md), which the
+addendum above opened, and which this ADR declined on the same day: converting an unbounded wait
+into a bounded reported failure is a transport concern, capping how much a model may say is a
+policy about answers, and mixing the two would have shipped an unmeasured number inside a fix that
+needed none. It lands here rather than beside the pool's budgets because that is where the decline
+is written, and a reader who finds the decline has to find the reversal in the same place.
+
+It lands **ahead of its trigger**, which was the first delegated run observed running away and
+which nothing has seen. The trigger existed because the entry priced the fix as a guess about how
+long a legitimate answer runs, and a cap set on a guess buys a truncated reply on every long
+subtask. That price is what changed: the guess is now five measurements on the shipped tier.
+
+### What the tree actually said
+
+Re-derived rather than trusted, this backlog's own standing warning being that an entry's account
+of the code goes stale.
+
+- `subagent_attempt.PlacedAttempt.run` did call `stream_tool_loop(backend, model, working,
+  context)` with nothing around it. Every word the entry wrote about the defect held.
+- `GenerationBounds` does ride `InferenceBackend.stream`, its `max_tokens` does default to `None`,
+  and llama-server does read that as `n_predict: -1`. What the entry could not have known is that
+  **the loop had no way to carry one**: `ToolLoopContext` had a `schema` field and no `bounds`, and
+  `stream_tool_loop` called `backend.stream(model, working, tools=specs, schema=context.schema)`.
+  So "already expressible today, a value threaded from `SubagentsConfig` through the runner" was
+  true of the port and false of the only path a subagent reaches the port by. The token half needed
+  a field on the loop's context, which is one line of vocabulary and no port change at all.
+- The bounded admission wait is `asyncio.timeout` over the scheduler's own condition, exactly as
+  the entry's later correction said, and no `Clock` is injected for it. The split this repo already
+  draws held on inspection: `Clock` is for wall-clock instants and for poll loops (`health_gate.py`
+  says so in as many words), `asyncio.timeout` is for durations, which belong on the loop's
+  monotonic clock.
+
+The failure itself was reproduced before anything was designed, because a cap whose test never saw
+the runaway is worth nothing. A backend that yields a text chunk forever, through the shipped
+runner and the shipped scheduler, streamed **3,099,896 chunks in 5 s**, never returned, and
+persisted no result, holding its admission and its VRAM placement the whole time.
+
+### Decision
+
+1. **Two bounds, one value: `AttemptBounds(max_tokens, timeout_s)`.** They answer the same question
+   in the two units a runaway can be measured in, and a deployment that set one and not the other
+   would have bounded half the failure. The cap is what binds a fast tier, where a deadline's worth
+   of decoding is an essay; the deadline is what binds a slow one, where this pool's measured 0.30
+   to 0.33 tok/s makes even a small token budget minutes of held admission. Both `None` is the
+   request and the run this repo shipped before, byte for byte, and it stays the core default
+   (`UNBOUNDED_ATTEMPT`); the deployment's numbers arrive from `SubagentsConfig` at the root.
+2. **The token half is per completion and rides the loop's context.** `ToolLoopContext.bounds`
+   reaches `backend.stream` for every completion an attempt asks for, so a subagent that reaches
+   its repetition loop only after its first tool call is bounded as tightly as one that starts
+   there. Rounds and the cap multiply, and `MAX_TOOL_STEPS` is what makes that product finite.
+   `thinking` is left at its default, which emits no key: the pairing ADR-0038 insists on, where a
+   cap on a reasoning model with thinking left on deletes the reply rather than shortening it, is
+   kept by the tier, every subagent server this repo ships starting with `--chat-template-kwargs
+   '{"enable_thinking": false}'` (ADR-0010).
+3. **The wall-clock half is per attempt and covers everything the attempt does.** It is
+   `asyncio.timeout` around the whole consumption, the idiom the bounded admission wait landed on,
+   so it covers every completion **and every tool dispatch between them**. That is the unit that
+   matters: what a delegated run holds while it runs is an admission slot, a VRAM placement and a
+   model lease, and it holds all three across the tool loop rather than across one completion. A
+   subagent suspended in a dead MCP sidecar's call holds exactly what one suspended in a generation
+   holds.
+4. **Reaching the deadline is an outcome the store and the spawn tool already understand.**
+   `AttemptFailure.TRUNCATED` joins `INFERENCE` and `MALFORMED`, so a runaway arrives at the cortex
+   through the very path a dead backend does: an `ok=False` `SubagentResult` whose detail names the
+   bound and says to narrow the subtask. Nothing new escapes the runner, which matters because the
+   spawn tool's `gather` is crossed only by `ToolError` and an escaping exception would discard the
+   batch's other subagents with it. The fragment the model had produced is kept on the result, so
+   the store has it, and the aggregate the cortex reads carries the refusal instead, because that
+   fragment is mid-sentence by construction and reporting it as an answer would have traded a hang
+   for a lie.
+5. **Only an expired deadline is a truncation.** `TimeoutError` is an `OSError` in Python and is
+   the class `asyncio.timeout` raises, so one arriving from below (a socket that timed out, a tool
+   that raised one) would otherwise be reported as a bound that had not fired, and on an unbounded
+   attempt it would try to quote a bound that does not exist. The arm asks `deadline.expired()` and
+   reports anything else as the backend failing to answer, which keeps it eligible for the CPU
+   re-run and keeps the message honest.
+6. **A truncation is not re-placed.** The CPU re-run exists for a backend that did not answer. A
+   model still talking at its deadline was answering; it simply never stopped, and the slower tier
+   is the last place to send it, a second whole deadline spent to be told the same thing. This is
+   the argument `MALFORMED` already makes, and it is why the retry keys on the failure kind rather
+   than on `ok`.
+7. **The deadline is per attempt, armed fresh, not per task across the re-place.** A re-run handed
+   what a failed attempt left of a deadline would be refused before it began, turning the one
+   transport failure a re-place exists for into a certain failure. The cost is stated rather than
+   hidden: a task can hold its admission for two deadlines rather than one, and only along the path
+   a dead backend opens, since neither failure a deadline itself produces is re-placed.
+8. **The precedence between this deadline and the stall ceiling is a wiring error, not a doc
+   claim.** Both can fire on one stream and they say different things: the ceiling reports the gap
+   between chunks, which is a wedged server, and the deadline reports the whole, which is a model
+   that will not stop. Only the first is worth re-running elsewhere. So `SubagentsConfig` refuses
+   to construct unless `run_timeout_s > stall_timeout_s`: under a deadline at or below the ceiling
+   every wedge would be reported as a runaway and the CPU re-run scheduled for exactly that failure
+   would quietly stop firing. Equality fails too, a ceiling that can only tie being one that never
+   reports. The admission wait needs no such relation, being disjoint in time: it bounds queuing
+   for a backend and this bounds using one, and no stream exists while the first is running.
+9. **Neither knob has an off switch.** `CORTEX_SUBAGENTS_MAX_TOKENS` is at least 1 and
+   `CORTEX_SUBAGENTS_RUN_TIMEOUT_S` is strictly positive. The whole of this bound is that a
+   delegated run cannot be unbounded, so a deployment retunes rather than disables. Zero is legal
+   on the admission wait because there it means "never queue", a policy someone may want; a zero
+   deadline would mean "never run", which nobody wants.
+
+### Deriving the two numbers
+
+Both are measured on the shipped default entry, gemma-4-E4B QAT q4_0 on CPU at the compose file's
+own shape (`-ngl 0`, `--ctx-size 8192`, `--parallel 2`, thinking off), over five subtask shapes
+spanning what delegation is for, from a one-word lookup to an open-ended essay no narrow subtask
+would ask for. The essay is in the set on purpose, and what it did is the most useful thing in the
+table.
+
+| subtask | prompt tokens | decoded tokens | wall clock |
+| --- | --- | --- | --- |
+| one fact (name a primary color) | 19 | 2 | 11.5 s |
+| one word (`Reply with exactly one word: PONG.`) | 18 | 4 | 20.7 s |
+| extract every number from a report | 220 | 125 | 410.5 s |
+| summarize that report, keeping every detail | 224 | 199 | 623.8 s |
+| open-ended essay on the same report | 224 | **did not finish** | cut at 577 tokens, still writing, 1958 s |
+
+The first four are what delegation is for, the narrow shapes the spawn spec asks the cortex for,
+and they span two orders of magnitude while staying inside eleven minutes. The fifth is what
+happens when a subtask is not narrow, and it is less an outlier than the failure this addendum
+bounds arriving through a legitimate prompt rather than through a broken model. On this tier an
+open-ended ask has no natural end. It was cut after 1958 s and 577 tokens because the measurement
+had to end, not because it did, and nothing separated it from the four above while it ran, its
+chunks arriving on the same cadence and its stall ceiling never in sight. So the cap is sized
+against the narrow shapes, the deadline is what cuts this one, and the refusal both produce tells
+the cortex to narrow the subtask rather than to try it again.
+
+**The cap is 1024 tokens**, roughly five times the longest narrow reply in that table. It is sized
+from the answer, the way the recap fold's six times and the title's eight are, rather than from the
+context: what makes a cap safe is that reaching it is itself the evidence, and a reply five times
+the longest one this tier has been measured writing is a model that is talking rather than working.
+The per-slot context this compose ships (4096, being 8192 across `--parallel 2`) is the other
+ceiling and sits above it, so the cap fires before the server's own limit does and the prompt keeps
+its half.
+
+**The deadline is 2400 s**, four times the longest whole subtask in that table. The first doubling
+is the one the stall ceiling and the admission wait already carry, and for the reason they carry
+it: a bound that cuts work which was going to finish is worse than the unbounded run it replaces,
+since it turns a slow success into a failure. The second covers a **tool-using** run, whose loop
+may spend on several rounds what the measurement spent on one completion, and which is the shape
+with no measurement of its own here. It also lands strictly between the two bounds either side of
+it, above the pool's 600 s stall ceiling and below its 3600 s admission wait, so the three are
+ordered by the scope of what they bound: one silent gap, then one whole run, then the queue for a
+run. A run can therefore never hold its admission longer than a peer is willing to queue for it.
+
+A sixth measurement checks the cap against the server rather than against the arithmetic, since a
+cap that never reached the wire would be the emptiest kind of green. The summarization prompt at
+`max_tokens: 48` came back with `predicted_n: 48` and `finish_reason: "length"` in 196.8 s, its
+reply ending mid-number. The cap reaches llama-server through this exact request shape, the server
+honours it, and it says so on the wire; what the port does with that last fact is the first entry
+under the next heading.
+
+Two things the table says that were not being said before, and both are recorded rather than acted
+on here. The runbook's "a whole subtask measures 200 to 300 s" is an underestimate: it holds for an
+extraction and is out by a factor of two for a summarization, which is the shape delegation is most
+often for. And the admission wait's derivation is built on that same figure. Retuning it wants a
+batch measured rather than five single subtasks, so it is filed as its own entry rather than folded
+in here.
+
+### What this does not do, and where that is recorded
+
+**A completion cut at `max_tokens` is not distinguishable through this port.** llama-server ends
+the stream and reports `finish_reason: "length"` on the wire; the adapter surfaces text, reasoning,
+tool calls and a decode cadence, and no finish reason, so the core cannot tell a model that stopped
+from one that was stopped. On the constrained tool-less path that is caught structurally anyway, a
+cut envelope failing to parse and arriving as `MALFORMED`, which is an honest `ok=False` with a
+less useful reason. On the unconstrained path it is invisible, and the mitigation is the sizing
+above rather than a mechanism: at five times the longest measured reply, what the cap cuts was
+already not an answer. This repo's own precedent for the same problem is `clean_recap`, which reads
+the reply's shape rather than the transport. Carrying the finish reason across the port is filed as
+its own entry with its trigger, since it is a port change and this one needed none.
+
+**The deep tier and the cortex are untouched.** `AttemptBounds` rides the subagent runner, not the
+generation client, both because a token cap is request-side vocabulary the port already carries and
+because the deadline has to cover tool dispatches, which no HTTP client can see. A user-facing turn
+is not bounded here and should not be: the failure this closes is a delegated run holding a pool's
+admission, and a cortex turn holds a lease the user is watching.
+
+### Distrust green
+
+The runaway is real in three places and faked in none of them.
+
+- The **reproduction** above ran through the shipped runner before a line was written, and the same
+  never-stopping backend is the fixture the checks now use, so every deadline case is exercised by
+  the failure itself rather than by a stand-in for it.
+- The **end-to-end check** is a real socket, the mirror of the wedged server the stall ceiling was
+  proved against: a loopback server that answers with the SSE headers and then streams a content
+  delta forever. `httpx.MockTransport` cannot stand in for either, and the chatty one additionally
+  proves the ceiling does not fire, this server never being silent. From `SubagentsConfig` through
+  `build_subagents`, the runner, the adapter and the socket, what comes back is the aggregate the
+  cortex would read, carrying `FAILED:` and the bound.
+- Every check sits under an outer `asyncio.timeout`, so a regression that restores the unbounded
+  run **reddens** rather than hanging the suite.
+
+Seven mutations, each applied to production code alone with the whole `packages` suite re-run, so
+the counts are measured rather than aimed at: dropping the `asyncio.timeout` wrapper reddens **9**,
+every deadline case plus the real-socket one, each at its outer bound; treating every
+`TimeoutError` as the deadline reddens **1**, the case that would otherwise have crashed formatting
+a bound an unbounded attempt does not have; reporting a stopped run as `INFERENCE` rather than
+`TRUNCATED` reddens **1**, the re-place case; letting the envelope check win over the deadline
+reddens **2**, the mid-envelope case and the real-socket one, whose shipped wiring is that same
+constrained niche; dropping `bounds` from the loop's `backend.stream` call reddens **1**; relaxing
+the config's ordering rule from strict to non-strict reddens **1**; and dropping
+`bounds=config.attempt_bounds` at the builder reddens **1**, the real-socket case, which is the
+whole chain proving it is a chain.
+
+One mutation reddened **nothing**, and it is reported rather than quietly kept: removing the
+`aclosing` around the loop generator. The cancellation a deadline delivers lands wherever the task
+is suspended, and every suspension point this shape has but one is *inside* the loop generator,
+which therefore unwinds and runs every `finally` on the way out, releasing the model lease with
+them. The exception is a suspension in `progress.emit`, and even there the two release identically,
+because the loop closes the backend's own stream before any step reaches that sink. The wrapper is
+kept as the discipline `tool_loop` already applies to its own two generators and `drain_text`
+argues for at length, so the release stops depending on where the timer happened to fire; no check
+claims a bound it does not hold.

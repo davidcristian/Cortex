@@ -47,6 +47,15 @@
 #                              full batches at once needs it raised only where the GPU path is
 #                              shut, the overlapping placement draining that queue inside the
 #                              default and the serial one not
+#   CORTEX_SUBAGENTS_MAX_TOKENS  how far any ONE completion of a delegated run may decode, and
+#   CORTEX_SUBAGENTS_RUN_TIMEOUT_S  the deadline on the WHOLE run, its tool dispatches included
+#                              (ADR-0005 total-cap addendum). The bound a stall ceiling cannot
+#                              be: a subagent in a repetition loop is never silent, so it held
+#                              its admission and its entry's lease for as long as it kept
+#                              talking. Both left to the brain's own defaults here, measured on
+#                              this file's CPU entry; the deadline must stay above the stall
+#                              ceiling or the brain refuses to start, since a wedge reported as
+#                              a runaway loses the CPU re-run it deserves
 
 services:
   brain:

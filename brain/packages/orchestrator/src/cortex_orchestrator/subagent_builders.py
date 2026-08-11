@@ -112,6 +112,13 @@ async def build_subagents(
     the repo ships: a subagent tier decodes at a fraction of the cortex's rate, and a stall here
     holds an admission the queued peers are waiting on, which is what makes the unbounded
     version the pool's hazard rather than a nicety.
+
+    `config.attempt_bounds` is the other half of the same hazard, the one a stall detector cannot
+    see (ADR-0005 total-cap addendum): a subagent in a repetition loop is never silent, so the
+    ceiling above never fires and it holds that admission exactly as a wedged stream used to. It
+    rides the runner rather than the client, both because a token cap is a request-side value the
+    port already carries and because the deadline has to cover the tool dispatches between one
+    run's completions, which no HTTP client can see.
     """
     if config.backend == "none":
         return None, None, noop_aclose
@@ -128,7 +135,12 @@ async def build_subagents(
     )
     store = task_store_factory(redis_url)
     runner = SubagentRunner(
-        store, roster, clock, tools=tools, constrain_output=config.constrain_output
+        store,
+        roster,
+        clock,
+        tools=tools,
+        constrain_output=config.constrain_output,
+        bounds=config.attempt_bounds,
     )
 
     async def close_subagents() -> None:

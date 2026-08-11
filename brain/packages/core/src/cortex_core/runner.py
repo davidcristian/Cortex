@@ -23,13 +23,9 @@ from cortex_core.placement import PlacementTarget
 from cortex_core.ports import Clock, TaskStore
 from cortex_core.progress import ProgressSink
 from cortex_core.roster import SubagentResources, SubagentRoster
-from cortex_core.subagent_attempt import (
-    AttemptFailure,
-    AttemptOutcome,
-    PlacedAttempt,
-    reran_on_cpu,
-)
-from cortex_core.subagents import SubagentResult, SubagentTask
+from cortex_core.subagent_attempt import PlacedAttempt
+from cortex_core.subagent_outcome import AttemptFailure, AttemptOutcome, reran_on_cpu
+from cortex_core.subagents import UNBOUNDED_ATTEMPT, AttemptBounds, SubagentResult, SubagentTask
 from cortex_core.tool_budget import DispatchBudget
 
 # What the cortex reads when the scheduler refuses a spawn outright. Phrased like the
@@ -59,11 +55,14 @@ class SubagentRunner:
         *,
         tools: ToolDispatcher | None = None,
         constrain_output: bool = False,
+        bounds: AttemptBounds = UNBOUNDED_ATTEMPT,
     ) -> None:
         self._store = store
         self._roster = roster
         self._tools = tools
-        self._attempt = PlacedAttempt(clock, tools, constrain_output=constrain_output)
+        self._attempt = PlacedAttempt(
+            clock, tools, constrain_output=constrain_output, bounds=bounds
+        )
 
     @property
     def roster(self) -> SubagentRoster:
@@ -145,14 +144,20 @@ class SubagentRunner:
         properties make it safe rather than a retry loop:
 
         - it fires **only** on ``AttemptFailure.INFERENCE`` from a **GPU** placement, so a model
-          that answered outside its grammar is not re-loaded to answer the same way, and a
-          CPU-placed failure has nowhere better to go;
+          that answered outside its grammar is not re-loaded to answer the same way, one still
+          talking at its deadline (``TRUNCATED``, ADR-0005 total-cap addendum) is not re-loaded to
+          talk past it again on the slower tier, and a CPU-placed failure has nowhere better to go;
         - the GPU reservation is released **before** the re-run, in the ``finally`` that already
           existed, so a CPU re-run never misreports headroom to a concurrent spawn (the ledger is
           a live-resource count, ADR-0012 decision 7);
         - it re-uses the same admission and the same dispatch budget, so a re-run buys no second
           CPU/RAM charge (the charge is target independent by design) and cannot spend past the
-          turn's allowance.
+          turn's allowance. The one bound it does **not** re-use is the attempt's own deadline,
+          which is armed fresh per attempt: a re-run handed what a failed attempt left of one
+          would be refused before it began, and the failure a re-place exists for is exactly the
+          one where nothing was produced to spend a deadline on. A task can therefore hold its
+          admission for two deadlines rather than one, and only along the path a dead backend
+          opens, since neither of the failures a deadline itself produces is re-placed.
         """
         placement = res.placer.place(res.request)
         try:
