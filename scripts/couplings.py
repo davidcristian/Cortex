@@ -3,8 +3,14 @@
 from enum import Enum
 from typing import NamedTuple
 
-# What a mention's template substitutes. A template without it would tie nothing and is refused.
+# What a mention's template substitutes. A template rendering neither this nor the name below
+# would tie nothing and is refused.
 PLACEHOLDER = "{value}"
+
+# What a mention's template substitutes for the name the far side spends the value under. A
+# template may render the value, the name, or both; a mention carries a name exactly when its
+# template renders one, either half of that being dead data the scan refuses.
+NAME_PLACEHOLDER = "{name}"
 
 
 class Relation(Enum):
@@ -23,15 +29,12 @@ class Site(NamedTuple):
 
 
 class Mention(NamedTuple):
-    """One place that spends a value without declaring it, and the shape it appears in.
-
-    ``occurrences`` unset asks only that the rendered needle appear. Set, it asks that it appear
-    exactly that many times, for a far side whose several occurrences must move together.
-    """
+    """One place that spends a value without declaring it, and the shape it appears in."""
 
     path: str
     template: str
     occurrences: int | None = None
+    name: str | None = None
 
 
 class Constant(NamedTuple):

@@ -596,7 +596,10 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   panel is allowed to reach. **That duration and that curve reach the cascade as two tokens**,
   `--roll` and `--ease` on `:root`, each restating its constant once for the rules that have to
   move with a roll rather than beside it (the section share caps' `max-height` and the thoughts
-  marker's turn), both tied to `overlay/morph.ts` by `scripts/crosscheck.py`. Four other
+  marker's turn), both tied to `overlay/morph.ts` by `scripts/crosscheck.py`, which since
+  2026-08-11 holds the spends as well as the declarations: it renders each token's NAME into
+  `var(--roll)`, counted at 2 because those two rules are the set, and into `var(--ease)` as a
+  presence check because 52 transitions ride that curve. Four other
   declarations in that sheet last exactly as long and stay literal on purpose, being coincidences
   rather than the roll: the panel's summon fade and the three arrival animations. That publication
   has a second reader, the cascade: overlay.css matches

@@ -1,4 +1,4 @@
-"""The couplings inside the overlay: a name its TypeScript publishes and its stylesheet spends."""
+"""The couplings inside the overlay: a name its TypeScript declares and its stylesheet uses."""
 
 from couplings import Constant, Mention, Site
 
@@ -66,7 +66,10 @@ OVERLAY_COUPLINGS: tuple[Constant, ...] = (
             "and the roll it accompanies move on two different clocks (ADR-0035/0037)"
         ),
         sites=(Site("body/app/src/overlay/morph.ts", "EASING"),),
-        mentions=(Mention(OVERLAY_CSS, "--ease: {value};"),),
+        mentions=(
+            Mention(OVERLAY_CSS, "{name}: {value};", name="--ease"),
+            Mention(OVERLAY_CSS, "var({name})", name="--ease"),
+        ),
     ),
     Constant(
         label="the shared roll duration",
@@ -77,6 +80,9 @@ OVERLAY_COUPLINGS: tuple[Constant, ...] = (
             "clock from the roll they accompany (ADR-0035/0037)"
         ),
         sites=(Site("body/app/src/overlay/morph.ts", "MORPH_ROLL_MS"),),
-        mentions=(Mention(OVERLAY_CSS, "--roll: {value}ms;"),),
+        mentions=(
+            Mention(OVERLAY_CSS, "{name}: {value}ms;", name="--roll"),
+            Mention(OVERLAY_CSS, "var({name})", name="--roll", occurrences=2),
+        ),
     ),
 )

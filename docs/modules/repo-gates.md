@@ -65,6 +65,16 @@ forms that scan compares on, and `composemounts.py` is `bindcheck.py`'s compose 
   and the site carries the value, and it is what lets the gate reach a key spelled inside a shell
   string, a custom property a stylesheet reads back with `var(...)`, and a bare literal a component
   compares against, with no promotion to a named constant first.
+  **A mention may render a NAME instead of, or beside, the value.** Where the far side names the
+  value rather than restating it, a rendered value reaches the declaration and never the spend:
+  `overlay.css` writes `--roll: 300ms` once and pays it as `var(--roll)` twice, and only the first
+  of those carries a number. So `Mention.name` is the name that far side spends it under and
+  `{name}` renders it, which makes the pair two mentions of one entry, `{name}: {value}ms;` over
+  the declaration and `var({name})` over the spends. A mention carries a name exactly when its
+  template renders one (either half alone is dead data and a fault), and the registry refuses a
+  name pinned as a spend that no mention of the same entry renders a value under, which would hold
+  the name while quietly dropping the value. Two properties live in this shape, `--roll` and
+  `--ease`, being the two the overlay's TypeScript declares the value of rather than the name.
   **Bounded, and written to cover the whole of what it pins.** Bare containment passed on two real
   violations: a value that is a prefix of the one written down (`5005` inside `50051`), which the
   bound now refuses, and a published `host:container` port pair whose host half alone carried the
@@ -76,12 +86,15 @@ forms that scan compares on, and `composemounts.py` is `bindcheck.py`'s compose 
   which is what a half applied rename looks like. `occurrences` pins an EXACT number of bounded
   matches rather than a floor, because a floor cannot notice the far side has grown past it and so
   widens itself by however much the tree drifted; a count below 1 is refused, zero being a mention
-  asking the value to be absent. It is opt in, and the survey that set it is in the ADR: two of the
-  fifteen registered mentions are counted, `Message.tsx` at 2 (the `className` and the
-  `aria-label` of one chip) and `overlay.css`'s `:not([{value}="0"])` at 2 (the two section share
-  caps, whose handover is symmetric or nothing), while the bare `[{value}` mention beside it stays
-  a presence check because its three rules are the sum of two unrelated features. Every mention
-  that occurs once is left unpinned, a count of one saying nothing a presence check does not.
+  asking the value to be absent. It is opt in, and the survey that set it is in the ADR: three of
+  the seventeen registered mentions are counted, `Message.tsx` at 2 (the `className` and the
+  `aria-label` of one chip), `overlay.css`'s `:not([{value}="0"])` at 2 (the two section share
+  caps, whose handover is symmetric or nothing), and `overlay.css`'s `var(--roll)` at 2 (the two
+  rules that must land WITH a roll, which is the set the entry's own reason names), while the bare
+  `[{value}` mention stays a presence check because its three rules are the sum of two unrelated
+  features and `var(--ease)` stays one because 52 transitions across unrelated features ride that
+  curve. Every mention that occurs once is left unpinned, a count of one saying nothing a presence
+  check does not.
   **`Relation`** is `EQUAL` by default; `ORDERED` holds an entry's sites to non-decreasing order
   in registry order, for a bound that must sit under another rather than match it. An ordering
   compares numbers only (a string under one is a fault), and it may carry no mentions, there being
@@ -107,8 +120,10 @@ forms that scan compares on, and `composemounts.py` is `bindcheck.py`'s compose 
   **Fails closed by design**, because a scan that cannot find its constants would agree with
   itself forever: a missing file, an unreadable or non-UTF-8 one, an unknown suffix, a name
   that is absent, one declared twice, a value it cannot reduce, a mention whose rendered needle is
-  absent or found a different number of times than it pins or whose template carries no `{value}`
-  or pins a count below 1, and a registry entry naming no declaring site or
+  absent or found a different number of times than it pins or whose template renders neither
+  `{value}` nor `{name}` or renders a name it does not carry or carries one it renders nowhere
+  or pins a count below 1, a name pinned as a spend that no mention pays a value under, and a
+  registry entry naming no declaring site or
   fewer than `MIN_PLACES` (2) places are each a fault, never a skip. Exit 0 with a summary; exit 1
   printing `label: detail` per fault; exit 2 if `--root` is not a directory.
 - `bindcheck.py [--root DIR]` holds every compose bind mount to landing somewhere git
@@ -236,13 +251,15 @@ forms that scan compares on, and `composemounts.py` is `bindcheck.py`'s compose 
 - `crosscheck.py`'s registry is checked against the real trees by its own suite
   (`test_the_repo_itself_is_tied`), so `check-scripts` catches a drift even when
   `check-crosscheck` is not the recipe that runs. Registering a constant in a language
-  `DECLARATIONS` does not know, or a mention whose template carries no `{value}`, or an entry
-  whose places are all one language, is refused by that suite too. It used to refuse an entry
+  `DECLARATIONS` does not know, or a mention whose template renders nothing the registry fills, or
+  one whose name and whose `{name}` do not both appear, or an entry whose places are all one
+  language, is refused by that suite too. It used to refuse an entry
   confined to one top-level tree; the overlay and its stylesheet are one tree and two languages,
   so suffix replaced tree when mentions landed. Two more invariants guard the widening itself: the
   registry must exercise every `Relation` member and both kinds of place, since a comparator no
   entry uses is a gate that cannot fail. `test_the_registry_pins_at_least_one_occurrence_count`
-  holds the newest field to the same rule, a field no entry sets being a dead wire.
+  and `test_the_registry_spends_at_least_one_rendered_name` hold the two newest fields to the same
+  rule, a field no entry sets being a dead wire.
 - `bindcheck.py` does the same (`test_the_repo_itself_is_clean`), with a guard on the guard:
   `test_the_repo_really_declares_binds_for_this_gate_to_have_checked` fails if the reader ever
   finds fewer than six defaulted bind sources under `docker/`, so the clean verdict cannot go
