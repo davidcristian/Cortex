@@ -51,7 +51,7 @@ from cortex_core.summarizing import (
     RECAP_PROGRESS_STATE,
     SummarizingHistoryWindow,
 )
-from cortex_core.turn_context import TurnCapabilities
+from cortex_core.turn_context import FORGOING_DETAIL, FORGOING_STATE, TurnCapabilities
 from cortex_core.turn_output import record_exchange, render_exchange
 from cortex_core.untrusted import (
     DENIED_MSG,
@@ -72,6 +72,8 @@ __all__ = [
     "ESCALATE_GATE_REASON",
     "ESCALATE_TOOL_NAME",
     "ESCALATION_QUEUED_MSG",
+    "FORGOING_DETAIL",
+    "FORGOING_STATE",
     "MAX_BRIEF_CHARS",
     "PLAIN_SECURITY_PREAMBLE",
     "RECAP_BOUNDS",

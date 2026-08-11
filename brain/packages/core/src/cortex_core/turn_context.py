@@ -8,11 +8,14 @@ engine constructor argument. This module owns what a turn's model sees before th
 ``TurnCapabilities`` value itself; ``engine.py`` owns running the turn over it.
 """
 
+import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
 
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
+from cortex_core.errors import EmbedderError, MemoryStoreError
+from cortex_core.events import StatusUpdate
 from cortex_core.guardrail import OutputGuardrail
 from cortex_core.handoff import EscalationSlot
 from cortex_core.memory import ScoredMemory
@@ -29,8 +32,20 @@ from cortex_core.untrusted import (
 )
 from cortex_core.windowing import HistoryWindow
 
+_logger = logging.getLogger(__name__)
+
 # How many past memories to recall into a turn's context by default (ADR-0008).
 DEFAULT_RECALL_K = 5
+
+# What a turn says when it was answered without the memory it should have had (ADR-0008
+# unavailable-memory addendum). The ``StatusUpdate.state`` joins "thinking", "delegating",
+# "swapping" and "folding", and it names the same thing they do, what the machine is doing:
+# this turn is going without its notes. Not "forgetting", which would claim a memory was lost
+# when none was, and not "recalling", which would say the healthy word on the one occasion the
+# recall did not happen. Both strings are app-authored, so like every other progress line they
+# need no guardrail pass and nothing that was read can steer them.
+FORGOING_STATE = "forgoing"
+FORGOING_DETAIL = "memory is unavailable, so this turn is answered without earlier notes"
 
 
 @dataclass(frozen=True, slots=True)
@@ -162,11 +177,55 @@ async def _recalled_context(
     what a memory-less turn sends. The alternative, a message saying that nothing was found, would
     put a claim about the store into the model's context and invite it to answer for one, which is
     not a thing the assembly knows.
+
+    **A recall that could not run reads the same way to the model and not to anyone else**
+    (ADR-0008 unavailable-memory addendum). A stopped embedding server or an unreachable Postgres
+    crosses the ports as ``EmbedderError`` or ``MemoryStoreError``, and it costs this turn its
+    notes rather than costing the user their answer, exactly as an unreachable tool sidecar is
+    served around and a recap that cannot be folded falls back to the plain window. The catch is
+    here, in the layer that already owns "no memory this turn", rather than in an adapter, which
+    cannot know whether its caller has anything else to say: the same store answers the session
+    delete cascade, where a swallowed failure would be a privacy defect, so the adapter must go
+    on failing loudly and only the turn may decide to live without it. Anything the ports did not
+    declare propagates untouched, since a malformed value or a bug in a policy is this code being
+    wrong and a turn that hid it would keep answering thinly for ever.
     """
     if caps.memory is None:
         return None
-    hits = await caps.memory.recall(query, k=DEFAULT_RECALL_K, session_id=context.session_id)
+    try:
+        hits = await caps.memory.recall(query, k=DEFAULT_RECALL_K, session_id=context.session_id)
+    except (EmbedderError, MemoryStoreError) as err:
+        await _report_forgone_memory(caps, context, err)
+        return None
     if not hits:
         return None
     body = _render_memory_context(hits, nonce=context.nonce, taint=context.taint)
     return Message(role=Role.SYSTEM, text=body, at=clock.now(), turn_id=context.turn_id)
+
+
+async def _report_forgone_memory(
+    caps: TurnCapabilities, context: ToolLoopContext, err: Exception
+) -> None:
+    """Say, twice over, that this turn is being answered without the memory it should have had.
+
+    Once to the operator's log, unconditionally, because an outage that only a deployment with
+    the recall trail switched on can see is the silence this closes rather than the cure for it;
+    the trail itself (ADR-0038) stays untouched and gains its accuracy from the omission, since no
+    line is written for a recall that never happened and ``pool == available`` goes on meaning
+    what it means, a pool drawn from the whole readable store.
+
+    Once to the user, on the side channel a fold already narrates itself on, because the user is
+    the only one who can confuse a turn that forgot with a turn that had nothing to remember and
+    the only one harmed by confusing them. That is what separates this from the recap the
+    summarizing window loses silently: a recap compresses history the user can still scroll to,
+    while a recalled memory is knowledge from other conversations that they cannot see and cannot
+    supply, so its absence changes the answer in a way only the assistant could know. A turn with
+    no stream (the schedule ticker, a direct call) has nowhere to say it and says it to the log.
+    """
+    _logger.warning(
+        "memory recall unavailable; answering this turn without its recalled notes",
+        extra={"session_id": context.session_id, "turn_id": context.turn_id},
+        exc_info=err,
+    )
+    if caps.progress is not None:
+        await caps.progress.emit(StatusUpdate(state=FORGOING_STATE, detail=FORGOING_DETAIL))

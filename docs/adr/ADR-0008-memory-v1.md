@@ -569,3 +569,102 @@ stopped embedding server or an unreachable Postgres fails the turn instead of co
 recalled notes, which is the opposite of how every other optional capability here degrades. The
 remedy is a decision about where the catch belongs and whether the user is told, so it is recorded
 in [docs/refinements/memory.md](../refinements/memory.md) rather than taken here.
+
+## Addendum (2026-08-11): the unavailable-memory decision, read and write taken separately
+
+The addendum above filed the defect and left the remedy to a decision. This one takes it. The
+defect reproduced exactly as filed, from outside the engine rather than from a reading of it: a
+`TurnEngine` over `InMemorySessionStore`, `EchoInferenceBackend` and a `MemoryRecaller` whose
+`HashEmbedder` was told to `fail_with(EmbedderError(...))` answered `TURN FAILED with
+EmbedderError` where the same turn with a healthy embedder answered in four events. So the account
+was still exact one commit later, and what follows is the design rather than the finding.
+
+**Recall and write are not one call, and they degrade for opposite reasons.** A failed recall
+costs the turn its notes and the user still gets an answer, which is the ordinary shape of every
+optional capability here. A failed write loses a memory, and the reason it degrades anyway is not
+that the loss is acceptable: it is that **raising cannot prevent it**. `record_exchange` runs after
+the reply has streamed and after the assistant message is already in the session store, so by the
+time the embedding or the insert has failed the memory is gone whichever way the exception goes.
+Raising there would replace a turn the user has already read with a `SeamError` and lose the memory
+too, which is strictly worse for the user and identical for durability. And what is lost is smaller
+than the entry feared: the exchange itself is still in the conversation, which is the copy the user
+can scroll to, so what a failed write costs is a derived index entry that later sessions would have
+recalled from, never the words. The asymmetry that survives is the record each one leaves. The read
+logs a `warning`, a turn answered thinly; the write logs an `error`, durable state that no longer
+matches the conversation sitting beside it.
+
+**Silence is the danger, and the answer is one honest line plus one deliberate omission.** The
+degradation is reported unconditionally on the module logger rather than as a line on the recall
+trail, because that trail is opt-in (`CORTEX_MEMORY_RECALL_AUDIT` defaults off) and an outage only
+an opted-in deployment can see is the silence this closes rather than the cure for it. What the
+trail gains is the omission: **no line is written for a recall that never happened**, so the
+reading [ADR-0038](ADR-0038-ranked-recall.md)'s candidate-count addendum installed keeps meaning
+what it means. `pool == available` says the pool was the whole readable store, and a synthesized
+`0 == 0` line for an outage would have said exactly that about a store nobody could reach.
+
+The user is told too, once, and only about the read. `_recalled_context` emits one app-authored
+`StatusUpdate` on `caps.progress`, the same side channel the summarizing window narrates a fold on
+from inside the same assembly, and the overlay renders any state's detail as a chip with no
+overlay change owed. The reason this earns a chip where the lost recap does not is a real
+difference and not a preference: a recap compresses history the user can still scroll to, while a
+recalled memory is knowledge from other conversations that they cannot see and cannot supply, so
+its absence changes the answer in a way only the assistant could know. The write is deliberately
+silent to the user, on three grounds: the reply is already written, so a chip raised there and
+killed by `TurnCompleted` a moment later is a flicker rather than a surface; any outage that
+reaches the write reached the recall of the same turn first, which already spoke; and a
+transient failure that arrives only at the write is what the `error` log is for.
+
+**The name.** The state joins `thinking`, `delegating`, `swapping` and `folding`, one word each and
+each naming what the machine is doing. `forgoing` is what this turn is doing: going without its
+notes. The alternates and why they lose: `forgetting` claims a memory was lost when none was, which
+is the one thing "honesty over reassurance" (the swap notes' rule) forbids; `blanking` names having
+nothing come to mind, which is precisely the reading this exists to distinguish itself from;
+`recalling` names the attempt the way `folding` does, but saying the healthy word on the single
+occasion the recall did not happen is the least honest of the four; `bypassing` is accurate and
+reads as a choice rather than a failure.
+
+**Where the line between an outage and a defect is drawn, and by whom.** Exactly `EmbedderError`
+and `MemoryStoreError` degrade, named in the `except` tuple, and everything else propagates. The
+line is not this code's to draw twice: it is drawn by the adapters, which wrap a backend that could
+not be reached or could not answer into the port's declared error and wrap nothing else, so an
+exception that arrives untyped is by construction not an infrastructure condition. A `ValueError`
+from a policy, a `TypeError` from a width mismatch, a `SessionStoreError` about the conversation
+itself: all still fail the turn, and both directions are pinned by tests. `RecallAuditSink` is
+worth naming here because it looks like the same question and is not: the port declares no failure
+channel at all, so a sink that raises is a defect and propagates under the rule above rather than
+being an unhandled case, and a sink that can genuinely fail owes its error on the port first.
+
+**Where the catch belongs.** In the core, in `turn_context._recalled_context` and
+`turn_output.record_exchange`, which are also the two places `BrainPhase` shares with `TurnEngine`,
+so the deep model's phase degrades identically without a second copy. Not in an adapter: the same
+`PgVectorMemoryStore` serves the session-delete cascade, where a swallowed failure would be a
+privacy defect and where `SessionServicer` deliberately aborts `UNAVAILABLE` on `MemoryStoreError`,
+so the adapter must go on failing loudly and only a caller may decide to live without it. Not in
+`MemoryRecaller` either, for the same reason one layer up: it is the memory use-case and it cannot
+know whether its caller has anything else to say. `_recalled_context` already owned the answer
+"there is no memory context this turn" for memory being switched off, so an outage reads as the
+shape that was already there. Catching a typed error the core itself declares imports no backend
+and no network client, so the hexagon is untouched.
+
+**What else has the bias.** Surveyed rather than assumed: the unreachable tool sidecar is skipped
+and reported, a `BodyGatewayError` becomes a recoverable tool result, a refused subagent degrades
+to `ok=False`, a failed title is absorbed, and the summarizing window already catches
+`(InferenceError, SessionStoreError)` and falls back to the plain window. `SessionStoreError` on
+the conversation itself correctly fails the turn, that being the turn's own material. Memory was
+the one left, and it is closed here. Two residues are recorded rather than taken, both in
+[docs/refinements/memory.md](../refinements/memory.md): `MemoryStoreError` covers an unreachable
+backend and a malformed row alike, so a data defect now degrades wearing an outage's clothes, and
+the `MemoryStore` shared check list has no backend-failure check where the `Embedder` list has one,
+which is why `InMemoryMemoryStore.fail_with` arrived here as a twin of `HashEmbedder`'s rather than
+as a shared check both implementations answer.
+
+**Validated live, not only over the fakes**, because one thing the fakes structurally cannot
+settle is whether a genuinely stopped Postgres reaches the core as `MemoryStoreError` at all: if
+asyncpg's own exception escaped the adapter, the catch would never fire and the turn would still
+die. Against the real pgvector container, a `MemoryRecaller` over `PgVectorMemoryStore` recalled
+two stored memories, the container was then stopped underneath the open pool, and the next turn
+logged `memory recall unavailable` and `memory write unavailable`, each with an `OSError` cause
+chained into a `MemoryStoreError` ("memory search failed", "adding memory '…' failed"), and
+answered `TurnCompleted`. The one failure mode that stays outside this decision, and correctly so,
+is `PgVectorMemoryStore.connect` at composition time: a brain whose store is unreachable at
+startup fails to start rather than serving memory-less turns forever.

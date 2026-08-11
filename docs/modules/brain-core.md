@@ -1013,6 +1013,16 @@ Use-case:
   untrusted content**, in which case nothing is recorded by default (ADR-0013). With
   `capabilities.record_tainted_memory` on (ADR-0019) a tainted turn is recorded instead with
   `tainted=True`, so recall fences it; an untainted turn always records a trusted memory.
+  **Memory that cannot be reached costs the turn its notes and not the turn** (ADR-0008
+  unavailable-memory addendum): `EmbedderError` and `MemoryStoreError` are caught on both halves,
+  the read in `_recalled_context` (which answers `None`, the shape it already used for memory
+  being switched off) and the write in `record_exchange`, and nothing else is. A read logs a
+  `warning` and puts one app-authored `StatusUpdate(state=FORGOING_STATE, detail=FORGOING_DETAIL)`
+  on `caps.progress` when a stream is there, so a turn that forgot is distinguishable from a turn
+  with nothing to remember; a write logs an `error` and says nothing to the user, the reply being
+  written already and the exchange still being in the conversation. No recall-trail line is
+  written for a recall that never happened, which is what keeps `pool == available` meaning the
+  pool was the whole readable store (ADR-0038).
   A turn with neither tools nor taint opens with `PLAIN_SECURITY_PREAMBLE` instead, so every
   turn carries exactly one standing rule (ADR-0013 replayed-quotation addendum: a reply that
   quoted hostile content is replayed as unfenced assistant history, and the bare turn was
@@ -1055,7 +1065,10 @@ Use-case:
   policy (ADR-0013/0019) both phases share, and **drops an opaque turn outright whatever
   `record_tainted_memory` says** (ADR-0029): the licence for recording a tainted turn rested on
   the raw untrusted payload never being persisted, and a capture turn's assistant reply *is* a
-  transcription of the screen.
+  transcription of the screen. It also absorbs `EmbedderError` / `MemoryStoreError` into a logged
+  `error` (ADR-0008 unavailable-memory addendum), because by the time it runs the reply has
+  streamed and the assistant message is persisted, so raising would lose the memory just the same
+  and take a turn the user has already read with it.
 - `SwapConductor(handoffs, residency, brain_phase, plan, clock, scheduler=None)` (ADR-0030
   decision 4, `swap_conductor.py`) runs one brain handoff end to end as a stream of turn events:
   `run_handoff(slot, *, session_id, turn_id)` takes the residency `handoff_claim` **first**, so
@@ -2003,7 +2016,11 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   live pgvector run uses. A
   zero-magnitude vector scores 0.0; `scopes` filters candidates by namespace before ranking
   (the `WHERE scope = ANY` twin) and selects the same set `count_candidates` sizes. Does not
-  survive a restart, by design.
+  survive a restart, by design. `fail_with(MemoryStoreError(...))` is `HashEmbedder`'s knob for
+  the other port of the pair and takes **every** verb away rather than one, an unreachable
+  Postgres not failing selectively; it is what lets a test drive the degraded read and write
+  (ADR-0008 unavailable-memory addendum). Unlike the embedder's, it is not yet a check on the
+  shared `MemoryStore` list, which is recorded in [../refinements/memory.md](../refinements/memory.md).
 - `HashEmbedder(dimension=16)` is a deterministic, I/O-free `Embedder`: identical text always
   yields the identical vector (so a stored memory is its own strongest cosine match), distinct
   text a distinct vector. Carries no semantics. It is the CI/tests stand-in for the real nomic
