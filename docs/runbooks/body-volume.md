@@ -72,7 +72,7 @@ run without `CORTEX_SEAM_TOKEN` was rejected `UNAUTHENTICATED: invalid or missin
 
 ## Host-only half (real Core Audio on Windows)
 
-What this closes and where to record it: [docs/host/windows-desktop.md](../host/windows-desktop.md).
+What this closes and where to record it: [docs/host/index.md#windows-desktop](../host/index.md#windows-desktop).
 
 `WindowsAudioControl` (`os_windows`, Core Audio via the `windows` crate, ADR-0023-scoped
 `unsafe`) is `cfg(windows)` and never built or measured in CI. Validate it on Windows:

@@ -762,7 +762,7 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   to hold it over the same movement. The trace opens where it is: nothing touches the history's
   `scrollTop`, so the row the reader clicked stays exactly where they clicked it and the trace
   unfolds beneath it, at the cost of pushing the reply below the fold when the panel is already at
-  its ceiling (filed in [refinements/body-overlay.md](../refinements/body-overlay.md)). Each delta
+  its ceiling (filed in [refinements/index.md#body-overlay](../refinements/index.md#body-overlay)). Each delta
   is already guardrail-scrubbed brain-side (ADR-0020 addendum), so the section shows nothing the
   live chip did not and opens no channel the reply-side guardrail never inspected; like everything
   else the overlay renders it is **never linkified** (a plain text node). `thoughts` is in-memory
@@ -1016,4 +1016,4 @@ bridge). Shell: `tauri` 2 (`tray-icon`), `body-core` + `body-rpc` (the gated cra
 backoff sleeper) + `tokio-stream` (`net` for
 `TcpListenerStream`, the `BodyService` incoming, ADR-0023; its receiver wrapper also carries the
 ADR-0022 confirm decision channel). Bring-up + validation:
-[body-overlay.md](../runbooks/body-overlay.md).
+[body-overlay](../runbooks/body-overlay.md).

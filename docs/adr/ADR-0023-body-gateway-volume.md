@@ -287,7 +287,7 @@ such as `IAudioEndpointVolumeCallback`). The rest of that entry, `CaptureScreen`
 **One deferral opened behind the change:** both Windows backends still call `CoInitializeEx`
 per call without a matching `CoUninitialize`, which was already true on the async workers but
 now applies to blocking-pool threads tokio reaps after an idle timeout. Recorded in
-[docs/refinements/body-gateway.md](../refinements/body-gateway.md) as fix-when-it-bites, the fix
+[docs/refinements/index.md#body-gateway](../refinements/index.md#body-gateway) as fix-when-it-bites, the fix
 being one dedicated COM-initialized thread for the OS calls.
 
 **Validated:** `just check` (both trees, 100%); the brain's own `GrpcBodyGateway` dialling the
@@ -338,7 +338,7 @@ that consumer. `CaptureScreen` (Slice 10) is unaffected.
 
 No code changed. The seam, the OS traits, the `BodyGateway` port, and the tool dispatch are untouched;
 this is a backlog decision recorded at its origin
-([docs/refinements/cross-cutting.md](../refinements/cross-cutting.md)).
+([docs/refinements/index.md#cross-cutting](../refinements/index.md#cross-cutting)).
 
 ## Addendum (2026-07-19): `CaptureScreen` closed, and it did not stay behind this seam
 
@@ -369,7 +369,7 @@ one `gated=True` audited tool inheriting the confirmer and the tainted-turn deni
 with that consumer), never as a wired handler shipped ahead of the tool that would gate it. The
 backlog holds this area's count unchanged for that reason: half an entry closing does not close the
 entry, and a count moved for a half-closed one is how an open deferral gets lost. The entry lives
-in [docs/refinements/body-gateway.md](../refinements/body-gateway.md), and it now has its own line
+in [docs/refinements/index.md#body-gateway](../refinements/index.md#body-gateway), and it now has its own line
 in [docs/refinements/index.md](../refinements/index.md) under dead until a consumer, where it had
 been counted but never placed.
 
@@ -394,7 +394,7 @@ had already emitted a native tool call here on 2026-07-03", which was agent-run 
 check had been filed as needing a Windows desktop **and** a 24 GB card, which is the kind of item
 a user must not start until both are in the room, and if those are two machines the wrong tag
 costs the trip. It needs a Windows desktop and any card that holds the cortex, so it is
-Windows-blocked only ([docs/host/windows-desktop.md](../host/windows-desktop.md)), and one
+Windows-blocked only ([docs/host/index.md#windows-desktop](../host/index.md#windows-desktop)), and one
 sitting closes the cortex-driven half with it. The same sentence had been copied into
 [docs/runbooks/body-volume.md](../runbooks/body-volume.md) and is corrected there the same day.
 
@@ -557,7 +557,7 @@ literally the shipping default's backend) answered by the **real** `GrpcBodyGate
 `PERMISSION_DENIED` on the wire, the `REFUSED` kind, and the sentence the tool builds were observed
 end to end across the language boundary rather than asserted on each side separately.
 
-Not validated here, and recorded in [docs/host/windows-desktop.md](../host/windows-desktop.md): a
+Not validated here, and recorded in [docs/host/index.md#windows-desktop](../host/index.md#windows-desktop): a
 capture failing on a real Win32 desktop session. Every row above rides a fake or a stub backend,
 because `os_linux`'s `ScreenCapture` is an `unimplemented!()` stub and this machine has no desktop
 session. The rows that a real GDI backend alone can produce (`NoDisplay` from an actually shut lid,

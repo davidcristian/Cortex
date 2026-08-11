@@ -3,7 +3,7 @@
 
 default: check
 
-# All gates: the four cross-tree scans first (fast), then the four tree checks in
+# All gates: the five cross-tree scans first (fast), then the four tree checks in
 # PARALLEL (ADR-0006), so wall time ≈ the slowest tree. Output is buffered per tree
 # and printed in a fixed order so logs stay readable; any failure fails the gate.
 # Kept bash-3.2 compatible (no `declare -A` etc.) for macOS system bash.
@@ -14,6 +14,7 @@ check:
     just check-dashcheck
     just check-crosscheck
     just check-bindcheck
+    just check-backlog
     tmp=$(mktemp -d)
     trap 'rm -rf "$tmp"' EXIT
     echo "Running check-brain, check-scripts, check-body, check-overlay in parallel (buffered)..."
@@ -59,6 +60,18 @@ check-bindcheck:
     cd scripts && uv sync --locked
     cd scripts && uv run python bindcheck.py --root ..
 
+# Each backlog index still matches the task files it describes (ADR-0039). A task's
+# status lives on its own Status line and nowhere else, so this is the only thing
+# holding the generated index to it. Regenerate with `just backlog`.
+check-backlog:
+    cd scripts && uv sync --locked
+    cd scripts && uv run python backlogcheck.py --root ..
+
+# Rewrite each backlog index from its task files. Run after closing or filing a task.
+backlog:
+    cd scripts && uv sync --locked
+    cd scripts && uv run python backlogcheck.py --root .. --write
+
 # Python brain workspace: format, lint, strict types, tests at 100% line+branch.
 check-brain:
     cd brain && uv sync --locked
@@ -86,13 +99,16 @@ check-scripts:
 # member and rustfmt ignores cfg). The windows target must be installed (rustup target add
 # x86_64-pc-windows-msvc); clippy never links, so no MSVC toolchain is needed. Shell clippy
 # stays out (it needs the Linux GTK/webkit/dbus dev packages), recorded in docs/refinements.
+# The coverage run also excludes Cargo build scripts (`build.rs`), which rustc began
+# instrumenting during the 1.99 nightlies: a build script runs at build time, not under the
+# test harness, so no test can reach it (ADR-0002 build-script addendum).
 check-body:
     cd body && cargo fmt --all --check
     cd body/app/src-tauri && cargo fmt --check
     cd body && cargo clippy --locked --workspace --all-targets -- -D warnings
     cd body && cargo clippy --locked --target x86_64-pc-windows-msvc -p os-windows --all-targets -- -D warnings
     cd body && cargo test --locked --workspace
-    cd body && cargo +nightly llvm-cov --locked --branch --workspace --all-targets --ignore-filename-regex '/_generated/' --fail-under-lines 100 --fail-under-regions 100 --json --summary-only --output-path coverage.json
+    cd body && cargo +nightly llvm-cov --locked --branch --workspace --all-targets --ignore-filename-regex '/_generated/|/build[.]rs$' --fail-under-lines 100 --fail-under-regions 100 --json --summary-only --output-path coverage.json
     cd scripts && uv sync --locked
     cd scripts && uv run python coverage_gate.py ../body/coverage.json
 

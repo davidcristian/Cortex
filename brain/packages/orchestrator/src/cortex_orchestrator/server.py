@@ -166,8 +166,8 @@ class BrainService(SessionRpcMixin, PreferenceRpcMixin, BrainServiceServicer):
         through a model-initiated capture instead, and deliberately left the **user-attached**
         image path out: it is a different seam, a different limit, and the first path where
         Cortex would decode a foreign image. Recorded as a deferral
-        (`docs/refinements/vision.md`), not as a promise about the next slice. Failures surface
-        as a terminal SeamError event, never as an RPC error.
+        (`docs/refinements/index.md#vision`), not as a promise about the next slice. Failures
+        surface as a terminal SeamError event, never as an RPC error.
         """
         del context  # RPC cancellation/disconnect arrive as generator close, not via context
         events = converse(

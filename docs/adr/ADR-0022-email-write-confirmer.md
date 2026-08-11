@@ -666,7 +666,7 @@ laundering-surface guarantee this addendum turns on), so the overlay renders a s
 **no wire or reducer change** and no new guardrail obligation. The `phase` field stays deferred (the
 chip still needs no completion states). Full record and validation live at the
 [ADR-0010 progress addendum](ADR-0010-subagents.md); the backlog closes in
-[email-confirmer.md](../refinements/email-confirmer.md).
+[email-confirmer](../refinements/index.md#email-confirmer).
 
 ## Addendum (2026-07-16): confirm-with-provenance for tainted turns is declined
 
@@ -721,7 +721,7 @@ independent blocker.
 
 ### 4. Outcome
 
-**Declined**, docs-only. The entry stays in [email-confirmer.md](../refinements/email-confirmer.md)
+**Declined**, docs-only. The entry stays in [email-confirmer](../refinements/index.md#email-confirmer)
 verbatim as the historical record, annotated with this outcome, and moves to the backlog's
 dead-until-a-consumer list. It reopens only if the outbound-on-tainted decision is itself revisited
 with new evidence that a confirmation card converts reflexive approval into scrutiny, **and** a real
@@ -819,7 +819,7 @@ only when something needs it.
 **Declined**, docs-only, the capability ungranted. It reopens on a real consumer that must attach
 bytes the assistant did not author (a saved PDF, an image, a downloaded report), and even then it
 is built to the finding 4 shape, not by handing the egress sidecar a path. The entry stays verbatim
-in [email-confirmer.md](../refinements/email-confirmer.md) as the historical record, annotated with
+in [email-confirmer](../refinements/index.md#email-confirmer) as the historical record, annotated with
 this outcome, and moves to the backlog's dead-until-a-consumer list. Nothing in the seam, the proto,
 the sidecar, or the gate changed.
 
@@ -827,12 +827,12 @@ the sidecar, or the gate changed.
 
 The "Still pending (genuinely OS-native, host-only)" paragraph above names the confirm card
 through the real Tauri IPC hop. That check now has a written home: item 3 of
-[docs/host/windows-desktop.md](../host/windows-desktop.md), indexed at
+[docs/host/index.md#windows-desktop](../host/index.md#windows-desktop), indexed at
 [docs/host/](../host/index.md), with the gated-tool prerequisite spelled out (either
 `CORTEX_EMAIL_SEND_ENABLED=true` with the Bridge reachable, or any name in `CORTEX_TOOLS_GATED`)
 and with the approve, deny, and ignore paths as three separate expectations. Worth knowing when
 searching for the trail: its backlog line lived under
-[refinements/untrusted-content.md](../refinements/untrusted-content.md) rather than
+[refinements/index.md#untrusted-content](../refinements/index.md#untrusted-content) rather than
 `email-confirmer.md`. The result comes back here as a dated addendum.
 
 No code changed here; this is a records correction at the origin ADR.
@@ -918,7 +918,7 @@ must be. `list_folders` takes nothing and `read_email`'s `folder`/`uid` are name
 that produces them.
 
 `search_emails` is the exception and it is **deferred rather than closed**, recorded in
-[refinements/email-confirmer.md](../refinements/email-confirmer.md). Its `query` is passed
+[refinements/index.md#email-confirmer](../refinements/index.md#email-confirmer). Its `query` is passed
 through to imap-tools unaltered, so the dialect is raw IMAP `SEARCH` criteria, and "an IMAP
 query" is all the tool says. A model that writes `from:someone@example.com` is writing the
 search syntax of every mail client a person has used, and it is not this one. The reason it is

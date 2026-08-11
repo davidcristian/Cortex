@@ -79,7 +79,7 @@ current session only.
 ## Addendum (2026-07-16): summarization audited, the async widening priced and the lease hazard re-derived
 
 The **Summarization** alternative above and its refinement entry
-([docs/refinements/session-history.md](../refinements/session-history.md)) both defer a model pass
+([docs/refinements/index.md#session-history](../refinements/index.md#session-history)) both defer a model pass
 in turn assembly behind two costs: the sync `HistoryWindow.select` must go async, and `backend.py`
 holds a non-reentrant GPU lease for a stream's lifetime. Audited against the code, both are milder
 than they read, but a third cost binds, so the entry stays deferred with a sharper blocker. This is
@@ -115,7 +115,7 @@ cache-versus-recompute-per-turn question the entry named is also unresolved and 
 not a wrapper. So the honest slice waits for the model manager's real GPU lifecycle to give user-tier
 hardware, and lands the async widening together with the summarizer rather than the widening alone as
 an empty async layer. Recorded at
-[docs/refinements/session-history.md](../refinements/session-history.md).
+[docs/refinements/index.md#session-history](../refinements/index.md#session-history).
 
 ## Addendum (2026-07-19): summarization is blocked by an undecided design, not by the dev GPU
 
@@ -132,7 +132,7 @@ whether a summary keeps what the next turn needs can be judged well below 16K.
 the same addendum and stands on its own: the cache-versus-recompute-per-turn question is undecided,
 and `HistoryWindow.select` should widen together with the summarizer rather than land as an empty
 async layer. So this reopens on that design work. Corrected the same day in
-[docs/refinements/session-history.md](../refinements/session-history.md) and its
+[docs/refinements/index.md#session-history](../refinements/index.md#session-history) and its
 [index](../refinements/index.md).
 
 No code changed here; this is a records correction at the origin ADR.
@@ -163,7 +163,7 @@ fake, Redis adapter, contract test), a `SummarizingHistoryWindow`, the `async` w
 `HistoryWindow.select` alongside it rather than as an empty async layer, and the config knob. That
 widening was deliberately **not** taken with the recall one: `RecallPolicy.select` had three waiting
 consumers and this port has one, so it waits for that one. Recorded in
-[docs/refinements/session-history.md](../refinements/session-history.md) and its
+[docs/refinements/index.md#session-history](../refinements/index.md#session-history) and its
 [index](../refinements/index.md).
 
 One claim of the audit addendum did not survive re-derivation and is corrected here: it names the

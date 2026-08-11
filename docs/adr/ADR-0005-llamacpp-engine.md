@@ -52,7 +52,7 @@ program on a consumer GPU, not a throughput-serving deployment.
 ## Addendum (2026-08-09): the stall ceiling on the generation clients
 
 **Status:** Accepted. Closes "a read timeout on the subagent HTTP client" from
-[docs/refinements/resource-governance.md](../refinements/resource-governance.md), whose deferral
+[docs/refinements/index.md#resource-governance](../refinements/index.md#resource-governance), whose deferral
 was recorded at [ADR-0012](ADR-0012-resource-governance.md).
 
 ### What the tree actually said
@@ -163,7 +163,7 @@ A stall ceiling cannot see a model that keeps talking. A subagent in a repetitio
 chunks forever, trips nothing here, and holds its admission exactly as the wedged one used to, and
 nothing in the shipped wiring bounds a delegated generation's length. That is a **total generation
 cap**, filed as its own deferral in
-[docs/refinements/resource-governance.md](../refinements/resource-governance.md) with its trigger
+[docs/refinements/index.md#resource-governance](../refinements/index.md#resource-governance) with its trigger
 and its shape (the `GenerationBounds.max_tokens` the port already carries, against a wall-clock cap
 that would need the same timeout design and `Clock` as the bounded admission wait). It is not built
 here because the two failures are different: this one converts an unbounded wait into a bounded,
@@ -190,7 +190,7 @@ dropped from the adapter's translator (2), and the positivity bound dropped from
 ## Addendum (2026-08-11): the total generation cap on a delegated run
 
 **Status:** Accepted. Closes "a total generation cap, for the subagent that keeps talking" from
-[docs/refinements/resource-governance.md](../refinements/resource-governance.md), which the
+[docs/refinements/index.md#resource-governance](../refinements/index.md#resource-governance), which the
 addendum above opened, and which this ADR declined on the same day: converting an unbounded wait
 into a bounded reported failure is a transport concern, capping how much a model may say is a
 policy about answers, and mixing the two would have shipped an unmeasured number inside a fix that

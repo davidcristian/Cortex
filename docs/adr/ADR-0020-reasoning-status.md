@@ -239,4 +239,4 @@ reasoning past the turn (persisting or summarizing it) was **declined** for want
   Persisting reverses decision 2's "reasoning is ephemeral, never persisted"; that is a design
   change, not a cheap follow-on, and nothing today would read the result. It moves to the backlog's
   dead-until-a-consumer list and reopens the day a reload re-display or a summarization consumer
-  appears, designed with the record the reader needs (`docs/refinements/inference-model-manager.md`).
+  appears, designed with the record the reader needs (`docs/refinements/index.md#inference-model-manager`).

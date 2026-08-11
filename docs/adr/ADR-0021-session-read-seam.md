@@ -416,7 +416,7 @@ call, which `InferenceBackend.stream` cannot yet express (no thinking-control or
 param). That reopens as a consumer of the existing disable-thinking/token-budget inference
 deferral, not as new title work.
 
-**Recorded deferrals (see [session-read-seam.md](../refinements/session-read-seam.md)).**
+**Recorded deferrals (see [session-read-seam](../refinements/index.md#session-read-seam)).**
 
 - *Open-chat header consistency.* The **switcher** shows the brain title; the open-chat **header**
   still derives locally from the loaded first user message (`deriveTitle`/`titleFor`), because
@@ -466,7 +466,7 @@ first-message derivation; `list_sessions` re-collapses and re-truncates the stor
 `TITLE_MAX` at read, and the overlay renders it as inert React text, so a user-supplied label is
 bounded and cannot inject markup or a multi-line row.
 
-**Deferred, each recorded in [session-read-seam.md](../refinements/session-read-seam.md):**
+**Deferred, each recorded in [session-read-seam](../refinements/index.md#session-read-seam):**
 
 - *Pinning.* A new `SessionStore.set_pinned` verb plus a `pinned` field on `SessionSummary` across
   all four trees, but the real cost is a **read-path** decision the bounded two-round-trip listing
@@ -530,7 +530,7 @@ to the overlay reducer.
   message of 33 to 48 characters read longer in the switcher than in the header even with generation
   off.
 
-**Recorded residual (see [session-read-seam.md](../refinements/session-read-seam.md)).** Reading the
+**Recorded residual (see [session-read-seam](../refinements/index.md#session-read-seam)).** Reading the
 title from `state.sessions` leaves a chat **not** in the loaded recency window deriving its header
 locally. The only path today that opens such a chat is a reminder deep-link (`Reminders.tsx`) to a
 chat past `listSessions(50)`, and there the switcher shows no row for that chat either, so no
@@ -660,7 +660,7 @@ exactly once, and unpinning dropped it back out of the window.
 
 The 2026-07-07 live-validation addendum closes with the Tauri `list_sessions` and
 `session_messages` commands remaining host validation. That check now has a written home:
-item 4 of [docs/host/windows-desktop.md](../host/windows-desktop.md), indexed at
+item 4 of [docs/host/index.md#windows-desktop](../host/index.md#windows-desktop), indexed at
 [docs/host/](../host/index.md), where it shares one `npm run tauri dev` bring-up with five other
 checks and carries its own pass and fail. One staleness note travels with it: the quoted status says
 prior chats are reachable only through the switcher because auto-restore was deferred, and
@@ -686,7 +686,7 @@ composite rows it already behaves like. Whichever wins has to be reconciled with
 `Ctrl+↓`, which this ADR's cycle math drives without moving focus at all and which are the obvious
 keys for a listbox to answer with focus instead.
 
-Recorded in [refinements/body-overlay.md](../refinements/body-overlay.md) and on its index, and
+Recorded in [refinements/index.md#body-overlay](../refinements/index.md#body-overlay) and on its index, and
 argued at length in the [ADR-0035](ADR-0035-console-and-motion.md) addendum of the same date, which
 is the pass that found it. This is the third of that deferral's three records, at the ADR whose
 decision the role belongs to.
@@ -712,7 +712,7 @@ carries is four stops to a row, unchanged by the fix. The full before and after,
 listbox's `none` rows and what the browser could not be made to report, is in the
 [ADR-0035](ADR-0035-console-and-motion.md) addendum of the same date. This closes the deferral's
 third record; what it left behind, the cycle keys changing the chat with nothing announcing it, is
-recorded in [refinements/body-overlay.md](../refinements/body-overlay.md) and on its index.
+recorded in [refinements/index.md#body-overlay](../refinements/index.md#body-overlay) and on its index.
 
 ## Addendum (2026-08-03): one bound governs a title's length, and a gate now holds the two copies
 

@@ -75,7 +75,7 @@ _TARGET_BY_NAME: dict[str, CaptureTarget] = {target.value: target for target in 
 # conditional because the mechanism is being unresampled rather than being cropped: a window wider
 # than the capture edge is resampled exactly as the screen is and reads no better than it. Neither
 # the model nor this tool can tell whether that happened, which is a deferral recorded in
-# docs/refinements/vision.md rather than a field on the reply.
+# docs/refinements/index.md#vision rather than a field on the reply.
 _DESCRIPTION = (
     "Take a picture of the user's screen and look at it. Use this when the user asks about what "
     "is on their screen, or refers to something you cannot see. The picture is attached to your "
@@ -166,7 +166,7 @@ def describe(capture: ScreenCapture) -> str:
     measurement priced that silence rather than removing it: one of its five windows was wider
     than the capture edge, was resampled to exactly what the whole screen is resampled to, and
     read no better than it. Telling the two apart wants one bit on the reply, and it is recorded
-    in docs/refinements/vision.md rather than built, on the ground that the sentence it would
+    in docs/refinements/index.md#vision rather than built, on the ground that the sentence it would
     write is the sentence this ADR already measured the model not to act on.
 
     Which sentence is used is the body's answer (``capture.target``) rather than what was asked

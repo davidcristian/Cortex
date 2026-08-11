@@ -473,7 +473,7 @@ from forcing an eviction) are ADR-0030's later sub-slices.
 
 The harness addendum's brain tier stays opt-in (`CORTEX_PROBE_BRAIN=1`) and unrun, because the VRAM
 cost needs the other tiers evicted. That run is host work behind the deep-model pick, and it now
-has a written home: item 5 of [docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md), indexed at
+has a written home: item 5 of [docs/host/index.md#gpu-tier-scale](../host/index.md#gpu-tier-scale), indexed at
 [docs/host/](../host/index.md). It is recorded there as the only host item whose outcome can
 change shipped policy (a brain tier that obeys injections under the shipped preamble is evidence for
 keeping escalation gated), and as the only one with no runbook section yet, so writing that section

@@ -307,8 +307,8 @@ consumer already exists. CI-gated at 100% over the fakes (`RecordingProgressSink
 routing, the runner emission, the taint containment, the two-sink isolation, and the sink's
 drop-under-saturation each mutation-proven; the end-to-end path (cortex spawns → subagent tool step
 → wire `ToolActivity`) is exercised over a real `converse()` stream. The bundled backlog entries
-close in [subagents.md](../refinements/subagents.md) and
-[email-confirmer.md](../refinements/email-confirmer.md).
+close in [subagents](../refinements/index.md#subagents) and
+[email-confirmer](../refinements/index.md#email-confirmer).
 
 ## Addendum (2026-07-19): the nudge residual's "unverifiable on the 8 GB dev GPU" is struck
 

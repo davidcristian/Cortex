@@ -236,7 +236,7 @@ tests this.
 **What this changes.** The probe becomes agent-side work: a resident cortex at 4K, the roster up on
 its CPU sidecars, which contend for no VRAM, and a prose-only ask carrying independent subtasks. It
 is listed as actionable now in [docs/refinements/index.md](../refinements/index.md), with the entry
-itself at [docs/refinements/subagents.md](../refinements/subagents.md). The fix stays
+itself at [docs/refinements/index.md#subagents](../refinements/index.md#subagents). The fix stays
 fix-when-it-bites, unchanged, and the same question at the production 16K context with more than
 one slot stays host-side. The pointer at
 [ADR-0010](ADR-0010-subagents.md) repeats the false clause and is corrected there.
@@ -338,7 +338,7 @@ and a false reason and no wording to guess at.
 taken; it does not say which wording would be taken, and rewriting on the strength of one
 deployment's behaviour is the guess this residual was written to avoid. The entry stays open and fix-when-it-bites, with its trigger
 sharpened by all three findings, at
-[docs/refinements/subagents.md](../refinements/subagents.md). What the run buys is a probe that is
+[docs/refinements/index.md#subagents](../refinements/index.md#subagents). What the run buys is a probe that is
 cheap to repeat: `packages/orchestrator/tests/test_spawn_nudge_live.py` carries the armed check and
 both asks, and [runbooks/subagents-cpu.md](../runbooks/subagents-cpu.md) section 3c carries the
 bring-up and the two ways to make the run meaningless (any tool override, or a one-entry roster).

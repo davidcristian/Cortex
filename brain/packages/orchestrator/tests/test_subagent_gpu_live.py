@@ -73,7 +73,7 @@ _GPU_ENDPOINT = os.environ.get("CORTEX_SUBAGENTS_GPU_ENDPOINT")
 
 # Two DISTINCT endpoints, because the whole point is which one answered: the subagents override
 # defaults the GPU endpoint to the CPU server, and against that default this suite would assert
-# nothing (docs/refinements/resource-governance.md).
+# nothing (docs/refinements/index.md#resource-governance).
 _needs_both_tiers = pytest.mark.skipif(
     not (_ENDPOINT and _GPU_ENDPOINT and _GPU_ENDPOINT != _ENDPOINT),
     reason="set CORTEX_SUBAGENTS_ENDPOINT and a distinct CORTEX_SUBAGENTS_GPU_ENDPOINT",

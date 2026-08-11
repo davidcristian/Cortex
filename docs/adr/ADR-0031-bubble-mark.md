@@ -63,7 +63,7 @@ liked all four, which turned a one-of-four pick into the actual decision below.
 
 6. **The chosen style is session state, exactly like the theme.** `App` holds `markPreference`
    beside the theme `preference`; neither survives a restart today. Persisting appearance choices
-   is one deferral for both, recorded in `docs/refinements/body-overlay.md`, not a mark-specific
+   is one deferral for both, recorded in `docs/refinements/index.md#body-overlay`, not a mark-specific
    gap.
 
 ## Consequences

@@ -72,7 +72,9 @@ jobs:
   # any text file, which is mostly a docs concern and would otherwise never run;
   # crosscheck.py ties the constants declared once per language, which by construction no
   # single-toolchain job can see (ADR-0029 cross-language-constant addendum); bindcheck.py
-  # reads docker/'s bind defaults against .gitignore, which belongs to no toolchain either.
+  # reads docker/'s bind defaults against .gitignore, which belongs to no toolchain either;
+  # and backlogcheck.py holds each backlog index to its task files (ADR-0039), which is
+  # docs-only and so would otherwise never run.
   cross-tree:
     runs-on: ubuntu-latest
     steps:
@@ -87,6 +89,7 @@ jobs:
       - run: just check-dashcheck
       - run: just check-crosscheck
       - run: just check-bindcheck
+      - run: just check-backlog
 
   python:
     needs: changes

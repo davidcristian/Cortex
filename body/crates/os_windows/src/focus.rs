@@ -23,7 +23,7 @@
 //! Host-authored, **never run**. Like the rest of this crate it is compiled and clippy-linted
 //! for the Windows target from Linux, which type-checks it against the Win32 signatures and
 //! nothing more: no walk here has ever seen a real desktop. What a real one has to confirm is
-//! in `docs/host/windows-capture.md`.
+//! in `docs/host/index.md#windows-capture`.
 #![allow(unsafe_code)] // ADR-0029: the Z-order walk is a raw Win32 FFI surface.
 
 use body_core::{CaptureError, TargetRect};

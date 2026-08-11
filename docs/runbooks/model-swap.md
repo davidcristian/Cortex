@@ -19,7 +19,7 @@ real cortex and any deep-model candidate cannot be swapped between on 8 GB, and 
 this file was taken with stand-ins.
 
 **Two pieces of the tier-scale half have since been measured on a card that holds the tiers**, and
-both live in [docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md): the deep-model pick, which
+both live in [docs/host/index.md#gpu-tier-scale](../host/index.md#gpu-tier-scale): the deep-model pick, which
 landed 2026-08-04 as gemma-4-31B QAT q4_0 at 19128 MiB alone and 99.6 s from start to READY
 (ADR-0004's brain-pick addendum), and one cortex to deep to cortex cycle driven by hand against
 the control API. What this runbook still owes is that cycle under a real escalated turn, which
@@ -206,7 +206,7 @@ and then served 16 tokens in 36 s (roughly half a token per second), which is wh
 spilling into host RAM costs. Nothing failed, so nothing warns you: the swap, the health gate and
 the stream all behave, and every timing and VRAM number from such a run is meaningless. Tier scale
 is a host measurement on a card that holds the tier
-([docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md)).
+([docs/host/index.md#gpu-tier-scale](../host/index.md#gpu-tier-scale)).
 
 Tier scale will be minutes rather than seconds on both halves: an 18 GB GGUF off the model mount at
 the measured mount read rate is what `CORTEX_SWAP_LOAD_TIMEOUT_S` (300 s) exists for. The eviction
@@ -360,7 +360,7 @@ but a report of a slow *cortex* after a handoff is the same fault read from the 
   bookkeeping is in-process and nothing tells it the sidecar restarted, so a restart mid handoff
   leaves the brain believing the deep model is resident while the fresh sidecar serves the cortex.
   Recovery is step 3 below (restart the brain). This is a recorded deferral, not a surprise
-  ([inference-model-manager.md](../refinements/inference-model-manager.md)).
+  ([inference-model-manager](../refinements/index.md#inference-model-manager)).
 - **Both verbs are idempotent, and an unknown id is a 404.** A second `start` spawned no second
   child; a second `stop` answered 200 and `stopped`; `POST /models/ghost/start` answered
   `404 {"error":"unknown model 'ghost'; this host serves cortex, brain"}`. Nothing a request
@@ -418,7 +418,7 @@ but a report of a slow *cortex* after a handoff is the same fault read from the 
 ## The chaos kill, host-side
 
 This and the rest of the tier-scale half are tracked in
-[docs/host/gpu-tier-scale.md](../host/gpu-tier-scale.md), which carries the dependency chain. The
+[docs/host/index.md#gpu-tier-scale](../host/index.md#gpu-tier-scale), which carries the dependency chain. The
 deep-model pick at the head of that chain landed 2026-08-04; what still gates this section is the
 overlay, since a handoff to kill in the middle of begins at an approved confirm card.
 

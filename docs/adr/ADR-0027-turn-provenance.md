@@ -150,7 +150,7 @@ own framing in one place, noted below.
   *unstamped* calls. And no call site changed to gain the field, which was the point of deciding
   the object form here rather than adding a keyword per fact.
 
-**Deferred (recorded in `docs/refinements/untrusted-content.md`):**
+**Deferred (recorded in `docs/refinements/index.md#untrusted-content`):**
 
 - **A sidecar-declared sender/URI.** Needs the `ToolResult` widening plus a declaration channel
   that does not disturb the model-facing text, per the paragraph above.

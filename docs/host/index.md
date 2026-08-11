@@ -1,23 +1,53 @@
-# Host-side work: index
+# Host-side work
 
-Every piece of work only the maintainer can perform, one self-contained doc per sitting, extracted
-from the ROADMAP's slice statuses on 2026-07-19 with the load-bearing wording kept verbatim. This
-is the companion to [refinements/](../refinements/index.md) and the two hold different things:
+Every piece of work only the host's own hardware can perform, one file per item in
+[tasks/](tasks/). This is the companion to [refinements/](../refinements/index.md), and the two
+hold different kinds of not-done:
 
-- **[refinements/](../refinements/index.md) holds deferred *design*.** Work anyone can pick up once
-  a seam, a consumer, or a decision unblocks it. Its entries describe code that is not written.
-- **This directory holds work that is blocked on hardware the dev machine does not have.** The code is
+- **[refinements/](../refinements/index.md) holds deferred *design*.** Work anyone can pick up
+  once a seam, a consumer, or a decision unblocks it. Its tasks describe code that is not written.
+- **This directory holds work blocked on hardware the dev machine does not have.** The code is
   written; what is missing is a machine that can run it. Almost every item here is a *validation*,
-  and the one that is not, the overlay polish pass, says so at the top of its section.
+  and the one that is not, the overlay polish pass, says so in its own file.
 
-Neither is "host-only" in the [AGENTS.md](../../AGENTS.md) sense. An `integration`-marked live test
-is host-only because it needs Docker, a GPU, or a network service, and gate 3 is explicit that "on
-the host" **includes the agent**: those run here, in this repo, by whoever is working. An item
-lands in this directory only when the agent's dev machine physically cannot do it.
+Neither is "host-only" in the [AGENTS.md](../../AGENTS.md) sense. An `integration`-marked live
+test is host-only because it needs Docker, a GPU, or a network service, and gate 3 is explicit
+that "on the host" **includes the agent**: those run here, in this repo, by whoever is working. An
+item lands in this directory only when the agent's dev machine physically cannot do it.
+
+## How to work this backlog
+
+The layout and its reasoning are [ADR-0039](../adr/ADR-0039-backlog-per-task.md); the mechanics
+match [refinements/](../refinements/index.md), with one difference in the status grammar and one
+in what happens at the end.
+
+**The statuses differ because a check is not a design.** A refinement lands or is declined; a host
+check can be attempted, inconclusive, and worth retrying. So an item here reads `never attempted`
+(the default), `attempted <date>, inconclusive: <what happened>`, or `done <date>`. An environment
+problem is not a failed check, and recording it as inconclusive is the honest outcome.
+
+**The exit contract differs too.** An item that completes writes its result back to its origin
+decision record as a dated addendum and into its runbook, then stops being work. A refinement's
+text often corrects its own ADR and so is kept in place; a host check produces a *measurement*,
+whose home is the ADR and the runbook, so a completed item's file shrinks to a heading, its status
+and a pointer. Emptiness here is load-bearing: the ROADMAP's finish line requires every slice,
+this directory, and the refinements backlog all being clear.
+
+Two qualifiers that the first exits earned. **A completed item keeps its number for as long as
+anything still points at it**, and its file is not deleted, because four items in the GPU sitting
+are written against "item 1" and deleting that section would have cost a renumbering to buy back
+twenty lines. And **an item that owes a procedure exits by writing the procedure, not by
+describing it**: the injection-harness run's four warnings about how the harness fails were its
+most reusable content, so they left for [runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md)
+with the measurement rather than sitting in a completed section where nobody re-running the row
+would find them.
+
+After any change here, run `just backlog` to regenerate the section below, and commit it with the
+task file. `just check` fails if you forget.
 
 ## The two capabilities
 
-Every item below carries one of these two tags or both of them, and mixing them wastes a sitting:
+Every item carries one of these two tags or both, and mixing them wastes a sitting:
 
 | Tag | What it means | Why the dev machine cannot stand in |
 | --- | --- | --- |
@@ -30,27 +60,20 @@ beside a resident cortex was reachable. [ADR-0030](../adr/ADR-0030-brain-handoff
 `gemma-4-12b-it-qat-q4_0.gguf` alone taking 7715 of that card's 8188 MiB, and every figure derived
 from that card stays true of it. The premise that failed is the one underneath: that the 8 GB card
 is the card the repo is developed on. On 2026-08-04 the development machine reported 24463 MiB and
-ran the deep-model pick end to end, loading and serving all four candidates alone on the card, and
-[gpu-tier-scale.md](gpu-tier-scale.md) item 1 records the result. **So G on its own is no longer a
-reason to file work here.** [AGENTS.md](../../AGENTS.md) is explicit that "on the host" includes
-the agent and that GPU and model behavior reachable through Docker is done now rather than
-deferred, and that is the rule this table was quietly contradicting.
+ran the deep-model pick end to end, loading and serving all four candidates alone on the card. **So
+G on its own is no longer a reason to file work here.** [AGENTS.md](../../AGENTS.md) is explicit
+that "on the host" includes the agent and that GPU and model behavior reachable through Docker is
+done now rather than deferred, and that is the rule this table was quietly contradicting.
 
 Two things this does **not** change. **W is untouched**, and it is now the only tag doing real
 work here: a Win32 desktop session is still something no agent can stand in for. And **the three
-W+G items are still blocked**, on their W half alone, for the reason the next paragraph gives.
-The plain G items that remain are listed because each is its own sitting with its own bring-up,
-not because the VRAM is missing.
+W+G items are still blocked**, on their W half alone. Those are exactly the tier-scale swap, the
+chaos kill during one, and the timings of one: a handoff begins only when the confirm card gating
+`escalate_to_brain` is approved, that card is a `ConfirmRequest` on the Converse stream, and the
+only shipped client that answers one is the overlay. Both capabilities, or the sitting stalls at
+the card. Marked 2026-07-19 after an audit tried to execute them from the GPU doc alone.
 
-**W+G exists, and it is exactly three items: 2, 3 and 4 of
-[gpu-tier-scale.md](gpu-tier-scale.md)** (the tier-scale swap, the chaos kill during one, and the
-timings of one). A handoff begins only when the confirm card gating `escalate_to_brain` is
-approved, that card is a `ConfirmRequest` on the Converse stream, and the only shipped client that
-answers one is the overlay; the arithmetic those items exist to prove needs the 24 GB card. Both
-capabilities, or the sitting stalls at the card. Marked 2026-07-19 after an audit tried to execute
-them from the GPU doc alone.
-
-**The tag was withdrawn earlier the same day, from two items that did not need it**, and the
+**The tag was withdrawn earlier the same day from two items that did not need it**, and the
 correction is worth keeping because it is the same mistake in the other direction. This table
 shipped claiming that a fully cortex-driven `set_volume` and the end-to-end answer on the capture
 path each need both capabilities at once. That rested on an older sentence saying the 12B cortex
@@ -58,62 +81,140 @@ does not fit 8 GB, which [ADR-0029](../adr/ADR-0029-vision-screen-capture.md) ha
 false on 2026-07-17: at `--ctx-size 4096 --parallel 1` the cortex fits the dev GPU **beside its
 projector**, which is the harder of the two cases, and it drove a real vision turn there on
 2026-07-18. Both items are therefore **W**. The tag matters in both directions: a W+G item is one
-the user must not start until both capabilities are in the room, and if the Windows host and the
-24 GB card turn out to be two machines, a wrong tag costs exactly the trip the tagging exists to
-prevent.
+nobody should start until both capabilities are in the room, and if the Windows host and the 24 GB
+card turn out to be two machines, a wrong tag costs exactly the trip the tagging exists to prevent.
 
 **Tagged by capability, not by machine name, deliberately.** The repo's own evidence says the
 Windows host and the 24 GB card are one laptop: [ARCHITECTURE.md](../ARCHITECTURE.md) says "Three
-tiers share one 24 GB GPU" and [ADR-0004](../adr/ADR-0004-model-lineup.md) says
-"First real bring-up on the 24 GB card". But
-**no document states it**, so the layout does not assume it. A capability tag is correct whether
-that is one desk or two, and if it turns out to be two, only the tags need rereading and not the
-directory. Settling this in writing is worth one sentence in an ADR the next time one is opened.
+tiers share one 24 GB GPU" and [ADR-0004](../adr/ADR-0004-model-lineup.md) says "First real
+bring-up on the 24 GB card". But **no document states it**, so the layout does not assume it. A
+capability tag is correct whether that is one desk or two, and if it turns out to be two, only the
+tags need rereading and not the directory.
 
-## The docs
+## An item's expected outcome is a hypothesis
 
-| Doc | Tag | What one bring-up buys | Open |
-| --- | --- | --- | --- |
-| [windows-desktop.md](windows-desktop.md) | W | One `npm run tauri dev` beside a running brain: the hotkey and one streamed turn, volume, the toast, the confirm card, the session commands, the preference commands and the appearance surviving a restart, the reminder surface, the connection dot | 8 checks + 1 optional + 2 standing |
-| [windows-capture.md](windows-capture.md) | W | The screen-capture path, which needs its own switch, its own receipts, and its own expectations. Carries the single highest-consequence check in the repo, since 2026-08-08 the two failure sentences only a real GDI backend can produce, and since 2026-08-10 the Z-order walk behind a targeted capture, which brings a second check of the same kind (the walk must never land on the overlay) | 2 checks, 12 observations |
-| [overlay-polish.md](overlay-polish.md) | W | The one item here that is **authoring, not validation**: the OS-window half of the overlay | 1 build (4 parts) + 1 design decision |
-| [overlay-screen-reader.md](overlay-screen-reader.md) | W | A reader pointed at the running overlay: what the live region is actually *spoken* as, which is the half no accessibility tree holds | 1 observation session (8 gestures) |
-| [gpu-tier-scale.md](gpu-tier-scale.md) | G, and W+G for three | The 24 GB machine: everything the deep-model pick unblocks, plus the measurements the placer and the caps ship without. Items 2, 3 and 4 need the overlay to trigger the handoff | 4 open; the pick, the injection run and the GPU-placed subagent all done 2026-08-04 |
-
-User **decisions** (weigh, do not run) stay at their ADRs and are listed at the bottom of this
-page rather than copied, so a decision has exactly one home.
-
-## Why the split is by sitting
-
-Three splits were considered and rejected before this one:
-
-- **By machine.** Rejected for the reason above: no document says there are two, and the layout
-  would encode an unverified premise where it is expensive to correct rather than in a tag where
-  it is cheap. The correction above is the argument's own evidence: two items changed tag on the
-  day the directory landed, and only a table cell moved.
-- **By slice.** Slices are a historical ordering and the ROADMAP is the thing being cleaned. User
-  work accumulates per surface, not per slice: six different slices all end in "press the hotkey
-  and look at the overlay". A slice split hands the user six docs for one sitting.
-- **By refinements area, mirroring the precedent exactly.** Seventeen area docs produce host work
-  in six, and three of those (body gateway, scheduling, vision) collapse to the same physical act.
-  Fragmenting for symmetry costs context, and context bloat is a defect.
-
-What is left is the boundary that actually matters to the person doing the work: **what one
-bring-up buys**. Capture and the polish pass get their own docs despite being W, because each has
-a different bring-up and a different failure mode, and the capture check is one that gets skipped
-if it is the sixth bullet on a tired evening.
-
-## A host item's expected outcome is a hypothesis
-
-The refinements index carries a standing warning that an entry's own *cost* estimate is a
-hypothesis. The analogue here is different: a host item's own *predicted result* is a hypothesis,
-and this repo has been wrong about one more than once.
+The refinements index carries a standing warning that a task's own *cost* estimate is a
+hypothesis. The analogue here is different: an item's own *predicted result* is a hypothesis, and
+this repo has been wrong about one more than once.
 [ADR-0012](../adr/ADR-0012-resource-governance.md) predicted a CUDA OOM path that the shipped
 re-place deliberately did not build; [ADR-0023](../adr/ADR-0023-body-gateway-volume.md) recorded
 `CaptureScreen` as "behind the same seam" and it cost five proto fields plus a port method. So the
-"Pass looks like" lines below are what the design expects, not what will happen. When a run
-contradicts one, the run wins and the ADR gets a dated addendum saying so. That correction is the
-most valuable thing a user sitting produces.
+"Pass looks like" lines in these files are what the design expects, not what will happen. When a
+run contradicts one, the run wins and the ADR gets a dated addendum saying so. That correction is
+the most valuable thing a sitting produces.
+
+<!-- backlog:begin (generated by `just backlog`; edit the task files, not this block) -->
+
+**18 open, 2 standing, 3 closed, 23 in total.**
+
+## What remains
+
+### Never attempted (18)
+
+- **[H-001](tasks/001-bring-up-and-streamed-turn.md)** The bring-up: hotkey, tray, and a streamed turn (windows-desktop).
+- **[H-002](tasks/002-core-audio-volume-action.md)** The real Core Audio volume action (windows-desktop).
+- **[H-003](tasks/003-real-reminder-toast.md)** A real reminder toast (windows-desktop).
+- **[H-004](tasks/004-confirm-card-over-ipc.md)** The confirm card through real Tauri IPC (windows-desktop).
+- **[H-005](tasks/005-session-read-commands.md)** The session-read Tauri commands (windows-desktop).
+- **[H-006](tasks/006-preference-commands-across-restart.md)** The preference Tauri commands across a restart (windows-desktop).
+- **[H-007](tasks/007-reminder-pull-surface.md)** The reminder pull surface on the hotkey path (windows-desktop).
+- **[H-008](tasks/008-connection-indicator-ipc-hop.md)** The connection indicator's real IPC hop (windows-desktop).
+- **[H-010](tasks/010-pgdata-on-windows-drive.md)** PGDATA directly on the Windows drive (windows-desktop).
+- **[H-012](tasks/012-display-capture-path.md)** The whole-display GDI capture path (windows-capture).
+- **[H-013](tasks/013-focus-target-capture.md)** The focus-target capture and its Z-order walk (windows-capture).
+- **[H-014](tasks/014-os-window-polish.md)** The OS-window half of the overlay polish (overlay-polish).
+- **[H-015](tasks/015-completion-chime.md)** A soft completion chime (overlay-polish).
+- **[H-016](tasks/016-live-region-speech.md)** What the live region is spoken as (overlay-screen-reader).
+- **[H-018](tasks/018-tier-scale-swap.md)** The tier-scale cortex to brain swap (gpu-tier-scale).
+- **[H-019](tasks/019-chaos-kill-tier-scale.md)** The chaos kill at tier scale (gpu-tier-scale).
+- **[H-020](tasks/020-measured-swap-timings.md)** Measured swap timings (gpu-tier-scale).
+- **[H-023](tasks/023-cgroup-cap-numbers.md)** The cgroup cap numbers (gpu-tier-scale).
+
+## Standing, never closes (2)
+
+Neither work that remains nor work that finishes: an observation made over time, or an obligation on every change. They are counted apart so that neither number lies.
+
+- **[H-009](tasks/009-unbalanced-com-initialization.md)** Unbalanced COM initialization on the blocking pool (windows-desktop): an observation to make over months of real use, never a check that passes.
+- **[H-011](tasks/011-toolchain-linked-full-build.md)** The toolchain-linked full build (windows-desktop): an obligation on every change to these trees, not a check to run once.
+
+## Every task, by sitting
+
+### gpu-tier-scale
+
+4 open of 7.
+
+- [H-017](tasks/017-deep-model-pick.md) The deep-model pick. done 2026-08-04.
+- [H-018](tasks/018-tier-scale-swap.md) The tier-scale cortex to brain swap. never attempted.
+- [H-019](tasks/019-chaos-kill-tier-scale.md) The chaos kill at tier scale. never attempted.
+- [H-020](tasks/020-measured-swap-timings.md) Measured swap timings. never attempted.
+- [H-021](tasks/021-injection-harness-run.md) The ~31B injection-harness run. done 2026-08-04.
+- [H-022](tasks/022-gpu-placed-subagent.md) A GPU-placed subagent beside a resident cortex. done 2026-08-04.
+- [H-023](tasks/023-cgroup-cap-numbers.md) The cgroup cap numbers. never attempted.
+
+### overlay-polish
+
+2 open of 2.
+
+- [H-014](tasks/014-os-window-polish.md) The OS-window half of the overlay polish. never attempted.
+- [H-015](tasks/015-completion-chime.md) A soft completion chime. never attempted.
+
+### overlay-screen-reader
+
+1 open of 1.
+
+- [H-016](tasks/016-live-region-speech.md) What the live region is spoken as. never attempted.
+
+### windows-capture
+
+2 open of 2.
+
+- [H-012](tasks/012-display-capture-path.md) The whole-display GDI capture path. never attempted.
+- [H-013](tasks/013-focus-target-capture.md) The focus-target capture and its Z-order walk. never attempted.
+
+### windows-desktop
+
+9 open of 11.
+
+- [H-001](tasks/001-bring-up-and-streamed-turn.md) The bring-up: hotkey, tray, and a streamed turn. never attempted.
+- [H-002](tasks/002-core-audio-volume-action.md) The real Core Audio volume action. never attempted.
+- [H-003](tasks/003-real-reminder-toast.md) A real reminder toast. never attempted.
+- [H-004](tasks/004-confirm-card-over-ipc.md) The confirm card through real Tauri IPC. never attempted.
+- [H-005](tasks/005-session-read-commands.md) The session-read Tauri commands. never attempted.
+- [H-006](tasks/006-preference-commands-across-restart.md) The preference Tauri commands across a restart. never attempted.
+- [H-007](tasks/007-reminder-pull-surface.md) The reminder pull surface on the hotkey path. never attempted.
+- [H-008](tasks/008-connection-indicator-ipc-hop.md) The connection indicator's real IPC hop. never attempted.
+- [H-009](tasks/009-unbalanced-com-initialization.md) Unbalanced COM initialization on the blocking pool. standing: an observation to make over months of real use, never a check that passes.
+- [H-010](tasks/010-pgdata-on-windows-drive.md) PGDATA directly on the Windows drive. never attempted.
+- [H-011](tasks/011-toolchain-linked-full-build.md) The toolchain-linked full build. standing: an obligation on every change to these trees, not a check to run once.
+
+<!-- backlog:end -->
+
+## Which sitting first
+
+Ordered by what unblocks the most, and grouped so each group is one sitting.
+
+1. **The Windows desktop sitting.** One bring-up covers eight checks, the first of which is that
+   bring-up. Start here because it is the cheapest and closes the most items at once, and because
+   the confirm card and the toast are the two consent surfaces the safety posture rests on.
+2. **The capture sitting.** Its own bring-up. Do the self-exclusion check first inside it and not
+   last: if it fails, the loop it prevents is already live and the rest of the sitting is moot.
+3. **The rest of the G list in one long sitting**, in the order the GPU tasks give, since they
+   share one bring-up and one blocker. Three of them want the overlay up beside the brain, so if
+   the desktop and the card are two machines, that sitting splits. The deep-model pick that used
+   to head this list was **done 2026-08-04** by the agent, once the G premise above was found
+   false; it is gemma-4-31B QAT q4_0 and its numbers are in
+   [ADR-0004](../adr/ADR-0004-model-lineup.md). The injection-harness run and the GPU-placed
+   subagent were done the same day.
+4. **The overlay polish.** A work session, not a sitting. It is authoring, it can fail review
+   rather than fail a check, and it is the only thing here that is not urgent for correctness.
+5. **The screen-reader session.** Rides the same bring-up as the Windows desktop sitting and can
+   be folded into it if NVDA is already installed; kept separate because it needs a reader and a
+   speech viewer, and because it produces a transcript rather than a pass. Added 2026-08-07 when
+   the overlay's live region learned to report a list that shrank and the tree stopped being able
+   to answer the last question about it.
+
+The two standing items in the Windows desktop sitting never appear in this order: one is an
+observation to make over months of real use, the other is a per-change obligation.
 
 ## Prerequisites, per capability
 
@@ -131,249 +232,371 @@ Sittings die on setup. Have these before starting.
   the brain brought up with `-f docker/docker-compose.body.yml`, and a Windows firewall allowance
   for that port. This crossing is the untested half of ROADMAP assumption 3.
 - For the confirm card: a gated tool. Either `CORTEX_EMAIL_SEND_ENABLED=true` with the Bridge
-  reachable (the user's `netsh` portproxy), or any tool name in `CORTEX_TOOLS_GATED`.
+  reachable, or any tool name in `CORTEX_TOOLS_GATED`.
 - Full runbook: [runbooks/body-overlay.md](../runbooks/body-overlay.md) section B.
 
 **For G (any 24 GB item):**
 
 - The models mount reachable by Docker and the GPU visible through the container toolkit
   (`just up-gpu`); see [runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md). The mount's host
-  directory is `CORTEX_MODELS_DIR` (default `./models`), which compose interpolates,
-  so the calling shell or a repo-root `.env` sets it.
+  directory is `CORTEX_MODELS_DIR` (default `./models`), which compose interpolates, so the
+  calling shell or a repo-root `.env` sets it.
 - **The three escalation settings are brain-side and no compose file interpolates them**, so a
   `.env` entry or an exported shell variable is silently ignored and the stack comes up with
   escalation off. They go in the `brain` service's `environment:` block in
   `docker/docker-compose.gpu.yml`, which is what that file's own header instructs, or in a local
-  override layered after it. They are needed together:
-  `CORTEX_ESCALATION=1`, `CORTEX_MODELHOST_BACKEND=supervisor`, and
-  `CORTEX_BRAIN_ENDPOINT=http://model-host:8081`. The last one used to be missing from this list:
-  without it the brain refuses to boot and restarts forever on
-  `CORTEX_BRAIN_ENDPOINT is required when CORTEX_ESCALATION=1` (`config_swap.py`).
+  override layered after it. They are needed together: `CORTEX_ESCALATION=1`,
+  `CORTEX_MODELHOST_BACKEND=supervisor`, and `CORTEX_BRAIN_ENDPOINT=http://model-host:8081`. The
+  last one used to be missing from this list: without it the brain refuses to boot and restarts
+  forever on `CORTEX_BRAIN_ENDPOINT is required when CORTEX_ESCALATION=1` (`config_swap.py`).
   `CORTEX_MODELHOST_ENDPOINT` is already set by the GPU override, so do not add it.
 - `CORTEX_MODEL_FILE_BRAIN`, with `CORTEX_NGL_BRAIN` and `CORTEX_CTX_SIZE_BRAIN` to fit it, is
   model-host side and **is** interpolated, so `.env` or the calling shell carries it. It is what
-  puts the deep tier in the roster at all. Until the first item in
-  [gpu-tier-scale.md](gpu-tier-scale.md) produces a pick, the tier answers 404 and boot recovery
-  logs one, which is a stock stack behaving correctly rather than a fault. That item blocks four
-  of the others.
+  puts the deep tier in the roster at all.
 - **The deep tier does not start itself.** Naming its artifact puts it in the roster; at boot the
-  sidecar starts the cortex and nothing else. Starting the deep model is two commands you issue by
-  hand, a stop of the cortex and a start of the deep tier against the model host's control API,
-  and they are steps 4 and 5 of that doc's bring-up.
+  sidecar starts the cortex and nothing else. Starting the deep model is two commands issued by
+  hand, a stop of the cortex and a start of the deep tier against the model host's control API.
 - Enough free VRAM that the brain tier can be the only resident model (13 to 18 GB by estimate).
-- **For items 2, 3 and 4 only: a Windows desktop too, with the overlay running against this same
-  brain.** Those three ride a real handoff; a handoff starts with the confirm card that gates
-  `escalate_to_brain`, and the overlay is the only client that answers one. Bring both up, or take
-  the card-alone items and keep the other three for a sitting that has both; of those, 1, 5 and 6
-  were taken on 2026-08-04 and only 7 is left. The W prerequisites above apply in full to that half.
-- The whole sequence, with what it was observed doing on 2026-07-19, is the "Before you start"
-  section of [gpu-tier-scale.md](gpu-tier-scale.md). Follow it there rather than assembling it
-  from this list. Its last step is the teardown, with the two commands that **verify** the stack is
-  gone: a model host left running holds the whole card.
+- **For the three W+G items only: a Windows desktop too**, with the overlay running against this
+  same brain, for the reason the capability section gives. The W prerequisites above apply in full
+  to that half.
+- The whole sequence, with what it was observed doing on 2026-07-19, is
+  [The GPU sitting, start to finish](#the-gpu-sitting-start-to-finish) below. Follow it there
+  rather than assembling it from this list. Its last step is the teardown, with the two commands
+  that **verify** the stack is gone: a model host left running holds the whole card.
 
-## Recommended order
+## The GPU sitting, start to finish
 
-Ordered by what unblocks the most, and grouped so each group is one sitting.
+The GPU items share one bring-up and one dependency chain, so both live here rather than being
+restated in each task. Every output below was copied from a run on the dev machine on
+2026-07-19 rather than reasoned about, and the section kept its wording through the per-task
+split because a procedure that has been run is worth more than a description of one.
 
-1. **The Windows desktop sitting** ([windows-desktop.md](windows-desktop.md)). One bring-up covers
-   eight checks, the first of which is that bring-up. Start here because it is the cheapest and
-   closes the most items at once, and because the confirm card and the toast are the two consent
-   surfaces the safety posture rests on.
-2. **The capture sitting** ([windows-capture.md](windows-capture.md)). Its own bring-up. Do the
-   self-exclusion check first inside it and not last: if it fails, the loop it prevents is already
-   live and the rest of the sitting is moot.
-3. ~~**The deep-model pick**~~ ([gpu-tier-scale.md](gpu-tier-scale.md)). **Done 2026-08-04**, by
-   the agent, once the G premise above was found false. It gated the swap, the chaos kill, the
-   timings and the injection-harness run, and all four are unblocked; what still holds items 2, 3
-   and 4 is the overlay. The pick is gemma-4-31B QAT q4_0 and its numbers are in
-   [ADR-0004](../adr/ADR-0004-model-lineup.md).
-4. **The rest of the G list in one long sitting**, in the order that doc gives, since they share
-   one bring-up and one blocker. Items 2, 3 and 4 of it want the overlay up beside the brain, so
-   if the desktop and the card are two machines, that sitting splits: 7 on the card, and
-   2, 3 and 4 wherever both are. Item 5 was the third of the card-alone items and it is **done as
-   of 2026-08-04**; it never shared this bring-up anyway, since it starts its own container and
-   wants the stack down. **Item 6 is done the same day** and left 7 alone on the card side.
-5. **The overlay polish** ([overlay-polish.md](overlay-polish.md)). A work session, not a sitting.
-   It is authoring, it can fail review rather than fail a check, and it is the only thing here that
-   is not urgent for correctness.
-6. **The screen-reader session** ([overlay-screen-reader.md](overlay-screen-reader.md)). Rides the
-   same bring-up as the Windows desktop sitting and can be folded into it if NVDA is already
-   installed; kept separate because it needs a reader and a speech viewer, and because it produces a
-   transcript rather than a pass. Added 2026-08-07 when the overlay's live region learned to report a
-   list that shrank and the tree stopped being able to answer the last question about it.
 
-The two standing items in [windows-desktop.md](windows-desktop.md) never appear in this order:
-one is an observation to make over months of real use, the other is a per-change obligation.
+The paragraph below was the
+ROADMAP's summary of this side of the work; it was **preserved here when the ROADMAP was slimmed
+on 2026-07-19** and no longer exists there, so this doc is its only home. The same substance,
+in the decision record that owns it, is item 7 of
+[ADR-0030](../adr/ADR-0030-brain-handoff.md)'s "what is left" list:
 
-## Every item, one line each
+> What remains is the host-side capstone on the 24 GB machine: the brain pick, the tier-scale
+> swap, measured timings, the runbook, and the injection-harness run. The ADR states plainly why
+> the last of those cannot move here: CI has no GPU and the dev GPU cannot hold the cortex beside
+> a ~31B brain, so the swap's **mechanism** is agent-validated against real `llama-server`
+> processes with two small stand-ins (started, health-gated, evicted, swapped, killed under the
+> daemon, and restarted over their own corpses) while **tier scale and its VRAM arithmetic** stay
+> host-validated.
 
-The order above groups sittings; this is the roll call. [AGENTS.md](../../AGENTS.md) requires a
-host item to be recorded in three places, its sitting doc, its line here, and its origin decision
-record, and a grouped order is not a line per item: added 2026-07-19 after the optional PGDATA
-check was found sitting on two of the three. It was added naming a second example too, the
-resident VRAM figure with the projector loaded, which turned out to be no host item at all;
-that half of its founding evidence is withdrawn below. Statuses are not
-repeated below, with the one exception the rule always anticipated: every item still reads
-**never attempted** except the deep-model pick, the injection-harness run and the GPU-placed
-subagent, all three done on 2026-08-04 and each carrying its status on its line, and each item's
-own section stays authoritative.
+One correction to that sentence, which is why it is quoted rather than carried forward as the
+plan: **the runbook exists.** [runbooks/model-swap.md](../runbooks/model-swap.md) landed
+2026-07-18 with the measured mechanism in it. What is owed is the user filling in its tier-scale
+sections, one of which literally reads "Record the timings here".
 
-**The rule has to hold in both directions, and did not until 2026-07-19.** It held forward, from
-every item here to its line and its ADR, and failed backward: [ADR-0011](../adr/ADR-0011-body-v1.md)
-named six Host-Windows lines and two of them, the hotkey and tray registration and the live
-`converse` stream to the webview, had no item in this directory at all. Both are now check 0 of
-[windows-desktop.md](windows-desktop.md), listed below. Reading an origin ADR's user list against
-this roll call is the cheap way to catch that, and it is worth doing whenever an ADR gains a
-host line.
+### The dependency chain
 
-**W, and these seven share one bring-up** ([windows-desktop.md](windows-desktop.md)):
+```
+1. deep-model pick  ──┬──> 2. tier-scale swap ──┬──> 3. chaos kill at scale
+                      │                         └──> 4. measured timings
+                      └──> 5. the ~31B injection-harness run
 
-0. **The bring-up itself: the hotkey, the tray, show and hide, and one streamed turn.** Numbered 0
-   because everything below rides on it, so it is done first by construction. Closes two ADR-0011
-   user lines that had no home until 2026-07-19.
-1. **The real Core Audio volume action.** Blocked on nothing but the sitting, and it closes the
-   fully cortex-driven `set_volume` with it.
-2. **A real reminder toast.** Needs a fired reminder, so seed one before starting.
-3. **The confirm card through real Tauri IPC.** Needs a gated tool armed, per the prerequisites.
-4. **The session-read Tauri commands.** Needs a brain with prior chats in its store.
-5. **The reminder pull surface on the live hotkey path.** Pairs with item 2 and the same seed.
-6. **The connection indicator's real IPC hop.** Costs one brain stop and restart.
+6. GPU subagent beside the cortex · 7. cgroup caps                            (independent)
+   (done 2026-08-04)
+```
 
-**W, each with its own bring-up:**
+Items **2, 3 and 4 are W+G**: they ride a real handoff, a handoff starts at an approved confirm
+card, and the overlay is the only client that answers one. Items **1, 5, 6 and 7 are G**: the card
+alone. If both capabilities live in one laptop the distinction costs nothing; if they do not, do 1,
+5, 6 and 7 on the card and keep 2, 3 and 4 for a sitting with the desktop in the room. **1, 5 and 6
+are done as of 2026-08-04**, all by the agent, which is what the G tag now means, and 7 is the only
+card-alone item left.
 
-- **The whole GDI capture path** ([windows-capture.md](windows-capture.md)): two checks with
-  twelve observations, its own kill switch, and a self-exclusion observation to be made first
-  rather than last in each of them. This bullet read "one check with seven observations" until
-  2026-08-10, having been left behind when the focus target added the second check; the row in
-  the table above had moved and this one had not, which is the arithmetic the two are meant to
-  agree on.
-- **The OS-window half of the overlay polish** ([overlay-polish.md](overlay-polish.md)): the one
-  **authoring** item here. Blocked on nothing; it is reviewed rather than passed.
-- **What the live region is spoken as** ([overlay-screen-reader.md](overlay-screen-reader.md)):
-  eight gestures read back through NVDA's speech viewer. Everything about those announcements that a
-  machine can check is gated and measured (every region on the page, its computed `live`, `atomic`
-  and `relevant`, the exact text before and after each gesture, and one mutation per gesture); what
-  no tree holds is whether a reader voices it and what it does when a polite update and a focus
-  change land in the same commit, which is what deleting the open chat does.
-- **PGDATA directly on the Windows drive** ([windows-desktop.md](windows-desktop.md), optional and
-  explicitly a nice to have): Docker on the Windows host, no Tauri app and no overlay. Nothing
-  depends on the answer, and no procedure exists yet, so writing one is part of taking it.
+### The bring-up, start to finish
 
-**W, standing rather than a check** ([windows-desktop.md](windows-desktop.md)), which is why
-neither appears in the recommended order:
+Derived from `docker/docker-compose.gpu.yml`, the `justfile`,
+`brain/packages/model_manager/src/cortex_model_manager/api.py`, and
+`brain/packages/orchestrator/src/cortex_orchestrator/config_swap.py`, then **run end to end on the
+dev machine on 2026-07-19**, with every output below copied from that run rather than reasoned about.
 
-- **Unbalanced COM initialization on the blocking pool:** an observation over months of real use.
-  The fix stays in [refinements/body-gateway.md](../refinements/body-gateway.md) with its code cost.
-- **The toolchain-linked full build:** a per-change obligation for anything touching
-  `body/crates/os_windows` or `body/app/src-tauri`, not a one-time check.
+**The one thing this section used to leave out, which made item 1 unexecutable from the text: the
+deep tier does not start itself.** At boot the sidecar's daemon starts the cortex and nothing else
+(`model_host_lifespan` in `api.py`), and no compose setting starts a second tier. The deep model
+begins loading when you POST to the control API, and on a card that cannot hold both it begins
+only after the cortex is stopped. Both are steps you issue by hand, and they are steps 4 and 5.
 
-**G, one bring-up and one blocker** ([gpu-tier-scale.md](gpu-tier-scale.md)), and **three of these
-are W+G**, marked on each line:
+Steps 1 to 9 are the whole of **item 1**, which needs neither escalation nor the overlay: the pick
+is measured by driving the sidecar directly. Step 10 and the overlay are what items 2, 3 and 4 add.
+Item 5 runs on none of this: it starts its own container, so it wants the stack **down**.
 
-1. **The deep-model pick. Done 2026-08-04**, the first item to leave this directory. **G**, and
-   the run that proved G is no longer a reason to be here. Driven straight at the model host's
-   control API with neither escalation nor the overlay, once per candidate. The pick is
-   **gemma-4-31B QAT q4_0**, at 19128 MiB alone on the card and 99.6 s from start to READY; the
-   result lives in [ADR-0004](../adr/ADR-0004-model-lineup.md)'s brain-pick addendum and the Brain
-   rows of [runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md). It unblocks 2, 3, 4 and 5.
-2. **The tier-scale cortex to brain swap.** **W+G.** Blocked on the pick, and on having an overlay
-   to approve the confirm card that starts a handoff.
-3. **The chaos kill at tier scale.** **W+G.** Blocked on the pick and the swap. A failure here is a
-   finding against the one hard rule.
-4. **Measured swap timings.** **W+G**, inherited: these are the phases of the swap in item 2.
-5. **The ~31B injection-harness run. Done 2026-08-04**, the second item to leave this directory and
-   the first whose outcome could have changed shipped policy. **G**, a pytest that starts its own
-   `llama-server` container, run with the model host down. The pick obeyed **0 of 10** framed
-   injections against an unframed control that obeyed 1, so the deep tier is as robust as the
-   cortex; the result lives in the [ADR-0013](../adr/ADR-0013-untrusted-content.md) addendum, the
-   [ADR-0004](../adr/ADR-0004-model-lineup.md) injection table and a note at
-   [ADR-0030](../adr/ADR-0030-brain-handoff.md) decision 1, and the runbook section it owed is in
-   [runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md). Policy did not move: the run retires one
-   of the two reasons the tainted-escalation deny rests on, and the choice is now a decision
-   awaiting the user, listed below.
-6. **A GPU-placed subagent beside a resident cortex. Done 2026-08-04**, the third item to leave this
-   directory and the one whose split turned out not to matter. **G.** Independent of the pick.
-   Narrowed 2026-07-19: the placer's GPU arm firing against a real placement at all needs no
-   resident cortex and went back to the agent's list, leaving the fit test against a real 12B
-   reservation here. Running the first with the cortex up **is** the second, so both closed
-   together: the tiers cost 14.00 GB of `nvidia-smi` total used against a 14 GB soft cap and leave
-   11110 MiB of the card free, while the shipped placeholders claim 16.8 GB for them, so the
-   arithmetic and not the card is why no spawn had ever been GPU-placed. The numbers live in the
-   [ADR-0012](../adr/ADR-0012-resource-governance.md) fit addendum and the measured table of
-   [runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md). **The "16.8 GB" is the record of what
-   the placeholders claimed that day and stopped being true afterwards:** the reservation was
-   re-measured to 8.6 GiB on 2026-08-07 and the ask to 3.5 GiB on 2026-08-08, so the pair now claims
-   12.1 GB, sits inside the same 14 GB cap, and the shipped stack GPU-places a spawn. That is this
-   item's own finding carried out rather than a correction of it.
-7. **The cgroup cap numbers.** **G.** Independent, but best done under item 2's load, which is the
-   only realistic one, so in practice it happens in the sitting that has both capabilities.
+1. **Name the models directory and the deep artifact.** All four are interpolated on `model-host`,
+   so a repo-root `.env` or the calling shell carries them:
 
-**Withdrawn 2026-07-19, the day it was filed: "the resident VRAM figure with the projector loaded,
-at 16K".** It was filed as an eighth G item on the premise that it "existed in exactly one
-sentence in this repo", a clause in
-[ADR-0029](../adr/ADR-0029-vision-screen-capture.md)'s Consequences. That premise was false. The
-measurement exists: [ADR-0004](../adr/ADR-0004-model-lineup.md)'s 2026-06-29 addendum recorded
-11.3 GB with the mmproj loaded, on the 24 GB card, at 16K context and a single slot, which
-is the deployment's own tier shape (`config.py` gives the cortex `parallel=1`), and
-[runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md)'s table and
-[runbooks/vision.md](../runbooks/vision.md)'s "What the projector costs" both carry it. ADR-0029
-decision 14 says so itself: "The 11.3 GB default is ADR-0004's **with-mmproj** measurement". Asking
-the user to re-measure it was manufactured work, which is worse than an omission, because an
-omission does not cost a sitting.
-**Half of that reasoning did not survive 2026-08-07**, and it is corrected here rather than left
-standing. The measurement did exist and the withdrawal was still right, because this is not host
-work: the agent reaches the GPU through Docker and measured it in one sitting. What was wrong is
-the confidence that an existing figure settles the question. The 11.3 GB was `nvidia-smi` total
-used with the desktop's own floor inside it, taken on a different llama.cpp build, and it was an
-idle reading where the reservation it fed has to cover a peak. Re-measured at the shipped tier
-shape the cortex is 8400 to 8484 MiB idle and 8573 MiB at its peak above a bracketed floor, and
-`CORTEX_VRAM_CORTEX_GB` is 8.6 rather than 11.3
-([ADR-0012](../adr/ADR-0012-resource-governance.md)'s re-measured-reservation addendum). So the
-sentence to keep is that this was never the user's to do, not that there was nothing to find.
+   ```
+   CORTEX_MODELS_DIR=<the host dir holding the GGUFs>
+   CORTEX_MODEL_FILE_BRAIN=<the candidate's path under that dir>
+   CORTEX_NGL_BRAIN=99
+   CORTEX_CTX_SIZE_BRAIN=<the context the brain phase will use>
+   ```
 
-## Status convention
+   A tier with no artifact file is not in the roster at all, so before a pick is named the deep
+   model answers 404 and boot recovery logs one. That is a stock stack behaving as designed, and it
+   is also the only way into the roster: nothing a request carries can name a model into existence
+   (`api.py`), so this variable is the whole mechanism for adding the tier.
 
-This is the one place this directory must **not** copy the refinements precedent. A refinement
-lands or is declined; a user check can be attempted, inconclusive, and worth retrying. Each item
-carries a status line, one of:
+2. **Bring it up** with `just up-gpu`, which is `docker compose --project-directory . -f
+   docker/docker-compose.yml -f docker/docker-compose.gpu.yml up -d --build`. `depends_on` holds
+   the brain until the sidecar reports a tier that can serve a turn as READY. Here, with both
+   images already built and the cortex at `CORTEX_CTX_SIZE=4096`, that took 48.9 s and ended:
 
-- **Never attempted.** The default, and what every item here but one says today.
-- **Attempted YYYY-MM-DD, inconclusive:** with what happened. This is a real and useful state; an
-  environment problem is not a failed check.
-- **Done YYYY-MM-DD.** With the result written where the item's "Record it" line says. The
-  deep-model pick is the first, on 2026-08-04, the injection-harness run the second and the
-  GPU-placed subagent the third, all the same day.
+   ```
+    Container cortex-model-host-1 Healthy
+    Container cortex-brain-1 Starting
+    Container cortex-brain-1 Started
+   ```
 
-## The exit contract
+   Every command below goes through the sidecar's control API, which is deliberately unpublished
+   (it starts and stops processes on the container holding the GPU and the models mount), so each
+   one is a `docker compose exec`. The prefix is long, so the rest of this section abbreviates it
+   the way the derivation run did:
 
-An item that completes writes its result back to its **origin ADR as a dated addendum** and into
-its **runbook**, then leaves this directory. Same shape as a landed refinement, one difference:
-refinements keep landed entries in place as the historical record of what a deferral became,
-because their text often corrects its own ADR. A user check produces a *measurement*, whose home
-is the ADR and the runbook, so this directory shrinks toward empty rather than accumulating.
+   ```
+   GPU="--project-directory . -f docker/docker-compose.yml -f docker/docker-compose.gpu.yml"
+   ```
 
-**The first exit showed the contract needs one qualifier, added 2026-08-04.** The deep-model
-pick's measurement did leave, to the model-lineup ADR and the GPU runbook, and its section in
-[gpu-tier-scale.md](gpu-tier-scale.md) is now a heading, a status and a pointer rather than a
-procedure. What could not leave is the heading itself: four items in that doc are written against
-"item 1", so deleting the section would have cost a renumbering of every reference to buy back
-twenty lines. **A completed item leaves its content, and keeps its number for as long as something
-still depends on it.** Nothing changes for an item nothing points at; those go entirely.
+3. **Ask the sidecar what it has.** This is the check that the deep tier is in the roster at all,
+   and it is worth doing before anything else, because a mistyped `CORTEX_MODEL_FILE_BRAIN` is
+   silent: the tier simply is not there.
 
-The second exit, the injection-harness run later the same day, followed that qualifier without
-needing it argued again, and added one of its own: **an item that owes a procedure exits by writing
-the procedure, not by describing it.** That item's four warnings about how the harness fails were
-its most reusable content, and leaving them in a completed section would have hidden them from the
-next person to re-run the row, so they left for
-[runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md) with the measurement.
+   ```
+   docker compose $GPU exec model-host curl -s http://127.0.0.1:9300/health
+   docker compose $GPU exec model-host curl -s http://127.0.0.1:9300/models/cortex
+   docker compose $GPU exec model-host curl -s http://127.0.0.1:9300/models/brain
+   ```
 
-Emptiness here is load-bearing: the ROADMAP's finish line requires every slice, this
-directory, and the refinements backlog all being clear.
+   ```
+   {"status":"ok","models":["cortex","brain"],"stop_grace_s":10.0,"reap_timeout_s":30.0}
+   {"model":"cortex","state":"ready","detail":"serving on port 8080"}
+   {"model":"brain","state":"stopped","detail":"no process is running"}
+   ```
+
+   `"models":["cortex","brain"]` is step 1 having worked. `"state":"stopped"` on the deep tier is
+   the point above: it is in the roster and it is not running, and nothing will start it for you.
+   Since 2026-08-07 that health body also carries `device_free_mib` and `device_total_mib`, the
+   card as the sidecar's own `nvidia-smi` sees it, which is what a swap checks the deep tier's
+   declared cost against.
+   `nvidia-smi` read 7916 MiB of 8188 at this moment, which is the resident cortex.
+
+4. **Stop the cortex**, which is what frees the card for the deep model. On 24 GB this is not
+   optional either: the cortex costs 8.4 to 8.6 GiB measured (reserved at 8.6 since 2026-08-07,
+   11.3 before that) and the candidates are 15 to 18 GB.
+
+   ```
+   docker compose $GPU exec model-host curl -s -X POST http://127.0.0.1:9300/models/cortex/stop
+   ```
+
+   ```
+   {"model":"cortex","state":"stopped","detail":"no process is running"}
+   ```
+
+   It answered in **0.53 s** with the child idle and VRAM fell to 551 MiB. A cortex with a request
+   in flight costs the full `CORTEX_MODELHOST_STOP_GRACE_S` instead (10 s, measured in
+   [runbooks/model-swap.md](../runbooks/model-swap.md)); the stop does not answer until the child
+   is dead and reaped, which is the point of waiting for this reply before step 5.
+
+5. **Start the deep tier.**
+
+   ```
+   docker compose $GPU exec model-host curl -s -X POST http://127.0.0.1:9300/models/brain/start
+   ```
+
+   ```
+   {"model":"brain","state":"loading","detail":"pid 279 is not serving yet"}
+   ```
+
+   It answered in **0.12 s**, because that is a spawn and not a load. The load is what you wait for
+   next, and `loading` is the honest answer until the child serves.
+
+6. **Poll until it is ready.** Nothing pushes you a notification; the state flips under
+   `GET /models/brain`:
+
+   ```
+   docker compose $GPU exec -T model-host curl -s http://127.0.0.1:9300/models/brain
+   ```
+
+   ```
+   t=0s  {"model":"brain","state":"loading","detail":"pid 279 is not serving yet"}
+   ...
+   t=38s {"model":"brain","state":"ready","detail":"serving on port 8081"}
+   ```
+
+   Two things to expect at tier scale that this run was too small to show. A load of a 15 to 18 GB
+   GGUF off the mount is minutes, not the 38 s above, and while it runs **neither tier serves**, so
+   the `model-host` container turns unhealthy after about 150 s of it; that is a handoff in
+   progress, not a fault, and [runbooks/model-swap.md](../runbooks/model-swap.md) says so under
+   manual recovery. A child that dies instead reports `{"state":"failed", ...}` with its exit code
+   in the detail, and its own reason is in `docker compose logs model-host`.
+
+7. **Measure it, and ask it something.** This is item 1's actual content. `nvidia-smi` is the VRAM
+   number; the tier's own OpenAI-compatible API on 8081 is the answer-quality half:
+
+   ```
+   docker compose $GPU exec model-host curl -s http://127.0.0.1:8081/v1/models
+   docker compose $GPU exec model-host curl -s http://127.0.0.1:8081/v1/chat/completions \
+     -H 'Content-Type: application/json' \
+     -d '{"messages":[{"role":"user","content":"<your question>"}],"max_tokens":120}'
+   ```
+
+   `/v1/models` names the artifact path that is actually serving, which is how you know you
+   measured the candidate you meant to. **Read the reply carefully before judging quality**: the
+   gemma candidates are reasoning models, and in this run the whole 120-token budget went to
+   `reasoning_content` with `"content":""` and `"finish_reason":"length"`. A candidate scored on
+   that would look mute when it was thinking. Give it a budget that fits a chain of thought plus an
+   answer, and read `reasoning_content` as well as `content`. The reply also carries its own
+   `timings`, which is the per-token speed without a stopwatch (this run: 120 tokens in 2072 ms).
+
+8. **Swap back**, which is the same two verbs in the other order, and is worth doing by hand once
+   before item 2 asks the brain to do it under a turn:
+
+   ```
+   docker compose $GPU exec model-host curl -s -X POST http://127.0.0.1:9300/models/brain/stop
+   docker compose $GPU exec model-host curl -s -X POST http://127.0.0.1:9300/models/cortex/start
+   ```
+
+   The stop answered in 0.48 s and VRAM fell to 746 MiB; the cortex start answered in 0.10 s and
+   the tier read `{"model":"cortex","state":"ready","detail":"serving on port 8080"}` **65 s**
+   later, back at 7920 MiB. Note what the container health did through all of this: with the cortex
+   stopped and the deep tier READY, `model-host` still read healthy, because its check asks for
+   either tier, and `brain` read healthy throughout, because its check asks only that the `Health`
+   RPC answered.
+
+9. **Tear down, and verify the teardown with a command.** `just down-gpu` removes the stack
+   including a locally layered override, since `down` works from the project's own labels:
+
+   ```
+   just down-gpu
+   docker ps -a
+   nvidia-smi --query-gpu=memory.used --format=csv,noheader
+   ```
+
+   Here that removed `cortex-brain-1`, `cortex-redis-1`, `cortex-model-host-1` and the
+   `cortex_default` network, and VRAM fell to 610 MiB. **Run those last two lines rather than
+   assuming.** A model-host left running holds the whole card, and this repo has already spent a
+   round on a cleanup that was claimed and not checked.
+
+10. **Only for items 2, 3 and 4: put the three escalation settings in the `brain` service's
+    `environment:` block** of `docker/docker-compose.gpu.yml`, which is what that file's header
+    instructs, or in a local override you layer after it with your `-f` last. Nothing interpolates
+    them, so a `.env` entry and an exported shell variable both leave the container without them
+    and the stack comes up with escalation quietly off:
+
+    ```yaml
+    services:
+      brain:
+        environment:
+          CORTEX_ESCALATION: "1"
+          CORTEX_MODELHOST_BACKEND: "supervisor"
+          CORTEX_BRAIN_ENDPOINT: "http://model-host:8081"
+    ```
+
+    All three or none. `config_swap.py` fails the brain at boot on escalation without a backend and
+    on escalation without a brain endpoint, and the container then restarts forever rather than
+    serving. `CORTEX_MODELHOST_ENDPOINT` is already set by the GPU override; do not add it.
+
+11. Read [runbooks/model-swap.md](../runbooks/model-swap.md) before item 2, whose opening paragraph
+    states which of its numbers are the mechanism's and which are a tier's. When a live test needs
+    the control API from the host rather than through `exec`, `just up-modelhost-loopback` layers
+    `docker/docker-compose.modelhost-loopback.yml` (control API on 9300, deep tier on 9081), and
+    `just down-gpu` takes it down again.
+
+**What the dev machine could and could not reach (2026-07-19).** Every step above ran here on the 8 GB card with the models on `/srv/models`, so the sequence is observed and not inferred. **The one
+step this card could not prove is the artifact in step 1.** A real candidate is 14 to 17 GB and
+this card has 8188 MiB, so the run above pointed the deep tier at
+`google/gemma-4-E4B-it-qat-q4_0-gguf/gemma-4-E4B_q4_0-it.gguf` (4.9 GB) as a stand-in. It proves
+the roster, the eviction, the start, the health gate, the tier's own API and the swap back, and it
+proves **none** of the arithmetic: the 38 s load, the 3801 MiB and the token rate are the stand-in's
+and belong to no tier. Everything else the earlier version of this section recorded still holds:
+the cortex tier served at `CORTEX_CTX_SIZE=4096` (the shipped 16K cortex is ADR-0004's 11.3 GB),
+a brain with all three escalation settings booted healthy, and the two live streaming tests in
+`brain/packages/inference/tests/test_backend_live.py` passed against it through the real
+`LlamaCppBackend`. Dropping `CORTEX_BRAIN_ENDPOINT` was confirmed to be a restart loop, and putting
+the three settings in the shell instead of the compose file was confirmed to leave the container
+with none of them. One thing to expect on the host box too: the rest of the
+`just brain-inference-live` suite starts its own `llama-server` on `127.0.0.1:8080`, which the
+sidecar already publishes, so those arms fail on the port rather than on the stack.
+
+Where the dev machine stops is the tier itself, and not in the way the design predicted. Pointed at
+`gemma-4-31B-it-qat-q4_0` (a 17 GB artifact) with the cortex evicted first, the deep tier did
+**not** fail: llama.cpp logged `failed to fit params to free device memory: n_gpu_layers already
+set by user to 99, abort`, kept every layer on the GPU anyway, reported READY after 373 s with
+`nvidia-smi` pinned at about 7.7 of 8188 MiB, and then generated 16 tokens in 36 s, which is
+roughly half a token per second and is what a WSL2 driver spilling into host RAM looks like. So a
+card that cannot hold the tier gives a green swap and numbers that mean nothing, which is the trap
+this sitting exists to avoid. Two consequences worth carrying in: no timing, VRAM figure, or
+answer quality from an undersized card is a tier-scale result, and that 373 s load already exceeds
+the shipped `CORTEX_SWAP_LOAD_TIMEOUT_S` default of 300 s, which is item 4's question.
+
+**Both of those are settled on the real card as of 2026-08-04**, and the trap is worth rereading
+against the answer: the same `gemma-4-31B-it-qat-q4_0` artifact that took 373 s and generated half
+a token per second on 8 GB loads in 99.6 s and generates at about 31 tok/s on a card that holds
+it, resident at 19128 MiB. The 373 s figure was the spill, not the model. Item 1 has the rest.
+
+### Withdrawn from this sitting: "the resident VRAM figure with the projector loaded, at production context"
+
+This doc shipped on 2026-07-19 with an eighth item asking for the resident cortex plus `mmproj`
+footprint on the 24 GB card at production context. **It was withdrawn the same day, because the
+repo already has that measurement.** It is recorded here rather than deleted silently, since a
+maintainer reading an older pointer to "item 8" deserves to find out why it is gone.
+
+The item rested on the claim that its source clause in
+[ADR-0029](../adr/ADR-0029-vision-screen-capture.md)'s Consequences, "and the resident VRAM figure
+with the projector loaded on the 24 GB GPU", was the only place the figure had ever appeared. The
+figure had appeared three times before that clause was ever read:
+
+- [ADR-0004](../adr/ADR-0004-model-lineup.md)'s 2026-06-29 addendum, whose table row for
+  `gemma-4-12B q4_0` reads `11.0 GB` weights only and `11.3 GB (mmproj 0.18 GB, +0.3)` with
+  vision, measured on "the 24 GB card ... 16K context, single slot, all
+  layers on GPU". That is this card, this context, and the deployment's own slot count: the model
+  host gives the cortex tier `parallel=1` (`model_manager/config.py`).
+- The [runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md) table, whose header says the numbers
+  are "`nvidia-smi` total used with the model resident".
+- [runbooks/vision.md](../runbooks/vision.md)'s "What the projector costs", which states that
+  "ADR-0004's 11.3 GB cortex reservation is a **with-mmproj** measurement".
+
+ADR-0029 itself says the same thing in its decision 14: "The 11.3 GB default is ADR-0004's
+**with-mmproj** measurement, so enabling the projector spends budget the placer has been charging
+since Slice 8.5 while the server ran text-only at 11.0 ... The only owed correction is
+documentary." Nothing is owed the user here, and inventing a sitting for a number the repo
+already holds costs more than leaving a gap would have.
+
+---
+
+### The reopen branch, and what else this hardware makes testable
+
+Design work recorded in [refinements/](../refinements/index.md) that becomes *testable* here for
+the first time: co-residency and the NPU feasibility pass. They stay in that backlog with their code
+cost. See "Not host work, but unblocked by this hardware" below. **Co-residency was settled 2026-08-07**, by the
+agent in Docker rather than in a host sitting, and the NPU pass is what is left of this list.
+
+One more joined that list on 2026-08-09, from the pass that made a peer tier's failed restart a
+record the placer and the seam read (ADR-0030's tier-outage addendum): **the reopen branch, where
+a retry pass observes a real tier `ready` again and GPU placement resumes.** Its failure side was
+witnessed against the real sidecar over real HTTP that day, including a tier the daemon refuses
+outright and one that accepts a start and dies; what needs a loadable GGUF, and so needs the model
+drive mounted, is a tier that genuinely comes back. It is one `docker run` of `model-host` with a
+real artifact named and a few lines driving `sweep_tiers`, so it belongs to whichever session
+next has the mount rather than to a host sitting. The pass it drives got wider on 2026-08-11 and
+the observation did not: a sweep reads every evictable tier rather than only the marked ones, so
+what is still unwitnessed is the same single branch, a tier that was down and is now serving.
+
+Three more used to be listed here, on the premise that no card the agent has can run the cortex:
+the spontaneous-pick nudge's live uptake and the model passes behind session-history summarization
+and the reranker. Corrected 2026-07-19, since the dev GPU does run the cortex at 4K. What this
+hardware still adds to them is the production 16K context and more than one slot, which is a
+sharper judgment rather than the only possible one.
 
 ## Decisions awaiting the user
 
 Weighed, not run. Each stays at its ADR, which is the correct home for a decision; these are
-pointers so they are not lost when the ROADMAP slims.
+pointers so they are not lost.
 
 - **Five risks flagged for maintainer review** in
   [ADR-0030](../adr/ADR-0030-brain-handoff.md#risks-flagged-for-user-review): the gated-escalation
@@ -395,83 +618,56 @@ pointers so they are not lost when the ROADMAP slims.
 - **The confusables fold table.** [ADR-0015](../adr/ADR-0015-output-guardrail.md) calls it
   "user-reviewable; the table is one edit to trim".
 - **The completion chime.** The last genuinely open line of
-  [design/overlay-ux.md](../design/overlay-ux.md) section 9; the rest of that section was settled by
-  the 2026-07-03 and 2026-07-12 user passes, and the corner default is folded into
-  [overlay-polish.md](overlay-polish.md).
+  [design/overlay-ux.md](../design/overlay-ux.md) section 9; the rest of that section was settled
+  by the 2026-07-03 and 2026-07-12 user passes, and the corner default is folded into the overlay
+  polish task.
 
-## Not host work, but unblocked by user hardware
+## Not host work, but unblocked by this hardware
 
 These are recorded in [refinements/](../refinements/index.md) and stay there, because each is a
 design decision with a code cost and moving it would split it from its area. They are listed here
 only so a sitting on the host's hardware knows what it could also settle:
 
-- ~~**Co-residency** ([inference-model-manager.md](../refinements/inference-model-manager.md)):
-  keeping CPU subagents serving through a swap, or a tiny GPU subagent beside the deep model. The
-  brain-runs-alone rule is a v1 constraint of the 24 GB budget, first testable on a card that fits
-  the tiers it would keep alive.~~ **Settled 2026-08-07 by the agent, in Docker against the real
-  tiers**, so it was never host work in the end: `CORTEX_SWAP_CORESIDENT` landed off by default,
-  the cortex and the deep model measured as not co-fitting (and, under WSL2, as silently paging
-  rather than failing), and the deep model and the shipped subagent tier measured as fitting with
-  908 MiB to spare (ADR-0030's co-residency addendum).
-- **The Intel NPU as a third placement target**
-  ([resource-governance.md](../refinements/resource-governance.md)): a feasibility pass, whose
+- **The Intel NPU as a third placement target** (`resource-governance`): a feasibility pass, whose
   likely blocker is reachability from the dockerized WSL2 brain.
-- **The spontaneous-pick nudge's live uptake** ([subagents.md](../refinements/subagents.md)):
-  whether a live cortex reaches for distinct roster models unprompted, over real use rather than
-  one scripted ask. The spawn tool is cortex-only and the small subagents do not respect prompt
-  framing the way the cortex does, so no subagent-tier proxy tests it. **The scripted half ran
-  2026-08-04**, and it ran here at the production 16K context with a single slot rather than the 4K
-  its entry proposed, so this line's old claim that the hardware buys "real use at production
-  context" is narrower than it was: the context is not what was missing. The scripted asks are
-  answered (a prose-only ask never delegates at all; an invited one delegated in all 16 turns and
-  piled the whole batch on one entry in all 16), and what is left for this hardware is the same
-  question over months of real use rather than over 36 scripted turns.
-- **Session-history summarization and the model-based reranker**
-  ([session-history.md](../refinements/session-history.md),
-  [memory.md](../refinements/memory.md)): both need `select` to go async first, and summarization
-  needs its cache-versus-recompute question decided, which are the blockers that actually decide
-  them; both are also model passes, which the host tier judges at production context.
-  **Both blockers are gone as of 2026-08-06 and both passes shipped, so the sentence above is false
-  about the tree and is kept only as the record of what was believed.** `RecallPolicy.select` and
-  `HistoryWindow.select` are both `async` now, the recall one widened once for the reranker, the
-  declined blended-relevance field and the recall trail together
-  ([ADR-0038](../adr/ADR-0038-ranked-recall.md)). The reranker is `JudgeRecallPolicy`
-  (`CORTEX_MEMORY_RECALL=judge`) and summarization is `SummarizingHistoryWindow`
-  (`CORTEX_HISTORY_SUMMARY`, now on by default), its cache question answered as cache rather than
-  recompute, the account living in the session store and folded forward as the boundary moves.
-  What is left of this line is the half that was always the honest one: both
-  were measured on the agent's own runs, on one hand-built corpus each, so what this hardware still
-  buys is the same judgment over real conversations rather than a blocker to clear. Their remaining
-  entries say so at [session-history.md](../refinements/session-history.md) and
-  [memory.md](../refinements/memory.md), and one of them was a decision for the user rather than
-  work for anyone: the judge's default, whose only reason to be off was a cost that fell twenty
-  times over on the same day. **That one was decided on 2026-08-08 and is no longer open**: the user
-  asked for the turn cost before the flip, the flip followed the number (a recalling turn's time to
-  first token rises 0.515 s, against a raw-versus-raw control whose interval spans zero), and
-  `CORTEX_MEMORY_RECALL` ships as `judge`. What stays on this line is unchanged and is the same for
-  both passes: the corpora are the agent's own, so real conversations are still what this hardware
-  buys.
-- **Unbalanced COM initialization on the blocking pool**
-  ([body-gateway.md](../refinements/body-gateway.md)): the fix is code and stays there; the
-  *observation* that would trigger it is the standing watch item in
-  [windows-desktop.md](windows-desktop.md).
+- **The spontaneous-pick nudge's live uptake** (`subagents`): whether a live cortex reaches for
+  distinct roster models unprompted, over real use rather than one scripted ask. **The scripted
+  half ran 2026-08-04**, at the production 16K context with a single slot rather than the 4K its
+  entry proposed, so the old claim that this hardware buys "real use at production context" is
+  narrower than it was: the context was not what was missing. A prose-only ask never delegated at
+  all; an invited one delegated in all 16 turns and piled the whole batch on one entry in all 16.
+  What is left for this hardware is the same question over months of real use rather than over 36
+  scripted turns.
+- **Session-history summarization and the model-based reranker** (`session-history`, `memory`):
+  both were listed here as needing `select` to go async first, with summarization's
+  cache-versus-recompute question undecided. **Both blockers are gone as of 2026-08-06 and both
+  passes shipped, so that sentence is false about the tree and is kept only as the record of what
+  was believed.** Both `select` methods are `async`, the recall one widened once for the reranker,
+  the declined blended-relevance field and the recall trail together
+  ([ADR-0038](../adr/ADR-0038-ranked-recall.md)). What is left of this line is the half that was
+  always the honest one: both were measured on the agent's own runs, on one hand-built corpus
+  each, so what this hardware still buys is the same judgment over real conversations. The judge's
+  default, the one part that was a decision rather than work, **was decided 2026-08-08**: the user
+  asked for the turn cost before the flip, the flip followed the number (a recalling turn's time
+  to first token rises 0.515 s, against a raw-versus-raw control whose interval spans zero), and
+  `CORTEX_MEMORY_RECALL` ships as `judge`.
+- **Unbalanced COM initialization on the blocking pool** (`body-gateway`): the fix is code and
+  stays there; the *observation* that would trigger it is a standing watch item in the Windows
+  desktop sitting.
+- **Co-residency** (`inference-model-manager`) was on this list and **was settled 2026-08-07 by
+  the agent, in Docker against the real tiers**, so it was never host work in the end:
+  `CORTEX_SWAP_CORESIDENT` landed off by default, the cortex and the deep model measured as not
+  co-fitting (and, under WSL2, as silently paging rather than failing), and the deep model and the
+  shipped subagent tier measured as fitting with 908 MiB to spare.
 
-**The caveat on those three, resolved rather than left open (2026-07-19).** Each entry gave "the
+**The caveat on those entries, resolved rather than left open (2026-07-19).** Each gave "the
 cortex tier does not fit the 8 GB dev GPU" as part of its reason, and that clause is false:
 [ADR-0029](../adr/ADR-0029-vision-screen-capture.md) measured the cortex resident on the dev GPU
 beside its projector at 4K on 2026-07-17 and drove a real turn through it the next day, and
 [ADR-0030](../adr/ADR-0030-brain-handoff.md) records what that leaves, the model alone taking 7715
 of the card's 8188 MiB. This page first recorded the clause as merely stale and reclassified
-nothing, which left the question with whoever picked an entry up. It is settled here instead, per entry: the nudge probe
-is agent-runnable and moved to actionable now; the two model passes were never hardware-blocked at
-all, and their real blockers, the shared `select` widening and the undecided cache question, are
-written at their entries and their origin ADRs. What genuinely wants this hardware is the same
-judgment at 16K with more than one slot, which is a better answer rather than the only one, so all
-three stay listed above as things a sitting here could also settle. **The nudge half of that last
-sentence was overtaken on 2026-08-04**, when the probe ran on this hardware at 16K with the tier's
-own single slot: what its entry still wants is duration, not context. **The other half was
-overtaken on 2026-08-06**, when both of the model passes' named blockers, the shared `select`
-widening and the undecided cache question, were cleared and both passes shipped, which is written
-at the entry above. This paragraph's own verdict survives it and is worth restating for that
-reason: neither pass was ever hardware-blocked, and what this hardware buys them is still judgment
-over real use rather than a blocker to clear.
+nothing, which left the question with whoever picked an entry up. It is settled here instead, per
+entry: the nudge probe is agent-runnable, and the two model passes were never hardware-blocked at
+all. What genuinely wants this hardware is the same judgment at 16K with more than one slot, which
+is a better answer rather than the only one, so they stay listed above as things a sitting here
+could also settle.

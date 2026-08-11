@@ -278,7 +278,7 @@ remains available (`docker compose ... exec postgres pg_dump -U cortex -d cortex
 /tmp/cortex.dump`, then copy it out) but the guarantee no longer depends on remembering it.
 Validating a direct PGDATA bind mount as a nice-to-have (not the default) is optional, and is
 tracked as an optional user check in
-[docs/host/windows-desktop.md](../host/windows-desktop.md); no procedure exists for it yet.
+[docs/host/index.md#windows-desktop](../host/index.md#windows-desktop); no procedure exists for it yet.
 
 ## Teardown
 

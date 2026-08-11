@@ -157,4 +157,4 @@ provenance marker, exactly as designed. A user who switched recording on did not
 password manager to be summarized into Postgres.
 
 A per-source policy that could record a vision turn deliberately is recorded as a deferral in
-`docs/refinements/vision.md`.
+`docs/refinements/index.md#vision`.

@@ -12,9 +12,9 @@ about parallelism rather than making a blanket claim (ADR-0012 bounded-admission
 entry holds a backend per placement target and each keeps its lease for the whole stream, so
 subtasks sharing a model overlap at most two ways, the admitted pair, where the advertised text
 says they run one after another. That understatement is measured and left standing on purpose
-(ADR-0018 declined the rewrite, its entry open in ``docs/refinements/subagents.md``): it points the
-cortex at distinct-model spread as the wall-clock lever, and one deployment's behaviour does not
-say which new wording would be taken.
+(ADR-0018 declined the rewrite, its task open in ``docs/refinements/index.md#subagents``): it
+points the cortex at distinct-model spread as the wall-clock lever, and one deployment's
+behaviour does not say which new wording would be taken.
 
 One call's batch is capped at ``MAX_SPAWN_BATCH`` (ADR-0010 batch-cap addendum), advertised as the
 array's ``maxItems`` and in prose; the runtime check in ``spawn.py`` is the backstop.

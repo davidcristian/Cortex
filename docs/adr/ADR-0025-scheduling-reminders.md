@@ -447,7 +447,7 @@ semantics made it unreachable; `DONE` persists only while deliverable).
 (`CORTEX_SCHEDULE_BACKEND=redis`):**
 
 - the fenced-protocol **contract suite passed against live Redis** (all checks; the run
-  guards against and cleans up after itself, per [scheduling.md](../runbooks/scheduling.md));
+  guards against and cleans up after itself, per [scheduling](../runbooks/scheduling.md));
 - the **end-to-end fire round-tripped over the live seam**: a reminder seeded directly
   into the store was fired by the brain's ticker, listed over `ListDueReminders` (text,
   recurrence, provenance, and origin session intact), acked over `AckReminder`, and a
@@ -1325,7 +1325,7 @@ running and the brain wired (`CORTEX_BODY_BACKEND=grpc`); the toast should carry
 an untrusted one, and the reminder should *not* still be waiting in the overlay afterwards, since
 a shown toast is delivery and the ticker acks it.
 
-**Deferred here, recorded in [docs/refinements/scheduling.md](../refinements/scheduling.md):**
+**Deferred here, recorded in [docs/refinements/index.md#scheduling](../refinements/index.md#scheduling):**
 **toast activation** (clicking a toast does nothing today; routing it to summon the overlay on
 the origin chat needs an activation channel from the shell into the running app, and for an
 unpackaged app a registered COM activator, which is a larger piece of Windows plumbing than the
@@ -1340,7 +1340,7 @@ no overlay reminder surface existed and therefore naming a badge nobody had buil
 overlay addendum built it, and its browser pass then corrected the badge's own treatment, so the
 polish this deferral asks for was paid inside the slice that created the thing to polish. Read
 against the tree today it is **satisfied, and closes with no code change**; the outcome is
-recorded in [docs/refinements/scheduling.md](../refinements/scheduling.md). What was checked:
+recorded in [docs/refinements/index.md#scheduling](../refinements/index.md#scheduling). What was checked:
 
 - **The wire bit is consumed, not merely carried.** `DueReminder.tainted` (decision 5) reaches
   `Reminders.tsx` through the transport, the Tauri command, the bridge mirror, and the reducer,
@@ -1373,7 +1373,7 @@ per-fire records, and terminal cleanup deletes a one-shot task's outcome with th
 Risks list ties unseen-toast recovery to it ("a toast shown while the user is away still acks ...
 unseen-toast recovery (history) is the deferred occurrence-history item"). Read against the tree
 today it is **declined, with no code change**; the outcome is recorded in
-[docs/refinements/scheduling.md](../refinements/scheduling.md), and the deferral moves to the
+[docs/refinements/index.md#scheduling](../refinements/index.md#scheduling), and the deferral moves to the
 backlog's dead-until-a-consumer list. What was checked:
 
 - **The store keeps no per-fire record, exactly as the entry said, confirmed live.** A fired
@@ -1462,7 +1462,7 @@ toast appears and reads well.
 The notify addendum deferred "toast activation" (a clicked toast routing the overlay to the
 reminder's origin chat) and named the two halves it needs: a `session_id` the toast can carry, and
 a COM activator to act on a click. Read against the tree, the decision is to **sharpen, not
-build**, recorded in [docs/refinements/scheduling.md](../refinements/scheduling.md). The reason: a
+build**, recorded in [docs/refinements/index.md#scheduling](../refinements/index.md#scheduling). The reason: a
 `session_id` on `NotifyRequest` would be read by nothing but host-side Windows code until the
 activator lands, which is the dead wire this sweep declined repeatedly the same day (blended
 relevance, `GetVolume`, the structured redaction event, occurrence history, the per-error-code
@@ -1505,7 +1505,7 @@ and it is the one look that would first exercise a clicked toast.
 
 This ADR's host line names two things no gate can reach: whether a real WinRT toast appears and
 reads well, and the overlay's reminder surface on the real hotkey to overlay path. Both now have a
-written home, items 2 and 5 of [docs/host/windows-desktop.md](../host/windows-desktop.md),
+written home, items 2 and 5 of [docs/host/index.md#windows-desktop](../host/index.md#windows-desktop),
 indexed at [docs/host/](../host/index.md). They share one bring-up and one seeded reminder, which
 is why they are listed as a pair, and each carries its sharp failure: a toast that appears for a
 plain reminder but not for one whose text contains hostile markup is an escaping break, and cards
