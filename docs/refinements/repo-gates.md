@@ -1061,6 +1061,47 @@ cross-language-constant addendum):**
   ports stay open**, `ToolRegistry`, `BodyGateway` and `Confirmer`, alongside
   `InferenceBackend`'s streaming half and every Rust row.
 
+  **`ToolRegistry` is the second, and it is the one that paid.**
+  `brain/packages/tools/tests/registry_contract.py` holds six checks and
+  `test_registry_contract.py` runs them over three implementations, the core's
+  `InMemoryToolRegistry` and both MCP ones, since the translating `McpToolRegistry` and the
+  `ReconnectingMcpToolRegistry` production wires are not the same implementation of every promise.
+  The six are that every served tool is advertised with its name, purpose and schema in order;
+  that the listing is read again on every walk; that a call comes back stamped with its own id and
+  the tool's text; that a tool which ran and failed is an `is_error` result rather than an
+  exception; that a name the registry does not serve never comes back as a success; and that an
+  unreachable backend raises `ToolError` from both verbs.
+
+  The fake could express neither the port's central case nor its world. `InMemoryToolRegistry`
+  handlers answered result text, so the fake could never produce a result with `is_error` set,
+  which is the case the port draws its whole `is_error`-against-raise distinction around, and every
+  core test of a failing tool went through the other branch, a handler raising, which the
+  dispatcher labels differently (its own sentence is trusted, a relayed one is not). It copied its
+  tool set at construction, so no test could move the world the port promises to re-read. And it
+  had no way to be unreachable, so nothing held it to the `ToolError` that
+  `SkipUnavailableToolRegistry` is built on. It gained a widened handler answer, `serve`, and the
+  same `fail_with` the embedder's fake took.
+
+  **One divergence was decided against the port rather than against an implementation.** The port
+  promised `ToolNotFoundError` for an unknown name, which only a registry that knows its whole set
+  can keep: an MCP server answers an unknown tool with an error result, so the adapter has never
+  raised there and cannot without sniffing an error string or paying a listing round trip per call.
+  The description was the thing that was wrong, and it now states the safety half both owe, that a
+  name an implementation does not serve never comes back as a success, with the divergence and its
+  downstream consequence written into
+  [docs/modules/brain-tools.md](../modules/brain-tools.md).
+
+  **Proven able to fail four times, each on the arms that can carry the defect.** An adapter
+  reading `isError` as always false reddens the failed-tool check and the unknown-name check on
+  both MCP arms while the fake stays green (4 failed, 15 passed); an adapter dropping the call's
+  arguments reddens the id-and-text check and the failed-tool check on the same two; a fake
+  answering an empty listing instead of raising when unreachable reddens the backend check on the
+  `in-memory` arm alone; and a listing cache in `McpToolRegistry` reddens the re-read check on the
+  `mcp` arm only, since the reconnecting wrapper builds a fresh inner registry per call and is
+  structurally immune to it, which is the evidence that both MCP arms earn their place. Each break
+  was restored. **Two of the four Python ports stay open**, `BodyGateway` and `Confirmer`,
+  alongside `InferenceBackend`'s streaming half and every Rust row.
+
   **Why deferred rather than done.** The ports named above come to five in Python counting the
   partial one, seven in Rust and one in the overlay, and writing contract suites for them is a
   slice with its own design questions (what a write-only port owes, whether a Rust list is a
