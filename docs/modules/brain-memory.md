@@ -114,7 +114,13 @@ stores float4, so embeddings roundtrip at single precision (irrelevant to simila
   implementation, since this adapter needs a server). Until then a check added to the shared file
   reached CI only if someone remembered to write it a second time by hand in `cortex_core`'s tests,
   which is how a count faked as a length over rows would have stayed invisible to everyone without
-  a database.
+  a database. Each check takes a `MemoryStoreUnderTest`, the implementation plus an
+  awaited `break_backend`, so the port's failure channel is checked where its values are: the
+  eleventh check breaks the backend and requires `add`, `search`, `count_candidates` and
+  `delete_scope` each to raise `MemoryStoreError` rather than the driver's own exception. The fake
+  is scripted with `fail_with`; the live arm passes the adapter's own `aclose`, so the real pool
+  closes and asyncpg's `InterfaceError` crosses this adapter's own wrapping (ADR-0008 addendum on
+  the port's failure channel as a shared check).
 
 **Dependencies.** cortex-core (the `MemoryStore` port, `MemoryRecord`/`ScoredMemory`, typed
 errors), asyncpg (+ asyncpg-stubs for typing). The composition root

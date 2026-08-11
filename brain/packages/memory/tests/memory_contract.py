@@ -1,13 +1,26 @@
 """Shared MemoryStore behavior checks. Every implementation must satisfy all of them."""
 
+from collections.abc import Awaitable, Callable, Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta, timezone
 from uuid import uuid4
 
-from cortex_core import GLOBAL_SCOPE, MemoryRecord, MemoryStore
+from cortex_core import GLOBAL_SCOPE, MemoryRecord, MemoryStore, MemoryStoreError
 
 _AT = datetime(2026, 7, 3, 12, 0, 0, tzinfo=UTC)
 
 _WIDER_THAN_ANY_POOL = 25
+
+
+@dataclass(frozen=True, slots=True)
+class MemoryStoreUnderTest:
+    """One implementation plus the one way a test may take its backend away."""
+
+    store: MemoryStore
+    break_backend: Callable[[], Awaitable[None]]
+
+
+type Check = Callable[[MemoryStoreUnderTest], Awaitable[None]]
 
 
 def _id() -> str:
@@ -27,13 +40,27 @@ def make_record(
     )
 
 
-async def check_empty_search(store: MemoryStore) -> None:
+async def _refuses_typed(verb: Callable[[], Awaitable[object]], name: str) -> None:
+    """Assert one verb answers a gone backend with ``MemoryStoreError`` and nothing else."""
+    try:
+        await verb()
+    except MemoryStoreError:
+        return
+    except Exception as err:  # the leak this check exists to catch can be of any type
+        msg = f"{name} let a {type(err).__name__} through instead of MemoryStoreError"
+        raise AssertionError(msg) from err
+    msg = f"{name} answered normally with its backend taken away"
+    raise AssertionError(msg)
+
+
+async def check_empty_search(under_test: MemoryStoreUnderTest) -> None:
     """A store with no matching rows returns an empty result, not an error."""
-    assert list(await store.search((1.0, 0.0, 0.0), k=5)) == []
+    assert list(await under_test.store.search((1.0, 0.0, 0.0), k=5)) == []
 
 
-async def check_ranks_by_similarity(store: MemoryStore) -> None:
+async def check_ranks_by_similarity(under_test: MemoryStoreUnderTest) -> None:
     """Search returns the most cosine-similar memory first."""
+    store = under_test.store
     near = make_record("near", (1.0, 0.0, 0.0))
     far = make_record("far", (0.0, 1.0, 0.0))
     await store.add(far)
@@ -43,16 +70,18 @@ async def check_ranks_by_similarity(store: MemoryStore) -> None:
     assert hits[0].score > hits[1].score
 
 
-async def check_top_k_truncates(store: MemoryStore) -> None:
+async def check_top_k_truncates(under_test: MemoryStoreUnderTest) -> None:
     """search(k) returns at most k results."""
+    store = under_test.store
     records = [make_record(f"m{i}", (float(i + 1), 0.0, 0.0)) for i in range(3)]
     for record in records:
         await store.add(record)
     assert len(await store.search((1.0, 0.0, 0.0), k=1)) == 1
 
 
-async def check_roundtrip_fidelity(store: MemoryStore) -> None:
+async def check_roundtrip_fidelity(under_test: MemoryStoreUnderTest) -> None:
     """A stored memory reads back with its fields intact (float4-exact embedding; instant tz)."""
+    store = under_test.store
     original = make_record(
         "unicode ✓ / newline\n",
         (1.0, 0.5, -0.25),
@@ -71,8 +100,9 @@ async def check_roundtrip_fidelity(store: MemoryStore) -> None:
     assert hit.record.at == original.at
 
 
-async def check_scope_filter_isolates_and_unions(store: MemoryStore) -> None:
+async def check_scope_filter_isolates_and_unions(under_test: MemoryStoreUnderTest) -> None:
     """``scopes`` restricts candidates to those namespaces; ``None`` spans every scope."""
+    store = under_test.store
     a = make_record("scope-a memory", (1.0, 0.0, 0.0), scope=f"contract-a-{uuid4()}")
     b = make_record("scope-b memory", (1.0, 0.0, 0.0), scope=f"contract-b-{uuid4()}")
     await store.add(a)
@@ -84,8 +114,11 @@ async def check_scope_filter_isolates_and_unions(store: MemoryStore) -> None:
     assert {a.id, b.id} <= {hit.record.id for hit in both}  # a union of the two scopes
 
 
-async def check_count_candidates_sizes_the_set_a_search_ranked(store: MemoryStore) -> None:
+async def check_count_candidates_sizes_the_set_a_search_ranked(
+    under_test: MemoryStoreUnderTest,
+) -> None:
     """The count is the store's own total, never the length of a result some search returned."""
+    store = under_test.store
     scope = f"contract-count-{uuid4()}"
     for i in range(_WIDER_THAN_ANY_POOL):
         await store.add(make_record(f"counted {i}", (1.0, 0.0, 0.0), scope=scope))
@@ -93,8 +126,11 @@ async def check_count_candidates_sizes_the_set_a_search_ranked(store: MemoryStor
     assert await store.count_candidates(scopes=[scope]) == _WIDER_THAN_ANY_POOL
 
 
-async def check_count_candidates_honours_the_same_scope_filter(store: MemoryStore) -> None:
+async def check_count_candidates_honours_the_same_scope_filter(
+    under_test: MemoryStoreUnderTest,
+) -> None:
     """``scopes`` selects the same candidate set it selects for ``search``; ``None`` spans all."""
+    store = under_test.store
     a = make_record("scope-a memory", (1.0, 0.0, 0.0), scope=f"contract-ca-{uuid4()}")
     b = make_record("scope-b memory", (0.0, 1.0, 0.0), scope=f"contract-cb-{uuid4()}")
     await store.add(a)
@@ -104,14 +140,16 @@ async def check_count_candidates_honours_the_same_scope_filter(store: MemoryStor
     assert await store.count_candidates() == 2  # unfiltered spans every namespace
 
 
-async def check_count_candidates_of_nothing_is_zero(store: MemoryStore) -> None:
+async def check_count_candidates_of_nothing_is_zero(under_test: MemoryStoreUnderTest) -> None:
     """An empty store and an unwritten namespace both count 0, and neither is an error."""
+    store = under_test.store
     assert await store.count_candidates() == 0
     assert await store.count_candidates(scopes=[f"contract-unwritten-{uuid4()}"]) == 0
 
 
-async def check_delete_scope_removes_a_namespace(store: MemoryStore) -> None:
+async def check_delete_scope_removes_a_namespace(under_test: MemoryStoreUnderTest) -> None:
     """``delete_scope`` hard-deletes exactly its namespace, counts it, and spares the rest."""
+    store = under_test.store
     scope = f"contract-del-{uuid4()}"
     other = f"contract-keep-{uuid4()}"
     doomed = [make_record(f"doomed {i}", (1.0, 0.0, 0.0), scope=scope) for i in range(2)]
@@ -125,12 +163,28 @@ async def check_delete_scope_removes_a_namespace(store: MemoryStore) -> None:
     assert [hit.record.id for hit in kept] == [survivor.id]  # the other namespace is untouched
 
 
-async def check_delete_scope_without_matches_returns_zero(store: MemoryStore) -> None:
+async def check_delete_scope_without_matches_returns_zero(under_test: MemoryStoreUnderTest) -> None:
     """Deleting a namespace that holds nothing removes nothing and returns 0, not an error."""
-    assert await store.delete_scope(f"contract-empty-{uuid4()}") == 0
+    assert await under_test.store.delete_scope(f"contract-empty-{uuid4()}") == 0
 
 
-ALL_CHECKS = (
+async def check_a_lost_backend_crosses_the_port_as_memory_store_error(
+    under_test: MemoryStoreUnderTest,
+) -> None:
+    """The port has one failure channel and every verb that touches the backend owes it."""
+    store = under_test.store
+    scope = f"contract-broken-{uuid4()}"
+    await store.add(make_record("written before the outage", (1.0, 0.0, 0.0), scope=scope))
+    await under_test.break_backend()
+    await _refuses_typed(
+        lambda: store.add(make_record("after", (1.0, 0.0, 0.0), scope=scope)), "add"
+    )
+    await _refuses_typed(lambda: store.search((1.0, 0.0, 0.0), k=5, scopes=[scope]), "search")
+    await _refuses_typed(lambda: store.count_candidates(scopes=[scope]), "count_candidates")
+    await _refuses_typed(lambda: store.delete_scope(scope), "delete_scope")
+
+
+ALL_CHECKS: Sequence[Check] = (
     check_empty_search,
     check_ranks_by_similarity,
     check_top_k_truncates,
@@ -141,4 +195,5 @@ ALL_CHECKS = (
     check_count_candidates_of_nothing_is_zero,
     check_delete_scope_removes_a_namespace,
     check_delete_scope_without_matches_returns_zero,
+    check_a_lost_backend_crosses_the_port_as_memory_store_error,
 )
