@@ -4,8 +4,8 @@ A few constants exist twice, once per language, because both sides of the seam m
 same number or the same string and neither toolchain can import the other's. Each side already
 pins its own literal in its own suite, which catches an edit to the constant alone. What nothing
 caught is an edit to a constant **and** its own pin: both suites stay green while the two trees
-disagree. That is the drift this gate closes. The registry it reads is `couplings.py`, which is
-all of the data the way this file is all of the logic.
+disagree. That is the drift this gate closes. The registry it reads is `couplings.py` and the
+overlay's half beside it, which are all of the data the way this file is all of the logic.
 
 **No master.** proto/body.proto is the source of truth for the seam's *shape*, but protobuf has
 no constant, so a value could only live there as a comment, and a comment is one more uncoupled
@@ -19,8 +19,9 @@ or cannot reduce to a value is a failure, never a silent pass, because a rename 
 emptied the registry would leave a scan that always agrees with itself.
 
 A value is compared after reduction, not as text, so one site may write ``6291456`` where another
-writes ``6 * 1024 * 1024``. Two forms reduce: a product of integer literals, and a plain
-double-quoted string. Anything else is refused rather than guessed at.
+writes ``6 * 1024 * 1024``. What reduces, and what it means for a constant's readings to hold
+together, is `values.py`: this file finds the declarations and reports the ones that do not tie,
+and that module says what it found and whether it stands.
 
 Not every far side is a declaration, and the ones that are not used to be unreachable. A key
 spelled inside a shell string, a custom property a stylesheet reads back with ``var(...)``, a
@@ -41,24 +42,26 @@ written where the occurrences are one set that must move together, and every oth
 the presence check, so no legitimate new rule reddens a gate about a coupling that never moved.
 
 And not every coupling is an equality: `Relation.ORDERED` holds a registry's sites to
-non-decreasing order instead, for the bounds that must sit under one another rather than match.
+non-decreasing order instead, for the bounds that must sit under one another rather than match,
+and `Relation.MEMBER` holds them to one being inside another's collection, for the encoding one
+tree produces and another accepts a set of.
 """
 
 import argparse
 import re
 import sys
-from itertools import pairwise
 from pathlib import Path
 from typing import NamedTuple
 
-from couplings import CONSTANTS, PLACEHOLDER, Constant, Mention, Relation, Site
+from couplings import PLACEHOLDER, SEAM_COUPLINGS, Constant, Mention, Relation, Site
+from overlaycouplings import OVERLAY_COUPLINGS
+from values import CrossCheckError, Reading, Value, parse_value, relation_fault
 
-# The only comment marker a declaration's right-hand side may carry. Rust and TypeScript need
-# none: their value is captured up to the terminating semicolon, so a trailing `//` never
-# arrives here.
-COMMENT_MARKER = "#"
-
-INTEGER_PRODUCT = re.compile(r"^\d[\d_]*(?:\s*\*\s*\d[\d_]*)*$")
+# The registry, in the two files it is written in and in one order: the values the body and the
+# brain both spell, then the ones the overlay's TypeScript and its own stylesheet both spell. The
+# split is the line cap's doing and the seam it fell on was already there; nothing here depends on
+# which half an entry is in, so a coupling moves house without the scan noticing.
+CONSTANTS: tuple[Constant, ...] = (*SEAM_COUPLINGS, *OVERLAY_COUPLINGS)
 
 # What counts as a continuation of a rendered needle's own token, at whichever of its two edges is
 # itself made of one. A needle edged by punctuation (`var(--ceiling,`) needs no such guard.
@@ -89,52 +92,11 @@ DECLARATIONS = {
 }
 
 
-class CrossCheckError(Exception):
-    """A constant's value could not be established, or a mention of it could not be found."""
-
-
 class Fault(NamedTuple):
     """One constant that is not tied: a place that cannot be read, or places that disagree."""
 
     label: str
     detail: str
-
-
-def _string_value(text: str) -> str:
-    """Read one double-quoted literal, tolerating only a trailing comment after it."""
-    end = text.find('"', 1)
-    if end < 0:
-        msg = f"unterminated string literal in {text!r}"
-        raise CrossCheckError(msg)
-    literal = text[1:end]
-    if "\\" in literal:
-        msg = f"escapes are not decoded, so {text!r} cannot be compared"
-        raise CrossCheckError(msg)
-    trailer = text[end + 1 :].strip()
-    if trailer and not trailer.startswith(COMMENT_MARKER):
-        msg = f"{text!r} is more than one string literal"
-        raise CrossCheckError(msg)
-    return literal
-
-
-def _integer_value(text: str) -> int:
-    """Reduce a product of integer literals, so `6 * 1024 * 1024` compares as 6291456."""
-    expression = text.partition(COMMENT_MARKER)[0].strip()
-    if not INTEGER_PRODUCT.match(expression):
-        msg = f"{text!r} is neither a string literal nor a product of integers"
-        raise CrossCheckError(msg)
-    product = 1
-    for factor in expression.split("*"):
-        product *= int(factor.replace("_", ""))
-    return product
-
-
-def parse_value(text: str) -> str | int:
-    """Reduce a declaration's right-hand side to a value two languages compare on."""
-    stripped = text.strip()
-    if stripped.startswith('"'):
-        return _string_value(stripped)
-    return _integer_value(stripped)
 
 
 def _read(root: Path, path: str) -> str:
@@ -146,7 +108,7 @@ def _read(root: Path, path: str) -> str:
         raise CrossCheckError(msg) from err
 
 
-def read_value(root: Path, site: Site) -> str | int:
+def read_value(root: Path, site: Site) -> Value:
     """Return the value ``site`` declares under ``root``, or raise when it cannot be read."""
     template = DECLARATIONS.get(Path(site.path).suffix)
     if template is None:
@@ -171,7 +133,7 @@ def bounded(needle: str) -> re.Pattern[str]:
     return re.compile(f"{lead}{re.escape(needle)}{trail}")
 
 
-def check_mention(root: Path, mention: Mention, value: str | int) -> None:
+def check_mention(root: Path, mention: Mention, value: Value) -> None:
     """Raise unless the file spends ``value`` in the shape, and the number, the mention names."""
     if PLACEHOLDER not in mention.template:
         msg = f"mention {mention.template!r} carries no {PLACEHOLDER}, so it ties nothing"
@@ -205,26 +167,12 @@ def registry_fault(constant: Constant) -> str | None:
     return None
 
 
-def relation_fault(constant: Constant, values: list[tuple[Site, str | int]]) -> str | None:
-    """The complaint about how the read values stand to each other, or None when they hold."""
-    numbers = [value for _, value in values if isinstance(value, int)]
-    shown = ", ".join(f"{site.path}: {site.name} = {value!r}" for site, value in values)
-    if constant.relation is Relation.EQUAL:
-        if len({value for _, value in values}) == 1:
-            return None
-    elif len(numbers) < len(values):
-        return f"an ordering compares numbers, and a site here declares a string ({shown})"
-    elif all(lower <= upper for lower, upper in pairwise(numbers)):
-        return None
-    return f"sites are not {constant.relation.value} ({shown})"
-
-
 def check_constant(root: Path, constant: Constant) -> list[Fault]:
     """Return every fault for one constant: unreadable places first, then how they relate."""
     written = registry_fault(constant)
     if written is not None:
         return [Fault(label=constant.label, detail=written)]
-    values: list[tuple[Site, str | int]] = []
+    values: list[Reading] = []
     faults: list[Fault] = []
     for site in constant.sites:
         try:

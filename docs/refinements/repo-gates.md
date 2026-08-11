@@ -689,11 +689,41 @@ cross-language-constant addendum):**
   it left behind is written directly under it, folded in for the same reason the fourth was.
   **Five on 2026-08-10**, by arrival this time, the capture target's two spellings of one
   vocabulary; it is written last, and it is the first here whose both sides are generated.
+  **Four on 2026-08-11**, when the membership below was struck ahead of its trigger; the account
+  of it is written under the sub-entry it closed rather than here, and the four that remain are
+  the bind port with no declaration to read, the custom property whose spend a rendered value
+  cannot reach, the gRPC status code spelled once per language's casing, and the capture target's
+  generated enums.
   **A membership, not an ordering.** `CAPTURE_MIME` (`"image/png"`) must stay inside the brain's
   `ALLOWED_MIME_TYPES`, which is a `frozenset` literal, so this wants a collection value form as
   well as a comparator, and the reducer refuses what it cannot reduce by policy rather than by
   omission. **Trigger:** a second capture encoding, which is the only thing that makes the set
   larger than one useful element.
+  **Struck 2026-08-11**, ahead of that trigger, which had not fired: the body still produces the
+  one encoding and the allow-list still carries three, so what moved it is that the form is cheap
+  once the scan has somewhere to put it, and this entry's own account of the tree was checked
+  before it was believed and held (`CAPTURE_MIME` is `"image/png"` in
+  `body/crates/core/src/os/screen_policy.rs`, and `ALLOWED_MIME_TYPES` is a one-line `frozenset`
+  of three strings in `brain/packages/core/src/cortex_core/images.py`). The comparator is
+  `Relation.MEMBER` and it reads registry order the way the ordering does: every site but the last
+  declares a value, the last declares the collection that must carry them, and a last site holding
+  a lone value is a fault rather than a comparison, since `in` over two strings would quietly
+  answer about substrings instead. The value form is a one-line `frozenset` of double-quoted
+  strings, reduced to its members so that the writer's order and spacing decide nothing.
+  **What it cost was a file, and the cap is what asked for it**: the scan and the registry were
+  both within twenty lines of 300, so the value forms and the relation comparators moved into
+  `scripts/values.py` (what a value reduces to, and how a constant's readings must stand, with no
+  file reading at all) and the overlay's half of the registry into `scripts/overlaycouplings.py`,
+  which is where the entries had been accumulating anyway. `crosscheck.CONSTANTS` is the two halves
+  read as one and nothing in the scan asks which half an entry is in.
+  **Proved able to fail before it was trusted**, twice and in both directions: the body producing
+  `"image/gif"` and the allow-list dropping `"image/png"` each exit 1 naming both files, both
+  values and the reason, and the scan as it stood at the previous commit exits 0 over the second of
+  those trees while reporting all fifteen constants agree, its reducer refusing the `frozenset` it
+  was never taught. **One limit is policy rather than omission and stays that way:** a collection
+  spelled in Rust or TypeScript does not reduce, no coupling in this repo having one, and the
+  reducer refuses what it does not understand rather than guessing. It becomes work the day a
+  collection on the far side of a seam is not Python's.
   **A port with no declaration to read.** The body's bind port 50151 is a bare literal argument in
   `body/app/src-tauri/src/body_server.rs`, against `docker-compose.body.yml`'s
   `host.docker.internal:50151`. The brain's port was closable because its far sides are mentions

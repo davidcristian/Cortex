@@ -23,46 +23,11 @@ def _tie(root: Path, rust: str, python: str) -> None:
     (root / "brain.py").write_text(f"MAX_IMAGE_BYTES = {python}\n", encoding="utf-8")
 
 
-# ── reducing a right-hand side to a comparable value ───────────────────────────
-
-
-@pytest.mark.parametrize(
-    ("text", "expected"),
-    [
-        ("6 * 1024 * 1024", 6291456),
-        ("6291456", 6291456),
-        ("6_291_456", 6291456),
-        ("  6*1024*1024  ", 6291456),
-        ("6291456  # the same number, spelled out", 6291456),
-        ('"x-cortex-seam-token"', "x-cortex-seam-token"),
-        ('"x-cortex-seam-token"  # noqa: S105', "x-cortex-seam-token"),
-        ('""', ""),
-    ],
-)
-def test_parse_value_reduces_both_forms(text: str, expected: str | int) -> None:
-    """The point of reducing rather than comparing text: two spellings of one number tie."""
-    assert crosscheck.parse_value(text) == expected
-
-
-@pytest.mark.parametrize(
-    "text",
-    [
-        '"unterminated',  # a lone opening quote
-        '"a" + "b"',  # more than one literal
-        r'"a\tb"',  # an escape this reducer will not decode
-        "6 + 1024",  # arithmetic beyond a product
-        "SOME_OTHER_CONST",  # an alias, not a literal
-        "1600.0",  # not an integer
-        "",  # an empty right-hand side
-    ],
-)
-def test_parse_value_refuses_what_it_cannot_reduce(text: str) -> None:
-    """Fail closed: a form the reducer does not understand is a fault, never a guess."""
-    with pytest.raises(crosscheck.CrossCheckError):
-        crosscheck.parse_value(text)
-
-
 # ── finding a declaration in each language ─────────────────────────────────────
+#
+# The reduction itself (which right-hand sides become which values, and which are refused) is
+# `values.py`'s half and is tested in `test_values.py`; what is tested here is finding the
+# declaration to reduce, and what the scan makes of the values once it has them.
 
 
 @pytest.mark.parametrize(
@@ -267,6 +232,66 @@ def test_an_ordering_over_strings_is_refused(tmp_path: Path) -> None:
     (tmp_path / "brain.py").write_text('MAX_IMAGE_EDGE = "b"\n', encoding="utf-8")
     (fault,) = crosscheck.check_constant(tmp_path, ORDERING)
     assert "an ordering compares numbers" in fault.detail
+
+
+# ── memberships, where one side's value must be one of the other's ─────────────
+
+
+MEMBERSHIP = crosscheck.Constant(
+    label="a membership",
+    why="the one encoding produced must be one the allow-list carries",
+    sites=(
+        crosscheck.Site("body.rs", "CAPTURE_MIME"),
+        crosscheck.Site("brain.py", "ALLOWED_MIME_TYPES"),
+    ),
+    relation=crosscheck.Relation.MEMBER,
+)
+
+
+def _allow(root: Path, produced: str, *allowed: str) -> None:
+    """The membership's real shape: a Rust `&str` const against a Python `frozenset` of them."""
+    declaration = f'pub const CAPTURE_MIME: &str = "{produced}";\n'
+    (root / "body.rs").write_text(declaration, encoding="utf-8")
+    members = ", ".join(f'"{one}"' for one in allowed)
+    (root / "brain.py").write_text(f"ALLOWED_MIME_TYPES = frozenset({{{members}}})\n", "utf-8")
+
+
+def test_a_membership_holds_wherever_in_the_collection_the_value_sits(tmp_path: Path) -> None:
+    """The whole reason for the comparator: neither equal nor ordered, and still a real tie."""
+    _allow(tmp_path, "image/png", "image/png", "image/jpeg", "image/webp")
+    assert crosscheck.check_constant(tmp_path, MEMBERSHIP) == []
+
+
+def test_a_membership_fails_when_the_collection_drops_the_value(tmp_path: Path) -> None:
+    """The drift this closes: the allow-list narrows and the body keeps producing what it lost."""
+    _allow(tmp_path, "image/png", "image/jpeg", "image/webp")
+    (fault,) = crosscheck.check_constant(tmp_path, MEMBERSHIP)
+    assert "not members of the collection the last site declares" in fault.detail
+    assert "body.rs: CAPTURE_MIME = 'image/png'" in fault.detail
+    assert MEMBERSHIP.why in fault.detail
+
+
+def test_a_membership_fails_when_the_value_leaves_the_collection(tmp_path: Path) -> None:
+    """The same drift from the other side, since neither side of a coupling is the master."""
+    _allow(tmp_path, "image/gif", "image/png", "image/jpeg")
+    (fault,) = crosscheck.check_constant(tmp_path, MEMBERSHIP)
+    assert "body.rs: CAPTURE_MIME = 'image/gif'" in fault.detail
+
+
+def test_a_membership_needs_a_collection_at_the_last_site(tmp_path: Path) -> None:
+    """Fail closed: `in` over two strings would answer about substrings instead."""
+    _allow(tmp_path, "image/png")
+    (tmp_path / "brain.py").write_text('ALLOWED_MIME_TYPES = "image/png"\n', encoding="utf-8")
+    (fault,) = crosscheck.check_constant(tmp_path, MEMBERSHIP)
+    assert "a membership needs a collection at the last site" in fault.detail
+
+
+def test_the_same_sites_under_an_equality_would_be_a_fault_too(tmp_path: Path) -> None:
+    """Proof this relation is read rather than decorative: same tree, two verdicts."""
+    _allow(tmp_path, "image/png", "image/png", "image/jpeg")
+    equal = MEMBERSHIP._replace(relation=crosscheck.Relation.EQUAL)
+    (fault,) = crosscheck.check_constant(tmp_path, equal)
+    assert "not identical" in fault.detail
 
 
 # ── mentions, where the far side spends a value it never declares ──────────────
@@ -478,7 +503,7 @@ def test_every_registered_mention_carries_the_placeholder() -> None:
             assert crosscheck.PLACEHOLDER in mention.template, constant.label
 
 
-def test_the_registry_exercises_both_relations() -> None:
+def test_the_registry_exercises_every_relation() -> None:
     """A comparator no entry uses is a widened gate that cannot fail, which is the same defect."""
     assert {constant.relation for constant in crosscheck.CONSTANTS} == set(crosscheck.Relation)
 

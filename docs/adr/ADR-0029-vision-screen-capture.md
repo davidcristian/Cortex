@@ -2928,3 +2928,66 @@ The three records are [docs/refinements/vision.md](../refinements/vision.md), it
 [docs/refinements/index.md](../refinements/index.md), and this addendum. The area count moves
 **10 to 11**, re-derived entry by entry rather than incremented: the resampled bit is new work,
 knowingly punted, with a trigger, which is exactly what this backlog counts.
+
+## Addendum (2026-08-11): the constant scan learns a membership, and the registry learns to live in two files
+
+The cross-language constant scan could compare declared values and order them against each other,
+and neither is what ties the body's capture encoding to the brain's allow-list. `CAPTURE_MIME` in
+`body/crates/core/src/os/screen_policy.rs` is `"image/png"`; `ALLOWED_MIME_TYPES` in
+`brain/packages/core/src/cortex_core/images.py` is a `frozenset` of three strings. The two are not
+equal, neither is under the other, and the only true thing to say about them is that the one the
+body produces is among the several the brain accepts. That coupling had been recorded as unheld
+since the registry widened, with a second capture encoding as its trigger. It closes here ahead of
+that trigger, because the form is cheap once the scan has somewhere to put it.
+
+### The comparator reads registry order, and the collection goes last
+
+`Relation.MEMBER` joins `EQUAL` and `ORDERED`. Every site but the last declares a value; the last
+declares the collection that must carry all of them. Registry order is already load bearing for an
+ordering, where the entry lists the bound before the ceiling it must sit under, so a membership
+listing the value before the set it belongs to reads the same way rather than inventing a second
+convention. A last site that declares a lone value is a fault and not a comparison: `in` over two
+strings would answer about substrings, which is a gate that passes for the wrong reason. Like an
+ordering, a membership carries no mentions, since there is no single value for a template to
+render.
+
+### The value form is one line of Python, and its narrowness is the decision
+
+What reduces is `frozenset({"a", "b"})` on one line, its members read by the same string form that
+reads a declaration's own literal, and the result compared as a set so the writer's order and
+spacing decide nothing. A set literal is mutable and is not how this repo spells an allow-list; a
+multi-line spelling never reaches the reducer at all, a declaration being captured one line at a
+time; and a collection spelled in Rust or TypeScript does not reduce, no coupling in this repo
+having one. The reducer refuses what it does not understand rather than guessing, which is the same
+policy that governs a right-hand side it cannot read, and the refusal is recorded as a limit with
+its own trigger rather than left to be discovered.
+
+### What the close actually cost was a file, and the cap is what asked for it
+
+`crosscheck.py` and `couplings.py` were both within twenty lines of the 300-line cap before this
+entry was written, so the split was not optional and was made along seams that were already there.
+`scripts/values.py` holds what a value reduces to and how a constant's readings must stand, and
+reads no files at all; the scan finds declarations and reports faults, and that module judges them.
+`scripts/overlaycouplings.py` holds the couplings that tie the overlay's TypeScript to its own
+stylesheet, which is where the registry had been accumulating, leaving `couplings.py` with the
+vocabulary every entry is written in and the couplings that tie the body to the brain.
+`crosscheck.CONSTANTS` is the two halves read as one tuple, and nothing in the scan asks which half
+an entry is in, so a coupling can move house without the gate noticing.
+
+### Proved able to fail, twice, and proved newly able
+
+Two drifts were planted on the real tree and each exits 1 naming both files, both values and the
+reason the two must agree: the body encoding `"image/gif"`, which the allow-list never carried, and
+the allow-list narrowed to `{"image/jpeg", "image/webp"}` while the body still produces PNG. The
+second is the one that matters, because it is the drift the registry could not previously express:
+the scan as it stood at the previous commit exits 0 over that same tree and reports that all
+fifteen constants agree, its reducer refusing the `frozenset` it was never taught. The registry is
+sixteen entries now, and its suite still demands that every `Relation` member be exercised by some
+entry, a comparator nothing uses being the same defect as a gate that cannot fail.
+
+### Records
+
+The three records are [docs/refinements/repo-gates.md](../refinements/repo-gates.md), its line on
+[docs/refinements/index.md](../refinements/index.md), and this addendum. No count moves on either:
+the couplings entry stays open on the four couplings the registry still cannot hold, and a coupling
+leaving that entry is recorded inside it exactly as an arriving one is.
