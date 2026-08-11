@@ -21,7 +21,13 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta, timezone
 from uuid import uuid4
 
-from cortex_core import GLOBAL_SCOPE, MemoryRecord, MemoryStore, MemoryStoreError
+from cortex_core import (
+    GLOBAL_SCOPE,
+    MemoryDataError,
+    MemoryRecord,
+    MemoryStore,
+    MemoryStoreError,
+)
 
 _AT = datetime(2026, 7, 3, 12, 0, 0, tzinfo=UTC)
 
@@ -69,9 +75,20 @@ def make_record(
 
 
 async def _refuses_typed(verb: Callable[[], Awaitable[object]], name: str) -> None:
-    """Assert one verb answers a gone backend with ``MemoryStoreError`` and nothing else."""
+    """Assert one verb answers a gone backend with ``MemoryStoreError`` and nothing else.
+
+    "Nothing else" now cuts both ways. Too wide a type leaks a driver exception past the core's
+    catch and fails the turn the degradation promises to save; too narrow a one, meaning
+    ``MemoryDataError``, is read by the core as stored state the deployment must fix and fails the
+    turn just as hard, for ever rather than until the server comes back (ADR-0008 data-defect
+    addendum). An unreachable backend is the healing kind by definition, so it must arrive as the
+    base type.
+    """
     try:
         await verb()
+    except MemoryDataError as err:
+        msg = f"{name} called a gone backend a data defect, which no outage ever heals out of"
+        raise AssertionError(msg) from err
     except MemoryStoreError:
         return
     except Exception as err:  # the leak this check exists to catch can be of any type

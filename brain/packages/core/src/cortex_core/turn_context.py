@@ -14,7 +14,7 @@ from dataclasses import dataclass
 
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
-from cortex_core.errors import EmbedderError, MemoryStoreError
+from cortex_core.errors import EmbedderError, MemoryDataError, MemoryStoreError
 from cortex_core.events import StatusUpdate
 from cortex_core.guardrail import OutputGuardrail
 from cortex_core.handoff import EscalationSlot
@@ -189,11 +189,22 @@ async def _recalled_context(
     on failing loudly and only the turn may decide to live without it. Anything the ports did not
     declare propagates untouched, since a malformed value or a bug in a policy is this code being
     wrong and a turn that hid it would keep answering thinly for ever.
+
+    **``MemoryDataError`` is on the propagating side of that sentence even though the port does
+    declare it** (ADR-0008 data-defect addendum), which is why it is named first and re-raised
+    rather than left to fall into the catch its base class would answer. The test is whether the
+    condition heals on its own: a stopped server comes back and these turns were a bridge, while a
+    row that cannot be decoded is decoded no better on the next turn or the next week, so
+    degrading around it buys a permanent thinness that nobody chose and calls it an outage. Loud
+    is not the log line the alternative offers, because the failure that only a log records is the
+    silence the degradation was written to end.
     """
     if caps.memory is None:
         return None
     try:
         hits = await caps.memory.recall(query, k=DEFAULT_RECALL_K, session_id=context.session_id)
+    except MemoryDataError:
+        raise
     except (EmbedderError, MemoryStoreError) as err:
         await _report_forgone_memory(caps, context, err)
         return None
