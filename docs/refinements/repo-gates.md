@@ -1102,6 +1102,42 @@ cross-language-constant addendum):**
   was restored. **Two of the four Python ports stay open**, `BodyGateway` and `Confirmer`,
   alongside `InferenceBackend`'s streaming half and every Rust row.
 
+  **`BodyGateway` is the third, and its finding runs the dangerous way.**
+  `brain/packages/body_client/tests/gateway_contract.py` holds ten checks and
+  `test_gateway_contract.py` runs them over `InMemoryBodyGateway` and over `GrpcBodyGateway`
+  talking to a `BodyService` served on loopback, so nothing on the adapter's side is stubbed. The
+  ten are the volume read, the write that touches only the field it was given, the write that
+  reports the state after it, the clamp, the notification that reaches the body with its taint
+  bit, the decline that answers `False` rather than raising, the capture that reports what the
+  body pointed at rather than what was asked, the capture refused for breaking the bound it asked
+  for, the capture attempted exactly once, and the single `BodyGatewayError` every verb fails
+  with.
+
+  The fake handed back a capture the adapter would have refused. A non-zero `max_edge` or
+  `max_bytes` is a bound on the reply, since a proto3 field an older body ignores is a constraint
+  the brain only believes it set, and the gRPC adapter has verified it on receipt since the
+  capture slice; the fake answered its scripted capture verbatim whatever was asked. So a core
+  test could watch a turn accept a picture production would have thrown away, which is a fake more
+  permissive than the adapter it stands in for, the direction that hides defects rather than
+  inventing them. The rule is domain logic rather than wire translation, so it moved into the core
+  as `hold_to_the_bounds_asked_for` and both implementations call it, which also leaves one fewer
+  place for the two to drift. The fake gained `fail_with` and `show_notifications` besides, a body
+  going away mid-run and a host switching toasts off being conditions a construction argument
+  cannot supply. Two divergences are legitimate and are written into
+  [docs/modules/brain-body-client.md](../modules/brain-body-client.md): the level is 32 bits on
+  the wire and a Python float in the fake, so every level the checks use is exact in both, and the
+  clamp happens in different places, which is why the check asks only that a legal state comes
+  back.
+
+  **Proven able to fail four times, once per side.** The bounds rule taken back out of the fake
+  reddens the refusal check on the `in-memory` arm alone (1 failed, 19 passed), which is the
+  finding measured rather than asserted; the adapter sending a zero for an absent level instead of
+  leaving the field unset reddens the presence check on the `grpc` arm alone, which is the mute
+  that would silence the host; the adapter stamping the asked target onto the answer reddens the
+  target check the same way; and the fake recording a notification without its taint bit reddens
+  the notification check on `in-memory`. Each break was restored. **One of the four Python ports
+  stays open**, `Confirmer`, alongside `InferenceBackend`'s streaming half and every Rust row.
+
   **Why deferred rather than done.** The ports named above come to five in Python counting the
   partial one, seven in Rust and one in the overlay, and writing contract suites for them is a
   slice with its own design questions (what a write-only port owes, whether a Rust list is a

@@ -1,10 +1,15 @@
-"""InMemoryBodyGateway: the BodyGateway port held in memory (the gRPC adapter's twin)."""
+"""In-memory ``BodyGateway``, tested against the same contract as the gRPC adapter."""
 
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from cortex_core.body import CaptureTarget, ScreenCapture, VolumeState
+from cortex_core.body import (
+    CaptureTarget,
+    ScreenCapture,
+    VolumeState,
+    hold_to_the_bounds_asked_for,
+)
 from cortex_core.errors import BodyGatewayError
 from cortex_core.images import ImagePart
 
@@ -28,7 +33,7 @@ class CaptureAsk:
     target: CaptureTarget
 
 
-# A one-pixel PNG, the smallest thing that satisfies ``ImagePart`` without a fixture file.
+# A one-pixel PNG, the smallest bytes that satisfy ``ImagePart`` without a fixture file.
 _PIXEL_PNG = bytes.fromhex(
     "89504e470d0a1a0a0000000d494844520000000100000001080200000090"
     "7753de0000000c4944415408d763f8cfc00000030101002d0d0aa4000000"
@@ -47,7 +52,7 @@ def default_capture() -> ScreenCapture:
 
 
 class InMemoryBodyGateway:
-    """BodyGateway held in memory as the contract twin of the gRPC adapter (ADR-0023/0025/0029)."""
+    """BodyGateway kept in memory, tested against the same contract as the gRPC adapter."""
 
     def __init__(
         self,
@@ -84,6 +89,14 @@ class InMemoryBodyGateway:
             self._muted = mute
         return VolumeState(level=self._level, muted=self._muted)
 
+    def fail_with(self, error: BodyGatewayError) -> None:
+        """Make every later call raise ``error``: a body that has gone away mid-run."""
+        self._fail = error
+
+    def show_notifications(self, *, shown: bool) -> None:
+        """Answer every later ``notify`` with ``shown``: a host that switched toasts off mid-run."""
+        self._shown = shown
+
     async def notify(
         self, *, title: str, body: str, reminder_id: str, tainted: bool = False
     ) -> bool:
@@ -106,6 +119,13 @@ class InMemoryBodyGateway:
         if self._fail is not None:
             raise self._fail
         self._captures.append(CaptureAsk(max_edge=max_edge, max_bytes=max_bytes, target=target))
+        hold_to_the_bounds_asked_for(
+            width=self._capture.image.width,
+            height=self._capture.image.height,
+            byte_count=len(self._capture.image.data),
+            max_edge=max_edge,
+            max_bytes=max_bytes,
+        )
         return self._capture
 
     @property
