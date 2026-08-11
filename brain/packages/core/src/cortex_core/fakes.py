@@ -152,12 +152,20 @@ class RecordingConfirmer:
 
     ``answer=True`` approves every gated call, ``False`` denies; ``requests`` exposes what the
     dispatcher asked to confirm so a test can assert the tool name and the reason shown to the
-    user. The real confirmer round-trips the overlay; this one is deterministic and offline.
+    user. ``answer_with`` changes the answer between two asks, which the shared contract needs
+    because a person is not a constant: the real confirmer's next answer is whatever the overlay
+    sends next, and a fake whose answer is fixed at construction cannot be asked twice about two
+    different calls. The real confirmer round-trips the overlay; this one is deterministic and
+    offline.
     """
 
     def __init__(self, *, answer: bool) -> None:
         self._answer = answer
         self._requests: list[ConfirmationRequest] = []
+
+    def answer_with(self, *, approved: bool) -> None:
+        """Answer every later ask with ``approved``: the person changing their mind."""
+        self._answer = approved
 
     async def confirm(self, request: ConfirmationRequest) -> bool:
         """Record the request and return the fixed answer."""

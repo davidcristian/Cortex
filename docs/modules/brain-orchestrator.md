@@ -370,6 +370,21 @@ The service:
   `OUTCOME_UNAVAILABLE`), so the overlay can close a card it can no longer answer; an answered
   confirm, a cancelled one, and an ask refused after `close` (which emitted no request) emit
   none (ADR-0022 resolution addendum).
+  `tests/confirmer_contract.py` holds the five checks every `Confirmer` owes and
+  `tests/test_confirmer_contract.py` drives them over this adapter and over the core's
+  `RecordingConfirmer`: an approval is the only `True`, a refusal blocks, a person who never
+  answers denies, the person is shown the call that would run, and each ask is answered on its
+  own. The seam fixture wires a scripted overlay into `emit`, reading the card off the control
+  path and answering through `resolve` the way the Converse stream does, so nothing about the
+  adapter is stubbed and only the person is. Two things stay out of the shared list because they
+  are the adapter's rather than the port's, and they stay in `test_confirm.py`: the resolution
+  event sent for a card the overlay cannot see close, and the id matching that makes a stale or
+  forged `confirm_id` resolve nothing (with one ask outstanding at a time, resolving "whichever is
+  pending" is indistinguishable through the port, and a break planted there leaves all five shared
+  checks green). One divergence is legitimate: the fake records the request object, while the card
+  crosses the seam as JSON with `default=str`, so an argument value JSON cannot represent would
+  reach the person rendered rather than verbatim. The checks use JSON-native arguments because the
+  model's own arguments arrive that way.
 - `DEFAULT_MAX_BUFFERED_EVENTS = 256` is the default Converse buffer bound
   (`SeamServerConfig.converse_buffer` feeds the deployed value through `create_server`).
 - `DEFAULT_CONFIRM_TIMEOUT_S = 120.0` is the default confirm wait
