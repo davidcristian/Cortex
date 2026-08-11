@@ -18,17 +18,14 @@ from email.message import EmailMessage
 from typing import Protocol
 
 from cortex_email.config import SmtpConfig
-from cortex_email.values import EmailAttachment, EmailDraft
+from cortex_email.values import (
+    MAX_ATTACHMENT_CHARS,
+    MAX_ATTACHMENTS,
+    MAX_FILENAME_CHARS,
+    EmailAttachment,
+    EmailDraft,
+)
 
-# How many attachments one send may carry. Refused, never truncated: a silently dropped
-# attachment is a send the user approved and did not get (ADR-0010's batch-cap argument).
-MAX_ATTACHMENTS = 8
-# Characters summed across every attachment's content. The bound comes from the authoring
-# side, not from SMTP: 32K is already half the cortex's 16K-token context, so past it an
-# attachment competes with the conversation that wrote it (ADR-0022 attachments addendum).
-MAX_ATTACHMENT_CHARS = 32768
-# A filename rides a Content-Disposition header, and a header line is not a payload.
-MAX_FILENAME_CHARS = 128
 # A MIME subtype token: no "/" (so "text/" stays a prefix the caller cannot escape), no
 # space, no ";" that could open a parameter, and nothing a header value must not hold.
 _SUBTYPE_TOKEN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]{0,62}$")

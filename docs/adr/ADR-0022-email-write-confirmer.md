@@ -836,3 +836,95 @@ searching for the trail: its backlog line lived under
 `email-confirmer.md`. The result comes back here as a dated addendum.
 
 No code changed here; this is a records correction at the origin ADR.
+
+## Addendum (2026-08-11): the attachment schema describes its fields, not just the object
+
+The attachments addendum's validation section above closed on a happy observation: pydantic
+lifts `EmailAttachment`'s **docstring** into the `$defs` description, "so 'what it wrote, not a
+file on disk' reaches the model without a `Field`". That sentence was true and it is why this
+deferral was left open, and reading the generated schema again shows what it bought and what it
+did not. It bought the object. Every one of the three fields arrived carrying `title` and
+`type` and nothing else, so a model filling the shape was told there is a string called
+`content` and left to guess what belongs in it.
+
+### 1. The guesses, and what each one costs
+
+The bounds this ADR chose are enforced in `SmtpSender._compose`, which runs in the sidecar,
+which is **after** the brain gated the call and after the user approved the card. So a wrong
+guess is not a validation error the model retries cheaply: it is a send the user consented to
+and did not get, and the user is asked again for something they already said yes to. That
+raises the field descriptions from documentation to part of the refusal design.
+
+- **`content`** is the guess that matters most, because getting it wrong still succeeds. A
+  model reading `filename: str, content: str` has every reason to read the pair as a name and
+  a location, and `{"filename": "notes.md", "content": "/home/user/notes.md"}` composes,
+  sends, and arrives: the recipient gets a file whose whole text is a path. Nothing refuses it,
+  because a path is a perfectly good string. The description now says the field is the file
+  itself, never a path and never a URL, and that nothing is read from disk, which also carries
+  this ADR's real-file decline to the one place a model is deciding.
+- **`subtype`** is the guess a whole MIME type invites: `text/markdown` is what the type is
+  called everywhere else, and it is exactly what `_SUBTYPE_TOKEN` refuses, since the regex bans
+  the solidus precisely so `text/` stays a prefix the caller cannot escape. The description
+  locates the token as the part after `text/` and names the wrong form outright.
+- **`filename`** is the guess with a number in it. It rides a `Content-Disposition` header, it
+  is refused rather than trimmed, and 128 characters is not a limit anyone would assume from
+  `str`. The description also asks for an extension matching the subtype, which no check
+  enforces and which is what makes the file open correctly for the human at the other end.
+- **The array** had no description at all, and its two bounds (at most `MAX_ATTACHMENTS`, and
+  `MAX_ATTACHMENT_CHARS` summed over their content) belong to neither the object nor any field
+  of it. They ride `attachments` itself through the tool signature, the `capture_screen` target
+  precedent of a help constant spent where the schema is declared.
+
+### 2. Where the prose lives, which is what the deferral was really about
+
+The entry's own objection was that per-field text "would put pydantic in the pure values
+module". It would, and it does, and the objection turns out to point the wrong way. That module
+was already a prompt surface: pydantic has been lifting `EmailAttachment`'s docstring into the
+advertised schema since attachments landed, so the only question was whether the model-facing
+prose would be complete or half of it. The alternative, a schema-facing mirror of the three
+fields declared in `server.py`, would spell the tool contract in two places to keep one import
+out of one file, which is a worse trade than the one it avoids.
+
+So `values.py` gains the import and, with it, the three bounds themselves, moved off
+`smtp.py`. That move is the point rather than tidying: the description a model reads and the
+check that refuses the send are now the same integer read twice, so the prose cannot drift from
+the rule. `_SUBTYPE_TOKEN` stays in `smtp.py`, being a rule rather than a number.
+
+### 3. Validation
+
+- **CI (100%):** the generated schema is asserted rather than the source, since the schema is
+  the artifact and it is generated: every attachment field carries a description holding the
+  fact that settles its guess, and the array names both bounds from the constants themselves,
+  so a description that restated a bound as a literal fails even while reading correctly.
+- **Five mutations, each measured.** Dropping any one field description reddens; restating the
+  filename bound as its own number reddens; hollowing `content` down to what its type already
+  says reddens; deleting the array description reddens. The sixth attempt is the finding worth
+  recording: the subtype check first matched the bare string `text/`, which the description
+  contains twice, once in the instruction and once in the counter-example warning against
+  `text/markdown`. Deleting the instruction left the check green. It now matches the phrase
+  that locates the token, and reddens.
+- **Not measured:** whether a model composes a correct call more often with the descriptions
+  than without. That is this entry's actual claim and it stays an argument, resting on the
+  four guesses above being real rather than on a rate. The A/B belongs on the CPU tier and is
+  the sort of thing the turn-cost harness does; it is not a blocker for text that can only
+  add facts the schema was missing.
+
+### 4. What the sibling sweep found
+
+Every other tool in this sidecar was read for the same defect. The write path is clear: the
+`send_email` docstring already describes `to`, `cc`, `bcc`, `body` and `html`, and it keeps
+that job, the tool description saying what the capability is while the fields say what a value
+must be. `list_folders` takes nothing and `read_email`'s `folder`/`uid` are named by the tool
+that produces them.
+
+`search_emails` is the exception and it is **deferred rather than closed**, recorded in
+[refinements/email-confirmer.md](../refinements/email-confirmer.md). Its `query` is passed
+through to imap-tools unaltered, so the dialect is raw IMAP `SEARCH` criteria, and "an IMAP
+query" is all the tool says. A model that writes `from:someone@example.com` is writing the
+search syntax of every mail client a person has used, and it is not this one. The reason it is
+not closed here is that the honest description is a list of criteria that work, and this repo
+knows exactly two of them work against a real ProtonMail Bridge, `ALL` and `SUBJECT "..."`,
+because the live round-trip uses those two and nothing else. Writing a longer list from the RFC
+would be advertising a capability nobody has run, on a server whose `SEARCH` support is
+partial by reputation. It wants a live pass over the criteria first, which is a different
+sitting from this one.

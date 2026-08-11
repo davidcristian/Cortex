@@ -35,13 +35,20 @@ denied outright.
   `text/<subtype>` part. The maintype is not a parameter, exactly as `From` is not: the tool
   attaches text the assistant **wrote**, never bytes it read, which is what keeps the
   confirmation card showing the payload rather than a name for it (ADR-0022 attachments
-  addendum).
+  addendum). It is also **the one value type in this package that is a prompt**: pydantic lifts
+  its class docstring into the tool's `$defs` entry and each field's `Field(description=...)`
+  into that field, so `values.py` imports pydantic and owns the model-facing prose (ADR-0022
+  per-field addendum). The three bounds a send is refused against (`MAX_ATTACHMENTS`,
+  `MAX_ATTACHMENT_CHARS`, `MAX_FILENAME_CHARS`) live there too, beside `ATTACHMENTS_HELP`, so
+  the number the model is told and the number `SmtpSender` enforces are one value.
 - `build_server(reader, sender=None) -> FastMCP` registers the three read tools always, and
   `send_email(to, subject, body, cc="", bcc="", html="", attachments=())` only when a sender is
   passed (with advisory MCP `ToolAnnotations`: not read-only, destructive, open-world, and never
   authority; the brain-side overlay is). `cc`/`bcc` are comma-separated address lists; `html`
   adds a rich alternative; `attachments` is an array of `{filename, content, subtype}` objects
-  (the one nested schema in the tool surface). Each tool returns a single readable string, with
+  (the one nested schema in the tool surface), carrying `ATTACHMENTS_HELP` as its own schema
+  description because the two bounds it names belong to the array rather than to any field of
+  an attachment. Each tool returns a single readable string, with
   one exception: `read_email` returns a `CallToolResult` wrapping that same text block plus a
   result `_meta` (`_SOURCE_META_KEY`, `"cortex/source"`) declaring the message sender
   (`{"kind": "sender", "value": <From>}`, `_sender_source`, omitted when there is no `From`). The
@@ -62,8 +69,11 @@ denied outright.
   a plain draft stays a single `text/plain` part. Attachments wrap whatever the body shapes
   built in a `multipart/mixed`, and are refused (never truncated) unless each filename is
   non-empty, CR/LF-free, and at most `MAX_FILENAME_CHARS` (128), each `subtype` is a MIME
-  token, there are at most `MAX_ATTACHMENTS` (8), and their `content` totals at most
-  `MAX_ATTACHMENT_CHARS` (32768) characters. Returns one readable confirmation line.
+  token (`_SUBTYPE_TOKEN`, the one of the four bounds that stays here because it is a rule
+  rather than a number), there are at most `MAX_ATTACHMENTS` (8), and their `content` totals at
+  most `MAX_ATTACHMENT_CHARS` (32768) characters. The three numbers are imported from
+  `values.py`, which spends them in the schema the model reads. Returns one readable
+  confirmation line.
 - `SmtpConfig` holds env-driven settings (`CORTEX_EMAIL_SMTP_*` + `CORTEX_EMAIL_SEND_ENABLED`):
   defaults target the Bridge SMTP loopback (127.0.0.1:1025, STARTTLS) with the same
   cert-verification escape hatches as IMAP; enabling send without credentials fails fast at
@@ -83,7 +93,12 @@ when deliberately enabled, and is gated + confirmed brain-side (ADR-0022).
   reader/tools, a fake imap-tools `MailBox` for `ImapMailbox`. The live contract is the
   `integration`-marked `tests/test_email_live.py` (run per docs/runbooks/email-imap.md).
 - Pinned to the MCP SDK v1.x (`mcp>=1.23,<2`).
+- The advertised schema is **generated, never written**, so what the model is told about an
+  attachment is whatever `values.py` and the tool signature say. The server tests assert the
+  generated schema itself (every attachment field described, the array's two bounds spelled
+  from the constants), which is the only place that coupling is checked.
 
 **Dependencies.** mcp (the FastMCP server), imap-tools (the IMAP client, STARTTLS-capable via
-stdlib `imaplib`, which the Bridge defaults to), pydantic-settings (env config). Deployed by
+stdlib `imaplib`, which the Bridge defaults to), pydantic (the `Field` descriptions the tool
+schema is generated from) and pydantic-settings (env config). Deployed by
 `docker/docker-compose.email.yml`.

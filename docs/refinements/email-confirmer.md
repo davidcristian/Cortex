@@ -3,7 +3,7 @@
 This area's deferrals originate in [ADR-0022](../adr/ADR-0022-email-write-confirmer.md), the
 email-write and Confirmer decision. Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** per-field attachment schema descriptions, trust overlays for remote tools, batching / per-tool session allowlists, ToolActivity wire phase field. Real-file attachments (bytes the assistant did not author) was **declined 2026-07-16** (the capability kept ungranted, annotated in place below); confirm-with-provenance for tainted turns was **declined 2026-07-16** (annotated in place below); subagent tool-step surfacing **landed 2026-07-16** as one side channel with the progress-reporting entry from [subagents.md](subagents.md) (annotated in place below).
+**Open items:** trust overlays for remote tools, batching / per-tool session allowlists, ToolActivity wire phase field, the `search_emails` query dialect (opened 2026-08-11 by the sibling sweep that closed the entry above it). Per-field attachment schema descriptions **landed 2026-08-11** (annotated in place below), one out and one in, so the count holds at four. Real-file attachments (bytes the assistant did not author) was **declined 2026-07-16** (the capability kept ungranted, annotated in place below); confirm-with-provenance for tainted turns was **declined 2026-07-16** (annotated in place below); subagent tool-step surfacing **landed 2026-07-16** as one side channel with the progress-reporting entry from [subagents.md](subagents.md) (annotated in place below).
 
 **Email-write & the Confirmer in Slice 8.8 ([ADR-0022](../adr/ADR-0022-email-write-confirmer.md)):**
 each behind the unchanged `Confirmer`/`ToolDispatcher`/`GatedToolRegistry`/seam shapes.
@@ -101,6 +101,51 @@ each behind the unchanged `Confirmer`/`ToolDispatcher`/`GatedToolRegistry`/seam 
   outbox mount or an opaque handle, never an arbitrary path), the file choice gated by taint so
   injected content cannot pick it, and the digest-bound card on top, which is a slice and the right
   shape only when something needs it. Moves to the index's dead-until-a-consumer list.
+  **Per-field schema descriptions landed 2026-08-11 ([ADR-0022 per-field
+  addendum](../adr/ADR-0022-email-write-confirmer.md)).** The entry's verification was read
+  against the generated schema again before anything was written, as this backlog's own header
+  demands, and it held exactly as far as it went: the `$defs` entry does carry the docstring, and
+  the three fields under it carried `title` and `type` and nothing else, so a model was told
+  there is a string called `content` and left to guess what belongs in it. What the entry got
+  wrong is the half-sentence at its end, "to say what the type names already say", and the
+  guesses it dismissed are not type-shaped. **`content` is the one that costs most, because
+  getting it wrong still succeeds:** `filename` beside `content` reads like a name beside a
+  location, and `{"filename": "notes.md", "content": "/home/user/notes.md"}` composes, sends and
+  arrives, the recipient receiving a file whose entire text is a path, refused by nothing because
+  a path is a good string. `subtype` invites the whole MIME type, `text/markdown`, which is
+  precisely what `_SUBTYPE_TOKEN` refuses, the solidus being banned so `text/` stays a prefix the
+  caller cannot escape. `filename` carries a 128-character ceiling nobody would assume from `str`.
+  And the array carried no description at all, though its two bounds (`MAX_ATTACHMENTS`, and
+  `MAX_ATTACHMENT_CHARS` summed over content) belong to neither the object nor any one field, so
+  they ride `attachments` itself through the tool signature, the `capture_screen` target
+  precedent. Each refusal lands in the sidecar, which is **after** the gate and after the user
+  approved the card, so a wrong guess is not a cheap retry but a send the user consented to and
+  did not get. The entry's other objection, pydantic in the pure values module, was answered by
+  its own finding: the module has been a prompt surface since attachments landed, the docstring
+  being lifted from it, so the choice was a complete model-facing prose or half of one, and the
+  alternative of a schema-facing mirror in `server.py` would spell the tool contract twice to
+  keep one import out of one file. The three bounds moved to `values.py` with it, so the number a
+  model is told and the number `SmtpSender` enforces are one value read twice. Five mutations
+  measured, and the sixth is the finding: the subtype check first matched the bare `text/`, which
+  the description holds twice, in the instruction and in the counter-example warning against
+  `text/markdown`, so deleting the instruction left it green; it matches the locating phrase now.
+  What the entry claimed and this pass did **not** measure is the rate, whether a model composes
+  a correct call more often with the descriptions than without; that stays an argument resting on
+  the four guesses being real.
+- **The `search_emails` query dialect is unstated** (opened 2026-08-11 by the sibling sweep in the
+  [ADR-0022 per-field addendum](../adr/ADR-0022-email-write-confirmer.md); the read tools are
+  [ADR-0009](../adr/ADR-0009-tools-mcp.md)'s). `query` is passed to imap-tools unaltered, so the
+  dialect is raw IMAP `SEARCH` criteria, and the tool says only "an IMAP query". A model that
+  writes `from:someone@example.com` is writing the search syntax of every mail client a person has
+  ever used, and it is not this one; the refusal comes back from the IMAP server as a `BAD`, which
+  is a wasted dispatch and a reply the model cannot repair without knowing the grammar. It is not
+  closed with the attachment fields because an honest description is a list of criteria that
+  **work**, and this repo has run exactly two against a real ProtonMail Bridge, `ALL` and
+  `SUBJECT "..."`, being the two the live round-trip uses. Copying a longer list out of the RFC
+  would advertise a capability nobody here has run, against a server whose `SEARCH` support is
+  partial by reputation. Its trigger is one live pass over the criteria worth naming (dates,
+  `FROM`, `UNSEEN`, and whether `OR`/`NOT` compose), after which the description is the same
+  shape of work the attachment fields just took.
 - **The structured confirm-resolution event landed 2026-07-14 ([ADR-0022 resolution
   addendum](../adr/ADR-0022-email-write-confirmer.md)).** This entry's cost estimate was the
   understated kind the section warns about: it read as an overlay refinement, and it is a

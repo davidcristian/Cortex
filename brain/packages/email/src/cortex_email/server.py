@@ -15,15 +15,17 @@ blocked. Brain-side, ``send_email`` is stamped ``gated`` at the composition root
 
 import asyncio
 from collections.abc import Sequence
+from typing import Annotated
 
 from mcp.server.fastmcp import FastMCP
 from mcp.types import CallToolResult, TextContent, ToolAnnotations
+from pydantic import Field
 
 from cortex_email.config import EmailConfig, SmtpConfig
 from cortex_email.imap import ImapMailbox
 from cortex_email.reader import EmailReader
 from cortex_email.smtp import EmailSender, SmtpSender
-from cortex_email.values import EmailAttachment, EmailDraft
+from cortex_email.values import ATTACHMENTS_HELP, EmailAttachment, EmailDraft
 
 _SERVER_HOST = "0.0.0.0"  # noqa: S104 - the sidecar binds its container interface; compose publishes loopback-only
 _SERVER_PORT = 9100
@@ -109,7 +111,9 @@ def build_server(reader: EmailReader, sender: EmailSender | None = None) -> Fast
             cc: str = "",
             bcc: str = "",
             html: str = "",
-            attachments: Sequence[EmailAttachment] = (),
+            attachments: Annotated[
+                Sequence[EmailAttachment], Field(description=ATTACHMENTS_HELP)
+            ] = (),
         ) -> str:
             """Send an email as the configured account (outbound, irreversible; it runs only
             with the user's explicit approval). ``to``/``cc``/``bcc`` are comma-separated
