@@ -104,10 +104,11 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    Vitest coverage, and the four cross-tree scans: the line cap, which reaches all three
    toolchains; `dashcheck.py`, which bans a dash used as punctuation in any text file
    (ADR-0026); `crosscheck.py`, which ties every value this repo spells in more than one place,
-   whether the far side declares it, orders itself against it, or merely spends it inside a
-   string, a stylesheet or a bare literal (ADR-0029 cross-language-constant
-   addendum); and `bindcheck.py`, which holds every compose bind mount to resolving outside
-   the repo, onto a path git tracks, or onto one git ignores, so no `docker compose up`
+   whether the far side declares it, orders itself against it, carries it among the several it
+   accepts, or merely spends it inside a string, a stylesheet or a bare literal (ADR-0029
+   cross-language-constant addendum); and `bindcheck.py`, which holds every compose bind
+   mount to resolving outside the repo, onto a path git tracks, or onto one git ignores, so
+   no `docker compose up`
    materializes a container-written directory the index would take (ADR-0026 bind addendum).
    All four run unconditionally, in CI too. Pre-commit mirrors it. Run it
    before declaring anything done.
@@ -213,7 +214,9 @@ body/             Rust/Tauri workspace, host-native
 scripts/          repo gates, plus the one module here that gates nothing, contrast.py (the
                   interval a live measurement reports, ADR-0038): linecap.py (300-line cap), dashcheck.py (no dash as
                   punctuation), crosscheck.py (one value, spelled in several places, still
-                  agreeing) + couplings.py (its registry), bindcheck.py (no compose bind
+                  agreeing) + couplings.py and overlaycouplings.py (its registry, in the two
+                  halves the line cap split it into) + values.py (what a value reduces to and
+                  how a constant's readings must stand), bindcheck.py (no compose bind
                   default lands unignored in the tree) + composemounts.py (its compose
                   reader), coverage_gate.py (Rust branches), ci_paths.py (CI path
                   classifier), commitlint.py (commit-message style)
