@@ -411,3 +411,96 @@ That is a fine convention for comparing candidates against each other on one aft
 one for a budget term that is subtracted from a cap alongside a per-model ask. Decision 3's
 "~11.3 GB cortex ... ~2.7 GB headroom" reads a floor into the reservation and then spends the rest
 as headroom; the headroom is really 5.4 GiB.
+
+## Addendum (2026-08-11): the ANN index measured, and why the schema stays dimension-agnostic
+
+Decision 4's schema note above says the `memories.embedding` column is an unbounded `vector` so
+switching embedder or dimension needs no migration, and adds in parentheses that an ANN index
+would. That parenthesis was the whole of the argument for deferring the index, and the deferred
+entry it produced (`docs/refinements/memory.md`) carried a second claim beside it, written into
+`docker/postgres/init.sql` and `docs/modules/brain-memory.md` alike: that an exact cosine scan is
+"fine at personal scale". Both halves were measured today against real pgvector 0.8.4 on
+PostgreSQL 16.14, the shipped `pgvector/pgvector:pg16` image from
+`docker/docker-compose.memory.yml`, in a scratch database of its own so no real memory was read or
+written. **One half held and the other did not.**
+
+**Method.** A synthetic corpus of 768-column unit vectors, the width of the shipped
+nomic-embed-text-v1.5 pick, drawn from 256 topic centres inside one shared cone, populated by
+`COPY` into the schema `init.sql` really creates and queried through
+`PgVectorMemoryStore.search` itself rather than through hand-written SQL, so the numbers include
+the literal rendering and row parsing a turn actually pays. The requested width is 20, which is
+what ships: `DEFAULT_RECALL_K` is 5 and the judge's `recall_pool_factor` is 4, and the default
+`GlobalMemoryScope.read_scopes` returns `None`, so the statement under test is `_SEARCH_ALL` with
+`LIMIT 20` and no scope filter. The geometry was checked against the real embedder rather than
+assumed: 20 sentences through the live CPU `llama-embed` sidecar give a mean pairwise cosine of
+0.381 with a standard deviation of 0.054, against 0.170 and 0.043 for the synthetic corpus, so the
+synthetic spread is comparable and its cone is looser.
+
+**The scan is not free, and it is not a few milliseconds.** At 1,000 rows the search takes 19 ms,
+and `EXPLAIN (ANALYZE, BUFFERS)` attributes 18.2 of its 18.7 ms of server time to the sequential
+scan at 9,088 buffer hits, about nine per row, because pgvector gives `vector` an `attstorage` of
+`e`: every embedding lives out of line in TOAST and every candidate row is detoasted before its
+distance can be taken. The heap is 512 kB where the table totals 4,688 kB. At 220,000 rows the
+same search takes **1,478 ms at the median** (n=8, 1,458 to 1,521), which is not a few milliseconds
+against the 0.515 s of time to first token the turn-cost addendum measured for a recalling turn.
+It is roughly three times the whole of it.
+
+| Rows | `search` k=20, unfiltered (ships) | k=5 (`raw`) | scoped to one session |
+|---|---|---|---|
+| 1,000 | 21.2 ms median (18.9 to 25.8) | 20.0 ms (18.3 to 21.2) | 1.3 ms (1.1 to 1.7) |
+| 220,000 | 1,478 ms median (1,458 to 1,521) | 1,479 ms (1,440 to 1,502) | not re-measured |
+
+The requested width barely moves it, k=5 and k=20 costing the same, which is the signature of a
+cost that is per candidate rather than per returned row. The scope filter is the one thing that
+does move it: a session holding about 40 rows answers in 1.3 ms at the same table size, so a
+deployment running `CORTEX_MEMORY_SCOPE=session` never had this problem, and the default global
+space is where it lives.
+
+**The index is fast and its recall is not free.** An `hnsw` index over
+`vector_cosine_ops` at the defaults, `m=16` and `ef_construction=64`, took 184 s to build at
+220,000 rows and occupies 859 MB, more than the 688 MB table it indexes. With `hnsw.ef_search=40`
+the same search answers in **5.5 ms at the median** (3.0 to 8.1), a factor of 268. Set against the
+exact answer it replaces, its **mean overlap is 0.550 at k=20 and 0.575 at k=5, and the worst
+single query kept none of the twenty the exact scan returned**. An `ivfflat` build did not
+complete: at `lists=316` it needs 69 MB of `maintenance_work_mem` against the 64 MB default, which
+is an operational fact worth recording since nothing in the compose raises it.
+
+**A third option was measured and does not rescue the scan.** Since the cost is detoasting,
+`ALTER COLUMN embedding SET STORAGE PLAIN` plus a `VACUUM FULL` should have bought most of it back
+for no approximation at all. It buys 22%: 1,154 ms at the median against 1,478 ms, while the table
+grows from 688 MB to 924 MB, because a 3,080-byte vector stored inline fits two rows to an 8 kB
+page and wastes the rest. The arithmetic, not the detoasting, is the remaining four fifths.
+
+**Decision: the schema stays dimension-agnostic and no ANN index ships today.** The parenthesis
+above is upheld, and it is upheld more strongly than when it was written, because the migration it
+warns about is now specified rather than gestured at. `hnsw` and `ivfflat` both require a typmod,
+so the column must become `vector(768)`; the `ALTER` itself is cheap at 3.5 s, but what it costs is
+the property decision 4 exists to state. After it, an embedder of another width cannot be adopted
+by changing `CORTEX_EMBED_MODEL_FILE`, which is exactly how this repo ships the alternative
+(`nomic-embed-text-v2-moe`, also 768, and every model that is not): the insert fails outright on a
+dimension mismatch, which is the good case, and the bad case is a redeployment that rebuilds the
+column at the new width and leaves an index built for the old one, which pgvector will not do
+silently but which a hand-run migration can. **An index that must be rebuilt whenever the embedder
+changes is not a schema property, it is a deployment step**, and this repo has no migration runner
+to own it.
+
+That would still be worth paying if the index were free of recall cost, and it is not. What the
+measurement cannot yet say is how much of the 0.550 overlap is a defect and how much is an artifact
+of the corpus: 256 centres across 220,000 rows puts about 860 near-tied members around each query,
+so the exact top 20 and the approximate top 20 are drawing from a pool whose distances differ in
+the fourth decimal, and a set-overlap metric punishes that severely while a reader would not notice
+it. **Set overlap is the wrong measurement and it is the one that was run.** The right one is the
+score delta, how much worse in cosine terms the approximate answer is than the exact one, and it is
+not measured here. Until it is, the honest reading of "the worst query kept 0 of 20" is that it is
+unexplained rather than that it is harmless, and an unexplained recall loss is not something to
+ship underneath a personal assistant's memory to save a second.
+
+**What this changes for the deferred entry.** It does not close it, and it removes its stated
+reason. The entry, `init.sql`, and the memory module doc all justify the deferral with a claim that
+exact search is fine at personal scale; that claim is true through roughly ten thousand memories,
+where the scan costs about 70 ms, and false by a hundred thousand. At one memory per turn, which is
+what the v1 write policy records, ten thousand memories is a few months of daily use and two
+hundred thousand is several years of it. So the entry is **re-triggered on measurement rather than
+struck**: its trigger is no longer "when recall feels slow", which was never going to fire before
+the store was already too big, but the score-delta calibration named above, and the comments that
+call the scan fine at personal scale are corrected to say through what scale.
