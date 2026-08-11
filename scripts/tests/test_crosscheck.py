@@ -387,12 +387,12 @@ def test_a_mention_on_a_file_that_cannot_be_read_is_a_fault(tmp_path: Path) -> N
     assert "cannot read overlay.css" in fault.detail
 
 
-def test_a_mention_template_that_spells_no_value_is_refused(tmp_path: Path) -> None:
-    """A template without the placeholder would match forever without tying anything."""
+def test_a_mention_template_that_renders_nothing_is_refused(tmp_path: Path) -> None:
+    """A template with neither placeholder would match forever without tying anything."""
     _spend(tmp_path, declared="--ceiling", spelled="--ceiling")
     blind = MENTIONED._replace(mentions=(crosscheck.Mention("overlay.css", ".panel"),))
     (fault,) = crosscheck.check_constant(tmp_path, blind)
-    assert "carries no {value}" in fault.detail
+    assert "renders neither {value} nor {name}" in fault.detail
 
 
 def test_every_mention_is_reported_rather_than_only_the_first(tmp_path: Path) -> None:
@@ -461,6 +461,87 @@ def test_a_count_below_one_is_refused(tmp_path: Path, occurrences: int) -> None:
     assert f"pins {occurrences} occurrences, which ties nothing" in fault.detail
 
 
+# ── named mentions, where the template renders the name and not the value ──────
+
+
+RESTATED = crosscheck.Constant(
+    label="a restated duration",
+    why="the sheet restates the module's number, and the rules that follow it spend the name",
+    sites=(crosscheck.Site("morph.ts", "ROLL_MS"),),
+    mentions=(
+        crosscheck.Mention("overlay.css", "{name}: {value}ms;", name="--roll"),
+        crosscheck.Mention("overlay.css", "var({name})", name="--roll", occurrences=2),
+    ),
+)
+
+
+def _restate(root: Path, declared: str, *spent: str) -> None:
+    """A duration owned in TypeScript, restated on `:root` as a property, spent by two rules."""
+    (root / "morph.ts").write_text("export const ROLL_MS = 300;\n", encoding="utf-8")
+    rules = "".join(f".s{i} {{ transition: var({one}); }}\n" for i, one in enumerate(spent))
+    (root / "overlay.css").write_text(f":root {{ {declared}: 300ms; }}\n{rules}", "utf-8")
+
+
+def test_a_named_mention_holds_when_the_sheet_declares_and_spends_one_property(
+    tmp_path: Path,
+) -> None:
+    _restate(tmp_path, "--roll", "--roll", "--roll")
+    assert crosscheck.check_constant(tmp_path, RESTATED) == []
+
+
+def test_a_mistyped_spend_fails_where_a_rendered_value_never_reached_it(tmp_path: Path) -> None:
+    """The gap this form closes: the value is spelled on `:root` and no spend carries it."""
+    _restate(tmp_path, "--roll", "--roll", "--rol")
+    value_only = RESTATED._replace(
+        mentions=(crosscheck.Mention("overlay.css", "--roll: {value}ms;"),)
+    )
+    assert crosscheck.check_constant(tmp_path, value_only) == []
+    (fault,) = crosscheck.check_constant(tmp_path, RESTATED)
+    assert "spells 'var(--roll)' as a token of its own: found 1, pinned 2" in fault.detail
+
+
+def test_a_spend_that_pays_a_neighbouring_property_is_a_spend_short(tmp_path: Path) -> None:
+    """Paying the wrong property costs the same as paying none, and both properties exist."""
+    _restate(tmp_path, "--roll", "--roll", "--ease")
+    (fault,) = crosscheck.check_constant(tmp_path, RESTATED)
+    assert "found 1, pinned 2" in fault.detail
+
+
+def test_renaming_the_declared_property_leaves_the_declaration_unfound(tmp_path: Path) -> None:
+    """The other half of the pair: the spends still agree with each other and pay nothing."""
+    _restate(tmp_path, "--cadence", "--roll", "--roll")
+    (fault,) = crosscheck.check_constant(tmp_path, RESTATED)
+    assert "does not spell '--roll: 300ms;' as a token of its own" in fault.detail
+
+
+def test_a_template_rendering_a_name_the_mention_does_not_carry_is_refused(tmp_path: Path) -> None:
+    _restate(tmp_path, "--roll", "--roll", "--roll")
+    nameless = RESTATED._replace(
+        mentions=(crosscheck.Mention("overlay.css", "{name}: {value}ms;"),)
+    )
+    (fault,) = crosscheck.check_constant(tmp_path, nameless)
+    assert "renders a name the mention does not carry" in fault.detail
+
+
+def test_a_name_the_template_renders_nowhere_is_refused(tmp_path: Path) -> None:
+    """Dead data in a registry reads as a tie and is not one, so it is a fault and not a shrug."""
+    _restate(tmp_path, "--roll", "--roll", "--roll")
+    unspent = RESTATED._replace(
+        mentions=(crosscheck.Mention("overlay.css", "--roll: {value}ms;", name="--roll"),)
+    )
+    (fault,) = crosscheck.check_constant(tmp_path, unspent)
+    assert "renders it nowhere" in fault.detail
+
+
+def test_a_spent_name_no_mention_pays_the_value_under_is_refused(tmp_path: Path) -> None:
+    """Held name, dropped value: the spend would be tied to a declaration nothing reads."""
+    unpaid = RESTATED._replace(
+        mentions=(crosscheck.Mention("overlay.css", "var({name})", name="--roll"),)
+    )
+    (fault,) = crosscheck.check_constant(tmp_path, unpaid)
+    assert "no mention renders the value under that name" in fault.detail
+
+
 def test_check_walks_the_whole_registry(tmp_path: Path) -> None:
     second = BYTE_CEILING._replace(label="another ceiling")
     faults = crosscheck.check(tmp_path, (BYTE_CEILING, second))
@@ -496,11 +577,25 @@ def test_every_registered_constant_spans_more_than_one_language() -> None:
         assert len({Path(place).suffix for place in places}) > 1, constant.label
 
 
-def test_every_registered_mention_carries_the_placeholder() -> None:
-    """A template without it would find itself in any file and tie nothing."""
+def test_every_registered_mention_renders_something_the_registry_fills() -> None:
+    """A template that renders neither the value nor a name finds itself in any file."""
     for constant in crosscheck.CONSTANTS:
         for mention in constant.mentions:
-            assert crosscheck.PLACEHOLDER in mention.template, constant.label
+            renders_name = crosscheck.NAME_PLACEHOLDER in mention.template
+            assert crosscheck.PLACEHOLDER in mention.template or renders_name, constant.label
+            assert renders_name == (mention.name is not None), constant.label
+
+
+def test_the_registry_spends_at_least_one_rendered_name() -> None:
+    """A field no entry sets is a dead wire, and this repo declines those."""
+    named = [
+        mention
+        for constant in crosscheck.CONSTANTS
+        for mention in constant.mentions
+        if mention.name is not None
+    ]
+    assert named
+    assert any(crosscheck.PLACEHOLDER not in mention.template for mention in named)
 
 
 def test_the_registry_exercises_every_relation() -> None:

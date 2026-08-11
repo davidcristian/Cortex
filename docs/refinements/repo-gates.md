@@ -693,7 +693,11 @@ cross-language-constant addendum):**
   of it is written under the sub-entry it closed rather than here, and the four that remain are
   the bind port with no declaration to read, the custom property whose spend a rendered value
   cannot reach, the gRPC status code spelled once per language's casing, and the capture target's
-  generated enums.
+  generated enums. **Three later that same day**, when the second of those closed on a mention
+  form that renders a NAME rather than a value, which is the half of the pair the constant happens
+  not to be; what the close leaves behind is written under it and is narrower than the entry it
+  came from, being one presence-checked name rather than a shape the registry cannot express. The
+  three that remain are the bind port, the gRPC status code, and the capture target's enums.
   **A membership, not an ordering.** `CAPTURE_MIME` (`"image/png"`) must stay inside the brain's
   `ALLOWED_MIME_TYPES`, which is a `frozenset` literal, so this wants a collection value form as
   well as a comparator, and the reducer refuses what it cannot reduce by policy rather than by
@@ -773,6 +777,38 @@ cross-language-constant addendum):**
   declaration existing only to be read by a gate, or a mention form that pins a rendered NAME
   rather than a rendered value. **Trigger:** a third property in this shape, or the first spend
   that is found mistyped.
+  **Struck 2026-08-11**, ahead of both of those, by the second of the two ways it named, and the
+  reason it went that way rather than the other is that a name constant nothing imports is a
+  declaration written to be read by a gate, which is the tail wagging the tree. `Mention.name` is
+  the name a far side spends the value under and `{name}` renders it, so the pair is two mentions
+  of one entry: `{name}: {value}ms;` over the declaration on `:root`, which is the mention that
+  already existed with its property name spelled inside the template, and `var({name})` over the
+  spends, which no rendered value could reach. A mention carries a name exactly when its template
+  renders one, either half alone being dead data, and the registry refuses a name pinned as a
+  spend that no mention of the same entry renders a value under, since that would hold the name
+  while quietly dropping the value it was supposed to tie.
+  **The two properties got different treatment, and the difference is the counting rule already
+  written down.** `var(--roll)` is pinned at 2, those two rules being the set the entry's own
+  reason names (the section share caps' handover and the thoughts marker's turn), so losing one is
+  the drift rather than a design change and a third rule joining them is a registry line to
+  correct. `var(--ease)` is a presence check, 52 transitions across unrelated features riding that
+  curve, where a count would redden on the next one added and hold a retune of one feature hostage
+  to another. That is the same division the `[data-morphing` rules got.
+  **Proved able to fail three times before it was trusted**, each restored: one of the two roll
+  spends mistyped to `var(--rol)` exits 1 with `found 1, pinned 2`; the declaration renamed to
+  `--cadence` on `:root` while the spends stand exits 1 saying the sheet does not spell
+  `--roll: 300ms;`; and all 52 ease spends renamed to `var(--easing)` with the declaration left
+  alone exits 1 saying the sheet does not spell `var(--ease)`. The scan as it stood at the previous
+  commit exits 0 over the first and the third, reporting all sixteen constants agree, which is what
+  makes these the drifts the form was for rather than ones the old one already caught. The second
+  was catchable before and still is, being a rendered value.
+  **What it does not reach**, recorded rather than left to be discovered: a mistyped spend of a
+  property whose mention is a presence check is still invisible, so `var(--ease)` is held only
+  against losing every spend at once. Counting it would be the churn the occurrences field was
+  made opt in to avoid, and the honest closing of that gap is a stylesheet-wide check that every
+  `var()` names a property something declares, which is a different scan over a different input and
+  is not this registry's shape. **Trigger:** an `--ease` spend found mistyped, or a second
+  presence-checked name whose spends matter one at a time.
   **A gRPC status code, spelled once per language's own casing.** Added 2026-08-08 with the
   gateway's kinded error currency ([ADR-0023](../adr/ADR-0023-body-gateway-volume.md)'s addendum
   of that date). The body writes `Status::resource_exhausted` and `Status::failed_precondition`;

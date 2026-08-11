@@ -105,7 +105,8 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    toolchains; `dashcheck.py`, which bans a dash used as punctuation in any text file
    (ADR-0026); `crosscheck.py`, which ties every value this repo spells in more than one place,
    whether the far side declares it, orders itself against it, carries it among the several it
-   accepts, or merely spends it inside a string, a stylesheet or a bare literal (ADR-0029
+   accepts, or merely spends it inside a string, a stylesheet or a bare literal, down to the
+   name a stylesheet spends it under (ADR-0029
    cross-language-constant addendum); and `bindcheck.py`, which holds every compose bind
    mount to resolving outside the repo, onto a path git tracks, or onto one git ignores, so
    no `docker compose up`

@@ -2991,3 +2991,67 @@ The three records are [docs/refinements/repo-gates.md](../refinements/repo-gates
 [docs/refinements/index.md](../refinements/index.md), and this addendum. No count moves on either:
 the couplings entry stays open on the four couplings the registry still cannot hold, and a coupling
 leaving that entry is recorded inside it exactly as an arriving one is.
+
+## Addendum (2026-08-11): a mention that pins a rendered name, for the half of a pair the constant is not
+
+The addendum above closed one of the couplings the registry could not hold. This closes the next
+one, and it is the one the registry's own shape had been living beside since mentions landed. A
+mention renders a value, so where the overlay's TypeScript declares a custom property's NAME
+(`CEILING_PROPERTY`, `CHAT_FLOOR_PROPERTY`, `TRACE_ROW_PROPERTY`) the mention pins the `var()`
+exactly. Where it declares the VALUE instead, the same mechanism reaches only the declaration:
+`EASING` and `MORPH_ROLL_MS` are restated on `:root` as `--ease` and `--roll`, and the 54 `var()`
+that pay them carry no value for a template to render. A spend that names a property nobody
+declares, or that pays the wrong one, went unheld, and what stood in for the gate was the browser.
+
+### The form, and why it is not the other one
+
+The entry named two ways to close it. The first, a name constant in `overlay/morph.ts` that
+nothing imports, is a declaration written to be read by a gate, which is the tail wagging the tree
+and would have to be repeated for every property in this shape. The second is the one that shipped:
+`Mention.name` is the name a far side spends the value under, and `{name}` renders it. The pair is
+two mentions of one entry, `{name}: {value}ms;` over the declaration and `var({name})` over the
+spends, so a rename of either half leaves a rendered needle unfound and a mistyped spend leaves the
+count short.
+
+Two rules keep it from being a tie that ties nothing. A mention carries a name exactly when its
+template renders one, either half alone being dead data rather than a decision; and the registry
+refuses a name pinned as a spend that no mention of the same entry renders a value under, since
+that entry would hold the property's name across the two files while quietly dropping the number
+the whole coupling exists for.
+
+### One is counted and one is not, by the rule that was already written
+
+`var(--roll)` is pinned at 2. Those two rules are the set the entry's own reason names, the section
+share caps' handover and the thoughts marker's turn, so losing one is the drift rather than a design
+change and a third rule joining them is a registry line to correct rather than a silent widening.
+`var(--ease)` is a presence check: 52 transitions across unrelated features ride that curve, and a
+count over them would redden every time an unrelated rule is added, which is the churn the
+occurrences field was made opt in to avoid. That is the same division the three `[data-morphing`
+rules already have.
+
+### Proved able to fail, three times, and newly able twice
+
+Each drift was planted on the real stylesheet and restored. One of the two roll spends mistyped to
+`var(--rol)` exits 1 with `found 1, pinned 2`. The declaration renamed to `--cadence` on `:root`
+while the spends stand exits 1 saying the sheet does not spell `--roll: 300ms;`. All 52 ease spends
+renamed to `var(--easing)` with the declaration left alone exits 1 saying the sheet does not spell
+`var(--ease)`. The scan as it stood at the previous commit is green on the first and the third,
+reporting that all sixteen constants agree, which is what makes those two the drifts this form was
+for; the second was catchable before and still is, being a rendered value.
+
+### What it does not reach
+
+A mistyped spend of a presence-checked name stays invisible, so `--ease` is held against losing
+every spend at once and not against losing one of 52. Counting it would be the churn above, and the
+honest close is a stylesheet-wide check that every `var()` names a property something declares,
+which is a different scan over a different input and not this registry's shape. It is recorded in
+the couplings entry with a trigger: an `--ease` spend found mistyped, or a second presence-checked
+name whose spends matter one at a time.
+
+### Records
+
+The three records are [docs/refinements/repo-gates.md](../refinements/repo-gates.md), its line on
+[docs/refinements/index.md](../refinements/index.md), and this addendum. No count moves: the
+couplings entry stays open on the three couplings the registry still cannot hold, and what this
+close leaves behind is narrower than the entry it came from, so it is written inside it rather than
+counted beside it.

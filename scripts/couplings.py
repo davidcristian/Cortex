@@ -20,6 +20,14 @@ the reader to rediscover why they must not.
   from the declaring site, so a rename on either side leaves the rendered needle unfound. It is
   also why a bare literal does not have to be promoted to a named constant first.
 
+Where the far side NAMES the value rather than restating it, the mention carries that name and the
+template renders it: a stylesheet that declares `--roll: 300ms` and pays it as `var(--roll)` writes
+the number once and the name three times, and only the first of those is something a rendered value
+could reach. So the pair is written as two mentions of one entry, `{name}: {value}ms;` holding the
+declaration and `var({name})` holding the spends, and the registry refuses a name pinned as a spend
+that no mention of the same entry pays a value under, which would hold the name and quietly drop
+the value.
+
 A mention is a presence check by default: one bounded occurrence satisfies it however many the
 file spends, so a half applied rename that updates one of two identical comparisons leaves the
 gate green with the other one dead. `occurrences` closes that where a mention's several
@@ -38,8 +46,14 @@ ordering: the collection is the whole point, and the last site is the one that d
 from enum import Enum
 from typing import NamedTuple
 
-# What a mention's template substitutes. A template without it would tie nothing and is refused.
+# What a mention's template substitutes. A template rendering neither this nor the name below
+# would tie nothing and is refused.
 PLACEHOLDER = "{value}"
+
+# What a mention's template substitutes for the name the far side spends the value under. A
+# template may render the value, the name, or both; a mention carries a name exactly when its
+# template renders one, either half of that being dead data the scan refuses.
+NAME_PLACEHOLDER = "{name}"
 
 
 class Relation(Enum):
@@ -62,11 +76,16 @@ class Mention(NamedTuple):
 
     ``occurrences`` unset asks only that the rendered needle appear. Set, it asks that it appear
     exactly that many times, for a far side whose several occurrences must move together.
+
+    ``name`` is the name that far side spends the value under, rendered wherever the template
+    carries the name placeholder. It is the only thing that reaches a spend the value never
+    appears in, and it is set exactly when the template renders one.
     """
 
     path: str
     template: str
     occurrences: int | None = None
+    name: str | None = None
 
 
 class Constant(NamedTuple):

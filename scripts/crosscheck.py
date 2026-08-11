@@ -53,7 +53,15 @@ import sys
 from pathlib import Path
 from typing import NamedTuple
 
-from couplings import PLACEHOLDER, SEAM_COUPLINGS, Constant, Mention, Relation, Site
+from couplings import (
+    NAME_PLACEHOLDER,
+    PLACEHOLDER,
+    SEAM_COUPLINGS,
+    Constant,
+    Mention,
+    Relation,
+    Site,
+)
 from overlaycouplings import OVERLAY_COUPLINGS
 from values import CrossCheckError, Reading, Value, parse_value, relation_fault
 
@@ -133,16 +141,34 @@ def bounded(needle: str) -> re.Pattern[str]:
     return re.compile(f"{lead}{re.escape(needle)}{trail}")
 
 
+def rendered(mention: Mention, value: Value) -> str:
+    """The text a mention pins: its template with the agreed value and its own name rendered in."""
+    renders_name = NAME_PLACEHOLDER in mention.template
+    if PLACEHOLDER not in mention.template and not renders_name:
+        msg = (
+            f"mention {mention.template!r} renders neither {PLACEHOLDER} nor "
+            f"{NAME_PLACEHOLDER}, so it ties nothing"
+        )
+        raise CrossCheckError(msg)
+    if renders_name and mention.name is None:
+        msg = f"mention {mention.template!r} renders a name the mention does not carry"
+        raise CrossCheckError(msg)
+    if mention.name is not None and not renders_name:
+        msg = (
+            f"mention {mention.template!r} carries the name {mention.name!r} and renders it nowhere"
+        )
+        raise CrossCheckError(msg)
+    spelled = mention.template.replace(PLACEHOLDER, str(value))
+    return spelled if mention.name is None else spelled.replace(NAME_PLACEHOLDER, mention.name)
+
+
 def check_mention(root: Path, mention: Mention, value: Value) -> None:
     """Raise unless the file spends ``value`` in the shape, and the number, the mention names."""
-    if PLACEHOLDER not in mention.template:
-        msg = f"mention {mention.template!r} carries no {PLACEHOLDER}, so it ties nothing"
-        raise CrossCheckError(msg)
     wanted = mention.occurrences
     if wanted is not None and wanted < MIN_OCCURRENCES:
         msg = f"mention {mention.template!r} pins {wanted} occurrences, which ties nothing"
         raise CrossCheckError(msg)
-    needle = mention.template.replace(PLACEHOLDER, str(value))
+    needle = rendered(mention, value)
     found = len(bounded(needle).findall(_read(root, mention.path)))
     if wanted is None:
         if not found:
@@ -164,6 +190,23 @@ def registry_fault(constant: Constant) -> str | None:
         return "names fewer than two places, so it compares nothing"
     if constant.relation is not Relation.EQUAL and constant.mentions:
         return f"is {constant.relation.value}, so it has no one value a mention could spell"
+    return spend_fault(constant.mentions)
+
+
+def spend_fault(mentions: tuple[Mention, ...]) -> str | None:
+    """The complaint about a name pinned as a spend that nothing pays the value under."""
+    paid = {mention.name for mention in mentions if PLACEHOLDER in mention.template}
+    spent = [
+        mention.name
+        for mention in mentions
+        if mention.name is not None and PLACEHOLDER not in mention.template
+    ]
+    for name in spent:
+        if name not in paid:
+            return (
+                f"spends {name!r} where no mention renders the value under that name, so the "
+                "spend is held and the declaration it pays is not"
+            )
     return None
 
 
