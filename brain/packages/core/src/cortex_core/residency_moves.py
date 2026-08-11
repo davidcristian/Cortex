@@ -216,6 +216,15 @@ async def restart_evicted(host: ModelHost, plan: ResidencyPlan, tiers: StandingT
     for evicted in plan.evict_models:
         try:
             await host.start(evicted)
+        except ModelNotHostedError:
+            # A different fault from a host that would not: the id is not in this daemon's roster,
+            # which is env it read once at its own boot, so the retry pass stops asking about it
+            # rather than spending a control call an interval on a fixed answer.
+            _logger.exception(
+                "a tier named for eviction is not in the model host's roster at all",
+                extra={"model": evicted},
+            )
+            tiers.mark_unhosted(evicted)
         except ModelHostError:
             _logger.exception(
                 "a tier evicted for the handoff could not be restarted", extra={"model": evicted}

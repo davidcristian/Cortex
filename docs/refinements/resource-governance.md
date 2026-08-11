@@ -539,6 +539,64 @@ the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
   the one this entry already owns: what a pass looks at. It belongs here rather than in an entry of
   its own because the two answers are one design, whether a tier that can never come back stops
   being asked about and whether the placer stays closed on it while it is.
+  **It landed 2026-08-11, hours after that fifth shape joined it and ahead of its trigger**,
+  recorded at the [ADR-0030 tier-sweep addendum](../adr/ADR-0030-brain-handoff.md) where both
+  halves were opened. A pass now asks `status` for **every** `CORTEX_SWAP_EVICT_MODELS` tier rather
+  than only the marked ones (`residency_sweep.py`), so the record stopped being a list of refusals
+  and became a reading of the machine taken every interval. Four things about it, two of them
+  corrections to this entry's own text.
+  **All five shapes were re-derived against a real supervisor over HTTP before anything was
+  designed, and the count is four rather than five.** The first four really did leave the placer
+  spawning at a dead endpoint, each one witnessed: a spawn on the GPU with the record empty, and a
+  spawn on the CPU with the tier named on `Health` after the sweep. The fifth does not escape at
+  all and never did, which this entry had already got right: an unrostered tier is marked at boot
+  and GPU placement really is closed on it. What was wrong about the fifth is its cost, "two
+  control calls a pass", where a pass asks `status` first and that call is the one that 404s, so
+  the `start` is never reached and three passes produced three refusals rather than six. It is
+  retired rather than fixed: `TierFault.UNHOSTED` is recorded once, the tier is skipped by every
+  later pass, and the placer stays closed on it, which is what the shape asked for.
+  **"A peer a deployment never started at all" named the wrong deployment**, and the real one is
+  reachable with escalation on. Boot recovery does start every evictable peer, so the condition is
+  a convergence that **returned before its restart loop**: a deep model that is resident and
+  survives SIGKILL, or a cortex that will not settle, answers `False` several calls earlier and
+  leaves every peer both unstarted and unrecorded. That makes it the same site as the fourth shape
+  reached by a different failure, which is why one change closes both and why neither needed boot
+  recovery touched.
+  **The risk this entry deferred on is answered rather than assumed away.** A sweep may `start`,
+  and what stops it racing a handoff is a fence that is both wider and later than the old one: the
+  handoff **claim** as well as the residency scope, so the pass stands down from before the drain
+  rather than from the eviction, and both flags are re-read synchronously in the instant before
+  every `start`, with nothing awaited in between. What that leaves is a start already in flight
+  when a handoff begins, which the supervisor's own per-model lock orders and which costs a refused
+  handoff rather than a lost one; it is not closed by construction and is recorded below as its own
+  entry rather than glossed. The rule it replaces, "only a refusal marks", becomes "only an
+  observation taken outside a handoff marks", which is the stronger of the two: a pass cannot run
+  while a handoff owns the GPU, and by the time a scope ends the restart has already asked every
+  peer to come back.
+  **The record's shape moved and its home did not.** It carries a reason per tier now and nothing
+  else: no timestamp, no attempt count, since the pass interval already paces the retry and the
+  seam names the tier rather than its age. It stays in the process, and the sweep is what makes
+  that obviously right rather than merely convenient: a record re-derived from `status` every
+  interval is live-resource state of the same kind as the placer's ledger, so a restart rebuilds it
+  from the machine and a foreign swapper can at worst cost one interval of CPU placement instead of
+  a belief nothing corrects.
+- **The sweep's start is fenced against a handoff but not serialized with one.** *Fix when it
+  bites.* Opened 2026-08-11 by the close above, which owns the fence and says plainly what the
+  fence does not cover. A pass reads the handoff claim and the residency scope flag synchronously
+  in the instant before it starts a tier, so a handoff cannot **begin** between the check and the
+  call. What is not excluded is the other order: a `start` already on the wire when a handoff
+  begins, whose request the daemon happens to serve after the swap in's own `stop` of that same
+  tier, leaving a peer loading beside the deep model. Reaching it means one loopback request
+  outliving the claim, the whole drain, the lease wait, a `boot_id` round trip and a full cortex
+  stop, so it is narrow, and what it costs is bounded: the fit check reads the card immediately
+  before the deep load and refuses the handoff with both figures, or the peer runs until
+  `restart_evicted` finds it already up. Nothing is lost and no record is corrupted, which is why
+  the residual was taken. The fix is a primitive that orders the two rather than a wider flag, and
+  the obvious one is refused for a reason that has not changed: taking the GPU lease for the start
+  would park a user's turn behind a control call and can block a pass for the whole load bound,
+  which is worse than the failure it prevents. The trigger is a deployment observed refusing a
+  handoff at its fit check with a peer that a retry pass had just started, which is also the first
+  evidence that the window is wide enough to reach.
 - **The placer holds one bit for the card, where the record holds one entry per tier.**
   *Fix when it bites.* Opened 2026-08-09 by the same close. Any missing tier closes GPU placement
   for the whole pool, because the brain has no declared mapping from a hosted tier id

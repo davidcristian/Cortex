@@ -66,7 +66,8 @@ from cortex_core.residency_state import (
     RESIDENCY_SERVING,
     ResidencyReport,
 )
-from cortex_core.residency_tiers import StandingTiers, retry_missing
+from cortex_core.residency_sweep import sweep_tiers
+from cortex_core.residency_tiers import StandingTiers
 from cortex_core.residency_watch import BootWatch
 
 
@@ -244,17 +245,31 @@ class SwappingModelManager:
             await self._board.publish(model, RESIDENCY_DEEP)
 
     async def heal_standing_tiers(self) -> None:
-        """Retry every peer the standing residency is missing, unless a handoff owns the GPU.
+        """Read every evictable peer's state and act on it, unless a handoff owns the GPU.
 
-        Driven by ``TierHealer`` (``residency_heal.py``), which owns the pacing and the task. The
-        lease is deliberately **not** taken: a peer is never the resident, so holding it across a
-        control call would park a user's turn behind a status probe for nothing. What must not
-        happen is starting a peer while the deep model is alone on the card, which the scope
-        check refuses; a scope beginning just after that check costs nothing either, the swap
-        in's first move being to stop these very tiers.
+        Driven by ``TierHealer`` (``residency_heal.py``), which owns the pacing and the task, over
+        ``residency_sweep.py``, which owns what a pass does. Every tier is asked about rather than
+        only the ones already believed missing, because the four ways a peer goes down without a
+        refusal to record it are exactly the ways a record written by refusals cannot see (ADR-0030
+        tier-sweep addendum).
+
+        The lease is deliberately **not** taken: a peer is never the resident, so holding it across
+        a control call would park a user's turn behind a status probe, and a pass that queued for
+        it would be held for a whole load. The fence below is what stands in for it.
         """
-        if not self._board.scope_active:
-            await retry_missing(self._host, self._tiers)
+        if self._fence():
+            await sweep_tiers(self._host, self._plan, self._tiers, self._fence)
+
+    def _fence(self) -> bool:
+        """Whether no handoff owns the GPU right now, answered synchronously and without I/O.
+
+        Both halves, because they cover different stretches of one handoff: the claim is taken
+        before the conductor drains anything and held to the end, and the scope is the backstop
+        under it for a swap that never claimed. Handed to the sweep as well as read here, so the
+        pass can ask again in the instant before it starts a tier; being a plain read of two flags,
+        nothing can interleave between that answer and the call it guards.
+        """
+        return not self._handoff_claim.claimed and not self._board.scope_active
 
     async def _restore(self, model: str) -> None:
         """Take the lease, then run the swap back's retry policy under it."""

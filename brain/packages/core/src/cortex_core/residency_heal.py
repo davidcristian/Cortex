@@ -1,10 +1,11 @@
-"""The loop that keeps retrying a tier the standing residency is missing (ADR-0030 decision 4).
+"""The loop that keeps reading what the standing residency's peers are doing (ADR-0030 d4).
 
 Split from ``residency_tiers.py`` along the same seam the rest of this family is split on: that
-module owns the record and what one retry pass does, this owns *when* a pass happens and who
-owns the task it runs in. Deliberately generic about the pass itself, taking a coroutine factory
-rather than the manager, so the object that knows whether a handoff is in flight keeps that
-judgement (``SwappingModelManager.heal_standing_tiers``) and nothing here has to import it.
+module owns the record, ``residency_sweep.py`` owns what one pass does, and this owns *when* a
+pass happens and who owns the task it runs in. Deliberately generic about the pass itself, taking
+a coroutine factory rather than the manager, so the object that knows whether a handoff is in
+flight keeps that judgement (``SwappingModelManager.heal_standing_tiers``) and nothing here has to
+import it.
 
 The loop owns its own task, unlike the schedule ticker's, whose start and stop are two more lines
 at a composition root already at its line cap. The lifecycle is the same otherwise: an
@@ -18,11 +19,12 @@ import contextlib
 import logging
 from collections.abc import Awaitable, Callable
 
-# How long between two retry passes. A missing tier costs the pool its whole GPU allowance, so
-# the wait is short next to the minutes a tier takes to load, and it is spent on two control
-# calls to a loopback sidecar only while something is actually broken: a record with nothing in
-# it makes a pass that asks nobody anything. The deployment overrides it with
-# CORTEX_SWAP_TIER_HEAL_S.
+# How long between two sweep passes. A missing tier costs the pool its whole GPU allowance, so
+# the wait is short next to the minutes a tier takes to load, and what it is spent on is one
+# status call per evictable tier to a loopback sidecar: a deployment that evicts nothing still
+# makes a pass that asks nobody anything, and one that evicts a tier pays a couple of calls a
+# minute for a record that is a reading of the machine rather than a memory of refusals. The
+# deployment overrides it with CORTEX_SWAP_TIER_HEAL_S.
 DEFAULT_TIER_HEAL_INTERVAL_S = 30.0
 
 _logger = logging.getLogger(__name__)

@@ -55,8 +55,10 @@ class SwapRuntime:
     through) and the residency scope the conductor drives, which is exactly why it must be the
     same object in both roles: a swap that did not hold the lease would preempt a live round.
 
-    ``healer`` is the one background loop this capability owns: it retries the peer tiers a swap
-    back could not restart (ADR-0030 tier-outage addendum). It is started by boot recovery and
+    ``healer`` is the one background loop this capability owns: it reads what every evictable
+    peer tier is doing and puts back the ones that are not serving, whether or not anything ever
+    refused to start them (ADR-0030 tier-outage and tier-sweep addenda). It is started by boot
+    recovery and
     stopped by ``close``, rather than by two more lines at a composition root already at its line
     cap, which is also why it owns its own task.
     """

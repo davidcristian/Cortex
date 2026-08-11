@@ -29,7 +29,8 @@ from cortex_core.residency_state import (
     RESIDENCY_SERVING,
     ResidencyReport,
 )
-from cortex_core.residency_tiers import TIERS_MISSING_DETAIL, StandingTiers, retry_missing
+from cortex_core.residency_sweep import sweep_tiers
+from cortex_core.residency_tiers import TIERS_MISSING_DETAIL, StandingTiers, TierFault
 from cortex_core.swap_conductor import SwapConductor
 from cortex_core.swap_notes import (
     ALREADY_ACTIVE_NOTE,
@@ -88,9 +89,10 @@ __all__ = [
     "StandingTiers",
     "SwapConductor",
     "SwappingModelManager",
+    "TierFault",
     "TierHealer",
     "await_model_ready",
     "converge_residency",
     "recover_handoffs",
-    "retry_missing",
+    "sweep_tiers",
 ]
