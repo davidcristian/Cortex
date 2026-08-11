@@ -2,10 +2,14 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
-// The overlay is gated at 100% (ADR-0011 addendum). Coverage covers every
-// component and pure module; excluded are the entry glue (main.tsx) and the
-// real Tauri bridge (tauriBridge.ts), which is the frontend analog of the Rust host
-// adapters, validated on the host, not in CI.
+// The overlay is gated at 100% (ADR-0011 addendum). Coverage covers every component, every pure
+// module, and both `BrainBridge` implementations that CI can run: the fake and the browser-dev
+// demo bridge, driven over one shared check list (src/bridge/bridgeContract.ts) plus the demo's
+// own suite for the conversation it scripts, its script measured with it.
+// Two files stay out, each for a reason a test cannot remove. `main.tsx` is entry glue. And
+// `tauriBridge.ts` crosses the Tauri IPC boundary on every call, which makes it the frontend
+// analog of the Rust host adapters: host-validated, never in CI (AGENTS.md gate 3), and holding
+// nothing but that crossing, since every branchy turn decision lives in the gated core.
 export default defineConfig({
   plugins: [react()],
   clearScreen: false,
@@ -28,8 +32,6 @@ export default defineConfig({
         "src/**/*.test.{ts,tsx}",
         "src/main.tsx",
         "src/bridge/tauriBridge.ts",
-        "src/bridge/demoBridge.ts",
-        "src/bridge/demoScript.ts",
         "src/test-setup.ts",
         "src/vite-env.d.ts",
       ],

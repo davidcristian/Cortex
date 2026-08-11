@@ -39,8 +39,10 @@ function streamWords(
 
 // Browser-dev BrainBridge: streams a canned reply on a timer so `vite dev` shows the real
 // components with realistic streaming. Everything it says or serves lives in `demoScript.ts`;
-// what is left here is the behaviour. Coverage-excluded as the frontend analog of the real Tauri
-// bridge, exercised by hand (browser validation), never in CI.
+// what is left here is the behaviour. Gated like any other implementation of the port: the shared
+// checks in `bridgeContract.ts` drive it beside the fake, and `demoBridge.test.ts` holds what is
+// its alone, the recorded conversation and the four prompts that trip a hook. Browser validation
+// still says whether it looks right; the suites say whether it behaves.
 export class DemoBridge implements BrainBridge {
   /** Resumes the paused confirm turn with the user's decision (null = none pending). */
   private pending: ((approved: boolean) => void) | null = null;
@@ -100,17 +102,25 @@ export class DemoBridge implements BrainBridge {
     // its eye (ADR-0029 outcome addendum). Say "refused" and the outcome comes back not ok, so
     // the ring holds at the ask, which is what the shipping default does with the host's capture
     // switch unset. The gap is long enough to watch the pupil grow.
+    //
+    // The ask rides a timer like everything else this bridge says, short though its wait is. It
+    // was announced inside the call until the shared check list asked whether a turn can deliver
+    // before it has handed back its cancellation: the real bridge carries events over a Tauri
+    // channel and cannot, and a caller assigns the handle from what `converse` returns.
+    let asked: ReturnType<typeof setTimeout> | undefined;
     let settle: ReturnType<typeof setTimeout> | undefined;
     if (/screen|look at|see this/iu.test(text)) {
       const ok = !/refus|blocked|denied|declin/iu.test(text);
-      sink.onEvent({
-        kind: "toolActivity",
-        toolName: "capture_screen",
-        summary: "reading the screen",
-      });
+      asked = setTimeout(() => {
+        sink.onEvent({
+          kind: "toolActivity",
+          toolName: "capture_screen",
+          summary: "reading the screen",
+        });
+      }, 90);
       settle = setTimeout(() => {
         sink.onEvent({ kind: "toolOutcome", toolName: "capture_screen", ok });
-      }, 320);
+      }, 400);
     }
     // Hold the bubble on the thinking shimmer, surface a reasoning burst as thinking statuses,
     // then stream: the same shape a real reasoning turn has (ADR-0020). Several deltas so the
@@ -132,6 +142,7 @@ export class DemoBridge implements BrainBridge {
     }, 450);
     return () => {
       clearTimeout(status);
+      clearTimeout(asked);
       clearTimeout(settle);
       cancelStream();
     };
@@ -216,7 +227,9 @@ export class DemoBridge implements BrainBridge {
       (a, b) =>
         Number(b.pinned) - Number(a.pinned) || b.lastActivityUnixMs - a.lastActivityUnixMs,
     );
-    return Promise.resolve(ordered.slice(0, limit));
+    // `0` means the brain's own default (`types.ts`), never "at most none": read as a bound it
+    // answers an empty switcher to any caller that asks for the default listing.
+    return Promise.resolve(limit === 0 ? ordered : ordered.slice(0, limit));
   }
 
   getPreferences(): Promise<readonly Preference[]> {

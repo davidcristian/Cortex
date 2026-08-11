@@ -15,8 +15,9 @@ import type {
 // sink, and the test emits events/errors when it chooses, so streaming, mid-stream dismiss,
 // completion, and failures are all deterministic. The session reads resolve from injectable
 // tables (or reject when the failure flags are set), so the list/switcher/cycling paths are
-// exercised without a server. The browser dev bridge (timer-driven, for `vite dev`) is separate
-// and coverage-excluded, the frontend analog of the real Tauri bridge.
+// exercised without a server. The browser dev bridge (timer-driven, for `vite dev`) is separate and
+// answers on its own; the two are held to one description by the shared checks in
+// `bridgeContract.ts`, which is where a claim about the port belongs rather than in either's suite.
 export class FakeBridge implements BrainBridge {
   private sink: TurnSink | null = null;
   readonly calls: { readonly sessionId: string; readonly text: string }[] = [];
@@ -86,12 +87,16 @@ export class FakeBridge implements BrainBridge {
     return Promise.resolve(this.link);
   }
 
-  listSessions(_limit: number): Promise<readonly SessionSummary[]> {
+  // Bounded by the caller's `limit`, like every other implementation of the read: the table is
+  // the test's to assign, but how much of it one call may see is the call's argument, and a fake
+  // that answered past the bound would let a test pass against a listing production would cut.
+  // `0` is "the brain default" (`types.ts`), which for an injected table is all of it.
+  listSessions(limit: number): Promise<readonly SessionSummary[]> {
     this.listCalls += 1;
     if (this.listFails) {
       return Promise.reject(new Error("list failed"));
     }
-    return Promise.resolve(this.sessions);
+    return Promise.resolve(limit === 0 ? this.sessions : this.sessions.slice(0, limit));
   }
 
   sessionMessages(sessionId: string): Promise<readonly SessionMessage[]> {
@@ -156,11 +161,16 @@ export class FakeBridge implements BrainBridge {
     return Promise.resolve(this.preferences);
   }
 
+  // Records the write and, on success, reflects it in the served record the way the catalog
+  // writes above reflect theirs: one row per key, an empty value clearing it (ADR-0032). Left
+  // unreflected, a written setting was unreadable through the port it was written to.
   setPreference(key: string, value: string): Promise<void> {
     this.preferenceWrites.push({ key, value });
     if (this.preferenceWriteFails) {
       return Promise.reject(new Error("preference write failed"));
     }
+    const others = this.preferences.filter((pref) => pref.key !== key);
+    this.preferences = value === "" ? others : [...others, { key, value }];
     return Promise.resolve();
   }
 
