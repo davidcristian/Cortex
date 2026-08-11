@@ -557,3 +557,15 @@ Nothing about the `RecallPolicy` seam changed for this. It is one value in `Memo
 policies are all still selected at the composition root, and `CORTEX_MEMORY_RECALL=raw` restores
 the byte-for-byte v1 behavior this ADR shipped. What did change is which way the opt is: the
 founding cosine is the opt-out now.
+
+## Addendum (2026-08-11): a failing embedder or store takes the turn with it
+
+Writing the `Embedder` port's shared check list (the
+[ADR-0001](ADR-0001-architecture.md) addendum on the Python ports) established that both
+implementations raise `EmbedderError` and nothing else, which is what makes one catch possible.
+It also established that there is no catch: `recall_memory_context` awaits `recall` bare,
+`MemoryRecaller.recall` awaits `embed` bare, and the engine handles only `InferenceError`. So a
+stopped embedding server or an unreachable Postgres fails the turn instead of costing it its
+recalled notes, which is the opposite of how every other optional capability here degrades. The
+remedy is a decision about where the catch belongs and whether the user is told, so it is recorded
+in [docs/refinements/memory.md](../refinements/memory.md) rather than taken here.
