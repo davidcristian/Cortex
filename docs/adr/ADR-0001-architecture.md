@@ -137,7 +137,7 @@ needs a real server and runs on the host.
 | `VisionProbe` | `ScriptedVisionProbe` | `PropsVisionProbe` | `orchestrator/tests/vision_probe_contract.py` | yes | yes, over `MockTransport` | yes, restated |
 | `InferenceBackend` | `ScriptedInferenceBackend` | `LlamaCppBackend` | `inference/tests/cadence_contract.py`, decode cadence only | yes | yes, over `MockTransport` | yes, restated |
 | `Embedder` | `HashEmbedder` | `LlamaCppEmbedder` | `embedding/tests/embedder_contract.py` | yes | yes, over `MockTransport` | yes, restated |
-| `ToolRegistry` | `InMemoryToolRegistry` | `McpToolRegistry` | none | n/a | n/a | yes |
+| `ToolRegistry` | `InMemoryToolRegistry` | `McpToolRegistry`, and the `ReconnectingMcpToolRegistry` over it | `tools/tests/registry_contract.py` | yes | yes, both, over a serving `McpSession` | yes |
 | `BodyGateway` | `InMemoryBodyGateway` | `GrpcBodyGateway` | none | n/a | n/a | yes |
 | `Confirmer` | `RecordingConfirmer` | `SeamConfirmer` | none | n/a | n/a | no |
 | `ToolAuditSink` | `RecordingAuditSink` | `LoggingAuditSink` | none, and by design | n/a | n/a | no |
@@ -372,3 +372,53 @@ the adapter's `httpx.HTTPError` escape instead of wrapping reddens
 `a_backend_that_cannot_answer_raises_embedder_error[llamacpp]`; and making the new `fail_with` a
 no-op reddens the same check on the `hash` arm, which is what proves the knob is load-bearing
 rather than decorative. Each break was restored.
+
+### `ToolRegistry`
+
+`brain/packages/tools/tests/registry_contract.py` holds six checks, the `ServedTool` a fixture
+publishes and the `RegistryUnderTest` a check runs against; `test_registry_contract.py` runs the
+list over three implementations, the core's `InMemoryToolRegistry` and both MCP ones, the
+translating `McpToolRegistry` and the `ReconnectingMcpToolRegistry` production wires, the last two
+over a serving `McpSession` that answers real `mcp` result types. The six are that every served
+tool is advertised with its name, purpose and schema in order; that the listing is read again on
+every walk; that a call comes back stamped with its own id and the tool's text; that a tool which
+ran and failed is an `is_error` result rather than an exception; that a name the registry does not
+serve never comes back as a success; and that an unreachable backend raises `ToolError` from both
+verbs.
+
+**Where the two kinds legitimately diverge, and what the port now says about it.** An unknown name
+is the case, and the sweep's assumption that the port already settled it was wrong. The port's
+parenthetical promised `ToolNotFoundError`, which only a registry that knows its whole set can
+keep: `McpToolRegistry` asks a server, and an MCP server answers an unknown tool with an error
+*result*, so the adapter has never raised there and cannot without either sniffing an error string
+or paying a listing round trip per call. Neither implementation is wrong, so the fix went into the
+description: the port now states the safety half both owe, that a name an implementation does not
+serve never comes back as a success, and names the divergence and its downstream consequence, the
+dispatcher stamping its own `ToolError` sentence `TRUSTED` while a relayed error result stays
+`UNTRUSTED`, which is the correct reading of each. A caller needing the distinction resolves
+ownership by a live walk first, which is what `AggregateToolRegistry` already does.
+
+**What it found: the fake could express neither the port's central case nor its world.**
+`InMemoryToolRegistry`'s handlers returned result text, so the fake could never produce a result
+with `is_error` set, which is the case the port draws its whole `is_error`/raise distinction
+around; every core test of a failing tool went through a handler *raising*, which is the other
+branch, and the dispatcher labels the two differently. The handler's answer is now text or a whole
+`ToolResult`, with the call's own id stamped on either. The fake also copied its tool set at
+construction, so no test could move the world the port promises to re-read (it gained `serve`), and
+it had no way to be unreachable, so nothing held it to the `ToolError` that
+`SkipUnavailableToolRegistry` is built on (it gained `fail_with`, the same knob `HashEmbedder`
+took the day before).
+
+**Proven able to fail, four times, and the arms it reddens are the ones that can carry each
+defect.** With the adapter reading `isError` as always false, the failed-tool check and the
+unknown-name check both redden on the `mcp` and `reconnecting` arms while the fake stays green, 4
+failed against 15 passed, which is the unknown-name check earning its altitude: it is the only
+thing standing between a relayed "Unknown tool" and the model being told it succeeded. With the
+adapter dropping the call's arguments, the id-and-text check and the failed-tool check redden on
+the same two arms. With the fake answering an empty listing instead of raising when it is
+unreachable, which is the silent degradation `SkipUnavailableToolRegistry` exists to prevent, the
+backend check reddens on the `in-memory` arm alone. And with a listing cache added to
+`McpToolRegistry`, the re-read check reddens on the `mcp` arm **only**, not on `reconnecting`,
+because that wrapper builds a fresh inner registry per call and is structurally immune to the
+defect. That last one is why both MCP arms are in the list rather than one: they are not the same
+implementation of this promise. Each break was restored.

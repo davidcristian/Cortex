@@ -66,6 +66,25 @@ is told; an outer `SkipUnavailableToolRegistry` instead serves around an unavail
 A tool that *ran* but reported an error (`CallToolResult.isError`) is a normal `is_error`
 result, not an exception.
 
+**Shared contract.** `tests/registry_contract.py` holds the six checks every `ToolRegistry`
+implementation owes and `tests/test_registry_contract.py` drives them over three: the core's
+`InMemoryToolRegistry`, `McpToolRegistry`, and the `ReconnectingMcpToolRegistry` production
+wires, the last two over a serving `McpSession` that answers real `mcp` result types. The six are
+that every served tool is advertised with its name, purpose and schema in order; that the listing
+is read again on every walk; that a call comes back stamped with its own id and the tool's text;
+that a tool which ran and failed is an `is_error` result rather than an exception; that a name the
+registry does not serve never comes back as a success; and that an unreachable backend raises
+`ToolError` from both verbs.
+
+The fifth of those sits at the altitude it does because the two kinds of registry genuinely
+diverge, and the port now says so: a registry that knows its whole set raises `ToolNotFoundError`
+for an unknown name, while this adapter can only relay what its server says, and an MCP server
+answers an unknown tool with an error *result*. The difference is visible downstream, since the
+dispatcher stamps its own `ToolError` message `TRUSTED` and leaves a relayed result `UNTRUSTED`,
+which is the correct reading of each: one sentence is ours and the other is the server's. Callers
+that must tell the two apart resolve ownership by a live `describe_tools` walk first, which is
+what `AggregateToolRegistry` does before it routes.
+
 **Invariants.**
 - Untrusted by default (ADR-0013): `invoke` leaves `ToolResult.trust` at its fail-closed
   `UNTRUSTED` default, so every remote MCP result (file contents, email bodies) is framed as
