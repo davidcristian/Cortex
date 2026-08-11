@@ -80,7 +80,7 @@ jobs:
       - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
           enable-cache: true
-      - uses: taiki-e/install-action@065d6a08a14e61e89fb0a4c10eecdbdef39c7d8e # v2
+      - uses: taiki-e/install-action@7f4eb899022d8fe70b20c4f3de697aa85c309026 # v2
         with:
           tool: just
       - run: just check-linecap
@@ -97,7 +97,7 @@ jobs:
       - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
           enable-cache: true
-      - uses: taiki-e/install-action@065d6a08a14e61e89fb0a4c10eecdbdef39c7d8e # v2
+      - uses: taiki-e/install-action@7f4eb899022d8fe70b20c4f3de697aa85c309026 # v2
         with:
           tool: just
       - run: just check-brain
@@ -112,11 +112,11 @@ jobs:
       # Nightly first (branch-coverage instrumentation only), stable second so that
       # stable stays the default toolchain (ADR-0002). The SHA pin drops the
       # @nightly/@stable ref selection, so the toolchain is passed explicitly.
-      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # pinned master (no releases; dependabot bumps the SHA only)
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # pinned master (no releases; dependabot bumps the SHA only)
         with:
           toolchain: nightly
           components: llvm-tools-preview
-      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # pinned master (no releases; dependabot bumps the SHA only)
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # pinned master (no releases; dependabot bumps the SHA only)
         with:
           toolchain: stable
           components: rustfmt, clippy
@@ -124,7 +124,7 @@ jobs:
           # native workspace compiles to nothing); clippy never links, so no MSVC toolchain is
           # needed. Shell fmt (body/app/src-tauri) needs only rustfmt, already present. ADR-0011.
           targets: x86_64-pc-windows-msvc
-      - uses: taiki-e/install-action@065d6a08a14e61e89fb0a4c10eecdbdef39c7d8e # v2
+      - uses: taiki-e/install-action@7f4eb899022d8fe70b20c4f3de697aa85c309026 # v2
         with:
           tool: cargo-llvm-cov,just
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
@@ -151,7 +151,7 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: body/app/package-lock.json
-      - uses: taiki-e/install-action@065d6a08a14e61e89fb0a4c10eecdbdef39c7d8e # v2
+      - uses: taiki-e/install-action@7f4eb899022d8fe70b20c4f3de697aa85c309026 # v2
         with:
           tool: just
       - run: just check-overlay
