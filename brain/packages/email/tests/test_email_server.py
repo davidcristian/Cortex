@@ -24,6 +24,7 @@ from cortex_email import (
     build_server,
     main,
 )
+from cortex_email.values import MAX_ATTACHMENT_CHARS, MAX_ATTACHMENTS, MAX_FILENAME_CHARS
 
 _SIMPLE = (
     b"From: A <a@x.com>\r\nSubject: Hi\r\n"
@@ -247,6 +248,37 @@ async def test_the_send_tool_advertises_the_attachment_shape() -> None:
     definition = tool.inputSchema["$defs"]["EmailAttachment"]
     assert set(definition["required"]) == {"filename", "content"}
     assert definition["properties"]["subtype"]["default"] == "plain"
+
+
+async def test_every_attachment_field_says_what_it_is_for() -> None:
+    # The shape alone leaves three guesses, and each wrong one is refused inside the sidecar
+    # *after* the user approved the card, so the descriptions name the fact that settles it:
+    # the filename's own ceiling, that `content` is the file rather than a path to one, and
+    # that `subtype` is the bare token rather than a whole MIME type.
+    server = build_server(EmailReader(FakeMailbox()), FakeSender())
+    (tool,) = [t for t in await server.list_tools() if t.name == "send_email"]
+    fields = tool.inputSchema["$defs"]["EmailAttachment"]["properties"]
+    assert set(fields) == {"filename", "content", "subtype"}  # every one of them, below
+    # The subtype fact is the phrase that *locates* the token, not the bare "text/": the
+    # description also warns off "text/markdown", so matching "text/" alone would survive
+    # deleting the sentence that says what to write, which is a check that cannot fail.
+    for name, fact in (
+        ("filename", str(MAX_FILENAME_CHARS)),
+        ("content", "disk"),
+        ("subtype", "after 'text/'"),
+    ):
+        assert fact in fields[name]["description"]
+
+
+async def test_the_attachments_array_names_the_two_bounds_it_is_refused_against() -> None:
+    # Neither bound belongs to a field: one counts the entries and one sums their content, so
+    # they ride the array itself, which had no description at all. Both are spelled from the
+    # constants SmtpSender refuses against, never restated.
+    server = build_server(EmailReader(FakeMailbox()), FakeSender())
+    (tool,) = [t for t in await server.list_tools() if t.name == "send_email"]
+    described = tool.inputSchema["properties"]["attachments"]["description"]
+    assert str(MAX_ATTACHMENTS) in described
+    assert str(MAX_ATTACHMENT_CHARS) in described
 
 
 def test_main_builds_the_server_and_runs_streamable_http(monkeypatch: pytest.MonkeyPatch) -> None:

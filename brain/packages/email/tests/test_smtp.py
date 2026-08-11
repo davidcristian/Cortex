@@ -18,7 +18,7 @@ from pydantic import SecretStr, ValidationError
 
 from cortex_email import EmailAttachment, EmailDraft, SmtpConfig, SmtpSender
 from cortex_email.config import TlsSecurity
-from cortex_email.smtp import MAX_ATTACHMENT_CHARS, MAX_ATTACHMENTS, MAX_FILENAME_CHARS
+from cortex_email.values import MAX_ATTACHMENT_CHARS, MAX_ATTACHMENTS, MAX_FILENAME_CHARS
 
 _SMTP_ENV = (
     "CORTEX_EMAIL_SEND_ENABLED",
