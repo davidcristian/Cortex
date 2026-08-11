@@ -601,7 +601,11 @@ signature of a rule enforced by attention.
    enumerates loosely (the fail-open `scripts/` config closed 2026-07-12, ADR-0026 addendum). The
    bridge went 351 to 234 and the extracted script is 141; `sessions()` and `reminders()` are
    functions rather than constants so each `DemoBridge` still stamps its seed relative to its own
-   construction, as the inline initializers did.
+   construction, as the inline initializers did. Both exclusions came off on 2026-08-11, when the
+   demo bridge joined the overlay's shared `BrainBridge` check list and its script became tested
+   data, which is the trigger the refinement entry had set; the 0% measured here was a fact about a
+   script nothing imported in CI rather than a property of the file
+   ([ADR-0001](ADR-0001-architecture.md), the addendum of that date).
 5. **CI needed no change, which was checked rather than presumed.** `cross-tree` in
    `.github/workflows/ci.yml` carries no `needs` and no `if`, so it runs on every push and pull
    request; `scripts/ci_paths.py` classifies `body/app/src/overlay/useOverlay.ts` as overlay-only,

@@ -842,6 +842,17 @@ before it announces its roll.
   second behaviour worth testing, is untouched and is still what would turn the script into tested
   data.
 
+  **That last trigger fired on 2026-08-11, and the exclusion it argued for came off with it.** The
+  demo bridge is now driven as an implementation of a port that has a shared check list, the same
+  thirteen checks in `body/app/src/bridge/bridgeContract.ts` the fake is held to, with its own
+  suite beside it for the recorded conversation and the four prompts that trip a hook. Both files
+  left the coverage `exclude`, and the 0% measured above turns out to have been a fact about a
+  script nothing imported in CI rather than a property of the file: with the bridge under test
+  every line of the script is reached by the turns the suites drive, the transcript lookup's two
+  branches included. What is left in that list is `main.tsx` and `tauriBridge.ts`, and the account
+  of what the shared list found is the [ADR-0001](../adr/ADR-0001-architecture.md) addendum of
+  that date.
+
 **Scrollbars as reserved chrome ([overlay-ux.md §2](../design/overlay-ux.md),
 [ADR-0035](../adr/ADR-0035-console-and-motion.md) decision 22, 2026-07-20):**
 - **The reserved rail is exactly 6px only on the engine that ships.** Every scroll container holds

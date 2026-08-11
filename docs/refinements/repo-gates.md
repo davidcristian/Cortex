@@ -59,7 +59,13 @@ itself, `SessionStore` having had the identical defect and now reading its share
 opened the half it could only measure, that four Python ports plus most of a fifth, every Rust
 port, and the overlay's `BrainBridge` have no shared check list at all. Five is read entry by
 entry rather than incremented: standing test-order randomization, the shell's `cargo clippy` in CI,
-the stylesheet outside the line cap, the couplings entry, and the ports without a contract suite)
+the stylesheet outside the line cap, the couplings entry, and the ports without a contract suite.
+**Still five on 2026-08-11**, read entry by entry after the sharpest row inside that last entry
+closed: the overlay's `BrainBridge` has a shared check list of thirteen checks driven over both
+implementations CI can run, and `demoBridge.ts` and its script came out of the overlay's coverage
+`exclude` behind it, which leaves that entry open on the four Python ports, the streaming half of
+a fifth, and every Rust row. A row closing inside an entry is recorded there and moves no number
+here, the same treatment a coupling's arrival gets in the entry above it)
 
 **Prose style ([ADR-0026](../adr/ADR-0026-prose-style-gates.md)):**
 - **Check the commit body's 72-column wrap, not only the header's length.** Opened 2026-07-18,
@@ -981,6 +987,47 @@ cross-language-constant addendum):**
   `demoBridge.ts` in its coverage `exclude` list. The 100% threshold is therefore met with two
   thirds of that port unmeasured, which is the same class of thing this sweep was looking for:
   a gate that reads green over code it was never pointed at.
+
+  **That case closed on 2026-08-11, which is this entry's trigger firing once rather than the
+  entry closing.** The next port to gain a shared check list was the overlay's, and it adopted the
+  arrangement the nine Python ones share rather than inventing a tenth:
+  `body/app/src/bridge/bridgeContract.ts` holds thirteen named checks and the case a check runs
+  against, and `bridgeContract.test.ts` builds a fresh case per check and runs the list over
+  `FakeBridge` and `DemoBridge`, `describe.each` and `it.each` standing where the Python driver's
+  fixture parameters and `pytest.mark.parametrize` stand. `demoBridge.ts` and `demoScript.ts` came
+  out of the coverage `exclude` with it, which is where the paragraph above was one file short of
+  the tree: three files were named there, not two, the demo's script having been split out of the
+  bridge when the line cap started measuring the overlay. What is left in that list is `main.tsx`
+  and `tauriBridge.ts`, each with its reason written beside it. `TauriBridge` stays out on the
+  argument the sweep's own design question was reaching for: every method of it is an `invoke`
+  call, so a shared driver over it would fake `invoke` and measure the fake.
+
+  The list paid on its first run, before either implementation was changed to suit it, with three
+  disagreements decided against the port's own description in `types.ts`. `FakeBridge` ignored the
+  `limit` its `listSessions` was given, so a test could pass against a listing production would
+  have cut. `FakeBridge.setPreference` recorded a write the served record never carried, alone
+  among its writes in that, the three catalog writes beside it having always reflected theirs.
+  And `DemoBridge` read a zero limit as "at most none" where the port documents it as the brain's
+  own default, so browser dev answered an empty switcher to a caller asking for the default
+  listing. A fourth came from the turn-handle check rather than from the two arms disagreeing, the
+  demo bridge having announced a capture activity inside the `converse` call, which is a delivery
+  the real bridge cannot make: its events cross a Tauri channel and arrive after the call has
+  handed back the cancellation its caller stores. It was then proven able to fail three times over,
+  on a delete put back to the no-op it once was, on a cancellation that leaves its turn's timers
+  running, and on a completion moved ahead of the reply it settles. The first two redden one arm of
+  the shared list apiece and the third reddens the demo's own suite while all thirteen shared
+  checks stay green, which is the division of labour showing itself: the list holds the port and
+  the suite holds the script. Each break was restored. The whole account, including the four places
+  the two implementations legitimately disagree and so what the list holds instead, is the
+  [ADR-0001](../adr/ADR-0001-architecture.md) addendum of the same day, with the divergences
+  themselves in [docs/modules/body-app.md](../modules/body-app.md).
+
+  **The rest of the inventory stays open, unchanged**: the four Python ports with no shared list,
+  `InferenceBackend`'s unshared streaming half, and every Rust row, where the fakes themselves are
+  still hand-written twice in two crates. The trigger below is live for those, with one correction
+  it earns from being fired: the arrangement to adopt is now shared by ten lists rather than nine,
+  the overlay's being the first outside Python and the evidence that the shape carries across the
+  language boundary.
 
   **Why deferred rather than done.** The ports named above come to five in Python counting the
   partial one, seven in Rust and one in the overlay, and writing contract suites for them is a

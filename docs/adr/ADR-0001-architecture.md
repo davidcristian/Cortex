@@ -171,11 +171,11 @@ driver that reads the tuple rather than restating it.
 | `BrainTransport` | `FakeTransport`, `ScriptedTransport`, `FlakyTransport` | `BrainSeamClient`, and `RetryingTransport` over it | none | yes | yes, over a loopback fake `BrainService` |
 | `Sleeper` | `FakeSleeper` | `TokioSleeper` | none | yes | no, `body/app` is outside the gated workspace |
 | `Randomness` | `FakeRandomness` | `FullDelay`, `ShellRandomness` | none | yes | `FullDelay` only incidentally, `ShellRandomness` never |
-| `BrainBridge` (overlay) | `FakeBridge` | `TauriBridge`, `DemoBridge` | none | yes | no, both named in the coverage `exclude` |
+| `BrainBridge` (overlay) | `FakeBridge` | `TauriBridge`, `DemoBridge` | `app/src/bridge/bridgeContract.ts` | yes | `DemoBridge` yes, `TauriBridge` no, it crosses Tauri IPC |
 
 The Rust picture is not that a shared list drifted; it is that none exists. There is no
-`macro_rules!` anywhere under `body/`, no contract module, and no generic function carrying
-assertions. `BrainTransport` is the strongest row regardless, its real adapter driven end to
+`macro_rules!` anywhere under `body/crates`, no contract module in that workspace, and no generic
+function carrying assertions. `BrainTransport` is the strongest row regardless, its real adapter driven end to
 end in CI against an in-process fake `BrainService` on loopback, and it is also the row where a
 shared list would pay most, three independent hand-written suites currently describing the same
 eleven-method trait.
@@ -262,8 +262,64 @@ defect, but a shared list would still be the only artifact holding them to the d
 their fakes are held to, and it would be waiting the day the host runs it. The overlay's
 `BrainBridge` is the sharpest single case, its 100% coverage threshold met while two of its
 three implementations are named in `vite.config.ts`'s coverage `exclude`, which is a gate
-reading green over code it was never pointed at.
+reading green over code it was never pointed at. That row is the one closed since, on 2026-08-11,
+by the addendum below; the Python and Rust rows are as the sweep left them, and its overlay row
+above has been updated to what the tree now holds.
 
 Building those suites is a slice, not a sweep, so it is deferred and recorded in
 [docs/refinements/repo-gates.md](../refinements/repo-gates.md) rather than attempted here. The
 tables above are that slice's worklist.
+
+## Addendum (2026-08-11): the overlay's `BrainBridge` gets the first shared list outside Python
+
+`body/app/src/bridge/bridgeContract.ts` holds thirteen named checks and the `BridgeCase` a check
+runs against; `bridgeContract.test.ts` is the driver, building a fresh case per check and running
+the list over `FakeBridge` and `DemoBridge`. It is deliberately the same arrangement the Python
+lists share rather than a tenth invention: a flat list of named functions and one parametrized
+driver, `describe.each` over the implementations and `it.each` over the list standing in for the
+fixture parameters and `pytest.mark.parametrize` of `test_task_store_contract.py`, with each
+check's own name carrying into the test id the way a check function's `__name__` does there.
+`demoBridge.ts` and `demoScript.ts` came out of `vite.config.ts`'s coverage `exclude` with it, so
+the overlay's 100% threshold now measures both implementations the overlay can run, and the
+exclude list holds only `main.tsx` and `tauriBridge.ts`, each with the reason written beside it.
+
+**The sweep's open design question is answered rather than deferred.** It asked whether the
+overlay's fake and its Tauri bridge can share a driver at all when one answers from a record and
+the other crosses an IPC boundary. They cannot, and the line is not where the question put it.
+`TauriBridge` is out because every one of its methods is an `invoke` call, so holding it to these
+checks would mean faking `invoke` and measuring the fake. What the list does hold is both
+implementations CI can run, at the altitude where they genuinely agree: the turn HANDLE rather
+than the stream, since the demo plays a recorded conversation on a timer while the fake streams
+nothing until its test says so; the pinned grouping rather than the whole listing order, since the
+demo sorts a catalog it holds and the fake serves the table it was assigned; the ack's boolean
+rather than what an ack does to the due list; and the disappearance of a cleared title rather than
+what it falls back to. Each divergence is written down in
+[docs/modules/body-app.md](../modules/body-app.md), and the demo's own cadence, its recorded
+conversation and the four prompts that trip a hook, is pinned by `demoBridge.test.ts` beside it.
+
+**It found three disagreements on its first run, before any implementation was changed to suit
+it,** which is the return the sweep predicted for a list nobody had written yet. `FakeBridge`
+ignored its `listSessions` limit, so a test could pass against a listing production would have
+cut. `FakeBridge.setPreference` recorded a write the served record never carried, alone among its
+writes in that: the three catalog writes beside it had always reflected theirs, which is exactly
+the drift a per-implementation suite cannot see. And `DemoBridge` read `limit === 0` as "at most
+none" where the port documents it as the brain's own default, so browser dev answered an empty
+switcher to a caller asking for the default listing. All three are fixed against the port's own
+description in `types.ts`, which is the arbiter when a check finds the two disagreeing. A fourth
+came from the turn-handle check rather than from the two arms disagreeing: `DemoBridge` announced
+a capture activity inside the `converse` call, a delivery the real bridge cannot make, its events
+arriving over a Tauri channel after the call has handed back the cancellation its caller stores.
+That ask rides a short timer now, which is also what it looks like by hand.
+
+**Proven able to fail, three times, once per kind of thing it claims.** With `DemoBridge`'s
+`deleteSession` put back to the no-op it once was, `checkADeletedChatStaysGone` reddens on the
+`DemoBridge` arm alone (25 passed, 1 failed). With the turn's cancellation no longer clearing its
+timers, `checkACancelledTurnGoesSilent` reddens the same way, the recorder holding 87 events where
+the check demands none. With the completion moved ahead of the reply's words,
+`demoBridge.test.ts`'s ordering claim reddens while all 26 shared checks stay green, which is the
+division of labour working: the shared list holds the port, the demo's suite holds the script.
+Each break was restored and the tree is green.
+
+What stays open is everything else the sweep measured: the four Python ports with no shared list
+(`Embedder`, `ToolRegistry`, `BodyGateway`, `Confirmer`), `InferenceBackend`'s unshared streaming
+half, and every Rust row, where the fakes themselves are still written twice.

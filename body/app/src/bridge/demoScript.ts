@@ -1,8 +1,9 @@
 // The browser-dev demo's canned script: everything `demoBridge.ts` says or serves, with no
 // behaviour of its own. Split out on 2026-08-03 when the line cap started measuring the overlay
-// (ADR-0011 line-cap addendum) and the bridge stood at 351 lines. Coverage-excluded beside the
-// bridge in `vite.config.ts`, for the same reason the bridge is: nothing imports either but the
-// entry glue, and the demo is exercised by hand in a browser rather than in CI.
+// (ADR-0011 line-cap addendum) and the bridge stood at 351 lines. A data record rather than an
+// implementation of the port, so the shared check list has nothing to say about it; measured all
+// the same, the bridge's own suite reaching every line, so a line here that no demo turn can
+// reach reads as a coverage failure rather than sitting in the tree as dead script.
 import type { DueReminder, SessionMessage, SessionSummary } from "./types";
 
 export const ANSWER =
