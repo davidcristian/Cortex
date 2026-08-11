@@ -1778,19 +1778,23 @@ against the code (the warning above); the entry text tells you which seams it ex
 
 ### Actionable now
 
-**Read this before reading the list.** Of the 36 bullets below, 35 are closure records: the entry
-they name is landed, moot or declined, and the bullet is kept because a landed entry is this
-backlog's record of what a deferral became. Only one is open, and it is named here so nobody
-has to read 35 closures to find it: **the spontaneous-pick nudge's live uptake**
-([subagents.md](subagents.md)), whose fix stays fix-when-it-bites while its observation is
-runnable. The recap fold under a cortex under load was the other, and it closed 2026-08-08 the day
+**Read this before reading the list.** All 36 bullets below are closure records: the entry each one
+names is landed, moot or declined, and the bullet is kept because a landed entry is this
+backlog's record of what a deferral became. **This paragraph named one of them as open until
+2026-08-11**, the spontaneous-pick nudge's live uptake ([subagents.md](subagents.md)), while that
+entry's own bullet had already recorded the other verdict: the observation this bucket owed ran
+2026-08-04, and what the entry has left is its fix, which is fix-when-it-bites and sits in that
+bucket, plus an observation only the host's hardware can make, real use over time rather than a
+scripted ask, which is listed at [docs/host/](../host/index.md). The entry itself stays open and is
+counted in its area doc; what closed is the half this bucket owed it. The recap fold under a cortex
+under load was the other item this line named, and it closed 2026-08-08 the day
 it was named here; the entry it opened behind it is a fix-when-it-bites one and sits in that bucket
-rather than joining this list. That ratio is not a defect in the bucket, it is what the area is: almost everything still
-open across the backlog sits under fix-when-it-bites, dead-until-a-consumer, or feature breadth,
-each with a trigger a reader can check, so those three lists are where an idle agent should look
-next rather than here. Two rules keep this line honest, both of them earned above: a closure record
-is never deleted, and this paragraph names entries rather than counting them, because the count is
-the part that cannot catch its own drift.
+rather than joining this list. A list of 36 closures is not a defect in the bucket, it is what the
+area is: almost everything still open across the backlog sits under fix-when-it-bites,
+dead-until-a-consumer, or feature breadth, each with a trigger a reader can check, so those three
+lists are where an idle agent should look next rather than here. Two rules keep this line honest,
+both of them earned above: a closure record is never deleted, and this paragraph names entries
+rather than counting them, because the count is the part that cannot catch its own drift.
 
 - **The recap fold under a cortex under load** ([session-history.md](session-history.md)), the half
   of the one-corpus entry a run can settle, restated 2026-08-08 and **closed the same day**. The
@@ -3183,8 +3187,22 @@ opt-out still pays nothing. In its place, from the same close: **why a memory wa
 candidate**, since the line now separates a dropped id from an id it never saw and says nothing
 about the second, of whose three causes the scopes and the requested width follow from config and
 the third does not, `pool_size` being how many candidates came back and never how many there were,
-which `MemoryStore.search` cannot report without a port change; its trigger is the first
-investigation whose memory is not in the pool at all. Joined on 2026-08-07 by **a geometric
+which `MemoryStore.search` cannot report without a port change; its trigger was the first
+investigation whose memory is not in the pool at all, and it **closed 2026-08-10** ahead of that
+trigger, neither arm of which had fired, taken because the entry's only blocker was the trigger
+itself rather than a cost argument. The port change it priced is the one that shipped:
+`count_candidates(*, scopes=None)` is a new verb beside `search` rather than a widened one, so the
+single production caller of `search` is untouched and only the trail pays, the pgvector adapter
+answers it with `SELECT count(*)` under the same scope filter a scoped search applies, the
+in-memory twin counts the same filtered list it would have ranked, the shared contract file holds
+both implementations to it, and `RecallAudit` carries a required `available` the sink spells out,
+so a count equal to `pool_size` says the pool WAS the whole readable store. Two of the entry's own
+claims were tested against the tree and one failed, the requested width being `k` times the pool
+factor neither under `raw` nor on a fallback line, which costs no field because an exact count
+makes the width redundant rather than merely inferable; the price was measured rather than assumed
+at 2.0 ms for an index-only count against a 520 ms ranked search, where folding the total into that
+select would have cost 2.85 times it; and it opened nothing, the two derivable causes being
+answered by not building them. Joined on 2026-08-07 by **a geometric
 policy that still cannot decline**, opened by the
 close that taught the judge to, since `RawRecallPolicy` and the three heuristic policies always
 return their nearest `k` and a deployment that has opted **out** of the judge therefore still
@@ -3344,7 +3362,7 @@ a shell string, a stylesheet spending a name with `var(...)` and a bare `"thinki
 have no declaration on the far side to parse, so a mention renders the agreed value into a template
 and requires the result to appear, which also dissolved the supposed prerequisite that a bare
 literal be named first; what is left of it is the entry below
-([repo-gates.md](repo-gates.md)); the four couplings the widened registry still cannot hold,
+([repo-gates.md](repo-gates.md)); the five couplings the widened registry still cannot hold,
 opened 2026-08-08 behind that landing as three and four before the day was out, this line having
 been written in between and left saying three, being a membership in a `frozenset` (`CAPTURE_MIME`
 inside
@@ -3366,7 +3384,11 @@ constant's own unit, and what opened in its place is the spend side of a value-d
 a mention reaching `--roll: 300ms` but never the `var(--roll)` two rules pay it with, held today by
 the browser instead, a `var()` that resolves to nothing being invalid at computed-value time and
 taking the whole transition with it rather than shifting it, with a third property of that shape or
-a first mistyped spend as its trigger ([repo-gates.md](repo-gates.md)); and a compose bind
+a first mistyped spend as its trigger; and a fifth on 2026-08-10 by arrival rather than exchange,
+the capture target's proto enum against the JSON-schema strings the model picks between, the first
+coupling here whose two sides are both generated so the scan has nothing to parse in either, which
+moves no count in this bucket because a coupling's arrival is recorded at its entry exactly as the
+gRPC status codes were ([repo-gates.md](repo-gates.md)); and a compose bind
 default that lands in the repo tree being stageable, opened here on 2026-08-06 when the two live
 cases were ignored and the class was not, since `models/` and `pgdata/` are now matched at any
 depth and `./sandbox` always was, leaving the tree clean by three separate acts of remembering
@@ -3424,7 +3446,18 @@ model at all, its trigger being a deployment where that wait holds a teardown lo
 matter ([seam-transport.md](seam-transport.md)). And **the drain bound sitting below a fired
 task's lease**, so with the shipped defaults an escalation during a scheduled task aborts every
 time, correctly and before anything is evicted, which makes it a defaults decision against real
-usage rather than a design change ([resource-governance.md](resource-governance.md)).
+usage rather than a design change, **declined 2026-08-09 on a premise the code does not support**:
+`drain` waits on `_in_flight`, which `admit` holds around a whole subagent run, while the schedule
+lease is the ticker's cancellation ceiling, so the entry compared a wait bound with a ceiling and
+what the drain is really up against is the measured 200 to 300 s subtask, which makes the abort
+likely rather than the systematic the entry claimed. Both knob moves it proposed are refused,
+lowering the lease cancelling every fire before its own subtask can finish and raising the drain
+bound covering fires but not the interactive spawns that hold the same admission with no lease at
+all; what landed with the decline is the falsified rationale, the comment on
+`DEFAULT_SWAP_DRAIN_TIMEOUT_S` and its restatement in the core module doc having called 60 s
+generous enough for a normal delegated run to finish. It reopens on a deployment that reports the
+collision with run durations to size against, and it is the first departure in that area with no
+arrival beside it ([resource-governance.md](resource-governance.md)).
 
 Four vision entries joined on the same day, each with the trigger its own entry implies
 ([vision.md](vision.md)); **the fourth of them, `RESOURCE_EXHAUSTED` classification, landed
@@ -3570,11 +3603,15 @@ settles it: the salience and batch-cap knobs, the guardrail tails, the schedulin
 push retry policy, the Windows COM and audio hardening, fencing the single-handoff claim across
 processes, and the residency and model-manager entries each recent close opened.
 
-The same pass checked the **Actionable now** bucket and found it exhausted as its own opening
-paragraph says, 35 of its 36 bullets being closure records and the one open item, the
-spontaneous-pick nudge's live uptake, having run 2026-08-04 with its residue host-side. It did not
-reach **Dead until a consumer exists** or **Feature breadth, on request**, which is therefore where
-the next session should look rather than here.
+The same pass checked the **Actionable now** bucket and found it exhausted, all 36 of its bullets
+being closure records once the last of them is read for what it is: the spontaneous-pick nudge's
+live uptake ran its observation 2026-08-04, its fix is in this bucket, and the observation left
+over is host-side. That pass recorded the finding as agreeing with that bucket's opening paragraph,
+which in fact still named the nudge as open, and it is the paragraph that was corrected on
+2026-08-11 rather than this line, the entry's own bullet having settled the question before either
+of them was written. It did not reach **Dead until a consumer exists** or
+**Feature breadth, on request**, which is therefore where the next session should look rather than
+here.
 
 **Two of that sweep's verdicts were re-derived on 2026-08-10 by running the check rather than
 reading the tree, and both hold.** The distinction matters enough to record: the sweep above was a
