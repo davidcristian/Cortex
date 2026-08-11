@@ -1,21 +1,36 @@
 """One placed attempt at a delegated task, and what it produced (ADR-0010/0012/0028)."""
 
+import asyncio
 import json
-from dataclasses import dataclass
-from enum import Enum
+from contextlib import aclosing
 
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
 from cortex_core.errors import InferenceError
 from cortex_core.events import ToolActivity
-from cortex_core.inference import JsonSchema
+from cortex_core.inference import GenerationBounds, JsonSchema
 from cortex_core.loop_events import ToolStep
 from cortex_core.ports import Clock, InferenceBackend
 from cortex_core.progress import ProgressSink
-from cortex_core.subagents import SubagentTask
+from cortex_core.subagent_outcome import AttemptFailure, AttemptOutcome, reran_on_cpu
+from cortex_core.subagents import UNBOUNDED_ATTEMPT, AttemptBounds, SubagentTask
 from cortex_core.tool_budget import DispatchBudget
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
 from cortex_core.untrusted import TaintLedger, new_nonce, security_preamble_message
+
+# Re-exported so every existing `from cortex_core.subagent_attempt import ...` keeps resolving
+# after the outcome split; the vocabulary itself now lives beside neither collaborator.
+__all__ = [
+    "GENERATION_DEADLINE_MSG",
+    "INNER_TIMEOUT_MSG",
+    "MALFORMED_ENVELOPE_MSG",
+    "REPLY_ENVELOPE",
+    "AttemptFailure",
+    "AttemptOutcome",
+    "PlacedAttempt",
+    "reran_on_cpu",
+    "task_messages",
+]
 
 # The fixed one-field reply envelope a constrained subagent is decoded into (ADR-0028): there is
 # no grammatical position for an appended footer, link, or section, so a jailbroken weak model
@@ -29,49 +44,16 @@ REPLY_ENVELOPE: JsonSchema = {
 
 MALFORMED_ENVELOPE_MSG = "subagent produced a malformed constrained reply"
 
-# What the store records about a re-placed run. ADR-0030 asks for the re-place to be recorded in
-# the result's detail, and a bare copy of either attempt's reason would hide that two loads were
-# spent on one task, which is the whole thing an operator reading a slow spawn wants to see.
-_RERAN_AND_ANSWERED = "the GPU attempt failed ({first}); re-ran on the CPU, which answered"
-_RERAN_AND_FAILED = "the GPU attempt failed ({first}); the CPU re-run failed too ({second})"
+GENERATION_DEADLINE_MSG = (
+    "the subtask was still generating after {timeout_s:g}s, the whole a delegated run is given, "
+    "and was stopped where it stood; a run that reaches this bound is talking rather than "
+    "working, so treat the subtask as unanswered and narrow it before delegating it again"
+)
 
-
-class AttemptFailure(Enum):
-    """Why an attempt did not answer, or that it did. The retry decision reads exactly this."""
-
-    NONE = "none"
-    INFERENCE = "inference"
-    MALFORMED = "malformed"
-
-
-@dataclass(frozen=True, slots=True)
-class AttemptOutcome:
-    """What one attempt produced: its text, why it failed if it did, and whether it read taint."""
-
-    text: str
-    failure: AttemptFailure = AttemptFailure.NONE
-    detail: str = ""
-    tainted: bool = False
-
-    @property
-    def ok(self) -> bool:
-        """Whether this attempt answered, which is what the persisted result's ``ok`` becomes."""
-        return self.failure is AttemptFailure.NONE
-
-
-def reran_on_cpu(first: AttemptOutcome, retried: AttemptOutcome) -> AttemptOutcome:
-    """Fold a GPU attempt that did not answer, plus its one CPU re-run, into one outcome."""
-    detail = (
-        _RERAN_AND_ANSWERED.format(first=first.detail)
-        if retried.ok
-        else _RERAN_AND_FAILED.format(first=first.detail, second=retried.detail)
-    )
-    return AttemptOutcome(
-        text=retried.text,
-        failure=retried.failure,
-        detail=detail,
-        tainted=first.tainted or retried.tainted,
-    )
+# What a bare ``TimeoutError`` from inside the run means, as opposed to the deadline above. A
+# socket that timed out or a tool that raised one is the backend failing to answer, which is the
+# retryable shape, so it is reported as one rather than as a bound this attempt never reached.
+INNER_TIMEOUT_MSG = "the subtask timed out below the delegated run's own deadline"
 
 
 def task_messages(task: SubagentTask) -> list[Message]:
@@ -96,7 +78,12 @@ class PlacedAttempt:
     """Streams one task on one already-placed backend to an outcome, storing nothing."""
 
     def __init__(
-        self, clock: Clock, tools: ToolDispatcher | None, *, constrain_output: bool
+        self,
+        clock: Clock,
+        tools: ToolDispatcher | None,
+        *,
+        constrain_output: bool,
+        bounds: AttemptBounds = UNBOUNDED_ATTEMPT,
     ) -> None:
         self._clock = clock
         self._tools = tools
@@ -104,6 +91,10 @@ class PlacedAttempt:
         # format-laundering on the weak-model niche. Gated to the tool-less path below so the JSON
         # grammar never fights llama.cpp's tool-calling grammar (ADR-0028 decision 3).
         self._constrain_output = constrain_output
+        self._bounds = bounds
+        self._generation = (
+            None if bounds.max_tokens is None else GenerationBounds(max_tokens=bounds.max_tokens)
+        )
 
     async def run(
         self,
@@ -136,19 +127,42 @@ class PlacedAttempt:
             # (ADR-0027). The field grows onto the task when a consumer exists.
             session_id="",
             schema=REPLY_ENVELOPE if constrain else None,
+            # How far each of this loop's completions may decode. The rounds cap and this one
+            # multiply, so what they bound together is the attempt's decoding rather than one
+            # completion's (ADR-0005 total-cap addendum).
+            bounds=self._generation,
             # A run with no spawning turn is its own root and gets the default allowance, as
             # every run did before the turn-wide pool existed.
             budget=DispatchBudget() if budget is None else budget,
         )
         parts: list[str] = []
+        deadline = asyncio.timeout(self._bounds.timeout_s)
         try:
-            async for delta in stream_tool_loop(backend, model, working, context):
-                if isinstance(delta, str):
-                    parts.append(delta)
-                elif isinstance(delta, ToolStep) and progress is not None:
-                    await progress.emit(
-                        ToolActivity(tool_name=delta.tool_name, summary=delta.summary)
-                    )
+            async with (
+                deadline,
+                aclosing(stream_tool_loop(backend, model, working, context)) as deltas,
+            ):
+                async for delta in deltas:
+                    if isinstance(delta, str):
+                        parts.append(delta)
+                    elif isinstance(delta, ToolStep) and progress is not None:
+                        await progress.emit(
+                            ToolActivity(tool_name=delta.tool_name, summary=delta.summary)
+                        )
+        except TimeoutError:
+            if not deadline.expired():
+                return AttemptOutcome(
+                    text="".join(parts),
+                    failure=AttemptFailure.INFERENCE,
+                    detail=INNER_TIMEOUT_MSG,
+                    tainted=taint.tainted,
+                )
+            return AttemptOutcome(
+                text="".join(parts),
+                failure=AttemptFailure.TRUNCATED,
+                detail=GENERATION_DEADLINE_MSG.format(timeout_s=self._bounds.timeout_s),
+                tainted=taint.tainted,
+            )
         except InferenceError as err:
             return AttemptOutcome(
                 text="".join(parts),

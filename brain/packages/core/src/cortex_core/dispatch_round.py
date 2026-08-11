@@ -7,7 +7,7 @@ from cortex_core.cadence import CadenceWatch
 from cortex_core.conversation import Message
 from cortex_core.dispatch import DispatchRefusal, ToolDispatcher
 from cortex_core.handoff import EscalationSlot
-from cortex_core.inference import JsonSchema
+from cortex_core.inference import GenerationBounds, JsonSchema
 from cortex_core.loop_events import StepOutcome, ToolStep, step_summary
 from cortex_core.ports import Clock
 from cortex_core.progress import ProgressSink
@@ -31,6 +31,7 @@ class ToolLoopContext:
     nonce: str
     session_id: str
     schema: JsonSchema | None = None
+    bounds: GenerationBounds | None = None
     budget: DispatchBudget = field(default_factory=DispatchBudget)
     progress: ProgressSink | None = None
     escalation: EscalationSlot | None = None

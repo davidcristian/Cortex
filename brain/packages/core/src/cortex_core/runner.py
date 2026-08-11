@@ -8,13 +8,9 @@ from cortex_core.placement import PlacementTarget
 from cortex_core.ports import Clock, TaskStore
 from cortex_core.progress import ProgressSink
 from cortex_core.roster import SubagentResources, SubagentRoster
-from cortex_core.subagent_attempt import (
-    AttemptFailure,
-    AttemptOutcome,
-    PlacedAttempt,
-    reran_on_cpu,
-)
-from cortex_core.subagents import SubagentResult, SubagentTask
+from cortex_core.subagent_attempt import PlacedAttempt
+from cortex_core.subagent_outcome import AttemptFailure, AttemptOutcome, reran_on_cpu
+from cortex_core.subagents import UNBOUNDED_ATTEMPT, AttemptBounds, SubagentResult, SubagentTask
 from cortex_core.tool_budget import DispatchBudget
 
 _REFUSED_TEMPLATE = (
@@ -36,11 +32,14 @@ class SubagentRunner:
         *,
         tools: ToolDispatcher | None = None,
         constrain_output: bool = False,
+        bounds: AttemptBounds = UNBOUNDED_ATTEMPT,
     ) -> None:
         self._store = store
         self._roster = roster
         self._tools = tools
-        self._attempt = PlacedAttempt(clock, tools, constrain_output=constrain_output)
+        self._attempt = PlacedAttempt(
+            clock, tools, constrain_output=constrain_output, bounds=bounds
+        )
 
     @property
     def roster(self) -> SubagentRoster:

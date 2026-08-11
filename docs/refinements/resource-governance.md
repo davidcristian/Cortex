@@ -6,12 +6,19 @@ deferred-refinements section on 2026-07-15 with the entries kept verbatim; lande
 historical record of what each deferral became, and the index at [index.md](index.md) carries the
 recommended pickup order.
 
-**Open items:** 6, counted by reading the entries below rather than by adjusting the last number.
+**Open items:** 7, counted by reading the entries below rather than by adjusting the last number.
 The Intel NPU as a third placement target, a queue-depth bound,
-a total generation cap, two of the three the tier-outage close opened (a retry
+two of the three the tier-outage close opened (a retry
 that only asks about tiers it already believes are missing, and a placer holding one bit for the
-card where the record holds one entry per tier), and the deep model's clearing still deciding the
-cortex's verdict at boot. The count went 7 to 6 later on 2026-08-09 when **the drain bound against
+card where the record holds one entry per tier), the deep model's clearing still deciding the
+cortex's verdict at boot, and the two the total generation cap opened as it closed (a finish
+reason the port does not carry, so a capped completion looks like a finished one, and the
+whole-subtask figure two derivations rest on being out by a factor of two). The count went 6 to 7
+on 2026-08-11 when **the total generation cap** landed ahead of its trigger, one out and two in,
+which is the same shape the tier-outage close had: what replaces it are the two questions building
+it made askable, one of them a port change this fix deliberately did not need and the other a
+number this fix's own measurements are the first to contradict. The count went 7 to 6 earlier, on
+2026-08-09, when **the drain bound against
 a fired task's lease** closed as declined, with nothing landing in its place: traced to the code
 ahead of the usage it asked for, the drain waits on an in-flight admission and never on a lease,
 so its stated mechanism was a comparison between two numbers that never meet and the abort it
@@ -37,10 +44,11 @@ proves nobody miscounted and nothing else). Before that, the subagent VRAM ask c
 two days: the cortex reservation's re-measurement on 2026-08-07 opened it, having closed nothing
 this count had ever carried (it had been deferred at two ADRs and recorded on no index), so the
 count went 5 to 6 for an arrival with no matching departure; measuring the tier on 2026-08-08 took
-it back to 5. All seven moves are the honest shape of that history rather than a bookkeeping slip.
-This sentence read six until 2026-08-10: the decline at the head of this paragraph was prepended as
-a seventh move and the tally under it was not touched, which is the same omission one paragraph up
-describes and the reason a summary of a running record has to be re-read whenever the record grows.
+it back to 5. All eight moves are the honest shape of that history rather than a bookkeeping slip.
+This sentence read six until 2026-08-10 and seven until 2026-08-11: each time a move was prepended
+at the head of this paragraph the tally under it was left where it was, which is the same omission
+one paragraph up describes and the reason a summary of a running record has to be re-read whenever
+the record grows. It is counted here by reading the moves above rather than by adding one.
 
 **Resource governance in Slice 8.5 ([ADR-0012](../adr/ADR-0012-resource-governance.md)):** each behind
 the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
@@ -613,7 +621,20 @@ the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
   generation. The semantics are the part worth repeating: httpx applies a read timeout to one
   socket read, so this bounds the **gap between chunks** and never a generation's length, and seam
   backpressure does not trip it.
-- **A total generation cap, for the subagent that keeps talking.** *Fix when it bites.* Opened
+- **A total generation cap landed 2026-08-11, ahead of its trigger, because the number it was
+  waiting on turned out to be measurable ([ADR-0005 total-cap addendum](../adr/ADR-0005-llamacpp-engine.md),
+  which is also where its decline was recorded).** This is a fix-when-it-bites entry closed before
+  it bit, which is established practice here when the fix is cheap and provable, and it is worth
+  saying plainly why it was cheap. What kept the entry closed was never the mechanism, both halves
+  of which the entry had already priced down to nothing; it was the guess about how long a
+  legitimate answer runs. That is not a guess on this machine, it is an afternoon: five subtask
+  shapes on the shipped CPU entry, from a one-word lookup to an open-ended essay, measured for
+  decoded tokens and wall clock, with the cap set at roughly five times the longest narrow reply and
+  the deadline at four times the longest whole subtask, the extra doubling covering a tool-using
+  run whose loop spends on several rounds what the measurement spent on one completion. The trigger asked for one observed runaway to size
+  the bound from; what the measurements give instead is the other end, the longest run that must
+  **not** be cut, which is the end a cap is actually sized against.
+  The entry read: "*Fix when it bites.* Opened
   2026-08-09 by the close above, whose ceiling cannot see this: a stall detector fires on silence,
   and a model in a repetition loop is never silent. Nothing in the shipped wiring bounds a
   delegated generation's length (`n_predict: -1`, no `max_tokens` on the subagent path), so a
@@ -638,4 +659,67 @@ the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
   Its origin decision is the [ADR-0005 stall-ceiling addendum](../adr/ADR-0005-llamacpp-engine.md),
   which declined it deliberately: converting an unbounded wait into a bounded reported failure is
   a transport concern, while capping how much a model may say is a policy about answers, and
-  mixing the two would have shipped an unmeasured number inside a fix that needed none.
+  mixing the two would have shipped an unmeasured number inside a fix that needed none."
+  Every word of the defect held, and the reproduction is the reason the fix is not a description of
+  one: a backend yielding a text chunk forever, through the shipped runner, streamed **3,099,896
+  chunks in 5 s**, never returned, and persisted no result, holding its admission and its VRAM
+  placement throughout. One word of the *fix* did not hold, and it is the one an entry is most
+  likely to get wrong: "expressible today" was true of the port and false of the path. The
+  `InferenceBackend.stream` signature really does carry `GenerationBounds`, but `ToolLoopContext`
+  had no `bounds` field and `stream_tool_loop` passed none, so the only route a subagent reaches
+  that port by could not carry a cap. One field of loop vocabulary fixed it and the port is
+  untouched, which is this area's blanket "behind the unchanged port" coming out true for once,
+  though not for the reason the entry gave.
+  What landed is `AttemptBounds(max_tokens, timeout_s)` on the runner: the cap rides every
+  completion an attempt asks for, and the deadline is `asyncio.timeout` around the whole
+  consumption, so it covers the tool dispatches between completions as well, which is the unit that
+  actually holds an admission. Reaching the deadline is `AttemptFailure.TRUNCATED`, an `ok=False`
+  result naming the bound, and it is deliberately **not** re-placed on the CPU, for the reason a
+  malformed reply is not: a model still talking at its deadline was answering, and the slower tier
+  is the last place to send it. Two things the entry could not have known, both settled here rather
+  than left implicit: the deadline is armed **per attempt** rather than per task, since a re-run
+  handed the remains of a spent one would be refused before it began, and it must sit **above** the
+  pool's stall ceiling, which `SubagentsConfig` now refuses to start without, because a deadline
+  under the ceiling would report every wedged stream as a runaway and silently delete the CPU
+  re-run scheduled for exactly that failure.
+  Two residues are recorded rather than folded in: the finish reason a capped completion carries is
+  still not distinguishable through the port (below, in this file's open set), and the "200 to
+  300 s whole subtask" the admission wait's own derivation rests on is an underestimate by a factor
+  of two for a summarization, which these measurements are the first to say.
+- **A finish reason the port does not carry, so a capped completion looks like a finished one.**
+  *Fix when it bites.* Opened 2026-08-11 by the close above, which is honest about needing it.
+  llama-server ends a capped completion and says so on the wire, `finish_reason: "length"`, and the
+  adapter surfaces text, reasoning, tool calls and a decode cadence and no finish reason at all, so
+  the core cannot tell a model that stopped from one that was stopped. The deadline half of that
+  close reports itself, being the core's own bound; the token half does not. On the constrained
+  tool-less path the gap is closed structurally, since a cut envelope fails to parse and arrives as
+  `MALFORMED`, an honest `ok=False` with a less useful reason; on the unconstrained path a
+  truncation reads as a short answer. What holds today instead of a mechanism is the sizing: at
+  roughly five times the longest reply the shipped tier has been measured writing, what the cap
+  cuts was already not an answer, and this repo's own precedent for the same problem, `clean_recap`,
+  reads the reply's shape rather than the transport. **The trigger is the first capped delegated
+  reply that a reader mistakes for a finished one**, or the same distinction being wanted by any
+  other caller, the recap fold being the obvious second. The fix is a port change and is priced as
+  one: a finish reason has to cross `InferenceBackend`, either as a field on the closing
+  `DecodeCadence` (which already arrives once, whole, at the end of the completion it describes) or
+  as an event of its own, and every backend including `EchoInferenceBackend` owes the new answer.
+  `DecodeCadence.tokens` is the near miss worth naming, since a completion whose decoded count
+  reached the cap did reach the cap: it is an inference rather than a statement, it is silent on a
+  build that reports no timings, and the loop absorbs the event into a `CadenceWatch` whose
+  contract is about rates, so reading it here would be a second consumer of a value shaped for
+  another question.
+- **The whole-subtask figure two derivations rest on is out by a factor of two.** *Fix when it
+  bites.* Opened 2026-08-11 by the close above, whose measurements are what say so. "A whole CPU
+  subtask measures 200 to 300 s" appears in the subagents runbook, in the stall ceiling's
+  derivation and in the admission wait's, where it is multiplied out into the 900 s and 1800 s
+  waits the 3600 s bound is twice. Measured on the shipped entry at the compose file's own shape,
+  it holds for an extraction (410.5 s is already above it) and is out by a factor of two for a
+  summarization (623.8 s), which is the shape delegation is most often for. Neither bound derived
+  from it is *wrong* in the direction that matters, both being deliberately generous and both
+  bounding a failure rather than pacing normal work, but the arithmetic under the admission wait
+  now understates its own inputs, and a bound whose derivation no longer matches the machine is a
+  bound nobody can retune with confidence. **The trigger is the first spawn observed refused at the
+  admission bound**, or a retune of either bound for any other reason, at which point the figure is
+  re-derived from a batch rather than from single subtasks; that is the measurement this entry is
+  really waiting on, since the queue's arithmetic is about a batch's serialization and these five
+  runs were one at a time.

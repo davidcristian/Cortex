@@ -560,14 +560,17 @@ Untrusted-content boundary (Slice 6.5, ADR-0013; the pure primitives in `untrust
   Reconstructed each turn, never persisted. Structurally satisfies `TaintView` (below), so the
   engine passes the live ledger straight to `OutputGuardrail.open`.
 - `ToolLoopContext` is a frozen bundle of a tool loop's per-invocation collaborators (`dispatcher`,
-  `clock`, `turn_id`, `taint`, `nonce`, `session_id`, `schema=None`,
+  `clock`, `turn_id`, `taint`, `nonce`, `session_id`, `schema=None`, `bounds=None`,
   `budget=DispatchBudget()` by default factory, `progress=None`, `escalation=None`,
   `cadence=None`), keeping
   `stream_tool_loop`
   under its argument ceiling. `session_id` is the originating chat the loop stamps onto each
   dispatch (ADR-0027; `""` for a session-less caller, e.g. a subagent); `schema` (ADR-0028), when
   set, constrains the model's output to that JSON Schema (a constrained tool-less subagent
-  envelope; `None` for the cortex and every tool-enabled path); `budget` (ADR-0009 budget
+  envelope; `None` for the cortex and every tool-enabled path); `bounds` (a `GenerationBounds`,
+  ADR-0005 total-cap addendum), when set, rides **every** completion the loop asks for, so no one
+  of them decodes without end (`None`, the default and the cortex turn, leaves each to the
+  server's own `n_predict: -1`); `budget` (ADR-0009 budget
   addendum) caps what may be spent dispatching across the loop's rounds. It is the one
   collaborator a caller may **share**: a context built without one gets its own pool, while a
   subagent spawned from a cortex turn is handed that turn's (ADR-0009 turn-wide addendum), so
@@ -1262,9 +1265,12 @@ Use-case:
   (ADR-0030), so the escalate built-in reads the turn's handoff slot per call. Mutates
   `working` in place with
   the tool-call and `Role.TOOL` result messages; ends on a tool-free step, a `None` dispatcher,
-  or `MAX_TOOL_STEPS` (8) rounds. Four independent bounds apply (ADR-0009 budget addendum):
+  or `MAX_TOOL_STEPS` (8) rounds. Five independent bounds apply (ADR-0009 budget addendum):
   rounds cap how long the loop runs, `context.budget` (`MAX_TOOL_DISPATCHES`, 32) caps what
-  it may *spend* dispatching across those rounds, the dispatcher's `SaliencePolicy` refuses a
+  it may *spend* dispatching across those rounds, `context.bounds` caps how far any one completion
+  decodes (ADR-0005 total-cap addendum; rounds and that cap multiply, so together they bound the
+  whole loop's decoding rather than one completion's),
+  the dispatcher's `SaliencePolicy` refuses a
   call this loop has already made (salience addendum), and `plan_round` (`tool_round.py`, ADR-0009
   round-cap addendum) caps how *wide* one round may be at `MAX_CALLS_PER_ROUND` (16): the budget
   and salience both leave context growth open, since a round appends a `Role.TOOL` message per
@@ -1500,7 +1506,20 @@ Use-case:
   persisted, but its *position* is: `DispatchBudget.resume(*, remaining, closed)` rebuilds one
   from a handoff record (ADR-0030), so the deep model continues on what the turn had left and a
   swap can never refill the allowance, and a pool that had already closed stays closed.
-- `SubagentRunner(store, roster, clock, *, tools=None, constrain_output=False)` is a subagent's
+- `AttemptBounds(max_tokens=None, timeout_s=None)` (in `subagents.py`) is how far one placed
+  attempt may go (ADR-0005 total-cap addendum): `max_tokens` becomes the `GenerationBounds`
+  every completion of that attempt carries, and `timeout_s` is the deadline on the whole attempt,
+  tool dispatches included. One value because a deployment that set one and not the other would
+  have bounded half the failure: the cap is what binds a fast tier, where a deadline's worth of
+  decoding is an essay, and the deadline is what binds a slow one, where the pool's measured
+  0.35 tok/s makes a small token budget minutes of held admission. `max_tokens` below 1 and
+  `timeout_s` at or below 0 raise `ValueError` (strictly positive, unlike the admission wait's
+  legal zero, because a zero deadline is "never run" rather than a policy). Both `None`
+  (`UNBOUNDED_ATTEMPT`, the runner's own default) is the behaviour this repo shipped before the
+  cap. `DEFAULT_SUBAGENT_MAX_TOKENS` / `DEFAULT_SUBAGENT_RUN_TIMEOUT_S` are the shipped numbers,
+  declared here and imported by `SubagentsConfig` rather than restated there.
+- `SubagentRunner(store, roster, clock, *, tools=None, constrain_output=False,
+  bounds=UNBOUNDED_ATTEMPT)` is a subagent's
   body (ADR-0010/0012/0018),
   a stateless function over the `TaskStore`. `run(task_id, *, budget=None, progress=None)` takes
   the spawning turn's dispatch pool (ADR-0009 turn-wide addendum), so this run's tool calls come
@@ -1528,25 +1547,42 @@ Use-case:
   `backends[PlacementTarget.CPU]`, and the outcome's `detail` records that it happened ("the GPU
   attempt failed (…); re-ran on the CPU, which answered", or "… the CPU re-run failed too (…)").
   Four properties, each pinned by a test proven fallible by mutation: only that failure kind
-  retries (a malformed constrained reply is a property of the model, not of where it ran, so
-  re-loading it elsewhere would be told the same thing); only a GPU placement retries (a CPU one
+  retries (a malformed constrained reply is a property of the model, not of where it ran, and a
+  run still talking at its deadline, `AttemptFailure.TRUNCATED`, would only talk past it again on
+  the slower tier, so re-loading either elsewhere would be told the same thing); only a GPU
+  placement retries (a CPU one
   has nowhere better to go); the GPU reservation is released **before** the re-run, in the
   `finally` that already existed, so a re-run never misreports headroom to a concurrent spawn; and
   the re-run re-uses the same admission and the same `DispatchBudget`, so it buys no second CPU/RAM
-  charge and cannot spend past the turn's allowance. The re-run's text and failure win and the
+  charge and cannot spend past the turn's allowance. The one bound it does **not** re-use is the
+  attempt deadline, armed fresh per attempt, since a re-run handed what a failed attempt left of
+  one would be refused before it began; a task can therefore hold its admission for two deadlines,
+  and only along the path a dead backend opens, neither deadline failure being re-placed. The re-run's text and failure win and the
   first attempt's partial text is dropped with the context that produced it, but the **taint is
   the union** of both ledgers, since an attempt that read untrusted content before its backend
   died did consume it. The core cannot tell whether a deployment serves both targets from one
   `llama-server` (no port carries an endpoint), so one that does gets a second attempt at that
   same server.
-- `subagent_attempt.py` holds one attempt: `PlacedAttempt(clock, tools, *, constrain_output)`,
+- `subagent_attempt.py` holds one attempt: `PlacedAttempt(clock, tools, *, constrain_output,
+  bounds=UNBOUNDED_ATTEMPT)`,
   whose `run(task, model, backend, *, budget, progress)` streams `stream_tool_loop` on an
   already-placed backend and returns an `AttemptOutcome(text, failure, detail, tainted)` instead of
   storing anything (instruction as the user ask, `context` as a `Role.SYSTEM` message; a
   tools-enabled subagent also gets the `SECURITY_PREAMBLE` and its own `TaintLedger`, ADR-0013).
   Every attempt is a fresh function over the task: its own working set, ledger and fence nonce, the
   shared `budget` being the deliberate exception. A mid-stream `InferenceError` is an
-  `AttemptFailure.INFERENCE` outcome carrying the partial text. With `constrain_output` on **and**
+  `AttemptFailure.INFERENCE` outcome carrying the partial text. The consumption runs inside
+  `asyncio.timeout(bounds.timeout_s)` and `aclosing`, so `bounds.timeout_s` covers every completion
+  and every tool dispatch between them and the loop generator is closed at a point in the code;
+  reaching it is an `AttemptFailure.TRUNCATED` outcome whose text is the fragment produced so far
+  and whose detail is `GENERATION_DEADLINE_MSG`, naming the bound. Only an **expired** deadline
+  counts: `TimeoutError` is an `OSError`, so one raised from below (a socket, a tool) is an
+  `AttemptFailure.INFERENCE` outcome carrying `INNER_TIMEOUT_MSG` instead, which keeps it eligible
+  for the CPU re-run and stops an unbounded attempt quoting a bound it does not have. Both arms
+  sit **above** the envelope check, so a stop landing mid-envelope reports what stopped it rather
+  than the model breaking its grammar. The outcome vocabulary (`AttemptFailure`, `AttemptOutcome`,
+  `reran_on_cpu`) lives in `subagent_outcome.py`, the line-cap split made when the cap landed,
+  and is re-exported here so every existing import resolves. With `constrain_output` on **and**
   the tool-less path (`tools is None`, the ADR-0028 niche where a weak model is reachable), the
   loop's `schema` is `REPLY_ENVELOPE`, so the reply is constrained JSON unwrapped to the `reply`
   string (a malformed envelope is an `AttemptFailure.MALFORMED` outcome whose text keeps the raw

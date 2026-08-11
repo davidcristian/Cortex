@@ -208,6 +208,20 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   placement target and four times the 900 s it waits when that pair overlaps, which is what the
   asks above ship, making it an upper bound over both placements rather than either wait; zero
   means never queue.
+  `max_tokens: int = 1024` (`CORTEX_SUBAGENTS_MAX_TOKENS`, at least 1) and
+  `run_timeout_s: float = 2400.0` (`CORTEX_SUBAGENTS_RUN_TIMEOUT_S`, positive) are the total
+  generation cap (ADR-0005 total-cap addendum), the bound a stall ceiling cannot be: a subagent in
+  a repetition loop is never silent, so before these it held its admission and its entry's lease
+  for as long as it kept talking. The first rides every completion of a run as a
+  `GenerationBounds`; the second is the deadline on the whole run, tool dispatches included, and
+  reaching it is an `ok=False` result naming the bound rather than a truncated answer. Neither has
+  an off switch, the whole of this bound being that a delegated run cannot be unbounded. Both
+  defaults are measured on the shipped CPU entry and declared in `cortex_core.subagents` rather
+  than restated here. `run_timeout_s` must be **strictly greater** than `stall_timeout_s`, else
+  construction fails: a deadline that does not outlast the ceiling on one silent gap would report
+  every wedged stream as a run that would not stop and silently delete the CPU re-run scheduled
+  for exactly that failure. `attempt_bounds` (property) is the two as the core's `AttemptBounds`,
+  which is what reaches the `SubagentRunner`.
   `named_roster` (property) synthesizes the ready-to-dial mapping, with the flat-field default
   first, alternates sorted, fallbacks applied; empty unless `backend="llamacpp"`. Every entry in
   it must fit the whole budget (`cpus <= cpu_budget` and `memory_gb <= mem_budget_gb`, equality
@@ -510,7 +524,11 @@ The service:
   `spawn_subagents` tool over a `SubagentRoster` built from `config.named_roster` (ADR-0018):
   per entry its own GPU + CPU `LlamaCppBackend` pair (one shared httpx client) and
   `PlacementRequest`, all entries sharing ONE `ResourceBudgetScheduler` (carrying
-  `config.admission_wait_s` as the bound on queuing for room, ADR-0012) and the ONE
+  `config.admission_wait_s` as the bound on queuing for room, ADR-0012) and one
+  `config.attempt_bounds` on the runner, so every delegated run carries the deployment's token cap
+  and its own deadline (ADR-0005 total-cap addendum; on the runner rather than the shared client
+  because a token cap is request-side and a deadline has to cover the tool dispatches between a
+  run's completions, which no HTTP client can see), and the ONE
   `VramBudgetPlacer` built once at the root from the runtime VRAM knobs and handed to both this
   builder and `build_swap_runtime` (one budget, one ledger, per ADR-0012, and one object, since
   the residency scope tells that same ledger which model holds the card during a handoff), a Redis `TaskStore`, GPU-first placement with CPU overflow,

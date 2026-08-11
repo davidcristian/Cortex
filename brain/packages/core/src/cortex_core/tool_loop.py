@@ -36,7 +36,9 @@ async def stream_tool_loop(
     for _step in range(MAX_TOOL_STEPS):
         calls: list[ToolCall] = []
         step_text: list[str] = []
-        deltas = backend.stream(model, working, tools=specs, schema=context.schema)
+        deltas = backend.stream(
+            model, working, tools=specs, schema=context.schema, bounds=context.bounds
+        )
         try:
             async for event in deltas:
                 if isinstance(event, ToolCall):

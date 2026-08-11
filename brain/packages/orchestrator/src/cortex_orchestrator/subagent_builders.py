@@ -81,7 +81,12 @@ async def build_subagents(
     )
     store = task_store_factory(redis_url)
     runner = SubagentRunner(
-        store, roster, clock, tools=tools, constrain_output=config.constrain_output
+        store,
+        roster,
+        clock,
+        tools=tools,
+        constrain_output=config.constrain_output,
+        bounds=config.attempt_bounds,
     )
 
     async def close_subagents() -> None:
