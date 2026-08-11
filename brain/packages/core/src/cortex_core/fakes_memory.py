@@ -4,6 +4,7 @@ import hashlib
 import math
 from collections.abc import Sequence
 
+from cortex_core.errors import EmbedderError
 from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.ranking import RecallAudit
 
@@ -17,11 +18,18 @@ class HashEmbedder:
 
     def __init__(self, dimension: int = _FAKE_EMBED_DIM) -> None:
         self._dimension = dimension
+        self._failure: EmbedderError | None = None
 
     async def embed(self, text: str) -> Sequence[float]:
-        """Return the deterministic pseudo-embedding of ``text``."""
+        """Return the deterministic pseudo-embedding of ``text``, or the scripted failure."""
+        if self._failure is not None:
+            raise self._failure
         digest = hashlib.sha256(text.encode("utf-8")).digest()
         return tuple(float(digest[i % len(digest)]) - 127.5 for i in range(self._dimension))
+
+    def fail_with(self, error: EmbedderError) -> None:
+        """Make every later ``embed`` raise ``error``: a backend taken away mid-run."""
+        self._failure = error
 
 
 def _cosine(a: Sequence[float], b: Sequence[float]) -> float:

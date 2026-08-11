@@ -1924,7 +1924,11 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
 - `HashEmbedder(dimension=16)` is a deterministic, I/O-free `Embedder`: identical text always
   yields the identical vector (so a stored memory is its own strongest cosine match), distinct
   text a distinct vector. Carries no semantics. It is the CI/tests stand-in for the real nomic
-  adapter (Slice 5 host half). Never emits an all-zero vector.
+  adapter (Slice 5 host half). Never emits an all-zero vector. `fail_with(EmbedderError(...))`
+  makes every later `embed` raise it, which is the port's only failure channel and the one thing
+  a hash cannot produce on its own; `packages/embedding/tests/embedder_contract.py` runs the same
+  four checks over this fake and over `LlamaCppEmbedder` and needs both arms to answer for a
+  backend that cannot answer.
 - Those two and `RecordingRecallSink` live in `fakes_memory.py`, split from `fakes.py` for the line
   cap as `count_candidates` landed (the `fakes_session.py` precedent): a recall test wants an
   embedder, a store and somewhere for the trail to land, and nothing else in `fakes.py` takes part.

@@ -1029,6 +1029,38 @@ cross-language-constant addendum):**
   the overlay's being the first outside Python and the evidence that the shape carries across the
   language boundary.
 
+  **The Python half is being taken one port per commit from 2026-08-11, and `Embedder` is the
+  first of the four.** `brain/packages/embedding/tests/embedder_contract.py` holds four checks and
+  `test_embedder_contract.py` runs them over `HashEmbedder` and over `LlamaCppEmbedder` on a
+  `MockTransport` whose stand-in server answers the digest bytes of the text it was given, as JSON
+  integers, which is a shape a real server is free to send and is what makes the check on float
+  elements a statement about the adapter's coercion. The four are that an embedding is a non-empty
+  sequence of real floats, that every text embeds at one width, that one text always embeds to one
+  vector with an unrelated embedding in between changing nothing, and that a backend which cannot
+  answer raises `EmbedderError`.
+
+  It found no behavioural disagreement, which is the honest outcome for a port one method wide and
+  is recorded rather than left as a silence. What it did find is that the fake could not fail at
+  all: `HashEmbedder` had no way to raise the one error the port names, so nothing in the core
+  could exercise a remember or a recall against a dead embedding server, and on the only path where
+  the two implementations have anything to disagree about the fake could not stand in for the
+  adapter. It gained `fail_with`, the scripted failure `InMemoryBodyGateway` has carried since it
+  was written. Two divergences are legitimate and so are written into
+  [docs/modules/brain-embedding.md](../modules/brain-embedding.md) instead of into a check: the
+  fake answers a `tuple` and the adapter a `list`, and their widths differ, which is why the width
+  check compares an implementation's own answers with each other rather than with a number.
+
+  **Proven able to fail, once per arm and once per side of the new knob.** Dropping the adapter's
+  `float(value)` coercion reddens `text_embeds_to_a_vector_of_real_numbers[llamacpp]` alone, 1
+  failed against 7 passed; making the fake's width depend on the text's parity reddens
+  `every_text_embeds_at_one_width[hash]` alone; letting the adapter's `httpx.HTTPError` escape
+  reddens `a_backend_that_cannot_answer_raises_embedder_error[llamacpp]`; and making `fail_with` a
+  no-op reddens that same check on the `hash` arm, which is what proves the knob load-bearing. Each
+  break was restored. The account port by port is the
+  [ADR-0001](../adr/ADR-0001-architecture.md) addendum of the same day. **Three of the four Python
+  ports stay open**, `ToolRegistry`, `BodyGateway` and `Confirmer`, alongside
+  `InferenceBackend`'s streaming half and every Rust row.
+
   **Why deferred rather than done.** The ports named above come to five in Python counting the
   partial one, seven in Rust and one in the overlay, and writing contract suites for them is a
   slice with its own design questions (what a write-only port owes, whether a Rust list is a

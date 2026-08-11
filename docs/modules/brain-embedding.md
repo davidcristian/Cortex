@@ -27,6 +27,17 @@ cause chained:
   element, non-JSON body) is caught as `KeyError`/`IndexError`/`TypeError`/`ValueError` and
   re-raised (fail-loud, never a silent empty vector).
 
+**Shared contract.** `tests/embedder_contract.py` holds the four checks every `Embedder`
+implementation owes and `tests/test_embedder_contract.py` drives them over both: the core's
+`HashEmbedder` and this adapter over a `MockTransport` whose stand-in server answers the digest
+bytes of the text it was given, as JSON integers. The checks are that an embedding is a non-empty
+sequence of real floats, that every text embeds at one width, that one text always embeds to one
+vector with an embedding in between changing nothing, and that a backend which cannot answer
+raises `EmbedderError`. Two divergences the list deliberately does not pin: the fake answers a
+`tuple` and the adapter a `list`, both being `Sequence[float]`, and the widths differ (16 against
+whatever the deployment's model emits), which is why the check compares an implementation's widths
+with each other rather than with a number.
+
 **Invariants.**
 - Stateless per call: nothing about a request outlives `embed`; the adapter holds only its
   injected client, endpoint, and model id.
