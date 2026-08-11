@@ -2,7 +2,7 @@
 
 import logging
 
-from cortex_core.errors import HandoffStoreError, ModelHostError
+from cortex_core.errors import HandoffStoreError, ModelHostError, ModelNotHostedError
 from cortex_core.handoff import HandoffState
 from cortex_core.health_gate import await_model_ready
 from cortex_core.model_host import ModelHostState, ResidencyPlan
@@ -49,18 +49,38 @@ async def converge_residency(
     for peer in plan.evict_models:
         await _clear_peer(host, peer)
     try:
-        if await host.status(plan.brain_model) is not ModelHostState.STOPPED:
-            _logger.warning(
-                "stopping a model left running by an interrupted handoff",
-                extra={"model": plan.brain_model},
-            )
-            await host.stop(plan.brain_model)
+        await _clear_deep(host, plan.brain_model)
         settled = await _settle_cortex(host, plan, clock=clock, sleeper=sleeper)
+    except ModelNotHostedError:
+        _logger.exception(
+            "the model host does not serve the cortex this brain names, so nothing can",
+            extra={"model": plan.cortex_model},
+        )
+        return False
     except ModelHostError:
         _logger.exception("the model host was unreachable during boot recovery")
         return False
     await restart_evicted(host, plan, tiers)
     return settled
+
+
+async def _clear_deep(host: ModelHost, model: str) -> None:
+    """Take the deep model off the card, or say why this host has no such tier to take off."""
+    try:
+        if await host.status(model) is not ModelHostState.STOPPED:
+            _logger.warning(
+                "stopping a model left running by an interrupted handoff", extra={"model": model}
+            )
+            await host.stop(model)
+    except ModelNotHostedError as err:
+        _logger.error(  # noqa: TRY400 -- the fault is the deployment's config, not this stack
+            "escalation is enabled but the model host does not serve %r, so no handoff can ever "
+            "run: name an artifact for that tier (CORTEX_MODEL_FILE_BRAIN) or turn escalation "
+            "off (CORTEX_ESCALATION); the cortex is unaffected: %s",
+            model,
+            err,
+            extra={"model": model, "error": str(err)},
+        )
 
 
 async def _clear_peer(host: ModelHost, model: str) -> None:

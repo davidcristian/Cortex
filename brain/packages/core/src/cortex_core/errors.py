@@ -110,3 +110,7 @@ class ResidencyRestoreError(ModelManagerError):
 
 class ModelHostError(Exception):
     """A ModelHost operation failed: a model process could not be started, stopped, or probed."""
+
+
+class ModelNotHostedError(ModelHostError):
+    """The host has no such logical model at all, so no wait and no retry will produce one."""

@@ -45,9 +45,16 @@ Everything importable from `cortex_model_manager` (`__all__` is the API).
   was formed against a supervisor process that no longer exists (ADR-0030's host-generation
   addendum).
 - Every failure crosses as `ModelHostError` with its cause chained, and **nothing is retried
-  here**: a transport failure, a 404, a 503, a body that will not decode, and a state word this
+  here**: a transport failure, a 503, a body that will not decode, and a state word this
   version does not know all mean "the model host did not answer the question", which is for the
   swap to interpret (`residency_moves` catches exactly `ModelHostError`).
+- One failure crosses more narrowly, because the daemon already draws the line: a **404 on a
+  per-model route** is the supervisor's `UnknownModelError`, so it raises `ModelNotHostedError`,
+  the port's subclass meaning this host carries no such id and never will while it lives
+  (ADR-0030's unrostered-tier addendum). It is carried only where the sidecar makes the
+  distinction: `GET /health` names no model, so a 404 there says the endpoint is wrong rather than
+  the roster short, and a 503 stays broad because a process that would not start or stop may
+  answer differently on the next call.
 - A `FAILED` state is a normal answer and is logged at error level with the sidecar's `detail`,
   because that exit code is the only diagnosis the brain side ever sees.
 - The client is injected, and unlike the generation clients it must carry a real read deadline: a
@@ -66,8 +73,9 @@ answers that this daemon has none. Four routes and no more:
 | `POST /models/{id}/start` | begin loading it (idempotent), answering the state it left behind. |
 | `POST /models/{id}/stop` | end it, returning once the child is reaped (idempotent). |
 
-An id outside the roster is **404**; a supervisor failure is **503**. Both become
-`ModelHostError`, but the runbook sends them to different halves of itself.
+An id outside the roster is **404**; a supervisor failure is **503**. Both are `ModelHostError` on
+the brain's side, the 404 as the narrower `ModelNotHostedError`, and the runbook sends them to
+different halves of itself.
 
 **The device seam.** `DeviceMemoryProbe` is `read() -> DeviceMemory | None`, with two
 implementations: `NoDeviceMemory` (always `None`, the default and what a CPU-only stack truthfully
@@ -234,7 +242,10 @@ which is the whole point of decision 3. The consequences worth knowing before ch
   needs three conditions of the world no verb can create (a model not serving yet, a process dying
   unasked, and what the card reports), so each fixture supplies them as knobs: that is the honest
   widening of the contract, since "`start` only begins loading" is unobservable in an
-  implementation where nothing can be mid-load, and neither implementation may invent a GPU.
+  implementation where nothing can be mid-load, and neither implementation may invent a GPU. A
+  fourth is not a knob but a wiring fact, `unhosted`, an id the host does not carry: a roster is
+  read once from env, so nothing a caller does can add to it, and the supervisor fixture arranges
+  it by leaving the id out while the twin is told.
 - 100% line + branch, with no process spawned and no socket opened. Every distrust-green mutation
   is recorded with its **measured** package-wide failure count in the suites' own docstrings.
 - `integration`-marked live tests (`tests/test_model_host_live.py`, excluded from CI and the

@@ -349,6 +349,19 @@ async def test_a_failed_swap_in_still_restores_the_cortex() -> None:
         assert lease.endpoint == _CORTEX_URL
 
 
+async def test_a_swap_into_a_tier_the_host_never_had_says_so_rather_than_blaming_the_host() -> None:
+    """A handoff asking for an unrostered tier is a configuration fault, and the note says which."""
+    host = ScriptedModelHost(running=["cortex"], unhosted=["brain"])
+    manager = _manager(host)
+    with pytest.raises(SwapFailedError, match="does not serve 'brain' at all"):
+        async with manager.swap_scope("brain"):
+            pass  # pragma: no cover - entering raises before the body runs
+    assert ("start", "cortex") in host.calls
+    assert host.running == {"cortex"}
+    async with manager.acquire("cortex") as lease:
+        assert lease.endpoint == _CORTEX_URL
+
+
 async def test_a_brain_that_never_becomes_ready_fails_the_swap_at_the_gate() -> None:
     """The health gate's bound is the swap's, so a stuck load aborts instead of hanging."""
     host = ScriptedModelHost(running=["cortex"], status_override={"brain": ModelHostState.LOADING})

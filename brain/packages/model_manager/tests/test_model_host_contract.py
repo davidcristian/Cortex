@@ -30,6 +30,10 @@ _BOUNDS = ControlBounds(probe_timeout_s=0.5, stop_grace_s=1.0, reap_timeout_s=1.
 # the daemon rather than declaring it, which is the difference the contract is driven over both to
 # expose (a fixture that supplied both sides of the comparison would assert nothing).
 _SCRIPTED_BOOT = "scripted-daemon"
+# An id neither fixture's host carries: the supervisor's roster is built from ``CONTRACT_MODELS``
+# and never sees it, and the twin is told. It is named for the deployment that produces the
+# condition, escalation turned on with no artifact declared for the deep tier.
+_UNROSTERED = "tier-with-no-artifact"
 
 
 def contract_roster() -> dict[str, ModelSpec]:
@@ -65,7 +69,7 @@ class _FakeCard:
 
 def _scripted_subject() -> HostUnderTest:
     """The core's scriptable twin: the world's conditions are its status overrides."""
-    host = ScriptedModelHost(control_bounds=_BOUNDS, boot_id=_SCRIPTED_BOOT)
+    host = ScriptedModelHost(control_bounds=_BOUNDS, boot_id=_SCRIPTED_BOOT, unhosted=[_UNROSTERED])
 
     def serving(model: str, *, serving: bool) -> None:
         host.set_status(model, None if serving else ModelHostState.LOADING)
@@ -84,6 +88,7 @@ def _scripted_subject() -> HostUnderTest:
         aclose=nothing_to_close,
         bounds=_BOUNDS,
         boot_id=_SCRIPTED_BOOT,
+        unhosted=_UNROSTERED,
     )
 
 
@@ -120,6 +125,7 @@ def _supervisor_subject() -> HostUnderTest:
         aclose=client.aclose,
         bounds=_BOUNDS,
         boot_id=supervisor.boot_id,
+        unhosted=_UNROSTERED,
     )
 
 

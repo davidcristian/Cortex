@@ -3,7 +3,16 @@
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
-from cortex_core import ControlBounds, DeviceMemory, ModelHost, ModelHostState
+import pytest
+
+from cortex_core import (
+    ControlBounds,
+    DeviceMemory,
+    ModelHost,
+    ModelHostError,
+    ModelHostState,
+    ModelNotHostedError,
+)
 
 # Two ids, so the swap-shaped check can watch one go down as the other comes up. Both fixtures
 # declare exactly these.
@@ -23,6 +32,7 @@ class HostUnderTest:
     aclose: Callable[[], Awaitable[None]]
     bounds: ControlBounds
     boot_id: str
+    unhosted: str
 
 
 async def check_a_model_nobody_started_reports_stopped(subject: HostUnderTest) -> None:
@@ -102,6 +112,22 @@ async def check_a_swap_leaves_only_the_model_it_swapped_in(subject: HostUnderTes
     )
 
 
+async def check_an_id_this_host_does_not_carry_is_refused_by_every_verb(
+    subject: HostUnderTest,
+) -> None:
+    """An id outside the roster fails as ``ModelNotHostedError``, from all three lifecycle verbs."""
+    for verb in (subject.host.status, subject.host.start, subject.host.stop):
+        with pytest.raises(ModelNotHostedError) as excinfo:
+            await verb(subject.unhosted)
+        assert subject.unhosted in str(excinfo.value)
+
+
+async def check_an_unhosted_refusal_is_still_a_model_host_error(subject: HostUnderTest) -> None:
+    """The narrower failure is caught by every caller that only ever knew the broad one."""
+    with pytest.raises(ModelHostError):
+        await subject.host.status(subject.unhosted)
+
+
 async def check_a_host_with_no_card_reports_no_device_memory(subject: HostUnderTest) -> None:
     """``None`` is an answer the port defines, not a failure: most deployments have no GPU.
 
@@ -145,6 +171,8 @@ ALL_CHECKS: tuple[Callable[[HostUnderTest], Awaitable[None]], ...] = (
     check_a_failed_model_is_restarted_without_being_stopped_first,
     check_stopping_a_model_that_already_died_settles_it,
     check_a_swap_leaves_only_the_model_it_swapped_in,
+    check_an_id_this_host_does_not_carry_is_refused_by_every_verb,
+    check_an_unhosted_refusal_is_still_a_model_host_error,
     check_a_host_with_no_card_reports_no_device_memory,
     check_a_host_with_a_card_reports_what_is_free_and_how_big_it_is,
     check_a_host_reports_the_control_bounds_it_was_wired_with,

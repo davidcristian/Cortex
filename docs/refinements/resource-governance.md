@@ -10,10 +10,18 @@ recommended pickup order.
 The Intel NPU as a third placement target, a queue-depth bound,
 two of the three the tier-outage close opened (a retry
 that only asks about tiers it already believes are missing, and a placer holding one bit for the
-card where the record holds one entry per tier), the deep model's clearing still deciding the
-cortex's verdict at boot, and the two the total generation cap opened as it closed (a finish
-reason the port does not carry, so a capped completion looks like a finished one, and the
-whole-subtask figure two derivations rest on being out by a factor of two). The count went 6 to 7
+card where the record holds one entry per tier), the two the total generation cap opened as it
+closed (a finish reason the port does not carry, so a capped completion looks like a finished one,
+and the whole-subtask figure two derivations rest on being out by a factor of two), and the brain
+learning at boot that escalation cannot work and then forgetting it. The count held at 7 later on
+2026-08-11 when **the deep model's clearing deciding the cortex's verdict at boot** landed ahead of
+its trigger, one out and one in: the port has the narrower failure that entry asked for, an
+unrostered deep tier is a green boot and a loud line rather than an amber dot, and what takes its
+place is the fact that nothing remembers the line was ever logged, so each escalation still stalls
+the assistant to discover the same 404. The same close found the entry had understated itself, the
+swap back having met that 404 too and lost the cortex to it, which is a defect rather than a
+deferral and is therefore fixed in the same pass and recorded at the ADR instead of here. The count
+went 6 to 7 earlier
 on 2026-08-11 when **the total generation cap** landed ahead of its trigger, one out and two in,
 which is the same shape the tier-outage close had: what replaces it are the two questions building
 it made askable, one of them a port change this fix deliberately did not need and the other a
@@ -522,6 +530,15 @@ the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
   per tier inside the turn the user is waiting on). The trigger is the first deployment observed
   running with a peer tier dead and nothing noticing, which is also the first one whose logs say
   how often that happens.
+  **A fifth shape joined on 2026-08-11**, from the opposite direction and now tellable apart at the
+  port ([ADR-0030 unrostered-tier addendum](../adr/ADR-0030-brain-handoff.md)): a peer named in
+  `CORTEX_SWAP_EVICT_MODELS` that the daemon has no artifact for is marked missing at boot, which
+  is right, and then retried every interval for ever against a roster that cannot grow, since
+  `ModelNotHostedError` is exactly the answer no retry can change. It costs two control calls a
+  pass on loopback and a log line, so it is noise rather than harm, and the question it raises is
+  the one this entry already owns: what a pass looks at. It belongs here rather than in an entry of
+  its own because the two answers are one design, whether a tier that can never come back stops
+  being asked about and whether the placer stays closed on it while it is.
 - **The placer holds one bit for the card, where the record holds one entry per tier.**
   *Fix when it bites.* Opened 2026-08-09 by the same close. Any missing tier closes GPU placement
   for the whole pool, because the brain has no declared mapping from a hosted tier id
@@ -593,6 +610,49 @@ the unchanged `SubagentPlacer`/`SubagentScheduler`/`ModelManager` ports.
   tier is a configuration fault the boot can name instead of an amber dot. The trigger is the first
   deployment observed booting amber with a cortex that is serving, or the same port distinction
   being wanted for any other reason.
+  **It landed 2026-08-11, ahead of that trigger, recorded at the
+  [ADR-0030 unrostered-tier addendum](../adr/ADR-0030-brain-handoff.md).** The port has the
+  narrower failure the entry asked for, `ModelNotHostedError`, a subclass of `ModelHostError` so
+  that every caller which cannot use the distinction goes on catching what it always caught, and
+  the adapter raises it for a 404 on a per-model route and for nothing else. Boot recovery clears
+  the deep tier best effort in that one shape, so an unrostered deep tier is a green boot plus one
+  `ERROR` naming both `CORTEX_MODEL_FILE_BRAIN` and `CORTEX_ESCALATION`, while a deep model that is
+  resident and will not stop, an unreachable sidecar, and a cortex id the roster does not have all
+  stay amber. Three things about it, one of them the entry's own account and two of them things it
+  could not have known.
+  **Its account of the tree held to the line**, checked before anything was designed: the flat
+  error, the single `try`, and the sidecar's own `UnknownModelError` already crossing the wire as a
+  404 that the adapter collapsed. So this was a port change and an adapter that stops discarding,
+  which is why it was small.
+  **The amber dot was the cheap half.** Driven one call further, through a real `swap_scope`
+  against a real supervisor over HTTP, the shipped code met that same 404 in the swap back's stop
+  of the model it had swapped in, failed the restore, failed its retry, and raised
+  `ResidencyRestoreError` with the cortex left stopped and the seam saying recovery was manual. So
+  a deployment that merely could not escalate lost its assistant at the first attempt to, and the
+  fix therefore reaches `residency_moves.py` as well: the swap back skips exactly that one failure,
+  since a tier the host never had can hold no card, and the swap in names the configuration fault
+  rather than blaming the machine.
+  **The distinction has a second site, and it is left open where it belongs.** The same 404 reaches
+  the tier retry for a peer, which then asks a roster that cannot grow, every interval, for ever.
+  Nothing is harmed and the log says so each pass, so what is open is a policy question about a
+  tier that can never come back, and it is named on the retry entry above rather than filed as an
+  entry of its own.
+- **The brain learns at boot that escalation cannot work, and then forgets it.** *Fix when it
+  bites.* Opened 2026-08-11 by the close above, which tells the operator once, at startup, that
+  the deep tier is not in the model host's roster, and keeps that knowledge nowhere. Every later
+  escalation therefore runs the whole prologue against a tier that cannot exist: the pool is
+  drained, the cortex is evicted, the `start` comes back 404, and the scope's `finally` reloads the
+  cortex, which at tier scale is minutes of the assistant being gone for a handoff that was never
+  going to run, once per attempt. The user's note says the tier is not in the roster, which is
+  honest but arrives after the stall. The fix is to remember the fact where the conductor can read
+  it and refuse before the drain, and it is recorded rather than built because it needs two
+  decisions this close did not need: where a fact about the host's roster lives on a brain whose
+  every other belief about that daemon is invalidated by a restart (the boot id is the existing
+  answer to exactly that question, so the refusal has to be re-derived when the daemon changes,
+  not cached for the life of the process), and what the seam says about a capability that is
+  configured and unavailable, the residency report carrying one detail line that already belongs to
+  the peer record. The trigger is a deployment observed paying that stall, or a user asking why an
+  escalation that was offered never happens.
 - **A read timeout on the subagent HTTP client landed 2026-08-09, on two clients rather than the
   one this entry named ([ADR-0005 stall-ceiling addendum](../adr/ADR-0005-llamacpp-engine.md),
   recorded at the [ADR-0012 read-timeout addendum](../adr/ADR-0012-resource-governance.md)).**

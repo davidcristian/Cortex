@@ -756,7 +756,11 @@ unchanged):
   notice. Both lifecycle verbs are idempotent and `start` only *begins*
   loading, so readiness is observed only through `status`. `model` is a logical id (ADR-0004):
   artifact paths, ports, `-ngl`, and context flags never cross it, so a deployment re-points a
-  tier without touching the core. Failures surface as `ModelHostError`. `ScriptedModelHost` is
+  tier without touching the core. Failures surface as `ModelHostError`, with one narrower kind
+  under it, `ModelNotHostedError`, raised by every verb for an id the host does not carry at all
+  (ADR-0030 unrostered-tier addendum). It is a fact about the deployment where every other failure
+  on this port is a verdict about the machine, and it is a subclass so that callers with no use
+  for the difference keep catching what they always caught. `ScriptedModelHost` is
   the twin CI and the chaos suite drive; the real supervisor adapter's live tests are
   `integration`-marked.
 - `ResidencyController` (same module) provides
@@ -964,7 +968,9 @@ unchanged):
   failure at all, since it means the deep model IS loaded and working on another turn, which is
   the opposite of what a failed swap means and so owes the user the opposite note) /
   `MemoryStoreError` / `EmbedderError` / `ToolError` (+ its
-  `ToolNotFoundError`) / `TaskStoreError` / `HandoffStoreError` / `ModelHostError` /
+  `ToolNotFoundError`) / `TaskStoreError` / `HandoffStoreError` / `ModelHostError` (+ its
+  `ModelNotHostedError`, ADR-0030: the host carries no such logical id, which no wait and no retry
+  can change, as against every other failure on that port, which says the host could not answer) /
   `BodyGatewayError` / `ScheduleStoreError` are typed
   errors; adapters wrap their backend's failures into these with the cause chained.
   `BodyGatewayError` alone carries a second field, `kind: BodyFailure`, keyword-only and
@@ -1142,7 +1148,12 @@ Use-case:
   best effort, so a `status` or a `start` the host refuses is recorded and skipped rather than
   answered `False` with, while the deep model's clearing stays fatal (it is the tier whose presence
   contradicts the residency the cortex needs). A boot that cannot reach the host records nothing
-  about the peers at all, having never asked one to run.
+  about the peers at all, having never asked one to run. The one deep-tier failure that is not
+  fatal is a host that does not carry that id at all (ADR-0030 unrostered-tier addendum): nothing
+  can be resident under a name the daemon's roster never had, so the cortex answers for itself and
+  the deployment is told once, at `ERROR`, that the escalation it declared cannot happen. A cortex
+  the daemon does not serve is the same distinction pointing the other way and stays `False`, with
+  its own log line separating it from an unreachable host.
 - `SWAPPING_STATE` plus the swap window's detail and note texts (`swap_notes.py`) are every
   app-authored string a handoff can put on a turn's stream. Status details are ephemeral
   progress; notes are reply text, streamed but not persisted, except `BRAIN_FAILED_NOTE`, which
@@ -1873,7 +1884,12 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   *what a cancellation may not abandon*, and *what the answer about the GPU currently is*, with
   opposite failure
   directions (the swap in raises `SwapFailedError`, one restore attempt answers a bool because the
-  policy over it retries). The fit check sits inside `swap_in` between the last `stop` and the `start`, which
+  policy over it retries). Both moves treat one host failure as a deployment fact rather than a
+  broken machine (ADR-0030 unrostered-tier addendum): a `ModelNotHostedError` from the swap in
+  still fails the handoff and says the tier is not in the host's roster instead of that the host
+  broke, and the swap back's stop of the model it swapped in skips exactly that failure and nothing
+  else, since a tier the host never had can hold no card and a restore that read it as a machine
+  failure would abandon the cortex it had already evicted. The fit check sits inside `swap_in` between the last `stop` and the `start`, which
   is the only instant free memory means anything: everything the handoff means to unload is gone
   and nothing is allocated yet. Under a plan with `brain_vram_mib` set, a card short of that
   figure, or a host that can see no card at all, raises `SwapFailedError` there with both figures
@@ -1938,11 +1954,14 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   a plan that declared no deadline are all tolerated in the same direction: nothing observed,
   nothing rebuilt.
 - `ScriptedModelHost(*, running=(), status_override=None, fail=None, fail_once=None,
-  pause_at=(), device_memory=None, control_bounds=None, boot_id=None)` is the `ModelHost` twin (ADR-0030 decision 3, in `fakes_model_host.py`): a set
+  pause_at=(), unhosted=(), device_memory=None, control_bounds=None, boot_id=None)` is the `ModelHost` twin (ADR-0030 decision 3, in `fakes_model_host.py`): a set
   of running models plus exactly the scripting the swap's named failure modes need.
   `status_override` is what a *running* model reports instead of `READY` (a load that never
   finishes, a model that died at load); `fail` raises `ModelHostError` for an `(op, model)`
   pair every time and `fail_once` for its first occurrence only (the restore's retry);
+  `unhosted` names the ids this twin does not carry, refused by every verb with
+  `ModelNotHostedError` before any scripted failure is consulted, since a roster a deployment
+  never declared cannot be worked around by asking twice;
   `pause_at` blocks an operation at its boundary **after** its effect lands, firing
   `reached[key]` and resuming on `release[key]`, which is how a test kills the conductor at a
   named step. `calls` is the op log, which is what proves a swap requested the right things in

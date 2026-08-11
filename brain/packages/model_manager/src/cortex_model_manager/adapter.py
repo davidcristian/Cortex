@@ -7,7 +7,13 @@ from urllib.parse import quote
 
 import httpx
 
-from cortex_core import ControlBounds, DeviceMemory, ModelHostError, ModelHostState
+from cortex_core import (
+    ControlBounds,
+    DeviceMemory,
+    ModelHostError,
+    ModelHostState,
+    ModelNotHostedError,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -41,7 +47,7 @@ class HttpModelHost:
 
     async def status(self, model: str) -> ModelHostState:
         """What the sidecar says ``model``'s process is doing right now."""
-        payload = await self._request("GET", self._model_path(model), _about(model))
+        payload = await self._request("GET", self._model_path(model), _about(model), tier=True)
         return self._read(model, payload)
 
     async def device_memory(self) -> DeviceMemory | None:
@@ -91,7 +97,9 @@ class HttpModelHost:
 
     async def _act(self, model: str, verb: str) -> None:
         """Run a lifecycle verb and read the state it left behind, for the log."""
-        payload = await self._request("POST", f"{self._model_path(model)}/{verb}", _about(model))
+        payload = await self._request(
+            "POST", f"{self._model_path(model)}/{verb}", _about(model), tier=True
+        )
         state = self._read(model, payload)
         _logger.info(
             "asked the model host for a lifecycle change: model=%s verb=%s state=%s",
@@ -105,12 +113,10 @@ class HttpModelHost:
         """The route for one logical id, escaped: an id is a name, never a path fragment."""
         return f"/models/{quote(model, safe='')}"
 
-    async def _request(self, method: str, path: str, subject: str) -> dict[str, Any]:
-        """One control call, with every failure shape collapsed into ``ModelHostError``.
-
-        ``subject`` is what the call was about, already phrased for a message, because the four
-        lifecycle routes ask about a model and the health route asks about the card.
-        """
+    async def _request(
+        self, method: str, path: str, subject: str, *, tier: bool = False
+    ) -> dict[str, Any]:
+        """One control call, with every failure shape collapsed into ``ModelHostError``."""
         try:
             response = await self._client.request(method, f"{self._endpoint}{path}")
         except httpx.HTTPError as err:
@@ -121,6 +127,8 @@ class HttpModelHost:
                 f"the model host refused {method} {path} for {subject} with HTTP "
                 f"{response.status_code}: {response.text.strip()[:200]}"
             )
+            if tier and response.status_code == HTTPStatus.NOT_FOUND:
+                raise ModelNotHostedError(msg)
             raise ModelHostError(msg)
         try:
             body: object = response.json()

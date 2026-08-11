@@ -198,6 +198,54 @@ async def test_a_peer_the_daemon_does_not_serve_at_all_is_no_verdict_either(
     ]
 
 
+async def test_a_deep_tier_the_daemon_does_not_serve_is_a_config_fault_not_an_amber_boot(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The whole of this fix: escalation declared with no artifact behind it is not an outage."""
+    host = ScriptedModelHost(running=["cortex"], unhosted=["brain"])
+    with caplog.at_level(logging.WARNING, logger="cortex_core.swap_recovery"):
+        settled = await _recover(RecordingHandoffStore(), host)
+    assert settled is True
+    assert host.running == {"cortex"}
+    # Said once, at ERROR, naming both knobs that produce the state and the one it does not touch.
+    assert [(record.levelno, record.getMessage()) for record in caplog.records] == [
+        (
+            logging.ERROR,
+            "escalation is enabled but the model host does not serve 'brain', so no handoff can "
+            "ever run: name an artifact for that tier (CORTEX_MODEL_FILE_BRAIN) or turn "
+            "escalation off (CORTEX_ESCALATION); the cortex is unaffected: unknown model 'brain'; "
+            "this twin was told it does not host it",
+        )
+    ]
+
+
+async def test_a_deep_model_that_really_will_not_stop_still_fails_the_boot(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The failure the fix must not introduce: a real outage reading as a configuration choice."""
+    host = ScriptedModelHost(running=["brain", "cortex"], fail={("stop", "brain"): "wedged"})
+    with caplog.at_level(logging.ERROR, logger="cortex_core.swap_recovery"):
+        settled = await _recover(RecordingHandoffStore(), host)
+    assert settled is False
+    assert ("status", "cortex") not in host.calls
+    assert [record.message for record in caplog.records] == [
+        "the model host was unreachable during boot recovery"
+    ]
+
+
+async def test_a_cortex_the_daemon_does_not_serve_is_amber_and_says_which_it_is(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The same distinction pointing the other way, which must not turn green."""
+    host = ScriptedModelHost(unhosted=["cortex"])
+    with caplog.at_level(logging.ERROR, logger="cortex_core.swap_recovery"):
+        settled = await _recover(RecordingHandoffStore(), host)
+    assert settled is False
+    assert [record.message for record in caplog.records] == [
+        "the model host does not serve the cortex this brain names, so nothing can"
+    ]
+
+
 async def test_a_cortex_that_will_not_settle_still_asks_for_its_peers_back() -> None:
     """The two verdicts are independent in both directions, not only the interesting one."""
     host = ScriptedModelHost(running=[_TIER], status_override={"cortex": ModelHostState.LOADING})

@@ -3,7 +3,7 @@
 import logging
 from collections.abc import Awaitable, Callable
 
-from cortex_core.errors import ModelHostError, SwapFailedError
+from cortex_core.errors import ModelHostError, ModelNotHostedError, SwapFailedError
 from cortex_core.model_host import ModelHostState, ResidencyPlan
 from cortex_core.ports import ModelHost
 from cortex_core.residency_tiers import StandingTiers
@@ -25,6 +25,12 @@ async def swap_in(host: ModelHost, plan: ResidencyPlan, model: str, gate: Readin
         await _refuse_a_load_the_card_cannot_hold(host, plan, model)
         await host.start(model)
         state = await gate(model)
+    except ModelNotHostedError as err:
+        msg = (
+            f"the model host does not serve {model!r} at all, so this deployment cannot escalate "
+            f"until that tier is in its roster (docs/runbooks/model-swap.md): {err}"
+        )
+        raise SwapFailedError(msg) from err
     except ModelHostError as err:
         msg = f"the model host failed while swapping in {model!r}: {err}"
         raise SwapFailedError(msg) from err
@@ -84,7 +90,7 @@ async def restore_standing(
 ) -> bool:
     """One attempt at the standing residency: stop ``model``, bring the cortex and its peers up."""
     try:
-        await host.stop(model)
+        await _stop_what_was_swapped_in(host, model)
         await host.start(plan.cortex_model)
         state = await gate(plan.cortex_model)
     except ModelHostError:
@@ -94,6 +100,23 @@ async def restore_standing(
         return False
     await restart_evicted(host, plan, tiers)
     return True
+
+
+async def _stop_what_was_swapped_in(host: ModelHost, model: str) -> None:
+    """Take the scope's own resident off the card, unless this host never had such a tier.
+
+    Every other failure propagates to the caller's ``except``, because a model that is resident
+    and will not stop is exactly the state the retry exists for.
+    """
+    try:
+        await host.stop(model)
+    except ModelNotHostedError as err:
+        _logger.warning(
+            "the model host does not serve %r, so there was nothing of it to stop: %s",
+            model,
+            err,
+            extra={"model": model, "error": str(err)},
+        )
 
 
 async def restart_evicted(host: ModelHost, plan: ResidencyPlan, tiers: StandingTiers) -> None:

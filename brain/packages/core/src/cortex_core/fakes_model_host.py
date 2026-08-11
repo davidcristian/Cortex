@@ -1,16 +1,16 @@
-"""Scriptable ``ModelHost`` twin: start, stop, and probe models that do not exist (ADR-0030)."""
+"""Scriptable ``ModelHost``: start, stop, and check models, including ones that do not exist."""
 
 import asyncio
 from collections.abc import Iterable, Mapping
 
-from cortex_core.errors import ModelHostError
+from cortex_core.errors import ModelHostError, ModelNotHostedError
 from cortex_core.model_host import ControlBounds, DeviceMemory, ModelHostState
 
 
 class ScriptedModelHost:
     """ModelHost twin holding a set of running models, with scripted failures and pauses."""
 
-    def __init__(  # noqa: PLR0913 -- one knob per scripted condition, all keyword-only
+    def __init__(  # noqa: PLR0913 -- one argument per scripted condition, all keyword-only
         self,
         *,
         running: Iterable[str] = (),
@@ -18,11 +18,13 @@ class ScriptedModelHost:
         fail: Mapping[tuple[str, str], str] | None = None,
         fail_once: Mapping[tuple[str, str], str] | None = None,
         pause_at: Iterable[tuple[str, str]] = (),
+        unhosted: Iterable[str] = (),
         device_memory: DeviceMemory | None = None,
         control_bounds: ControlBounds | None = None,
         boot_id: str | None = None,
     ) -> None:
         self.running: set[str] = set(running)
+        self.unhosted: set[str] = set(unhosted)
         self.device: DeviceMemory | None = device_memory
         self.bounds: ControlBounds | None = control_bounds
         self.boot: str | None = boot_id
@@ -86,13 +88,16 @@ class ScriptedModelHost:
         """Log the operation, then raise whatever failure was scripted for it."""
         key = (op, model)
         self.calls.append(key)
+        if model in self.unhosted:
+            msg = f"unknown model {model!r}; this twin was told it does not host it"
+            raise ModelNotHostedError(msg)
         if (once := self._fail_once.pop(key, None)) is not None:
             raise ModelHostError(once)
         if (always := self._fail.get(key)) is not None:
             raise ModelHostError(always)
 
     async def _pause(self, op: str, model: str) -> None:
-        """Block at this operation's boundary when one was armed, else return at once."""
+        """Block at this operation's boundary when one was set up, else return at once."""
         gate = self.reached.get((op, model))
         if gate is None:
             return
