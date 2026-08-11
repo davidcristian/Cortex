@@ -1023,3 +1023,145 @@ def test_the_tenth_addendum_composes_with_its_predecessors() -> None:
     # An entity colon, a backslash separator, a CJK-dotted host and a zero-width character in one
     # link still fold to the single identity its plain twin has.
     assert extract_urls("https&#58;\\/evil\u3002ex\u200bample/pay") == _PLAIN_LINK
+
+
+# --- Obfuscation-resistant matching: a special scheme's authority spelled with fewer than two
+# solidi (ADR-0015 eleventh addendum). `https:evil.example/pay` and `https:/evil.example/pay` are
+# both `https://evil.example/pay` to a URL parser, because the special-authority states that skip a
+# backslash tolerate a missing one, so the matcher's demand for both solidi let a live link anchor
+# nothing. Every widening before this constrained the spelling of a separator that was there; this
+# one admits a separator that is absent, so the anchor asks instead what follows it to look like a
+# host, which a dot or a bracketed colon says and an English word does not. --------------------
+
+
+def test_extract_urls_anchors_a_slashless_authority() -> None:
+    # The bypass: one solidus or none, in every scheme the parser reads a special authority for.
+    assert extract_urls("https:evil.example/pay") == _PLAIN_LINK
+    assert extract_urls("https:/evil.example/pay") == _PLAIN_LINK
+    assert extract_urls(r"https:\evil.example/pay") == _PLAIN_LINK
+    assert extract_urls("http:evil.example/pay") == {"http://evil.example/pay"}
+    assert extract_urls("hxxp:evil.example/pay") == {"http://evil.example/pay"}
+    assert extract_urls("ftp:evil.example/pay") == {"ftp://evil.example/pay"}
+
+
+def test_a_slashless_authority_takes_every_separator_spelling() -> None:
+    # The position inherits the tables rather than growing a second one, so the entity colon and
+    # the fullwidth twin the earlier addenda landed reach the slashless form for free.
+    assert extract_urls("https&#58;evil.example/pay") == _PLAIN_LINK
+    assert extract_urls("https&colon;/evil.example/pay") == _PLAIN_LINK
+    assert extract_urls("https：evil.example/pay") == _PLAIN_LINK  # noqa: RUF001
+    assert extract_urls("https:&#92;evil.example/pay") == _PLAIN_LINK
+
+
+def test_a_defanged_colon_reaches_the_slashless_form_too() -> None:
+    # The separator families cannot part company at this position either: a bare defanged colon
+    # spells the same missing solidi, and the refanger already turned it back into one. Leaving it
+    # out would have been the seventh addendum's bracket asymmetry over again, and the *encoded*
+    # chunk had reached here on its own all along, since its branch never asked for a solidus.
+    assert extract_urls("http[:]evil.example/pay") == {"http://evil.example/pay"}
+    assert extract_urls("http(:)/evil.example/pay") == {"http://evil.example/pay"}
+    assert extract_urls("http{:}evil.example/pay") == {"http://evil.example/pay"}
+    guard = _filter({"http://evil.example/pay"})
+    assert guard.feed("at http[:]evil.") == "at "
+    assert guard.feed("example/pay ") == f"{REDACTED_LINK} "
+
+
+def test_a_slashless_authority_and_its_plain_twin_share_one_identity() -> None:
+    # The identity folds an *empty* run of authority slashes now, not just a mis-spelled one.
+    assert extract_urls("https:evil.example/pay") == extract_urls("https://evil.example/pay")
+    assert extract_urls("https:evil.example") == extract_urls("https://evil.example")
+
+
+def test_a_slashless_transform_of_a_collected_url_is_redacted() -> None:
+    # The default policy's half of the gap: dropping a solidus carried no identity at all, so a
+    # link collected plainly from untrusted content came back through it unredacted.
+    guard = _filter({"https://evil.example/pay"})
+    fed = guard.feed("settle at https:evil.example/pay now") + guard.flush()
+    assert fed == f"settle at {REDACTED_LINK} now"
+
+
+def test_strict_tainted_turn_redacts_a_slashless_authority() -> None:
+    # The severe half a sixth time: a spelling that anchors nothing is invisible to strict mode too.
+    guard = _strict(_Taint(tainted=True))
+    assert guard.feed("go to https:evil.example/pay ") == f"go to {REDACTED_LINK} "
+
+
+def test_a_slashless_authority_split_across_chunks_is_carried_not_lost() -> None:
+    # The host is what anchors this form, so a buffer ending mid-host is not yet a match and is not
+    # yet a scheme prefix either; the hold-back carries a scheme word whose host is still arriving.
+    guard = _filter({"https://evil.example/pay"})
+    assert guard.feed("at https:evil.") == "at "
+    assert guard.feed("example/pay ") == f"{REDACTED_LINK} "
+
+
+def test_a_slashless_authority_survives_a_one_character_stream() -> None:
+    # The production shape: the filter sees one character at a time.
+    guard = _filter({"https://evil.example/pay"})
+    reply = "settle at https:/evil.example/pay now"
+    fed = "".join(guard.feed(char) for char in reply) + guard.flush()
+    assert fed == f"settle at {REDACTED_LINK} now"
+
+
+def test_a_dotted_host_is_what_a_dot_of_any_reading_spells() -> None:
+    # The anchor's dot is the resolver's, not ASCII's: the label separators IDNA splits a host on
+    # come from the same table the identity folds, and a rendered reference is a dot by the ninth
+    # addendum's own rule, so the classes compose in the position that now needs a host.
+    assert extract_urls("https:evil。example/pay") == _PLAIN_LINK
+    assert extract_urls("https:evil｡example/pay") == _PLAIN_LINK
+    assert extract_urls("https:evil．example/pay") == _PLAIN_LINK  # noqa: RUF001
+    assert extract_urls("https:evil&#46;example/pay") == _PLAIN_LINK
+    assert extract_urls("https:evil&period;example/pay") == _PLAIN_LINK
+    assert extract_urls("https:evil%2eexample/pay") == _PLAIN_LINK
+    # And the readings the parser does not have: it decodes a host once, refusing the
+    # stacked escape, and a label with nothing after it is the single label declined below.
+    assert extract_urls("https:evil%252eexample/pay") == frozenset()
+    assert extract_urls("https:evil./pay") == frozenset()
+
+
+def test_a_port_userinfo_and_the_literal_hosts_are_all_host_shaped() -> None:
+    # Everything a host can be that carries a dot rides on the dot, userinfo and a port included
+    # since both sit outside the name; an IPv6 literal has no dot and is admitted on its brackets.
+    assert extract_urls("https:evil.example:8443/pay") == {"https://evil.example:8443/pay"}
+    assert extract_urls("https:user:pw@evil.example/pay") == {"https://user:pw@evil.example/pay"}
+    assert extract_urls("https:127.0.0.1/pay") == {"https://127.0.0.1/pay"}
+    assert extract_urls("https:[::1]/pay") == {"https://[::1]/pay"}
+    assert extract_urls("https:bücher.example/pay") == {"https://bücher.example/pay"}
+
+
+def test_a_single_label_authority_is_the_false_positive_budget_and_stays_out() -> None:
+    # The whole cost of admitting an absent separator, paid where prose lives. A scheme word, a
+    # colon and one English word is a live URL to a parser (`https:scheme` is `https://scheme/`),
+    # and it is also how a sentence names a scheme, so the anchor declines every single-label host.
+    # Nothing public resolves there anyway: a bare label is registrable under no public suffix.
+    assert extract_urls("the https: scheme is the one to use") == frozenset()
+    assert extract_urls("see https: for the scheme") == frozenset()
+    assert extract_urls("the scheme is https:") == frozenset()
+    assert extract_urls("https:no slashes here") == frozenset()
+    assert extract_urls("https:scheme") == frozenset()
+    assert extract_urls("reach it at https:localhost:8080/x") == frozenset()
+    assert extract_urls("http:foo and ftp:bar") == frozenset()
+
+
+def test_prose_after_a_scheme_colon_still_streams_through() -> None:
+    # The hold-back may carry a scheme word whose host is still arriving, but carrying is not
+    # redacting: prose that never becomes a host is released whole, in order, by the flush.
+    guard = _strict(_Taint(tainted=True))
+    reply = "the https: scheme, or https:scheme without the space"
+    fed = "".join(guard.feed(char) for char in reply) + guard.flush()
+    assert fed == reply
+
+
+def test_a_non_special_scheme_reads_its_colon_exactly_as_before() -> None:
+    # The widening is the parser's rule and carries that rule's scope: only a *special* scheme has
+    # an authority to find, so an opaque one keeps its opaque reading and an unlisted one is still
+    # no link at all.
+    assert extract_urls("mailto:evil.example") == {"mailto:evil.example"}
+    assert extract_urls("data:evil.example") == frozenset()
+    assert extract_urls("javascript:evil.example") == frozenset()
+    assert extract_urls("tel:1.800.555.0100") == {"tel:1.800.555.0100"}
+
+
+def test_the_eleventh_addendum_composes_with_its_predecessors() -> None:
+    # An entity colon, a single backslash for the missing solidus, a CJK-dotted host and a
+    # zero-width character in one link still fold to the single identity its plain twin has.
+    assert extract_urls("https&#58;\\evil。ex\u200bample/pay") == _PLAIN_LINK

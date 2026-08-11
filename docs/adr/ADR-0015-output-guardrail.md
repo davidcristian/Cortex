@@ -986,3 +986,175 @@ carried is now priced. What it owes its next reader is a method rather than a li
 is the question at the top of this addendum, asked of a candidate encoding rather than of a
 spelling somebody happened to write down. Also unchanged: whitespace-split defang (`evil dot com`),
 the full UTS-39 confusables set (still a dependency), and footer/boilerplate heuristics.
+
+## Addendum (2026-08-11): a special scheme's authority spelled with fewer than two solidi
+
+Closes the entry the tenth addendum opened rather than chased, and closes it in the shape that
+entry predicted: not by widening a separator's spelling, which is what every pass before it did,
+but by giving the anchor its first look at what follows the separator. The close is **grammar and
+identity only, with no seam change**: both `OutputGuardrail` policies, the `TaintLedger`,
+`TaintView`, the streaming filter, and the config are untouched, redact and strict mode inherit the
+wider matching for free, and a clean or untainted turn is byte-identical to before. Still
+**deterministic and dependency-free** (stdlib only).
+
+### The spelling, put to the same question
+
+The question the tenth addendum settled on is asked again here, of the traced path it traced: **is
+there a resolver in this system's path for untrusted content that turns this spelling back into the
+attacker's URL?** For this one the answer is the shortest it has ever been, because the resolver is
+the URL parser itself and it needs no help. The URL Standard's special-authority states, the ones
+that skip a backslash where a solidus belongs, also tolerate a solidus that is simply absent, so a
+special scheme reaches its host with two solidi, one, or none. Run in `node`, which implements the
+same WHATWG parsing every browser and the overlay's own webview do:
+
+| Reply spelling | `new URL(...)` resolves to |
+|---|---|
+| `https:evil.example/pay` | `https://evil.example/pay` |
+| `https:/evil.example/pay`, `https:\evil.example/pay` | `https://evil.example/pay` |
+| `https:evil.example` | `https://evil.example/` |
+| `https:evil。example/pay`, `https:evil｡example/pay`, `https:evil．example/pay` | `https://evil.example/pay` |
+| `https:evil%2eexample/pay` | `https://evil.example/pay` |
+| `https:evil%252eexample/pay` | parse error |
+| `https:evil.example:8443/pay`, `https:user:pw@evil.example/pay` | the same, port and userinfo kept |
+| `https:127.0.0.1/pay`, `https:[::1]/pay` | `https://127.0.0.1/pay`, `https://[::1]/pay` |
+| `https:bücher.example/pay` | `https://xn--bcher-kva.example/pay` |
+| `https:scheme`, `https:localhost` | `https://scheme/`, `https://localhost/` |
+| `https: scheme`, `https:no slashes here`, `https:` | parse error |
+| `mailto:evil.example`, `data:evil.example` | unchanged, opaque, no authority found |
+
+The last two rows are the whole design problem in two lines. A missing solidus is live, and a
+missing solidus in front of an English word is *also* live, which is exactly how a sentence names a
+scheme.
+
+Measured against the shipped module before any change, driven end to end through a real
+`TaintLedger` and a real streaming filter fed one character at a time, in both directions:
+
+| Spelling | `extract_urls` before | reply, redact | reply, strict | collected side | After |
+|---|---|---|---|---|---|
+| `https://evil.example/pay` (control) | the link | redacted | redacted | the link | unchanged |
+| `https:evil.example/pay` | `frozenset()` | **leaked** | **leaked** | **empty** | redacted |
+| `https:/evil.example/pay` | `frozenset()` | **leaked** | **leaked** | **empty** | redacted |
+| `https:\evil.example/pay` | `frozenset()` | **leaked** | **leaked** | **empty** | redacted |
+| `https:evil。example/pay` | `frozenset()` | **leaked** | **leaked** | **empty** | redacted |
+| `https:[::1]/pay` | `frozenset()` | **leaked** | **leaked** | **empty** | redacted |
+
+Anchoring nothing at all, so that both policies are blind and the ledger stays empty when untrusted
+content writes the link that way, is the severe shape the seventh, eighth, ninth and tenth addenda
+each found once. This is the sixth time, and the first time it was found by a pass looking for
+something else and left standing on purpose until its budget could be designed.
+
+### The anchor is a host, and a host is what a dot or a bracket says it is
+
+Every widening before this one constrained the *spelling* of a separator that was present, so the
+separator carried the anchor by itself and nothing after it had to be inspected. Admit a separator
+that is absent and that stops being true: `https:` plus any non-space run is prose. So the
+slashless form, and only that form, is admitted behind a **lookahead at the host**, which consumes
+nothing (`_DATA_ANCHOR`'s precedent, one scheme's MIME shape, generalized to a host grammar for the
+first time). The rule is one sentence: a host is a **dotted name** or a **bracketed literal
+carrying a colon**, and nothing else here counts as one.
+
+- **The dotted name** is every registrable domain, every IPv4 literal, and every IDN, including a
+  punycode label, since all of them carry a dot with a label after it. The dot counts in every
+  reading the resolver has, which is the same table the identity folds by
+  (`LABEL_SEPARATORS`, imported into `url_spellings.py` so the grammar and the fold cannot disagree
+  about what a dot is), plus the references one rendering pass resolves (`&#46;`, `&#x2e;`,
+  `&period;`, the ninth addendum's own family generated per codepoint), plus one **percent** escape.
+  That last is the only place in this grammar where a percent escape is a spelling, and it is there
+  on a measurement rather than a symmetry: a parser percent-decodes a *host*, so
+  `https:evil%2eexample/pay` is the plain link, and it refuses the stacked `%252e`, so exactly one
+  level is a reading and no more. The colon and solidus positions still decline the family on the
+  measurement that put them out, a parser throwing on `https%3A//evil.example`; the difference is
+  that decoding a host happens inside a string already recognized as a URL, which is precisely what
+  decoding a separator would not.
+- **The bracketed literal carrying a colon** is every IPv6 literal and nothing else a host can be,
+  which is why the colon is required: `[1]` and `[abc]` are refused by a parser and are refused
+  here, so the brackets admit an address rather than any bracketed prose.
+- **A single label is declined**, and that decline is the whole false-positive budget. It is spent
+  where prose lives and it costs no exfil vector: a bare label is registrable under no public
+  suffix, so `https:evilhost` names nothing an attacker can own, while `https:scheme` and
+  `http:foo` are how this repo's own documentation talks about a scheme. `https:evil./pay` is the
+  same decline wearing a root dot: the label after the separator is empty.
+
+The separator itself is composed rather than listed, and composed out of the family that already
+existed for it: **the slashless authority separator is the opaque separator, plus at most one
+solidus, plus the host anchor.** Reusing `_OPAQUE_SEP_RE` is what keeps `http[:]evil.example` from
+being the spelling nobody remembered, which is the seventh addendum's bracket asymmetry over again
+and was live for the same reason (a reader refangs `[:]` and lands on the host). The encoded
+chunk had reached this position on its own all along, since that branch never asked for a solidus
+at all, so `http[&#58;]evil.example` matched before this pass and matches now; it is deliberately
+left without the host anchor, its escape marker being the constraint that already keeps it off
+prose, and narrowing it would take away a catch that has been standing since the seventh addendum.
+
+On the identity side the change is one character. `_SPECIAL_AUTHORITY` matched a run of authority
+slashes with `+`; it matches with `*` now, so the empty run folds like every other length and
+`https:evil.example`, `https:/evil.example` and `https://evil.example` are one identity. Without
+it the grammar would anchor the spelling and the default policy would still miss it, which is the
+tenth addendum's lesson about a match whose identity the collected set does not hold.
+
+### The streaming hold-back, where a host anchor could have been right and useless
+
+A slashless authority is the first opening whose *host* decides whether there is a match at all, so
+a buffer ending at `https:evil.` is not a match, is not a prefix of any separator, and would have
+been released one delta before the dot got its label. `_OPEN_SEP_RE` gained a branch for it: a
+scheme word, an opaque separator spelling, at most one solidus, and the authority characters so
+far. The colon in front is load bearing in the same way the `&` is in the unfinished-entity
+branch, since without it the branch would hold back `database`. Verified at every two-way split
+point of nine probes under both policies (702 splits) and at one character at a time, each agreeing
+with the whole-string feed.
+
+The accepted cost is that prose can now be carried to the flush: `the https:scheme` is held while
+it might still grow a host. Carrying is not redacting. The text is released whole, in order, by
+the filter that always releases it, so the reply the user reads is unchanged and only its arrival
+moves.
+
+### False positives, which are the real cost of widening a matcher
+
+The new surface is a scheme word, a colon, at most one solidus, and something host-shaped. Prose
+does not write that, and the check is that the repo's own way of talking about a scheme survives:
+`the https: scheme`, `see https: for the scheme`, a sentence ending in `https:`, `https:no slashes
+here` (the shape the eighth addendum protected, and which is still protected because a space is
+not an authority character), `https:scheme`, `http:foo`, and `https:localhost:8080/x` are all still
+nothing. What *is* now a match and would have been prose is a documentation line that writes a
+slashless link with a real dotted host, which is to say this addendum's own examples: under strict
+mode on a tainted turn they are redacted, exactly as the tenth addendum's regex literal is, and
+under the default policy they stream through untouched unless the ledger collected that identity.
+That is the existing over-redaction reaching a spelling it used to miss, not a new kind of loss,
+and the guardrail remains `off`-able.
+
+One over-reach is admitted knowingly rather than discovered later. A fullwidth solidus as the
+single slash (`https:／evil.example`) is a **parse error** to a real parser, yet it matches here,
+because the position spends the shared solidus table rather than a second one. That is the eighth
+addendum's existing over-admission (`https：//evil.example` is a parse error too) reaching one more
+combination, it only ever widens a redaction, and holding the table in one place is worth more than
+pruning the combination that the parser happens to refuse.
+
+### The split, and why it is in this commit
+
+`urls.py` could not hold a host grammar and stay under the line cap, so the separator vocabulary
+moved to `url_spellings.py`: the bracket shapes, the colon/solidus/dot glyph tables, the HTML
+reference generator, and the defanged tokens, which is everything that answers "what may this one
+character be written as" and nothing that answers "what is a URL". That is the same split
+`url_identity.py` made when the seventh addendum landed, made for the same reason and in the same
+commit as the change that forced it, per the repo rule that a file is split by responsibility as
+the work arrives rather than in a later cleanup pass.
+
+### Tests, each mutation-proven
+
+Thirteen new behaviour tests, each proven to redden against the final code with `__pycache__`
+cleared between runs and each mutation verified to have applied: dropping the slashless branch from
+the separator reddens ten, reverting the identity's slash run to `+` reddens seven, dropping the
+hold-back's arriving-host branch reddens two, letting the anchor take any non-space run reddens
+three (two of them the false-positive negatives, one of them the eighth addendum's own fullwidth
+prose test, which is the protection this pass most had to keep), narrowing the anchor's dot to
+ASCII reddens two, dropping the percent reading reddens one, dropping the bracketed literal reddens
+one, and narrowing the slashless separator to the plain colon reddens the defanged one, in the
+matcher and in the hold-back alike.
+
+### What stays open
+
+The tail this came out of, "mixed/other encodings past percent + HTML", **stays open** and stays
+open on its class, unchanged by this pass: what it owes its next reader is still a candidate
+encoding put to the question at the top of the tenth addendum. Also unchanged: whitespace-split
+defang (`evil dot com`), the full UTS-39 confusables set (still a dependency), footer/boilerplate
+heuristics, and the standing decision that a bare domain with no scheme at all is out of scope,
+which is what the single-label decline above leans on rather than contradicts.
