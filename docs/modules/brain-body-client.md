@@ -25,7 +25,9 @@ state (the one hard rule). The composition root owns the channel's lifecycle.
     zeros. A body that leaves `source_width`/`source_height` at their proto3 zeros (an older
     body) reports the image's own size, so nothing tells the model it is looking at a shrunk
     view of nothing. **Both arguments are also bounds on the reply, verified after receipt**
-    (ADR-0029 decision 7, which rejects `max_edge` as the sole size defense): a non-zero
+    (ADR-0029 decision 7, which rejects `max_edge` as the sole size defense, and which is the
+    core's `hold_to_the_bounds_asked_for` rather than this adapter's own, since every
+    implementation of the port owes it): a non-zero
     `max_edge` refuses a longer declared edge and a non-zero `max_bytes` refuses more bytes,
     each naming the number the body broke, because under proto3 an older body ignores both and
     answers full resolution, and `ImagePart`'s own 6 MiB / 8192 px are the domain ceiling rather
@@ -89,6 +91,21 @@ guarantees by never spending that code (ADR-0023's 2026-08-08 addendum); grpc-py
 a locally synthesized status from a sent one, so the reservation is the only way the distinction
 survives. The volume and capture tools (`cortex_core`) catch the error and return an `is_error`
 result the cortex can recover from. A dead body is a message, never a turn-killing exception.
+
+**Shared contract.** `tests/gateway_contract.py` holds the ten checks every `BodyGateway`
+implementation owes and `tests/test_gateway_contract.py` drives them over both: the core's
+`InMemoryBodyGateway` and this adapter against a `BodyService` served on loopback, so nothing on
+the adapter's side is stubbed. They cover the volume read, the write that touches only the field
+it was given, the write that reports the state after it, the clamp, the notification that reaches
+the body with its taint bit, the decline that answers `False` rather than raising, the capture
+that reports what the body pointed at, the capture refused for breaking the bound it asked for,
+the capture attempted exactly once, and the single `BodyGatewayError` every verb fails with.
+
+Two divergences the list deliberately stays above. The level is a 32-bit float on the wire and a
+Python one in the fake, so every level the checks use is exact in both and the checks are about
+which field moved rather than how many bits survived. And the clamp happens in different places,
+the fake doing it where it stands and the adapter's answer arriving already clamped by the body,
+which is why the check asks only that a legal state comes back.
 
 **Invariants.**
 - Stateless per call; the adapter holds only its stub + prebuilt metadata (the one hard rule).

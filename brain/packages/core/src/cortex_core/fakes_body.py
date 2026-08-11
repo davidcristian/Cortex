@@ -6,16 +6,23 @@ process; ``get_volume`` reports it, ``set_volume`` applies a change (clamping ``
 [0.0, 1.0], the OS backend's own rule), and ``notify`` records the toast and answers the
 scripted ``shown``. Setting ``shown=False`` scripts a body whose notifier declined (the reminder
 then stays deliverable for the pull path). Constructed with ``fail`` set to a
-``BodyGatewayError`` to script an unreachable body. ``capture_screen`` (ADR-0029) answers the
-scripted ``capture`` and records what was asked for, so a test can assert the hints the caller
-sent without a wire. For tests, CI, and experiments only.
+``BodyGatewayError`` to script an unreachable body, or told mid-run with ``fail_with``, which is
+what the shared contract needs to take a body away between two calls. ``capture_screen``
+(ADR-0029) answers the scripted ``capture``, holds it to any non-zero bound the call asked for,
+and records what was asked, so a test can assert the hints the caller sent without a wire. For
+tests, CI, and experiments only.
 """
 
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from cortex_core.body import CaptureTarget, ScreenCapture, VolumeState
+from cortex_core.body import (
+    CaptureTarget,
+    ScreenCapture,
+    VolumeState,
+    hold_to_the_bounds_asked_for,
+)
 from cortex_core.errors import BodyGatewayError
 from cortex_core.images import ImagePart
 
@@ -95,6 +102,14 @@ class InMemoryBodyGateway:
             self._muted = mute
         return VolumeState(level=self._level, muted=self._muted)
 
+    def fail_with(self, error: BodyGatewayError) -> None:
+        """Make every later call raise ``error``: a body that has gone away mid-run."""
+        self._fail = error
+
+    def show_notifications(self, *, shown: bool) -> None:
+        """Answer every later ``notify`` with ``shown``: a host that switched toasts off mid-run."""
+        self._shown = shown
+
     async def notify(
         self, *, title: str, body: str, reminder_id: str, tainted: bool = False
     ) -> bool:
@@ -120,10 +135,22 @@ class InMemoryBodyGateway:
         points at is read off the picture that was encoded, so a focus request can honestly come
         back as a display capture (a window filling the screen), and a test that wants the
         window sentence scripts a window capture.
+
+        The bounds are the one thing not answered verbatim, and they are the reason this is the
+        gRPC adapter's twin rather than the body's: a non-zero ``max_edge``/``max_bytes`` is a
+        bound on the **reply**, so a scripted capture outside one is refused here exactly as the
+        adapter refuses a body that ignored the hint, from the same domain rule.
         """
         if self._fail is not None:
             raise self._fail
         self._captures.append(CaptureAsk(max_edge=max_edge, max_bytes=max_bytes, target=target))
+        hold_to_the_bounds_asked_for(
+            width=self._capture.image.width,
+            height=self._capture.image.height,
+            byte_count=len(self._capture.image.data),
+            max_edge=max_edge,
+            max_bytes=max_bytes,
+        )
         return self._capture
 
     @property

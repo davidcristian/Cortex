@@ -492,6 +492,12 @@ Body-gateway domain (Slice 9, ADR-0023; Slice 10, ADR-0029; in `body.py`):
   `describe` reads `target` first rather than asking. The name matches the
   body's Rust `ScreenCapture` trait on purpose: they are the two ends of one capability.
 - `captured_at_from_unix_ms(ms)` reads the seam's epoch milliseconds as an aware UTC datetime.
+- `hold_to_the_bounds_asked_for(*, width, height, byte_count, max_edge, max_bytes)` raises
+  `BodyGatewayError` when a capture breaks a non-zero bound the call asked the body for (ADR-0029
+  decision 7), naming which number was broken; a zero asked for the body's own default and holds
+  it to nothing but `ImagePart`'s ceiling. It lives here rather than in the gRPC adapter because
+  every `BodyGateway` owes it: the bounds are a deployment's budget and only ever hints on the way
+  out, so both the adapter and `InMemoryBodyGateway` re-verify on receipt from this one rule.
 
 Images (Slice 10, ADR-0029; in `images.py`, which imports only the standard library so
 `tools.py`, `conversation.py`, and `body.py` may all depend on it):
@@ -1965,10 +1971,14 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   `capture` kwarg or `default_capture()` (a 1x1 view of a 2x2 screen, so the downscaled branch is
   exercised by default) **verbatim**, target included rather than echoed from the ask, which is
   the adapter's behaviour: a focus request honestly coming back as a display capture is a window
-  filling the screen; a `fail`
+  filling the screen. The bounds are the one thing not answered verbatim: a scripted capture over
+  a non-zero `max_edge`/`max_bytes` is refused here from the same `hold_to_the_bounds_asked_for`
+  the adapter calls, because this is the adapter's twin and not the body's. A `fail`
   kwarg scripts a failing body (`BodyGatewayError`, whose `kind` the test chooses so the fake can
-  stand in for any wire status). Contract twin of `cortex_body_client`'s
-  `GrpcBodyGateway`, no live body.
+  stand in for any wire status), `fail_with` says the same thing mid-run, and
+  `show_notifications(shown=False)` scripts a host that switched toasts off; the shared contract in
+  `packages/body_client/tests/gateway_contract.py` needs both of those to change the world between
+  two calls. Contract twin of `cortex_body_client`'s `GrpcBodyGateway`, no live body.
 - `InMemoryTaskStore` is a dict-backed `TaskStore`; contract twin of the Redis adapter (Slice 7
   CI half). Unknown ids return `None`. Does not survive a restart, by design.
 - `InMemoryHandoffStore` is a dict-backed `HandoffStore` plus the single active-handoff pointer;

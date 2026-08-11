@@ -10,6 +10,7 @@ from cortex_core.body import (
     ScreenCapture,
     VolumeState,
     captured_at_from_unix_ms,
+    hold_to_the_bounds_asked_for,
 )
 from cortex_core.body_failure import body_failure_message
 from cortex_core.conversation import Message, Role
@@ -167,4 +168,5 @@ __all__ = [
     "captured_at_from_unix_ms",
     "claimed_source",
     "data_uri",
+    "hold_to_the_bounds_asked_for",
 ]
