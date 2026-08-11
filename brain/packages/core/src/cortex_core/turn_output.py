@@ -1,13 +1,17 @@
 """What a turn does with the text it produced: surface it, flush it, remember it."""
 
+import logging
 from collections.abc import AsyncGenerator, Iterator
 
+from cortex_core.errors import EmbedderError, MemoryStoreError
 from cortex_core.events import TextDelta, ToolActivity, ToolOutcome, TurnEvent
 from cortex_core.guardrail import OutputFilter
 from cortex_core.loop_events import ReasoningDelta, StepOutcome, ToolStep
 from cortex_core.output_channels import ThinkingChannel
 from cortex_core.turn_context import TurnCapabilities
 from cortex_core.untrusted import TaintLedger
+
+_logger = logging.getLogger(__name__)
 
 # One turn's two guarded output channels: the reply filter (``None`` when unguarded) and the
 # thinking status channel, as ``open_output_channels`` returns them.
@@ -65,6 +69,12 @@ async def record_exchange(
     if taint.opaque:
         return
     if caps.memory is not None and (not taint.tainted or caps.record_tainted_memory):
-        await caps.memory.record(
-            render_exchange(query, reply), session_id=session_id, tainted=taint.tainted
-        )
+        try:
+            await caps.memory.record(
+                render_exchange(query, reply), session_id=session_id, tainted=taint.tainted
+            )
+        except (EmbedderError, MemoryStoreError):
+            _logger.exception(
+                "memory write unavailable; this exchange was not recorded to memory",
+                extra={"session_id": session_id},
+            )

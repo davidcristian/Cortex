@@ -1,10 +1,13 @@
 """Assemble the context one turn sends to the model, and the capabilities that shape it."""
 
+import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
 
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
+from cortex_core.errors import EmbedderError, MemoryStoreError
+from cortex_core.events import StatusUpdate
 from cortex_core.guardrail import OutputGuardrail
 from cortex_core.handoff import EscalationSlot
 from cortex_core.memory import ScoredMemory
@@ -21,8 +24,13 @@ from cortex_core.untrusted import (
 )
 from cortex_core.windowing import HistoryWindow
 
+_logger = logging.getLogger(__name__)
+
 # How many past memories to recall into a turn's context by default (ADR-0008).
 DEFAULT_RECALL_K = 5
+
+FORGOING_STATE = "forgoing"
+FORGOING_DETAIL = "memory is unavailable, so this turn is answered without earlier notes"
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,8 +103,25 @@ async def _recalled_context(
     """
     if caps.memory is None:
         return None
-    hits = await caps.memory.recall(query, k=DEFAULT_RECALL_K, session_id=context.session_id)
+    try:
+        hits = await caps.memory.recall(query, k=DEFAULT_RECALL_K, session_id=context.session_id)
+    except (EmbedderError, MemoryStoreError) as err:
+        await _report_forgone_memory(caps, context, err)
+        return None
     if not hits:
         return None
     body = _render_memory_context(hits, nonce=context.nonce, taint=context.taint)
     return Message(role=Role.SYSTEM, text=body, at=clock.now(), turn_id=context.turn_id)
+
+
+async def _report_forgone_memory(
+    caps: TurnCapabilities, context: ToolLoopContext, err: Exception
+) -> None:
+    """Say, twice over, that this turn is being answered without the memory it should have had."""
+    _logger.warning(
+        "memory recall unavailable; answering this turn without its recalled notes",
+        extra={"session_id": context.session_id, "turn_id": context.turn_id},
+        exc_info=err,
+    )
+    if caps.progress is not None:
+        await caps.progress.emit(StatusUpdate(state=FORGOING_STATE, detail=FORGOING_DETAIL))

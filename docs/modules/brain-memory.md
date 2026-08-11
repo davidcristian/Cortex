@@ -73,7 +73,11 @@ add/search/count/close; a malformed result row (missing column, unparseable vect
 timestamp) in `search`, and a reply carrying no readable integer total in `count_candidates`. A
 count that fails fails the recall that asked for it, rather than degrading to a number that is
 not the store's: the trail's own sink already fails a recall the same way, and an audit line that
-quietly invents a figure is worse than one that stops.
+quietly invents a figure is worse than one that stops. What a failed recall no longer does is fail
+the **turn**: the core catches `MemoryStoreError` where a turn is assembled and where its exchange
+is recorded, and answers without its notes (ADR-0008 unavailable-memory addendum). The adapter is
+unchanged by that and must stay so, since the same store serves the session-delete cascade, where
+`SessionServicer` aborts `UNAVAILABLE` and a swallowed failure would be a privacy defect.
 
 **Schema (host/infra, not the adapter).** `CREATE EXTENSION vector;` + `memories(id text pk,
 text text, embedding vector, scope text not null default 'global', tainted boolean not null

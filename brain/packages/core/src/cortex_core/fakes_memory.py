@@ -4,12 +4,12 @@ import hashlib
 import math
 from collections.abc import Sequence
 
-from cortex_core.errors import EmbedderError
+from cortex_core.errors import EmbedderError, MemoryStoreError
 from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.ranking import RecallAudit
 
-# The fake embedder's default vector width. Small (< a sha256 digest) so distinct texts
-# get distinct vectors without cycling the digest; the real nomic model is 768-dim.
+# Under the 32 bytes of a sha256 digest, so no byte is reused and distinct texts get distinct
+# vectors. The real embedding model returns 768 values.
 _FAKE_EMBED_DIM = 16
 
 
@@ -46,24 +46,32 @@ class InMemoryMemoryStore:
 
     def __init__(self) -> None:
         self._records: list[MemoryRecord] = []
+        self._failure: MemoryStoreError | None = None
+
+    def fail_with(self, error: MemoryStoreError) -> None:
+        """Make every later call raise ``error``: a backend taken away mid-run."""
+        self._failure = error
+
+    def _guard(self) -> None:
+        """Raise the scripted failure, if one was set, before any method does its work."""
+        if self._failure is not None:
+            raise self._failure
 
     def _in_scopes(self, scopes: Sequence[str] | None) -> list[MemoryRecord]:
-        """The candidate set ``scopes`` selects, which ``search`` ranks and ``count`` sizes."""
+        """The records ``scopes`` selects, which ``search`` ranks and ``count_candidates`` sums."""
         allowed = None if scopes is None else set(scopes)
         return [record for record in self._records if allowed is None or record.scope in allowed]
 
     async def add(self, record: MemoryRecord) -> None:
         """Persist one memory record."""
+        self._guard()
         self._records.append(record)
 
     async def search(
         self, embedding: Sequence[float], *, k: int, scopes: Sequence[str] | None = None
     ) -> Sequence[ScoredMemory]:
-        """Return the ``k`` records most similar to ``embedding``, most-similar first.
-
-        ``scopes`` restricts the candidate set to those namespaces (the pgvector
-        ``WHERE scope = ANY`` twin, ADR-0008 addendum); ``None`` ranks over all memories.
-        """
+        """Return the ``k`` records most similar to ``embedding``, most-similar first."""
+        self._guard()
         scored = [
             ScoredMemory(record=record, score=_cosine(embedding, record.embedding))
             for record in self._in_scopes(scopes)
@@ -73,14 +81,12 @@ class InMemoryMemoryStore:
 
     async def count_candidates(self, *, scopes: Sequence[str] | None = None) -> int:
         """How many memories ``scopes`` holds, whatever ``k`` a search of them would return."""
+        self._guard()
         return len(self._in_scopes(scopes))
 
     async def delete_scope(self, scope: str) -> int:
-        """Hard-delete every memory in ``scope``; return how many were removed (0 if none).
-
-        The in-memory twin of the pgvector ``DELETE FROM memories WHERE scope = $1`` (ADR-0008
-        delete-scope addendum): a removed memory simply stops being a search candidate.
-        """
+        """Hard-delete every memory in ``scope``; return how many were removed (0 if none)."""
+        self._guard()
         kept = [record for record in self._records if record.scope != scope]
         removed = len(self._records) - len(kept)
         self._records = kept
