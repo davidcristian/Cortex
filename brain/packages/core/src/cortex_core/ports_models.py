@@ -27,9 +27,16 @@ class ModelHost(Protocol):
 
     ``model`` is a logical id (ADR-0004 decision 2): artifact paths, ports, ``-ngl``, and context
     flags never cross this port, so a deployment can re-point a tier without touching the core.
-    Failures surface as ``ModelHostError``. The core's ``ScriptedModelHost`` is the scriptable
-    twin CI and the chaos suite drive (delays, failures, kill-at-step); the real supervisor
-    adapter's live tests are ``integration``-marked, per AGENTS.md gate 3.
+    Failures surface as ``ModelHostError``, with one narrower kind beneath it: an id this host
+    does not carry at all raises ``ModelNotHostedError`` from every verb, because "I have no such
+    tier" is a fact about the deployment and everything else the port can fail with is a verdict
+    about the machine. A caller that cannot use the difference catches the base type and behaves
+    exactly as it did; the three that can are boot recovery, which must not call a tier nobody
+    declared the cortex being gone, the swap in, which must not describe an id the roster never
+    had as a host that broke, and the swap back, which must not fail to restore the cortex over a
+    model that could never have been resident. The core's ``ScriptedModelHost`` is the scriptable
+    twin CI and the chaos suite drive (delays, failures, kill-at-step, ids it does not host); the
+    real supervisor adapter's live tests are ``integration``-marked, per AGENTS.md gate 3.
 
     ``device_memory`` is the fourth verb and the only one that is not about a process: how much of
     the card is free right now. It belongs here rather than in a port of its own because the one

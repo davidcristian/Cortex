@@ -31,7 +31,15 @@ the mutation was aimed at:
   No scripted case reddens, which is again the point: the twin echoes the bounds it was handed, and
   what the supervisor leg pins is that a real daemon publishes the three it was really given;
 - dropping ``boot_id`` from that body reddens 2 in exactly the same shape, the supervisor leg of
-  ``check_a_host_names_which_boot_of_it_is_answering`` and that same health case.
+  ``check_a_host_names_which_boot_of_it_is_answering`` and that same health case;
+- collapsing a tier's 404 back into the broad ``ModelHostError`` reddens 2, the supervisor leg of
+  ``check_an_id_this_host_does_not_carry_is_refused_by_every_verb`` and one row of
+  ``test_adapter.py``'s status table. No scripted case reddens, for the usual reason: the twin is
+  **told** which ids it does not host, while the real leg has to derive the same answer from a
+  roster it built and a status code it read;
+- letting the twin serve every id it is handed reddens 5, both scripted legs of the two unhosted
+  checks and the three core cases that arrange the condition over it, which is the mirror image
+  and the reason a fake that could not refuse would leave the distinction untestable in the core.
 """
 
 from collections.abc import AsyncIterator, Awaitable, Callable
@@ -63,6 +71,10 @@ _BOUNDS = ControlBounds(probe_timeout_s=0.5, stop_grace_s=1.0, reap_timeout_s=1.
 # the daemon rather than declaring it, which is the difference the contract is driven over both to
 # expose (a fixture that supplied both sides of the comparison would assert nothing).
 _SCRIPTED_BOOT = "scripted-daemon"
+# An id neither fixture's host carries: the supervisor's roster is built from ``CONTRACT_MODELS``
+# and never sees it, and the twin is told. It is named for the deployment that produces the
+# condition, escalation turned on with no artifact declared for the deep tier.
+_UNROSTERED = "tier-with-no-artifact"
 
 
 def contract_roster() -> dict[str, ModelSpec]:
@@ -104,7 +116,7 @@ class _FakeCard:
 
 def _scripted_subject() -> HostUnderTest:
     """The core's scriptable twin: the world's conditions are its status overrides."""
-    host = ScriptedModelHost(control_bounds=_BOUNDS, boot_id=_SCRIPTED_BOOT)
+    host = ScriptedModelHost(control_bounds=_BOUNDS, boot_id=_SCRIPTED_BOOT, unhosted=[_UNROSTERED])
 
     def serving(model: str, *, serving: bool) -> None:
         host.set_status(model, None if serving else ModelHostState.LOADING)
@@ -123,6 +135,7 @@ def _scripted_subject() -> HostUnderTest:
         aclose=nothing_to_close,
         bounds=_BOUNDS,
         boot_id=_SCRIPTED_BOOT,
+        unhosted=_UNROSTERED,
     )
 
 
@@ -159,6 +172,7 @@ def _supervisor_subject() -> HostUnderTest:
         aclose=client.aclose,
         bounds=_BOUNDS,
         boot_id=supervisor.boot_id,
+        unhosted=_UNROSTERED,
     )
 
 

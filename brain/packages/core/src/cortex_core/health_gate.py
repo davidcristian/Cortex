@@ -25,8 +25,12 @@ async def await_model_ready(
     Returns ``READY`` when the model is serving and ``FAILED`` when the host says it died, both
     as soon as they are observed; on the bound elapsing it returns the last state seen
     (``LOADING`` for a load that is still grinding, ``STOPPED`` for a start that never took), so
-    the caller can say which of the two happened. A ``ModelHostError`` from ``status`` (a dead
-    supervisor) propagates: the swap turns it into a failed swap rather than guessing.
+    the caller can say which of the two happened. A ``ModelHostError`` from ``status`` propagates
+    on the first poll: the swap turns it into a failed swap rather than guessing. That covers a
+    dead supervisor and, as ``ModelNotHostedError``, an id the host does not carry, and the two
+    want the same thing here even though they mean opposite things to the caller, since a bound
+    spent polling is a bound spent either way: a host that is not answering will not answer this
+    call, and a roster that lacks an id will not grow one inside the load timeout.
 
     The deadline is computed once, before the first poll, so a zero bound is already expired and
     the first non-settled status ends the gate without any wait, which is how the swap suite

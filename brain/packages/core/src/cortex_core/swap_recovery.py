@@ -23,11 +23,17 @@ plus every tier a swap evicts, and a peer of it that will not start is recorded 
 counted (``residency_tiers.py``), exactly as the swap back records one: a boot that reported the
 usual assistant gone because a delegation tier refused would be the same conflation the swap back
 refuses, on the surface where it is least excusable, since nobody has escalated yet.
+
+The deep model is not a peer and its clearing stays fatal, with one exception the port can now
+express: a tier the host does not carry at all. That is a deployment that turned escalation on
+without naming an artifact for the deep model, and it is a configuration fact rather than a health
+verdict, so it is said once in the log and the cortex answers for itself (ADR-0030
+unrostered-tier addendum).
 """
 
 import logging
 
-from cortex_core.errors import HandoffStoreError, ModelHostError
+from cortex_core.errors import HandoffStoreError, ModelHostError, ModelNotHostedError
 from cortex_core.handoff import HandoffState
 from cortex_core.health_gate import await_model_ready
 from cortex_core.model_host import ModelHostState, ResidencyPlan
@@ -105,6 +111,14 @@ async def converge_residency(
     The deep model is deliberately not one of them. It is the other half of the residency the
     cortex has to be alone in, so a deep model that cannot be cleared is a reason to distrust
     everything after it, and its failure still answers ``False`` without asking about the cortex.
+    The single exception is the tier the host does not carry, below: nothing can be holding the
+    card under a name the daemon never had, so there is nothing to distrust.
+
+    A cortex the host does not carry is the same distinction pointing the other way, and it
+    answers ``False`` like any other cortex nobody could confirm. It is separated from an
+    unreachable host in the log only, because the two share an operator's next move (read the
+    daemon's roster) while a boot green over a cortex nobody hosts would be the readiness lie
+    this whole verdict exists to refuse.
 
     The restart runs **after** the ``except``, also deliberately: a host that could not be reached
     was never asked to run a peer, and this record's one rule is that only a refusal marks.
@@ -112,18 +126,49 @@ async def converge_residency(
     for peer in plan.evict_models:
         await _clear_peer(host, peer)
     try:
-        if await host.status(plan.brain_model) is not ModelHostState.STOPPED:
-            _logger.warning(
-                "stopping a model left running by an interrupted handoff",
-                extra={"model": plan.brain_model},
-            )
-            await host.stop(plan.brain_model)
+        await _clear_deep(host, plan.brain_model)
         settled = await _settle_cortex(host, plan, clock=clock, sleeper=sleeper)
+    except ModelNotHostedError:
+        _logger.exception(
+            "the model host does not serve the cortex this brain names, so nothing can",
+            extra={"model": plan.cortex_model},
+        )
+        return False
     except ModelHostError:
         _logger.exception("the model host was unreachable during boot recovery")
         return False
     await restart_evicted(host, plan, tiers)
     return settled
+
+
+async def _clear_deep(host: ModelHost, model: str) -> None:
+    """Take the deep model off the card, or say why this host has no such tier to take off.
+
+    Everything but the last case propagates, which is what keeps the verdict honest: a deep model
+    that is resident and will not stop leaves the cortex unable to have the card to itself, and a
+    host that cannot be asked leaves nothing observed at all. Both are amber.
+
+    A tier the host does not carry is neither. The daemon builds its roster from its own env at
+    startup (``CORTEX_MODEL_FILE_BRAIN`` naming no artifact leaves the deep tier out of it), so
+    the answer is a 404 for the life of that container and no boot will ever get a different one.
+    Nothing is holding the GPU under a name nothing can start, so the cortex is asked about
+    normally and the deployment is told once, here, that the escalation it declared cannot happen.
+    """
+    try:
+        if await host.status(model) is not ModelHostState.STOPPED:
+            _logger.warning(
+                "stopping a model left running by an interrupted handoff", extra={"model": model}
+            )
+            await host.stop(model)
+    except ModelNotHostedError as err:
+        _logger.error(  # noqa: TRY400 -- the fault is the deployment's config, not this stack
+            "escalation is enabled but the model host does not serve %r, so no handoff can ever "
+            "run: name an artifact for that tier (CORTEX_MODEL_FILE_BRAIN) or turn escalation "
+            "off (CORTEX_ESCALATION); the cortex is unaffected: %s",
+            model,
+            err,
+            extra={"model": model, "error": str(err)},
+        )
 
 
 async def _clear_peer(host: ModelHost, model: str) -> None:

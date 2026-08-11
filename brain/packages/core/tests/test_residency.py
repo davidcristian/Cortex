@@ -447,6 +447,30 @@ async def test_a_failed_swap_in_still_restores_the_cortex() -> None:
         assert lease.endpoint == _CORTEX_URL
 
 
+async def test_a_swap_into_a_tier_the_host_never_had_says_so_rather_than_blaming_the_host() -> None:
+    """A handoff asking for an unrostered tier is a configuration fault, and the note says which.
+
+    The same 404 boot recovery now tolerates for the deep tier is fatal here, and rightly: an
+    escalation that cannot happen has to fail. What changes is the sentence the user's turn is
+    told, because "the model host failed" invites a retry that will fail identically every time,
+    for as long as that daemon runs.
+
+    The last assertion is the graver half. The swap back stops the model it swapped in, and that
+    stop meets the very same 404; read as a machine failure it fails the restore, and both
+    attempts fail it, so a deployment that merely could not escalate would end with the cortex
+    evicted, ``ResidencyRestoreError`` raised, and the seam saying the GPU serves nothing.
+    """
+    host = ScriptedModelHost(running=["cortex"], unhosted=["brain"])
+    manager = _manager(host)
+    with pytest.raises(SwapFailedError, match="does not serve 'brain' at all"):
+        async with manager.swap_scope("brain"):
+            pass  # pragma: no cover - entering raises before the body runs
+    assert ("start", "cortex") in host.calls
+    assert host.running == {"cortex"}
+    async with manager.acquire("cortex") as lease:
+        assert lease.endpoint == _CORTEX_URL
+
+
 async def test_a_brain_that_never_becomes_ready_fails_the_swap_at_the_gate() -> None:
     """The health gate's bound is the swap's, so a stuck load aborts instead of hanging."""
     host = ScriptedModelHost(running=["cortex"], status_override={"brain": ModelHostState.LOADING})

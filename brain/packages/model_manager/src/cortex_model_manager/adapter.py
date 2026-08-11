@@ -12,6 +12,14 @@ Two policies, both deliberate:
   the same thing to the swap, which is "the model host did not answer the question", and the swap
   is what decides whether that aborts a handoff or fails a restore. Retrying inside the adapter
   would hide a dead supervisor behind the load timeout instead of failing the swap fast.
+- **With one exception, because the daemon already draws it.** A 404 on a per-model route is the
+  supervisor's ``UnknownModelError``: the id is not in its roster, which is env read once at its
+  boot, so that answer will not change while the container lives. It is raised as the port's
+  ``ModelNotHostedError``, a subclass, so nothing that catches the base type notices and the
+  callers that can act on it (boot recovery, and both halves of the swap) stop having to guess
+  from a message string. The distinction is carried only where the sidecar makes it:
+  ``GET /health`` names no model, so a 404 there is a wrong endpoint rather than a missing tier
+  and stays the broad error.
 - **A FAILED state is a normal answer, logged loudly.** The health gate returns FAILED at once
   rather than waiting out its bound, and the sidecar's ``detail`` is the only place the exit code
   appears on the brain's side, so it is logged where the swap's own failure note will be read.
@@ -32,7 +40,13 @@ from urllib.parse import quote
 
 import httpx
 
-from cortex_core import ControlBounds, DeviceMemory, ModelHostError, ModelHostState
+from cortex_core import (
+    ControlBounds,
+    DeviceMemory,
+    ModelHostError,
+    ModelHostState,
+    ModelNotHostedError,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -76,7 +90,7 @@ class HttpModelHost:
 
     async def status(self, model: str) -> ModelHostState:
         """What the sidecar says ``model``'s process is doing right now."""
-        payload = await self._request("GET", self._model_path(model), _about(model))
+        payload = await self._request("GET", self._model_path(model), _about(model), tier=True)
         return self._read(model, payload)
 
     async def device_memory(self) -> DeviceMemory | None:
@@ -148,7 +162,9 @@ class HttpModelHost:
 
     async def _act(self, model: str, verb: str) -> None:
         """Run a lifecycle verb and read the state it left behind, for the log."""
-        payload = await self._request("POST", f"{self._model_path(model)}/{verb}", _about(model))
+        payload = await self._request(
+            "POST", f"{self._model_path(model)}/{verb}", _about(model), tier=True
+        )
         state = self._read(model, payload)
         _logger.info(
             "asked the model host for a lifecycle change: model=%s verb=%s state=%s",
@@ -162,11 +178,15 @@ class HttpModelHost:
         """The route for one logical id, escaped: an id is a name, never a path fragment."""
         return f"/models/{quote(model, safe='')}"
 
-    async def _request(self, method: str, path: str, subject: str) -> dict[str, Any]:
+    async def _request(
+        self, method: str, path: str, subject: str, *, tier: bool = False
+    ) -> dict[str, Any]:
         """One control call, with every failure shape collapsed into ``ModelHostError``.
 
-        ``subject`` is what the call was about, already phrased for a message, because the four
-        lifecycle routes ask about a model and the health route asks about the card.
+        ``subject`` is what the call was about, already phrased for a message, because the three
+        lifecycle routes ask about a model and the health route asks about the card. ``tier`` says
+        the path names a logical id, which is what makes a 404 on it readable as the roster not
+        carrying that id rather than as a route that is not there.
         """
         try:
             response = await self._client.request(method, f"{self._endpoint}{path}")
@@ -178,6 +198,8 @@ class HttpModelHost:
                 f"the model host refused {method} {path} for {subject} with HTTP "
                 f"{response.status_code}: {response.text.strip()[:200]}"
             )
+            if tier and response.status_code == HTTPStatus.NOT_FOUND:
+                raise ModelNotHostedError(msg)
             raise ModelHostError(msg)
         try:
             body: object = response.json()

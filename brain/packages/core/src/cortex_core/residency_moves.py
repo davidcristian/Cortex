@@ -20,7 +20,7 @@ once, so the two paths cannot drift into disagreeing about what a refused start 
 import logging
 from collections.abc import Awaitable, Callable
 
-from cortex_core.errors import ModelHostError, SwapFailedError
+from cortex_core.errors import ModelHostError, ModelNotHostedError, SwapFailedError
 from cortex_core.model_host import ModelHostState, ResidencyPlan
 from cortex_core.ports import ModelHost
 from cortex_core.residency_tiers import StandingTiers
@@ -47,6 +47,11 @@ async def swap_in(host: ModelHost, plan: ResidencyPlan, model: str, gate: Readin
     Between the evictions and the start sits the fit check, at the one moment it can mean
     anything: everything this handoff intends to unload is gone, nothing has been allocated yet,
     and what the card reports free is exactly the room the deep model is about to ask for.
+
+    A model the host does not carry fails the same way and says something different, because the
+    two failures ask for different repairs: a host that broke is retried by the next handoff, while
+    a tier no roster has will refuse every handoff this deployment ever attempts, and the note the
+    user is owed should not describe that as the machine having failed.
     """
     try:
         await host.stop(plan.cortex_model)
@@ -56,6 +61,12 @@ async def swap_in(host: ModelHost, plan: ResidencyPlan, model: str, gate: Readin
         await _refuse_a_load_the_card_cannot_hold(host, plan, model)
         await host.start(model)
         state = await gate(model)
+    except ModelNotHostedError as err:
+        msg = (
+            f"the model host does not serve {model!r} at all, so this deployment cannot escalate "
+            f"until that tier is in its roster (docs/runbooks/model-swap.md): {err}"
+        )
+        raise SwapFailedError(msg) from err
     except ModelHostError as err:
         msg = f"the model host failed while swapping in {model!r}: {err}"
         raise SwapFailedError(msg) from err
@@ -138,9 +149,16 @@ async def restore_standing(
     ``True`` only when the cortex is genuinely serving again, which is what the caller retries
     on and what the next turn needs. ``tiers`` is the record of which peers came back with it,
     which is a different verdict from this one and is why it is written rather than returned.
+
+    The stop is of the model that was swapped in, and a host that does not carry that id has
+    nothing to stop, so that one failure is skipped rather than retried. It is the difference
+    between a slice of bad luck and a deployment that could never work: a swap into an unrostered
+    tier fails at its start, and a restore that then treated the *same* 404 as a machine failure
+    would abandon the cortex it had already evicted, twice, and end at the loudest failure in the
+    design over a card that is in fact empty and idle.
     """
     try:
-        await host.stop(model)
+        await _stop_what_was_swapped_in(host, model)
         await host.start(plan.cortex_model)
         state = await gate(plan.cortex_model)
     except ModelHostError:
@@ -150,6 +168,23 @@ async def restore_standing(
         return False
     await restart_evicted(host, plan, tiers)
     return True
+
+
+async def _stop_what_was_swapped_in(host: ModelHost, model: str) -> None:
+    """Take the scope's own resident off the card, unless this host never had such a tier.
+
+    Every other failure propagates to the caller's ``except``, because a model that is resident
+    and will not stop is exactly the state the retry exists for.
+    """
+    try:
+        await host.stop(model)
+    except ModelNotHostedError as err:
+        _logger.warning(
+            "the model host does not serve %r, so there was nothing of it to stop: %s",
+            model,
+            err,
+            extra={"model": model, "error": str(err)},
+        )
 
 
 async def restart_evicted(host: ModelHost, plan: ResidencyPlan, tiers: StandingTiers) -> None:

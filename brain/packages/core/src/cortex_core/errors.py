@@ -178,3 +178,20 @@ class ModelHostError(Exception):
     into a ``SwapFailedError`` or an aborted restore rather than letting an adapter's transport
     failure reach a turn.
     """
+
+
+class ModelNotHostedError(ModelHostError):
+    """The host has no such logical model at all, so no wait and no retry will produce one.
+
+    The port's one narrower failure, and the distinction is between a **fact about the
+    deployment** and a **verdict about the machine** (ADR-0030 unrostered-tier addendum). Every
+    other ``ModelHostError`` says the host could not answer the question, which is a condition
+    that heals: the sidecar comes back, the child stops dying, the socket answers again. This one
+    says the question has no answer on this host, because the id was never in its roster, which is
+    what a deployment that turned escalation on without naming ``CORTEX_MODEL_FILE_BRAIN`` gets
+    for the deep tier and what a mistyped id in ``CORTEX_SWAP_EVICT_MODELS`` gets for a peer.
+
+    It is a subclass rather than a sibling so that every existing ``except ModelHostError``
+    keeps catching it: a caller that has no use for the distinction must go on failing exactly as
+    it did, and only the callers that can act on it name the narrower type.
+    """

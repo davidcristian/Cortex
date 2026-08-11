@@ -391,9 +391,18 @@ but a report of a slow *cortex* after a handoff is the same fault read from the 
   `a tier evicted for the handoff could not be restarted`. The fix is to name the artifact (or to
   drop the tier from the evict list) and `docker compose up -d`; nothing here needs a restart of
   the brain. **What still goes amber at boot** is the cortex itself failing to gate, an unreachable
-  sidecar, and a deep tier the daemon does not serve: `CORTEX_MODEL_FILE_BRAIN` unset while
-  `CORTEX_ESCALATION=1` reads as a model host that needs attention, which it does, since no handoff
-  could run on that stack anyway.
+  sidecar, a deep model that is resident and will not stop, and a cortex id the daemon's roster
+  does not have.
+- **A deep tier the daemon does not serve is a green boot and one loud line.** `CORTEX_ESCALATION=1`
+  with `CORTEX_MODEL_FILE_BRAIN` unset leaves the deep tier out of the roster, so it 404s for the
+  life of that container. The dot stays green, because the cortex is serving and nothing can be
+  resident under a name the daemon never had, and the brain says once at startup:
+  `escalation is enabled but the model host does not serve '<deep model>', so no handoff can ever
+  run: name an artifact for that tier (CORTEX_MODEL_FILE_BRAIN) or turn escalation off
+  (CORTEX_ESCALATION)`. Until it is fixed, every escalation the user asks for fails with `the model
+  host does not serve '<deep model>' at all, so this deployment cannot escalate until that tier is
+  in its roster`, having reloaded the cortex on the way (the swap evicts before it asks), so the
+  cost of leaving it is a stall per attempt rather than a broken assistant.
 
 ## The chaos kill, host-side
 

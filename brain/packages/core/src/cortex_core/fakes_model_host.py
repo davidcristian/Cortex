@@ -14,7 +14,7 @@ right order (and requested them at most once).
 import asyncio
 from collections.abc import Iterable, Mapping
 
-from cortex_core.errors import ModelHostError
+from cortex_core.errors import ModelHostError, ModelNotHostedError
 from cortex_core.model_host import ControlBounds, DeviceMemory, ModelHostState
 
 
@@ -47,6 +47,12 @@ class ScriptedModelHost:
     the composition root's pairing check finds nothing to compare and says so. A test that needs
     the check to have something to compare hands it bounds.
 
+    ``unhosted`` names the ids this twin does **not** carry, and it is the one condition here
+    that is a fact about the deployment rather than about the machine: every verb refuses such an
+    id with ``ModelNotHostedError`` and touches nothing, exactly as a daemon whose roster never
+    had it answers 404 for ever. It is empty by default, so a twin serves whatever name it is
+    handed, which is what every suite written before the distinction relies on.
+
     ``boot_id`` is the third of that shape and the one world-condition this twin can be made to
     change **mid test**: assigning ``boot`` a different value is a supervisor daemon replaced
     under a running brain, which is the condition no verb of the port can create and the one the
@@ -63,11 +69,13 @@ class ScriptedModelHost:
         fail: Mapping[tuple[str, str], str] | None = None,
         fail_once: Mapping[tuple[str, str], str] | None = None,
         pause_at: Iterable[tuple[str, str]] = (),
+        unhosted: Iterable[str] = (),
         device_memory: DeviceMemory | None = None,
         control_bounds: ControlBounds | None = None,
         boot_id: str | None = None,
     ) -> None:
         self.running: set[str] = set(running)
+        self.unhosted: set[str] = set(unhosted)
         self.device: DeviceMemory | None = device_memory
         self.bounds: ControlBounds | None = control_bounds
         self.boot: str | None = boot_id
@@ -150,9 +158,18 @@ class ScriptedModelHost:
         return self.boot
 
     def _check(self, op: str, model: str) -> None:
-        """Log the operation, then raise whatever failure was scripted for it."""
+        """Log the operation, then raise whatever failure was scripted for it.
+
+        An id this twin does not host is refused before any scripted failure is consulted, and
+        before the ``fail_once`` pop in particular: a roster the deployment never declared cannot
+        be worked around by asking twice, so a one-shot failure armed on such an id would model a
+        host that healed a misconfiguration.
+        """
         key = (op, model)
         self.calls.append(key)
+        if model in self.unhosted:
+            msg = f"unknown model {model!r}; this twin was told it does not host it"
+            raise ModelNotHostedError(msg)
         if (once := self._fail_once.pop(key, None)) is not None:
             raise ModelHostError(once)
         if (always := self._fail.get(key)) is not None:
