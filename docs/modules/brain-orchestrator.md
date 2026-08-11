@@ -169,9 +169,10 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   compares a real completion against and logs a warning when it never cleared (ADR-0030
   spill-watch addendum); `swap_drain_timeout_s` (60 s) and
   `swap_load_timeout_s` (300 s) are the swap's two bounds; `swap_tier_heal_s`
-  (`CORTEX_SWAP_TIER_HEAL_S`, 30 s) paces the retry of a peer tier the swap back could not
-  restart, which is best effort by design and so needs something that keeps asking (ADR-0030
-  tier-outage addendum). Enabling escalation without a model
+  (`CORTEX_SWAP_TIER_HEAL_S`, 30 s) paces the sweep of every `CORTEX_SWAP_EVICT_MODELS` tier,
+  which the swap back's own restart is best effort about and which can also die with nobody
+  asking, so a reading taken every interval is what the record rests on (ADR-0030 tier-outage and
+  tier-sweep addenda). Enabling escalation without a model
   host or without a brain endpoint **fails at boot**, rather than advertising a tool that could
   only refuse, and so does co-residency on the `supervisor` host with no measured VRAM figure,
   since that flag is a claim about a card and this is the only thing that ever tests it (the

@@ -21,7 +21,8 @@ from cortex_core.residency_state import (
     RESIDENCY_SERVING,
     ResidencyReport,
 )
-from cortex_core.residency_tiers import StandingTiers, retry_missing
+from cortex_core.residency_sweep import sweep_tiers
+from cortex_core.residency_tiers import StandingTiers
 from cortex_core.residency_watch import BootWatch
 
 
@@ -126,9 +127,13 @@ class SwappingModelManager:
             await self._board.publish(model, RESIDENCY_DEEP)
 
     async def heal_standing_tiers(self) -> None:
-        """Retry every peer the standing residency is missing, unless a handoff owns the GPU."""
-        if not self._board.scope_active:
-            await retry_missing(self._host, self._tiers)
+        """Read every evictable peer's state and act on it, unless a handoff owns the GPU."""
+        if self._fence():
+            await sweep_tiers(self._host, self._plan, self._tiers, self._fence)
+
+    def _fence(self) -> bool:
+        """Whether no handoff owns the GPU right now, answered synchronously and without I/O."""
+        return not self._handoff_claim.claimed and not self._board.scope_active
 
     async def _restore(self, model: str) -> None:
         """Take the lease, then run the swap back's retry policy under it."""

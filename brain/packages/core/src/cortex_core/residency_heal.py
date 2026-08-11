@@ -1,10 +1,12 @@
-"""The loop that keeps retrying a tier the standing residency is missing (ADR-0030 decision 4)."""
+"""The background loop that rechecks the cortex's peer tiers and restarts the ones down."""
 
 import asyncio
 import contextlib
 import logging
 from collections.abc import Awaitable, Callable
 
+# 30 s: short next to the minutes a tier takes to load, and a pass costs one status call per
+# evictable tier to a loopback sidecar. A deployment overrides it with CORTEX_SWAP_TIER_HEAL_S.
 DEFAULT_TIER_HEAL_INTERVAL_S = 30.0
 
 _logger = logging.getLogger(__name__)
@@ -25,7 +27,7 @@ class TierHealer:
         self._task: asyncio.Task[None] | None = None
 
     def start(self) -> None:
-        """Begin looping beside the seam. Idempotent: a second call keeps the first task."""
+        """Start the loop, unless it is already running."""
         if self._task is None:
             self._task = asyncio.create_task(self.run(), name="residency-tier-healer")
 
@@ -42,8 +44,6 @@ class TierHealer:
             try:
                 await self._heal()
             except Exception:
-                # The same pass guard the schedule ticker keeps: a bug nobody enumerated must
-                # cost one pass, never the retrying that a degraded stack is waiting on.
                 _logger.exception("a residency tier retry failed; the next pass tries again")
             with contextlib.suppress(TimeoutError):
                 await asyncio.wait_for(self._stopping.wait(), timeout=self._interval_s)

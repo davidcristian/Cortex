@@ -18,6 +18,11 @@ class HandoffClaim:
         self._condition = condition
         self._claimed = False
 
+    @property
+    def claimed(self) -> bool:
+        """Whether a handoff owns the sequence right now, read without taking the condition."""
+        return self._claimed
+
     @asynccontextmanager
     async def held(self) -> AsyncGenerator[None, None]:
         """Own the whole swap sequence for this block, or refuse at once because someone does.

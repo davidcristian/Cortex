@@ -1,4 +1,4 @@
-"""A peer the swap back could not restart: the record, the placer it closes, and the retry."""
+"""A peer of the standing residency that is not serving: the record, the placer, and the sweep."""
 
 import asyncio
 import logging
@@ -18,20 +18,28 @@ from cortex_core import (
     ScriptedModelHost,
     StandingTiers,
     SwappingModelManager,
+    TierFault,
     TierHealer,
     VramBudgetPlacer,
-    retry_missing,
+    converge_residency,
+    sweep_tiers,
 )
 
 _ENDPOINTS = {"cortex": "http://llama-cortex:8080", "brain": "http://llama-brain:8081"}
 _TIER = "subagent-gpu"
 _OTHER_TIER = "subagent-gpu-2"
-_RETRY_LOGGER = "cortex_core.residency_tiers"
+_GHOST = "tier-with-no-artifact"
+_RETRY_LOGGER = "cortex_core.residency_sweep"
 _LOOP_NAME = "residency-tier-healer"
 
 
+def _open() -> bool:
+    """A fence that never closes, for the cases driving one pass rather than the manager."""
+    return True
+
+
 def _retry_log(caplog: pytest.LogCaptureFixture) -> list[str]:
-    """Only the retry's own lines: a case that swapped first also captured the swap's failure."""
+    """Only the sweep's own lines: a case that swapped first also captured the swap's failure."""
     return [record.msg for record in caplog.records if record.name == _RETRY_LOGGER]
 
 
@@ -153,14 +161,57 @@ async def test_one_peer_back_of_two_keeps_the_gpu_closed() -> None:
 
 
 def test_a_deployment_with_no_pool_still_records_which_peer_is_down() -> None:
-    """``None`` places nothing, so the record still stands and there is nothing to close."""
+    """``None`` places nothing, so the record still stands and there is nothing to close.
+
+    Both faults, because both are reachable on such a deployment: the seam still has to name a
+    tier that is down, and an operator still has to be told which of the two kinds it is.
+    """
     tiers = StandingTiers()
     assert tiers.placer is None
     tiers.mark_missing(_TIER)
     assert tiers.missing == (_TIER,)
     assert tiers.note_on(RESIDENCY_SERVING).detail == TIERS_MISSING_DETAIL.format(models=_TIER)
+    tiers.mark_unhosted(_GHOST)
+    assert tiers.missing == (_TIER, _GHOST)
+    assert tiers.fault_of(_GHOST) is TierFault.UNHOSTED
     tiers.mark_standing(_TIER)
+    tiers.mark_standing(_GHOST)
     assert tiers.note_on(RESIDENCY_SERVING) == RESIDENCY_SERVING
+
+
+async def test_a_sweep_that_meets_the_fence_mid_pass_records_without_starting() -> None:
+    """The fence is read again immediately before each start, so a handoff wins the race it enters.
+
+    The record is written first and deliberately: whether or not this pass may touch the card, the
+    placer must stop sending spawns at a tier the reading just found stopped.
+    """
+    placer = _placer()
+    host = ScriptedModelHost(running=["cortex"])
+    tiers = StandingTiers(placer)
+    await sweep_tiers(host, _plan(), tiers, lambda: False)
+    assert host.calls == [("status", _TIER)]  # read, never written
+    assert tiers.missing == (_TIER,)
+    assert placer.place(_spawn()).target is PlacementTarget.CPU
+
+
+async def test_a_start_the_host_refuses_leaves_the_tier_recorded_and_the_pass_alive(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """One tier the host will not start must not cost the others their pass."""
+    host = ScriptedModelHost(running=["cortex"], fail={("start", _TIER): "no such device"})
+    tiers = StandingTiers(_placer())
+    with caplog.at_level(logging.WARNING, logger=_RETRY_LOGGER):
+        await sweep_tiers(host, _plan(evict_models=(_TIER, _OTHER_TIER)), tiers, _open)
+    assert host.calls == [
+        ("status", _TIER),
+        ("start", _TIER),
+        ("status", _OTHER_TIER),
+        ("start", _OTHER_TIER),
+    ]
+    assert tiers.missing == (_TIER, _OTHER_TIER)
+    assert "a tier of the standing residency could not be %s: model=%s error=%s" in _retry_log(
+        caplog
+    )
 
 
 def test_marking_a_tier_standing_that_was_never_missing_changes_nothing() -> None:
@@ -192,20 +243,20 @@ async def test_a_retry_that_finds_the_tier_serving_reopens_the_gpu(
     assert _retry_log(caplog) == ["a tier the standing residency was missing is serving again"]
 
 
-async def test_a_retry_leaves_a_tier_that_is_still_loading_alone() -> None:
+async def test_a_sweep_leaves_a_tier_that_is_still_loading_alone() -> None:
     """A load in flight is neither a failure to retry nor a tier to reopen the GPU for."""
     host = ScriptedModelHost(running=[_TIER], status_override={_TIER: ModelHostState.LOADING})
     tiers = StandingTiers(_placer())
     tiers.mark_missing(_TIER)
-    await retry_missing(host, tiers)
+    await sweep_tiers(host, _plan(), tiers, _open)
     assert host.calls == [("status", _TIER)]  # asked, and deliberately not started again
     assert tiers.missing == (_TIER,)
 
 
-async def test_a_retry_that_cannot_reach_the_host_leaves_the_record_alone(
+async def test_a_sweep_that_cannot_reach_the_host_leaves_the_record_alone(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A pass never raises: one unreachable tier must not stop the others being retried."""
+    """A pass never raises, and a host that cannot answer is never evidence about a tier."""
     placer = _placer()
     host = ScriptedModelHost(
         running=["cortex", _TIER],
@@ -218,11 +269,14 @@ async def test_a_retry_that_cannot_reach_the_host_leaves_the_record_alone(
         await manager.heal_standing_tiers()
     assert placer.place(_spawn()).target is PlacementTarget.CPU
     assert _retry_log(caplog) == [
-        "a tier the standing residency is missing could not be retried: model=%s error=%s"
+        "a tier of the standing residency could not be %s: model=%s error=%s"
     ]
+    standing = StandingTiers(_placer())
+    await sweep_tiers(host, _plan(), standing, _open)
+    assert standing.missing == ()  # nothing was observed, so nothing is believed
 
 
-async def test_a_retry_defers_while_a_handoff_owns_the_gpu() -> None:
+async def test_a_sweep_defers_while_a_handoff_owns_the_gpu() -> None:
     """Starting a peer while the deep model is alone on the card is the one forbidden move."""
     host = ScriptedModelHost(running=["cortex", _TIER], fail_once={("start", _TIER): "device busy"})
     manager = _manager(host, _placer())
@@ -232,6 +286,175 @@ async def test_a_retry_defers_while_a_handoff_owns_the_gpu() -> None:
         host.calls.clear()
         await manager.heal_standing_tiers()
         assert host.calls == []
+
+
+async def test_a_sweep_defers_while_a_handoff_is_claimed_and_the_pool_is_draining() -> None:
+    """The claim is the wider half of the fence, and it is taken before anything is evicted."""
+    host = ScriptedModelHost(running=["cortex"])
+    manager = _manager(host, _placer())
+    async with manager.handoff_claim():
+        host.calls.clear()
+        await manager.heal_standing_tiers()
+        assert host.calls == []
+    host.calls.clear()
+    await manager.heal_standing_tiers()
+    assert host.calls == [("status", _TIER), ("start", _TIER)]
+
+
+async def test_a_peer_that_accepted_its_start_and_then_died_is_found_by_the_next_pass() -> None:
+    """The shape measured against a real sidecar: ``200 loading``, then ``failed`` seconds later."""
+    placer = _placer()
+    host = ScriptedModelHost(running=["cortex", _TIER])
+    manager = _manager(host, placer)
+    async with manager.swap_scope("brain"):
+        pass
+    host.set_status(_TIER, ModelHostState.FAILED)  # the child it accepted has exited
+    assert manager.standing_tiers.missing == ()
+    before = placer.place(_spawn())
+    assert before.target is PlacementTarget.GPU  # a spawn at a dead endpoint
+    placer.release(before)
+    await manager.heal_standing_tiers()
+    assert manager.standing_tiers.missing == (_TIER,)
+    assert placer.place(_spawn()).target is PlacementTarget.CPU
+    assert manager.residency().detail == TIERS_MISSING_DETAIL.format(models=_TIER)
+
+
+async def test_a_peer_that_died_between_handoffs_is_found_without_any_handoff(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """No swap, no refusal, nothing to write the record: the reading is the only witness."""
+    placer = _placer()
+    host = ScriptedModelHost(running=["cortex", _TIER])
+    manager = _manager(host, placer)
+    host.set_status(_TIER, ModelHostState.FAILED)
+    before = placer.place(_spawn())
+    assert before.target is PlacementTarget.GPU
+    placer.release(before)
+    with caplog.at_level(logging.WARNING, logger=_RETRY_LOGGER):
+        await manager.heal_standing_tiers()
+    assert placer.place(_spawn()).target is PlacementTarget.CPU
+    assert _retry_log(caplog) == [
+        "a tier of the standing residency stopped without anything asking it to: model=%s "
+        "state=%s; delegated work runs on the CPU until it is serving again"
+    ]
+
+
+async def test_a_peer_nothing_ever_started_is_found_by_the_first_pass() -> None:
+    """A convergence that returned before its restart loop asked nothing to run, so it marked none.
+    """
+    placer = _placer()
+    host = ScriptedModelHost(
+        running=["cortex", "brain"], fail={("stop", "brain"): "still resident"}
+    )
+    manager = _manager(host, placer)
+    settled = await converge_residency(
+        host, _plan(), manager.standing_tiers, clock=_FixedClock(), sleeper=RecordingSleeper()
+    )
+    assert settled is False
+    assert manager.standing_tiers.missing == ()
+    before = placer.place(_spawn())
+    assert before.target is PlacementTarget.GPU
+    placer.release(before)
+    await manager.heal_standing_tiers()
+    assert manager.standing_tiers.missing == (_TIER,)
+    assert placer.place(_spawn()).target is PlacementTarget.CPU
+
+
+async def test_a_boot_that_could_not_reach_the_host_is_swept_when_it_answers_again() -> None:
+    """Nothing was asked to run, so nothing was marked; the sidecar then comes up a minute later.
+
+    The pass both records the tier and asks for it back, which is the whole of the recovery a
+    record written by refusals could never begin: there was no refusal, only silence.
+    """
+    placer = _placer()
+    host = ScriptedModelHost(running=[], fail_once={("status", "brain"): "connection refused"})
+    manager = _manager(host, placer)
+    settled = await converge_residency(
+        host, _plan(), manager.standing_tiers, clock=_FixedClock(), sleeper=RecordingSleeper()
+    )
+    assert settled is False
+    assert manager.standing_tiers.missing == ()
+    before = placer.place(_spawn())
+    assert before.target is PlacementTarget.GPU
+    placer.release(before)
+    host.calls.clear()
+    await manager.heal_standing_tiers()
+    assert host.calls == [("status", _TIER), ("start", _TIER)]
+    assert placer.place(_spawn()).target is PlacementTarget.CPU
+    await manager.heal_standing_tiers()
+    assert placer.place(_spawn()).target is PlacementTarget.GPU
+
+
+async def test_a_tier_the_roster_never_had_is_recorded_once_and_never_asked_again(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The fifth shape, which does not escape and is retried for ever: noise rather than harm.
+
+    A 404 is the one answer no retry can change while that daemon runs, so it closes placement
+    exactly as firmly and stops costing a control call a pass.
+    """
+    placer = _placer()
+    host = ScriptedModelHost(running=["cortex"], unhosted=[_GHOST])
+    plan = _plan(evict_models=(_GHOST,))
+    manager = _manager(host, placer, plan)
+    with caplog.at_level(logging.ERROR, logger=_RETRY_LOGGER):
+        await manager.heal_standing_tiers()
+    assert manager.standing_tiers.fault_of(_GHOST) is TierFault.UNHOSTED
+    assert placer.place(_spawn()).target is PlacementTarget.CPU
+    host.calls.clear()
+    await manager.heal_standing_tiers()
+    await manager.heal_standing_tiers()
+    assert host.calls == []  # two whole passes that spend nothing on a fixed answer
+    assert len(_retry_log(caplog)) == 1
+
+
+async def test_a_restart_refused_for_a_tier_the_roster_lacks_is_not_an_ordinary_refusal() -> None:
+    """The restart loop draws the same line, so a boot's own mark is the right kind at once."""
+    host = ScriptedModelHost(running=["cortex"], unhosted=[_GHOST])
+    manager = _manager(host, _placer(), _plan(evict_models=(_GHOST,)))
+    settled = await converge_residency(
+        host,
+        _plan(evict_models=(_GHOST,)),
+        manager.standing_tiers,
+        clock=_FixedClock(),
+        sleeper=RecordingSleeper(),
+    )
+    assert settled is True  # the cortex is fine; a peer nobody hosts is not its verdict
+    assert manager.standing_tiers.fault_of(_GHOST) is TierFault.UNHOSTED
+
+
+async def test_a_replaced_daemon_asks_an_unhosted_tier_again() -> None:
+    """The one event that can grow a roster rebuilds the record, which is the clearing path."""
+    host = ScriptedModelHost(running=["cortex"], unhosted=[_GHOST], boot_id="first")
+    plan = _plan(evict_models=(_GHOST,))
+    manager = _manager(host, _placer(), plan)
+    await manager.heal_standing_tiers()
+    assert manager.standing_tiers.fault_of(_GHOST) is TierFault.UNHOSTED
+    host.unhosted.clear()  # the operator named an artifact and the sidecar restarted
+    host.boot = "second"
+    async with manager.swap_scope("brain"):
+        pass
+    assert manager.standing_tiers.missing == ()
+
+
+async def test_a_pass_that_finds_every_tier_serving_writes_nothing_and_starts_nothing() -> None:
+    """The ordinary pass, and the whole cost of the sweep: one status per evictable tier."""
+    placer = _placer()
+    host = ScriptedModelHost(running=["cortex", _TIER, _OTHER_TIER])
+    manager = _manager(host, placer, _plan(evict_models=(_TIER, _OTHER_TIER)))
+    host.calls.clear()
+    await manager.heal_standing_tiers()
+    assert host.calls == [("status", _TIER), ("status", _OTHER_TIER)]
+    assert placer.place(_spawn()).target is PlacementTarget.GPU
+
+
+async def test_a_deployment_that_evicts_nothing_still_asks_nobody_anything() -> None:
+    """The shipped default: ``CORTEX_SWAP_EVICT_MODELS`` is empty, so a pass costs nothing."""
+    host = ScriptedModelHost(running=["cortex"])
+    manager = _manager(host, _placer(), _plan(evict_models=()))
+    host.calls.clear()
+    await manager.heal_standing_tiers()
+    assert host.calls == []
 
 
 async def test_the_loop_keeps_retrying_until_it_is_closed() -> None:

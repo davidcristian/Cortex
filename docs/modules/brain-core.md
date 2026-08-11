@@ -1839,7 +1839,9 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   config); `handoff_claim()` claims the whole swap sequence non-blockingly (a second holder
   raises `HandoffInProgressError` with nothing touched; the rule itself is `HandoffClaim` in
   `residency_claim.py`, split off for the line cap because it guards a different flag than the
-  scope does over the same condition), and `swap_scope(model)` claims the one
+  scope does over the same condition, and exposing `claimed` as a lock-free read for the tier
+  sweep, which must stand down from before the drain rather than from the eviction), and
+  `swap_scope(model)` claims the one
   residency scope (a second entry raises the same error), takes
   the lease so the swap waits out any in-flight round, stops the cortex and every
   `plan.evict_models` tier, starts `model`, health-gates it, and serves it with the lease free
@@ -1901,19 +1903,25 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   reversal fires only once the cortex is genuinely serving again, so a restore that gave up keeps
   spawning on the CPU. With `brain_vram_mib` at zero there is no honest figure and the window is
   never entered, which is the shipped behaviour.
-  `heal_standing_tiers()` is the manager's one other public verb, one retry pass over the peers
-  the standing residency is missing, and it returns having done nothing while a scope is active,
-  since starting a peer while the deep model is alone on the card is the one forbidden move. It
-  takes no lease: a peer is never the resident, so holding one across a control call would park a
-  turn behind a status probe for nothing. `standing_tiers` is the record below, handed out for the
-  one caller that writes it from outside a swap: boot recovery, which converges before the seam
-  serves and again whenever the daemon is replaced (ADR-0030 boot-verdict addendum).
+  `heal_standing_tiers()` is the manager's one other public verb, one sweep over every evictable
+  peer, and it returns having done nothing while a handoff owns the GPU, since starting a peer
+  while the deep model is alone on the card is the one forbidden move. Its guard is the private
+  `_fence()`, which is `HandoffClaim.claimed` **and** `ResidencyBoard.scope_active` and is handed
+  to the sweep as well as read here, so a pass can ask again in the instant before it starts a
+  tier (ADR-0030 tier-sweep addendum). It takes no lease: a peer is never the resident, so holding
+  one across a control call would park a turn behind a status probe for nothing, and a pass that
+  queued for one would be held for a whole load. `standing_tiers` is the record below, handed out
+  for the one caller that writes it from outside a swap: boot recovery, which converges before the
+  seam serves and again whenever the daemon is replaced (ADR-0030 boot-verdict addendum).
 - `StandingTiers(placer=None)` in `residency_tiers.py` is which peers of the cortex are missing
   from the standing residency (ADR-0030 tier-outage addendum), held by the manager and written by
-  `restart_evicted` wherever it runs, which is the swap back and boot recovery both:
-  `mark_missing(model)` on a `ModelHostError` from that
-  start, `mark_standing(model)` on one the host accepted. `missing` is the sorted snapshot a
-  retry pass iterates. Marking closes the placer's GPU, and only an emptied record reopens it, so
+  `restart_evicted` wherever it runs, which is the swap back and boot recovery both, and by the
+  sweep below: `mark_missing(model)` on a `ModelHostError` from that start or on a reading that
+  found the tier stopped or failed, `mark_unhosted(model)` on a `ModelNotHostedError`, and
+  `mark_standing(model)` on a start the host accepted or a reading that found it serving.
+  `fault_of(model)` answers `TierFault.MISSING`, `TierFault.UNHOSTED` or `None`, and `missing` is
+  the sorted snapshot of every faulted tier, both kinds, since the placer and the seam treat them
+  alike. Marking of either kind closes the placer's GPU, and only an emptied record reopens it, so
   a second tier still down keeps it shut; a deployment with no pool (`placer=None`) still keeps
   the record, there simply being nothing to close. `note_on(report)` is what the manager's
   `residency()` returns: a **serving** report gains a detail naming what is down, and a report
@@ -1921,9 +1929,18 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   peer stopped for the length of a handoff is where the swap put it, and the window's own words
   win). That detail names the state and not the cause (`the model host is not running <tiers>, so
   delegated work is running on the CPU`), because a boot that recorded a tier has had no deep task
-  to blame it on. `retry_missing(host, tiers)` is one pass: per missing tier a `status`, then `READY` marks
-  it standing, `LOADING` is left alone, and anything else gets a `start`, with readiness observed
-  on a later pass rather than gated inside this one. It never raises.
+  to blame it on.
+- `sweep_tiers(host, plan, tiers, fence)` in `residency_sweep.py` is one pass, and it asks about
+  **every** `plan.evict_models` tier rather than only the marked ones (ADR-0030 tier-sweep
+  addendum), because the four ways a peer goes down with no refusal to record it are exactly the
+  ways a record written by refusals cannot see. Per tier: an `UNHOSTED` one is skipped without a
+  call, a `ModelNotHostedError` from `status` records that fault and says so once, any other
+  `ModelHostError` leaves the record untouched and logs (a host that cannot answer is never
+  evidence about a tier), `READY` marks standing, `LOADING` is left alone, and `STOPPED`/`FAILED`
+  marks missing and then, if `fence()` still allows, issues one `start`. The mark is written
+  before the fence is consulted, so the placer stops sending spawns at that tier whether or not
+  this pass may also touch the card. Readiness is observed on a later pass rather than gated
+  inside this one. It never raises.
 - `TierHealer(heal, *, interval_s=DEFAULT_TIER_HEAL_INTERVAL_S)` in `residency_heal.py` is the
   loop that keeps calling one such pass, and it owns its own task: `start()` (idempotent),
   `aclose()` (signal, then wait out the in-flight pass), `run()` (the loop, whose pass guard
