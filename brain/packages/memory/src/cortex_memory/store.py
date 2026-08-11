@@ -7,7 +7,11 @@ is observably interchangeable with ``InMemoryMemoryStore`` behind the port; a no
 addendum). ``tainted``, the untrusted-provenance marker (ADR-0019), is stored and read back so a
 tainted memory is fenced on recall. This adapter only translates between the core's values and
 SQL, never business logic; every backend failure crosses the port as ``MemoryStoreError`` with the
-cause chained.
+cause chained, and every reply this adapter could not decode as its ``MemoryDataError`` subclass,
+which is the one line drawn here rather than in the core (ADR-0008 data-defect addendum). The
+adapter can draw it because the two conditions arrive as disjoint exception types: asyncpg's own
+``_WRAPPED`` family is a machine that could not answer, and a ``KeyError`` or ``ValueError`` out of
+``_to_scored`` is this code reading what the machine did answer. Neither catch has to guess.
 
 The embedding is passed as a pgvector text literal and cast (``$n::vector``), and read back
 via ``embedding::text``, so no driver-side vector-type registration is needed. Real pools are
@@ -20,7 +24,7 @@ from typing import Any, Protocol, cast
 
 import asyncpg
 
-from cortex_core import MemoryRecord, MemoryStoreError, ScoredMemory
+from cortex_core import MemoryDataError, MemoryRecord, MemoryStoreError, ScoredMemory
 
 # asyncpg raises PostgresError for server-side failures, InterfaceError for client/pool
 # misuse, and OSError for socket-level failures. All are wrapped as MemoryStoreError.
@@ -78,7 +82,7 @@ def _from_literal(text: str) -> tuple[float, ...]:
     """Parse a pgvector text literal (``[0.1,0.2]``) back into a float tuple.
 
     A pgvector vector always has dimension >= 1, so the inner text is never empty; a
-    malformed value raises ValueError, which ``search`` wraps as ``MemoryStoreError``.
+    malformed value raises ValueError, which ``search`` wraps as ``MemoryDataError``.
     """
     inner = text.strip().strip("[]")
     return tuple(float(part) for part in inner.split(","))
@@ -89,7 +93,7 @@ def _deleted_count(status: object) -> int:
 
     asyncpg returns the command status string for a write, and the row count is its final field.
     A tag that does not end in an integer is a broken backend contract and raises ``ValueError``,
-    which ``delete_scope`` wraps as ``MemoryStoreError`` (the malformed-response path ``search``
+    which ``delete_scope`` wraps as ``MemoryDataError`` (the malformed-response path ``search``
     already guards for a row).
     """
     return int(str(status).rsplit(" ", 1)[-1])
@@ -164,7 +168,7 @@ class PgVectorMemoryStore:
             raise MemoryStoreError(msg) from err
         except (KeyError, IndexError, TypeError, ValueError) as err:
             msg = "malformed memory row in search result"
-            raise MemoryStoreError(msg) from err
+            raise MemoryDataError(msg) from err
 
     async def count_candidates(self, *, scopes: Sequence[str] | None = None) -> int:
         """Return how many memories ``scopes`` holds, the width ``search`` ranked over.
@@ -185,7 +189,7 @@ class PgVectorMemoryStore:
             raise MemoryStoreError(msg) from err
         except (KeyError, IndexError, TypeError, ValueError) as err:
             msg = "malformed count in the memory store's reply"
-            raise MemoryStoreError(msg) from err
+            raise MemoryDataError(msg) from err
 
     async def delete_scope(self, scope: str) -> int:
         """Hard-delete every memory in ``scope``; return how many rows were removed.
@@ -203,4 +207,4 @@ class PgVectorMemoryStore:
             raise MemoryStoreError(msg) from err
         except ValueError as err:
             msg = "malformed delete status from the memory store"
-            raise MemoryStoreError(msg) from err
+            raise MemoryDataError(msg) from err

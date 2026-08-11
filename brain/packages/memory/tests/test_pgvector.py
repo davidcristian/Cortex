@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 import asyncpg
 import pytest
 
-from cortex_core import MemoryRecord, MemoryStoreError
+from cortex_core import MemoryDataError, MemoryRecord, MemoryStoreError
 from cortex_memory import PgVectorMemoryStore
 
 _AT = datetime(2026, 7, 3, 12, 0, 0, tzinfo=UTC)
@@ -126,12 +126,22 @@ async def test_search_wraps_a_backend_error() -> None:
     with pytest.raises(MemoryStoreError, match="search failed") as excinfo:
         await PgVectorMemoryStore(db).search((1.0,), k=1)
     assert isinstance(excinfo.value.__cause__, asyncpg.InterfaceError)
+    # The healing kind, so it must NOT wear the data subclass: the core degrades this turn on it
+    # and would fail the turn outright if it read as a defect (ADR-0008 data-defect addendum).
+    assert not isinstance(excinfo.value, MemoryDataError)
 
 
-async def test_search_wraps_a_malformed_row() -> None:
+async def test_search_wraps_a_malformed_row_as_the_data_defect_it_is() -> None:
+    """A row that will not decode is stored state disagreeing with this code, not an outage.
+
+    The adapter can say which because the two arrive as disjoint exception types, asyncpg's own
+    for a machine that could not answer and a ``KeyError`` out of the row mapping for an answer
+    this code could not read, so nothing here is a guess (ADR-0008 data-defect addendum).
+    """
     rows: list[dict[str, object]] = [{"id": "a", "text": "alpha"}]  # missing embedding/score/at
-    with pytest.raises(MemoryStoreError, match="malformed memory row"):
+    with pytest.raises(MemoryDataError, match="malformed memory row") as excinfo:
         await PgVectorMemoryStore(FakeDatabase(rows=rows)).search((1.0,), k=1)
+    assert isinstance(excinfo.value, MemoryStoreError)  # every old catch still catches it
 
 
 async def test_count_candidates_asks_the_server_for_a_count_over_every_memory() -> None:
@@ -156,6 +166,7 @@ async def test_count_candidates_wraps_a_backend_error() -> None:
     with pytest.raises(MemoryStoreError, match="counting memory candidates failed") as excinfo:
         await PgVectorMemoryStore(db).count_candidates()
     assert isinstance(excinfo.value.__cause__, asyncpg.PostgresError)
+    assert not isinstance(excinfo.value, MemoryDataError)  # unreachable, not undecodable
 
 
 @pytest.mark.parametrize(
@@ -163,7 +174,7 @@ async def test_count_candidates_wraps_a_backend_error() -> None:
 )
 async def test_count_candidates_wraps_a_malformed_reply(rows: list[dict[str, object]]) -> None:
     """An aggregate always answers with one named integer; anything else is a broken contract."""
-    with pytest.raises(MemoryStoreError, match="malformed count") as excinfo:
+    with pytest.raises(MemoryDataError, match="malformed count") as excinfo:
         await PgVectorMemoryStore(FakeDatabase(rows=rows)).count_candidates()
     assert isinstance(excinfo.value.__cause__, KeyError | IndexError | ValueError)
 
@@ -187,11 +198,12 @@ async def test_delete_scope_wraps_a_backend_error() -> None:
     with pytest.raises(MemoryStoreError, match="deleting memory scope 'conv-a'") as excinfo:
         await PgVectorMemoryStore(db).delete_scope("conv-a")
     assert isinstance(excinfo.value.__cause__, asyncpg.PostgresError)
+    assert not isinstance(excinfo.value, MemoryDataError)  # unreachable, not undecodable
 
 
 async def test_delete_scope_wraps_a_malformed_status() -> None:
     db = FakeDatabase(status="DELETE not-a-count")
-    with pytest.raises(MemoryStoreError, match="malformed delete status") as excinfo:
+    with pytest.raises(MemoryDataError, match="malformed delete status") as excinfo:
         await PgVectorMemoryStore(db).delete_scope("conv-a")
     assert isinstance(excinfo.value.__cause__, ValueError)
 

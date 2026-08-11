@@ -74,6 +74,14 @@ class InMemoryMemoryStore:
     does to a recall or to a write. It takes EVERY verb away rather than one, because that is
     what losing a backend does; a store that failed only its writes would be a condition no
     deployment has.
+
+    It takes the base ``MemoryStoreError`` and the twin never raises ``MemoryDataError`` of its
+    own accord, which is not an omission: that subclass means a stored row could not be decoded
+    (ADR-0008 data-defect addendum) and this store decodes nothing, holding the very
+    ``MemoryRecord`` objects it was handed. The condition has no in-memory analog to have, so the
+    shared checks state the half both implementations can answer, that a gone backend arrives as
+    the base type and never as the data one, and the adapter's own tests hold the other half where
+    the rows are.
     """
 
     def __init__(self) -> None:

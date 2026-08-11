@@ -19,6 +19,29 @@ class MemoryStoreError(Exception):
     """A MemoryStore operation failed (memory adapters wrap their backend's errors)."""
 
 
+class MemoryDataError(MemoryStoreError):
+    """The store answered and what came back is not something this repo can read.
+
+    The port's one narrower failure, and the distinction is between a machine that could not be
+    reached and stored state that disagrees with the code reading it (ADR-0008 data-defect
+    addendum). Every other ``MemoryStoreError`` says Postgres was unreachable, was shutting down,
+    or refused the statement, and every one of those heals on its own: the server comes back and
+    the next turn recalls normally. This one says the row was fetched and could not be decoded,
+    which heals when somebody changes the data or the schema and never before, so a turn that
+    degraded around it would answer thinly for ever and call it an outage.
+
+    That heal test is the whole line: infrastructure degrades because the degradation ends, and a
+    data defect propagates because nothing about it ends. ``_recalled_context`` therefore names
+    this type ahead of the degrading catch and re-raises it, while ``record_exchange`` does not,
+    its argument never having been about which failure it was (nothing there can be saved by
+    failing, the reply having already streamed).
+
+    It is a subclass rather than a sibling so every existing ``except MemoryStoreError`` keeps
+    catching it, the ``ModelNotHostedError`` precedent: only a caller that can act on the
+    distinction names the narrower type.
+    """
+
+
 class EmbedderError(Exception):
     """An Embedder failed to produce an embedding (adapters wrap their backend's errors)."""
 

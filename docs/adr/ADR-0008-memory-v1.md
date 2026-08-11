@@ -707,3 +707,72 @@ able to fail before being trusted, once per arm: `InMemoryMemoryStore._guard` re
 `PgVectorMemoryStore.search` narrowed to catch only `asyncpg.PostgresError` reddened the live arm
 alone against real Postgres, after the ten checks before it had passed. Both breaks were restored
 and both suites re-run green.
+
+## Addendum (2026-08-11): a malformed row is a data defect, not an outage
+
+The unavailable-memory addendum let a turn degrade on `MemoryStoreError` and delegated the drawing
+of the line to the adapters, on the argument that they wrap a backend that could not be reached
+and wrap nothing else. That argument was true of `_WRAPPED` and false of the second `except` in
+`PgVectorMemoryStore.search`, `count_candidates` and `delete_scope`, which turn a `KeyError`,
+`IndexError`, `TypeError` or `ValueError` out of decoding a reply into the same error a stopped
+Postgres raises. A corrupt row therefore reached a turn wearing an outage's clothes: the assistant
+answered without its notes, quietly, exactly as it does when the server is down, and nothing told
+anyone which of the two had happened.
+
+**The line, and the test that draws it.** Infrastructure degrades and our own data or our own code
+does not, and the criterion that separates them is whether the condition heals without anybody
+touching the deployment. A stopped server comes back, a saturated pool frees a connection, a
+socket reconnects, and every turn degraded in the meantime was a bridge to the turn that recalls
+normally again. A row that will not decode decodes no better next turn or next week, so degrading
+around it buys a permanent thinness nobody chose and files a defect in our own stored data under
+"outage". The same test puts a schema the adapter and the database disagree about, which is what a
+missing column really is, on the loud side where it belongs.
+
+**How the code expresses it, given no bare `except` is allowed.** As a type, the
+`ModelNotHostedError` precedent applied to the other port: `MemoryDataError` subclasses
+`MemoryStoreError`, the adapter raises it from the decoding catches and from nothing else, and
+`_recalled_context` names it ahead of the degrading catch and re-raises. Every catch that already
+said `except MemoryStoreError` goes on catching it, so only the two call sites that can act on the
+distinction ever mention the narrower type, and no catch anywhere had to widen.
+
+**What the core does differently.** The read raises. Degrading on both while logging the second
+loudly was the alternative, and it was refused on the close's own evidence: the failure that only
+a log line records is the silence the degradation was written to end, and a log that reaches
+somebody eventually is no answer to a turn that will answer thinly for ever. The user-facing half
+stays exactly as it landed, which is part of the argument rather than a casualty of it, since
+`StatusUpdate(state="forgoing")` says this turn is answered without earlier notes and that
+sentence is false about a turn that is not going to answer at all. So a data defect emits no
+status, and the recall trail keeps its meaning for the same reason it did before.
+
+The write path is unchanged and still degrades on everything the port declares, subclass included.
+Its argument never depended on which failure it was: by the time `record_exchange` runs the reply
+has streamed and the assistant message is persisted, so raising cannot save the memory and only
+replaces a turn the user has read with an error. In practice `add` has no decoding step and cannot
+raise the subclass at all, which is the same fact from the other side.
+
+**Can the adapter really tell them apart where it wraps?** Yes, and this is the part that made the
+change small. The two conditions arrive as disjoint exception types: asyncpg's `PostgresError`,
+`InterfaceError` and socket `OSError` are a machine that could not answer, and a `KeyError` out of
+`_to_scored` or a `ValueError` out of `_from_literal` is this code failing to read what the
+machine did answer. Neither `except` has to classify anything or guess. Two edges are worth
+stating rather than leaving to be discovered. An empty result from an aggregate reaches
+`count_candidates` as an `IndexError` and is classified as data, which is right: the server
+answered, and a `count(*)` that returns no row is a broken contract rather than an outage. And an
+embedding the core hands `search` that will not render as a literal is classified as data too,
+because `_to_literal` sits inside the `try`; that is a bad value from our own code, which is the
+same side of the line as a bad value from our own table.
+
+**The shared check list holds the half both implementations can answer.** `_refuses_typed` now
+fails an implementation that answers a gone backend with `MemoryDataError`, since an outage that
+reads as a defect fails the turn just as hard as a leaked driver exception does, only for ever
+instead of until the server returns. The other direction is deliberately not a shared check:
+`InMemoryMemoryStore` decodes nothing, holding the `MemoryRecord` objects it was handed, so the
+condition has no in-memory analog and a scripted one would be a check asserting on its own
+scripting. It is held where the rows are, in `test_pgvector.py`.
+
+**Evidence.** Before the change, a stopped backend and a malformed row both left `search` as
+`MemoryStoreError` and the core degraded on both; after it, the first is unchanged and the second
+is `MemoryDataError` and fails the turn. Both were proven able to fail: the strengthened contract
+check reddens on a store scripted to call an outage a data defect, and the core's re-raise reddens
+its own test when removed, the degrading catch swallowing the subclass and no `forgoing` status
+being the only difference the user would see. Both breaks were restored.

@@ -34,6 +34,7 @@ from cortex_core import (
     InMemoryToolRegistry,
     JsonSchema,
     JudgeRecallPolicy,
+    MemoryDataError,
     MemoryRecaller,
     MemoryRecord,
     MemoryStoreError,
@@ -523,6 +524,37 @@ async def test_an_unreachable_memory_store_costs_the_turn_its_memories_and_not_t
     assert events[-1] == TurnCompleted(turn_id="t-1", full_text="ok")
     _, messages = backend.calls[0]
     assert [m.text for m in messages] == [PLAIN_SECURITY_PREAMBLE, "pizza"]
+
+
+async def test_a_memory_row_that_will_not_decode_fails_the_turn_instead_of_thinning_it() -> None:
+    """The other side of the line the degradation drew (ADR-0008 data-defect addendum).
+
+    The same store, one turn later, answering with a row this code cannot read. Nothing about
+    that heals on its own the way a stopped server does, so degrading around it would answer
+    thinly for ever and file a defect in our own stored data under "outage". The turn fails, and
+    it fails with the store's own message, so whoever reads it knows which of the two it was.
+
+    The progress sink is wired precisely so its silence is asserted: the ``forgoing`` status is
+    the outage's, and telling the user their notes were skipped would be the wrong sentence for a
+    turn that is not going to answer at all.
+    """
+    mem_store = InMemoryMemoryStore()
+    mem_store.fail_with(MemoryDataError("malformed memory row in search result"))
+    progress = RecordingProgressSink()
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        RecordingBackend(("ok",)),
+        TickingClock(),
+        capabilities=TurnCapabilities(
+            memory=MemoryRecaller(mem_store, HashEmbedder(), SystemClock()), progress=progress
+        ),
+        turn_id_factory=lambda: "t-1",
+    )
+
+    with pytest.raises(MemoryDataError, match="malformed memory row"):
+        await _collect(engine.handle_turn("s", "pizza"))
+
+    assert list(progress.events) == []  # no "forgoing": this turn is not being answered thinly
 
 
 async def test_a_turn_answered_without_its_memory_says_so_on_the_stream() -> None:
