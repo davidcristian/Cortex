@@ -139,7 +139,7 @@ needs a real server and runs on the host.
 | `Embedder` | `HashEmbedder` | `LlamaCppEmbedder` | `embedding/tests/embedder_contract.py` | yes | yes, over `MockTransport` | yes, restated |
 | `ToolRegistry` | `InMemoryToolRegistry` | `McpToolRegistry`, and the `ReconnectingMcpToolRegistry` over it | `tools/tests/registry_contract.py` | yes | yes, both, over a serving `McpSession` | yes |
 | `BodyGateway` | `InMemoryBodyGateway` | `GrpcBodyGateway` | `body_client/tests/gateway_contract.py` | yes | yes, over a real loopback `BodyService` | yes |
-| `Confirmer` | `RecordingConfirmer` | `SeamConfirmer` | none | n/a | n/a | no |
+| `Confirmer` | `RecordingConfirmer` | `SeamConfirmer` | `orchestrator/tests/confirmer_contract.py` | yes | yes, over a scripted overlay | no |
 | `ToolAuditSink` | `RecordingAuditSink` | `LoggingAuditSink` | none, and by design | n/a | n/a | no |
 | `RecallAuditSink` | `RecordingRecallSink` | `LoggingRecallSink` | none, and by design | n/a | n/a | no |
 | `ProgressSink` | `RecordingProgressSink` | `SeamProgressSink` | none, and by design | n/a | n/a | no |
@@ -464,3 +464,49 @@ the mute that would silence the host. With the adapter stamping the asked target
 instead of reading the body's, the target check reddens the same way. And with the fake recording
 a notification without its taint bit, the notification check reddens on `in-memory`. Each break
 was restored.
+
+### `Confirmer`
+
+`brain/packages/orchestrator/tests/confirmer_contract.py` holds five checks and the
+`ConfirmerUnderTest` a check runs against; `test_confirmer_contract.py` runs them over
+`RecordingConfirmer` and over `SeamConfirmer`. The list sits beside the real adapter rather than
+beside the fake, which is where the other lists sit and where the fixture's work is: the seam
+fixture wires a scripted **overlay** into the adapter's `emit`, reading the card off the control
+path, decoding it back into a `ConfirmationRequest`, and answering through `resolve` exactly as
+the Converse stream does with a `ConfirmResponse`. Nothing about the adapter is stubbed; only the
+person is. The five are that an explicit approval is the only `True`, that a refusal blocks, that
+a person who never answers denies, that the person is shown the call that would run, and that each
+ask is answered on its own.
+
+**Where the two legitimately diverge.** The fake records the request object it was handed, while
+the real card crosses the seam as JSON built with `default=str`, so an argument value JSON cannot
+represent would reach the person rendered rather than verbatim. The checks use JSON-native
+arguments, which is what the model's own arguments always are, and the divergence is written into
+[docs/modules/brain-orchestrator.md](../modules/brain-orchestrator.md).
+
+**What it found: the fake's answer was fixed at construction.** A person is not a constant, and
+the real confirmer's next answer is whatever the overlay sends next, so a fake that could only be
+asked once about one answer could not stand in for it across two asks. It gained
+`answer_with(approved=...)`. No behavioural disagreement came out of the five, which for a port
+whose whole contract is "only an explicit yes is `True`" is the answer worth having.
+
+**Proven able to fail, three times, and once deliberately not.** A timeout that approves instead
+of denying reddens `a_person_who_never_answers_denies` on the `seam` arm alone; a card emitted
+without its reason reddens the two checks that read what the person was shown, on the `seam` arm;
+and a fake that stops recording what it was shown reddens the same two on `recording`. The fourth
+attempt is the informative one: `resolve` rewritten to answer whichever ask is pending rather than
+the one whose id it was given leaves all ten green, because through the port only one ask is ever
+outstanding. That is not a hole in the list, it is the division of labour the overlay's closure
+described in the other direction: the shared list holds the port, and `test_confirm.py` holds the
+stream, where a stale or forged `confirm_id` resolving nothing is checked directly. Each break was
+restored.
+
+### What is left after these four
+
+The four Python ports the sweep named now have shared lists. `InferenceBackend` stays open and is
+the one Python row left, holding a shared list for its decode cadence and nothing shared for the
+rest of streaming; that is a design question rather than a transcription, since the two
+implementations produce their events at different rates and from different sources, and the list
+that covers it has to say what an event stream owes without saying when. Every Rust row is
+untouched, where the defect is one step worse than a restated list, the fakes themselves being
+hand-written twice in two crates.

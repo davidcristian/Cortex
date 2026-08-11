@@ -1138,6 +1138,47 @@ cross-language-constant addendum):**
   the notification check on `in-memory`. Each break was restored. **One of the four Python ports
   stays open**, `Confirmer`, alongside `InferenceBackend`'s streaming half and every Rust row.
 
+  **`Confirmer` is the fourth and last of them.**
+  `brain/packages/orchestrator/tests/confirmer_contract.py` holds five checks and
+  `test_confirmer_contract.py` runs them over `RecordingConfirmer` and over `SeamConfirmer`. The
+  list sits beside the real adapter rather than beside the seam's fake, which is where the other
+  lists sit and where the fixture's work is: it wires a scripted overlay into the adapter's
+  `emit`, reads the card off the control path, decodes it back into a `ConfirmationRequest`, and
+  answers through `resolve` exactly as the Converse stream does, so nothing about the adapter is
+  stubbed and only the person is. The five are that an explicit approval is the only `True`, that
+  a refusal blocks, that a person who never answers denies, that the person is shown the call that
+  would run, and that each ask is answered on its own.
+
+  The fake's answer was fixed at construction, and a person is not a constant, so it could not be
+  asked about two calls in one run; it gained `answer_with`. No behavioural disagreement came out
+  of the five, which for a port whose whole contract is that only an explicit yes is `True` is the
+  answer worth having. One legitimate divergence went into
+  [docs/modules/brain-orchestrator.md](../modules/brain-orchestrator.md): the fake records the
+  request object while the real card crosses as JSON built with `default=str`, so a value JSON
+  cannot represent would reach the person rendered rather than verbatim, and the checks use the
+  JSON-native arguments a model always sends.
+
+  **Proven able to fail three times, and once deliberately not.** A timeout that approves reddens
+  the silence check on the `seam` arm alone; a card emitted without its reason reddens the two
+  checks that read what the person was shown, on `seam`; a fake that stops recording reddens the
+  same two on `recording`. The fourth attempt is the informative one: `resolve` rewritten to
+  answer whichever ask is pending rather than the one whose id it was given leaves all ten green,
+  because through the port only one ask is ever outstanding. That is the division of labour rather
+  than a hole, the shared list holding the port while `test_confirm.py` holds the stream, where a
+  stale or forged `confirm_id` resolving nothing is checked directly.
+
+  **The four Python ports named at the top of this entry are done, and the entry is still open.**
+  What is left is `InferenceBackend`, whose decode cadence is shared and whose streaming contract
+  is not, and every Rust row. The inference one is deliberately not folded into the four: two
+  implementations producing events at different rates from different sources need a list that says
+  what a stream owes without saying when, which is a design question rather than a transcription.
+
+  **The trigger below counts nine and the tree now holds fourteen**, which is the entry's own text
+  aging rather than a defect in it: thirteen in Python, twelve named `*_contract.py` plus
+  `session/tests/contract.py`, and the overlay's `bridgeContract.ts`. The trigger keeps its
+  wording because the arrangement it points at is unchanged and the number was true when it was
+  written; the count that matters to the next reader is here and in the ADR tables.
+
   **Why deferred rather than done.** The ports named above come to five in Python counting the
   partial one, seven in Rust and one in the overlay, and writing contract suites for them is a
   slice with its own design questions (what a write-only port owes, whether a Rust list is a
