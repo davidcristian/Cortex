@@ -23,8 +23,8 @@ value-declaring property taking its place, folded in the same way, and **five on
 arrival rather than exchange, the capture target's proto enum against the schema strings the model
 picks between being the first coupling here with generated code on **both** sides, which leaves the
 scan nothing to parse in either place. That growth does not move this area's number, which counts
-entries and not couplings and stays 4; the entry is where a coupling's arrival is recorded, exactly
-as the gRPC status codes were. The end-to-end turn-cost
+entries and not couplings and stood at 4 when that coupling arrived; the entry is where a
+coupling's arrival is recorded, exactly as the gRPC status codes were. The end-to-end turn-cost
 harness came off this list on 2026-08-09, on the trigger it had been narrowed by, and the answer
 to both halves it had left is one division of labour rather than one clever test: an arm is a
 container configuration, so the restarts live in a `just turn-cost` recipe, which puts the arms in
