@@ -8,8 +8,11 @@
   /* How long a section's roll takes, and the one place this stylesheet spells it. `MORPH_ROLL_MS`
      in `overlay/morph.ts` owns the number and every scripted roll animates for it; the two rules
      that have to land WITH a roll spend this token rather than restating it, and
-     `scripts/crosscheck.py` renders that constant into `--roll: {value}ms;` so the two spellings
-     cannot drift apart. `--ease` above is the curve half of the same pair, tied the same way.
+     `scripts/crosscheck.py` holds both halves of it: it renders that constant into the
+     declaration below, and it renders the token's own NAME into the two rules that spend it,
+     counted, so neither a drifted number nor a mistyped spend survives. `--ease` above is the
+     curve half of the same pair, tied the same way, except that its spends are held by presence
+     rather than by count, 52 transitions across unrelated features riding that one curve.
 
      Only those two rules spend it. Four other declarations in this sheet happen to last just as
      long and are deliberately left as `0.3s`: the panel's summon fade, which is paired with its own

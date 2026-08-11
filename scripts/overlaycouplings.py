@@ -79,7 +79,15 @@ OVERLAY_COUPLINGS: tuple[Constant, ...] = (
             "and the roll it accompanies move on two different clocks (ADR-0035/0037)"
         ),
         sites=(Site("body/app/src/overlay/morph.ts", "EASING"),),
-        mentions=(Mention(OVERLAY_CSS, "--ease: {value};"),),
+        # Both halves of one name. The declaration renders the value beside it; the spends render
+        # the name alone, which is the only thing that reaches a `var()` the value never appears
+        # in. The spends stay a presence check because 52 transitions across unrelated features
+        # ride this curve, and a count over them would redden on the next one added; what the
+        # presence check holds is that the property the sheet declares is the one they ask for.
+        mentions=(
+            Mention(OVERLAY_CSS, "{name}: {value};", name="--ease"),
+            Mention(OVERLAY_CSS, "var({name})", name="--ease"),
+        ),
     ),
     Constant(
         label="the shared roll duration",
@@ -90,15 +98,20 @@ OVERLAY_COUPLINGS: tuple[Constant, ...] = (
             "clock from the roll they accompany (ADR-0035/0037)"
         ),
         sites=(Site("body/app/src/overlay/morph.ts", "MORPH_ROLL_MS"),),
-        # No count, and the reason is that there is nothing to count. The sheet spells the number
-        # once, on :root, and the two rules that follow the roll spend `var(--roll)` rather than
-        # the value, so they are not occurrences a template could render into. Renaming the
-        # declaration is caught here, the needle carrying the property name; renaming a SPEND is
-        # caught by the browser instead, a var() that resolves to nothing being invalid at
-        # computed-value time and taking the whole transition with it. The four other 0.3s
-        # declarations in that file only coincide with the roll (the panel's summon fade and three
-        # arrival animations) and stay literal on purpose: pinning them would tie a retune of the
-        # roll to features it has nothing to do with.
-        mentions=(Mention(OVERLAY_CSS, "--roll: {value}ms;"),),
+        # The sheet spells the number once, on :root, and the two rules that follow the roll spend
+        # the name rather than the value, which is why the second mention renders the name and
+        # nothing else. It is counted where the curve above is not: these two ARE the set the
+        # reason above names, so losing one is the drift rather than a design change, and a third
+        # rule joining them is a registry line to correct rather than a silent widening. What used
+        # to stand in for that count was the browser, a var() that resolves to nothing being
+        # invalid at computed-value time and taking the whole transition with it, which is a
+        # defect found by looking. The four other 0.3s declarations in that file only coincide
+        # with the roll (the panel's summon fade and three arrival animations) and stay literal on
+        # purpose: pinning them would tie a retune of the roll to features it has nothing to do
+        # with.
+        mentions=(
+            Mention(OVERLAY_CSS, "{name}: {value}ms;", name="--roll"),
+            Mention(OVERLAY_CSS, "var({name})", name="--roll", occurrences=2),
+        ),
     ),
 )
