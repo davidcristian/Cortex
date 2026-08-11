@@ -79,17 +79,20 @@ export class DemoBridge implements BrainBridge {
     if (/send|email/iu.test(text)) {
       return this.confirmTurn(sink, /time\s?out/iu.test(text));
     }
+    let asked: ReturnType<typeof setTimeout> | undefined;
     let settle: ReturnType<typeof setTimeout> | undefined;
     if (/screen|look at|see this/iu.test(text)) {
       const ok = !/refus|blocked|denied|declin/iu.test(text);
-      sink.onEvent({
-        kind: "toolActivity",
-        toolName: "capture_screen",
-        summary: "reading the screen",
-      });
+      asked = setTimeout(() => {
+        sink.onEvent({
+          kind: "toolActivity",
+          toolName: "capture_screen",
+          summary: "reading the screen",
+        });
+      }, 90);
       settle = setTimeout(() => {
         sink.onEvent({ kind: "toolOutcome", toolName: "capture_screen", ok });
-      }, 320);
+      }, 400);
     }
     let cancelStream: Cancellation = () => undefined;
     const status = setTimeout(() => {
@@ -107,6 +110,7 @@ export class DemoBridge implements BrainBridge {
     }, 450);
     return () => {
       clearTimeout(status);
+      clearTimeout(asked);
       clearTimeout(settle);
       cancelStream();
     };
@@ -191,7 +195,9 @@ export class DemoBridge implements BrainBridge {
       (a, b) =>
         Number(b.pinned) - Number(a.pinned) || b.lastActivityUnixMs - a.lastActivityUnixMs,
     );
-    return Promise.resolve(ordered.slice(0, limit));
+    // `0` means the brain's own default (`types.ts`), never "at most none": read as a bound it
+    // answers an empty switcher to any caller that asks for the default listing.
+    return Promise.resolve(limit === 0 ? ordered : ordered.slice(0, limit));
   }
 
   getPreferences(): Promise<readonly Preference[]> {

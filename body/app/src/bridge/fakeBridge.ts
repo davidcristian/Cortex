@@ -80,12 +80,12 @@ export class FakeBridge implements BrainBridge {
     return Promise.resolve(this.link);
   }
 
-  listSessions(_limit: number): Promise<readonly SessionSummary[]> {
+  listSessions(limit: number): Promise<readonly SessionSummary[]> {
     this.listCalls += 1;
     if (this.listFails) {
       return Promise.reject(new Error("list failed"));
     }
-    return Promise.resolve(this.sessions);
+    return Promise.resolve(limit === 0 ? this.sessions : this.sessions.slice(0, limit));
   }
 
   sessionMessages(sessionId: string): Promise<readonly SessionMessage[]> {
@@ -150,11 +150,16 @@ export class FakeBridge implements BrainBridge {
     return Promise.resolve(this.preferences);
   }
 
+  // Records the write and, on success, reflects it in the served record the way the catalog
+  // writes above reflect theirs: one row per key, an empty value clearing it (ADR-0032). Left
+  // unreflected, a written setting was unreadable through the port it was written to.
   setPreference(key: string, value: string): Promise<void> {
     this.preferenceWrites.push({ key, value });
     if (this.preferenceWriteFails) {
       return Promise.reject(new Error("preference write failed"));
     }
+    const others = this.preferences.filter((pref) => pref.key !== key);
+    this.preferences = value === "" ? others : [...others, { key, value }];
     return Promise.resolve();
   }
 

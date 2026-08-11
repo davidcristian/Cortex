@@ -90,9 +90,9 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   hand because the refresh right behind it listed the chat again; and a turn adds the chat it was
   spoken in to that list, titled by `deriveTitle`, so a chat can ARRIVE and not only leave, which is
   what the empty line's filling direction is measured on), `FakeBridge` (tests). Only
-  `tauriBridge.ts`, `demoBridge.ts`, `demoScript.ts`, and `main.tsx` are coverage-excluded (the
-  un-gated glue);
-  everything else is 100% line + branch. `useOverlay` owns the `session_id` (minted per new chat)
+  `tauriBridge.ts` and `main.tsx` are coverage-excluded (the un-gated glue); everything else is
+  100% line + branch, `demoBridge.ts` and its script included since the shared check list below
+  started driving them. `useOverlay` owns the `session_id` (minted per new chat)
   and the store-backed chat list (loaded on mount + after each turn; a chat's history loads on
   select/cycle). The open-chat **header title** is the switcher's own `SessionSummary.title` for
   that chat, read from the loaded `state.sessions` by `openSession`/`adoptSession` (`headerTitle` in
@@ -118,6 +118,48 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   overlay reads once at startup (`usePreferences`) and writes one at a time on every appearance
   change. An unrecognised key belongs to another surface and is ignored; an empty value clears a
   key, which is how "follow the system" is stored for the theme.
+- **The port's shared check list** (`src/bridge/bridgeContract.ts`, driven by
+  `bridgeContract.test.ts`). Thirteen named checks that every implementation CI can run must pass,
+  which is the TypeScript counterpart of the brain's `*_contract.py` files: one list of checks and
+  one parametrized driver over both implementations, rather than a suite restated per
+  implementation, because a restatement drifts the moment a check is appended to one copy and not
+  the other. The list holds the turn HANDLE (a cancellation comes back, nothing is delivered during
+  the call, and cancelling silences the turn however often it is called), the probe (a classified
+  status rather than a rejection, and it keeps answering), the catalog (a seeded chat is listed; a
+  zero limit means the default listing and a positive one cuts that same listing; a rename shows in
+  the next listing and an empty one clears the override; a delete stays gone across the refresh
+  behind it; a pin groups the chat above an unpinned one and the flag round-trips), the stored
+  history (well-formed messages, and a chat nobody has spoken in answers rather than rejecting),
+  the reminder ack (true for what is due, false for what nobody was told about), the settings
+  record (a write reads back, a second write to one key replaces it, an empty value clears it), and
+  the stale confirm answer (absorbed rather than rejected). The port has no "create a chat" call, so
+  seeding one is the fixture's job, per implementation and outside the shared list: the demo bridge
+  comes by a chat the way the brain does, by being spoken in, and the fake serves the table its
+  test assigns.
+  **Where the two legitimately disagree**, and so what the list deliberately does not hold: the
+  CONTENT of a turn's stream, since `DemoBridge` plays a recorded conversation on a timer and
+  `FakeBridge` streams nothing at all until the test that owns it says so, which is why the cadence
+  (reasoning statuses, then the reply, then exactly one completion, last) is pinned by
+  `demoBridge.test.ts` instead; what a cleared title falls back to, empty in the fake and "New
+  chat" in the demo, where the brain would derive one, so the shared claim is only that the custom
+  title is gone; where an UNPINNED chat sits, the demo sorting its held catalog by recency and the
+  fake serving its table in the order it was assigned, so the shared claim is the pinned grouping
+  and the flag; and what an ack does to the due list, the demo dropping the reminder and the fake
+  leaving its table for the test to say, so the shared claim is the boolean. `TauriBridge` is not
+  under the list at all: every method of it crosses the Tauri IPC boundary, which makes it the
+  frontend analog of the Rust host adapters, and holding it to these checks would mean faking
+  `invoke`, which measures the fake rather than the crossing.
+  **What the list found on its first run**, before any implementation was changed to suit it:
+  `FakeBridge.listSessions` ignored its `limit` argument, so a test could pass against a listing
+  production would have cut; `FakeBridge.setPreference` recorded a write the served record never
+  carried, alone among its writes in that, the three catalog writes beside it having always
+  reflected theirs; and `DemoBridge.listSessions` read `limit === 0` as "at most none" where the
+  port documents it as the brain's own default, so browser dev would answer an empty switcher to a
+  caller that asked for the default listing. A fourth came out of the turn-handle check rather than
+  from the two arms disagreeing: `DemoBridge` announced a capture activity INSIDE the `converse`
+  call, which is a delivery the real bridge cannot make, its events arriving over a Tauri channel
+  after the call has handed back the cancellation its caller stores. The ask rides a short timer
+  now, like everything else the demo says. All four are fixed.
 - **The capture switch and the overlay's self-exclusion** (`body_server.rs`, ADR-0029). The
   shell wires the real `WindowsScreenCapture` only when `CORTEX_HOST_CAPTURE=1` **and** the
   setup call to `exclude_from_capture` on the overlay's own window succeeded; on either failure
@@ -802,6 +844,11 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
 
 - Components depend on the `BrainBridge` port, not Tauri, so the whole overlay is browser-runnable
   and 100%-gated; the Tauri glue is the single un-gated edge (ADR-0011 addendum).
+- **Every `BrainBridge` implementation CI can run is driven over the one shared list.** A new
+  implementation adds a case to `bridgeContract.test.ts`, not a suite of its own, and a new claim
+  about the port is appended to `bridgeContract.ts`, where it reaches every implementation at once,
+  rather than asserted against whichever one the author had open. What an implementation does that
+  the port never promised is its own suite's business.
 - The wire types on both sides of the seam are one contract: change `types.ts`,
   `tauriBridge.ts`, and `converse.rs` / `confirm.rs` / `sessions.rs` / `reminders.rs` /
   `link.rs` together.

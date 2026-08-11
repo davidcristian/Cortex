@@ -24,8 +24,6 @@ export default defineConfig({
         "src/**/*.test.{ts,tsx}",
         "src/main.tsx",
         "src/bridge/tauriBridge.ts",
-        "src/bridge/demoBridge.ts",
-        "src/bridge/demoScript.ts",
         "src/test-setup.ts",
         "src/vite-env.d.ts",
       ],
