@@ -2,7 +2,7 @@
 
 This area originates in [ADR-0013](../adr/ADR-0013-untrusted-content.md) (Slice 6.5), whose deferrals grew into the output guardrail ([ADR-0015](../adr/ADR-0015-output-guardrail.md)), subagent model safety ([ADR-0017](../adr/ADR-0017-subagent-model-safety.md)), tainted-memory recording ([ADR-0019](../adr/ADR-0019-tainted-memory-recording.md)), and grammar-constrained subagent output ([ADR-0028](../adr/ADR-0028-grammar-constrained-subagents.md)). Extracted from the ROADMAP's deferred-refinements section on 2026-07-15 with the entries kept verbatim; landed entries are the historical record of what each deferral became, and the index at [index.md](index.md) carries the recommended pickup order.
 
-**Open items:** the screening subagent, whitespace-split hosts, the full UTS-39 confusables set, mixed/other encodings, a slashless authority URL, footer/boilerplate heuristics, a raw GBNF grammar alternative, a per-task caller-supplied schema, provenance across the stores, a fence-without-block recall mode, per-provenance eviction, per-remote-tool trust/gating overrides, the residue of a quoted injection replayed by the plain history window
+**Open items:** the screening subagent, whitespace-split hosts, the full UTS-39 confusables set, mixed/other encodings, footer/boilerplate heuristics, a raw GBNF grammar alternative, a per-task caller-supplied schema, provenance across the stores, a fence-without-block recall mode, per-provenance eviction, per-remote-tool trust/gating overrides, the residue of a quoted injection replayed by the plain history window
 
 **Untrusted-content boundary in Slice 6.5 ([ADR-0013](../adr/ADR-0013-untrusted-content.md)):** each
 behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (or the new `Confirmer` port).
@@ -214,8 +214,9 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   spelling its table carried is now priced, so the tail is open on the class and not on a list, and
   its next reader owes it a candidate encoding put to the question above rather than a row picked
   off a table.
-- **A slashless authority URL, found in passing by that pass and opened rather than chased
-  (2026-08-10, [ADR-0015 tenth addendum](../adr/ADR-0015-output-guardrail.md)).** Running the
+- **A slashless authority URL, found in passing by that pass and opened rather than chased on
+  2026-08-10, closed 2026-08-11 as a host anchor on the matcher ([ADR-0015 eleventh
+  addendum](../adr/ADR-0015-output-guardrail.md)).** As opened, verbatim: running the
   resolver over the table turned up a live spelling on none of its rows: a special scheme whose
   authority carries **fewer than two slashes**. `new URL("https:evil.example/pay")` is
   `https://evil.example/pay`, and so is the one-slash form, because the same special-authority
@@ -229,6 +230,41 @@ behind the unchanged `ToolRegistry`/`ToolDispatcher`/`stream_tool_loop` seams (o
   slashes here`). The one precedent is `_DATA_ANCHOR`, a single scheme's MIME shape rather than a
   host grammar. Its cost is therefore a false-positive budget to design, not a table entry to
   generate, and it is counted from the day it opened.
+
+  **It closed in exactly the shape it predicted, and the budget was the work.** The anchor gained
+  its first lookahead at what follows a separator, and the rule that lookahead enforces is one
+  sentence: a host is a **dotted name** or a **bracketed literal carrying a colon**, and nothing
+  else here counts as one. The dotted name covers every registrable domain, every IPv4 literal and
+  every IDN, with the dot counting in each reading the resolver has, so the same
+  `LABEL_SEPARATORS` table the identity folds by now also spells the grammar's dot (imported into
+  the new `url_spellings.py` so the two cannot disagree about what a dot is), joined by the HTML
+  references one rendering pass resolves and by the single percent escape a parser decodes inside a
+  host. That percent reading is the only one in this grammar and it is there on a measurement:
+  `https:evil%2eexample/pay` resolves to the plain link while the stacked `%252e` is a parse error,
+  so exactly one level is a reading, and the separator positions still decline the family because a
+  parser throws on `https%3A//evil.example`. The bracketed literal requires the colon, so an IPv6
+  address is admitted and `[1]` or `[abc]`, which a parser refuses, are not.
+  **The budget is the single label, and it is spent where prose lives.** `https:scheme` really is
+  `https://scheme/` to a parser, and it is also how a sentence names a scheme, so every one-label
+  host is declined: `http:foo`, `https:localhost:8080/x` and this repo's own way of writing about a
+  scheme all stay prose, and so does anything carrying a space, which is the shape the fullwidth
+  pass protected and which the eighth addendum's own test still guards. The decline costs no exfil
+  vector, a bare label being registrable under no public suffix. **Two things came with the fix
+  that the entry did not foresee.** The separator is composed out of the opaque family rather than
+  a new one, so a defanged bare colon reaches this position too (`http[:]evil.example`, which a
+  reader refangs and lands on), which would otherwise have been the seventh addendum's bracket
+  asymmetry a second time; and the identity's authority-slash run went from `+` to `*`, one
+  character, without which the grammar would anchor the spelling and the default policy would still
+  hold no identity for it. The streaming hold-back needed a branch of its own, since a buffer
+  ending at `https:evil.` is neither a match nor a prefix of any separator, verified at every
+  two-way split point of nine probes under both policies (702 splits) and one character at a time.
+  Thirteen tests, each mutation-proven with `__pycache__` cleared and each mutation verified
+  applied. **This close moves the area's count by one**, which is the honest bookkeeping: the entry
+  was counted from the day it opened, on its own last sentence, so it is counted out on the day it
+  closes. The tail it was found beside, "mixed/other encodings past percent + HTML", is untouched
+  and stays open on its class. `urls.py` could not hold a host grammar under the line cap, so the
+  separator vocabulary moved to `url_spellings.py` in the same commit, the split `url_identity.py`
+  made for the same reason when the seventh addendum landed.
 - **The structured redaction event for the overlay closed 2026-07-16 as declined
   ([ADR-0015 addendum](../adr/ADR-0015-output-guardrail.md)).** Read against the shipped path,
   the inline marker the guardrail already emits meets the user need a structured event would, and

@@ -3,84 +3,46 @@ r"""The URL *grammar* behind the output guardrail's laundering defense (ADR-0015
 import re
 
 from cortex_core.url_identity import SPECIAL_SCHEMES, normalize_url
+from cortex_core.url_spellings import (
+    AUTHORITY_SEPS,
+    CHUNK_INNER,
+    CLOSE_BRACKET,
+    COLON_SPELLING,
+    DEFANGED_AUTHORITY_SEPS,
+    DEFANGED_OPAQUE_SEPS,
+    DOT_SPELLING,
+    OPAQUE_SEPS,
+    OPEN_BRACKET,
+    SOLIDUS_SPELLING,
+)
 
 _AUTHORITY_WORDS = (*SPECIAL_SCHEMES, "hxxps", "hxxp")
 _OPAQUE_WORDS = ("mailto", "tel")
 
-_BRACKETS = (("[", "]"), ("(", ")"), ("{", "}"))
+_NON_URL = r"\s<>\"'\)\]\}"
 
-_COLONS = (":", "\uff1a")
-_SOLIDI = ("/", "\\", "\uff0f")
+# A character that may belong to a URL body. A bracket `_DEFANG_CHUNK` is matched atomically ahead
+# of this, so a defang token's closing bracket does not end the match early.
+_URL_CHAR = rf"[^{_NON_URL}]"
 
-# The HTML name of each separator character, for the named reference (`&colon;`, `&sol;`, `&bsol;`).
-# Membership is also what says which characters carry references at all: HTML names exactly the
-# ASCII ones, and a fullwidth twin is reached through NFKC in the identity rather than by spelling.
-_ENTITY_NAMES = {":": "colon", "/": "sol", "\\": "bsol"}
+# A character that may belong to an *authority*: a body character that is not one of the three
+# delimiters ending it, the backslash included since a special scheme's parser reads that as one.
+_HOST_CHAR = rf"[^{_NON_URL}/?#\\]"
 
+_HOST_ANCHOR = rf"(?={_HOST_CHAR}*{DOT_SPELLING}{_HOST_CHAR}|\[{CHUNK_INNER}*:{CHUNK_INNER}*\])"
 
-def _entity_forms(char: str) -> tuple[str, ...]:
-    """Every HTML character reference *one rendering pass* resolves to ``char`` (regex fragments).
-    """
-    point = ord(char)
-    return (
-        rf"&#0*{point}(?:;|(?![0-9;]))",
-        rf"&#x0*{point:x}(?:;|(?![0-9a-f;]))",
-        rf"(?-i:&{_ENTITY_NAMES[char]};)",
-    )
-
-
-def _spellings(plain: tuple[str, ...]) -> str:
-    """One separator position's alternation: its plain glyphs, then their entity references."""
-    forms = tuple(f for g in plain if g in _ENTITY_NAMES for f in _entity_forms(g))
-    return f"(?:{'|'.join((*(re.escape(g) for g in plain), *forms))})"
-
-
-_COLON_SPELLING = _spellings(_COLONS)
-_SOLIDUS_SPELLING = _spellings(_SOLIDI)
-
-# The *defanged* separators, the one family that is a bracketed token rather than a respelling of
-# the character. Held apart from the plain forms because the matcher composes the plain ones out of
-# the per-character alternations above while the streaming hold-back needs them all as literal text.
-_DEFANGED_AUTHORITY_SEPS = tuple(
-    f"{lo}{tok}{hi}{tail}" for lo, hi in _BRACKETS for tok, tail in (("://", ""), (":", "//"))
-)
-_DEFANGED_OPAQUE_SEPS = tuple(f"{lo}:{hi}" for lo, hi in _BRACKETS)
-
-# Every separator spelling as *literal text*, for the streaming hold-back's scheme prefixes below.
-# The entity forms are variable-length and so cannot be enumerated here, exactly as the encoded
-# bracket chunk could not; `_OPEN_SEP_RE` carries both instead.
-_AUTHORITY_SEPS = (
-    *(f"{colon}{first}{second}" for colon in _COLONS for first in _SOLIDI for second in _SOLIDI),
-    *_DEFANGED_AUTHORITY_SEPS,
-)
-_OPAQUE_SEPS = (*_COLONS, *_DEFANGED_OPAQUE_SEPS)
-
-# The matcher's separator, per scheme family: any spelling of the colon (and, for an authority
-# scheme, of both solidi), or one of the defang tokens. Composing the per-character alternations is
-# what makes every mixture free, an entity colon in front of fullwidth solidi included.
+_OPAQUE_SEP_RE = "|".join((COLON_SPELLING, *(re.escape(s) for s in DEFANGED_OPAQUE_SEPS)))
 _AUTHORITY_SEP_RE = "|".join(
     (
-        rf"{_COLON_SPELLING}{_SOLIDUS_SPELLING}{{2}}",
-        *(re.escape(s) for s in _DEFANGED_AUTHORITY_SEPS),
+        rf"{COLON_SPELLING}{SOLIDUS_SPELLING}{{2}}",
+        *(re.escape(s) for s in DEFANGED_AUTHORITY_SEPS),
+        rf"(?:{_OPAQUE_SEP_RE}){SOLIDUS_SPELLING}?{_HOST_ANCHOR}",
     )
 )
-_OPAQUE_SEP_RE = "|".join((_COLON_SPELLING, *(re.escape(s) for s in _DEFANGED_OPAQUE_SEPS)))
 
-# The bracket vocabulary, shared by every bracketed token below so they cannot drift. The inner run
-# excludes whitespace, prose/markup quoting, and every bracket, so a chunk cannot swallow a second
-# one and the matcher stays linear (a closer-less run fails and backtracks linearly).
-_OPEN_BRACKET = r"[\[({]"
-_CLOSE_BRACKET = r"[\])}]"
-_CHUNK_INNER = r"[^\s<>\"'\[\](){}]"
+_DEFANG_CHUNK = rf"{OPEN_BRACKET}{CHUNK_INNER}+{CLOSE_BRACKET}"
 
-_DEFANG_CHUNK = rf"{_OPEN_BRACKET}{_CHUNK_INNER}+{_CLOSE_BRACKET}"
-
-_ENCODED_SEP_CHUNK = rf"{_OPEN_BRACKET}{_CHUNK_INNER}*[&%]{_CHUNK_INNER}*{_CLOSE_BRACKET}"
-
-# A character that may belong to a URL body: anything but whitespace and the usual prose/markup
-# closers (which also bound a Markdown `(url)`/`[url]`). A bracket `_DEFANG_CHUNK` is matched
-# atomically ahead of this, so a defang token's closing bracket does not end the match early.
-_URL_CHAR = r"[^\s<>\"'\)\]\}]"
+_ENCODED_SEP_CHUNK = rf"{OPEN_BRACKET}{CHUNK_INNER}*[&%]{CHUNK_INNER}*{CLOSE_BRACKET}"
 
 
 def _family(words: tuple[str, ...], seps: str) -> str:
@@ -107,9 +69,9 @@ URL_RE = re.compile(
 _SCHEME_WORDS = _AUTHORITY_WORDS + _OPAQUE_WORDS + ("data",)
 
 _SCHEME_PREFIXES = (
-    tuple(w + s for w in _AUTHORITY_WORDS for s in _AUTHORITY_SEPS)
-    + tuple(w + s for w in _OPAQUE_WORDS for s in _OPAQUE_SEPS)
-    + tuple("data" + s for s in _OPAQUE_SEPS)
+    tuple(w + s for w in _AUTHORITY_WORDS for s in AUTHORITY_SEPS)
+    + tuple(w + s for w in _OPAQUE_WORDS for s in OPAQUE_SEPS)
+    + tuple("data" + s for s in OPAQUE_SEPS)
 )
 
 # The longest string that is a prefix of a scheme+separator but not yet a URL match
@@ -120,8 +82,9 @@ _UNFINISHED_ENTITY = r"&[#0-9a-z]*"
 
 _OPEN_SEP_RE = re.compile(
     rf"\b(?:{'|'.join(_SCHEME_WORDS)})"
-    rf"(?:{_OPEN_BRACKET}{_CHUNK_INNER}*"
-    rf"|(?:{_COLON_SPELLING}|{_SOLIDUS_SPELLING})*(?:{_UNFINISHED_ENTITY})?)\Z",
+    rf"(?:{OPEN_BRACKET}{CHUNK_INNER}*"
+    rf"|(?:{_OPAQUE_SEP_RE}){SOLIDUS_SPELLING}?{_HOST_CHAR}*"
+    rf"|(?:{COLON_SPELLING}|{SOLIDUS_SPELLING})*(?:{_UNFINISHED_ENTITY})?)\Z",
     re.IGNORECASE,
 )
 

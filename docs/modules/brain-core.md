@@ -578,8 +578,9 @@ Untrusted-content boundary (Slice 6.5, ADR-0013; the pure primitives in `untrust
   so a tool's price travels with the gateway that runs it and is not restated per loop.
 
 Output guardrail (ADR-0015; the pure laundering defense built from the redactor + policies in
-`guardrail.py`, the URL grammar in `urls.py`, and one URL's canonical identity in `url_identity.py`,
-the two having split at the line cap as the seventh addendum landed):
+`guardrail.py`, the URL grammar in `urls.py`, one URL's canonical identity in `url_identity.py`, and
+every way a separator character may be spelled in `url_spellings.py`, the three having split at the
+line cap as the seventh and the eleventh addenda landed):
 
 - `extract_urls(text) -> frozenset[str]` (in `urls.py`) finds every clickable URL in `text` (schemes
   `http(s)`, `ftp`, `mailto:`, `tel:`, and `data:` behind a MIME-type anchor so `data:the results`
@@ -592,9 +593,18 @@ the two having split at the line cap as the seventh addendum landed):
   semicolon-less, generated per character from its codepoint, ADR-0015 ninth addendum), or with a
   **backslash** for either solidus (`https:\/\/evil.example`, the JSON-escaped spelling, plus its own
   references `&#92;`/`&bsol;`, admitted because a URL parser reads a backslash as a solidus in a
-  special scheme, ADR-0015 tenth addendum). The matcher
+  special scheme, ADR-0015 tenth addendum), or with **fewer than two solidi altogether**
+  (`https:evil.example/pay`, `https:/evil.example/pay`, `http[:]evil.example/pay`, which the same
+  special-authority states resolve to the plain link, ADR-0015 eleventh addendum). That last one
+  admits a separator that is *absent* rather than respelling one that is there, so it is the only
+  position with a **host anchor** behind it: a lookahead, consuming nothing, that asks for a dotted
+  name (any registrable domain, IPv4 literal or IDN, the dot counting in every reading the resolver
+  has, which is the IDNA label separators, their HTML references, and the one percent escape
+  `%2e` a parser decodes inside a host) or a bracketed literal carrying a colon (an IPv6 address).
+  A single label is declined and that decline is the whole false-positive budget, so `https:scheme`,
+  `http:foo` and `https:localhost` stay prose, as does everything with a space in it. The matcher
   runs before any normalization, so each of those anchored nothing and so escaped both policies
-  until it was generated into the table (ADR-0015 eighth + ninth + tenth addenda). Eight
+  until it was generated into the table (ADR-0015 eighth + ninth + tenth + eleventh addenda). Eight
   **obfuscation-resistant** passes (in `url_identity.py`) reduce a rewritten link to its plain
   identity, in a fixed order so each feeds the next (ADR-0015 addenda):
   **escape decoding** to a bounded fixpoint (HTML character references `evil&#46;com`→`evil.com` the
@@ -613,10 +623,11 @@ the two having split at the line cap as the seventh addendum landed):
   survived it, ADR-0015 eighth addendum), and a **special-scheme backslash** fold
   (`https:\/\/evil.example`→`https://evil.example`: the URL Standard skips `/` and `\` alike in a
   special scheme's authority and converts a path backslash, so this is the parser's reading and not
-  a resemblance; the authority slash run collapses to one pair with it, and an opaque `mailto:`
-  keeps its backslashes, ADR-0015 tenth addendum). So a defanged, encoded,
-  zero-width-split, punycoded, fullwidth, CJK-dotted, backslashed, or homoglyph link normalizes to
-  the same identity as its plain twin. A *transform* in
+  a resemblance; the authority slash run collapses to one pair with it whatever its length, the
+  empty run included so `https:evil.example` folds too, and an opaque `mailto:`
+  keeps its backslashes, ADR-0015 tenth + eleventh addenda). So a defanged, encoded,
+  zero-width-split, punycoded, fullwidth, CJK-dotted, backslashed, slashless, or homoglyph link
+  normalizes to the same identity as its plain twin. A *transform* in
   the reply is caught, not only verbatim reproduction. The passes compose (a percent-encoded
   homoglyph decodes, then folds). Both sides of the defense use it, namely collection
   (`TaintLedger.observe`) and the user-message allowlist, so a collected URL and its reappearance
@@ -630,9 +641,18 @@ the two having split at the line cap as the seventh addendum landed):
   not links (ADR-0015 ninth addendum). Held deliberately
   out (they would over-redact prose, need a dependency, or no resolver in this path undoes them):
   bare addresses/domains, whitespace-split defang (`evil dot com`), the *full* UTS-39 confusables
-  set, and source-layer or bracketless URL-layer escapes of the separator (`\x2e`, `https%3A//`,
+  set, a slashless authority whose host is a single label (`https:localhost`, which no public suffix
+  makes registrable and which is how a sentence names a scheme), and source-layer or bracketless
+  URL-layer escapes of the separator (`\x2e`, `https%3A//`,
   `&amp;#58;`), each measured against a real URL parser, which resolves an escaped host to a
-  *different* host and refuses the other two outright (ADR-0015 tenth addendum).
+  *different* host and refuses the other two outright (ADR-0015 tenth + eleventh addenda).
+- `held_from(buf) -> int` (in `urls.py`) is the streaming hold-back the redactor's `feed` splits on:
+  the index from which `buf` may still be growing a URL, so everything before it is final and
+  everything from it is carried into the next delta. Three shapes are open, and all three are
+  bounded: a `URL_RE` match touching the buffer's end, a scheme word whose separator or host has
+  not arrived yet (`http[&#58;`, `https&#5`, `https:evil.`), and a trailing prefix of any
+  scheme+separator the tables enumerate. Carrying is not redacting, so prose that never becomes a
+  host (`the https:scheme`) is released whole and in order by a later `feed` or the `flush`.
 - `TaintView` (protocol) exposes the **live** taint signals the guardrail reads at scan time
   (`tainted: bool`, `opaque: bool`, `untrusted_urls: AbstractSet[str]`); the turn's
   `TaintLedger` already

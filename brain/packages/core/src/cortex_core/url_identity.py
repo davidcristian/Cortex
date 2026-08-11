@@ -126,7 +126,9 @@ def _fold_confusables(url: str) -> str:
     return url.translate(_CONFUSABLES)
 
 
-_LABEL_DOTS = str.maketrans({"\u3002": ".", "\uff61": ".", "\uff0e": "."})
+LABEL_SEPARATORS = ".\u3002\uff61\uff0e"
+
+_LABEL_DOTS = str.maketrans(dict.fromkeys(LABEL_SEPARATORS, "."))
 
 
 def _fold_label_dots(url: str) -> str:
@@ -134,11 +136,11 @@ def _fold_label_dots(url: str) -> str:
     return url.translate(_LABEL_DOTS)
 
 
-_SPECIAL_AUTHORITY = re.compile(rf"\A((?:{'|'.join(SPECIAL_SCHEMES)}):)[/\\]+", re.IGNORECASE)
+_SPECIAL_AUTHORITY = re.compile(rf"\A((?:{'|'.join(SPECIAL_SCHEMES)}):)[/\\]*", re.IGNORECASE)
 
 
 def _fold_special_slashes(url: str) -> str:
-    r"""Fold a special scheme's backslashes to the solidi a URL parser reads them as."""
+    r"""Fold a special scheme's authority slashes to the pair a URL parser reads them as."""
     match = _SPECIAL_AUTHORITY.match(url)
     if match is None:
         return url
