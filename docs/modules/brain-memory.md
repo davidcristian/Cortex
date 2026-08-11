@@ -82,8 +82,11 @@ unchanged by that and must stay so, since the same store serves the session-dele
 **Schema (host/infra, not the adapter).** `CREATE EXTENSION vector;` + `memories(id text pk,
 text text, embedding vector, scope text not null default 'global', tainted boolean not null
 default false, created_at timestamptz)` + a btree `memories_scope_idx` on `scope`. The `embedding`
-column is unbounded (any dimension) and unindexed (exact cosine scan, fine at personal scale); an
-ANN index (fixed dim) is a later tuning (ADR-0008). `scope` is the memory's namespace (scoping
+column is unbounded (any dimension) and unindexed (exact cosine scan, measured at 21 ms per search
+over a thousand memories and 1,478 ms over 220,000, so fine for months of use and dominant after
+years); an ANN index (fixed dim) is a later tuning, deferred on recall quality and on the
+dimension-agnostic column it would end rather than on speed (ADR-0008, and the ADR-0004 ANN-index
+addendum for the numbers). `scope` is the memory's namespace (scoping
 addendum) and `tainted` its untrusted-provenance marker (ADR-0019); each column's `DEFAULT` makes
 it an additive `ALTER TABLE … ADD COLUMN` on an existing DB, back-filling every old row (into the
 global space / as trusted, since they were only ever written by untainted turns; migration in the
