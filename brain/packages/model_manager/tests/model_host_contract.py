@@ -19,12 +19,25 @@ answers readiness yet, and a process dying without being asked to. ``ScriptedMod
 them; the supervisor's fixture flips a fake probe and exits a fake child. That is the honest
 widening of the contract, because "``start`` only begins loading" is not observable at all in an
 implementation where nothing can be mid-load.
+
+The roster is the same widening taken one step further: which ids a host carries at all is
+deployment env rather than a condition anything can arrange mid test, so ``HostUnderTest`` names
+one id outside it and each fixture arranges that its own way.
 """
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
-from cortex_core import ControlBounds, DeviceMemory, ModelHost, ModelHostState
+import pytest
+
+from cortex_core import (
+    ControlBounds,
+    DeviceMemory,
+    ModelHost,
+    ModelHostError,
+    ModelHostState,
+    ModelNotHostedError,
+)
 
 # Two ids, so the swap-shaped check can watch one go down as the other comes up. Both fixtures
 # declare exactly these.
@@ -50,6 +63,13 @@ class HostUnderTest:
     model something that cannot happen. ``boot_id`` is the same kind of fact for the same reason:
     a process cannot change which boot it is, only be replaced by another process, which is a new
     fixture rather than a setter on this one.
+
+    ``unhosted`` is a wiring fact of the third kind: an id this host does not carry. It is not a
+    knob either, and for a reason worth stating, because it is the reason the whole distinction
+    exists: a roster is the deployment's env, read once when the daemon comes up, so nothing a
+    caller does can add an id to it or take one away. The supervisor fixture supplies one by
+    leaving it out of the roster it builds; the twin is told, since a twin that starts no process
+    would otherwise serve any name it was handed.
     """
 
     host: ModelHost
@@ -59,6 +79,7 @@ class HostUnderTest:
     aclose: Callable[[], Awaitable[None]]
     bounds: ControlBounds
     boot_id: str
+    unhosted: str
 
 
 async def check_a_model_nobody_started_reports_stopped(subject: HostUnderTest) -> None:
@@ -160,6 +181,38 @@ async def check_a_swap_leaves_only_the_model_it_swapped_in(subject: HostUnderTes
     )
 
 
+async def check_an_id_this_host_does_not_carry_is_refused_by_every_verb(
+    subject: HostUnderTest,
+) -> None:
+    """An id outside the roster fails as ``ModelNotHostedError``, from all three lifecycle verbs.
+
+    All three, because the caller that acts on the difference meets whichever comes first: boot
+    recovery asks ``status`` before it asks ``stop``, and the swap back asks ``start``. An
+    implementation that refused narrowly on one verb and broadly on another would make the
+    distinction depend on where in a sequence the misconfiguration was met.
+
+    The id is in the message on purpose. A deployment names several tiers and this failure is
+    read by whoever has to correct one of them, so a refusal that did not say which id it was
+    about would send an operator to the roster with nothing to look for.
+    """
+    for verb in (subject.host.status, subject.host.start, subject.host.stop):
+        with pytest.raises(ModelNotHostedError) as excinfo:
+            await verb(subject.unhosted)
+        assert subject.unhosted in str(excinfo.value)
+
+
+async def check_an_unhosted_refusal_is_still_a_model_host_error(subject: HostUnderTest) -> None:
+    """The narrower failure is caught by every caller that only ever knew the broad one.
+
+    Not a tautology about subclassing but the compatibility promise the port makes: ``swap_in``,
+    ``restore_standing``, ``restart_evicted`` and the tier retry all catch ``ModelHostError`` and
+    must go on catching this, so adding the distinction cannot turn a handled failure into an
+    unhandled crash in a caller that never asked for it.
+    """
+    with pytest.raises(ModelHostError):
+        await subject.host.status(subject.unhosted)
+
+
 async def check_a_host_with_no_card_reports_no_device_memory(subject: HostUnderTest) -> None:
     """``None`` is an answer the port defines, not a failure: most deployments have no GPU.
 
@@ -214,6 +267,8 @@ ALL_CHECKS: tuple[Callable[[HostUnderTest], Awaitable[None]], ...] = (
     check_a_failed_model_is_restarted_without_being_stopped_first,
     check_stopping_a_model_that_already_died_settles_it,
     check_a_swap_leaves_only_the_model_it_swapped_in,
+    check_an_id_this_host_does_not_carry_is_refused_by_every_verb,
+    check_an_unhosted_refusal_is_still_a_model_host_error,
     check_a_host_with_no_card_reports_no_device_memory,
     check_a_host_with_a_card_reports_what_is_free_and_how_big_it_is,
     check_a_host_reports_the_control_bounds_it_was_wired_with,

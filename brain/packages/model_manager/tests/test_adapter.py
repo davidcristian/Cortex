@@ -31,7 +31,12 @@ Distrust-green proofs, measured across ``packages/model_manager`` one mutation a
   2, the empty-string and non-string rows of ``test_a_health_body_that_names_no_boot_is_no_answer``.
   Both matter for the same reason: the brain compares this value for equality, so an empty string
   would compare equal to the next daemon's empty string and a number rendered as a string would
-  make two daemons that both count from one indistinguishable.
+  make two daemons that both count from one indistinguishable;
+- reading **every** refusal as a tier the host does not carry reddens 3, the 503 and 500 rows of
+  ``test_only_a_404_about_a_tier_says_the_host_does_not_serve_it`` and the wrong-endpoint case.
+  That is the direction worth guarding hardest (ADR-0030 unrostered-tier addendum): a wedged
+  supervisor read as a missing tier would let boot recovery report green over a real outage, which
+  is worse than the amber-over-nothing the narrower error was added to remove.
 """
 
 import logging
@@ -40,7 +45,13 @@ from http import HTTPStatus
 import httpx
 import pytest
 
-from cortex_core import ControlBounds, DeviceMemory, ModelHostError, ModelHostState
+from cortex_core import (
+    ControlBounds,
+    DeviceMemory,
+    ModelHostError,
+    ModelHostState,
+    ModelNotHostedError,
+)
 from cortex_model_manager import HttpModelHost
 
 _ENDPOINT = "http://model-host:9300"
@@ -135,6 +146,57 @@ async def test_a_refusal_carries_its_code_and_the_sidecars_reason(code: HTTPStat
     with pytest.raises(ModelHostError, match=f"HTTP {code.value}") as excinfo:
         await _host(httpx.MockTransport(handle)).start("brain")
     assert "unknown model" in str(excinfo.value)
+
+
+@pytest.mark.parametrize(
+    ("code", "expected"),
+    [
+        # The daemon's own UnknownModelError: the id is not in a roster read once at its boot.
+        (HTTPStatus.NOT_FOUND, ModelNotHostedError),
+        # Its SupervisorError: a process that would not start or stop, which the next call may
+        # well answer differently, so nothing here may say the tier does not exist.
+        (HTTPStatus.SERVICE_UNAVAILABLE, ModelHostError),
+        # Anything else is a daemon this adapter does not recognize; guessing would be worse.
+        (HTTPStatus.INTERNAL_SERVER_ERROR, ModelHostError),
+    ],
+)
+async def test_only_a_404_about_a_tier_says_the_host_does_not_serve_it(
+    code: HTTPStatus, expected: type[ModelHostError]
+) -> None:
+    """The one refusal the port distinguishes, and the two it deliberately does not.
+
+    The shared contract suite pins that an unrostered id is refused narrowly by a real daemon;
+    what this adds is the other half, which no daemon can produce: a supervisor failure and an
+    unrecognized status must **not** read as a tier that does not exist, or boot recovery would
+    turn a genuine outage into a configuration note and report green over it.
+    """
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        del request
+        return httpx.Response(code, json={"error": "something the sidecar said"})
+
+    with pytest.raises(ModelHostError) as excinfo:
+        await _host(httpx.MockTransport(handle)).status("brain")
+    assert type(excinfo.value) is expected
+
+
+async def test_a_404_that_is_not_about_a_tier_is_a_wrong_endpoint_not_a_missing_model() -> None:
+    """``GET /health`` names no model, so a 404 there says the address is wrong.
+
+    A brain pointed at some other service by ``CORTEX_MODELHOST_ENDPOINT`` gets 404s that have
+    nothing to do with a roster, and reading one as "this host does not serve that tier" would
+    invent a fact about a daemon that was never asked.
+    """
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        del request
+        return httpx.Response(HTTPStatus.NOT_FOUND, text="not found")
+
+    host = _host(httpx.MockTransport(handle))
+    for read in (host.device_memory, host.control_bounds, host.boot_id):
+        with pytest.raises(ModelHostError) as excinfo:
+            await read()
+        assert not isinstance(excinfo.value, ModelNotHostedError)
 
 
 @pytest.mark.parametrize("payload", [b"not json at all", b"[1, 2, 3]"])

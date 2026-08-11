@@ -42,6 +42,16 @@ That last case is why it names a peer tier and hands the host a start it refuses
 obvious way, over this file's default plan, its last assertion was **vacuous**: that plan evicts
 nothing, so the mutation had no tier to mark and stayed green. Every path here that asserts on the
 record needs a plan with a peer in it, which is the shape the shipped defaults do not have.
+
+The deep tier is the one peer of none, and a host that does not carry it at all is the one failure
+of its clearing that says nothing about the card (ADR-0030 unrostered-tier addendum). Two more
+measured mutations, one per direction:
+
+- making that clearing fatal again (re-raising the ``ModelNotHostedError`` instead of logging it)
+  reddens **1**, ``..._is_a_config_fault_not_an_amber_boot``;
+- answering ``True`` where a cortex the daemon does not serve is caught reddens **1**,
+  ``..._is_amber_and_says_which_it_is``, which is the guard on the whole change: the tolerance is
+  for a tier nothing can be resident under, never for the model that has to be.
 """
 
 import logging
@@ -255,6 +265,70 @@ async def test_a_peer_the_daemon_does_not_serve_at_all_is_no_verdict_either(
     assert [record.message for record in caplog.records] == [
         "a tier the standing residency includes could not be cleared at boot",
         "a tier evicted for the handoff could not be restarted",
+    ]
+
+
+async def test_a_deep_tier_the_daemon_does_not_serve_is_a_config_fault_not_an_amber_boot(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The whole of this fix: escalation declared with no artifact behind it is not an outage.
+
+    ``CORTEX_ESCALATION`` on and ``CORTEX_MODEL_FILE_BRAIN`` naming nothing leaves the deep tier
+    out of the daemon's roster, so its every verb answers 404 for the life of that container.
+    Nothing holds the card under a name nothing can start, so the cortex answers for itself and
+    the deployment is told once what it has actually configured.
+    """
+    host = ScriptedModelHost(running=["cortex"], unhosted=["brain"])
+    with caplog.at_level(logging.WARNING, logger="cortex_core.swap_recovery"):
+        settled = await _recover(RecordingHandoffStore(), host)
+    assert settled is True
+    assert host.running == {"cortex"}
+    # Said once, at ERROR, naming both knobs that produce the state and the one it does not touch.
+    assert [(record.levelno, record.getMessage()) for record in caplog.records] == [
+        (
+            logging.ERROR,
+            "escalation is enabled but the model host does not serve 'brain', so no handoff can "
+            "ever run: name an artifact for that tier (CORTEX_MODEL_FILE_BRAIN) or turn "
+            "escalation off (CORTEX_ESCALATION); the cortex is unaffected: unknown model 'brain'; "
+            "this twin was told it does not host it",
+        )
+    ]
+
+
+async def test_a_deep_model_that_really_will_not_stop_still_fails_the_boot(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The failure the fix must not introduce: a real outage reading as a configuration choice.
+
+    A deep model that is resident and whose ``stop`` fails is the case the whole asymmetry exists
+    for, because the card may still be holding it, and it stays amber without the cortex being
+    asked about at all.
+    """
+    host = ScriptedModelHost(running=["brain", "cortex"], fail={("stop", "brain"): "wedged"})
+    with caplog.at_level(logging.ERROR, logger="cortex_core.swap_recovery"):
+        settled = await _recover(RecordingHandoffStore(), host)
+    assert settled is False
+    assert ("status", "cortex") not in host.calls
+    assert [record.message for record in caplog.records] == [
+        "the model host was unreachable during boot recovery"
+    ]
+
+
+async def test_a_cortex_the_daemon_does_not_serve_is_amber_and_says_which_it_is(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The same distinction pointing the other way, which must not turn green.
+
+    A daemon whose roster lacks the cortex is a misconfiguration too, and it is the one where
+    nothing is serving turns: the verdict is the amber every unconfirmed cortex gets, and only the
+    log separates it from a host that could not be reached.
+    """
+    host = ScriptedModelHost(unhosted=["cortex"])
+    with caplog.at_level(logging.ERROR, logger="cortex_core.swap_recovery"):
+        settled = await _recover(RecordingHandoffStore(), host)
+    assert settled is False
+    assert [record.message for record in caplog.records] == [
+        "the model host does not serve the cortex this brain names, so nothing can"
     ]
 
 

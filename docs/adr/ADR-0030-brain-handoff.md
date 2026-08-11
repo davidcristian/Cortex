@@ -2602,7 +2602,10 @@ above are corrected to quote what ships rather than what shipped.
   up, and it is deferred rather than fixed because the deep model is not a peer: it is the tier
   whose presence contradicts the residency the cortex needs, and treating a failure to clear it as
   cosmetic would let a boot report green over a card that is still holding it. Recorded with its
-  trigger in `docs/refinements/resource-governance.md`.
+  trigger in `docs/refinements/resource-governance.md`. **Closed on 2026-08-11 by the
+  unrostered-tier addendum below**, which gave the port the narrower failure this paragraph says it
+  lacks, kept both other shapes amber, and found on the way that the same flat error was costing a
+  misconfigured deployment its cortex at the first escalation rather than only a dot at boot.
 - **It does not give boot recovery a sweep.** A peer that is rostered, accepted its start and then
   died is invisible here exactly as it is to the swap back, and an unreachable boot marks nothing
   at all, so nothing retries those tiers until the next handoff. Both are the entry already open
@@ -2669,3 +2672,195 @@ and both now name the measurement and the direction. The model-swap runbook gain
 guidance an operator needs at the knob. No default moves, so there is no new relationship for a
 test to pin: the two values were never coupled, and coupling them in code would assert the
 comparison this addendum is retiring.
+
+## Unrostered-tier addendum (2026-08-11): a tier the host never had is not a host that failed
+
+The deferral the boot-verdict addendum above opened in its own "deliberately does not do" list,
+**the deep model's clearing still deciding the cortex's verdict at boot**, closes here, ahead of
+its trigger. The entry asked for one thing, a narrower failure on the `ModelHost` port, and said
+plainly why it had been recorded rather than fixed: `ModelHostError` covered both "this host has
+no such tier" and "this host is not answering", and guessing between them from a message string
+would be worse than the lie it was meant to remove.
+
+### What the entry got right, and the failure it did not know it was describing
+
+Re-derived from the tree before anything was designed, and its account held to the line.
+`ports_models.py` declared the port with one error type behind all six verbs; `errors.py` had the
+flat `ModelHostError`; `swap_recovery.py` put `plan.brain_model`'s `status` and `stop` inside the
+same `try` that decided whether the cortex was observed serving. Its claim about the sidecar held
+too, and is what made this a small change: `ModelSupervisor` has always distinguished the case
+(`UnknownModelError`, raised by the one `_spec` lookup every verb shares) and the control API has
+always answered it as a 404 rather than a 503. The information existed at the wire and the adapter
+threw it away, so this is a port change plus an adapter that stops discarding, not a new mechanism.
+
+Reproduced before it was fixed, against a real `ModelSupervisor` behind a real Starlette app with
+the real `HttpModelHost` driving it over HTTP: with the deep tier absent from the roster, which is
+exactly what `CORTEX_ESCALATION=1` and an unset `CORTEX_MODEL_FILE_BRAIN` produce, boot recovery
+answered `settled=False` while `GET /models/cortex` on the same daemon read `ready`.
+
+**What the entry did not know is that the amber dot was the cheap half.** Driven one step further,
+through a real `swap_scope` against that same daemon, the shipped code did this: the swap in
+stopped the cortex, the `start` of the unrostered deep tier came back 404, and then the swap back's
+own `stop` of the model it had swapped in met the **same** 404, failed the restore, failed the
+retry, and raised `ResidencyRestoreError`. The cortex was left `stopped`, the seam reported `the
+usual assistant could not be reloaded after a deep task; recovery is manual`, and the deployment's
+recovery was a runbook. So a misconfiguration that could only ever have meant "escalation is not
+available here" took the assistant down permanently at the first attempt to use it. That is the
+same conflation as the boot verdict, one call further along, and it is fixed by the same
+distinction.
+
+### The port change, and what it is called
+
+`ModelNotHostedError(ModelHostError)`. One new type, on the port, meaning the host carries no such
+logical id at all.
+
+**A subclass rather than a sibling**, so every existing `except ModelHostError` catches it
+unchanged: `swap_in`, `restore_standing`, `restart_evicted`, the tier retry and the two host-wide
+reads in `BootWatch` all keep behaving exactly as they did, and only a caller that can act on the
+difference names the narrower type. Adding a distinction must not be able to turn a handled
+failure into an unhandled crash somewhere nobody looked.
+
+**The name is picked against two collisions.** `UnknownModelError` is the supervisor's own class
+for the same condition on the daemon's side of the wire, and a reader should never have to ask
+which side a name is on; `UnrosteredModelError` would borrow "roster", which in the core already
+belongs to the subagent roster (`roster.py`) and means a different thing entirely. `ModelNotHosted`
+says whose relationship to the id is at issue (the host's) and stays inside the `Model*Error`
+family beside `ModelUnavailableError`, which is the neighbouring distinction: that one is the
+manager saying a model is not **resident** right now, this one is the host saying it was never
+**hostable** here.
+
+**Only the sidecar's own distinction is carried.** The adapter raises it for a 404 on a per-model
+route and for nothing else: a 503 is `SupervisorError`, a process that would not start or stop,
+which the next call may well answer differently, and a 404 on `GET /health` names no model at all,
+so it means the endpoint is wrong rather than the roster short. A rule that read every refusal as a
+missing tier would turn a genuine outage into a configuration note, which is the failure this
+change exists to avoid and the direction that would be worst to get wrong.
+
+### The verdict rule, unchanged in what it means and wider in what it survives
+
+`converge_residency` still answers about the cortex and about nothing else. What changes is that
+one shape of deep-tier failure no longer prevents it from asking:
+
+| What happened | `ready` | What the operator is told |
+| --- | --- | --- |
+| The sidecar could not be reached at all | `false` | the usual assistant did not come up at startup |
+| The sidecar answered and the cortex would not gate | `false` | the same line |
+| The deep tier is resident and its `stop` failed | `false` | the same line, and the card may still be holding it |
+| The daemon's roster has no cortex | `false` | the same line, with its own log sentence |
+| The daemon's roster has no deep tier | `true` | one `ERROR` naming both knobs, and a serving dot |
+
+The last row is the fix and the row above it is the guard on it. A cortex the daemon does not serve
+is the same distinction pointing the other way, and it stays amber, because it is the one case
+where nothing is serving turns: it is separated from an unreachable host in the log alone (`the
+model host does not serve the cortex this brain names, so nothing can`), since the two share an
+operator's next move, which is to read the daemon's roster.
+
+**What a caller learns about the missing escalation is a log line, and deliberately only that.**
+`escalation is enabled but the model host does not serve 'brain', so no handoff can ever run: name
+an artifact for that tier (CORTEX_MODEL_FILE_BRAIN) or turn escalation off (CORTEX_ESCALATION)`.
+It is logged at `ERROR` because the deployment is misconfigured and nothing else will say so, and
+it is logged once per boot rather than published, for the reason the boot-verdict addendum gave
+about widening the health surface: the report carries one detail line, that line already belongs to
+the peer record, and a second sentence competing for it would describe a configuration file on a
+readiness dot. The residue that leaves is recorded below.
+
+### What the swap does differently
+
+**The swap in says which repair is needed.** A `ModelNotHostedError` still fails the handoff, since
+an escalation that cannot happen must not appear to happen, but it now raises `the model host does
+not serve 'brain' at all, so this deployment cannot escalate until that tier is in its roster`
+instead of `the model host failed while swapping in 'brain'`. The distinction is what the user's
+note is worth: one invites a retry that will succeed later, the other will fail identically for as
+long as that daemon runs.
+
+**The swap back stops nothing under a name the host does not have.** `restore_standing` tolerates
+exactly that one failure from its stop of the model it swapped in, and nothing else, so the retry
+still exists for the case it was written for, a resident model that will not die. This is the half
+that turns a dead assistant back into a refused handoff, and it is why the fix reaches
+`residency_moves.py` at all.
+
+**Boot recovery clears the deep tier best effort in that one shape only.** `_clear_deep` swallows
+`ModelNotHostedError` and propagates everything else, so a deep model that is resident and will not
+stop still answers `False` without the cortex being asked about, which is the asymmetry the
+boot-verdict addendum argued for and which nothing here weakens: there is no card to distrust when
+the name was never on it.
+
+### The second site the flat error hid, and where it went
+
+The same 404 reaches `residency_tiers.retry_missing` for a **peer** tier, and there it is not
+closed here. A peer named in `CORTEX_SWAP_EVICT_MODELS` with no artifact is marked missing at boot,
+which is right (the tier really is not there, and GPU placement really should close), and then
+retried every `CORTEX_SWAP_TIER_HEAL_S` for ever, which is two control calls a pass against a
+roster that cannot grow. Nothing is harmed by it and the operator is told each time, so what is
+open is a policy question rather than a defect: whether a tier that can never come back should stop
+being asked about, and if so whether the placer stays closed on it. That belongs with the open
+sweep entry, which already owns what the retry pass looks at, and it is named there as a further
+shape rather than filed as a new entry.
+
+### Proven able to fail before being trusted
+
+Seven mutations, each applied to production code alone with the whole brain workspace re-run, then
+reverted. The counts are measured rather than aimed at.
+
+| Mutation | Reddens |
+| --- | --- |
+| the adapter collapsing a tier's 404 into the broad error (the code as it was) | 2 |
+| the adapter reading **every** refusal as a tier the host does not carry | 3 |
+| the twin serving every id it is handed | 5 |
+| the deep tier's clearing deciding the verdict again (the code as it was) | 1 |
+| an unhosted cortex reporting green | 1 |
+| the swap back stopping the swapped-in model with no tolerance (the code as it was) | 1 |
+| the swap in describing an unrostered tier as a host that failed (the code as it was) | 1 |
+
+Three of them are worth reading rather than counting. The first reddens the **supervisor** leg of
+`check_an_id_this_host_does_not_carry_is_refused_by_every_verb` and no scripted one, which is what
+driving the contract over both implementations is for: the twin is told what it does not host,
+while the real leg has to derive the same answer from a roster and an HTTP status. The third is the
+mirror of it, reddening both scripted legs plus the three core cases that arrange the condition,
+and it is the reason a fake that could not refuse would have made this whole slice untestable over
+the twin. The second is the guard on the direction that matters most, since it is the one mistake
+that would be worse than the defect: read every refusal as a missing tier and a wedged supervisor
+becomes a configuration note, so the 503 and 500 rows and the wrong-endpoint case all redden.
+
+### Validated against the real supervisor over HTTP, since the claim that moved the design is not a CI claim
+
+Run 2026-08-11 through `httpx.ASGITransport` onto a real Starlette app over a real
+`ModelSupervisor`, with the real `HttpModelHost` on the brain side: the adapter's encoding, the
+API's routing and refusals and the supervisor's roster lookup are all the shipped code, and only
+the OS spawn and the health socket are faked, exactly as the shared contract suite drives them. The
+container was not needed for this: nothing here is about a model, a GGUF or a card, and every claim
+is control plane.
+
+- **The amber boot, before.** Roster `cortex` only, deep tier `brain`:
+  `settled=False`, `GET /models/cortex -> 200 ready`, `GET /models/brain -> 404 unknown model
+  'brain'; this host serves cortex`.
+- **The same daemon, after.** `settled=True` with the cortex still `ready`, and the one `ERROR`
+  line naming both knobs.
+- **The amber direction, still amber.** A deep tier that is rostered, resident, and whose child
+  survives SIGKILL answers `settled=False`, as does an endpoint with no daemon behind it at all.
+  Neither reads as a configuration choice.
+- **The escalation attempt, before.** `ResidencyRestoreError: could not restore 'cortex' after 2
+  attempts`, with `GET /models/cortex -> 200 stopped` and the report reading `the usual assistant
+  could not be reloaded after a deep task; recovery is manual`.
+- **The escalation attempt, after.** `SwapFailedError: the model host does not serve 'brain' at
+  all, so this deployment cannot escalate until that tier is in its roster`, with
+  `GET /models/cortex -> 200 ready` and a serving report.
+
+### What this deliberately does not do
+
+- **It does not change the seam.** No proto field, no new `Health` vocabulary, nothing crossing
+  body to brain: the distinction is between two failures of one control call inside the brain, and
+  every surface it reaches (the boot verdict, the swap's note, the log) already existed. A seam
+  change would be the maintainer's to weigh, and this did not need one.
+- **It does not remember that escalation is impossible.** Boot recovery learns it and logs it, and
+  then every escalation the user asks for still drains the pool, evicts the cortex, meets the 404,
+  and reloads the cortex, which at tier scale is minutes of the assistant being gone for a handoff
+  that was never going to run. Refusing at the conductor, before the drain, and telling the user
+  why is the fix; it needs somewhere for the fact to live and a decision about what the seam says,
+  which is why it is a recorded refinement with its trigger rather than a line here.
+- **It does not stop retrying a peer that can never come back**, argued above and recorded on the
+  entry that owns the retry pass.
+- **It does not make the port's other failures finer.** The remaining shapes behind
+  `ModelHostError` are a transport failure, a refusal, an undecodable body and an unknown state
+  word, and all four mean the same thing to every caller: the host did not answer the question. The
+  one distinction worth having is the one the daemon itself already draws.
