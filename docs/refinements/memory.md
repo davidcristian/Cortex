@@ -464,3 +464,29 @@ Deferred refinements from the Slice 5 memory work under [ADR-0008](../adr/ADR-00
   condition wired as a test. **Reopens** behind an embedder whose populations separate, or on a
   signal that is not an absolute cosine; the already-filed **cross-encoder** rank is the candidate,
   since it reads the pair rather than measuring the distance. Nothing opened in its place.
+
+- **A dead embedder or a dead memory store kills the turn rather than costing it its memory,
+  opened 2026-08-11 by the `Embedder` contract list
+  ([ADR-0008](../adr/ADR-0008-memory-v1.md)).** *Fix when it bites.* The port documents one
+  failure channel, `EmbedderError`, and the pgvector adapter documents `MemoryStoreError` beside
+  it, and writing the shared checks turned up the fact that **nothing in the brain catches
+  either**. `recall_memory_context` (`turn_context.py`) awaits `caps.memory.recall(...)` bare,
+  `MemoryRecaller.recall` awaits `embed` bare, and the engine's only handler is for
+  `InferenceError`, so an embedding server that is down or a Postgres that is unreachable does not
+  cost a turn its recalled notes, it fails the turn. That is the opposite bias from every other
+  optional capability here: a dead tool sidecar is served around and reported
+  (`SkipUnavailableToolRegistry`), a body that will not answer becomes a recoverable tool result,
+  a subagent that cannot be admitted degrades to an `ok=False` result. Memory is the one that
+  takes the whole turn down with it, and it is the capability a turn most obviously has an answer
+  without.
+  **What it is not is a hole in the checks.** The shared list holds both implementations to
+  raising `EmbedderError` rather than their own backend's exception, which is what makes a single
+  catch possible at all; what is missing is the catch. The fix is a decision rather than a line:
+  where it belongs (`recall_memory_context`, which already answers `None` for memory being
+  switched off, so a failure reading as "no memories this turn" needs no new shape), whether the
+  user is told (a turn that silently forgets is its own kind of wrong, and the degraded-mode
+  precedent reports rather than hides), and whether a write failing is the same call as a read
+  failing (`remember` losing an exchange is a durability question, not a context one).
+  **Trigger:** the first live turn taken against a stopped embedding server or a stopped Postgres,
+  which the memory runbook's own teardown step makes easy to hit by accident, or the degraded-mode
+  question being answered for any other optional capability.
