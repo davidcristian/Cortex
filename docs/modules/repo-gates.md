@@ -11,8 +11,10 @@ belongs to neither the brain nor the body and is gated exactly like both. A stan
 **Public contract** (all are CLIs, with `linecap.py`, `dashcheck.py`, `crosscheck.py`,
 `bindcheck.py` and `coverage_gate.py` invoked by `just` recipes, `ci_paths.py` by the CI
 workflow, `commitlint.py` by the commit-msg pre-commit stage, `contrast.py` by `just turn-cost`;
-each also exposes a pure, unit-tested core function). `composemounts.py` is the one module that is
-not a CLI: it is `bindcheck.py`'s compose reader, split out under the line cap.
+each also exposes a pure, unit-tested core function). Four modules here have no CLI of their own,
+each split out under the line cap and each named for what it holds: `couplings.py` and
+`overlaycouplings.py` are the two halves of `crosscheck.py`'s registry, `values.py` is the value
+forms that scan compares on, and `composemounts.py` is `bindcheck.py`'s compose reader.
 
 - `linecap.py [--root DIR] [--max-lines N]` implements AGENTS.md gate 1. Scans
   `*.py`/`*.rs`/`*.ts`/`*.tsx` under `--root` (default `.`), all three gated toolchains
@@ -45,9 +47,16 @@ not a CLI: it is `bindcheck.py`'s compose reader, split out under the line cap.
 - `crosscheck.py [--root DIR]` ties the values this repo spells in more than one place, because
   both sides of a seam must hold the same one and neither toolchain can import the other's
   (ADR-0029 cross-language-constant addendum and its 2026-08-08 widening). The scan is all of the
-  logic; `couplings.py` is all of the data and holds `CONSTANTS`, one entry per value: a label,
-  the reason its places must agree (printed with any failure), its `Site`s, an optional
-  `relation`, and optional `mentions`.
+  logic; `couplings.py` and `overlaycouplings.py` are all of the data, one entry per value: a
+  label, the reason its places must agree (printed with any failure), its `Site`s, an optional
+  `relation`, and optional `mentions`. The registry is written in two files and read as one,
+  `crosscheck.CONSTANTS` being `SEAM_COUPLINGS` followed by `OVERLAY_COUPLINGS`: the first file
+  holds the vocabulary every entry is written in plus the couplings that tie the body to the brain,
+  the second the ones that tie the overlay's TypeScript to its own stylesheet, which is where the
+  entries were already accumulating when the one file outgrew the cap. Nothing in the scan depends
+  on which half an entry sits in. `values.py` is the third piece and the one neither of the others
+  is: it reduces a right-hand side to a comparable value and says whether a constant's readings
+  hold together, so the scan finds declarations and that module judges them.
   **A `Site` declares the value** (a repo-relative path plus the identifier declared in it) and is
   read and compared. **A `Mention` spends it without declaring it** (a path plus a template
   carrying `{value}`): the scan renders the agreed value into the template and requires the result
@@ -76,13 +85,21 @@ not a CLI: it is `bindcheck.py`'s compose reader, split out under the line cap.
   **`Relation`** is `EQUAL` by default; `ORDERED` holds an entry's sites to non-decreasing order
   in registry order, for a bound that must sit under another rather than match it. An ordering
   compares numbers only (a string under one is a fault), and it may carry no mentions, there being
-  no single value to spell.
+  no single value to spell. `MEMBER` is the third and it reads registry order too: every site but
+  the last must declare a value the last site's collection carries, which is the shape of a value
+  one tree produces and another accepts a set of (the body's `CAPTURE_MIME` inside the brain's
+  `ALLOWED_MIME_TYPES`, where the two are neither equal nor one under the other). The last site
+  declaring a lone value rather than a collection is a fault, since `in` over two strings would
+  quietly answer about substrings; like an ordering, it may carry no mentions.
   **No master:** the sites are compared with each other, not against a declared value, so
   editing either side alone fails and a deliberate change is a change to all of them.
   `proto/body.proto` is not the source: protobuf has no constant, so a value could only sit
   there as a comment, which is one more uncoupled copy. Values are compared after reduction,
-  so `6291456` and `6 * 1024 * 1024` tie; the two forms that reduce are a product of integer
-  literals and a plain double-quoted string, and `DECLARATIONS` holds one declaration syntax
+  so `6291456` and `6 * 1024 * 1024` tie; the three forms that reduce are a product of integer
+  literals, a plain double-quoted string, and a one-line `frozenset` of those strings, which is
+  how this repo spells an allow-list and is what a membership is decided against (a set literal
+  is mutable and a multi-line spelling never reaches the reducer, a declaration being captured one
+  line at a time). `DECLARATIONS` holds one declaration syntax
   per language (`.py`, `.rs`, `.ts`), matching module-level and item-level constants only: the
   Python and TypeScript forms are anchored at column 0, so an indented `const` is a local and not
   a second declaration of the module's constant. A mention needs no declaration syntax, so its
@@ -223,7 +240,7 @@ not a CLI: it is `bindcheck.py`'s compose reader, split out under the line cap.
   whose places are all one language, is refused by that suite too. It used to refuse an entry
   confined to one top-level tree; the overlay and its stylesheet are one tree and two languages,
   so suffix replaced tree when mentions landed. Two more invariants guard the widening itself: the
-  registry must exercise both `Relation` members and both kinds of place, since a comparator no
+  registry must exercise every `Relation` member and both kinds of place, since a comparator no
   entry uses is a gate that cannot fail. `test_the_registry_pins_at_least_one_occurrence_count`
   holds the newest field to the same rule, a field no entry sets being a dead wire.
 - `bindcheck.py` does the same (`test_the_repo_itself_is_clean`), with a guard on the guard:
