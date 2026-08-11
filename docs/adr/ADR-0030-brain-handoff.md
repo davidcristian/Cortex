@@ -2427,7 +2427,9 @@ the real `HttpModelHost` driving `_restart_evicted` and `retry_missing` over rea
   trigger rather than built, because a sweep that may `start` a tier is a much stronger thing to
   hold correct against a handoff in flight than one that only retries a known failure. Gating the
   peers inside the swap back instead is the wrong end: it would spend the load bound per tier
-  inside the turn the user is waiting on.
+  inside the turn the user is waiting on. **Closed 2026-08-11 by the tier-sweep addendum below**,
+  which built that sweep and answered the risk this paragraph names with a fence rather than with
+  a hope; it also found the family to be four shapes rather than the three named here.
 - **It does not tell tiers apart at the placer.** One bit for the card, argued above; a deployment
   that evicts a tier the subagent pool never places on gets a conservative CPU fallback it did not
   need. Deferred with its trigger.
@@ -2859,8 +2861,238 @@ is control plane.
   why is the fix; it needs somewhere for the fact to live and a decision about what the seam says,
   which is why it is a recorded refinement with its trigger rather than a line here.
 - **It does not stop retrying a peer that can never come back**, argued above and recorded on the
-  entry that owns the retry pass.
+  entry that owns the retry pass. **Closed 2026-08-11 by the tier-sweep addendum below**, which
+  gives the record a `TierFault` per tier so an unhosted one is written once and skipped for ever,
+  and which also corrects the cost stated above: a pass asks `status` first and that is the call
+  that 404s, so it was one control call a pass and never two.
 - **It does not make the port's other failures finer.** The remaining shapes behind
   `ModelHostError` are a transport failure, a refusal, an undecodable body and an unknown state
   word, and all four mean the same thing to every caller: the host did not answer the question. The
   one distinction worth having is the one the daemon itself already draws.
+
+## Tier-sweep addendum (2026-08-11): a pass asks about every peer, not only the ones it doubts
+
+The deferral opened by the tier-outage addendum above, **the retry only asks about tiers it already
+believes are missing**, closes here. That addendum listed the hole in its own "what this
+deliberately does not do", the unrostered-tier addendum added a fifth shape from the opposite
+direction, and this is the one pass that answers both: the record is no longer written by refusals
+alone, it is **re-derived from the machine** every interval, and the one answer no retry can change
+stops being asked about.
+
+### The five shapes, re-derived before anything was designed
+
+The entry named four shapes and a fifth was added to it hours before this pass. All five were run
+against a real `ModelSupervisor` behind a real Starlette app over `httpx.ASGITransport`, with the
+real `HttpModelHost`, the real `SwappingModelManager` and the real `VramBudgetPlacer`, so what is
+below is what the shipped code did rather than what the entry claimed it did. Only the OS spawn and
+the health socket are faked, exactly as the shared contract suite drives them.
+
+| Shape | What the record held | Where a spawn landed |
+| --- | --- | --- |
+| a peer that accepted its start and then died | empty | **GPU**, at a `failed` tier |
+| a peer that died quietly between handoffs | empty | **GPU**, at a `failed` tier |
+| a peer nothing ever started | empty | **GPU**, at a `stopped` tier |
+| a boot that could not reach the host | empty | **GPU**, at a `stopped` tier |
+| a peer the roster never had | the tier, correctly | CPU, correctly |
+
+Four of the five escape, and the fifth does not. That is the correction the entry needed and it
+changes what this pass is for: the sweep is not a fix for all five, it is a fix for four plus a
+retirement of a retry that was asking a question with a permanent answer.
+
+Two further findings the entry could not have known.
+
+**The third shape is reachable with escalation on**, which the entry left vague by writing "a peer
+a deployment never started at all". Boot recovery does start every `evict_models` peer, so the
+condition is not a deployment that forgot: it is a convergence that **returned before the restart
+loop**. `converge_residency` runs its restart after the `try`, so a deep model that is resident and
+survives SIGKILL, or a cortex that cannot be settled, answers `False` and leaves every peer both
+unstarted and unrecorded. The run above produced exactly that from a child wired to ignore both
+signals: `503 ... survived SIGKILL`, `settled=False`, the tier `stopped`, the record empty, and the
+next spawn on the GPU. The fourth shape is the same site reached by a different failure, which is
+why one change closes both.
+
+**The fifth shape costs one control call a pass, not two.** The unrostered-tier addendum wrote
+"two control calls a pass against a roster that cannot grow"; the pass asks `status` first and that
+call is the one that 404s, so `start` is never reached. Three passes produced three refusals, not
+six. The noise is half what was recorded, and the reason to retire it is unchanged.
+
+### The decision
+
+**One pass over `plan.evict_models`, not over the record.** `sweep_tiers`
+(`residency_sweep.py`) asks `status` for every tier a handoff may evict, whatever the record
+believes about it, and writes what it sees. The record stops being a list of refusals and becomes a
+**cache of the machine, refreshed every interval**, which is the property that closes four shapes
+at once: none of them has a refusal to be written by, and all four are visible to a `status`.
+
+**A per-tier reason, because the two faults want opposite treatment.** `StandingTiers` now holds
+`dict[str, TierFault]` rather than a set, with two words:
+
+- `TierFault.MISSING`: the tier is not serving and asking again may change that. It is retried.
+- `TierFault.UNHOSTED`: the host's roster has no such id, which is the `ModelNotHostedError` the
+  port learned to tell apart. It is **not** retried, because the answer cannot change while that
+  daemon runs.
+
+Both close GPU placement, because both mean there is no server to place on; only one is asked
+about again. `missing` still names every faulted tier, so the placer's one bit and the seam's one
+sentence are untouched.
+
+**The clearing path for an unhosted tier is a new daemon, and the brain already notices one.**
+`BootWatch.reconcile` compares `boot_id` per handoff and runs `converge_residency` when it changes,
+which asks every peer to start again through `restart_evicted`. So a roster that grew because the
+operator fixed the env and the sidecar restarted is picked up at the next handoff, and a roster
+that did not is never asked twice. Nothing new was built for it: the retirement is safe precisely
+because the one event that can change the answer already rebuilds the record.
+
+### What the sweep is allowed to do, and what stops it racing a handoff
+
+This is the question the entry deferred on, so it is answered in full rather than asserted.
+
+**It observes always and starts conditionally.** `status` is a read: it cannot change what the card
+holds, so it is unfenced beyond the pass guard. A `start` is a write, and it happens only after the
+record has already been closed against that tier, so the placer is protected by the observation
+whether or not the start ever happens.
+
+**The fence is wider than it was, and it is read synchronously immediately before the start.** The
+old guard was one flag, `board.scope_active`, read once at the top of a pass. It is now the
+disjunction of that flag and `HandoffClaim.claimed`, and it is read again, with **nothing awaited
+between the read and the call**, before every `start`. Both halves matter:
+
+- The claim is taken by the conductor *before* it drains anything and held through the drain and
+  the whole scope, so it fences the sweep out from the first moment a handoff exists rather than
+  from the moment the GPU changes hands. The drain alone is up to
+  `CORTEX_SWAP_DRAIN_TIMEOUT_S` (60 s) of warning the old guard did not have.
+- The scope flag stays as the backstop under it, because a swap that reaches `swap_scope` without
+  claiming is still a swap, exactly as `ResidencyBoard.enter_scope` is the backstop under the
+  claim.
+- Reading synchronously is what makes the fence a fence rather than a hint. `scope_active` and
+  `claimed` are plain attribute reads and `await host.start(...)` does not suspend before the
+  request is built, so no other coroutine runs between the two: a handoff cannot **begin** in that
+  gap. What remains is a handoff that began before the read and had not yet set either flag, which
+  is not possible, or a start already in flight when a handoff begins, which is the next paragraph.
+
+**A start already in flight when a handoff begins is safe, and the supervisor is why.** The swap
+in's first move is to stop every `evict_models` tier, and `ModelSupervisor` holds one lock per
+logical model and does not answer a `stop` until the child is reaped. So a start that reached the
+daemon first is undone by the stop that follows it, and a start that has not reached it yet queues
+behind that stop on the same lock. The ordering that would hurt, a spawn landing after the deep
+model's fit check, requires the sweep's in-flight request to outlive the claim, the whole drain,
+the lease wait, a `boot_id` round trip and a full cortex stop on the same loopback client. It is
+not closed by construction and it is not claimed to be; what it costs if it ever happens is a
+handoff refused by its own fit check or a peer running beside the deep model until
+`restart_evicted` finds it already up, neither of which loses state or corrupts the record.
+
+**"Only a refusal marks" is replaced by "only an observation taken outside a handoff marks", and
+the distinction it protected is stronger for it.** Down versus evicted was kept by never writing
+the record except where a `start` raised. It is now kept by the fence: a pass does not run at all
+while a handoff owns the GPU, and by the time a scope ends `restart_evicted` has already asked
+every peer to come back, so the first pass after a handoff sees `loading` or `ready` and never the
+eviction. `note_on` still annotates a **serving** report only, so the four swap windows keep their
+own words as they always did. A co-resident handoff never stops a peer at all, and the pass stands
+down through it anyway, which is conservative in the one direction that costs nothing.
+
+### Where it runs, how often, and what it costs
+
+In `TierHealer`, the loop that already exists, every `CORTEX_SWAP_TIER_HEAL_S` (30 s). Not per
+turn, which would put control calls on the path a user is waiting on for a fact that changes on the
+timescale of a process dying; not at boot only, which is the timescale that misses four of the five
+shapes; and not inside the swap back, which would spend the load bound per tier inside the turn.
+
+The cost changed and the honest statement of it changed with it. A pass used to ask nothing when
+the record was empty, which is the common case; it now asks one `status` per `evict_models` tier
+per interval, unconditionally. In the shipped defaults that is still nothing, `CORTEX_SWAP_EVICT_MODELS`
+being empty, and in the deployment this exists for it is two loopback calls a minute for one tier.
+A tier already known unhosted is skipped, so the deployment with a typo pays less than it does
+today rather than more.
+
+### What the placer does with it, unchanged on purpose
+
+Nothing about the placer moved. Any faulted tier closes GPU placement through `close_gpu()`, an
+emptied record reopens it through `open_gpu()`, and it is still one bit for the whole card with the
+per-tier detail kept for the operator and the retry. What changed is only **when** the bit is
+written: a tier that died without anyone asking it to restart now closes it, which is the whole
+harm the parent entry was opened for.
+
+### The record's shape, and where it lives
+
+**It grew a reason and nothing else.** No timestamp, no last-seen, no attempt count. A timestamp
+would exist to pace a retry or to report an age; the pass interval already paces the retry, and the
+seam names the tier rather than how long it has been down, so a clock in a pure record would be a
+dependency no decision reads. If an operator ever needs the age, the log line at the transition is
+where it already is.
+
+**It stays in the process, and the sweep is what makes that obviously right.** The one hard rule is
+about state that cannot be re-derived: conversation, task, working memory. This is live-resource
+state, the same kind as `VramBudgetPlacer`'s ledger, and it is now re-derived from `status` every
+interval by construction. Putting it in Redis would buy nothing a fresh process does not already
+get within one pass, and it would cost the two things a store always costs here: a second writer
+with no fencing, and a stale record that outlives the machine it described. A restart rebuilds it
+from the machine, which is exactly what the hard rule asks of state that is about the machine.
+
+**A second swapper cannot corrupt it, and the sweep is why.** Today's record can only be cleared by
+something that already believes a tier is missing, so a mark written under a foreign process's swap
+would stand until this process happened to escalate. A swept record is a cache: the worst a foreign
+handoff can do is make one pass read a deliberately stopped tier as missing, which costs one
+interval of CPU placement and is corrected by the next pass. That is the property that makes this
+safe to keep in the process while the cross-process handoff fence is still a recorded refinement.
+
+### Proven able to fail before being trusted
+
+Eight mutations, each applied to production code alone with the whole brain workspace re-run, then
+reverted. The counts are measured rather than aimed at, and they sit in `test_residency_tiers.py`'s
+header beside the ones the tier-outage addendum measured.
+
+| Mutation | Reddens |
+| --- | --- |
+| sweeping only the tiers already believed missing (the code as it was) | 10 |
+| letting a host that could not be asked mark the tier anyway | 1 |
+| going on retrying a tier the roster never had (the code as it was) | 1 |
+| reading an unrostered restart as an ordinary refusal (the code as it was) | 1 |
+| marking only when the pass may also start | 1 |
+| dropping the mark the reading earned | 6 |
+| dropping the claim half of the fence (the code as it was) | 1 |
+| dropping the scope half of the fence | 1 |
+
+The second is the one worth reading rather than counting, because it is the direction that would
+be worse than the defect: a pass that read a transport failure as a tier being down would close
+GPU placement for the whole pool on one blip, over a stack where every tier is in fact serving.
+The last two are the argument for the fence being a disjunction rather than either flag, each
+half reddening a case the other cannot: the scope covers a swap that never claimed, and the claim
+covers the drain, where the scope flag says nothing at all.
+
+### Validated against the real supervisor over HTTP, before and after
+
+The same harness that produced the table at the top was re-run against the swept code. Per shape,
+the placer's answer for one 2.0 GiB spawn with 3.0 GiB of headroom:
+
+- **a peer that accepted its start and then died**: GPU before, CPU after, the record naming the
+  tier and `Health` reading `the model host is not running subagent-gpu, so delegated work is
+  running on the CPU`;
+- **a peer that died quietly between handoffs**: GPU before, CPU after;
+- **a peer nothing ever started, after a boot that returned early**: GPU before, CPU after;
+- **a boot that could not reach the host, with the sidecar up a minute later**: GPU before, CPU
+  after, and the tier started by that same pass;
+- **a peer the roster never had**: CPU before and CPU after, with the difference in what the log
+  says: three passes produced three refusals before and one line naming the two knobs after, with
+  no control call at all on the passes that follow.
+
+### What this deliberately does not do
+
+- **It does not gate readiness inside a pass.** A tier that is `loading` is left alone and observed
+  by a later pass, exactly as before, so a tier that takes minutes to load costs the loop nothing
+  and reopens the GPU the moment a pass sees it serving.
+- **It does not mark a tier on a host that could not answer.** A `ModelHostError` that is not the
+  unrostered one leaves the record untouched and logs, so a network blip cannot close GPU placement
+  for every tier at once. Only a state the host actually reported writes a fault.
+- **It does not tell tiers apart at the placer.** One bit for the card, unchanged, with its own
+  entry and its own trigger.
+- **It does not close the in-flight start against a handoff by construction.** Argued above: the
+  fence is synchronous and wide, the supervisor's per-model lock orders the rest, and the residual
+  is a refused handoff rather than a lost one. Closing it fully would mean taking the GPU lease for
+  the start, which would park a user's turn behind a control call and can block for the whole load
+  bound, and that trade is worse than the residual.
+- **It does not distinguish the two faults on the seam.** `Health` names every tier that is not
+  running in one sentence, because the consequence for delegated work is identical; the distinction
+  is drawn once, loudly, in the log at the transition, where an operator's next move differs.
+- **It does not sweep the deep tier or the cortex.** Both have their own verdicts (the swap's, and
+  boot recovery's), and a peer record that also carried the resident would be two objects with one
+  name.

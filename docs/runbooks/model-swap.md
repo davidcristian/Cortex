@@ -374,21 +374,32 @@ but a report of a slow *cortex* after a handoff is the same fault read from the 
   `the model host is not running <tier>, so delegated work is running on the CPU`, which
   the overlay's connection tooltip shows as `Brain ready: <that line>`. Every subagent spawn is
   placed on the CPU without trying the GPU first, so nobody pays a dead attempt and a re-run.
-  And the brain retries the tier every `CORTEX_SWAP_TIER_HEAL_S` seconds (30 s by default,
-  a `GET` of the tier's state and a `start` when it is not coming), clearing all of that the
-  first pass that sees the tier `ready`. **Nothing here needs an operator**, so the useful check
+  And the brain sweeps every `CORTEX_SWAP_EVICT_MODELS` tier every `CORTEX_SWAP_TIER_HEAL_S`
+  seconds (30 s by default, a `GET` of each tier's state and a `start` for any that is not
+  coming), clearing all of that the first pass that sees the tier `ready`. The sweep is why a
+  tier that dies **without** anybody asking it to restart is caught too: it is a reading of the
+  machine rather than a list of refusals, so a peer that accepted its start and then exited, one
+  that died quietly between handoffs, and one nothing ever started are all found within a pass
+  (`a tier of the standing residency stopped without anything asking it to`).
+  **Nothing here needs an operator**, so the useful check
   is whether the retry is failing for a reason a retry cannot fix: look for
-  `a tier the standing residency is missing could not be retried` in the brain's log, then ask
+  `a tier of the standing residency could not be started` in the brain's log, then ask
   the sidecar directly with `curl -fsS http://127.0.0.1:9300/models/subagent-gpu` (the loopback
   override) and read the child's own reason out of `docker logs model-host`. A missing artifact
   or a bad `-ngl` is a config fix and a `docker compose up -d`; the retry cannot invent a GGUF.
 - **The same is true at boot, and the commonest cause is a tier named but never given a file.**
   A tier listed in `CORTEX_SWAP_EVICT_MODELS` whose `CORTEX_MODEL_FILE_*` is unset is not in the
   sidecar's roster at all, so it answers `404 unknown model` to every verb. Boot recovery records
-  it and carries on: the dot stays green, the tooltip names the tier, delegated work runs on the
-  CPU, and the retry loop keeps asking. Two log lines say which phase saw it,
-  `a tier the standing residency includes could not be cleared at boot` and
-  `a tier evicted for the handoff could not be restarted`. The fix is to name the artifact (or to
+  it and carries on: the dot stays green, the tooltip names the tier, and delegated work runs on
+  the CPU. The sweep does **not** keep asking about this one, which is the difference between a
+  tier the daemon lost and a tier it never had: a 404 is that daemon's env for the life of its
+  container, so the tier is recorded once, skipped by every later pass, and left closed at the
+  placer until the sidecar is replaced (which the brain notices per handoff and which rebuilds the
+  record). Three log lines say which phase saw it,
+  `a tier the standing residency includes could not be cleared at boot`,
+  `a tier named for eviction is not in the model host's roster at all`, and, from the sweep,
+  `the model host does not serve '<tier>' at all, so this tier will not be asked about again`,
+  which names both knobs. The fix is to name the artifact (or to
   drop the tier from the evict list) and `docker compose up -d`; nothing here needs a restart of
   the brain. **What still goes amber at boot** is the cortex itself failing to gate, an unreachable
   sidecar, a deep model that is resident and will not stop, and a cortex id the daemon's roster

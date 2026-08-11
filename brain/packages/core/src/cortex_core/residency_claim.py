@@ -31,6 +31,18 @@ class HandoffClaim:
         self._condition = condition
         self._claimed = False
 
+    @property
+    def claimed(self) -> bool:
+        """Whether a handoff owns the sequence right now, read without taking the condition.
+
+        For the callers that must stand down rather than queue, which today is the tier sweep
+        (``residency_sweep.py``). It is deliberately synchronous and lock free: a background pass
+        that took the condition to ask would be waiting on the very handoff it is standing down
+        for, and the answer it needs is only ever "not right now", which a stale ``False`` cannot
+        produce (the flag is set under the condition before anything is drained).
+        """
+        return self._claimed
+
     @asynccontextmanager
     async def held(self) -> AsyncGenerator[None, None]:
         """Own the whole swap sequence for this block, or refuse at once because someone does.

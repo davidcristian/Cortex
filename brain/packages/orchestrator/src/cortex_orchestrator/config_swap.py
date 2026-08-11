@@ -67,11 +67,13 @@ class SwapConfig(BaseSettings):
     that will need it; while the deep model is resident it is alone on the GPU.
     ``CORTEX_SWAP_DRAIN_TIMEOUT_S`` (60 s) bounds the wait for delegated work to finish before
     anything is evicted, and ``CORTEX_SWAP_LOAD_TIMEOUT_S`` (300 s) bounds the wait for a model
-    to report ready after it is started. ``CORTEX_SWAP_TIER_HEAL_S`` (30 s) paces the retry of a
-    tier the swap back could not restart: putting those tiers back is best effort, so something
-    has to keep asking, and until it succeeds the subagent placer sends every spawn to the CPU
-    (ADR-0030 tier-outage addendum). A deployment that evicts nothing never has a tier to retry,
-    so the loop costs it one wakeup per interval and no control call at all.
+    to report ready after it is started. ``CORTEX_SWAP_TIER_HEAL_S`` (30 s) paces the sweep of
+    every ``CORTEX_SWAP_EVICT_MODELS`` tier: putting those tiers back is best effort at the swap
+    back, and a tier can die with nobody having asked it to start at all, so something has to keep
+    reading rather than only keep retrying, and until a tier is serving the subagent placer sends
+    every spawn to the CPU (ADR-0030 tier-outage and tier-sweep addenda). A deployment that evicts
+    nothing has nothing to sweep, so the loop costs it one wakeup per interval and no control call
+    at all.
 
     ``CORTEX_SWAP_CORESIDENT`` (**off by default**) is the deployment's assertion that its
     standing peers fit beside the deep model, which is a measurement no process can make for
