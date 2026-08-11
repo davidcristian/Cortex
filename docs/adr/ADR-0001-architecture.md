@@ -136,7 +136,7 @@ needs a real server and runs on the host.
 | `ModelHost` | `ScriptedModelHost` | `HttpModelHost` | `model_manager/tests/model_host_contract.py` | yes | yes, over a real supervisor on ASGI | yes, restated |
 | `VisionProbe` | `ScriptedVisionProbe` | `PropsVisionProbe` | `orchestrator/tests/vision_probe_contract.py` | yes | yes, over `MockTransport` | yes, restated |
 | `InferenceBackend` | `ScriptedInferenceBackend` | `LlamaCppBackend` | `inference/tests/cadence_contract.py`, decode cadence only | yes | yes, over `MockTransport` | yes, restated |
-| `Embedder` | `HashEmbedder` | `LlamaCppEmbedder` | none | n/a | n/a | yes |
+| `Embedder` | `HashEmbedder` | `LlamaCppEmbedder` | `embedding/tests/embedder_contract.py` | yes | yes, over `MockTransport` | yes, restated |
 | `ToolRegistry` | `InMemoryToolRegistry` | `McpToolRegistry` | none | n/a | n/a | yes |
 | `BodyGateway` | `InMemoryBodyGateway` | `GrpcBodyGateway` | none | n/a | n/a | yes |
 | `Confirmer` | `RecordingConfirmer` | `SeamConfirmer` | none | n/a | n/a | no |
@@ -155,10 +155,12 @@ both. It does not mean the port is untested: every one of those has CI tests for
 CI tests for its adapter, written separately and asserting whatever each author thought to
 assert, which is precisely the condition a shared list exists to end.
 
-Nine ports carry a shared check list, one `*_contract.py` each. All nine list every check the
-file defines, so no check has been written into a shared file and then left off its own tuple,
-which was the other way this could have gone wrong. Eight of the nine already had a CI-visible
-driver that reads the tuple rather than restating it.
+Nine ports carried a shared check list on the day of this sweep, one `*_contract.py` each. All
+nine listed every check the file defines, so no check had been written into a shared file and then
+left off its own tuple, which was the other way this could have gone wrong. Eight of the nine
+already had a CI-visible driver that reads the tuple rather than restating it. The table itself is
+kept current as rows move, and each addendum below says which moved and when, so the count in this
+paragraph is the sweep's measurement rather than today's.
 
 ### The Rust ports and the overlay
 
@@ -268,7 +270,9 @@ above has been updated to what the tree now holds.
 
 Building those suites is a slice, not a sweep, so it is deferred and recorded in
 [docs/refinements/repo-gates.md](../refinements/repo-gates.md) rather than attempted here. The
-tables above are that slice's worklist.
+tables above are that slice's worklist. It is being taken one port per commit from 2026-08-11,
+each port with its own section in the last addendum below; the rows move in the tables as they
+land, so a row reading `none` is genuinely still open.
 
 ## Addendum (2026-08-11): the overlay's `BrainBridge` gets the first shared list outside Python
 
@@ -323,3 +327,48 @@ Each break was restored and the tree is green.
 What stays open is everything else the sweep measured: the four Python ports with no shared list
 (`Embedder`, `ToolRegistry`, `BodyGateway`, `Confirmer`), `InferenceBackend`'s unshared streaming
 half, and every Rust row, where the fakes themselves are still written twice.
+
+## Addendum (2026-08-11): the Python ports with a fake, an adapter and no shared list
+
+The sweep's Python worklist, taken one port per commit in the order the table lists them. Each
+section below records what the list holds, where the two implementations legitimately diverge and
+so what altitude the checks sit at, what the list found on its first run, and the break that
+proved it able to fail. `InferenceBackend` is deliberately not in this addendum: its decode
+cadence is already shared and the rest of its streaming contract is a design question of its own
+(what a list can say about an event stream two implementations produce at different rates), so it
+stays open in the tables and in the refinements entry.
+
+### `Embedder`
+
+`brain/packages/embedding/tests/embedder_contract.py` holds four checks and the
+`EmbedderUnderTest` a check runs against; `test_embedder_contract.py` builds one per check and
+runs the list over `HashEmbedder` and over `LlamaCppEmbedder` on an `httpx.MockTransport` whose
+stand-in server answers the digest bytes of the text it was given. The four are that an embedding
+is a non-empty sequence of real floats, that every text embeds at one width, that one text always
+embeds to one vector with an unrelated embedding in between changing nothing, and that a backend
+which cannot answer raises `EmbedderError`.
+
+**Where the two legitimately diverge, and so what the checks do not say.** The fake answers a
+`tuple` and the adapter a `list`; both are the `Sequence[float]` the port names, so no check reads
+the concrete type. The widths differ too, 16 against whatever the deployment's model emits, which
+is the port's own sentence about the core never assuming a value, so the width check compares an
+implementation's own answers with each other and never with a number. And the stand-in server
+sends its vector as JSON **integers**, which a real server is free to do since JSON has one number
+type: that is what makes the float check a statement about the adapter's coercion rather than
+about the transport.
+
+**What it found: the fake could not fail.** `HashEmbedder` had no way to raise the one error the
+port documents, so nothing in the core could exercise a remember or a recall against a dead
+embedding server, and the fake could not stand in for the adapter on the only path where the two
+have anything to disagree about. It gained `fail_with(EmbedderError(...))`, the same scripted
+failure `InMemoryBodyGateway` has carried since it was written. No behavioural disagreement was
+found between the two on the paths both could already walk, which is the honest outcome for a port
+one method wide, and it is worth writing down rather than leaving as a silence.
+
+**Proven able to fail, once per arm.** Dropping the adapter's `float(value)` coercion reddens
+`text_embeds_to_a_vector_of_real_numbers[llamacpp]` alone (1 failed, 7 passed); making the fake's
+width depend on the text's parity reddens `every_text_embeds_at_one_width[hash]` alone; letting
+the adapter's `httpx.HTTPError` escape instead of wrapping reddens
+`a_backend_that_cannot_answer_raises_embedder_error[llamacpp]`; and making the new `fail_with` a
+no-op reddens the same check on the `hash` arm, which is what proves the knob is load-bearing
+rather than decorative. Each break was restored.

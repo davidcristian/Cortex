@@ -12,6 +12,7 @@ import hashlib
 import math
 from collections.abc import Sequence
 
+from cortex_core.errors import EmbedderError
 from cortex_core.memory import MemoryRecord, ScoredMemory
 from cortex_core.ranking import RecallAudit
 
@@ -28,15 +29,27 @@ class HashEmbedder:
     text yields a distinct vector. It carries NO semantics. The real nomic adapter (Slice
     5 host half) is what makes similarity meaningful. Never emits an all-zero vector (each
     component is an integer byte minus 127.5, never exactly zero).
+
+    ``fail_with`` is the one thing here that is not arithmetic. The port's only failure channel
+    is ``EmbedderError``, and a twin that cannot raise it cannot stand in for the adapter in any
+    test of what a dead embedding server does to a remember or a recall, which is why the shared
+    contract asks for the knob.
     """
 
     def __init__(self, dimension: int = _FAKE_EMBED_DIM) -> None:
         self._dimension = dimension
+        self._failure: EmbedderError | None = None
 
     async def embed(self, text: str) -> Sequence[float]:
-        """Return the deterministic pseudo-embedding of ``text``."""
+        """Return the deterministic pseudo-embedding of ``text``, or the scripted failure."""
+        if self._failure is not None:
+            raise self._failure
         digest = hashlib.sha256(text.encode("utf-8")).digest()
         return tuple(float(digest[i % len(digest)]) - 127.5 for i in range(self._dimension))
+
+    def fail_with(self, error: EmbedderError) -> None:
+        """Make every later ``embed`` raise ``error``: a backend taken away mid-run."""
+        self._failure = error
 
 
 def _cosine(a: Sequence[float], b: Sequence[float]) -> float:
