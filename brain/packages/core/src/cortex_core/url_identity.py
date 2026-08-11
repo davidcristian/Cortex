@@ -23,8 +23,8 @@ into one identity, never splitting one:
 7. Fold the *IDNA label separators* NFKC leaves standing (a U+3002 or U+FF61 stop between two
    labels), which the resolver reads as a dot; ADR-0015 eighth addendum.
 8. Fold a *special scheme's backslashes* to the solidi the URL parser reads them as, and its run
-   of authority slashes to one pair, so the JSON-escaped spelling of a link shares the link's
-   identity; ADR-0015 tenth addendum.
+   of authority slashes to one pair however many it holds (none included), so the JSON-escaped and
+   the slashless spellings of a link share the link's identity; ADR-0015 tenth + eleventh addenda.
 
 Passes 3 and 4 landed in the seventh addendum. Deterministic and dependency-free (stdlib only), the
 line that keeps this out of the heuristic/screening-model layer. Pure state- and I/O-free.
@@ -216,8 +216,12 @@ def _fold_confusables(url: str) -> str:
 # identity the default policy missed while strict mode still caught it (ADR-0015 eighth addendum).
 # Symmetric and over-redaction-only like every other pass here: the false positive is a legitimate
 # host written with a CJK stop, which resolves to the same host anyway. Keys are `\u` escapes so the
-# source stays ASCII, the `_CONFUSABLES` convention.
-_LABEL_DOTS = str.maketrans({"\u3002": ".", "\uff61": ".", "\uff0e": "."})
+# source stays ASCII, the `_CONFUSABLES` convention. The ASCII dot leads the table (folding to
+# itself) because `url_spellings.py` spends the same string on the grammar's host anchor, which has
+# to know every reading of a dot the resolver has, so the two cannot disagree about what one is.
+LABEL_SEPARATORS = ".\u3002\uff61\uff0e"
+
+_LABEL_DOTS = str.maketrans(dict.fromkeys(LABEL_SEPARATORS, "."))
 
 
 def _fold_label_dots(url: str) -> str:
@@ -230,20 +234,24 @@ def _fold_label_dots(url: str) -> str:
 # what looks alike: the URL Standard's special-authority states skip both `/` and `\`, so
 # `new URL("https:\/\/evil.example/pay")` in any WHATWG-conforming parser (every browser) is
 # `https://evil.example/pay`, and the JSON-escaped spelling of a link IS the link rather than a
-# rendering of one (ADR-0015 tenth addendum). Run after NFKC, which has already reduced the
-# fullwidth solidus, and after the refanger, which has already turned `hxxp` into `http`.
-_SPECIAL_AUTHORITY = re.compile(rf"\A((?:{'|'.join(SPECIAL_SCHEMES)}):)[/\\]+", re.IGNORECASE)
+# rendering of one (ADR-0015 tenth addendum). The run is `*` and not `+` because the same states
+# tolerate a slash that is *missing*: `https:evil.example/pay` is that link too, so the empty run
+# is one of the spellings this pass has to fold (ADR-0015 eleventh addendum). Run after NFKC, which
+# has already reduced the fullwidth solidus, and after the refanger, which has already turned
+# `hxxp` into `http`.
+_SPECIAL_AUTHORITY = re.compile(rf"\A((?:{'|'.join(SPECIAL_SCHEMES)}):)[/\\]*", re.IGNORECASE)
 
 
 def _fold_special_slashes(url: str) -> str:
-    r"""Fold a special scheme's backslashes to the solidi a URL parser reads them as.
+    r"""Fold a special scheme's authority slashes to the pair a URL parser reads them as.
 
-    Both halves are that parser's own rule: every backslash is a solidus, in the authority slashes
-    and in the path alike, and the run of them after the scheme's colon is skipped whole, so
-    `https:\/\/host`, `https:\\host` and `https:////host` all name `https://host`. Scoped to the
-    schemes where that holds, so an opaque `mailto:`/`tel:`/`data:` keeps its backslashes; and
-    merging-only like every pass here, since a query's backslash (which the parser does leave
-    alone) can now only share an identity with the same query's solidus, never split from itself.
+    Every half is that parser's own rule: a backslash is a solidus, in the authority slashes and in
+    the path alike, and the run of them after the scheme's colon is skipped whole however long it
+    is, zero included, so `https:\/\/host`, `https:\\host`, `https:////host`, `https:/host` and
+    `https:host` all name `https://host`. Scoped to the schemes where that holds, so an opaque
+    `mailto:`/`tel:`/`data:` keeps its backslashes and its one colon; and merging-only like every
+    pass here, since a query's backslash (which the parser does leave alone) can now only share an
+    identity with the same query's solidus, never split from itself.
     """
     match = _SPECIAL_AUTHORITY.match(url)
     if match is None:
