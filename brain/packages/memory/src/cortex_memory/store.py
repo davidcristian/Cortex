@@ -1,23 +1,21 @@
-"""PgVectorMemoryStore: the MemoryStore port over Postgres + pgvector (ADR-0008)."""
+"""PgVectorMemoryStore: the MemoryStore port over Postgres and pgvector."""
 
 from collections.abc import Sequence
 from typing import Any, Protocol, cast
 
 import asyncpg
 
-from cortex_core import MemoryRecord, MemoryStoreError, ScoredMemory
+from cortex_core import MemoryDataError, MemoryRecord, MemoryStoreError, ScoredMemory
 
-# asyncpg raises PostgresError for server-side failures, InterfaceError for client/pool
-# misuse, and OSError for socket-level failures. All are wrapped as MemoryStoreError.
+# Server failures, client and pool misuse, and socket failures, in that order.
 _WRAPPED = (asyncpg.PostgresError, asyncpg.InterfaceError, OSError)
 
 _INSERT = (
     "INSERT INTO memories (id, text, embedding, scope, tainted, created_at)"
     " VALUES ($1, $2, $3::vector, $4, $5, $6)"
 )
-# The SELECT list is shared; the scoped variant only adds a WHERE that filters candidates to the
-# requested namespaces before ranking (ADR-0008 scoping addendum). $1/$2 stay the vector/limit in
-# both, so the args tuple's head is identical and only the optional scope list ($3) is appended.
+# $1 is the vector and $2 the limit in both search statements, so the scoped one can reuse the
+# same leading arguments and append its scope list as $3.
 _SELECT = (
     "SELECT id, text, embedding::text AS embedding, scope, tainted, created_at,"
     " 1 - (embedding <=> $1::vector) AS score FROM memories"
@@ -26,8 +24,6 @@ _SEARCH_ALL = f"{_SELECT} ORDER BY embedding <=> $1::vector LIMIT $2"
 _SEARCH_SCOPED = f"{_SELECT} WHERE scope = ANY($3) ORDER BY embedding <=> $1::vector LIMIT $2"
 _COUNT_ALL = "SELECT count(*) AS total FROM memories"
 _COUNT_SCOPED = f"{_COUNT_ALL} WHERE scope = ANY($1)"
-# The forget primitive (ADR-0008 delete-scope addendum): drop one whole namespace. The
-# ``memories_scope_idx`` btree serves the equality, so no schema change is owed.
 _DELETE_SCOPE = "DELETE FROM memories WHERE scope = $1"
 
 
@@ -53,11 +49,7 @@ def _to_literal(embedding: Sequence[float]) -> str:
 
 
 def _from_literal(text: str) -> tuple[float, ...]:
-    """Parse a pgvector text literal (``[0.1,0.2]``) back into a float tuple.
-
-    A pgvector vector always has dimension >= 1, so the inner text is never empty; a
-    malformed value raises ValueError, which ``search`` wraps as ``MemoryStoreError``.
-    """
+    """Parse a pgvector text literal (``[0.1,0.2]``) back into a float tuple."""
     inner = text.strip().strip("[]")
     return tuple(float(part) for part in inner.split(","))
 
@@ -81,7 +73,7 @@ def _to_scored(row: Row) -> ScoredMemory:
 
 
 class PgVectorMemoryStore:
-    """MemoryStore adapter over an asyncpg-compatible ``Database`` (ADR-0008)."""
+    """MemoryStore adapter over an asyncpg-compatible ``Database``."""
 
     def __init__(self, db: Database) -> None:
         self._db = db
@@ -119,11 +111,7 @@ class PgVectorMemoryStore:
     async def search(
         self, embedding: Sequence[float], *, k: int, scopes: Sequence[str] | None = None
     ) -> Sequence[ScoredMemory]:
-        """Return the ``k`` records most similar to ``embedding``, most-similar first.
-
-        ``scopes`` (ADR-0008 addendum) filters candidates to those namespaces via
-        ``WHERE scope = ANY``; ``None`` ranks over every memory (the global-space default).
-        """
+        """Return the ``k`` records most similar to ``embedding``, most-similar first."""
         try:
             literal = _to_literal(embedding)
             if scopes is None:
@@ -136,7 +124,7 @@ class PgVectorMemoryStore:
             raise MemoryStoreError(msg) from err
         except (KeyError, IndexError, TypeError, ValueError) as err:
             msg = "malformed memory row in search result"
-            raise MemoryStoreError(msg) from err
+            raise MemoryDataError(msg) from err
 
     async def count_candidates(self, *, scopes: Sequence[str] | None = None) -> int:
         """Return how many memories ``scopes`` holds, the width ``search`` ranked over."""
@@ -151,7 +139,7 @@ class PgVectorMemoryStore:
             raise MemoryStoreError(msg) from err
         except (KeyError, IndexError, TypeError, ValueError) as err:
             msg = "malformed count in the memory store's reply"
-            raise MemoryStoreError(msg) from err
+            raise MemoryDataError(msg) from err
 
     async def delete_scope(self, scope: str) -> int:
         """Hard-delete every memory in ``scope``; return how many rows were removed."""
@@ -163,4 +151,4 @@ class PgVectorMemoryStore:
             raise MemoryStoreError(msg) from err
         except ValueError as err:
             msg = "malformed delete status from the memory store"
-            raise MemoryStoreError(msg) from err
+            raise MemoryDataError(msg) from err

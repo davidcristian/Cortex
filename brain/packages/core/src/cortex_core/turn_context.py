@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
-from cortex_core.errors import EmbedderError, MemoryStoreError
+from cortex_core.errors import EmbedderError, MemoryDataError, MemoryStoreError
 from cortex_core.events import StatusUpdate
 from cortex_core.guardrail import OutputGuardrail
 from cortex_core.handoff import EscalationSlot
@@ -105,6 +105,8 @@ async def _recalled_context(
         return None
     try:
         hits = await caps.memory.recall(query, k=DEFAULT_RECALL_K, session_id=context.session_id)
+    except MemoryDataError:
+        raise
     except (EmbedderError, MemoryStoreError) as err:
         await _report_forgone_memory(caps, context, err)
         return None

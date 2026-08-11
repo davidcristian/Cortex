@@ -19,6 +19,10 @@ class MemoryStoreError(Exception):
     """A MemoryStore operation failed (memory adapters wrap their backend's errors)."""
 
 
+class MemoryDataError(MemoryStoreError):
+    """The store answered and what came back is not something this repo can read."""
+
+
 class EmbedderError(Exception):
     """An Embedder failed to produce an embedding (adapters wrap their backend's errors)."""
 

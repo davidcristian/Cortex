@@ -5,7 +5,13 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta, timezone
 from uuid import uuid4
 
-from cortex_core import GLOBAL_SCOPE, MemoryRecord, MemoryStore, MemoryStoreError
+from cortex_core import (
+    GLOBAL_SCOPE,
+    MemoryDataError,
+    MemoryRecord,
+    MemoryStore,
+    MemoryStoreError,
+)
 
 _AT = datetime(2026, 7, 3, 12, 0, 0, tzinfo=UTC)
 
@@ -44,6 +50,9 @@ async def _refuses_typed(verb: Callable[[], Awaitable[object]], name: str) -> No
     """Assert one verb answers a gone backend with ``MemoryStoreError`` and nothing else."""
     try:
         await verb()
+    except MemoryDataError as err:
+        msg = f"{name} called a gone backend a data defect, which no outage ever heals out of"
+        raise AssertionError(msg) from err
     except MemoryStoreError:
         return
     except Exception as err:  # the leak this check exists to catch can be of any type

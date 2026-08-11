@@ -70,12 +70,22 @@ pool (the one hard rule).
 **Error contract.** Every failure crosses the `MemoryStore` port as `MemoryStoreError` with
 the cause chained: asyncpg `PostgresError` / `InterfaceError` and socket `OSError` from
 add/search/count/close; a malformed result row (missing column, unparseable vector, naive
-timestamp) in `search`, and a reply carrying no readable integer total in `count_candidates`. A
+timestamp) in `search`, and a reply carrying no readable integer total in `count_candidates`.
+Those last two raise the **`MemoryDataError`** subclass, which every existing `except
+MemoryStoreError` still catches and which says the store answered and this code could not read the
+answer (ADR-0008 data-defect addendum). The adapter can draw that line where it wraps because the
+two arrive as disjoint exception types, asyncpg's own family against a `KeyError` or `ValueError`
+out of `_to_scored`, so neither `except` classifies anything; a bad embedding from the core lands
+on the data side too, `_to_literal` sitting inside the `try`, which is the same side of the line
+as a bad value from the table. A
 count that fails fails the recall that asked for it, rather than degrading to a number that is
 not the store's: the trail's own sink already fails a recall the same way, and an audit line that
 quietly invents a figure is worse than one that stops. What a failed recall no longer does is fail
 the **turn**: the core catches `MemoryStoreError` where a turn is assembled and where its exchange
-is recorded, and answers without its notes (ADR-0008 unavailable-memory addendum). The adapter is
+is recorded, and answers without its notes (ADR-0008 unavailable-memory addendum). What a
+`MemoryDataError` does is fail the turn anyway, `_recalled_context` naming it ahead of that catch
+and re-raising, because an outage heals on its own and stored state that disagrees with the code
+reading it does not, so degrading around it would answer thinly for ever. The adapter is
 unchanged by that and must stay so, since the same store serves the session-delete cascade, where
 `SessionServicer` aborts `UNAVAILABLE` and a swallowed failure would be a privacy defect.
 
@@ -117,7 +127,11 @@ stores float4, so embeddings roundtrip at single precision (irrelevant to simila
   a database. Each check takes a `MemoryStoreUnderTest`, the implementation plus an
   awaited `break_backend`, so the port's failure channel is checked where its values are: the
   eleventh check breaks the backend and requires `add`, `search`, `count_candidates` and
-  `delete_scope` each to raise `MemoryStoreError` rather than the driver's own exception. The fake
+  `delete_scope` each to raise `MemoryStoreError` rather than the driver's own exception, and not
+the `MemoryDataError` subclass either, an outage that read as a defect failing the turn the
+degradation exists to save. The other direction is not a shared check and is not meant to be: the
+in-memory twin decodes nothing, so only the arm with rows can meet a row it cannot read, and
+`test_pgvector.py` holds that half. The fake
   is scripted with `fail_with`; the live arm passes the adapter's own `aclose`, so the real pool
   closes and asyncpg's `InterfaceError` crosses this adapter's own wrapping (ADR-0008 addendum on
   the port's failure channel as a shared check).
