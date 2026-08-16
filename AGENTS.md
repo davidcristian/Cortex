@@ -113,7 +113,9 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    no `docker compose up`
    materializes a container-written directory the index would take (ADR-0026 bind addendum);
    and `backlogcheck.py`, which holds each backlog index to the task files it describes and
-   every link in them to resolving, so a status can be written in exactly one place
+   every link in them to resolving, so a status can be written in exactly one place, and holds
+   every `#fragment` aimed at one of those indexes, wherever in the repo it is written, to
+   naming a heading that index really renders
    (ADR-0039). All five run unconditionally, in CI too. Pre-commit mirrors it. Run it
    before declaring anything done.
 
@@ -224,8 +226,10 @@ scripts/          repo gates, plus the one module here that gates nothing, contr
                   how a constant's readings must stand), bindcheck.py (no compose bind
                   default lands unignored in the tree) + composemounts.py (its compose
                   reader), backlogcheck.py (each backlog index still matches its task files,
-                  ADR-0039) + backlog.py (task-file grammar) and backlogindex.py (what the
-                  index renders), coverage_gate.py (Rust branches), ci_paths.py (CI path
+                  ADR-0039) + backlog.py (task-file grammar), backlogindex.py (what the
+                  index renders) and backloganchors.py (the anchors an index offers and
+                  every pointer in the repo aimed at one), coverage_gate.py (Rust
+                  branches), ci_paths.py (CI path
                   classifier), commitlint.py (commit-message style)
 .github/          GPU-less CI running the same `just` recipes as local dev
 justfile          `just check` + check-*; proto, up/down, brain-serve, seam-health, turn-cost,

@@ -418,7 +418,8 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   stable identities (`R-042`, `H-007`) that are never reused, and the index's open set and roll
   call are rendered from the files by `just backlog`. `backlogcheck.py` is the fifth cross-tree
   scan and fails on a stale index, a status outside the grammar, a title restating one, a waiting
-  state that does not name its trigger, or a relative link that no longer resolves.
+  state that does not name its trigger, a relative link that no longer resolves, or, since the
+  2026-08-16 addendum, a fragment aimed at a heading one of those indexes does not render.
 
 New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
 
