@@ -1,4 +1,5 @@
-"""The host-facing half of a residency swap: which moves, in which order (ADR-0030 decision 4)."""
+"""The host-facing half of a residency swap: what the host is asked, in which order (ADR-0030 d4).
+"""
 
 import logging
 from collections.abc import Awaitable, Callable
@@ -13,6 +14,23 @@ from cortex_core.residency_tiers import StandingTiers
 type ReadinessGate = Callable[[str], Awaitable[ModelHostState]]
 
 _logger = logging.getLogger(__name__)
+
+
+async def is_unhosted(host: ModelHost, model: str) -> bool:
+    """Whether this host says it carries no such logical model at all."""
+    try:
+        await host.status(model)
+    except ModelNotHostedError:
+        return True
+    except ModelHostError as err:
+        _logger.warning(
+            "the model host could not be asked whether it serves %r, so the handoff was not "
+            "refused on that ground: error=%s",
+            model,
+            err,
+            extra={"model": model, "error": str(err)},
+        )
+    return False
 
 
 async def swap_in(host: ModelHost, plan: ResidencyPlan, model: str, gate: ReadinessGate) -> None:

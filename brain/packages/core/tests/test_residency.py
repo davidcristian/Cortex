@@ -298,6 +298,20 @@ async def test_a_second_scope_is_refused_because_there_is_one_gpu() -> None:
     await scope.finish()
 
 
+async def test_the_precondition_reads_the_roster_of_the_daemon_answering_right_now() -> None:
+    """The port's three answers, and the tolerance that makes only one of them a refusal."""
+    host = ScriptedModelHost(running=["cortex"], unhosted=["brain"])
+    manager = _manager(host)
+    assert await manager.unhosted("brain") is True
+    host.unhosted.discard("brain")  # an operator named the artifact and the daemon came back
+    assert await manager.unhosted("brain") is False
+    # A reading and nothing more: the question must never change what the card is holding.
+    assert host.calls == [("status", "brain")] * 2
+    assert host.running == {"cortex"}
+    unreachable = ScriptedModelHost(running=["cortex"], fail={("status", "brain"): "refused"})
+    assert await _manager(unreachable).unhosted("brain") is False
+
+
 async def test_the_handoff_claim_refuses_a_second_holder_without_touching_the_host() -> None:
     """The claim is taken before anything is drained, so losing it costs nothing at all."""
     host = ScriptedModelHost(running=["cortex"])

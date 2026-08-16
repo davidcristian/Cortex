@@ -30,6 +30,8 @@ class ResidencyController(Protocol):
 
     def handoff_claim(self) -> AbstractAsyncContextManager[None]: ...
 
+    async def unhosted(self, model: str) -> bool: ...
+
 
 class ResidencyReporter(Protocol):
     """Reads what the GPU is serving right now, for the seam to answer with (ADR-0030 d6)."""

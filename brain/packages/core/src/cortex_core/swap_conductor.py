@@ -23,9 +23,11 @@ from cortex_core.swap_notes import (
     RESTORING_DETAIL,
     STORE_FAILED_NOTE,
     SWAPPING_STATE,
+    UNHOSTED_TIER_NOTE,
     WORKING_DETAIL,
     note_for,
 )
+from cortex_core.swap_settle import HandoffSettler
 
 _logger = logging.getLogger(__name__)
 
@@ -53,6 +55,7 @@ class SwapConductor:
         self._plan = plan
         self._clock = clock
         self._scheduler = scheduler
+        self._settle = HandoffSettler(handoffs)
 
     async def run_handoff(
         self, slot: EscalationSlot, *, session_id: str, turn_id: str
@@ -88,7 +91,7 @@ class SwapConductor:
             if not await self._drain():
                 # The abort direction: nothing has been evicted, so the cortex is still serving
                 # and the turn simply ends with what it has.
-                await self._advance(prepared, HandoffState.FAILED)
+                await self._settle.advance(prepared, HandoffState.FAILED)
                 yield TextDelta(text=DRAIN_TIMEOUT_NOTE)
                 return
             swap = self._swap(prepared)
@@ -101,7 +104,7 @@ class SwapConductor:
             # Cancellation and stream teardown included: a handoff that stops being run is a
             # failed handoff, and a live record would otherwise strand the next boot. The write
             # is best-effort under cancellation, which is exactly what boot recovery backs up.
-            await self._advance(prepared, HandoffState.FAILED)
+            await self._settle.advance(prepared, HandoffState.FAILED)
             raise
         finally:
             self._undrain()
@@ -118,6 +121,15 @@ class SwapConductor:
                 "refusing a handoff for a turn that read the screen", extra={"turn": turn_id}
             )
             return OPAQUE_TURN_NOTE
+        if await self._residency.unhosted(self._plan.brain_model):
+            _logger.error(
+                "escalation was asked for but the model host does not serve %r, so the handoff "
+                "was refused with nothing drained and nothing unloaded: name an artifact for "
+                "that tier (CORTEX_MODEL_FILE_BRAIN) or turn escalation off (CORTEX_ESCALATION)",
+                self._plan.brain_model,
+                extra={"model": self._plan.brain_model, "turn": turn_id},
+            )
+            return UNHOSTED_TIER_NOTE
         try:
             if (active := await self._handoffs.active()) is not None:
                 # The claim already refused anything racing this turn in this process, so a
@@ -144,7 +156,7 @@ class SwapConductor:
             _logger.exception("the handoff store failed before anything was evicted")
             return STORE_FAILED_NOTE
         except BaseException:
-            await self._advance(record, HandoffState.FAILED)
+            await self._settle.advance(record, HandoffState.FAILED)
             raise
         return record
 
@@ -155,7 +167,7 @@ class SwapConductor:
             async with self._residency.swap_scope(self._plan.brain_model):
                 # Only now is the deep model actually serving: the record reaches BRAIN_ACTIVE
                 # after the health gate passed, never on the strength of a start call.
-                await self._advance(record, HandoffState.BRAIN_ACTIVE)
+                await self._settle.advance(record, HandoffState.BRAIN_ACTIVE)
                 yield _status(WORKING_DETAIL)
                 phase = self._brain_phase.run(record)
                 try:
@@ -168,13 +180,13 @@ class SwapConductor:
             # The deep model died mid-work. Its phase has already streamed and persisted its
             # partial answer with the honest note, so there is nothing to add here: the scope's
             # finally has restored the cortex and the record is what is left to settle.
-            await self._advance(record, HandoffState.FAILED)
+            await self._settle.advance(record, HandoffState.FAILED)
             return
         except ModelManagerError as err:
-            await self._advance(record, HandoffState.FAILED)
+            await self._settle.advance(record, HandoffState.FAILED)
             yield TextDelta(text=note_for(err))
             return
-        await self._advance(record, HandoffState.DONE)
+        await self._settle.advance(record, HandoffState.DONE)
 
     async def _drain(self) -> bool:
         """Quiesce the pool, or answer True when there is no pool, or none to quiesce it for."""
@@ -186,33 +198,3 @@ class SwapConductor:
         """Resume admission, whatever ended the handoff (the drain window is never leaked)."""
         if self._scheduler is not None:
             self._scheduler.undrain()
-
-    async def _advance(self, record: HandoffRecord, state: HandoffState) -> None:
-        """Move the record to ``state``, and free the store's claim once it is settled."""
-        written = await self._write_state(record.handoff_id, state)
-        if state is HandoffState.DONE or (state.terminal and not written):
-            await self._release_claim(record.handoff_id)
-
-    async def _write_state(self, handoff_id: str, state: HandoffState) -> bool:
-        """Write one state onto the record; False when the store refused it."""
-        try:
-            await self._handoffs.transition(handoff_id, state)
-        except HandoffStoreError:
-            _logger.exception(
-                "could not record the handoff's state",
-                extra={"handoff": handoff_id, "state": state.value},
-            )
-            return False
-        return True
-
-    async def _release_claim(self, handoff_id: str) -> None:
-        """Delete the finished record, so nothing later reads it as a handoff in flight."""
-        try:
-            await self._handoffs.delete(handoff_id)
-        except HandoffStoreError:
-            # Nothing else this process can do: the record stays live until boot recovery, and
-            # escalation stays refused until then, which is the failure the log has to name.
-            _logger.exception(
-                "could not release the finished handoff; escalation stays refused until a restart",
-                extra={"handoff": handoff_id},
-            )

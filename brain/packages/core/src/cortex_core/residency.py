@@ -12,7 +12,7 @@ from cortex_core.ports import Clock, ModelHost, Sleeper, SubagentPlacer
 from cortex_core.residency_board import ResidencyBoard
 from cortex_core.residency_charge import charge_handoff
 from cortex_core.residency_claim import HandoffClaim
-from cortex_core.residency_moves import swap_in
+from cortex_core.residency_moves import is_unhosted, swap_in
 from cortex_core.residency_restore import restore_uninterruptibly, restore_with_retries
 from cortex_core.residency_state import (
     RESIDENCY_BOOT_FAILED,
@@ -62,6 +62,10 @@ class SwappingModelManager:
         endpoint = await self._claim(model)
         async with self._lock:
             yield ModelLease(endpoint=endpoint)
+
+    async def unhosted(self, model: str) -> bool:
+        """Whether the daemon answering right now carries no such logical model at all."""
+        return await is_unhosted(self._host, model)
 
     def handoff_claim(self) -> AbstractAsyncContextManager[None]:
         """Own the whole swap sequence for this block, or refuse at once (``residency_claim``)."""

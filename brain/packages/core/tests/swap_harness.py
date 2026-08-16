@@ -244,6 +244,9 @@ def request() -> PlacementRequest:
     return PlacementRequest("subagent", vram_gb=1.0, cpus=1.0, memory_gb=1.0)
 
 
+PREFLIGHT_CALLS = [("status", "brain")]
+
+
 def plan(**overrides: object) -> ResidencyPlan:
     fields: dict[str, object] = {
         "cortex_model": "cortex",
@@ -427,9 +430,8 @@ def assert_the_window_announced_real_progress(live: Harness) -> None:
 
 def _draining_was_true(live: Harness, seen: StatusWitness) -> None:
     """ "Quiescing the subagent pool": said before the quiescing, with the record already safe."""
-    del live  # this boundary is witnessed entirely by the snapshot
     assert seen.drains == 0  # announced ahead of the drain it names, not after it
-    assert seen.host_ops == ()  # and nothing is evicted while subagents are still finishing
+    assert seen.host_ops == (("status", live.residency.brain_model),)
     assert seen.record_states[-1] is HandoffState.READY
     assert seen.deep_calls == 0
 

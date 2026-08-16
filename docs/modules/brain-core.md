@@ -796,6 +796,14 @@ unchanged):
   loudly logged. While a scope is active, `acquire` of any other model **waits** rather than
   raising; at most one scope exists at a time, there being one GPU, and a second entry raises
   `HandoffInProgressError`.
+- Same port, `unhosted(model) -> bool` (ADR-0030 unrostered-refusal addendum): whether this
+  deployment's model host carries that logical id at all, asked **before** anything is drained or
+  evicted. `True` only when the host refused the id as one it does not carry
+  (`ModelNotHostedError`); a host that could not be asked answers `False`, because an unanswered
+  question is not a refusal and a swap that goes ahead against an unreachable host fails at its
+  next move with the failure that really happened. It is a question every time and never a
+  remembered verdict: a roster is env one supervisor process read at its own boot, so an answer
+  cached across the restart that fixes it would go on refusing a deployment that now works.
 - `ResidencyReporter` (same module) provides `residency() -> ResidencyReport` (ADR-0030
   decision 6): what the GPU is serving right now, for the seam's `Health` to answer with.
   Segregated from `ResidencyController` for the opposite reason that port is segregated from
@@ -1096,8 +1104,12 @@ Use-case:
   store still holds); **refuses a turn whose ledger is `opaque`** with `OPAQUE_TURN_NOTE`
   (ADR-0029: pixels are turn-local, so the deep model would get a tool message promising a
   picture with none attached, and the capture may have happened *after* the handoff was approved,
-  which is why this refusal is here and not in the tool); then it snapshots the
-  slot into a `READY` record, drains the subagent pool (bounded by `plan.drain_timeout_s`;
+  which is why this refusal is here and not in the tool); **refuses a deployment whose model host
+  does not carry the deep tier at all** with `UNHOSTED_TIER_NOTE` and one `ERROR` naming both
+  knobs (ADR-0030 unrostered-refusal addendum: the absence would otherwise surface at the `start`
+  inside the residency scope, with the cortex already unloaded and the scope's `finally` owing
+  minutes to put it back, once per attempt, for a handoff that could never run); then it snapshots
+  the slot into a `READY` record, drains the subagent pool (bounded by `plan.drain_timeout_s`;
   a timeout **aborts before anything is evicted**; a `coresident` plan skips the step and its
   announcement, having stopped no tier the pool feeds), enters the residency scope, marks the record
   `BRAIN_ACTIVE` only once the deep model is actually serving, streams `BrainPhase`, and settles
@@ -1106,7 +1118,12 @@ Use-case:
   anyway: a finished handoff left holding that pointer would make `active()` refuse every later
   escalation in the process, with a note saying a handoff is in flight when none is, until a
   restart. A refused *intermediate* write keeps its record, the handoff being genuinely live
-  there, and boot recovery settles it. `undrain` is owed in a `finally` on every
+  there, and boot recovery settles it. Those state writes and that release rule are
+  `HandoffSettler` (`swap_settle.py`), split off for the line cap along the seam the ADR's own
+  addendum names: the conductor owns the order the machine changes hands in, while what the record
+  owes at each of those moments turns on the state being written rather than on where in the
+  sequence it is written. Held by the conductor and deliberately not exported.
+  `undrain` is owed in a `finally` on every
   path, swap-back and abort alike, and **after** the swap generator's teardown, never beside it:
   closing that generator is what restores the standing residency, and admission reopens onto the
   subagent tier, so a window lifted first would hand delegated work to a server nothing has
@@ -1187,7 +1204,8 @@ Use-case:
   the daemon does not serve is the same distinction pointing the other way and stays `False`, with
   its own log line separating it from an unreachable host.
 - `SWAPPING_STATE` plus the swap window's detail and note texts (`swap_notes.py`) are every
-  app-authored string a handoff can put on a turn's stream. Status details are ephemeral
+  app-authored string a handoff can put on a turn's stream, `UNHOSTED_TIER_NOTE` (this machine
+  has no deep model set up) included. Status details are ephemeral
   progress; notes are reply text, streamed but not persisted, except `BRAIN_FAILED_NOTE`, which
   is appended to the deep model's partial reply and persisted with it. `note_for(error)` is the
   same module's mapping from a `ModelManagerError` to the note that is true of the GPU at that
@@ -1932,7 +1950,9 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   made against belonging together.
   The two host-facing moves themselves (evict, check the card, and
   start; stop and restore the standing residency, whose last step `restart_evicted` is public
-  because boot recovery ends the same way) live in `residency_moves.py`; both of the
+  because boot recovery ends the same way) live in `residency_moves.py`, beside the one question
+  asked before either of them (`is_unhosted(host, model)`, the one `status` call behind the
+  manager's `unhosted`); both of the
   swap back's own guarantees, its retry policy (`restore_with_retries`) and its uninterruptible
   wait, in `residency_restore.py`; and the bookkeeping every one of them publishes into, in
   `ResidencyBoard` (`residency_board.py`, ADR-0030 boot-verdict addendum): which model the GPU

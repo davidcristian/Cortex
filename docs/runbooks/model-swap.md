@@ -410,10 +410,20 @@ but a report of a slow *cortex* after a handoff is the same fault read from the 
   resident under a name the daemon never had, and the brain says once at startup:
   `escalation is enabled but the model host does not serve '<deep model>', so no handoff can ever
   run: name an artifact for that tier (CORTEX_MODEL_FILE_BRAIN) or turn escalation off
-  (CORTEX_ESCALATION)`. Until it is fixed, every escalation the user asks for fails with `the model
-  host does not serve '<deep model>' at all, so this deployment cannot escalate until that tier is
-  in its roster`, having reloaded the cortex on the way (the swap evicts before it asks), so the
-  cost of leaving it is a stall per attempt rather than a broken assistant.
+  (CORTEX_ESCALATION)`. Until it is fixed, every escalation the user asks for is **refused before
+  anything is drained or evicted**: the conductor asks the host whether it carries the tier at all,
+  logs `escalation was asked for but the model host does not serve '<deep model>', so the handoff
+  was refused with nothing drained and nothing unloaded` (naming the same two knobs), and the reply
+  ends with "this machine has no deep model set up, so the handoff was not started and nothing was
+  unloaded". The subagent pool never stops admitting and the cortex never leaves the card, so the
+  cost of leaving this unfixed is one `GET` per attempt. Measured on this stack 2026-08-16, against
+  the real sidecar with `brain` absent from its roster: the residency scope the conductor used to
+  reach regardless took **29.7 s**, having stopped the real cortex, met the 404 at the `start` and
+  reloaded the cortex from the mount, while the refusal ahead of it took **under 0.01 s** with the
+  cortex never leaving `ready`. At the deep tier's own scale that difference is minutes, because
+  the reload is a whole cortex load. The verdict is re-derived at every attempt rather than
+  remembered, so naming the artifact and `docker compose up -d` on the sidecar is enough: the very
+  next escalation goes through, with no restart of the brain.
 
 ## The chaos kill, host-side
 

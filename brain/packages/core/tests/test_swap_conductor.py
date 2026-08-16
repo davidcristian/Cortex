@@ -31,6 +31,7 @@ from cortex_core import (
     STORE_FAILED_NOTE,
     SWAP_FAILED_NOTE,
     SWAPPING_STATE,
+    UNHOSTED_TIER_NOTE,
     WORKING_DETAIL,
     CaptureScreenTool,
     DispatchBudget,
@@ -96,6 +97,7 @@ async def test_a_clean_handoff_walks_the_record_through_its_states() -> None:
     # sequence opens by asking which daemon is answering, before anything is evicted, so a swap
     # never spends its evictions on beliefs formed against a sidecar that has since restarted.
     assert live.host.calls == [
+        ("status", "brain"),
         ("boot_id", ""),
         ("stop", "cortex"),
         ("start", "brain"),
@@ -187,11 +189,59 @@ async def test_a_second_concurrent_handoff_is_refused_without_evicting_anything(
     with caplog.at_level(logging.WARNING, logger="cortex_core.swap_conductor"):
         events = await harness.run_handoff(live, harness.armed_slot())
     assert _texts(events) == ALREADY_ACTIVE_NOTE
-    assert live.host.calls == []  # nothing was stopped, so the cortex never stopped serving
+    assert live.host.calls == harness.PREFLIGHT_CALLS  # nothing stopped, the cortex still serves
     assert live.backend.calls == 0
     assert [record.message for record in caplog.records] == [
         "refusing a handoff while the store still has one in flight"
     ]
+
+
+async def test_a_deployment_whose_host_has_no_deep_tier_is_refused_before_the_drain(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Escalation onto a host that carries no such tier costs one status call and nothing else."""
+    live = build_harness(Fakes(host=ScriptedModelHost(running=["cortex"], unhosted=["brain"])))
+    await live.seed_session()
+    with caplog.at_level(logging.ERROR, logger="cortex_core.swap_conductor"):
+        events = await harness.run_handoff(live, harness.armed_slot())
+    assert _texts(events) == UNHOSTED_TIER_NOTE
+    assert _states(events) == []  # not even the draining chip: there is no window to announce
+    assert live.host.calls == harness.PREFLIGHT_CALLS  # asked once, and asked nothing else
+    assert live.scheduler.drains == 0  # the pool never stopped admitting
+    assert live.host.running == {"cortex"}  # the cortex was never unloaded, so never reloaded
+    assert live.handoffs.states == []  # no record was written, so none has to be settled
+    assert live.backend.calls == 0
+    # The operator's half: the deployment is misconfigured and nothing else says so.
+    assert "CORTEX_MODEL_FILE_BRAIN" in caplog.text
+    assert "CORTEX_ESCALATION" in caplog.text
+
+
+async def test_a_host_that_gains_the_deep_tier_stops_refusing_the_handoff() -> None:
+    """The verdict is re-derived per attempt, so a roster that grows works at the next attempt."""
+    host = ScriptedModelHost(running=["cortex"], unhosted=["brain"])
+    live = build_harness(Fakes(host=host))
+    await live.seed_session()
+    assert _texts(await harness.run_handoff(live, harness.armed_slot())) == UNHOSTED_TIER_NOTE
+    host.unhosted.discard("brain")  # the artifact is named and the daemon came back with it
+    events = await harness.run_handoff(live, harness.armed_slot())
+    assert _texts(events) == "a deep answer"
+    assert ("start", "brain") in host.calls
+    assert host.running == {"cortex"}  # and it converged back, as every handoff does
+
+
+async def test_a_host_that_cannot_be_asked_is_not_read_as_one_with_no_deep_tier(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """An unanswered question is not a refusal, which is the direction that matters most here."""
+    host = ScriptedModelHost(running=["cortex"], fail={("status", "brain"): "the socket is gone"})
+    live = build_harness(Fakes(host=host))
+    await live.seed_session()
+    with caplog.at_level(logging.WARNING, logger="cortex_core.residency_moves"):
+        events = await harness.run_handoff(live, harness.armed_slot())
+    assert _texts(events) == SWAP_FAILED_NOTE
+    assert ("stop", "cortex") in host.calls  # it went ahead and really tried, which is the point
+    assert host.running == {"cortex"}  # and the scope's finally brought the cortex back
+    assert "could not be asked whether it serves" in caplog.text
 
 
 async def test_a_swap_that_finds_the_gpu_already_handed_over_says_so_and_not_that_it_broke() -> (
@@ -218,7 +268,7 @@ async def test_a_handoff_store_that_cannot_record_the_snapshot_changes_nothing()
     await live.seed_session()
     events = await harness.run_handoff(live, harness.armed_slot())
     assert _texts(events) == STORE_FAILED_NOTE
-    assert live.host.calls == []
+    assert live.host.calls == harness.PREFLIGHT_CALLS
     assert live.backend.calls == 0
 
 
@@ -234,7 +284,7 @@ async def test_a_handoff_store_that_cannot_be_read_refuses_the_handoff_the_same_
     await live.seed_session()
     events = await harness.run_handoff(live, harness.armed_slot())
     assert _texts(events) == STORE_FAILED_NOTE
-    assert live.host.calls == []
+    assert live.host.calls == harness.PREFLIGHT_CALLS
     assert live.handoffs.states == []  # nothing was even written
 
 
@@ -255,7 +305,7 @@ async def test_a_drain_that_times_out_aborts_before_anything_is_evicted() -> Non
         await held.wait()
     events = await harness.run_handoff(live, harness.armed_slot())
     assert _texts(events) == DRAIN_TIMEOUT_NOTE
-    assert live.host.calls == []  # nothing evicted: the cortex is still serving
+    assert live.host.calls == harness.PREFLIGHT_CALLS  # nothing evicted, the cortex still serves
     assert live.handoffs.states == [HandoffState.READY, HandoffState.FAILED]
     assert not task.done()
     release.set()

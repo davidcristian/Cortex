@@ -15,6 +15,7 @@ from cortex_core import (
     AsyncioSleeper,
     ModelHostError,
     ModelHostState,
+    ModelNotHostedError,
     Placement,
     PlacementRequest,
     PlacementTarget,
@@ -225,6 +226,44 @@ async def test_a_coresident_scope_leaves_its_peer_serving_beside_the_deep_model(
             assert await host.status(peer) is ModelHostState.READY
         assert await host.status(standing) is ModelHostState.READY
         assert await host.status(peer) is ModelHostState.READY
+    finally:
+        await client.aclose()
+
+
+@pytest.mark.integration
+async def test_a_stock_sidecar_answers_the_escalation_precondition_without_touching_a_thing() -> (
+    None
+):
+    """The refusal's evidence, taken from a real daemon rather than from the twin."""
+    endpoint = os.environ.get("CORTEX_MODELHOST_ENDPOINT")
+    if not endpoint:
+        pytest.skip("set CORTEX_MODELHOST_ENDPOINT to a running model-host sidecar")
+    standing = os.environ.get("CORTEX_MODEL_CORTEX", "cortex")
+    deep = os.environ.get("CORTEX_MODEL_BRAIN", "brain")
+    client = httpx.AsyncClient(timeout=httpx.Timeout(_CONTROL_TIMEOUT_S))
+    host = HttpModelHost(endpoint, client)
+    plan = ResidencyPlan(cortex_model=standing, brain_model=deep, load_timeout_s=300.0)
+    manager = SwappingModelManager(
+        host,
+        {standing: "http://127.0.0.1:8080", deep: "http://127.0.0.1:8081"},
+        plan,
+        _SystemClock(),
+        AsyncioSleeper(),
+    )
+    try:
+        try:
+            await host.status(deep)
+        except ModelNotHostedError:
+            pass
+        else:
+            pytest.skip(f"the sidecar hosts a deep tier {deep!r}, so there is nothing to refuse")
+        await host.start(standing)
+        assert await _settled(host, standing) is ModelHostState.READY
+        assert await manager.unhosted(deep) is True
+        # The half only a real daemon can witness: the question changed nothing. A swap that had
+        # gone ahead would have this tier STOPPED right now and owe minutes to reload it.
+        assert await host.status(standing) is ModelHostState.READY
+        assert manager.residency() == RESIDENCY_SERVING
     finally:
         await client.aclose()
 
