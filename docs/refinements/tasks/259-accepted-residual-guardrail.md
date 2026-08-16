@@ -25,3 +25,7 @@ paraphrase path, which would be a different kind of defence than an output filte
   excluded from the area's open count because it names no work, an accepted limitation with no fix
   on offer would otherwise sit forever in a backlog that must be empty before the README ships, and
   it reopens only if someone proposes a mechanism that closes the paraphrase path.
+- 2026-08-16: Narrowed, not reopened. Its "retypes with a space" clause was measured and closed for
+  the *anchored* case by the twelfth ADR-0015 addendum, so a reply spelling `hxxp://evil dot com`
+  is now redacted. The clause stands for the paraphrase path this entry is actually about, a URL
+  described in words with no scheme in front of it, which no output filter closes.

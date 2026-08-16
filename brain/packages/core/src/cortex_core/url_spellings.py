@@ -3,7 +3,7 @@ r"""Every way one URL *separator character* may be spelled, behind the output gu
 
 import re
 
-from cortex_core.url_identity import LABEL_SEPARATORS
+from cortex_core.url_identity import DEFANG_DOT, DOT_WORD, LABEL_SEPARATORS
 
 OPEN_BRACKET = r"[\[({]"
 CLOSE_BRACKET = r"[\])}]"
@@ -39,6 +39,15 @@ def _spellings(plain: tuple[str, ...]) -> str:
 COLON_SPELLING = _spellings(_COLONS)
 SOLIDUS_SPELLING = _spellings(_SOLIDI)
 DOT_SPELLING = _spellings(_DOTS)
+
+NFKC_SPACES = (
+    "\u00a0\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u202f\u205f\u3000"
+)
+GAP_WHITESPACE = rf"[ \t{NFKC_SPACES}]"
+
+SPACED_DOT = rf"{GAP_WHITESPACE}+(?:{DOT_WORD}|{DOT_SPELLING}|{DEFANG_DOT}){GAP_WHITESPACE}+"
+
+DOT_TOKENS = (DOT_WORD, *_DOTS)
 
 # The *defanged* separators, the one family that is a bracketed token rather than a respelling of
 # the character. Held apart from the plain forms because the matcher composes the plain ones out of

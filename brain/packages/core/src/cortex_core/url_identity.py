@@ -11,10 +11,8 @@ from urllib.parse import unquote
 _OPEN_BRACKET = r"[\[({]"
 _CLOSE_BRACKET = r"[\])}]"
 
-# A defanged dot inside the host/path: `[.]`, `(.)`, `{.}`, `[dot]`, `(dot)`, `{dot}` (any case).
-# The *refanger*'s token, applied after `_decode_escapes`, so it needs only the literal form; the
-# *matcher*'s broader bracket chunk lives in `urls.py`. Recognized only inside a URL.
-_DEFANG_DOT = rf"{_OPEN_BRACKET}(?:\.|dot){_CLOSE_BRACKET}"
+DOT_WORD = "dot"
+DEFANG_DOT = rf"{_OPEN_BRACKET}(?:\.|{DOT_WORD}){_CLOSE_BRACKET}"
 
 # The defanged scheme separators, in any bracket shape: `[://]`/`(://)`/`{://}` for an authority
 # scheme, `[:]`/`(:)`/`{:}` for the bare colon (which also covers the `[:]//` split form, as the
@@ -38,7 +36,7 @@ _REFANG_SUBS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\Ahxx", re.IGNORECASE), "htt"),
     (re.compile(_DEFANG_AUTHORITY_SEP), "://"),
     (re.compile(_DEFANG_COLON), ":"),
-    (re.compile(_DEFANG_DOT, re.IGNORECASE), "."),
+    (re.compile(DEFANG_DOT, re.IGNORECASE), "."),
 )
 
 
@@ -130,10 +128,13 @@ LABEL_SEPARATORS = ".\u3002\uff61\uff0e"
 
 _LABEL_DOTS = str.maketrans(dict.fromkeys(LABEL_SEPARATORS, "."))
 
+_SPACED_DOT = re.compile(rf"[ \t]+(?:{DOT_WORD}|\.)[ \t]+", re.IGNORECASE)
+
 
 def _fold_label_dots(url: str) -> str:
-    """Fold the IDNA label separators (U+3002, U+FF61, U+FF0E) to the ASCII dot they resolve."""
-    return url.translate(_LABEL_DOTS)
+    """Fold the IDNA label separators (U+3002, U+FF61, U+FF0E) to the ASCII dot they resolve,
+    then close the whitespace a split host spells that same dot with."""
+    return _SPACED_DOT.sub(".", url.translate(_LABEL_DOTS))
 
 
 _SPECIAL_AUTHORITY = re.compile(rf"\A((?:{'|'.join(SPECIAL_SCHEMES)}):)[/\\]*", re.IGNORECASE)
