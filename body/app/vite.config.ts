@@ -2,20 +2,25 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
+// The overlay must reach 100% coverage. Two files are excluded below: `main.tsx` is entry glue,
+// and `tauriBridge.ts` does nothing but cross the Tauri IPC boundary, which CI cannot run.
 export default defineConfig({
   plugins: [react()],
   clearScreen: false,
   server: {
     port: 5173,
     strictPort: true,
-    // Tauri writes the Rust build output under src-tauri/target; if Vite's HMR
-    // watcher follows it, it crashes with EBUSY when cargo relinks the .dll.
+    // Tauri writes the Rust build output under src-tauri/target. If Vite's HMR watcher follows
+    // it, the watcher crashes with EBUSY when cargo relinks the .dll.
     watch: { ignored: ["**/src-tauri/**"] },
   },
   test: {
     environment: "jsdom",
     setupFiles: ["./src/test-setup.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
+    // Files and tests run in a shuffled but fixed order, so it is not the declaration order and
+    // is the same twice. The number is arbitrary; `just shuffle` runs other seeds.
+    sequence: { shuffle: true, seed: 65537 },
     coverage: {
       provider: "v8",
       all: true,

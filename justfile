@@ -98,6 +98,16 @@ check-overlay:
     cd body/app && npm run typecheck
     cd body/app && npm run test:cov
 
+shuffle seed="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    seed="{{ seed }}"
+    [ -n "$seed" ] || seed=$(( (RANDOM << 15) | RANDOM ))
+    echo "=== shuffle seed: $seed (reproduce this run with: just shuffle $seed) ==="
+    (cd brain && uv sync --locked && uv run pytest --randomly-seed="$seed")
+    (cd scripts && uv sync --locked && uv run pytest --randomly-seed="$seed")
+    (cd body/app && npm ci && npx vitest run --coverage --sequence.seed="$seed")
+
 # Regenerate the committed seam stubs from proto/body.proto (needs local protoc; ADR-0003).
 proto:
     mkdir -p /tmp/protostage/cortex_seam/_generated

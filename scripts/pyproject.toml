@@ -12,6 +12,7 @@ package = false
 dev = [
   "pytest>=8.3",
   "pytest-cov>=6.0",
+  "pytest-randomly>=4.1",
   "pyright>=1.1.390",
   "ruff>=0.11",
 ]
@@ -22,7 +23,7 @@ pythonpath = ["."]
 markers = [
   "integration: exercises live external systems; excluded from coverage gate and CI",
 ]
-addopts = "--cov=. --cov-branch --cov-report=term-missing --cov-fail-under=100 --strict-markers -m \"not integration\""
+addopts = "--cov=. --cov-branch --cov-report=term-missing --cov-fail-under=100 --strict-markers -m \"not integration\" --randomly-seed=7919"
 
 [tool.coverage.run]
 branch = true
