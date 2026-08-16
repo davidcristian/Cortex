@@ -59,7 +59,7 @@ never a reading of what the tree does now.
 
 ## What remains
 
-1 of these wait on something nobody wrote down. That is a gap in the record rather than a decision, and reading one of them closes it.
+One of these waits on something nobody wrote down. That is a gap in the record rather than a decision, and reading one of them closes it.
 
 ### Actionable, once a seam or port changes (3)
 

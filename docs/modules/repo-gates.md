@@ -189,7 +189,9 @@ every pointer in the repo aimed at one.
   under one heading per bucket, the standing items, then the roll call under one `### <group>`
   heading per area or sitting. `splice(existing, block)` puts it back between the markers,
   raising `ValueError` when a marker is missing or out of order. Nothing in that block is typed
-  by hand, so a count in it cannot disagree with the files it counts.
+  by hand, so a count in it cannot disagree with the files it counts. One count is a sentence
+  rather than a number, the tally of waiting tasks whose trigger nobody recorded, and it renders
+  in the singular at one, that being the reading the pass which finishes the job produces.
 - `backloganchors.py` is the anchor half of the link check and the only part of this gate that
   reads outside the backlog. `anchors(text)` returns every anchor a document offers, by the slug
   rule a markdown renderer uses (lowercase, drop every character that is not a word character, a
