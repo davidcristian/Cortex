@@ -90,6 +90,8 @@ check-body:
     cd body && cargo clippy --locked --workspace --all-targets -- -D warnings
     cd body && cargo clippy --locked --target x86_64-pc-windows-msvc -p os-windows --all-targets -- -D warnings
     cd body && cargo test --locked --workspace
+    cd body && rustc +nightly --version
+    cd body && cargo +nightly llvm-cov --version
     cd body && cargo +nightly llvm-cov --locked --branch --workspace --all-targets --ignore-filename-regex '/_generated/|/build[.]rs$' --fail-under-lines 100 --fail-under-regions 100 --json --summary-only --output-path coverage.json
     cd scripts && uv sync --locked
     cd scripts && uv run python coverage_gate.py ../body/coverage.json

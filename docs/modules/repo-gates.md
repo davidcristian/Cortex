@@ -166,7 +166,10 @@ forms that scan compares on, and `composemounts.py` is `bindcheck.py`'s compose 
   `data[0].totals.{lines,regions,branches}` on `covered == count` (the producer's
   `percent` is never trusted; displayed percentages are recomputed). A metric with
   `count == 0` passes vacuously (with a printed note). Malformed/missing/non-UTF-8
-  input → typed error, exit 1. Exit 0 only when all three metrics pass.
+  input → typed error, exit 1. Exit 0 only when all three metrics pass. The `check-body` recipe
+  that produces its input prints `rustc +nightly --version` and `cargo +nightly llvm-cov --version`
+  first, neither being pinned, so a verdict here can be read against the toolchain that produced
+  it (ADR-0002 toolchain-print addendum).
 - `ci_paths.py` implements AGENTS.md gate 3 / ADR-0006. Decides which toolchain CI jobs must run
   for a set of changed files. Reads newline-separated repo-relative paths (the output of
   `git diff --name-only`) on stdin; blank lines are ignored. Each path is classified by

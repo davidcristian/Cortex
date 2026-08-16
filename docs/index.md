@@ -30,7 +30,8 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   for Rust branch coverage, the JSON branch gate, `scripts/` as a standalone project,
   the `_generated` marker, tests-outside-source, ruff ALL, pre-commit = `just check`;
   a live contract run gets a Redis logical database of its own, so it reports on the
-  adapter rather than on whatever the brain happens to have stored.
+  adapter rather than on whatever the brain happens to have stored; and the coverage
+  step names the compiler and the tool it measured with, neither of which is pinned.
 - [ADR-0003: Seam codegen and packaging](adr/ADR-0003-seam-codegen.md): committed
   stubs in `_generated` dirs (hermetic builds, `just proto` to regen), tonic + grpcio,
   `#[ignore]` tests as the Rust integration suite, stubs shared via `cortex_seam`,
