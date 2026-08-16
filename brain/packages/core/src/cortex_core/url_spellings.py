@@ -3,7 +3,7 @@ r"""Every way one URL *separator character* may be spelled, behind the output gu
 Split from ``urls.py`` (which owns the grammar these are composed into) at the line cap as the
 eleventh addendum landed, the second such split after ``url_identity``. This module answers one
 question: given a character a URL's punctuation is made of, what must the matcher accept in its
-place? Three families stack, each landed by its own addendum and each **generated from a table
+place? Four families stack, each landed by its own addendum and each **generated from a table
 rather than listed**, so a mixed spelling cannot be the one nobody remembered:
 
 1. The **glyph** and its twins: the fullwidth colon and solidus NFKC folds to ASCII (U+FF1A,
@@ -14,6 +14,8 @@ rather than listed**, so a mixed spelling cannot be the one nobody remembered:
    addendum.
 3. A **defanged** token, the one family that is a bracketed word rather than a respelling of the
    character (``[://]``, ``[:]``), in every bracket shape; ADR-0015 seventh addendum.
+4. A **gap**: the whitespace a split host spells its dot with (``evil dot com``), admitted only
+   inside a host that carries no plain dot of its own; ADR-0015 twelfth addendum.
 
 The dot joins the colon and the solidus here because the eleventh addendum's host anchor needs one:
 a slashless authority is admitted only behind a host, and a host is a name whose labels a dot of
@@ -24,7 +26,7 @@ concatenates), so the two derive from one table and cannot drift. Pure state- an
 
 import re
 
-from cortex_core.url_identity import LABEL_SEPARATORS
+from cortex_core.url_identity import DEFANG_DOT, DOT_WORD, LABEL_SEPARATORS
 
 # The bracket vocabulary, shared by every bracketed token here and by the chunks `urls.py` builds
 # from it, so the two cannot drift. The inner run excludes whitespace, prose/markup quoting, and
@@ -118,6 +120,36 @@ def _spellings(plain: tuple[str, ...]) -> str:
 COLON_SPELLING = _spellings(_COLONS)
 SOLIDUS_SPELLING = _spellings(_SOLIDI)
 DOT_SPELLING = _spellings(_DOTS)
+
+# The whitespace a **gap** may be spelled with: the tab and the space, plus every character NFKC
+# folds *to* a space. That is the eighth addendum's criterion reaching the fourth family rather
+# than a new judgement, and it is a table for the same reason every other one here is: a no-break
+# space, a thin space and an ideographic space all render as a blank, so a host split by one reads
+# exactly like the spelling below and anchored nothing at all without them. Written as `\u`
+# escapes so the source stays ASCII (the `_CONFUSABLES` convention), and held to being **exactly**
+# the NFKC-to-space set by a test that regenerates it from the database, so a later Unicode version
+# adding one reddens rather than silently opening a gap. The whitespace NFKC leaves standing is the
+# line-breaking family (LF, CR, VT, FF, NEL, the line and paragraph separators) plus the Ogham space
+# mark, which draws a visible stroke; none of those is where a host's label breaks, and a newline in
+# particular is where a wrapped sentence does.
+NFKC_SPACES = (
+    "\u00a0\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u202f\u205f\u3000"
+)
+GAP_WHITESPACE = rf"[ \t{NFKC_SPACES}]"
+
+# The fourth family, and the only one that is not a character at all but a **gap**: the
+# whitespace-split defang (`evil dot com`, `evil . com`, `evil [dot] com`), which the security
+# community writes as readily as the contiguous forms and which the second addendum left out on
+# a false-positive worry the twelfth addendum measured instead. The token between the spaces is
+# the spelled-out word, any reading of the dot, or the refanger's own bracketed token, so the
+# three tables above and `DEFANG_DOT` are what say what a gap may hold.
+SPACED_DOT = rf"{GAP_WHITESPACE}+(?:{DOT_WORD}|{DOT_SPELLING}|{DEFANG_DOT}){GAP_WHITESPACE}+"
+
+# The same tokens as *literal text*, for the streaming hold-back, which has to recognize a gap that
+# has opened but not closed and so needs each token's prefixes rather than the token. The entity
+# forms are variable-length and stay out here exactly as they do for `AUTHORITY_SEPS`; `urls.py`
+# carries them with the unfinished-entity run it already has.
+DOT_TOKENS = (DOT_WORD, *_DOTS)
 
 # The *defanged* separators, the one family that is a bracketed token rather than a respelling of
 # the character. Held apart from the plain forms because the matcher composes the plain ones out of
