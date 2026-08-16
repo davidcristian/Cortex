@@ -128,13 +128,43 @@ with the cause chained:
   pure `SingleResidentModelManager`, with no GPU and no network. Live streaming against a real
   `llama-server` is the `integration`-marked test in `tests/test_backend_live.py`
   (excluded from CI + coverage; run per `docs/runbooks/llamacpp-gpu.md`).
-- Two shared port contracts are driven over this adapter and over a core twin, which is the
-  ports-before-adapters gate: `tests/cadence_contract.py` for the decode rate and
-  `tests/stop_contract.py` for the stop reason, each run twice by its `test_*_contract.py`. Both
-  feed the adapter leg a real llama-server body, so passing means the parser found the fact in
-  bytes nobody shaped for it. The stop's live twin is `tests/test_finish_reason_live.py`
+- Three shared port contracts are driven over this adapter and over a core twin, which is the
+  ports-before-adapters gate: `tests/cadence_contract.py` for the decode rate,
+  `tests/stop_contract.py` for the stop reason, and `tests/stream_contract.py` for the completion
+  those two close, each run twice by its `test_*_contract.py`. All three feed the adapter leg a
+  real llama-server body, so passing means the parser found the fact in bytes nobody shaped for
+  it. The stop's live twin is `tests/test_finish_reason_live.py`
   (`integration`-marked), which caps a real request at eight tokens and follows the answer through
   the shipped `PlacedAttempt`.
+- **What the streaming list holds is what a stream owes, said without saying when.** Eight checks
+  over four worlds a fixture arranges (a reasoning model answering, a completion that asks for a
+  tool, a completion with nothing to say, a backend that cannot answer): the reply is its deltas
+  joined in arrival order; the thinking crosses as its own kind and is over before the reply
+  starts; a tool call crosses whole; a tool call never precedes the words beside it; the two
+  closing events arrive at most once each with the stop first and both after what they describe; a
+  completion with nothing to say owes no event at all; an abandoned completion costs the backend
+  nothing, the next one arriving whole; and a backend that cannot answer fails its caller with
+  `InferenceError`. Nothing in it counts events, sizes one, or asks when one arrives, because the
+  two implementations produce them at different rates from different sources.
+
+**Where this adapter legitimately differs from the core's twin, and so what the shared list does
+not say.** Three, each decided when the streaming list was written rather than left implicit:
+
+- **A delta carrying no text is permitted by the port and dropped by this adapter.** llama-server
+  opens with a role-only chunk and closes with an empty delta, and neither is anything a consumer
+  can show, so `_chunk_events` skips them; `ScriptedInferenceBackend` yields whatever it was
+  handed, an empty chunk included, and the core is written for that (`turn_output` drops a delta
+  the guardrail empties, and `ThinkingChannel` drops an empty status because a blank one would
+  clear the overlay's chip). The list therefore never asks an implementation to filter, and the
+  adapter's own suite holds this one: making `_chunk_events` emit a delta per chunk reddens 22
+  cases there and exactly one shared check, for an ordering reason rather than an emptiness one.
+- **Tool calls trail both closing events here**, because a call is only whole once the stream is
+  over. The port asks only that a call never precede the words beside it, so a future backend
+  whose engine hands over each call as it completes would still pass, which is why the check is
+  written about order against the text rather than about position in the stream.
+- **The twin's script advances per `stream` call while this adapter is stateless per call**, which
+  is what makes a tool loop scriptable. So no check asks an implementation to answer twice the
+  same way; a sampled model could not, and unlike `Embedder` this port never promised it.
 
 **Dependencies.** cortex-core (the `InferenceBackend`/`ModelManager` ports and typed
 errors), httpx (the async HTTP client). The composition root

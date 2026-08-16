@@ -226,11 +226,48 @@ is not, and every Rust row. The inference one is deliberately not folded into th
 implementations producing events at different rates from different sources need a list that says
 what a stream owes without saying when, which is a design question rather than a transcription.
 
-**The trigger below counts nine and the tree now holds fourteen**, which is the entry's own text
-aging rather than a defect in it: thirteen in Python, twelve named `*_contract.py` plus
+**`InferenceBackend`'s streaming half closed on 2026-08-16, which leaves only Rust.**
+`brain/packages/inference/tests/stream_contract.py` holds eight checks and
+`test_stream_contract.py` runs them over `ScriptedInferenceBackend` and over `LlamaCppBackend`
+reading real llama-server bodies through a `MockTransport`, the third file of this port's list
+beside the two that hold one closing event each. The design question the entry recorded got an
+answer written into the checks themselves: a stream owes that the reply is its deltas joined in
+arrival order, that thinking crosses apart and is over before the reply starts, that a tool call
+crosses whole and never precedes the words beside it, that the two closing events arrive at most
+once each with the stop first and both after what they describe, that a completion with nothing
+to say owes no event at all, that an abandoned completion costs the backend nothing, and that a
+backend which cannot answer fails with `InferenceError`. Nothing in it counts events, sizes one,
+or asks when one arrives, which is what "without saying when" turned out to mean.
+
+It paid twice against the port's own description and once against the fake. The port promised
+`ToolCall`s "interleaved" with the text, which no implementation has ever done, and called the
+cadence the event that "closes the stream", which the trailing tool calls disprove in the other
+direction; both sentences were the thing that was wrong, and the list holds the half both
+implementations already keep. The fake could not fail at all: `ScriptedInferenceBackend` had no
+way to raise the port's one error, which is why ten test files hand-roll a backend of their own to
+make one, and it gained `fail_with` like the three fakes before it. Three legitimate divergences
+went into [docs/modules/brain-inference.md](../../modules/brain-inference.md) instead of into
+checks: an empty delta is permitted by the port and dropped by the adapter, tool calls trail both
+closing events there because a call is whole only once the stream ends, and the twin's script
+advances per call, which is why nothing asks an implementation to answer twice the same way. The
+shipped `EchoInferenceBackend` is deliberately not a third leg, since three of the four worlds
+cannot be put to it and teaching it any of them would turn shipped wiring into a test stub. What
+that left open is narrower and is filed as its own entry
+([R-280](280-twin-answers-for-any-model-id.md)): the twin answers for a model id no deployment
+serves, where the adapter refuses one its manager cannot lease. The whole account, including the
+seven breaks that proved the list able to fail and the eighth that deliberately did not, is the
+[ADR-0001](../../adr/ADR-0001-architecture.md) addendum of the same day.
+
+**The trigger below counts nine and the tree now holds sixteen**, which is the entry's own text
+aging rather than a defect in it: fifteen in Python, fourteen named `*_contract.py` plus
 `session/tests/contract.py`, and the overlay's `bridgeContract.ts`. The trigger keeps its
 wording because the arrangement it points at is unchanged and the number was true when it was
 written; the count that matters to the next reader is here and in the ADR tables.
+
+**What is left is every Rust row**, and nothing else: the four OS ports whose fakes are
+hand-written twice in two crates, `BrainTransport` with three independent suites over one
+eleven-method trait, and the two small ones beside them. The Python half and the overlay are
+done, so this entry is now one language wide.
 
 **Why deferred rather than done.** The ports named above come to five in Python counting the
 partial one, seven in Rust and one in the overlay, and writing contract suites for them is a
@@ -290,3 +327,13 @@ shared list would have named.
   of labour rather than a hole. That finished the four Python ports the sweep named, leaving
   `InferenceBackend`'s streaming half, which is a design question rather than a transcription, and
   every Rust row.
+- 2026-08-16: `InferenceBackend`'s streaming half closed, eight checks over the scripted twin and
+  the llama.cpp adapter, and the design question was answered by writing only obligations and
+  orders: what a stream owes turned out to be sayable without counting an event, sizing one, or
+  asking when it arrives. It paid twice against the port's own description, which promised
+  interleaved tool calls and a cadence that closes the stream where every implementation trails its
+  calls behind both closing events, and once against the fake, which could not raise the port's one
+  error and gained `fail_with`. The model-id half of that finding was too narrow to fold in and
+  opened [R-280](280-twin-answers-for-any-model-id.md). The Python half of this entry and the
+  overlay are now done, so what remains is every Rust row, where the fakes themselves are still
+  hand-written twice in two crates.

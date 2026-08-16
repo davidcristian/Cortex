@@ -735,7 +735,8 @@ unchanged):
   truth for conversation state; survives swaps and restarts.
 - `InferenceBackend` has `stream(model, messages, *, tools=(), schema=None, bounds=None) ->
   AsyncIterator[InferenceEvent]`: one stateless streamed completion, yielding `TextChunk` deltas
-  interleaved with `ToolCall`s the model makes from the offered `tools` (ADR-0009). `model` is a
+  and each whole `ToolCall` the model makes from the offered `tools` (ADR-0009), the call never
+  preceding the words beside it. `model` is a
   logical id (ADR-0004). `schema` (a `JsonSchema`, `Mapping[str, object]`), when set, constrains
   decoding to that JSON Schema (ADR-0028); `None` (every caller but a constrained tool-less
   subagent) leaves output unconstrained. `bounds` (a `GenerationBounds`, ADR-0038 cheap-fold
@@ -748,8 +749,14 @@ unchanged):
   both answers the user, where deliberation earns its wait, and folds a history recap, where it is
   discarded unread. A completion **closes with one `DecodeStop` when the engine says why it ended
   and one `DecodeCadence` when it reports how fast it decoded**, in that order and both after the
-  text they describe. Reporting either is optional and the two are independent, so no consumer may
-  read a missing cadence as a healthy rate or a missing stop as a model that finished.
+  text and thinking they describe, with any tool calls trailing them. Reporting either is optional
+  and the two are independent, so no consumer may
+  read a missing cadence as a healthy rate or a missing stop as a model that finished. A
+  completion with nothing to say owes no event at all, an abandoned one costs the backend nothing,
+  and a backend that cannot answer fails with `InferenceError` at a moment the port leaves open,
+  since an implementation may fail before it hands back an iterator or on the first event of one.
+  Those promises are the shared list in `inference/tests/stream_contract.py`, driven over the twin
+  and the llama.cpp adapter alike, beside the cadence and stop lists that hold the closing events.
 - `ModelManager` provides `acquire(model) -> AbstractAsyncContextManager[ModelLease]`: owns the
   GPU, queues for access, yields a `ModelLease`; leaving the block releases it to the
   next waiter. Consumed by the inference adapter (and, later, the handoff use-case).
@@ -1771,9 +1778,14 @@ Use-case:
   `ScriptedVisionProbe(answers)` (`fakes_vision.py`), whose script and `rescript` are how a test
   changes the world between the advertisement and the call.
 - `ScriptedInferenceBackend(rounds)` (`fakes_inference.py`) is the `InferenceBackend` twin the
-  decode-cadence and stop-reason contracts are driven over: one event list per `stream` call, the
-  last repeating,
-  plus a `calls` tally. It exists because `EchoInferenceBackend` must not learn to report a
+  decode-cadence, stop-reason and streaming contracts are driven over: one event list per `stream`
+  call, the last repeating,
+  plus a `calls` tally and `fail_with(InferenceError(...))`, which is the port's only failure
+  channel and the one thing a script cannot say (a server that stops answering is a condition of
+  the world, not an event in a stream); the attempt is recorded before it fails, a backend that
+  cannot answer having taken the request all the same. That the script advances per call is
+  deliberate and is why no contract check asks an implementation to answer twice the same way: a
+  sampled model could not. It exists because `EchoInferenceBackend` must not learn to report a
   cadence: that one is shipped wiring a GPU-less deployment really runs, so a fabricated rate out
   of it would be a made-up number in a real log, on the one path whose whole purpose is telling a
   real number from a plausible one. An echo has no server and therefore no timings, which is the
@@ -1903,7 +1915,12 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   script does and it honours no `bounds`, so it can end no other way; raises `InferenceError` if
   the history has no
   user message. Because `n` comes from the store, it keeps counting across a process
-  restart. That is observable state survival.
+  restart. That is observable state survival. It is **not** a third arm of the port's shared
+  lists, though it is shipped wiring rather than a double: it has no thinking, calls no tool and
+  always answers, so three of the four worlds those checks arrange cannot be put to it, and
+  teaching it any of them would turn a backend a GPU-less deployment really runs into a test stub,
+  which is the same argument that keeps it from ever reporting a cadence. What it owes is held by
+  `core/tests/test_fakes.py`, beside the script it is.
 - `SingleResidentModelManager(resident_model, endpoint)` is the `ModelManager` v1
   (ADR-0007 d3): pure policy, no I/O. `acquire` serializes callers with an
   `asyncio.Lock` (its waiter queue is the "queue API") and yields a `ModelLease` for the

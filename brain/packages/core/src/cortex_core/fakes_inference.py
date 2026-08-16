@@ -3,6 +3,7 @@
 from collections.abc import AsyncIterator, Sequence
 
 from cortex_core.conversation import Message
+from cortex_core.errors import InferenceError
 from cortex_core.inference import GenerationBounds, InferenceEvent, JsonSchema
 from cortex_core.tools import ToolSpec
 
@@ -12,6 +13,7 @@ class ScriptedInferenceBackend:
 
     def __init__(self, rounds: Sequence[Sequence[InferenceEvent]] = ()) -> None:
         self._rounds = [list(events) for events in rounds] or [[]]
+        self._failure: InferenceError | None = None
         self.calls: list[str] = []
 
     async def stream(
@@ -27,5 +29,11 @@ class ScriptedInferenceBackend:
         del messages, tools, schema, bounds
         index = min(len(self.calls), len(self._rounds) - 1)
         self.calls.append(model)
+        if self._failure is not None:
+            raise self._failure
         for event in self._rounds[index]:
             yield event
+
+    def fail_with(self, error: InferenceError) -> None:
+        """Make every later completion fail with ``error`` instead of streaming its round."""
+        self._failure = error
