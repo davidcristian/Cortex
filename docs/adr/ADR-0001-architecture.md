@@ -135,7 +135,7 @@ needs a real server and runs on the host.
 | `MemoryStore` | `InMemoryMemoryStore` | `PgVectorMemoryStore` | `memory/tests/memory_contract.py` | yes | no, needs a server | yes |
 | `ModelHost` | `ScriptedModelHost` | `HttpModelHost` | `model_manager/tests/model_host_contract.py` | yes | yes, over a real supervisor on ASGI | yes, restated |
 | `VisionProbe` | `ScriptedVisionProbe` | `PropsVisionProbe` | `orchestrator/tests/vision_probe_contract.py` | yes | yes, over `MockTransport` | yes, restated |
-| `InferenceBackend` | `ScriptedInferenceBackend` | `LlamaCppBackend` | `inference/tests/cadence_contract.py`, decode cadence only | yes | yes, over `MockTransport` | yes, restated |
+| `InferenceBackend` | `ScriptedInferenceBackend` | `LlamaCppBackend` | `inference/tests/cadence_contract.py`, `stop_contract.py`, `stream_contract.py` | yes | yes, over `MockTransport` | yes, restated |
 | `Embedder` | `HashEmbedder` | `LlamaCppEmbedder` | `embedding/tests/embedder_contract.py` | yes | yes, over `MockTransport` | yes, restated |
 | `ToolRegistry` | `InMemoryToolRegistry` | `McpToolRegistry`, and the `ReconnectingMcpToolRegistry` over it | `tools/tests/registry_contract.py` | yes | yes, both, over a serving `McpSession` | yes |
 | `BodyGateway` | `InMemoryBodyGateway` | `GrpcBodyGateway` | `body_client/tests/gateway_contract.py` | yes | yes, over a real loopback `BodyService` | yes |
@@ -252,7 +252,9 @@ embedder and the tool registry over `MockTransport` and a fake MCP session, the 
 real loopback `BodyService`, the confirmer over the seam's own fake. So the obstacle is not
 hardware, and the argument that they need one is the same argument the sweep just measured on
 `SessionStore`, one step earlier: the core is written against the fake and shipped against the
-adapter, and nothing today holds the two to one description.
+adapter, and nothing today holds the two to one description. All five have closed since, the four
+on 2026-08-11 and `InferenceBackend`'s streaming half on 2026-08-16, each in an addendum below and
+each moved in the table above; what the paragraph records is the sweep's own measurement.
 
 Across the Rust rows the defect is one step worse than a restated list, being a restated fake:
 `FakeAudio`, `FakeNotify`, `FakeScreen` and `FakeBrain` are each hand-written twice, once under
@@ -336,7 +338,7 @@ so what altitude the checks sit at, what the list found on its first run, and th
 proved it able to fail. `InferenceBackend` is deliberately not in this addendum: its decode
 cadence is already shared and the rest of its streaming contract is a design question of its own
 (what a list can say about an event stream two implementations produce at different rates), so it
-stays open in the tables and in the refinements entry.
+stayed open here and got its own addendum on 2026-08-16, once that question had an answer.
 
 ### `Embedder`
 
@@ -509,4 +511,95 @@ rest of streaming; that is a design question rather than a transcription, since 
 implementations produce their events at different rates and from different sources, and the list
 that covers it has to say what an event stream owes without saying when. Every Rust row is
 untouched, where the defect is one step worse than a restated list, the fakes themselves being
-hand-written twice in two crates.
+hand-written twice in two crates. The `InferenceBackend` half closed on 2026-08-16, in the
+addendum below; the Rust rows are as this paragraph left them.
+
+## Addendum (2026-08-16): `InferenceBackend`'s streaming half, and what a stream owes
+
+The last Python row, and the one held back from the four above because it needed an answer rather
+than a transcription: two implementations produce their events at different rates from different
+sources, one from a script and one from bytes arriving over HTTP, so a shared list had to say what
+a stream owes **without saying when**. `brain/packages/inference/tests/stream_contract.py` is that
+answer, beside the two files that already held one closing event each;
+`test_stream_contract.py` runs its eight checks over `ScriptedInferenceBackend` and over
+`LlamaCppBackend` reading real llama-server bodies through an `httpx.MockTransport`, the same two
+legs and the same fixture shape the cadence and stop lists use.
+
+**The answer, check by check.** Every one is an obligation or an order, and none counts events,
+sizes one, or asks when it arrives:
+
+1. **The reply is its text deltas joined in arrival order.** How many deltas, how long each is and
+   how far apart they arrive belong to the engine and are asserted nowhere.
+2. **Thinking arrives apart and before.** A reasoning model's deliberation crosses as its own kind
+   (ADR-0020), none of it is inside the reply, and none of it arrives after the reply has begun,
+   which is what lets a consumer render one as an ephemeral chip and persist the other.
+3. **A tool call crosses whole.** Id, name and arguments are one value; the fragments a wire
+   splits an arguments string into are the adapter's business, never a caller's.
+4. **A tool call never precedes the words beside it.**
+5. **The two closing events arrive at most once each, the stop before the cadence, and both after
+   everything they describe.** Each sibling list holds its own event alone, so the pair is
+   described only here.
+6. **A completion with nothing to say is a completion**, owing no stop, no cadence and no error.
+7. **An abandoned completion costs the backend nothing**, the next one arriving whole. Every
+   `finally: aclose()` in the core is written for this, a user's Stop being a consumer that walks
+   away mid-completion, and an implementation holding a GPU lease for the stream's duration has to
+   let go when the stream is dropped.
+8. **A backend that cannot answer fails its caller with `InferenceError`**, at a moment the port
+   deliberately leaves open: an implementation may fail before it hands back an iterator or on the
+   first event of one, and both shapes are live in this tree (`drain_text` guards its `aclose` for
+   exactly that reason).
+
+**What it found, twice against the port's own description.** The port said `TextChunk` deltas
+arrive "interleaved with `ToolCall`s", which no implementation has ever done: the adapter assembles
+calls from streamed fragments and can hand over none until the completion is over, and the twin is
+scripted from what an implementation produced. The same sentence called the cadence the event that
+"closes the stream", which is false in the other direction, since the calls trail both closing
+events. Neither implementation was wrong, so the fix went into the description, in `ports.py` and
+in `inference.py`, and the list holds the half both owe: a call never precedes the words beside it.
+That is the `ToolRegistry` outcome again, a promise nobody could keep replaced by the one everybody
+already kept.
+
+**And once against the fake: it could not fail.** `ScriptedInferenceBackend` had no way to raise
+the port's one error, so ten test files under `core/tests` and `orchestrator/tests` hand-roll a
+backend of their own to make one, each with its own idea of what a dead server does. It gained
+`fail_with`, the knob `HashEmbedder`, `InMemoryToolRegistry` and `InMemoryBodyGateway` already
+carry; the attempt is recorded before it fails, since a backend that cannot answer still took the
+request.
+
+**Where the two legitimately diverge, and so what the list does not say**, written into
+[docs/modules/brain-inference.md](../modules/brain-inference.md) instead of into a check. A delta
+carrying no text is permitted by the port and dropped by the adapter, because llama-server opens
+with a role-only chunk and closes with an empty delta and neither is anything to show; the core is
+written for either, `turn_output` dropping an emptied delta and `ThinkingChannel` an empty status.
+Tool calls trail both closing events in the adapter because a call is whole only once the stream
+ends, so the check is about order against the text rather than position in the stream. And the
+twin's script advances per call while the adapter is stateless per call, which is why nothing here
+asks an implementation to answer twice the same way: unlike `Embedder`, this port never promised
+determinism, and a sampled model could not keep it.
+
+**`EchoInferenceBackend` is deliberately not a third leg**, though it is shipped wiring rather than
+a double (the GPU-less default in `builders.py`). It has no thinking, calls no tool and always
+answers, so three of the four worlds cannot be put to it, and teaching it any of them would turn a
+backend a real deployment runs into a test stub, which is the argument `fakes_inference.py` already
+makes about the cadence it must never fabricate. What it owes stays in `core/tests/test_fakes.py`.
+Whether the twin should also refuse a model it does not serve, where the adapter refuses one its
+manager cannot lease, is the one question this list left open and is filed as its own entry.
+
+**Proven able to fail, seven times, and once informatively not.** Each break was made against
+production code, measured with the whole `packages` suite (2517 passing), and restored:
+
+| Break | Result | Shared checks reddened |
+| --- | --- | --- |
+| `_chunk_events` yields the reply before the thinking | 2 failed | the thinking check on `llamacpp` alone; the other is the adapter's own reasoning case |
+| `_chunk_events` yields the cadence before the stop | 4 failed | the closing-order check on `llamacpp` alone; the other three are adapter cases |
+| `consume_chunk` overwrites a call's arguments instead of accumulating them | 4 failed | both call checks on `llamacpp`, plus the derived case; the fourth is an adapter case |
+| `ScriptedInferenceBackend.fail_with` made a no-op | 1 failed | the failure check on `scripted` alone, which is what proves the new knob load-bearing |
+| the twin appends a `DecodeStop(FINISHED)` to every round | 5 failed | the nothing-to-say and closing-order checks on `scripted`; the other three are the stop list on the same arm |
+| `SingleResidentModelManager.acquire` releases its lock outside a `finally` | 3 failed | the abandonment check on `llamacpp`; the others are the two lease tests elsewhere |
+| `_chunk_events` stops dropping the engine's padding | 23 failed | exactly one, and for an ordering reason rather than an emptiness one; the other 22 are the adapter's own suite |
+
+The last row is the informative one, the shape the `Confirmer` list found in the other direction:
+the shared list holds the port and the adapter's suite holds the translation, so a change that only
+makes the adapter chatty leaves seven of the eight checks green. That is the division of labour
+rather than a hole. The one check it does redden fails because the role-only opening chunk becomes
+a text delta ahead of the thinking, which is the ordering promise doing its job.
