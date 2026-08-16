@@ -99,23 +99,6 @@ def test_an_unknown_open_state_names_the_states_that_exist() -> None:
         backlog.parse_status("open, soon")
 
 
-# ── the links a task file spends ───────────────────────────────────────────────
-
-
-def test_local_links_keeps_the_relative_targets_and_drops_the_rest() -> None:
-    """Only a relative target can rot on a move, so only those are worth resolving."""
-    text = (
-        "See [the sibling](002-a-slug.md) and [the decision](../adr/ADR-0001.md#decision-7).\n"
-        "Not [the site](https://example.com/x), nor [the plain one](http://example.com/y),\n"
-        "nor [a heading](#what-remains), nor [the author](mailto:someone@example.com).\n"
-    )
-    assert backlog.local_links(text) == ["002-a-slug.md", "../adr/ADR-0001.md"]
-
-
-def test_local_links_finds_nothing_in_prose_that_links_nowhere() -> None:
-    assert backlog.local_links("Plain prose, with brackets [but no target] in it.\n") == []
-
-
 # ── standing: the host state that is neither open nor closed ───────────────────
 
 

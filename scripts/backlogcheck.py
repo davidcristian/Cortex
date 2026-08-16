@@ -4,8 +4,10 @@ import argparse
 import sys
 from pathlib import Path
 
+import backloganchors
 import backlogindex
-from backlog import Task, TaskFileError, load, local_links
+from backlog import Task, TaskFileError, load
+from backloganchors import local_links
 
 BACKLOGS = (
     ("refinements", Path("docs/refinements"), "area"),
@@ -38,26 +40,28 @@ def check_stray(directory: Path) -> list[str]:
     ]
 
 
-def run_one(root: Path, kind: str, base: Path, group_word: str, *, write: bool) -> list[str]:
-    """Check (or regenerate) one backlog; return its problems, empty when it is clean."""
+def run_one(
+    root: Path, kind: str, base: Path, group_word: str, *, write: bool
+) -> tuple[list[str], frozenset[str] | None]:
+    """Check (or regenerate) one backlog; return its problems and the anchors its index offers."""
     directory = root / base / "tasks"
     index = root / base / "index.md"
     if not directory.is_dir():
-        return [f"{base}/tasks is missing; the backlog is one file per task"]
+        return [f"{base}/tasks is missing; the backlog is one file per task"], None
     if not index.is_file():
-        return [f"{base}/index.md is missing"]
+        return [f"{base}/index.md is missing"], None
     problems = check_stray(directory)
     try:
         tasks = load(directory, kind)
     except TaskFileError as err:
-        return [*problems, str(err)]
+        return [*problems, str(err)], None
     problems.extend(check_links(root, tasks, index))
     block = backlogindex.render(tasks, group_word)
     existing = index.read_text(encoding="utf-8")
     try:
         wanted = backlogindex.splice(existing, block)
     except ValueError as err:
-        return [*problems, f"{base}/index.md: {err}"]
+        return [*problems, f"{base}/index.md: {err}"], None
     if wanted != existing:
         if write:
             index.write_text(wanted, encoding="utf-8")
@@ -69,7 +73,7 @@ def run_one(root: Path, kind: str, base: Path, group_word: str, *, write: bool) 
             )
     opens = sum(1 for task in tasks if task.status.is_open)
     print(f"backlogcheck: {base} has {len(tasks)} tasks, {opens} open")
-    return problems
+    return problems, backloganchors.anchors(wanted)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -89,19 +93,25 @@ def main(argv: list[str] | None = None) -> int:
         print(f"backlogcheck: root {root} is not a directory", file=sys.stderr)
         return 2
     problems: list[str] = []
+    indexes: dict[Path, backloganchors.Index] = {}
     for kind, base, group_word in BACKLOGS:
-        problems.extend(run_one(root, kind, base, group_word, write=args.write))
+        found, offered = run_one(root, kind, base, group_word, write=args.write)
+        problems.extend(found)
+        if offered is not None:
+            name = f"{base}/index.md"
+            indexes[(root / name).resolve()] = backloganchors.Index(name=name, anchors=offered)
+    problems.extend(backloganchors.check(root, indexes))
     for problem in problems:
         print(problem, file=sys.stderr)
     if problems:
         print(
             f"\nbacklogcheck: {len(problems)} problem(s). A task's status is written on its own "
             f"Status line and nowhere else; the index is generated from those files by "
-            f"`just backlog`.",
+            f"`just backlog`, and a pointer into one must name a heading it renders.",
             file=sys.stderr,
         )
         return 1
-    print("backlogcheck OK: every backlog index matches its task files")
+    print("backlogcheck OK: every backlog index matches its task files and the pointers into it")
     return 0
 
 

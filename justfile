@@ -56,9 +56,6 @@ check-bindcheck:
     cd scripts && uv sync --locked
     cd scripts && uv run python bindcheck.py --root ..
 
-# Each backlog index still matches the task files it describes (ADR-0039). A task's
-# status lives on its own Status line and nowhere else, so this is the only thing
-# holding the generated index to it. Regenerate with `just backlog`.
 check-backlog:
     cd scripts && uv sync --locked
     cd scripts && uv run python backlogcheck.py --root ..
