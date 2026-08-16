@@ -1531,6 +1531,112 @@ def test_host_of_reads_a_mailto_domain_and_no_other_opaque_scheme() -> None:
     assert host_of("not a url at all") == ""
 
 
+# --- A tab a URL parser removes from its input (ADR-0015 fifteenth addendum). Not a respelling of
+# a separator but a character that is *nothing* to the parser, at every position it stands in, so
+# the odd spelling and the plain one are one link. The line break it declines is the twelfth
+# addendum's own sentence, now with 42 extended spans over the repo's prose behind it.
+_TAB_LINK = "https://evil.exa\tmple/pay"
+
+
+def test_extract_urls_reads_a_tab_a_url_parser_removes() -> None:
+    # The parser strips the tab before it parses anything, so the host it goes to is the plain
+    # one and the reader who pastes the reply lands there. It anchored nothing before this.
+    assert extract_urls(_TAB_LINK) == _PLAIN_LINK
+    assert extract_urls("https://evil.example/p\tay") == _PLAIN_LINK
+    assert extract_urls("https://evil.example\t/pay") == _PLAIN_LINK
+    assert extract_urls("ht\ttps://evil.example/pay") == frozenset()
+
+
+def test_a_tab_folds_out_of_every_scheme_the_grammar_reads() -> None:
+    # The removal is the parser's own and it is not scoped to a special scheme, unlike the
+    # backslash fold beside it, so an opaque scheme's content loses its tab too.
+    assert extract_urls("mailto:me\tyou@evil.example") == {"mailto:meyou@evil.example"}
+    assert extract_urls("tel:555\t0100") == {"tel:5550100"}
+    assert extract_urls("data:text/html,hi\tthere") == {"data:text/html,hithere"}
+
+
+def test_a_tab_split_transform_of_a_collected_url_is_redacted() -> None:
+    # Both directions, because a mismatch of identities leaks whichever side spells it oddly:
+    # untrusted content that wrote its link with a tab put the *wrong* host in the ledger
+    # (`https://evil.exa`), so the plain link in the reply went unredacted too.
+    guard = _filter(set(_PLAIN_LINK))
+    assert guard.feed(f"go to {_TAB_LINK} ") == f"go to {REDACTED_LINK} "
+    plain = _filter(set(extract_urls(_TAB_LINK)))
+    assert plain.feed("go to https://evil.example/pay ") == f"go to {REDACTED_LINK} "
+
+
+def test_a_tab_leaves_no_host_beside_the_marker() -> None:
+    # The failure shape the split host closed, reached by another spelling: a match that stopped
+    # at the tab replaced the head and left the rest of the attacker's host next to the marker.
+    guard = _strict(_Taint(tainted=True))
+    assert guard.feed(f"Please visit {_TAB_LINK} now.") == f"Please visit {REDACTED_LINK} now."
+
+
+def test_a_line_break_is_not_a_removal() -> None:
+    # The parser removes the newline and the carriage return exactly as it removes the tab, and
+    # both are declined all the same: a link at the end of a line would swallow the next line's
+    # first word, which is 42 extended spans over the repo's own prose against zero for the tab.
+    for breaker in ("\n", "\r"):
+        assert extract_urls(f"https://evil.exa{breaker}mple/pay") == {"https://evil.exa"}
+    assert extract_urls("https://evil.example/pay\nand the next line") == _PLAIN_LINK
+
+
+def test_a_tab_between_two_labels_is_still_the_gap() -> None:
+    # The one ordering decision the fold makes. A tabbed gap has two readings, the reader's
+    # (`evil.example`, which is what refanging any other gap gives) and the parser's
+    # (`evildotexample`), and the identity takes the reader's because the whole defang family
+    # rests on it. So the strip runs after the gap fold, never before.
+    assert extract_urls("https://evil\tdot\texample/pay") == _PLAIN_LINK
+    assert extract_urls("https://evil \t dot \t example/pay") == _PLAIN_LINK
+    assert extract_urls("hxxps://evil dot exa\tmple/pay") == _PLAIN_LINK
+
+
+def test_the_host_grammar_still_excludes_the_tab() -> None:
+    # Admitted in the body alone. The host anchor that admits an absent separator reads a *dotted*
+    # name, and a tab is not a dot, so a slashless authority still needs its dot before the tab;
+    # and the split host's labels stay dotless-and-tabless, which is what leaves the reading above
+    # available at all.
+    assert extract_urls("https:evil.exa\tmple/pay") == _PLAIN_LINK
+    assert extract_urls("https:evil\texample.com/pay") == frozenset()
+
+
+def test_a_tab_beside_a_link_is_the_accepted_cost() -> None:
+    # The whole false-positive surface, and it is real rather than theoretical: a tab immediately
+    # after a link is inside the match now, so a strict turn redacts the word behind it too. Zero
+    # occurrences over 1,054 files and 1,348,844 words of the repo's own prose, which is why it is
+    # affordable; a tab with prose on both sides of it is untouched, having no scheme to anchor.
+    assert extract_urls("http://ok.example/x\tand the next word") == {"http://ok.example/xand"}
+    guard = _strict(_Taint(tainted=True))
+    assert guard.feed("see http://ok.example/x\tand the rest.") == f"see {REDACTED_LINK} the rest."
+    # A tab with prose on both sides of it is untouched, having no scheme to anchor.
+    assert _strict(_Taint(tainted=True)).feed("a tab\there") == "a tab\there"
+
+
+def test_a_tab_carrying_url_arriving_across_chunks_is_carried_not_lost() -> None:
+    # A match touching the buffer's end is already carried, so the tab needs no branch of its own
+    # in the hold-back; the point of the test is that it does not need one.
+    guard = _filter(set(_PLAIN_LINK))
+    assert guard.feed("at https://evil.exa\t") == "at "
+    assert guard.feed("mple/pay ") == f"{REDACTED_LINK} "
+
+
+def test_a_tab_carrying_url_survives_a_one_character_stream() -> None:
+    # The production shape: the filter sees one character at a time.
+    guard = _filter(set(_PLAIN_LINK))
+    reply = f"settle at {_TAB_LINK} now"
+    fed = "".join(guard.feed(char) for char in reply) + guard.flush()
+    assert fed == f"settle at {REDACTED_LINK} now"
+
+
+def test_the_fifteenth_addendum_composes_with_its_predecessors() -> None:
+    # An entity-spelled separator, a zero-width character, a defanged scheme and a slashless
+    # authority each still reach the plain identity with a tab standing in the host.
+    assert extract_urls("https&#58;//evil.exa\tmple/pay") == _PLAIN_LINK
+    assert extract_urls("https://ev\u200bil.exa\tmple/pay") == _PLAIN_LINK
+    assert extract_urls("hxxps://evil[.]exa\tmple/pay") == _PLAIN_LINK
+    assert extract_urls("https:\\\\evil.exa\tmple/pay") == _PLAIN_LINK
+
+
 def test_normalizing_without_the_confusable_fold_leaves_the_letters_written() -> None:
     # The switch the lookalike ground reads through: every resolver-faithful pass still runs (the
     # defang here is refanged and the authority still lowercases), and only the one judgement pass
