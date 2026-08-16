@@ -26,7 +26,6 @@ from pathlib import Path
 
 FILENAME = re.compile(r"^(\d{3})-([a-z0-9]+(?:-[a-z0-9]+)*)\.md$")
 FIELD = re.compile(r"^\*\*([A-Za-z]+):\*\* +(.+?) *$")
-LINK = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
 # A title names the work, never its state. "closed" and "done" are left out of this list on
 # purpose: both are ordinary adjectives in these titles (a closed section, a closed list),
 # and a rule that costs honest names buys nothing. A year is banned outright, since a date
@@ -251,16 +250,6 @@ def parse_task(kind: str, path: Path, text: str) -> Task:
         status=status,
         fields=fields,
     )
-
-
-def local_links(text: str) -> list[str]:
-    """Return every relative markdown link target in ``text``, fragments stripped."""
-    targets: list[str] = []
-    for target in LINK.findall(text):
-        if target.startswith(("http://", "https://", "#", "mailto:")):
-            continue
-        targets.append(target.split("#", 1)[0])
-    return [target for target in targets if target]
 
 
 def load(directory: Path, kind: str) -> list[Task]:

@@ -2,19 +2,24 @@
 
 **Purpose.** The repo's own tooling, in the tree neither shipped artifact contains: the cross-tree
 line cap, the punctuating-dash ban, the cross-language constant check, the compose bind-mount
-check, the Rust branch coverage threshold, the CI path classifier, the commit-message style hook,
+check, the backlog gate, the Rust branch coverage threshold, the CI path classifier, the
+commit-message style hook,
 and, since 2026-08-09, the one module here that gates nothing, the interval a live measurement
 reports. What they have in common is not that each is a gate; it is that each is pure Python that
 belongs to neither the brain nor the body and is gated exactly like both. A standalone uv project
 (not a brain workspace member, per ADR-0002).
 
 **Public contract** (all are CLIs, with `linecap.py`, `dashcheck.py`, `crosscheck.py`,
-`bindcheck.py` and `coverage_gate.py` invoked by `just` recipes, `ci_paths.py` by the CI
+`bindcheck.py`, `backlogcheck.py` and `coverage_gate.py` invoked by `just` recipes, `ci_paths.py`
+by the CI
 workflow, `commitlint.py` by the commit-msg pre-commit stage, `contrast.py` by `just turn-cost`;
-each also exposes a pure, unit-tested core function). Four modules here have no CLI of their own,
+each also exposes a pure, unit-tested core function). Seven modules here have no CLI of their own,
 each split out under the line cap and each named for what it holds: `couplings.py` and
 `overlaycouplings.py` are the two halves of `crosscheck.py`'s registry, `values.py` is the value
-forms that scan compares on, and `composemounts.py` is `bindcheck.py`'s compose reader.
+forms that scan compares on, `composemounts.py` is `bindcheck.py`'s compose reader, and
+`backlog.py`, `backlogindex.py` and `backloganchors.py` are the three `backlogcheck.py` reads a
+backlog through: the task-file grammar, the index renderer, and the anchors an index offers with
+every pointer in the repo aimed at one.
 
 - `linecap.py [--root DIR] [--max-lines N]` implements AGENTS.md gate 1. Scans
   `*.py`/`*.rs`/`*.ts`/`*.tsx` under `--root` (default `.`), all three gated toolchains
@@ -161,6 +166,45 @@ forms that scan compares on, and `composemounts.py` is `bindcheck.py`'s compose 
   `redis-data:/data`. The second is that a sequence may be written **flush**, its items at the
   indent of the key they belong to, which compose accepts and this reader now walks: a block ends
   at a line shallower than its key, or at one beside the key that is not a list item.
+- `backlogcheck.py [--root DIR] [--write]` holds each backlog index to the task files it
+  describes (ADR-0039). Without `--write` it checks, which is what `just check-backlog` runs;
+  with `--write` it regenerates each index, which is what `just backlog` runs. That split is the
+  whole mechanism and it is `cargo fmt --check` pointed at a backlog: the index cannot be edited
+  into disagreement with the tasks, because the only supported way to change it is to change a
+  task file and regenerate. Five things fail. A task file outside the layout (a name that is not
+  `NNN-slug.md`, a missing, duplicated or unknown field, a status outside the grammar, a title
+  restating its own status, a number already used, or one of the two waiting states not naming
+  its trigger). A relative link in a task file or an index that does not resolve. **A fragment
+  aimed at a heading a backlog index does not render**, which is the same link's other half and
+  the half a rename breaks silently, checked since the ADR-0039 anchor addendum. An index whose
+  generated block is stale, missing or hand-edited. A `tasks/` directory holding anything that is
+  not a task file. Exit 0 with one count line per backlog; exit 1 printing one problem per line;
+  exit 2 if `--root` is not a directory.
+- `backlog.py` is the task-file grammar and has no CLI: `load(directory, kind)` parses every
+  `NNN-slug.md` into a `Task`, raising `TaskFileError` naming the file and what is wrong with it.
+  A `Status` is parsed from a closed grammar and answers `is_open`, `is_standing` and the index
+  `bucket` it files under, so nothing downstream re-derives a state from prose.
+- `backlogindex.py` renders the generated half of an index and has no CLI. `render(tasks,
+  group_word)` returns the whole block, markers included: the counted headline, the open set
+  under one heading per bucket, the standing items, then the roll call under one `### <group>`
+  heading per area or sitting. `splice(existing, block)` puts it back between the markers,
+  raising `ValueError` when a marker is missing or out of order. Nothing in that block is typed
+  by hand, so a count in it cannot disagree with the files it counts.
+- `backloganchors.py` is the anchor half of the link check and the only part of this gate that
+  reads outside the backlog. `anchors(text)` returns every anchor a document offers, by the slug
+  rule a markdown renderer uses (lowercase, drop every character that is not a word character, a
+  space or a hyphen, spaces to hyphens, a repeated heading numbered from its second occurrence),
+  with a `#` inside a fenced block not counted as a heading. `check(root, indexes)` walks every
+  markdown file under `--root`, skipping the directory components `dashcheck.py` skips for the
+  reason that gate gives, and reports any fragment aimed at one of those indexes that names no
+  heading it renders; a pointer with no path is aimed at the document it is written in, which is
+  how an index's links to its own hand-written sections are covered. **The anchor set comes from
+  the spliced index**, the hand-written halves around the freshly rendered block, and never from
+  the committed file: a stale index is then judged as the document it is about to become, and its
+  staleness stays one problem instead of a hundred. Sources are repo-wide and targets are not.
+  Most pointers at these anchors live in decision records and runbooks, which are exactly the
+  readers a rename strands, so the scan reads them; a fragment aimed at any other document is out
+  of scope, that being a heading set per document in the repo and a wider scan.
 - `coverage_gate.py PATH` reads a `cargo llvm-cov --json --summary-only` export,
   requires exactly one `data[]` entry, and gates each of
   `data[0].totals.{lines,regions,branches}` on `covered == count` (the producer's
@@ -267,6 +311,11 @@ forms that scan compares on, and `composemounts.py` is `bindcheck.py`'s compose 
   `test_the_repo_really_declares_binds_for_this_gate_to_have_checked` fails if the reader ever
   finds fewer than six defaulted bind sources under `docker/`, so the clean verdict cannot go
   vacuously green on a reader that stopped matching.
+- `backloganchors.py` is held to both halves of that same pattern:
+  `test_the_repo_itself_offers_every_anchor_aimed_at_it` runs the anchor check over the real
+  tree, and `test_the_repo_really_aims_pointers_at_both_indexes_from_outside_the_backlog` fails
+  if either index ever stops being pointed at from outside its own directory, the population a
+  backlog-only scan would have missed being the one that guard exists to keep in the input.
 - The exclusion lists above are the single definition of "non-test source file" and
   "generated code" for the cap. Change them only with an ADR update.
 - `dashcheck.py`, `commitlint.py`, and their tests spell the dashes as `\uXXXX` escapes

@@ -90,22 +90,29 @@ def test_check_links_skips_an_index_that_is_not_there(tmp_path: Path) -> None:
 
 def test_run_one_reports_a_missing_tasks_directory(tmp_path: Path) -> None:
     _write(tmp_path, "docs/refinements/index.md", INDEX)
-    problems = backlogcheck.run_one(tmp_path, "refinements", REFINEMENTS, "area", write=False)
+    problems, offered = backlogcheck.run_one(
+        tmp_path, "refinements", REFINEMENTS, "area", write=False
+    )
     assert problems == ["docs/refinements/tasks is missing; the backlog is one file per task"]
+    assert offered is None
 
 
 def test_run_one_reports_a_missing_index(tmp_path: Path) -> None:
     _write(tmp_path, "docs/refinements/tasks/001-wire-the-memory-port.md", REFINEMENT)
-    problems = backlogcheck.run_one(tmp_path, "refinements", REFINEMENTS, "area", write=False)
+    problems, offered = backlogcheck.run_one(
+        tmp_path, "refinements", REFINEMENTS, "area", write=False
+    )
     assert problems == ["docs/refinements/index.md is missing"]
+    assert offered is None
 
 
 def test_run_one_reports_a_task_file_outside_the_layout(tmp_path: Path) -> None:
     root = _repo(tmp_path)
     _write(root, "docs/refinements/tasks/002-broken.md", REFINEMENT.replace("actionable", "soon"))
-    problems = backlogcheck.run_one(root, "refinements", REFINEMENTS, "area", write=False)
+    problems, offered = backlogcheck.run_one(root, "refinements", REFINEMENTS, "area", write=False)
     assert len(problems) == 1
     assert "unknown open state 'soon'" in problems[0]
+    assert offered is None
 
 
 def test_run_one_reports_both_a_stray_entry_and_the_task_it_broke(tmp_path: Path) -> None:
@@ -113,7 +120,7 @@ def test_run_one_reports_both_a_stray_entry_and_the_task_it_broke(tmp_path: Path
     root = _repo(tmp_path)
     _write(root, "docs/refinements/tasks/notes.txt", "a note\n")
     (root / REFINEMENTS / "tasks" / "002-a-folder.md").mkdir()
-    problems = backlogcheck.run_one(root, "refinements", REFINEMENTS, "area", write=False)
+    problems, _ = backlogcheck.run_one(root, "refinements", REFINEMENTS, "area", write=False)
     assert len(problems) == 3
     assert sum("task files and nothing else" in problem for problem in problems) == 2
     assert any("cannot be read as a task file" in problem for problem in problems)
@@ -121,17 +128,19 @@ def test_run_one_reports_both_a_stray_entry_and_the_task_it_broke(tmp_path: Path
 
 def test_run_one_reports_a_stale_index(tmp_path: Path) -> None:
     root = _repo(tmp_path)
-    problems = backlogcheck.run_one(root, "refinements", REFINEMENTS, "area", write=False)
+    problems, offered = backlogcheck.run_one(root, "refinements", REFINEMENTS, "area", write=False)
     assert problems == [
         "docs/refinements/index.md is out of date with its 1 task files; run `just backlog`"
     ]
+    assert offered is not None
+    assert "actionable-now-1" in offered
 
 
 def test_run_one_rewrites_a_stale_index_when_asked(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     root = _repo(tmp_path)
-    assert backlogcheck.run_one(root, "refinements", REFINEMENTS, "area", write=True) == []
+    assert backlogcheck.run_one(root, "refinements", REFINEMENTS, "area", write=True)[0] == []
     written = (root / REFINEMENTS / "index.md").read_text(encoding="utf-8")
     assert "How a person works it." in written
     assert "**1 open, 0 closed, 1 in total.**" in written
@@ -144,23 +153,24 @@ def test_run_one_is_clean_once_the_index_matches(
     root = _repo(tmp_path)
     backlogcheck.run_one(root, "refinements", REFINEMENTS, "area", write=True)
     capsys.readouterr()
-    assert backlogcheck.run_one(root, "refinements", REFINEMENTS, "area", write=False) == []
+    assert backlogcheck.run_one(root, "refinements", REFINEMENTS, "area", write=False)[0] == []
     assert "docs/refinements has 1 tasks, 1 open" in capsys.readouterr().out
 
 
 def test_run_one_reports_an_index_without_its_markers(tmp_path: Path) -> None:
     root = _repo(tmp_path)
     _write(root, "docs/refinements/index.md", "# The backlog\n\nProse, and no markers.\n")
-    problems = backlogcheck.run_one(root, "refinements", REFINEMENTS, "area", write=True)
+    problems, offered = backlogcheck.run_one(root, "refinements", REFINEMENTS, "area", write=True)
     assert len(problems) == 1
     assert "docs/refinements/index.md: the index needs both" in problems[0]
+    assert offered is None
 
 
 def test_run_one_reports_a_link_that_stopped_resolving(tmp_path: Path) -> None:
     root = _repo(tmp_path)
     task = root / REFINEMENTS / "tasks" / "001-wire-the-memory-port.md"
     task.write_text(REFINEMENT + "\nSee [the sibling](002-moved-away.md).\n", encoding="utf-8")
-    problems = backlogcheck.run_one(root, "refinements", REFINEMENTS, "area", write=True)
+    problems, _ = backlogcheck.run_one(root, "refinements", REFINEMENTS, "area", write=True)
     assert problems == [
         "docs/refinements/tasks/001-wire-the-memory-port.md: "
         "link '002-moved-away.md' does not resolve"
@@ -175,7 +185,7 @@ def test_run_one_accepts_a_link_that_climbs_out_of_the_backlog(tmp_path: Path) -
         REFINEMENT + "\nSee [the decision](../../adr/ADR-0001-architecture.md#decision-7).\n",
         encoding="utf-8",
     )
-    assert backlogcheck.run_one(root, "refinements", REFINEMENTS, "area", write=True) == []
+    assert backlogcheck.run_one(root, "refinements", REFINEMENTS, "area", write=True)[0] == []
 
 
 # ── the gate, end to end ───────────────────────────────────────────────────────
@@ -219,6 +229,37 @@ def test_main_reports_a_new_task_as_a_stale_index(
     capsys.readouterr()
     assert backlogcheck.main(["--root", str(root)]) == 1
     assert "out of date with its 2 task files" in capsys.readouterr().err
+
+
+def test_main_reports_a_pointer_left_aimed_at_a_renamed_area(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The gate's other half in one line: the link resolves, and the heading is gone."""
+    root = _repo(tmp_path)
+    _write(root, "docs/adr/ADR-0001.md", "See [the area](../refinements/index.md#brain).\n")
+    assert backlogcheck.main(["--root", str(root), "--write"]) == 0
+    capsys.readouterr()
+    task = root / REFINEMENTS / "tasks" / "001-wire-the-memory-port.md"
+    task.write_text(REFINEMENT.replace("**Area:** brain", "**Area:** brain-core"), encoding="utf-8")
+    assert backlogcheck.main(["--root", str(root), "--write"]) == 1
+    reported = capsys.readouterr().err
+    assert "docs/adr/ADR-0001.md: pointer '../refinements/index.md#brain' aims at a heading" in (
+        reported
+    )
+    assert "docs/refinements/index.md does not render" in reported
+
+
+def test_main_judges_no_pointer_at_a_backlog_whose_index_it_could_not_render(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """With the markers gone there is no rendering to judge against, so only that is reported."""
+    root = _repo(tmp_path)
+    _write(root, "docs/adr/ADR-0001.md", "See [the area](../refinements/index.md#brain).\n")
+    _write(root, "docs/refinements/index.md", "# The backlog\n\nProse, and no markers.\n")
+    assert backlogcheck.main(["--root", str(root), "--write"]) == 1
+    reported = capsys.readouterr().err
+    assert "docs/refinements/index.md: the index needs both" in reported
+    assert "aims at a heading" not in reported
 
 
 def test_main_rejects_a_root_that_is_not_a_directory(

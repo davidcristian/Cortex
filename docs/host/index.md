@@ -599,7 +599,7 @@ Weighed, not run. Each stays at its ADR, which is the correct home for a decisio
 pointers so they are not lost.
 
 - **Five risks flagged for maintainer review** in
-  [ADR-0030](../adr/ADR-0030-brain-handoff.md#risks-flagged-for-user-review): the gated-escalation
+  [ADR-0030](../adr/ADR-0030-brain-handoff.md#risks-flagged-for-maintainer-review): the gated-escalation
   default (a config plus one check to reverse), the model-host sidecar shape versus a docker-socket
   controller, the unmeasured brain-tier swap latency, two assistant messages under one turn id,
   and whether the brain phase should carry the cortex's full dispatcher.

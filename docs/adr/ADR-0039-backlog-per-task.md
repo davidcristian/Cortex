@@ -134,3 +134,53 @@ reasoning, recorded above as decision 8.
 **Let the index be hand-written but check it.** Rejected. A check that reports a diff a person
 must then apply by hand is a regeneration step with extra work and an opportunity to apply it
 wrong. Generating is the same code with the failure mode removed.
+
+## Addendum (2026-08-16): a pointer's anchor is checked too, against what the index renders
+
+Decision 7 above holds a link's **path** to resolving and stops there. This migration also
+retargeted every pointer at an area onto an **anchor**, `refinements/index.md#memory`, and nothing
+read the fragment. Those anchors were all true, for a reason that was never a guarantee: the roll
+call emits one `### <area>` heading per area and no area was empty. Rename an area, or close and
+move the last task out of one, and the heading stops being rendered while the link keeps
+resolving, so the reader lands at the top of a long index with no idea which part was meant. That
+is the same silent rot decision 7 exists to catch, caught one level short.
+
+`backloganchors.py` now closes it, and three choices are worth recording because each could
+sensibly have gone the other way.
+
+**The anchor set is read off the spliced index, not off the committed file.** What the gate
+compares against is the hand-written halves of the index wrapped around the block it has just
+rendered, which is the document `just backlog` is about to require on disk. Reading the committed
+file instead would judge fragments against a document nobody intends to keep, so a stale index
+would report a hundred dead anchors on top of the one staleness problem that explains them. It
+also means the check needs no second list of headings to keep in step with the renderer: whatever
+`render` emits is an anchor, including headings it may grow later.
+
+**Both halves of the index offer anchors.** The generated roll call renders one heading per area
+or sitting, and the prose above and below it carries headings people cite as well, the host
+index's own bring-up section among them. So the set is every heading in that spliced document
+rather than only the ones this repo's renderer produced. A `#` inside a fenced block is not a
+heading, which matters because the host index carries runbook fences full of shell comments.
+
+**Sources are repo-wide; targets are not.** At the time of writing, 251 pointers in the repo aim
+at a heading in one of the two indexes, and only 77 of them are written inside the backlog. The
+other 174 live in decision records, runbooks and module docs, which are exactly the readers a
+rename strands, so a scan restricted to the backlog's own files would have left the majority
+unguarded while reporting green. Reading every markdown file under the root costs a walk of the
+tree and a read of its 374 markdown files, which measured 12 ms. The other direction is
+deliberately not taken: a fragment aimed at any
+document that is not a backlog index goes unjudged, since that needs a heading set per document in
+the repo and is a wider scan over a wider input. Counting that wider population is what turned up
+the one stale anchor already in the tree, the host index aiming at
+`ADR-0030-brain-handoff.md#risks-flagged-for-user-review` against a heading that now reads **Risks
+flagged for maintainer review**, renamed by the pass that took every person out of this repo's
+prose. It is fixed, and it is the whole argument for the residual: nine fragments aim outside the
+two indexes, eight of them are `README.md` linking itself, and the ninth was wrong.
+
+Two smaller consequences. The bucket headings carry their own counts (`### Fix when it bites
+(62)`), so their anchors change whenever a task opens or closes; nothing points at one today, and
+anything that starts to will be held to it from the first regeneration. And the gate was proved
+able to fail before being trusted, on a copy of the real tree, in five ways: an area renamed, an
+area emptied by moving its last tasks out, a rename whose pointers live in task files as well as
+in a decision record, a renamed host sitting, and a renamed hand-written heading that the index
+links to from within itself.
