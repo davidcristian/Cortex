@@ -604,11 +604,12 @@ Untrusted-content boundary (Slice 6.5, ADR-0013; the pure primitives in `untrust
 
 Output guardrail (ADR-0015; the pure laundering defense built from the redactor + policies in
 `guardrail.py`, the URL grammar in `urls.py`, one URL's canonical identity in `url_identity.py`,
-every way a separator character may be spelled in `url_spellings.py`, and the curated confusable
-fold in `url_confusables.py`, the first three having split at the line cap as the seventh and the
-eleventh addenda landed and the fourth by responsibility as the lookalike policy did: it is the one
-pass that is a judgement about what looks alike rather than a resolver's reading, and so the one a
-caller may switch off):
+every way a separator character may be spelled in `url_spellings.py`, the curated confusable
+fold in `url_confusables.py`, and what a URL parser removes from its input in `url_removals.py`, the
+first three having split at the line cap as the seventh and the eleventh addenda landed and the last
+two by responsibility: the confusable fold is the one pass that is a judgement about what looks
+alike rather than a resolver's reading, and so the one a caller may switch off, and the removal
+table is read by the grammar and the identity alike, so neither may own it):
 
 - `extract_urls(text) -> frozenset[str]` (in `urls.py`) finds every clickable URL in `text` (schemes
   `http(s)`, `ftp`, `mailto:`, `tel:`, and `data:` behind a MIME-type anchor so `data:the results`
@@ -642,9 +643,16 @@ caller may switch off):
   thin space renders as a blank and so anchored nothing before. What NFKC leaves standing is the
   line-breaking family plus the Ogham space mark, none of which is where a host's label breaks, so
   a newline is not a gap. Only a host is split (never a path), and the *unanchored* form
-  (`evil dot example`, no scheme) stays out with the bare domains. The matcher
+  (`evil dot example`, no scheme) stays out with the bare domains. The body also admits a **tab**
+  (`http://evil.exa<TAB>mple/pay`), which is not a spelling of anything but a character a URL parser
+  *removes* from its input before parsing it, at every position, so the odd spelling is the plain
+  link to the browser the user pastes into, and the overlay's `white-space: pre-wrap` bubble hands
+  it to the clipboard intact (ADR-0015 fifteenth addendum). It is admitted in the body alone, the
+  host classes still excluding it, which is what leaves a tab between two labels reading as the gap
+  above; the newline and carriage return the same parser removes are declined on a measurement,
+  since a link at a line's end would swallow the next line's first word. The matcher
   runs before any normalization, so each of those anchored nothing and so escaped both policies
-  until it was generated into the table (ADR-0015 eighth + ninth + tenth + eleventh addenda). Eight
+  until it was generated into the table (ADR-0015 eighth + ninth + tenth + eleventh addenda). Nine
   **obfuscation-resistant** passes (in `url_identity.py`) reduce a rewritten link to its plain
   identity, in a fixed order so each feeds the next (ADR-0015 addenda):
   **escape decoding** to a bounded fixpoint (HTML character references `evil&#46;com`→`evil.com` the
@@ -664,14 +672,17 @@ caller may switch off):
   `.`/`。`/`．`/`｡`, and NFKC maps `｡` onto `。` rather than to a dot, so the two ideographic stops
   survived it, ADR-0015 eighth addendum) that also **closes a gap** the same dot was spelled with
   (`evil dot example`→`evil.example`, run there because every other reading has become an ASCII dot
-  by then, ADR-0015 twelfth addendum), and a **special-scheme backslash** fold
+  by then, ADR-0015 twelfth addendum), a **removal** of what a URL parser deletes before it parses
+  (the tab, `url_removals.py`, run after the gap fold so a gap spelled with tabs is still a gap,
+  the reader who refangs being the resolver that family rests on, ADR-0015 fifteenth addendum), and
+  a **special-scheme backslash** fold
   (`https:\/\/evil.example`→`https://evil.example`: the URL Standard skips `/` and `\` alike in a
   special scheme's authority and converts a path backslash, so this is the parser's reading and not
   a resemblance; the authority slash run collapses to one pair with it whatever its length, the
   empty run included so `https:evil.example` folds too, and an opaque `mailto:`
   keeps its backslashes, ADR-0015 tenth + eleventh addenda). So a defanged, encoded,
-  zero-width-split, punycoded, fullwidth, CJK-dotted, backslashed, slashless, or homoglyph link
-  normalizes to the same identity as its plain twin. A *transform* in
+  zero-width-split, punycoded, fullwidth, CJK-dotted, backslashed, slashless, tab-broken, or
+  homoglyph link normalizes to the same identity as its plain twin. A *transform* in
   the reply is caught, not only verbatim reproduction. The passes compose (a percent-encoded
   homoglyph decodes, then folds). Both sides of the defense use it, namely collection
   (`TaintLedger.observe`) and the user-message allowlist, so a collected URL and its reappearance

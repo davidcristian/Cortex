@@ -3,6 +3,7 @@ r"""The URL *grammar* behind the output guardrail's laundering defense (ADR-0015
 import re
 
 from cortex_core.url_identity import DOT_WORD, MAILTO_SCHEME, SPECIAL_SCHEMES, normalize_url
+from cortex_core.url_removals import REMOVED_CHARS
 from cortex_core.url_spellings import (
     AUTHORITY_SEPS,
     CHUNK_INNER,
@@ -24,9 +25,7 @@ _OPAQUE_WORDS = (MAILTO_SCHEME, "tel")
 
 _NON_URL = r"\s<>\"'\)\]\}"
 
-# A character that may belong to a URL body. A bracket `_DEFANG_CHUNK` is matched atomically ahead
-# of this, so a defang token's closing bracket does not end the match early.
-_URL_CHAR = rf"[^{_NON_URL}]"
+_URL_CHAR = rf"(?:[^{_NON_URL}]|{REMOVED_CHARS})"
 
 # A character that may belong to an *authority*: a body character that is not one of the three
 # delimiters ending it, the backslash included since a special scheme's parser reads that as one.

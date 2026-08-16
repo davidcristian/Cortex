@@ -6,6 +6,7 @@ import unicodedata
 from urllib.parse import unquote
 
 from cortex_core.url_confusables import fold_confusables
+from cortex_core.url_removals import strip_removed
 
 # The bracket vocabulary every defang token is wrapped in. All three shapes are equivalent wherever
 # one is recognized, so they are held once here rather than spelled out per token (the asymmetry the
@@ -115,14 +116,14 @@ def _fold_special_slashes(url: str) -> str:
 
 def normalize_url(url: str, *, confusables: bool = True) -> str:
     """One URL's identity: escapes decoded (to a fixpoint), defang refanged, format characters
-    stripped, punycode decoded, NFKC-folded, confusables and label dots folded, a special scheme's
-    backslashes folded to solidi, trailing prose punctuation dropped, scheme+authority lowered.
+    stripped, punycode decoded, NFKC-folded, confusables and label dots folded, what a parser
+    removes dropped, a special scheme's backslashes folded to solidi, trailing prose punctuation
     """
     plain = _strip_format_chars(_refang(_decode_escapes(url)))
     normalized = unicodedata.normalize("NFKC", _decode_punycode(plain))
     if confusables:
         normalized = fold_confusables(normalized)
-    folded = _fold_special_slashes(_fold_label_dots(normalized))
+    folded = _fold_special_slashes(strip_removed(_fold_label_dots(normalized)))
     trimmed = folded.rstrip(TRAILING_PUNCTUATION)
     head, sep, tail = trimmed.partition("://")
     cut = _AUTHORITY_END.search(tail)
