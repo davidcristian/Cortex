@@ -269,6 +269,16 @@ def test_the_open_half_counts_the_triggers_nobody_wrote() -> None:
     assert "2 of these wait on something nobody wrote down." in block
 
 
+def test_the_last_unwritten_trigger_is_counted_in_the_singular() -> None:
+    tasks = [
+        _task(1, "open, fix when it bites", trigger=backlog.UNRECORDED),
+        _task(2, "open, fix when it bites", trigger="a second consumer appears"),
+    ]
+    block = backlogindex.render(tasks, "area")
+    assert "One of these waits on something nobody wrote down." in block
+    assert "1 of these wait" not in block
+
+
 def test_nothing_is_said_when_every_waiting_task_names_its_trigger() -> None:
     tasks = [_task(1, "open, fix when it bites", trigger="a second consumer appears")]
     block = backlogindex.render(tasks, "area")
