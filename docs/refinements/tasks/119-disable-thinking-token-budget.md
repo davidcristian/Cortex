@@ -1,9 +1,8 @@
 # Disable-thinking and token-budget capping
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-08-16
 **Area:** inference-model-manager
 **Origin:** [ADR-0020](../../adr/ADR-0020-reasoning-status.md)
-**Trigger:** A runaway trace on a real answer, or a user who minds the wait, on the user-facing reply that deliberately sends no bounds.
 
 This item has no top-level bullet of its own: it was recorded inside the reasoning-status entry,
 whose landing chose to surface the trace rather than disable thinking or cap the token budget, and
@@ -99,3 +98,19 @@ fix-when-it-bites bucket, so nobody picks it up expecting to build a lever that 
 - 2026-08-06: The fold's landing left this entry open on the other two passes' account, the session
   title and the model-based recall rank still spending the same discarded thinking at that moment,
   and both took the bounds later the same day.
+- 2026-08-16: Closed. Both halves of the trigger fired with numbers: measured on the shipped
+  cortex, an ordinary open question spends 11.8 to 18.1 s before its first word and every second
+  of it is a trace of 2545 to 3064 characters, against 0.4 s with thinking off for an answer of
+  the same size; and the lineup's own table has two deep candidates consuming a whole context and
+  returning nothing. What landed is the honesty first: `TurnEngine` and `BrainPhase` now pass a
+  `StopLedger` always and a reply a token limit cut ends with `REPLY_CAPPED_NOTE` in the stream
+  and in the store, which fixes a loss older than any cap, since the context window truncates
+  replies today and a cut reply is read as a finished short one. Both levers ship as one env value
+  (`CORTEX_REPLY_THINKING`, `CORTEX_REPLY_MAX_TOKENS`) defaulting to today's request byte for byte,
+  and they are documented as a pair because a cap with thinking left on was measured on this same
+  cortex to return an EMPTY reply 3 of 3 rather than a shorter one
+  ([ADR-0005](../../adr/ADR-0005-llamacpp-engine.md) capped-reply addendum). What the close opens
+  is that the trace cannot be bounded on its own: `--reasoning-budget` is a per-server switch that
+  does not work on this build and no request field budgets `reasoning_content` by a count, so the
+  only lever over deliberation is all or nothing
+  ([289-reasoning-budget-is-all-or-nothing.md](289-reasoning-budget-is-all-or-nothing.md)).

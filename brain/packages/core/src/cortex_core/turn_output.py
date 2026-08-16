@@ -8,6 +8,7 @@ from cortex_core.events import TextDelta, ToolActivity, ToolOutcome, TurnEvent
 from cortex_core.guardrail import OutputFilter
 from cortex_core.loop_events import ReasoningDelta, StepOutcome, ToolStep
 from cortex_core.output_channels import ThinkingChannel
+from cortex_core.stops import StopLedger
 from cortex_core.turn_context import TurnCapabilities
 from cortex_core.untrusted import TaintLedger
 
@@ -16,6 +17,19 @@ _logger = logging.getLogger(__name__)
 # One turn's two guarded output channels: the reply filter (``None`` when unguarded) and the
 # thinking status channel, as ``open_output_channels`` returns them.
 type OutputChannels = tuple[OutputFilter | None, ThinkingChannel]
+
+REPLY_CAPPED_NOTE = (
+    "\n\n(This answer stopped at the machine's length limit, so it is cut off rather than "
+    "finished. Ask again, or ask for a shorter answer.)"
+)
+
+
+def cap_note(stops: StopLedger, parts: list[str]) -> Iterator[TurnEvent]:
+    """Say so when one of this turn's completions was cut, appending the note to ``parts``."""
+    if not stops.capped:
+        return
+    parts.append(REPLY_CAPPED_NOTE)
+    yield TextDelta(text=REPLY_CAPPED_NOTE)
 
 
 def render_exchange(user_text: str, assistant_text: str) -> str:

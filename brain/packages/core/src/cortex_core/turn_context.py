@@ -10,6 +10,7 @@ from cortex_core.errors import EmbedderError, MemoryDataError, MemoryStoreError
 from cortex_core.events import StatusUpdate
 from cortex_core.guardrail import OutputGuardrail
 from cortex_core.handoff import EscalationSlot
+from cortex_core.inference import GenerationBounds
 from cortex_core.memory import ScoredMemory
 from cortex_core.ports import Clock
 from cortex_core.progress import ProgressSink
@@ -45,6 +46,7 @@ class TurnCapabilities:
     generate_titles: bool = False
     progress: ProgressSink | None = None
     escalation: EscalationSlot | None = None
+    bounds: GenerationBounds | None = None
 
 
 def _render_memory_context(hits: Sequence[ScoredMemory], *, nonce: str, taint: TaintLedger) -> str:
