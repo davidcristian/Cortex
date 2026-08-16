@@ -59,3 +59,8 @@ that mixes a plain dot and a gap, and a slashless authority whose host is split.
   the unanchored form declined at 113. The pass also opened
   [R-281](281-a-host-that-mixes-a-dot-and-a-gap.md) and
   [R-282](282-a-slashless-authority-whose-host-is-split.md).
+- 2026-08-16: Measured live over Docker on the GPU rather than left on constructed probes. The
+  shipped cortex refused every laundering ask, but the subagent tier obeyed one **framed** and
+  ended its summary with `hxxps://payroll-verify dot example slash claim`, so the spelling is one
+  a deployed model really writes. Before the change the ledger held `https://payroll-verify` and
+  the user read the marker with `dot example` beside it; after, the host is gone.
