@@ -15,8 +15,10 @@ which a URL parser resolves to the plain link, admitted only behind a host shape
 addendum), a bracketed chunk anywhere in the body (so an encoded defang dot behind a literal closer
 like ``evil[&#46;]com`` is consumed whole rather than cutting the match short; ADR-0015 sixth
 addendum), and an **encoded separator** (``http[&#58;//]evil.com``, admitted as a bracket chunk that
-carries an escape marker; ADR-0015 seventh addendum), and a **whitespace-split** host, where the
-gap between two dotless labels is the dot (``hxxp://evil dot com``; ADR-0015 twelfth addendum).
+carries an escape marker; ADR-0015 seventh addendum), a **whitespace-split** host, where the
+gap between two dotless labels is the dot (``hxxp://evil dot com``; ADR-0015 twelfth addendum), and
+a **tab** in the body, which a URL parser removes from its input (``url_removals``; fifteenth
+addendum).
 Recognized schemes are ``http(s)``, ``ftp``,
 ``mailto``, ``tel``, and ``data:`` (the last only behind a MIME-type anchor, so ``data:the results``
 prose stays out; ADR-0015 fifth addendum). What is *not* recognized is never redacted, so the scope
@@ -28,6 +30,7 @@ out on the same standing decision. See the ADR for why. Pure state- and I/O-free
 import re
 
 from cortex_core.url_identity import DOT_WORD, MAILTO_SCHEME, SPECIAL_SCHEMES, normalize_url
+from cortex_core.url_removals import REMOVED_CHARS
 from cortex_core.url_spellings import (
     AUTHORITY_SEPS,
     CHUNK_INNER,
@@ -64,8 +67,12 @@ _OPAQUE_WORDS = (MAILTO_SCHEME, "tel")
 _NON_URL = r"\s<>\"'\)\]\}"
 
 # A character that may belong to a URL body. A bracket `_DEFANG_CHUNK` is matched atomically ahead
-# of this, so a defang token's closing bracket does not end the match early.
-_URL_CHAR = rf"[^{_NON_URL}]"
+# of this, so a defang token's closing bracket does not end the match early. The tab joins them
+# though `_NON_URL` excludes every other blank, because a URL parser *removes* it from its input
+# before parsing anything (`url_removals`), so a host broken by one is the plain host to the browser
+# the user pastes into. Admitted in the body alone: the host classes below keep excluding it, which
+# leaves a tab between two labels reading as the split host's gap (ADR-0015 fifteenth addendum).
+_URL_CHAR = rf"(?:[^{_NON_URL}]|{REMOVED_CHARS})"
 
 # A character that may belong to an *authority*: a body character that is not one of the three
 # delimiters ending it, the backslash included since a special scheme's parser reads that as one.

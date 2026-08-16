@@ -26,7 +26,10 @@ into one identity, never splitting one:
 7. Fold the *IDNA label separators* NFKC leaves standing (a U+3002 or U+FF61 stop between two
    labels), which the resolver reads as a dot, and close the whitespace a *split* host spells the
    same dot with (``evil dot com``); ADR-0015 eighth + twelfth addenda.
-8. Fold a *special scheme's backslashes* to the solidi the URL parser reads them as, and its run
+8. *Drop what a URL parser removes* from its input before parsing it, which is the tab
+   (``url_removals``, run here rather than earlier so a gap spelled with tabs is still a gap);
+   ADR-0015 fifteenth addendum.
+9. Fold a *special scheme's backslashes* to the solidi the URL parser reads them as, and its run
    of authority slashes to one pair however many it holds (none included), so the JSON-escaped and
    the slashless spellings of a link share the link's identity; ADR-0015 tenth + eleventh addenda.
 
@@ -40,6 +43,7 @@ import unicodedata
 from urllib.parse import unquote
 
 from cortex_core.url_confusables import fold_confusables
+from cortex_core.url_removals import strip_removed
 
 # The bracket vocabulary every defang token is wrapped in. All three shapes are equivalent wherever
 # one is recognized, so they are held once here rather than spelled out per token (the asymmetry the
@@ -235,8 +239,9 @@ def _fold_special_slashes(url: str) -> str:
 
 def normalize_url(url: str, *, confusables: bool = True) -> str:
     """One URL's identity: escapes decoded (to a fixpoint), defang refanged, format characters
-    stripped, punycode decoded, NFKC-folded, confusables and label dots folded, a special scheme's
-    backslashes folded to solidi, trailing prose punctuation dropped, scheme+authority lowered.
+    stripped, punycode decoded, NFKC-folded, confusables and label dots folded, what a parser
+    removes dropped, a special scheme's backslashes folded to solidi, trailing prose punctuation
+    dropped, scheme+authority lowered.
 
     The obfuscation-resistant passes run in the order the module docstring fixes, so that each feeds
     the next: decoding exposes an encoded defang token to the refanger and an encoded zero-width
@@ -258,7 +263,7 @@ def normalize_url(url: str, *, confusables: bool = True) -> str:
     normalized = unicodedata.normalize("NFKC", _decode_punycode(plain))
     if confusables:
         normalized = fold_confusables(normalized)
-    folded = _fold_special_slashes(_fold_label_dots(normalized))
+    folded = _fold_special_slashes(strip_removed(_fold_label_dots(normalized)))
     trimmed = folded.rstrip(TRAILING_PUNCTUATION)
     head, sep, tail = trimmed.partition("://")
     cut = _AUTHORITY_END.search(tail)
