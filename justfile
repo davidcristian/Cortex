@@ -131,6 +131,25 @@ check-overlay:
     cd body/app && npm run typecheck
     cd body/app && npm run test:cov
 
+# The deliberate shuffle sweep, which `just check` is deliberately not (ADR-0002 shuffle
+# addendum). Each gated suite runs its tests in a shuffled order under a FIXED seed, so the
+# gate is reproducible and draws one order per test rather than a fresh lottery per run. This
+# recipe is where the other orders get drawn: it runs all three suites at ONE seed of your
+# choosing, defaulting to a random one, and prints it. A failure here reproduces with
+# `just shuffle <seed>`, and a suite reproduces alone with `--randomly-seed=<seed>` (pytest) or
+# `--sequence.seed=<seed>` (vitest). Run it when a test starts behaving as though a sibling
+# left something behind, and after landing a batch of tests. Never in CI: its whole point is
+# an order nobody chose.
+shuffle seed="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    seed="{{ seed }}"
+    [ -n "$seed" ] || seed=$(( (RANDOM << 15) | RANDOM ))
+    echo "=== shuffle seed: $seed (reproduce this run with: just shuffle $seed) ==="
+    (cd brain && uv sync --locked && uv run pytest --randomly-seed="$seed")
+    (cd scripts && uv sync --locked && uv run pytest --randomly-seed="$seed")
+    (cd body/app && npm ci && npx vitest run --coverage --sequence.seed="$seed")
+
 # Regenerate the committed seam stubs from proto/body.proto (needs local protoc; ADR-0003).
 proto:
     mkdir -p /tmp/protostage/cortex_seam/_generated

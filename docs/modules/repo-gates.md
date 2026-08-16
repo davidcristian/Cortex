@@ -297,6 +297,15 @@ every pointer in the repo aimed at one.
 **Invariants.**
 - stdlib-only modules; pure cores (`scan`, `evaluate`/`check`, `classify`, `report`) unit-tested
   to 100% line+branch; the only coverage pragmas are the `__main__` guard lines.
+- This suite runs **shuffled under a fixed seed**, `--randomly-seed=7919` in `addopts`, as both
+  other gated suites do under their own (ADR-0002 shuffle addendum). The order is therefore not
+  the collection order and is still the same order twice, so a test that depends on a sibling
+  fails here reproducibly rather than intermittently. Two consequences for anyone working in this
+  tree. The seed is frozen: changing it reshuffles the suite and throws away every draw it has
+  already survived, and it differs from the brain's and the overlay's on purpose, three
+  independent numbers rather than one value `crosscheck.py` should tie. And `-p no:randomly` now
+  exits 2 on the seed it leaves unrecognized rather than silently disabling nothing, which is what
+  the flag used to do here; the sweep over other orders is `just shuffle [seed]`.
 - `crosscheck.py`'s registry is checked against the real trees by its own suite
   (`test_the_repo_itself_is_tied`), so `check-scripts` catches a drift even when
   `check-crosscheck` is not the recipe that runs. Registering a constant in a language

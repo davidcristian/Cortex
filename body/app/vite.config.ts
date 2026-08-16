@@ -24,6 +24,12 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./src/test-setup.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
+    // Files and tests run shuffled under a FIXED seed, so the order is not the declaration
+    // order and is still the same order twice (ADR-0002 shuffle addendum). The number is
+    // arbitrary and frozen: changing it reshuffles this suite for no reason, and it differs
+    // from the two Python suites' seeds on purpose, so nobody reads three independent numbers
+    // as one value that has to agree. `just shuffle` is the deliberate sweep over other seeds.
+    sequence: { shuffle: true, seed: 65537 },
     coverage: {
       provider: "v8",
       all: true,
