@@ -3096,3 +3096,193 @@ the placer's answer for one 2.0 GiB spawn with 3.0 GiB of headroom:
 - **It does not sweep the deep tier or the cortex.** Both have their own verdicts (the swap's, and
   boot recovery's), and a peer record that also carried the resident would be two objects with one
   name.
+
+## Unrostered-refusal addendum (2026-08-16): the handoff that cannot run is refused before the drain
+
+The deferral the unrostered-tier addendum above opened in its own "deliberately does not do" list,
+**it does not remember that escalation is impossible**, closes here. That paragraph named the fix
+in one sentence (refuse at the conductor, before the drain, and tell the user why) and named the
+two decisions it was waiting on: where a fact about the host's roster lives on a brain whose every
+other belief about that daemon is invalidated by a restart, and what the seam says about a
+capability that is configured and unavailable. Both are made below, and the first one is made
+against the shape the entry proposed rather than with it.
+
+### What the tree said, re-derived before anything was designed
+
+Every claim the entry made held, to the line.
+
+- **Boot recovery learns it and only logs it.** `swap_recovery._clear_deep` catches
+  `ModelNotHostedError` from its `status` and writes one `ERROR` naming both knobs
+  (`swap_recovery.py:163`). Nothing is recorded anywhere a later caller can read.
+- **The prologue's ordering is as described.** `SwapConductor._run_claimed` prepares, announces the
+  drain, drains, and only then enters the swap (`swap_conductor.py:139` to `146`);
+  `residency_moves.swap_in` stops the cortex first and starts the deep tier several calls later
+  (`residency_moves.py:90` and `95`), so the 404 arrives with the cortex already unloaded and the
+  scope's `finally` owes a full reload (`residency.py:223`).
+- **A 404 is distinguishable at the call site**, and has been since the addendum above:
+  `ModelNotHostedError` is raised by the adapter for a 404 on a per-model route and by nothing
+  else, and every verb of the port can raise it (`errors.py:206`, `ports_models.py:19`).
+- **The boot id works the way the entry assumed.** `ModelSupervisor` mints `uuid4().hex` per
+  process, `GET /health` carries it, and `BootWatch.observe` compares it for equality only, seeding
+  on the first answer and rebuilding both halves of what a replacement invalidates
+  (`residency_watch.py:76`).
+- **The residency report carries one detail line**, `ResidencyReport(serving, detail)`, and that
+  line already belongs to the peer record: `StandingTiers.note_on` writes it on every serving
+  report (`residency_tiers.py:163`).
+
+One thing the entry could not have known, because it was written before the tier-sweep addendum
+landed hours later, is that this repo had by then already answered a question of exactly this
+shape, for the peer tiers, and answered it in the other direction: the peer record stays in the
+process and is **re-derived from the machine every interval** rather than kept. That precedent is
+what decides the first question here.
+
+### Decision 1: the fact lives nowhere, because asking is cheaper than any key that would make a cache safe
+
+The entry framed the question as "where does it live", and the honest answer turned out to be that
+it does not need to live anywhere. **The conductor asks the host, once, immediately before it
+commits to anything**, through a new `ResidencyController` verb, `unhosted(model) -> bool`,
+implemented over one `status` call (`residency_moves.is_unhosted`).
+
+The argument is a cost comparison, and it is the entry's own boot-id argument taken one step
+further. A cached verdict has to be invalidated by the event that can change it, which is a
+supervisor process replaced under a brain that never restarted. Detecting that event costs one
+`boot_id()` round trip at the moment of use, because `BootWatch.reconcile` runs inside `_swap_in`,
+which is **after** the drain and inside the residency scope, and cannot be hoisted above them: a
+reconcile converges residency, and converging bounces every evictable tier, which is precisely what
+a co-resident plan exists not to do to its standing peers. So a cache that is safe costs one
+control call before the drain, and re-deriving the fact outright costs one control call before the
+drain. At equal cost the version with no state, no key and no staleness window is the one to ship.
+
+Three further reasons, in the order they would bite:
+
+1. **The one hard rule is satisfied more strongly by asking than by storing.** The rule is about
+   state that cannot be re-derived, which is conversation, task and working memory. This is a fact
+   about the machine, and the tier-sweep addendum already ruled on the identical question for the
+   peer record: state about the machine belongs wherever it is re-derived from the machine, and a
+   store would buy nothing a fresh reading does not while costing a second writer with no fencing
+   and a record that outlives the daemon it described. Redis would have been the wrong home for the
+   same reason a `TaskStore` was the wrong home for a handoff record.
+2. **The failure a cache invites is the expensive one.** An operator who fixes this fixes it by
+   naming `CORTEX_MODEL_FILE_BRAIN` and restarting the **sidecar**, not the brain. A verdict cached
+   for the life of the brain process would go on refusing escalation on a deployment that now
+   works, and the only symptom would be a note saying the machine has no deep model while the
+   daemon happily lists one. Re-deriving per attempt makes the repair take effect at the next
+   attempt, which is what an operator expects of a config change.
+3. **The call is free where it is spent.** It is a `status` on a tier that is stopped, on the same
+   loopback client every other control call uses, on a path that is about to spend minutes and that
+   a user has already confirmed through the ADR-0022 card. This is not the per-turn hot path the
+   honesty-surfaces sub-slice refused to put a probe on; escalation is rare by construction.
+
+**The tolerance is the same one the rest of this family keeps, and it is the direction that matters
+most.** Only `ModelNotHostedError` answers `True`. Every other `ModelHostError` means the question
+went unanswered, is logged, and answers `False`, so the handoff proceeds and fails at the move it
+really fails at. Reading a transport blip as a missing tier would turn one unreachable moment into
+"this deployment cannot escalate", told to a user whose machine is fine, which is worse than the
+defect being fixed.
+
+### Decision 2: the seam says nothing new, and the reason is the one the addendum above already gave
+
+No proto field, no new `Health` vocabulary, nothing crossing body to brain. The capability's
+absence reaches three surfaces, all of which already existed:
+
+- **The user**, on the escalating turn's own stream, as `UNHOSTED_TIER_NOTE`: "this machine has no
+  deep model set up, so the handoff was not started and nothing was unloaded". It is a `TextDelta`
+  like every other refusal note, it arrives **before** the stall rather than after it, and it says
+  what will still be true tomorrow rather than inviting a retry.
+- **The operator**, in the log, twice for two different events: once per boot from
+  `_clear_deep`, and once per attempt from the conductor, both naming `CORTEX_MODEL_FILE_BRAIN` and
+  `CORTEX_ESCALATION`. An attempt is a separate fact from a boot, because it says somebody wanted
+  the capability.
+- **Nothing on the readiness dot.** `ResidencyReport` carries one detail line, that line belongs to
+  the peer record, and a second sentence competing for it would be describing a configuration file
+  on a readiness surface. This is the same judgement the unrostered-tier addendum made about the
+  boot log, and nothing has changed except that the deployment is now refused earlier.
+
+**Rejected: not advertising `escalate_to_brain` when the tier is missing.** It is the honest-looking
+option and it is the wrong one twice over. The advertisement is built per turn, so keeping it
+truthful would put a control call on the path a user is waiting on for every turn, which is exactly
+what this design refuses to pay for a fact that changes on the timescale of a container restart.
+And it would hide the misconfiguration from everyone: the model would simply never escalate, and no
+user question would ever produce a sentence saying why. **Rejected: refusing inside the tool.** A
+gated tool's `invoke` runs after the confirm card, so it saves the user nothing the conductor does
+not, it puts a control call inside a dispatch, and it would split the handoff's refusals across two
+objects that the 2026-07-19 correction above deliberately consolidated into one.
+
+### Where the refusal sits, and the split it forced
+
+In `SwapConductor._prepare`, after the free local `opaque` check and **before** the store is
+touched, so a deployment that can never escalate writes no record, takes no drain, and has nothing
+to settle. The conductor was at 299 of 300 lines, so this could not land without a split, and a
+file cut to fit a number is the wrong artifact. What came out is the seam the ADR's own
+2026-07-18 addendum named: settling a handoff and releasing its claim are two different writes, and
+which of them is owed turns on the state being written rather than on where in the sequence the
+write happens. That is now `HandoffSettler` (`swap_settle.py`); the conductor keeps the order the
+machine changes hands in. Nothing a caller can see moved.
+
+### Proven able to fail before being trusted
+
+Four mutations, each applied to production code alone with `__pycache__` cleared and the whole
+`brain/packages` suite re-run, then reverted. The counts are measured rather than aimed at.
+
+| Mutation | Reddens |
+| --- | --- |
+| dropping the refusal entirely (the code as it was) | 28 |
+| refusing after the drain instead of before it | 25 |
+| reading every host failure as a tier the host does not carry | 2 |
+| caching the verdict for the life of the process | 2 |
+
+The first two counts are large for a reason worth stating, since a large number can hide a weak
+test: three of those cases are the new ones, and the rest are the existing swap and chaos cases
+whose "nothing was evicted" assertions were rewritten from an empty op log to the exact one call
+this asks. That is deliberate. An assertion that a handoff has spent nothing is stronger when it
+names what it has spent, and it means the prologue's cost is now pinned by every case that ever
+cared about it rather than by one new case beside them.
+
+The last two are the pair that matter most, being the two directions in which this could have been
+built wrongly. Reading any failure as a missing tier reddens the unreachable-host case in the
+conductor suite and the port's own three-answer case. Caching the verdict reddens the case that
+gains the tier mid test and that same port case, which is the property the whole design rests on:
+the same manager answers differently the moment the roster it is asking about does.
+
+### Validated against the real sidecar, since the cost this removes is not a CI claim
+
+Run 2026-08-16 against the real `model-host` image with the real GPU and the real model mount, the
+cortex being gemma-4-12B loaded from `/models` and the daemon's roster holding `cortex` and nothing
+else, which is exactly what `CORTEX_ESCALATION=1` with no `CORTEX_MODEL_FILE_BRAIN` produces.
+`GET /health` answered `{"status":"ok","models":["cortex"],...,"device_free_mib":14840,
+"device_total_mib":24463}`. The brain side was the real `HttpModelHost`, the real
+`SwappingModelManager` and, for the second arm, the real `SwapConductor`.
+
+- **The cost, as it was.** A residency scope entered against that daemon, which is what the
+  conductor reached after draining: `POST /models/cortex/stop -> 200`,
+  `POST /models/brain/start -> 404 unknown model 'brain'; this host serves cortex`,
+  `POST /models/brain/stop -> 404`, `POST /models/cortex/start -> 200`, then the sidecar's own log
+  showing `llama_server: model loaded` and `listening on http://0.0.0.0:8080` again. **29.7 s**,
+  every second of it with the assistant off the card, for a handoff that could never have run. At
+  the deep tier's scale the same reload is minutes, because it is a whole cortex load.
+- **The cost, as it is.** The conductor over the same daemon: one `GET /models/brain -> 404`, the
+  note "this machine has no deep model set up, so the handoff was not started and nothing was
+  unloaded", the pool never asked to drain, and `GET /models/cortex` reading `ready` throughout.
+  **Under 0.01 s.**
+
+The port-level half of that is now an `integration`-marked live test that runs on the shipped
+defaults (`test_a_stock_sidecar_answers_the_escalation_precondition_without_touching_a_thing`),
+which is the one case in that suite a stock stack actually hits, and it skips on a deployment that
+does host a deep tier.
+
+### What this deliberately does not do
+
+- **It does not remember anything, which is the decision and not an omission.** A deployment that
+  attempts escalation ten times pays ten `status` calls, and that is the intended price of never
+  being wrong about a roster that changed under it.
+- **It does not refuse before the confirm card.** The user still approves a handoff that will then
+  be refused, because the only surfaces earlier than the conductor are the per-turn advertisement
+  and the gate, both of which are the hot path. The residue is one confirm card and an honest
+  sentence, against minutes of an unloaded assistant before.
+- **It does not check anything else about the deep tier.** A tier that is rostered but whose child
+  will not load is a verdict about the machine, and it is discovered where it has always been
+  discovered, at the health gate, with the swap-failure note the user already gets. Only the answer
+  that cannot change while that daemon runs is worth asking for in advance.
+- **It does not touch boot recovery.** The `ERROR` at startup stays exactly as it was: it is the
+  operator's copy of the same fact, and a deployment that never escalates would otherwise never
+  learn it.

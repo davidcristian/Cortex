@@ -482,7 +482,7 @@ async def test_a_drain_that_times_out_converges_without_evicting_anything() -> N
     task = asyncio.create_task(in_flight())
     await held.arrived()
     events = await harness.run_handoff(live, harness.armed_slot())
-    assert live.host.calls == []  # the whole point: nothing was evicted
+    assert live.host.calls == harness.PREFLIGHT_CALLS  # the whole point: nothing was evicted
     await assert_converged_on_cortex(live)
     await assert_stores_intact(live)
     assert_stream_ended_honestly(live, events, killed=False)
@@ -672,7 +672,7 @@ async def test_the_mid_drain_kill_lands_while_the_pool_is_actually_quiescing() -
     # And the pool was touched only once the handoff was safe to abandon: the record is written
     # and READY before the drain begins, so a kill here costs a handoff and nothing else.
     assert live.handoffs.states == [HandoffState.READY]
-    assert live.host.calls == []  # while nothing at all has been evicted
+    assert live.host.calls == harness.PREFLIGHT_CALLS  # while nothing at all was evicted
     task.cancel()
     gate.release.set()
     with pytest.raises(asyncio.CancelledError):
@@ -882,7 +882,7 @@ async def test_the_swap_waits_for_an_in_flight_cortex_round_to_fall_free() -> No
     events: list[TurnEvent] = []
     handoff = asyncio.create_task(_consume(live, events))
     await _settle()
-    assert live.host.calls == []  # queued behind the round, not preempting it
+    assert live.host.calls == harness.PREFLIGHT_CALLS  # queued behind the round, not preempting it
     release.set()
     await round_task
     await handoff

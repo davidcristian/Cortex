@@ -107,11 +107,26 @@ class ResidencyController(Protocol):
     run the drain prologue and then release the drain window while the winner's deep model was
     still resident. Entering a swap scope inside a claim is the normal composition; the scope's
     own guard stays as the backstop for anything that swaps without claiming first.
+
+    ``unhosted(model)`` is the other precondition, and the only one that is about the deployment
+    rather than about this moment: whether the model host carries that logical id at all. It is
+    asked **before** anything is drained or evicted, because a tier no host serves fails at the
+    ``start`` in the middle of a swap, by which point the cortex is already gone and the scope's
+    own ``finally`` has to load it back, which at tier scale is minutes of the assistant being
+    away for a handoff that was never going to run. ``True`` says the host refused the id as one
+    it does not carry (``ModelNotHostedError``); a host that could not be asked answers ``False``,
+    because an unanswered question is not a refusal and a swap that goes ahead against an
+    unreachable host fails at its next move with the failure that really happened. It is a
+    question every time and never a remembered verdict: a roster is env one supervisor process
+    read at its own boot, so an answer cached across the restart that fixes it would go on
+    refusing escalation on a deployment that now works.
     """
 
     def swap_scope(self, model: str) -> AbstractAsyncContextManager[None]: ...
 
     def handoff_claim(self) -> AbstractAsyncContextManager[None]: ...
+
+    async def unhosted(self, model: str) -> bool: ...
 
 
 class ResidencyReporter(Protocol):

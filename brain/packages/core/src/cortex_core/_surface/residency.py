@@ -44,6 +44,7 @@ from cortex_core.swap_notes import (
     STORE_FAILED_NOTE,
     SWAP_FAILED_NOTE,
     SWAPPING_STATE,
+    UNHOSTED_TIER_NOTE,
     WORKING_DETAIL,
 )
 from cortex_core.swap_recovery import converge_residency, recover_handoffs
@@ -72,6 +73,7 @@ __all__ = [
     "SWAPPING_STATE",
     "SWAP_FAILED_NOTE",
     "TIERS_MISSING_DETAIL",
+    "UNHOSTED_TIER_NOTE",
     "WORKING_DETAIL",
     "CadenceReading",
     "CadenceWatch",

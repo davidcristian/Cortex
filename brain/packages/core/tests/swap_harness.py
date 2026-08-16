@@ -298,6 +298,14 @@ def request() -> PlacementRequest:
     return PlacementRequest("subagent", vram_gb=1.0, cpus=1.0, memory_gb=1.0)
 
 
+# The only host op a handoff spends before it commits to anything: the conductor asks whether
+# there is a deep tier to load at all and refuses instead of draining when there is not (ADR-0030
+# unrostered-refusal addendum). Every "nothing was evicted" assertion is written against this
+# rather than against an empty log, so a `stop` or a `start` creeping in ahead of the drain still
+# reddens the case that forbids it.
+PREFLIGHT_CALLS = [("status", "brain")]
+
+
 def plan(**overrides: object) -> ResidencyPlan:
     fields: dict[str, object] = {
         "cortex_model": "cortex",
@@ -497,9 +505,12 @@ def assert_the_window_announced_real_progress(live: Harness) -> None:
 
 def _draining_was_true(live: Harness, seen: StatusWitness) -> None:
     """ "Quiescing the subagent pool": said before the quiescing, with the record already safe."""
-    del live  # this boundary is witnessed entirely by the snapshot
     assert seen.drains == 0  # announced ahead of the drain it names, not after it
-    assert seen.host_ops == ()  # and nothing is evicted while subagents are still finishing
+    # Exactly one host op by now, and it is a reading rather than a move: the conductor asks
+    # whether there is a deep tier to load at all before it commits to anything (ADR-0030
+    # unrostered-refusal addendum). Pinned as an equality, so nothing is evicted here while
+    # subagents are still finishing, which is what this boundary exists to witness.
+    assert seen.host_ops == (("status", live.residency.brain_model),)
     assert seen.record_states[-1] is HandoffState.READY
     assert seen.deep_calls == 0
 
