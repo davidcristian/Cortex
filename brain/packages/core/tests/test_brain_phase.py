@@ -36,19 +36,26 @@ from swap_harness import ScriptedBrainBackend, TickingClock
 from cortex_core import (
     BRAIN_FAILED_NOTE,
     BUDGET_EXHAUSTED_MSG,
+    REPLY_CAPPED_NOTE,
     DecodeCadence,
+    DecodeStop,
     DispatchBudget,
+    GenerationBounds,
     ImagePart,
     InferenceError,
+    InferenceEvent,
     InMemoryMemoryStore,
     InMemorySessionStore,
     InMemoryToolRegistry,
+    JsonSchema,
     Message,
     RecordingAuditSink,
     Role,
     SourceKind,
+    StopReason,
     SystemClock,
     TaintLedger,
+    TextChunk,
     TextDelta,
     ToolCall,
     ToolDispatcher,
@@ -564,3 +571,103 @@ async def test_the_cadence_never_reaches_the_turns_own_stream() -> None:
     backend = ScriptedBrainBackend(cadences=[DecodeCadence(tokens_per_second=17.29, tokens=96)])
     _phase, _backend, _sessions, deltas = await _drive(backend=backend, decode_floor_tps=22.0)
     assert "".join(deltas) == "a deep answer"
+
+
+class StoppingDeepBackend:
+    """A deep-model stream that reports why it stopped, and optionally dies after saying it."""
+
+    def __init__(self, reason: StopReason, *, fail: bool = False) -> None:
+        self._reason = reason
+        self._fail = fail
+        self.bounds: list[GenerationBounds | None] = []
+
+    async def stream(
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
+    ) -> AsyncGenerator[InferenceEvent, None]:
+        del model, messages, tools, schema
+        self.bounds.append(bounds)
+        yield TextChunk("a deep ")
+        yield TextChunk("stump")
+        yield DecodeStop(self._reason)
+        if self._fail:
+            msg = "the deep server died after reporting its stop"
+            raise InferenceError(msg)
+
+
+async def _run_deep(
+    backend: StoppingDeepBackend, bounds: GenerationBounds | None = None
+) -> tuple[list[str], InMemorySessionStore]:
+    """Drive one deep phase over a seeded session, returning its text and the store."""
+    sessions = InMemorySessionStore()
+    await sessions.append(
+        harness.SESSION,
+        Message(role=Role.USER, text=harness.USER_TEXT, at=_AT, turn_id=harness.TURN),
+    )
+    phase = BrainPhase(sessions, backend, TickingClock(), "brain", TurnCapabilities(bounds=bounds))
+    record = harness.armed_slot().snapshot(
+        turn_id=harness.TURN, session_id=harness.SESSION, requested_at=SystemClock().now()
+    )
+    texts: list[str] = []
+    events = phase.run(record)
+    try:
+        await _collect(events, texts)
+    finally:
+        await events.aclose()
+    return texts, sessions
+
+
+async def test_a_deep_reply_a_token_limit_cut_says_so_and_is_persisted_saying_it() -> None:
+    """The tier with the tightest context is the one whose stump is least visible."""
+    texts, sessions = await _run_deep(StoppingDeepBackend(StopReason.CAPPED))
+    assert texts == ["a deep ", "stump", REPLY_CAPPED_NOTE]
+    history = list(await sessions.history(harness.SESSION))
+    assert history[-1].text == f"a deep stump{REPLY_CAPPED_NOTE}"
+
+
+async def test_a_deep_reply_that_ended_itself_gets_no_note() -> None:
+    """The control arm on the deep phase, as on the cortex turn."""
+    texts, _sessions = await _run_deep(StoppingDeepBackend(StopReason.FINISHED))
+    assert texts == ["a deep ", "stump"]
+
+
+async def test_a_deep_phase_that_died_says_that_and_not_also_that_it_was_cut() -> None:
+    """One stump, one explanation: the failure note already says the answer is unfinished."""
+    texts: list[str] = []
+    sessions = InMemorySessionStore()
+    await sessions.append(
+        harness.SESSION,
+        Message(role=Role.USER, text=harness.USER_TEXT, at=_AT, turn_id=harness.TURN),
+    )
+    phase = BrainPhase(
+        sessions,
+        StoppingDeepBackend(StopReason.CAPPED, fail=True),
+        TickingClock(),
+        "brain",
+        TurnCapabilities(),
+    )
+    record = harness.armed_slot().snapshot(
+        turn_id=harness.TURN, session_id=harness.SESSION, requested_at=SystemClock().now()
+    )
+    events = phase.run(record)
+    with pytest.raises(InferenceError):
+        await _collect(events, texts)
+    await events.aclose()
+    assert texts == ["a deep ", "stump", BRAIN_FAILED_NOTE]
+    assert REPLY_CAPPED_NOTE not in "".join(texts)
+
+
+async def test_the_turns_own_bounds_continue_onto_the_deep_model() -> None:
+    """A deployment that capped a reply did not ask for the cap to lapse at the handoff."""
+    asked = GenerationBounds(max_tokens=4096, thinking=False)
+    bounded = StoppingDeepBackend(StopReason.FINISHED)
+    await _run_deep(bounded, asked)
+    assert bounded.bounds == [asked]
+    unbounded = StoppingDeepBackend(StopReason.FINISHED)
+    await _run_deep(unbounded)
+    assert unbounded.bounds == [None]

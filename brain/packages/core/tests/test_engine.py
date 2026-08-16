@@ -14,9 +14,11 @@ from cortex_core import (
     FORGOING_DETAIL,
     FORGOING_STATE,
     REDACTED_LINK,
+    REPLY_CAPPED_NOTE,
     SECURITY_PREAMBLE,
     CharBudgetHistoryWindow,
     CompositeToolRegistry,
+    DecodeStop,
     EchoInferenceBackend,
     EmbedderError,
     EscalateToBrainTool,
@@ -51,6 +53,7 @@ from cortex_core import (
     SessionMemoryScope,
     SourceKind,
     StatusUpdate,
+    StopReason,
     StrictUrlRedactingGuardrail,
     SystemClock,
     TextChunk,
@@ -1836,3 +1839,105 @@ async def test_a_turn_that_read_untrusted_text_is_still_recorded_with_the_flag_o
     )
     await _collect(engine.handle_turn("s", "summarize /x"))
     assert len(await recaller.recall("summarize /x", k=1, session_id="s")) == 1
+
+
+class StoppingBackend:
+    """Backend that closes each completion with a reported stop, and records the bounds asked for.
+
+    The two facts this arm turns on: what the server said about why it stopped, and what the
+    deployment's own request carried when it asked.
+    """
+
+    def __init__(self, reason: StopReason, deltas: Sequence[str] = ("half an ", "answer")) -> None:
+        self._reason = reason
+        self._deltas = deltas
+        self.bounds: list[GenerationBounds | None] = []
+
+    async def stream(
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
+    ) -> AsyncIterator[InferenceEvent]:
+        del model, messages, tools, schema
+        self.bounds.append(bounds)
+        for delta in self._deltas:
+            yield TextChunk(delta)
+        yield DecodeStop(self._reason)
+
+
+async def test_a_reply_a_token_limit_cut_says_so_under_the_text_and_in_the_store() -> None:
+    """The honesty half: a user reading a stump is told it is one, and history keeps the note.
+
+    The note is persisted with the reply for ``BRAIN_FAILED_NOTE``'s reason, that it explains
+    text the user can still scroll back to, and it lands after the reply rather than inside it.
+    """
+    store = InMemorySessionStore()
+    ids = _sequential_turn_ids()
+    engine = TurnEngine(
+        store,
+        StoppingBackend(StopReason.CAPPED),
+        TickingClock(),
+        turn_id_factory=lambda: ids.pop(0),
+    )
+    events = await _collect(engine.handle_turn("s", "explain everything"))
+    assert events == [
+        TextDelta("half an "),
+        TextDelta("answer"),
+        TextDelta(REPLY_CAPPED_NOTE),
+        TurnCompleted(turn_id="t-1", full_text=f"half an answer{REPLY_CAPPED_NOTE}"),
+    ]
+    history = list(await store.history("s"))
+    assert history[-1].text == f"half an answer{REPLY_CAPPED_NOTE}"
+
+
+async def test_a_reply_the_model_ended_itself_gets_no_note() -> None:
+    """The control arm: the note is about the limit, not about every turn that stops."""
+    store = InMemorySessionStore()
+    ids = _sequential_turn_ids()
+    engine = TurnEngine(
+        store,
+        StoppingBackend(StopReason.FINISHED),
+        TickingClock(),
+        turn_id_factory=lambda: ids.pop(0),
+    )
+    events = await _collect(engine.handle_turn("s", "hello"))
+    assert events == [
+        TextDelta("half an "),
+        TextDelta("answer"),
+        TurnCompleted(turn_id="t-1", full_text="half an answer"),
+    ]
+
+
+async def test_a_backend_that_reports_no_stop_at_all_is_never_read_as_capped() -> None:
+    """Silence is not a cap: every turn written before this arm still ends without a note."""
+    store = InMemorySessionStore()
+    ids = _sequential_turn_ids()
+    engine = TurnEngine(
+        store, RecordingBackend(["quiet"]), TickingClock(), turn_id_factory=lambda: ids.pop(0)
+    )
+    events = await _collect(engine.handle_turn("s", "hello"))
+    assert events == [TextDelta("quiet"), TurnCompleted(turn_id="t-1", full_text="quiet")]
+
+
+async def test_the_deployments_reply_bounds_ride_every_completion_of_a_users_turn() -> None:
+    """What the deployment set is what the request carries; the default carries nothing."""
+    bounded = StoppingBackend(StopReason.FINISHED)
+    asked = GenerationBounds(max_tokens=2048, thinking=False)
+    await _collect(
+        TurnEngine(
+            InMemorySessionStore(),
+            bounded,
+            TickingClock(),
+            capabilities=TurnCapabilities(bounds=asked),
+        ).handle_turn("s", "hello")
+    )
+    assert bounded.bounds == [asked]
+    unbounded = StoppingBackend(StopReason.FINISHED)
+    await _collect(
+        TurnEngine(InMemorySessionStore(), unbounded, TickingClock()).handle_turn("s", "hello")
+    )
+    assert unbounded.bounds == [None]

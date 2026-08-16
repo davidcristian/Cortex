@@ -1149,7 +1149,14 @@ Use-case:
   with the deep model's `BrainPhase` so the two cannot diverge (ADR-0030).
 - `stream_turn_events(loop, channels, parts)` / `flush_channels(channels, parts)` /
   `record_exchange(caps, taint, *, session_id, query, reply)` / `render_exchange(user, assistant)`
-  (`turn_output.py`) are that shared output half. `stream_turn_events` maps one tool loop's
+  (`turn_output.py`) are that shared output half, with `cap_note` beside them: a turn whose
+  `StopLedger` saw a completion stop at a token limit ends with `REPLY_CAPPED_NOTE` streamed as a
+  `TextDelta` and appended to `parts`, so what is persisted is what was shown (ADR-0005
+  capped-reply addendum). Both user-facing callers pass a ledger always, so the note covers the
+  server's context window as well as a cap the deployment set; `BrainPhase` suppresses it when the
+  phase itself failed, `BRAIN_FAILED_NOTE` already saying the answer is unfinished. `TurnCapabilities.bounds`
+  carries the deployment's own cap and thinking switch to both, `None` by default and therefore
+  the request this repo has always sent. `stream_turn_events` maps one tool loop's
   deltas onto `TextDelta` / `StatusUpdate` (a reasoning trace) / `ToolActivity`, accumulating
   only reply text into `parts`, closes the loop in a `finally`, and flushes the channels on a
   clean end; `flush_channels` is that flush on its own, for a caller that has to persist a

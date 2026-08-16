@@ -50,11 +50,12 @@ from cortex_core.events import TextDelta, TurnEvent
 from cortex_core.handoff import HandoffRecord
 from cortex_core.output_channels import open_output_channels
 from cortex_core.ports import Clock, InferenceBackend, SessionStore
+from cortex_core.stops import StopLedger
 from cortex_core.swap_notes import BRAIN_FAILED_NOTE
 from cortex_core.tool_budget import DispatchBudget
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
 from cortex_core.turn_context import TurnCapabilities, assemble_inference_messages
-from cortex_core.turn_output import flush_channels, record_exchange, stream_turn_events
+from cortex_core.turn_output import cap_note, flush_channels, record_exchange, stream_turn_events
 from cortex_core.untrusted import TaintLedger
 
 _logger = logging.getLogger(__name__)
@@ -131,6 +132,10 @@ class BrainPhase:
         query = _user_query(history, record)
         taint = record.taint_ledger()
         watch = CadenceWatch(self._decode_floor_tps)
+        # The deep tier is where a cut answer is likeliest and least visible: it ships an 8192
+        # context and the measured pick spends 3847 to 4448 tokens reaching an answer, so the
+        # wall is one long question away even with no cap set (ADR-0004 brain-pick table).
+        stops = StopLedger()
         context = ToolLoopContext(
             dispatcher=self._caps.tools,
             clock=self._clock,
@@ -146,6 +151,11 @@ class BrainPhase:
             # honestly rather than queuing a handoff no conductor would run.
             escalation=None,
             cadence=watch,
+            stops=stops,
+            # The cortex turn's own bounds, carried on the same bundle (ADR-0005 capped-reply
+            # addendum): a handoff is one turn continued, so a deployment that capped a reply did
+            # not ask for the cap to lapse the moment the question got hard enough to escalate.
+            bounds=self._caps.bounds,
         )
         assembled = await assemble_inference_messages(
             query, history, self._caps, context, self._clock
@@ -170,6 +180,13 @@ class BrainPhase:
             yield TextDelta(text=BRAIN_FAILED_NOTE)
         finally:
             await events.aclose()
+        # Only when the phase itself did not fail. ``BRAIN_FAILED_NOTE`` already says this answer
+        # is unfinished and names the likelier cause, so a second note under it would offer the
+        # reader two explanations for one stump, one of them about a limit that may not be what
+        # ended the run at all.
+        if failure is None:
+            for event in cap_note(stops, parts):
+                yield event
         self._report_cadence(watch.reading(), record.handoff_id)
         await self._persist(record, query=query, reply="".join(parts), taint=taint)
         if failure is not None:

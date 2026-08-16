@@ -597,3 +597,130 @@ is the evidence: silence is not a corner of this port, it is most of what a stre
 `_reply_text` and running pyright over that file alone gives
 `Cannot access attribute "text" for class "DecodeStop"`, so a consumer that ignores the event
 cannot compile rather than failing at runtime on the arm that assumed text.
+
+## Addendum (2026-08-16): the capped-reply note, and the two levers a user's own turn now has
+
+**Status:** Accepted. Closes "disable-thinking and token-budget capping" from
+[docs/refinements/index.md#inference-model-manager](../refinements/index.md#inference-model-manager),
+the last case that entry still covered: a user-facing reply, which sent no bounds by design and
+read its own stop not at all.
+
+Its trigger was "a runaway trace on a real answer, or a user who minds the wait", and both halves
+have now fired with numbers behind them. The wait is measured below and it is 11.8 s to 18.1 s
+before the first word of an ordinary answer on the resident cortex, every second of it a
+deliberation the user cannot read yet. The runaway is in the lineup's own table: two of the four
+deep candidates consume an entire 8192-token context and return empty content, and the shipped
+pick reaches its answers in 3847 to 4448 tokens, which is a wall one long question away
+([ADR-0004](ADR-0004-model-lineup.md)).
+
+### What the tree actually said
+
+Re-derived rather than trusted, this backlog's own standing warning being that an entry's account
+of the code goes stale, and this port changed twice on the day this landed.
+
+- `GenerationBounds` reaches a user's turn through `ToolLoopContext.bounds` already, and neither
+  `TurnEngine` nor `BrainPhase` set it, so both send the server's own `n_predict: -1`.
+- Neither passes a `StopLedger` either, so both were blind to `StopReason.CAPPED`, which the
+  finish-reason addendum above had made available hours earlier. The addendum's own "what this
+  does not do" says the cortex turn does not read it and that a turn wanting to say "this was cut"
+  wants a rendered surface, an overlay change. **That last inference is what the re-derivation
+  overturned:** `swap_notes.py` already puts app-authored sentences onto a user's reply stream as
+  `TextDelta`s, and `BRAIN_FAILED_NOTE` is already appended to a partial answer and persisted with
+  it. The surface exists, nothing crosses the seam, and the overlay renders it as the reply text
+  it is.
+- Thinking-off is per server in `TierArgs.extra` and hard-wired to the GPU subagent tier alone
+  (`config.py`'s `_REASONING_OFF`). **There is no env knob that turns it off for the cortex or the
+  deep tier**, so "already switchable" was false for exactly the two tiers a user reads.
+- Bounding the trace separately from the reply is not available. `--reasoning-budget` is a switch
+  (0 or -1), not a token budget, it is per server, and it does not work on this build; nothing in
+  the OpenAI request surface llama-server accepts bounds `reasoning_content` by a count. So a cap
+  is necessarily a cap on the whole completion, which is what makes the pairing below mandatory
+  rather than stylistic.
+
+### What a real server said
+
+Measured 2026-08-16 by the agent against the shipped cortex tier (gemma-4-12B-it QAT q4_0,
+`-ngl 99`, `-c 16384`, `--jinja`, the ghcr `server-cuda` image on the 24 GB card), three ordinary
+open-ended questions, one run each per arm.
+
+| arm | trace | reply | decoded | first word | whole turn | finish |
+| --- | --- | --- | --- | --- | --- | --- |
+| unbounded, thinking on (shipped) | 2545 / 3064 / 2838 chars | 4562 / 4814 / 4021 chars | 1715 / 1941 / 2139 tok | **11.8 / 15.0 / 18.1 s** | 32.5 / 37.5 / 41.4 s | `stop` 3 of 3 |
+| thinking off | **0** | 4332 / 3452 / 3605 chars | 1053 / 811 / 1125 tok | **0.4 s, all three** | 20.2 / 15.5 / 21.4 s | `stop` 3 of 3 |
+| `max_tokens: 512`, thinking on | 2126 / 2110 / 1465 chars | **empty, 3 of 3** | 512 / 512 / 512 tok | never | 9.8 to 10.1 s | `length` 3 of 3 |
+
+Three readings decide everything below.
+
+1. **The wait is the trace, entirely.** Turning deliberation off moves the first word from 11.8 to
+   18.1 seconds to 0.4 seconds, and the answers stay the same size and the same shape.
+2. **A cap alone deletes the answer on a user's turn too.** The fold measured this on a
+   summarization prompt ([ADR-0038](ADR-0038-ranked-recall.md)); it reproduces on the resident
+   cortex answering a user, 3 of 3, at a cap of 512 with a trace of 1465 to 2126 characters
+   underneath it. What the user would have received is nothing at all, streamed for ten seconds.
+3. **A cap is therefore only ever half a setting**, and the visible half of the failure is that
+   the reply is empty rather than short, which no amount of sizing fixes while the trace is
+   unbounded and unbudgetable.
+
+### Decision
+
+1. **The honesty ships unconditionally and the levers ship as knobs.** `TurnEngine` and
+   `BrainPhase` now pass a `StopLedger` always, and a turn whose completion stopped at a token
+   limit ends with `REPLY_CAPPED_NOTE` on its stream and in the message it persists. This costs a
+   deployment that sets nothing one event on a turn that was already truncated, and it fixes a
+   silent loss that predates every cap: **the context window cuts replies today**, and a cut reply
+   is stored and read as a finished short one.
+2. **The note is reply text, not a status.** It follows `BRAIN_FAILED_NOTE` exactly: streamed as a
+   `TextDelta`, appended to `parts`, persisted with the answer, because it explains text the user
+   can still scroll back to. It is app-authored, so it needs no guardrail pass, and nothing crosses
+   `proto/body.proto`.
+3. **It never names which limit cut the reply**, because nothing on the wire separates a request's
+   `max_tokens` from the server's context window, which the finish-reason addendum settled. The
+   note says the machine's length limit and stops there.
+4. **A failed deep phase says one thing, not two.** `BRAIN_FAILED_NOTE` already tells the reader
+   the answer is unfinished, so the cap note is suppressed when the phase raised; two explanations
+   for one stump, one of them possibly wrong, is worse than the truer one alone.
+5. **Both levers are one env value, `ReplyBoundsConfig`, in its own module.** `CORTEX_REPLY_THINKING`
+   (default true) and `CORTEX_REPLY_MAX_TOKENS` (default 0, meaning no cap) reduce to `None` when
+   neither is set, so the unasked deployment's request is byte-identical. They live in
+   `config_reply.py` rather than in `BrainRuntimeConfig` because that file is at its line cap and
+   because these two are one decision with one argument, the precedent `config_tools.py` and
+   `config_subagents.py` set. The value reaches the core on `TurnCapabilities`, which is where
+   that bundle's own docstring says a per-turn capability joins, rather than as a constructor
+   argument on each engine: both were already at ruff's argument ceiling, and it is the reason
+   a handoff keeps the turn's bound for free, the deep phase being handed the same bundle with
+   two fields replaced.
+6. **Neither default flips.** Thinking on is what the deep tier was picked for, the lineup having
+   rejected two faster candidates for never leaving their traces, and the cortex's trace is a
+   rendered surface a user watches. What the measurement earns is the right to turn it off on a
+   deployment that would rather have its answer in 0.4 s, not the right to decide that for every
+   deployment. The delegated path's own bounds stay separate, in `config_subagents.py`, because a
+   subtask nobody reads and an answer somebody is watching are not bounded on the same argument.
+7. **The two knobs are documented as a pair**, since the measurement says a cap with thinking left
+   on is not a smaller answer but no answer, and the runbook says so where an operator sets them
+   (docs/runbooks/llamacpp-gpu.md).
+
+### Distrust green
+
+Six mutations, each applied to production code alone with the whole `packages` suite re-run.
+
+| mutation | reddens |
+| --- | --- |
+| `cap_note` yields nothing when capped | **2**, the cortex note and the deep one |
+| `cap_note` yields the note on every turn | **70** |
+| the note is yielded but not appended to `parts` | **2**, the two that read the store back |
+| `TurnEngine` passes no `StopLedger` | **1**, the cortex note |
+| `BrainPhase` emits the note even when the phase failed | **1**, the two-notes case |
+| `ReplyBoundsConfig.bounds` returns bounds when nothing is set | **1**, the default case |
+
+Two readings say something the counts alone do not.
+
+**The note-on-every-turn mutation reddens 70**, which is the measure of how ordinary the silent
+path is. Nearly every turn in the suite ends with no stop reported at all, so a ledger that
+answered "capped" for silence would rewrite the ending of the whole corpus, the shape the
+finish-reason addendum's own 29 had one level down.
+
+**The bounds mutation reddens only its own unit test.** Nothing asserts on what the composition
+root hands the engine, because `run_from_env` is exercised as a whole rather than for the value it
+passes, so a wiring that read the config and dropped it would be caught by the config's test not
+at all and by the engine's not at all. That gap is the honest cost of a knob whose producer and
+consumer are tested apart, and it is the one thing here a live run is the only witness for.

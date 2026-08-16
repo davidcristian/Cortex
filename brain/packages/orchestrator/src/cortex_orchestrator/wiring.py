@@ -51,6 +51,7 @@ from cortex_orchestrator.config import (
     MemoryConfig,
     SeamServerConfig,
 )
+from cortex_orchestrator.config_reply import ReplyBoundsConfig
 from cortex_orchestrator.config_schedule import ScheduleConfig
 from cortex_orchestrator.config_subagents import SubagentsConfig
 from cortex_orchestrator.config_swap import SwapConfig
@@ -97,6 +98,7 @@ async def run_from_env(
     subagents_config = SubagentsConfig()
     schedule_config = ScheduleConfig()
     swap_config = SwapConfig()
+    reply_bounds = ReplyBoundsConfig().bounds()
     clock = SystemClock()
     # The settings record rides the same Redis the conversation state does: durable for the same
     # reason (append-only + a named volume), so a choice outlives a body reinstall.
@@ -217,6 +219,7 @@ async def run_from_env(
                 record_tainted_memory=memory_config.on_tainted == "record",
                 generate_titles=runtime.generate_titles,
                 progress=progress,
+                bounds=reply_bounds,
             )
 
         def make_turn_engine(caps: TurnCapabilities) -> TurnEngine:

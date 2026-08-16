@@ -23,9 +23,10 @@ from cortex_core.output_channels import open_output_channels
 from cortex_core.ports import Clock, InferenceBackend, SessionStore
 from cortex_core.routing import RoutingHints, Tier, route_turn
 from cortex_core.session_title import build_title_messages, generate_title
+from cortex_core.stops import StopLedger
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
 from cortex_core.turn_context import TurnCapabilities, assemble_inference_messages
-from cortex_core.turn_output import record_exchange, stream_turn_events
+from cortex_core.turn_output import cap_note, record_exchange, stream_turn_events
 from cortex_core.untrusted import TaintLedger, new_nonce
 
 # The logical id of the resident cortex model (ADR-0004: logical ids, never paths).
@@ -106,6 +107,11 @@ class TurnEngine:
         # per-turn nonce the tool loop uses and taint the turn before it runs, so the ledger and
         # nonce must exist before the messages are assembled.
         taint = TaintLedger()
+        # Where each completion of this turn reports why it ended (ADR-0005 capped-reply
+        # addendum). The cortex turn passed none until this arm, on the argument that a user
+        # watching the reply arrive sees it stop; what they cannot see is *why* it stopped, and a
+        # reply the context window cut reads exactly like one the model finished tersely.
+        stops = StopLedger()
         context = ToolLoopContext(
             dispatcher=self._caps.tools,
             clock=self._clock,
@@ -113,6 +119,10 @@ class TurnEngine:
             taint=taint,
             nonce=new_nonce(),
             session_id=session_id,
+            # How far this turn may decode, the deployment's own (ADR-0005 capped-reply
+            # addendum); ``None`` is the request this repo has always sent.
+            bounds=self._caps.bounds,
+            stops=stops,
             # This stream's progress channel (ADR-0010): the loop stamps it onto each dispatch,
             # so a spawned subagent surfaces its steps while handle_turn is suspended inside the
             # spawn dispatch and cannot yield an event of its own.
@@ -145,6 +155,11 @@ class TurnEngine:
                 yield event
         finally:
             await events.aclose()
+        # After the channels have flushed, so the note lands under the whole reply rather than
+        # ahead of a guardrail's held tail, and before the text is joined, so what is persisted is
+        # what was shown.
+        for event in cap_note(stops, parts):
+            yield event
         full_text = "".join(parts)
         assistant = Message(
             role=Role.ASSISTANT, text=full_text, at=self._clock.now(), turn_id=turn_id
