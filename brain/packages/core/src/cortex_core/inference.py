@@ -1,11 +1,11 @@
 """Inference stream events, and the bounds one request may put on the completion it asks for.
 
 A completion streams ``TextChunk`` (assistant reply text, emitted live) and, from a reasoning
-model, ``ReasoningChunk`` (its private deliberation, emitted before the reply, ADR-0020),
-interleaved with ``ToolCall`` (the model asking to run a tool), and closes with a ``DecodeStop``
-saying why it ended (ADR-0005 finish-reason addendum) and a ``DecodeCadence`` when the server
-told the adapter how fast it decoded (ADR-0030 spill-watch
-addendum). Pure data with no ``ports``
+model, ``ReasoningChunk`` (its private deliberation, emitted before the reply, ADR-0020), then a
+``DecodeStop`` saying why it ended (ADR-0005 finish-reason addendum), a ``DecodeCadence`` when the
+server told the adapter how fast it decoded (ADR-0030 spill-watch addendum), and last any
+``ToolCall`` the model made, which is whole by the time it crosses and never precedes the words
+beside it. Pure data with no ``ports``
 import, so ``ports`` can name ``InferenceEvent`` in the ``InferenceBackend`` contract without a
 cycle, mirroring how the ``tools`` and ``memory`` values are depended on. ``GenerationBounds``
 rides the same module for the same reason: it is request-side vocabulary the port names, like

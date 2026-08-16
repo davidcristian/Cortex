@@ -27,6 +27,7 @@ the parsing is genuinely derived.
 from collections.abc import AsyncIterator, Sequence
 
 from cortex_core.conversation import Message
+from cortex_core.errors import InferenceError
 from cortex_core.inference import GenerationBounds, InferenceEvent, JsonSchema
 from cortex_core.tools import ToolSpec
 
@@ -38,10 +39,18 @@ class ScriptedInferenceBackend:
     each carry their own cadence (or none); the last list repeats forever, which is what makes a
     loop of unknown length scriptable. ``calls`` records every request the loop made, so a check
     can assert how many completions a phase actually ran.
+
+    ``fail_with`` is the one thing here a script cannot say, and it is the port's only failure
+    channel: a server that stops answering is a condition of the world rather than an event in a
+    stream, so a twin without it cannot stand in for the adapter on the single path where the two
+    have anything to disagree about. It is the same knob ``HashEmbedder`` and
+    ``InMemoryBodyGateway`` carry. The attempt is still recorded before it fails, a backend that
+    cannot answer having taken the request all the same.
     """
 
     def __init__(self, rounds: Sequence[Sequence[InferenceEvent]] = ()) -> None:
         self._rounds = [list(events) for events in rounds] or [[]]
+        self._failure: InferenceError | None = None
         self.calls: list[str] = []
 
     async def stream(
@@ -57,5 +66,11 @@ class ScriptedInferenceBackend:
         del messages, tools, schema, bounds
         index = min(len(self.calls), len(self._rounds) - 1)
         self.calls.append(model)
+        if self._failure is not None:
+            raise self._failure
         for event in self._rounds[index]:
             yield event
+
+    def fail_with(self, error: InferenceError) -> None:
+        """Make every later completion fail with ``error`` instead of streaming its round."""
+        self._failure = error

@@ -68,8 +68,9 @@ class InferenceBackend(Protocol):
     """One stateless streamed completion against a loaded model, with no sessions and no retries.
 
     ``stream`` yields the reply to ``messages`` as ``InferenceEvent``s: ``TextChunk`` deltas
-    of assistant text, interleaved with ``ToolCall``s when the model asks to run a tool from
-    ``tools`` (native function-calling, ADR-0009). With ``tools`` empty the stream is text
+    of assistant text, a reasoning model's ``ReasoningChunk`` deltas before them (ADR-0020), and
+    each whole ``ToolCall`` the model makes from ``tools`` (native function-calling, ADR-0009),
+    which never precedes the words beside it. With ``tools`` empty the stream is text
     only, exactly as before. ``model`` is a logical id (ADR-0004), never a file path.
     ``schema`` (ADR-0028), when set, constrains decoding so every emitted token conforms to
     that JSON Schema; ``None`` (the default, every caller but a constrained tool-less subagent)
@@ -79,15 +80,20 @@ class InferenceBackend(Protocol):
     without the caller re-threading it, which is why the port did not have to change at all.
     ``bounds`` (ADR-0038 cheap-fold addendum) is how far this one request lets the model go, per
     REQUEST because one resident cortex both answers the user, where deliberation earns its wait,
-    and folds a recap, where it is discarded unread. Failures surface as ``InferenceError``.
+    and folds a recap, where it is discarded unread. Failures surface as ``InferenceError``, at a
+    moment the port leaves open: an implementation may fail before it hands back an iterator or on
+    the first event of one, and both shapes are live in this tree.
     **A backend whose engine says why a completion ended closes it with one ``DecodeStop``**
     (ADR-0005 finish-reason addendum) and **a backend whose engine reports how fast it decoded
-    closes the stream with one ``DecodeCadence``** (ADR-0030 spill-watch addendum), in that order
-    and both after the text they describe, since neither is knowable until the tokens are counted.
+    follows that with one ``DecodeCadence``** (ADR-0030 spill-watch addendum), in that order
+    and both after the text and thinking they describe, since neither is knowable until the tokens
+    are counted; any tool calls trail them, an engine that streams them in pieces having nothing
+    whole to hand over until the completion is done.
     Reporting either is optional and the two are independent, an engine that offers no timings
     still being able to say what stopped it. Silence is a legitimate implementation of both and
     says only that the engine offered nothing, so no consumer may read a missing cadence as a
-    healthy rate or a missing stop as a model that finished.
+    healthy rate or a missing stop as a model that finished. A completion with nothing to say is
+    legal in the same spirit, owing no event of any kind.
     """
 
     def stream(
