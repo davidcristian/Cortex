@@ -23,6 +23,21 @@ config contract in [ADR-0003](../adr/ADR-0003-seam-codegen.md).
   coverage look identical in the totals and nowhere else.
 - **just** provides `just check`, THE gate (AGENTS.md gate 6); run it before calling
   anything done.
+- **Every suite in that gate runs shuffled under a fixed seed** (the
+  [ADR-0002](../adr/ADR-0002-toolchain-gates.md) shuffle addendum): `--randomly-seed=9973` in
+  `brain/pyproject.toml`, `7919` in `scripts/pyproject.toml`, `sequence: { shuffle: true, seed:
+  65537 }` in `body/app/vite.config.ts`. So the order is not the collection order and is still the
+  same order twice; a red run reproduces exactly, here and in CI, and pytest prints
+  `Using --randomly-seed=N` in its header so the log names the order it ran in. Reproducing a
+  failure needs nothing special, but reproducing it in ISOLATION does: pass the seed the header
+  printed, `uv run pytest --randomly-seed=9973 <path>`, or the test will run in a different order
+  than the failing run did. Do not tune a seed to make a test pass; that throws away every draw
+  the suite has survived and hides the dependency rather than fixing it.
+- **`just shuffle [seed]`** is the deliberate sweep, and the one thing `just check` does not do:
+  all three suites at ONE seed of your choosing, a random one by default, printed so the run
+  reproduces with `just shuffle <seed>`. Run it when a test behaves as though a sibling left
+  something behind, and after landing a batch of tests. It is not in CI, its whole point being an
+  order nobody chose.
 - **pre-commit** needs `pre-commit install` once; the hook is a literal `just check`
   (ADR-0002 d9).
 - **protoc 35.x** is needed only to regenerate the committed seam stubs (`just proto`,

@@ -392,3 +392,111 @@ its toolchain against the other's, nothing records which toolchain last measured
 log ages out, so recovering that comparison after a future drift still means finding a log from
 before it. Recorded as its own entry,
 [R-275](../refinements/tasks/275-nothing-reads-the-printed-toolchain.md).
+
+## Addendum (2026-08-16): the shuffle becomes standing, under a seed that is fixed
+
+The 2026-07-18 addendum measured the shuffle by hand and declined to make it a gate; the
+2026-08-10 one re-measured it wider and declined again, recommending against adoption and naming a
+fixed `--randomly-seed` in `addopts` as the middle option nobody had costed. This addendum runs the
+measurement a third time, costs that middle option properly, and takes it. What changed is not the
+verdict of the shuffle runs, which is green for the third time; it is one property of the plugin
+that neither earlier pass measured and that decides the whole trade.
+
+**The third measurement, wider again, and green.** `uv run --with pytest-randomly pytest
+-p randomly --randomly-seed=N` from `brain/` at seeds 1, 2, 3, 20260816 and 987654321 (2576 tests,
+68 integration-marked deselected) and from `scripts/` at the same five (578 tests), plus, for the
+first time, the overlay under `npx vitest run --coverage --sequence.shuffle --sequence.seed=N` at
+those same five seeds (57 files, 716 tests). Fifteen runs, every one green, every Python run still
+reporting 100% line and branch coverage because a randomized run inherits the `--cov-fail-under=100`
+its `addopts` already carries. Both Python figures have grown again since the second pass recorded
+them, 2306 to 2576 and 400 to 578, which is the standing reason not to carry an old verdict
+forward. The overlay is the genuinely new scope: its suite had never been shuffled at all, and
+Vitest isolates every test file in its own environment, so within a file is the only place an
+order dependency can live there.
+
+**The property that decided it: a fixed seed does not re-draw as the suite grows.** The earlier
+passes assumed a fixed seed buys one deterministic permutation and nothing else, which would make
+it a single lottery ticket held forever. Measured rather than assumed, on `scripts/` at seed 7919:
+adding one test file left the other 578 node ids in **the same relative order**, and on an isolated
+module, growing it from eight tests to nine inserted the ninth into the existing permutation and
+left the other eight in their relative order. So the order is per item and stable, not a whole
+list reshuffled on every collection. That makes a fixed seed a different instrument than it looked:
+every newly added test draws its own position once, against every test already there, and every
+existing pair keeps the order it was already proven in.
+
+**Decision: the shuffle is standing under a fixed seed, and the lottery gets its own recipe.**
+`pytest-randomly` is a dev dependency of both Python projects and each `addopts` carries a fixed
+`--randomly-seed`; `body/app/vite.config.ts` carries `sequence: { shuffle: true, seed: N }`. So
+`just check` runs all three suites out of collection order and in the same order twice. `just
+shuffle [seed]` is the other half: all three suites at one seed of your choosing, a random one by
+default, printed so the run reproduces. Three arguments.
+
+*A red gate has to mean the commit is bad.* Pre-commit runs the whole of `just check` on every
+commit here, so a per-run random order buys detection at the price of a failure that may not
+reproduce on re-run, which is the one thing this repo's gate philosophy cannot absorb: it trades a
+class of latent defect for a class of flake, and a flake in a hook that runs on every commit is
+worse than a shuffle that draws once. The printed seed makes such a failure reproducible, but only
+after somebody reads the log, and the re-run that a human reflexively does first is exactly the run
+that would go green.
+
+*A fixed seed still catches what a per-run seed catches, one draw later.* By the stability property
+above, an order dependency between a new test and an old one is drawn at the moment the new test
+lands, which is the moment the entry's trigger describes. What it does not draw is a pair that
+already coexisted under this order, and the sweep recipe exists for those.
+
+*And an opt-in recipe alone catches nothing, because nothing runs it.* This entry is the evidence:
+the command was re-derived by hand three times across four weeks, each time by a pass that had to
+go and read how the last one did it.
+
+**The seeds are arbitrary, frozen, and deliberately different.** `9973` in `brain/pyproject.toml`,
+`7919` in `scripts/pyproject.toml`, `65537` in `body/app/vite.config.ts`. Nothing is encoded in
+them and none of them may be tuned: changing a seed reshuffles that suite for no reason, which
+throws away every draw the suite has already survived. They differ from each other on purpose, so
+no reader takes three independent numbers for one value that has to agree and registers a coupling
+in `crosscheck.py` that does not exist.
+
+**Proved able to fail before being trusted**, which for a gate about ordering means planting the
+defect it exists to find. A pair of tests in one file, the first leaving state in a module global
+and the second asserting it, passes in collection order and fails whenever the pair is drawn the
+other way. In `scripts/`, at the frozen seed, as `just check-scripts` runs it:
+
+```
+FAILED tests/test_zz_order_plant.py::test_plant_reads - AssertionError: asser...
+======================== 1 failed, 579 passed in 1.50s =========================
+```
+
+and the header of that same run reads `Using --randomly-seed=7919`, so the log names the order it
+ran in. The overlay plant fires the same way at its own frozen seed, `FAIL
+src/zzOrderPlant.test.ts > plant reads the shared state`. Both plants were removed.
+
+**The catch rate was measured too, because a gate that fires on one plant in fifty is worth
+knowing about.** It is a coin flip per pair, as the arithmetic says it must be: over 20 seeds the
+`scripts/` plant failed 11 of them. The honest half of that number is that the FIRST plant written
+did not fire at the frozen seed; renaming its two tests, which changes their per-item draw, did.
+The overlay plant fired at its frozen seed and at 2 of 10 other seeds, a rate below the Python
+one on a sample too small to say more than that it draws. So the standing gate finds roughly half
+of newly introduced order dependencies at once, and `just shuffle` is what finds the rest.
+
+**Nothing reaches the runtime image and nothing changes about coverage.** `pytest-randomly` is in
+the `dev` dependency group of both projects, and `brain/Dockerfile` syncs with `--no-dev`, so the
+plugin is absent from the shipped brain by the same mechanism that keeps pytest itself out. Both
+lockfiles moved, which is the deliberate half of the change: the earlier passes kept them still
+precisely because the plugin was not adopted. Coverage is untouched in both toolchains, since every
+test still runs and only the order moves; all three suites report the same totals shuffled as
+unshuffled.
+
+**One side effect is worth naming, because it is the 2026-07-18 complaint closing.** That addendum
+was written about repair reports citing `-p no:randomly` as evidence, a flag that disabled a plugin
+nobody had installed and so could not fail. With the seed in `addopts`, that same flag now exits 2
+with `unrecognized arguments: --randomly-seed=7919`. Suppressing the shuffle deliberately is
+`-p no:randomly -p no:cacheprovider` plus dropping the seed on the command line, and doing it by
+accident is no longer possible.
+
+**What this leaves open.** Two things, each its own entry. The Rust suite is not shuffled and
+cannot be by this decision: `cargo test` runs a binary's tests in parallel threads, which is
+interleaving rather than order randomization, and libtest has no shuffle option, so the order it
+hands out is the collected one
+([R-287](../refinements/tasks/287-rust-tests-run-in-one-fixed-order.md)). And the standing seed
+draws each pair once, so a dependency between two tests that already coexist under this order is
+invisible until somebody runs the sweep, which nothing schedules
+([R-288](../refinements/tasks/288-nothing-schedules-the-shuffle-sweep.md)).

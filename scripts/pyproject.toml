@@ -12,6 +12,7 @@ package = false
 dev = [
   "pytest>=8.3",
   "pytest-cov>=6.0",
+  "pytest-randomly>=4.1",
   "pyright>=1.1.390",
   "ruff>=0.11",
 ]
@@ -22,7 +23,13 @@ pythonpath = ["."]
 markers = [
   "integration: exercises live external systems; excluded from coverage gate and CI",
 ]
-addopts = "--cov=. --cov-branch --cov-report=term-missing --cov-fail-under=100 --strict-markers -m \"not integration\""
+# `--randomly-seed` is FIXED, so the order is not the collection order and is still the same
+# order twice (ADR-0002 shuffle addendum). The number is arbitrary and frozen: changing it
+# reshuffles this suite for no reason, and it differs from the other two suites' seeds on
+# purpose, so nobody reads three independent numbers as one value that has to agree.
+# `just shuffle` is the deliberate sweep over other seeds; pytest prints the seed in its header,
+# so a red run names the order it ran in.
+addopts = "--cov=. --cov-branch --cov-report=term-missing --cov-fail-under=100 --strict-markers -m \"not integration\" --randomly-seed=7919"
 
 [tool.coverage.run]
 branch = true
