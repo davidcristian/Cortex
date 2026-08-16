@@ -1,5 +1,7 @@
 """Behavior tests for the output guardrail: URL extraction + the streaming redactor (ADR-0015)."""
 
+import sys
+import unicodedata
 from dataclasses import dataclass, field
 
 from cortex_core import (
@@ -9,6 +11,7 @@ from cortex_core import (
     UrlRedactingGuardrail,
     extract_urls,
 )
+from cortex_core.url_spellings import NFKC_SPACES
 
 EVIL = "https://evil.example/report"
 
@@ -1165,3 +1168,162 @@ def test_the_eleventh_addendum_composes_with_its_predecessors() -> None:
     # An entity colon, a single backslash for the missing solidus, a CJK-dotted host and a
     # zero-width character in one link still fold to the single identity its plain twin has.
     assert extract_urls("https&#58;\\evil。ex\u200bample/pay") == _PLAIN_LINK
+
+
+_SPLIT_HOST = "hxxps://evil dot example/pay"
+
+
+def test_extract_urls_reads_a_whitespace_split_host() -> None:
+    # The last member of the defang family, and the one the security community writes as readily
+    # as `evil[.]com`. The gap between two labels is the host's dot, so the split spelling folds
+    # to the identity its plain twin has and neither side of the defense can miss the other.
+    assert extract_urls(_SPLIT_HOST) == _PLAIN_LINK
+    assert extract_urls("http://evil dot example") == {"http://evil.example"}
+    assert extract_urls("ftp://evil dot example/x") == {"ftp://evil.example/x"}
+    assert extract_urls("http://a dot b dot c dot example") == {"http://a.b.c.example"}
+
+
+def test_a_gap_may_hold_any_reading_of_the_dot() -> None:
+    # The gap's token comes from the same tables every other position spends, so the word, each
+    # label separator, a rendered reference, one percent escape and the refanger's own bracketed
+    # token all reach this position without being listed here or there.
+    for spelling in ("dot", "DOT", ".", "。", "&#46;", "&period;", "%2e", "[dot]", "(.)", "{DOT}"):
+        assert extract_urls(f"https://evil {spelling} example/pay") == _PLAIN_LINK
+    # Tabs and runs of whitespace are the same gap; a newline is not, being where a wrapped
+    # sentence breaks rather than where a host's label does.
+    assert extract_urls("https://evil \t dot \t example/pay") == _PLAIN_LINK
+    assert extract_urls("https://evil\ndot example/pay") == {"https://evil"}
+
+
+def test_a_dotted_host_is_finished_before_any_gap_could_join_it() -> None:
+    # The whole false-positive budget, and the constraint the rest of it rests on: defanging
+    # *replaces* a host's dot and never adds one, so a host that already carries a plain dot ends
+    # where it always did. Without it a `+` body loop re-enters the split host at every position
+    # and reads an ordinary link plus the next two words as one, which is measured, not feared.
+    assert extract_urls("visit http://example.com dot the file is there") == {"http://example.com"}
+    assert extract_urls("see http://example.com . The next sentence") == {"http://example.com"}
+    assert extract_urls("the report is at http://example.com dot org") == {"http://example.com"}
+
+
+def test_an_unanchored_split_host_is_still_no_link() -> None:
+    # The fragment's own spelling with no scheme in front of it stays out, on the standing
+    # decision that puts its plain twin out: `evil.example` is not a link here either, and a
+    # grammar that redacted the split form while ignoring the contiguous one would be incoherent.
+    assert extract_urls("evil dot example") == frozenset()
+    assert extract_urls("evil . example") == frozenset()
+    assert extract_urls("mail me at evil dot example") == frozenset()
+
+
+def test_only_an_authority_scheme_has_a_host_to_split() -> None:
+    # A split host is a *host* grammar, and only these schemes have one. An opaque scheme reaches
+    # its content through a colon and no authority, so its content is read exactly as before and
+    # a `tel:` number is never held waiting for a gap that cannot come.
+    assert extract_urls("mailto:me dot you") == {"mailto:me"}
+    assert extract_urls("tel:555 dot 0100") == {"tel:555"}
+    assert extract_urls("data:text/html,hi dot there") == {"data:text/html,hi"}
+
+
+def test_a_gap_needs_a_label_on_both_sides() -> None:
+    # A gap separates two labels, so it is not one with nothing before it or nothing after it,
+    # and the token must stand alone rather than sit inside a word.
+    assert extract_urls("http:// dot example") == frozenset()
+    assert extract_urls("http://evil dot ") == {"http://evil"}
+    assert extract_urls("http://evil dotexample") == {"http://evil"}
+    assert extract_urls("http://evildot example") == {"http://evildot"}
+
+
+def test_only_the_host_is_split_never_the_path() -> None:
+    # The gap belongs to the authority; past it the ordinary body resumes, so a space in a path
+    # ends the match exactly as it always has.
+    assert extract_urls("http://evil dot example/a b") == {"http://evil.example/a"}
+    assert extract_urls("http://evil dot example?q=1") == {"http://evil.example?q=1"}
+
+
+def test_a_split_transform_of_a_collected_url_is_redacted() -> None:
+    # Both directions, because a mismatch of identities leaks whichever side spells it oddly.
+    # Untrusted content that wrote its link split put a *wrong* host in the ledger before this
+    # (`http://evil`), so the plain link in the reply went unredacted too.
+    guard = _filter({"https://evil.example/pay"})
+    assert guard.feed(f"go to {_SPLIT_HOST} ") == f"go to {REDACTED_LINK} "
+    plain = _filter(set(extract_urls(_SPLIT_HOST)))
+    assert plain.feed("go to https://evil.example/pay ") == f"go to {REDACTED_LINK} "
+
+
+def test_a_split_host_leaves_no_host_beside_the_marker() -> None:
+    # The third failure shape this closes, past "leaked" and "wrong identity": a redaction that
+    # stopped at the first gap replaced the scheme and left the attacker's host standing next to
+    # the marker, which reads as a redaction while still delivering the host.
+    guard = _strict(_Taint(tainted=True))
+    assert guard.feed(f"Please visit {_SPLIT_HOST} now.") == f"Please visit {REDACTED_LINK} now."
+
+
+def test_strict_tainted_turn_redacts_a_split_host() -> None:
+    guard = _strict(_Taint(tainted=True))
+    assert guard.feed(f"see {_SPLIT_HOST} ") == f"see {REDACTED_LINK} "
+
+
+def test_a_split_host_arriving_across_chunks_is_carried_not_lost() -> None:
+    # A gap that has opened but not closed is neither a match nor a prefix of any scheme, so the
+    # hold-back carries the dotless host it sits behind rather than releasing its head one delta
+    # before the gap closes.
+    for tail in (" ", " d", " do", " dot", " dot ", " [do", " &#4", " %2"):
+        guard = _filter({"https://evil.example/pay"})
+        assert guard.feed(f"at https://evil{tail}") == "at "
+    guard = _filter({"https://evil.example/pay"})
+    assert guard.feed("at https://evil dot ") == "at "
+    assert guard.feed("example/pay ") == f"{REDACTED_LINK} "
+
+
+def test_prose_after_a_dotless_host_still_streams_through() -> None:
+    # Carrying is not redacting, and the carry is bounded: a word no gap could open with is
+    # released at once, and an ordinary link followed by a space is untouched, which is what
+    # keeps this branch off every URL in every reply.
+    guard = _filter({"https://evil.example/pay"})
+    assert guard.feed("at https://other now") == "at https://other now"
+    assert guard.feed("at https://ok.example/x ") == "at https://ok.example/x "
+
+
+def test_a_split_host_survives_a_one_character_stream() -> None:
+    # The production shape: the filter sees one character at a time.
+    guard = _filter({"https://evil.example/pay"})
+    reply = f"settle at {_SPLIT_HOST} now"
+    fed = "".join(guard.feed(char) for char in reply) + guard.flush()
+    assert fed == f"settle at {REDACTED_LINK} now"
+
+
+def test_the_twelfth_addendum_composes_with_its_predecessors() -> None:
+    # A defanged scheme, an entity-spelled gap, a CJK stop in the next gap and a zero-width
+    # character in one link still fold to the single identity its plain twin has.
+    assert extract_urls("hxxps://ev\u200bil &#46; example/pay") == _PLAIN_LINK
+    assert extract_urls("hxxps://evil [dot] ex\u3002ample/pay") == {"https://evil.ex.ample/pay"}
+    # The one combination deliberately left out: a slashless authority *and* a split host at once.
+    # The host anchor that admits an absent separator reads a dotted name, and a gap is not one.
+    assert extract_urls("https:evil dot example/pay") == frozenset()
+
+
+def test_a_gap_is_spelled_with_every_space_nfkc_folds() -> None:
+    # A no-break, thin or ideographic space renders as a blank, so the reader sees exactly the
+    # spelling above; the matcher runs before NFKC, so each of these anchored nothing at all.
+    # The identity needs no table of its own, NFKC having reduced them before the fold runs.
+    for space in ("\u00a0", "\u2009", "\u3000", "\u202f"):
+        assert extract_urls(f"hxxps://evil{space}dot{space}example/pay") == _PLAIN_LINK
+    assert extract_urls("hxxps://evil\u00a0dot\u2009example/pay") == _PLAIN_LINK
+
+
+def test_the_gap_space_table_is_exactly_what_nfkc_folds_to_a_space() -> None:
+    # The table is the claim, so the claim is checked against the database rather than trusted: a
+    # later Unicode version adding a space character reddens here instead of quietly opening a gap.
+    folded = {
+        chr(point)
+        for point in range(sys.maxunicode + 1)
+        if chr(point) not in " \t" and unicodedata.normalize("NFKC", chr(point)) == " "
+    }
+    assert set(NFKC_SPACES) == folded
+
+
+def test_whitespace_that_breaks_a_line_is_not_a_gap() -> None:
+    # What NFKC leaves standing is the line-breaking family plus the Ogham space mark, which draws
+    # a visible stroke. None of them is where a host's label breaks, and a newline is where a
+    # wrapped sentence does, so a paragraph that happens to start with `dot` is not a host.
+    for breaker in ("\n", "\r", "\u2028", "\u1680"):
+        assert extract_urls(f"http://evil{breaker}dot{breaker}example") == {"http://evil"}

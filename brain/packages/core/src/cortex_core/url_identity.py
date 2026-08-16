@@ -21,7 +21,8 @@ into one identity, never splitting one:
    its ASCII spelling).
 6. Fold a *curated* table of cross-script confusable letters (Cyrillic/Greek Latin-lookalikes).
 7. Fold the *IDNA label separators* NFKC leaves standing (a U+3002 or U+FF61 stop between two
-   labels), which the resolver reads as a dot; ADR-0015 eighth addendum.
+   labels), which the resolver reads as a dot, and close the whitespace a *split* host spells the
+   same dot with (``evil dot com``); ADR-0015 eighth + twelfth addenda.
 8. Fold a *special scheme's backslashes* to the solidi the URL parser reads them as, and its run
    of authority slashes to one pair however many it holds (none included), so the JSON-escaped and
    the slashless spellings of a link share the link's identity; ADR-0015 tenth + eleventh addenda.
@@ -41,10 +42,14 @@ from urllib.parse import unquote
 _OPEN_BRACKET = r"[\[({]"
 _CLOSE_BRACKET = r"[\])}]"
 
-# A defanged dot inside the host/path: `[.]`, `(.)`, `{.}`, `[dot]`, `(dot)`, `{dot}` (any case).
-# The *refanger*'s token, applied after `_decode_escapes`, so it needs only the literal form; the
-# *matcher*'s broader bracket chunk lives in `urls.py`. Recognized only inside a URL.
-_DEFANG_DOT = rf"{_OPEN_BRACKET}(?:\.|dot){_CLOSE_BRACKET}"
+# A defanged dot inside the host/path: `[.]`, `(.)`, `{.}`, `[dot]`, `(dot)`, `{dot}` (any case),
+# built on the one defang token that is a *word* rather than a mark, which is therefore the one a
+# space can wrap with no bracket to bound it. The *refanger*'s tokens, applied after
+# `_decode_escapes`, so they need only the literal form; the *matcher*'s broader bracket chunk lives
+# in `urls.py`. Recognized only inside a URL, and public because `url_spellings.py` spends both on
+# the grammar's whitespace-split host, so the grammar and the fold cannot disagree about them.
+DOT_WORD = "dot"
+DEFANG_DOT = rf"{_OPEN_BRACKET}(?:\.|{DOT_WORD}){_CLOSE_BRACKET}"
 
 # The defanged scheme separators, in any bracket shape: `[://]`/`(://)`/`{://}` for an authority
 # scheme, `[:]`/`(:)`/`{:}` for the bare colon (which also covers the `[:]//` split form, as the
@@ -73,7 +78,7 @@ _REFANG_SUBS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\Ahxx", re.IGNORECASE), "htt"),
     (re.compile(_DEFANG_AUTHORITY_SEP), "://"),
     (re.compile(_DEFANG_COLON), ":"),
-    (re.compile(_DEFANG_DOT, re.IGNORECASE), "."),
+    (re.compile(DEFANG_DOT, re.IGNORECASE), "."),
 )
 
 
@@ -223,10 +228,20 @@ LABEL_SEPARATORS = ".\u3002\uff61\uff0e"
 
 _LABEL_DOTS = str.maketrans(dict.fromkeys(LABEL_SEPARATORS, "."))
 
+# The label separator a *gap* spells: the whitespace-split defang (`evil dot com`, `evil . com`),
+# which the grammar admits only inside a host that carries no plain dot of its own. Folding it
+# closes the whitespace, so the split spelling and the contiguous one are one identity. Every
+# other reading has already become an ASCII dot by the time this runs (escapes decoded, brackets
+# refanged, CJK stops translated just above), so the token here is only the mark or the word; and
+# for the same reason the whitespace here is only the tab and the space, NFKC having already
+# reduced the no-break, thin and ideographic spaces the grammar admits (`NFKC_SPACES`).
+_SPACED_DOT = re.compile(rf"[ \t]+(?:{DOT_WORD}|\.)[ \t]+", re.IGNORECASE)
+
 
 def _fold_label_dots(url: str) -> str:
-    """Fold the IDNA label separators (U+3002, U+FF61, U+FF0E) to the ASCII dot they resolve."""
-    return url.translate(_LABEL_DOTS)
+    """Fold the IDNA label separators (U+3002, U+FF61, U+FF0E) to the ASCII dot they resolve,
+    then close the whitespace a split host spells that same dot with."""
+    return _SPACED_DOT.sub(".", url.translate(_LABEL_DOTS))
 
 
 # A special scheme, its colon, and the run of authority slashes after it, a backslash counting as

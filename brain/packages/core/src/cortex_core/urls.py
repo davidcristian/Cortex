@@ -15,16 +15,19 @@ which a URL parser resolves to the plain link, admitted only behind a host shape
 addendum), a bracketed chunk anywhere in the body (so an encoded defang dot behind a literal closer
 like ``evil[&#46;]com`` is consumed whole rather than cutting the match short; ADR-0015 sixth
 addendum), and an **encoded separator** (``http[&#58;//]evil.com``, admitted as a bracket chunk that
-carries an escape marker; ADR-0015 seventh addendum). Recognized schemes are ``http(s)``, ``ftp``,
+carries an escape marker; ADR-0015 seventh addendum), and a **whitespace-split** host, where the
+gap between two dotless labels is the dot (``hxxp://evil dot com``; ADR-0015 twelfth addendum).
+Recognized schemes are ``http(s)``, ``ftp``,
 ``mailto``, ``tel``, and ``data:`` (the last only behind a MIME-type anchor, so ``data:the results``
 prose stays out; ADR-0015 fifth addendum). What is *not* recognized is never redacted, so the scope
-stays deliberately narrow: bare addresses/domains and whitespace-split defang (``evil dot com``)
-stay out. See the ADR for why. Pure state- and I/O-free.
+stays deliberately narrow: bare addresses and bare domains stay out, and with them the *unanchored*
+whitespace split (``evil dot com`` with no scheme in front of it), whose plain twin ``evil.com`` is
+out on the same standing decision. See the ADR for why. Pure state- and I/O-free.
 """
 
 import re
 
-from cortex_core.url_identity import SPECIAL_SCHEMES, normalize_url
+from cortex_core.url_identity import DOT_WORD, SPECIAL_SCHEMES, normalize_url
 from cortex_core.url_spellings import (
     AUTHORITY_SEPS,
     CHUNK_INNER,
@@ -33,9 +36,12 @@ from cortex_core.url_spellings import (
     DEFANGED_AUTHORITY_SEPS,
     DEFANGED_OPAQUE_SEPS,
     DOT_SPELLING,
+    DOT_TOKENS,
+    GAP_WHITESPACE,
     OPAQUE_SEPS,
     OPEN_BRACKET,
     SOLIDUS_SPELLING,
+    SPACED_DOT,
 )
 
 # The scheme families a URL may open with, plain or *defanged*, keyed by separator shape. Authority
@@ -142,15 +148,35 @@ _DATA_ANCHOR = r"(?=[\w.+-]+/|[;,])"
 _DATA_SCHEME = rf"{_family(('data',), _OPAQUE_SEP_RE)}{_DATA_ANCHOR}"
 
 
+# Every scheme opening this grammar recognizes, and the ordinary body that follows one: a run of
+# characters that cannot leave the URL, with a bracket chunk consumed atomically. The authority
+# family is named on its own because the split host below is a **host** grammar, and only these
+# schemes have one; `mailto:`/`tel:`/`data:` reach their content through a colon and no authority.
+_AUTHORITY = _family(_AUTHORITY_WORDS, _AUTHORITY_SEP_RE)
+_SCHEME = rf"(?:{_AUTHORITY}|{_family(_OPAQUE_WORDS, _OPAQUE_SEP_RE)}|{_DATA_SCHEME})"
+_BODY = rf"(?:{_DEFANG_CHUNK}|{_URL_CHAR})+"
+
+# A label of a **whitespace-split** host: body characters carrying no dot in any reading. The
+# absence is the whole point of the rule below, so it is spelled here rather than assumed.
+_SPLIT_LABEL = rf"(?:(?!{DOT_SPELLING}){_HOST_CHAR})+"
+
+# A host whose labels are separated by whitespace instead of by a dot (`evil dot com`). Admitted
+# only **immediately after the separator** and only when every label is dotless, because defanging
+# *replaces* a host's dot and never adds one: a host that already carries a plain dot is finished
+# before any gap could be part of it. That single constraint is what keeps the widening off prose,
+# and it is why this is a branch of its own rather than one more alternative inside `_BODY`, where
+# a `+` loop would re-enter it at every position and read `http://example.com dot the file` as a
+# host (measured: it does, which is how the constraint was found). The trailing `_BODY` is what
+# carries the rest of a split link's path (`hxxp://evil dot com/pay`), so only the host is split.
+_SPLIT_GAP = rf"{SPACED_DOT}{_SPLIT_LABEL}"
+_SPLIT_HOST = rf"{_SPLIT_LABEL}(?:{_SPLIT_GAP})+"
+
 # A clickable link, plain or defanged, anchored at a word boundary (so `sftp://` / `hotel:` are not
 # partial-matched) and matched liberally to the first character that cannot belong to one. Defanged,
-# encoded, and fullwidth forms are reduced to a canonical identity by `normalize_url`.
-URL_RE = re.compile(
-    rf"\b(?:{_family(_AUTHORITY_WORDS, _AUTHORITY_SEP_RE)}|{_family(_OPAQUE_WORDS, _OPAQUE_SEP_RE)}"
-    rf"|{_DATA_SCHEME})"
-    rf"(?:{_DEFANG_CHUNK}|{_URL_CHAR})+",
-    re.IGNORECASE,
-)
+# encoded, fullwidth and whitespace-split forms are reduced to one identity by `normalize_url`. The
+# split host is tried first, so a link spelled that way is read whole rather than truncated at its
+# first gap; it fails at the separator on every ordinary URL, which then matches exactly as before.
+URL_RE = re.compile(rf"\b(?:{_AUTHORITY}{_SPLIT_HOST}(?:{_BODY})?|{_SCHEME}{_BODY})", re.IGNORECASE)
 
 # Every scheme word, for the hold-back's open-chunk check below. Derived from the same tables as
 # `URL_RE`, so the two cannot drift.
@@ -194,6 +220,37 @@ _OPEN_SEP_RE = re.compile(
 )
 
 
+def _prefixes(token: str) -> str:
+    """Every prefix of ``token``, the empty one and the whole included, as one regex fragment.
+
+    Generated by nesting one optional group per character rather than by listing the prefixes,
+    so a token's partial forms cannot drift from the token (`dot` gives ``d``, ``do``, ``dot``).
+    """
+    return "".join(f"(?:{re.escape(char)}" for char in token) + ")?" * len(token)
+
+
+# A gap that has **opened but not closed** at the buffer's end: its whitespace, then at most a
+# prefix of one dot token, then at most the whitespace that would close it. Every token comes from
+# `DOT_TOKENS`, so the hold-back and the grammar cannot disagree about what a gap may hold; the
+# bracket forms and the unfinished entity are the two shapes that table cannot carry as text.
+_ARRIVING_GAP = (
+    rf"{GAP_WHITESPACE}+(?:{'|'.join(_prefixes(token) for token in DOT_TOKENS)}"
+    rf"|{_UNFINISHED_ENTITY}|{OPEN_BRACKET}(?:{_prefixes(DOT_WORD)}|\.)?{CLOSE_BRACKET}?)"
+    rf"{GAP_WHITESPACE}*"
+)
+
+# A **whitespace-split host still arriving** at the buffer's end (`hxxp://evil `, `… evil do`,
+# `… evil dot `, `… evil [do`). None of those is a match and none is a prefix of any scheme, so
+# without this branch the released text would leak the head of a split host one delta before its
+# gap closed. It carries the grammar's own constraint rather than merely looking for trailing
+# whitespace: the labels so far must be **dotless**, because only a dotless host can still grow a
+# gap. That is what keeps the branch off the common case, an ordinary link followed by a space
+# (`https://evil.example/report `), which a gap can never join and which is released as before.
+_ARRIVING_SPLIT_HOST = re.compile(
+    rf"\b{_AUTHORITY}{_SPLIT_LABEL}(?:{_SPLIT_GAP})*{_ARRIVING_GAP}\Z", re.IGNORECASE
+)
+
+
 def extract_urls(text: str) -> frozenset[str]:
     """Every clickable URL in ``text`` (any listed scheme), normalized for identity comparison.
 
@@ -207,16 +264,21 @@ def extract_urls(text: str) -> frozenset[str]:
 def held_from(buf: str) -> int:
     """The index from which ``buf`` may still be growing a URL. Everything before is final.
 
-    Three open cases: a URL match touching the buffer's end (the next chunk may extend it), an
-    unclosed separator or host after a scheme word (`http[&#58;`, `https:evil.`, neither of which is
-    a match at all yet), and a trailing prefix of a scheme ("h" … "https://") that has not yet
-    become matchable. All are carried; anything else cannot change meaning with more text.
+    Four open cases: a URL match touching the buffer's end (the next chunk may extend it), a
+    dotless host trailed by a gap that has opened but not closed (`hxxp://evil dot `, which is not
+    a match at all yet, the match having ended before the gap), an unclosed separator or host after
+    a scheme word (`http[&#58;`, `https:evil.`, neither a match either), and a trailing prefix of a
+    scheme ("h" … "https://") not yet matchable. All are carried; anything else cannot change
+    meaning with more text.
     """
     last = None
     for match in URL_RE.finditer(buf):
         last = match
     if last is not None and last.end() == len(buf):
         return last.start()
+    open_gap = _ARRIVING_SPLIT_HOST.search(buf)
+    if open_gap is not None:
+        return open_gap.start()
     open_sep = _OPEN_SEP_RE.search(buf)
     if open_sep is not None:
         return open_sep.start()

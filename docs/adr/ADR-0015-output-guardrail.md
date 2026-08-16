@@ -1158,3 +1158,177 @@ encoding put to the question at the top of the tenth addendum. Also unchanged: w
 defang (`evil dot com`), the full UTS-39 confusables set (still a dependency), footer/boilerplate
 heuristics, and the standing decision that a bare domain with no scheme at all is out of scope,
 which is what the single-label decline above leans on rather than contradicts.
+
+## Addendum (2026-08-16): the whitespace-split host, and the unanchored form that stays out
+
+Prices the whitespace-split defang the second addendum named and every addendum since repeated
+verbatim. **One form closes and one declines**, and the split between them is not effort but a
+measurement: the form with a scheme in front of it costs nothing measurable in false positives,
+and the form without one is out on a decision that has stood since this ADR was written. The close
+is **grammar and identity only, with no seam change**: both `OutputGuardrail` policies, the
+`TaintLedger`, `TaintView`, the streaming filter, and the config are untouched, redact and strict
+mode inherit the wider matching for free, and a clean or untainted turn is byte-identical to
+before. Still **deterministic and dependency-free** (stdlib only).
+
+### The question, and why this family answers it differently
+
+The tenth addendum's question is asked again: **is there a resolver in this system's path for
+untrusted content that turns this spelling back into the attacker's URL?** Run in `node`, the
+answer looks like a flat no, and that is the trap:
+
+| Reply spelling | `new URL(...)` |
+|---|---|
+| `http://evil dot com`, `http://evil%20dot%20com`, `evil dot com` | parse error |
+| `hxxp://evil[.]com`, `http://evil[dot]com` | parse error |
+| `http://evil.com` | `http://evil.com/` |
+
+The second row is the whole point: **every contiguous defang form this ADR already matches is a
+parse error too.** Defanging exists precisely so that no parser resolves it. The resolver for the
+whole family is the reader, who refangs and retypes, and the second addendum admitted the family on
+exactly that reasoning ("a user's mail client or a copy-paste can refang it back"). So the resolver
+test does not decide this one. Its own annotation always said what does: *no scheme to anchor,
+prose FP*. That is two claims, and they are true of two different spellings.
+
+### What the split spelling costs today, measured before any change
+
+Driven end to end through a real `TaintLedger` observing a real `ToolResult` and a real streaming
+filter fed **one character at a time**, in both directions, since a mismatch of identities leaks
+whichever side spells it oddly:
+
+| Collected from untrusted content | Reply spells | redact | strict | the ledger held |
+|---|---|---|---|---|
+| `http://evil.example/pay` (control) | the same | redacted | redacted | the link |
+| `hxxps://evil dot example/pay` | the plain link | **leaked** | redacted | `http://evil` |
+| `http://evil.example/pay` | the split form | **leaked** | redacted | the link |
+| `hxxps://evil dot example/pay` | the split form | "redacted" | "redacted" | `http://evil` |
+
+The last row is a third failure shape, past the "leaked" and "wrong identity" ones the earlier
+addenda found. Both policies fired, and what the user read was
+
+```
+Please visit [link removed: untrusted source] dot example/pay now.
+```
+
+which reads as a redaction while still handing over the host. The match stopped at the first gap,
+so the marker replaced `hxxps://evil` and the rest of the link stayed in the sentence. The middle
+two rows are the ordinary leak, and the ledger column is why they are worth closing even though a
+leak needs the model to spell one side plainly: untrusted content that wrote its link split put a
+**wrong host** in the ledger, `http://evil`, so the plain link in the reply was not redacted
+either. After the change every row is the control.
+
+### A gap is a dot, and a dot only replaces one
+
+The gap joins the three separator families in `url_spellings.py` as the fourth, and it is the only
+one that is not a character at all. What may stand inside it is generated from the tables that
+already exist rather than listed: the spelled-out word, any reading of the dot the identity folds
+(the IDNA label separators, an HTML character reference, one percent escape), and the refanger's
+own bracketed token, so `hxxp://evil dot example`, `https://evil 。 example`, `https://evil &#46;
+example`, `https://evil %2e example` and `http://evil [dot] com` all anchor without any of them
+being written down twice. What counts as the blank itself is a table too, and it is the section
+below.
+
+**The false-positive budget is one sentence, and it is the reason this form is closeable at all: a
+gap is admitted only immediately after the separator, and only while every label so far carries no
+dot.** Defanging *replaces* a host's dot; it never adds one. So a host that already holds a plain
+dot is finished, and the words after it are prose. That constraint was found by measurement rather
+than foreseen: expressed as one more alternative inside the body's `+` loop, the rule is defeated,
+because the loop re-enters it at every position and reads `visit http://example.com dot the file`
+as the host `example.com dot the`, destroying an identity that was correct before. It is therefore
+a branch of its own, tried ahead of the ordinary body and anchored at the separator, and it fails
+at the first plain dot, at which point the ordinary body matches exactly what it always did.
+
+Measured over the repo's own prose at `HEAD`, which is the largest English corpus conveniently at
+hand and which is read from the index so this pass's own examples cannot pollute it: **707 files,
+1,030,733 words, 863 matches under the shipped matcher and 863 under the widened one, with zero
+spans added, zero lost, zero extended and zero identities changed**, at no measurable cost in time
+(0.15s against 0.21s over the corpus). The narrowings that were considered and are not
+needed are worth recording, because each would have been a data table this repo does not carry: a
+known-TLD tail (the IANA list is roughly 1,450 entries, and `dot com`, `dot net`, `dot me` and
+`dot ai` are all ordinary English besides), an adjacency requirement, or a stopword list. The
+dotless-host rule costs nothing and needs none of them.
+
+### A gap is also spelled with the spaces NFKC folds, which is the eighth addendum's own rule
+
+Widening the gap turned up a live spelling on none of its rows, and it is the shape this ADR has
+now found seven times: one that anchors **nothing at all**, so both policies are blind and the
+ledger holds a wrong host. A no-break space, a thin space and an ideographic space all render as a
+blank, so `evil<U+00A0>dot<U+00A0>com` reads to the user exactly like the spelling above, and the
+matcher runs before NFKC, so `[ \t]` declined every one of them. That is the eighth addendum's
+finding reaching the fourth family, and it is closed the same way: from a table rather than by
+listing, since **exactly fifteen codepoints NFKC folds to a plain ASCII space** (U+00A0, the
+en/em/three-per-em/four-per-em/six-per-em/figure/punctuation/thin/hair family U+2000 to U+200A,
+U+202F, U+205F and U+3000). The identity needs nothing new for them, because its gap fold runs
+after NFKC has already reduced them.
+
+The complement is what makes the table an argument rather than a list: the whitespace NFKC leaves
+standing is precisely the line-breaking family (LF, CR, VT, FF, NEL, U+2028, U+2029) plus U+1680
+OGHAM SPACE MARK, which draws a visible stroke rather than a blank. None of those is where a host's
+label breaks, so the rule "a gap is a blank, and a newline is where a wrapped sentence breaks" is
+now derived from the database instead of asserted. A test regenerates the fifteen from
+`unicodedata` and asserts the table is exactly that set, so a later Unicode version adding a space
+character reddens rather than quietly opening a gap.
+
+### The unanchored form is declined, and not on the same grounds
+
+`evil dot com` with no scheme in front of it stays out, on the standing decision that its **plain
+twin** is out: `evil.com` is not a link to this grammar either, because matching every bare domain
+would redact `setup.py`-shaped prose. A grammar that redacted the split spelling of a host while
+ignoring the contiguous one would be incoherent, and the eleventh addendum's single-label decline
+leans on the same rule. The measurement is what says the worry behind it was real: the bare shape
+`<label> dot <label>` matches **113 times across 76 distinct phrases** in this corpus, and only two
+of those are this ADR's own examples. The rest are sentences about the overlay's connection dot,
+the header dot, a red dot. Narrowing to a known TLD cuts the corpus count to the two deliberate
+examples, but only because this repo never writes about the dot com era, which is not a property
+any guardrail should rest on.
+
+### The identity, the hold-back, and the scope
+
+On the identity side the change is one pass gaining one line: the IDNA-label-separator fold now
+also closes a gap. It runs there rather than in the refanger because by then every other reading
+has already become an ASCII dot (escapes decoded, brackets refanged, CJK stops translated in the
+same pass), so the token it has to know is only the mark or the word.
+
+The hold-back needed a branch, since a gap that has opened but not closed is neither a match nor a
+prefix of any scheme, and `hxxp://evil dot ` would have been released one delta before the gap
+closed. The branch carries the grammar's own constraint rather than merely looking for trailing
+whitespace, and that distinction is the whole of its cost: **holding on any trailing space held
+every URL in every reply**, which reddened 28 existing tests before the dotless requirement went
+in. With it, `https://evil.example/report ` is released exactly as before, and only a dotless host
+waits. The gap's partial forms are generated per token by nesting one optional group per character,
+so `d`, `do` and `dot` cannot drift from `dot`, and its whitespace is the same fifteen-plus-two
+class the grammar spends.
+
+The split host is scoped to the **authority** schemes, because it is a host grammar and only they
+have a host. That scoping was also a measurement rather than a preference: applied to every scheme,
+it holds back every `tel:` number and every `mailto:` address followed by a space, since neither
+ever carries a dot to end on.
+
+### Tests, each mutation-proven
+
+Sixteen new behaviour tests, each proven to redden against the final code with `__pycache__`
+cleared between runs and each mutation verified to have applied: dropping the split-host branch
+reddens ten, dropping its trailing body so a split link loses its path reddens ten, letting a split
+label carry a dot reddens eight, dropping the identity's gap fold reddens eight, dropping the
+hold-back's arriving-gap branch reddens two, letting a gap cross a newline reddens two, dropping
+the refanger's bracketed token from the gap reddens two, dropping the dot table from the gap
+reddens two, holding back only a whole token rather than a prefix of one reddens two, removing one
+codepoint from the space table reddens two, narrowing the gap to the ASCII space and tab reddens
+one, and giving every scheme a host to split rather than only an authority scheme reddens one. The
+streaming behaviour was verified at every two-way split point of seven probes under both policies
+(528 splits) and at one character at a time, each agreeing with the whole-string feed.
+
+### What stays open
+
+The tail this came out of, "mixed/other encodings past percent + HTML", **stays open** and stays
+open on its class, unchanged. **Two spellings are left standing on purpose and recorded as their
+own entries rather than bolted onto this pass**, both for the same reason: each needs the dotless
+rule relaxed, and relaxing it is exactly what reopens the prose that rule protects, so each owes a
+false-positive budget of its own. The first is a host that mixes a plain dot and a gap
+(`http://www.evil dot com`, which reads as the host `www.evil` and puts that wrong host in the
+ledger). The second is a slashless authority whose host is split (`https:evil dot example`, which
+anchors nothing, since the host anchor that admits an absent separator reads a dotted name and a
+gap is not one). The number either has to beat is this pass's: zero added spans across 707 files
+and 1,030,733 words. Also left out and not an entry, being a bare address rather than a host: the
+`at` half of a defanged mail address (`me at evil dot com`). Unchanged: the full UTS-39 confusables
+set, footer/boilerplate heuristics, and the standing decision that a bare domain with no scheme is
+out of scope.
