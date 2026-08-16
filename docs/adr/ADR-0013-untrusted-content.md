@@ -720,3 +720,66 @@ the assistant position: what changed is that the standing rule is now on the tur
 That residue stays recorded against the untrusted-content area. This row carries the same standing
 obligation as every other measurement here: re-run it when a pick, the preamble, or the plain rule
 changes, per [runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md).
+
+## Addendum (2026-08-16): the screening subagent is declined, and its own premise went first
+
+Prices decision 6's deferral, the screening subagent, and **declines it**. Nothing in the tree
+changes. What changes is that the last unsettled option in this ADR's opening sentence stops being
+an option. The backlog entry carried no trigger, which was a transcription loss rather than a gap
+in the thinking: decision 6 named one in its final sentence ("if host validation shows the model
+obeying injections despite framing"), and this ADR restates it in the deferred list. So the
+question is not what would fire it. It is whether five matrices have fired it, and what the thing
+would do if they had.
+
+### The entry's own reason for calling it moot has been false since two days after it was written
+
+The backlog entry justified itself with this ADR's 2026-07-01 sentence, that a screener "would be
+another small, equally-injectable model". That sentence reports Qwen3.5-2B and Qwen3.5-9B, and on
+2026-07-03 the subagent pick was revised **off** those models onto gemma-4-E4B on exactly this
+axis, 0 of 10 obeyed framed against the earlier pick's 1 of 10 output-laundering
+([ADR-0004](ADR-0004-model-lineup.md) pick-revision addendum), at an accepted cost of about 2.6x
+the load and 2.8x the RSS. `SubagentRoster.resolve` then forces that model on any spawn that is
+tainted or holds tools ([ADR-0017](ADR-0017-subagent-model-safety.md)), so the tier a screener
+would run on is the injection-robust one. The decline below therefore rests on other ground, and
+that is worth stating plainly, because a decline that reuses a stale premise is a decision made
+about a system that no longer exists.
+
+### The decisive question is where the verdict lands, and there is nowhere
+
+Every deterministic consumer of untrusted provenance keys on a bit that `TaintLedger.observe` sets
+from `result.trust` alone, before anything reads the content: `ToolDispatcher.dispatch` hard denies
+a gated call on `stamp.tainted` without consulting the confirmer, `UngatedToolRegistry` strips a
+gated spec from a subagent's registry rather than denying it later, `record_exchange` suppresses or
+marks the memory write, and `_UrlRedactingFilter` widens its grounds on taint and on opacity. A
+screener produces a judgement, and there are exactly two things it can do with one.
+
+It can **refuse the read**, which is a judgement about what a passage means made over
+attacker-controlled text. That is the same shape the footer and boilerplate heuristics were
+declined on in the guardrail's records the same day, and it fails the same way: the attacker writes
+the input the rule reads, so the rule that drops the payload is the rule that drops the sentence
+the user asked about, and which of the two happens is the attacker's choice rather than ours.
+
+Or it can **clear the taint bit**, which is the only way a screener buys anything the current stack
+does not already give, because it is the only way any of those four consumers behave differently
+after it runs. That converts a fail-closed deterministic boundary into a small model's opinion,
+and it is precisely the inversion decision 6 rejected: the gate is strictly stronger than framing
+*because* the model's obedience is irrelevant to it. A screener whose verdict changes nothing is a
+model load and an inference on the critical path of every file and email read for no effect, and
+the delegation backend it would need is `none` by default, so it would also make subagent
+infrastructure mandatory for deployments that run no subagents at all.
+
+### What the five matrices actually say, read as the trigger they were run for
+
+Framing holds on the cortex, fails on the two Qwen sizes the pick then dropped, holds at 0 of 10 on
+the brain tier, holds at 0 of 10 in the replayed-quotation arm behind either standing rule, and
+leaks on the pixel arm at 1 to 2 of 30 framed against 5 of 30 unframed
+([ADR-0029](ADR-0029-vision-screen-capture.md) image-arm addendum). The one residual leak is
+therefore in the channel a text screener cannot read at all, and the answer already recorded for it
+is deterministic rather than probabilistic: the `opaque` bit drops the memory write outright and
+escalates the guardrail to its strictest ground, with pixel-level redaction recorded against the
+body, which is the only side that sees the screen before it crosses the seam.
+
+**Declined. The area's count moves by one and this decline opens nothing**, which is the honest
+result: it leaves the boundary exactly where it already was. It reopens on one thing, a measured
+obedience on the cortex through fenced *text* that the gate does not already stop, and the answer
+then is a preamble clause, since a clause is what moved every previous cell of these matrices.

@@ -504,3 +504,34 @@ hundred thousand is several years of it. So the entry is **re-triggered on measu
 struck**: its trigger is no longer "when recall feels slow", which was never going to fire before
 the store was already too big, but the score-delta calibration named above, and the comments that
 call the scan fine at personal scale are corrected to say through what scale.
+
+## Addendum (2026-08-16): the MTP deferral priced, and neither half of its sentence still blocks it
+
+Prices the two-line MTP deferral under the candidate table, which reads "deferred because they use
+more memory; revisit only if latency demands it". It stays open, no code changes, and the finding
+is that both clauses have been overtaken by measurement while the thing that actually blocks the
+work was never named.
+
+**The memory clause is survivable on the tier that would want this.** Measured on 2026-08-07, the
+deep model alone reads 20671 to 20723 MiB and takes a 2878 MiB peer beside it at 23555 to 23642
+MiB with about 908 MiB free, its decode unharmed at 28.92 to 29.82 tok/s against 25.07 to 33.28
+alone. A companion artifact of that size is affordable there. It is unaffordable exactly where the
+lineup already says so, the cortex beside the deep model, which wants 29139 MiB against 24463 and
+pays for the overcommit in decode rather than in an error.
+
+**The latency clause has arguably already fired.** The pick reaches an answer on hard questions in
+roughly 3800 to 4500 tokens at about 31 tok/s, so a deep turn spends something near two minutes
+generating on top of a 99.6 s load. Decode is the larger half of what a user waits for on that
+tier, which is the condition the sentence set, so "revisit only if latency demands it" no longer
+names anything that has not happened.
+
+**What blocks it is that nothing in this tree can name such an artifact or hand it to a server.**
+The repo holds no draft or speculative flag of any spelling and no MTP filename.
+`llama_server_argv` builds a fixed flag tuple plus a per-tier `extra` whose only producers are the
+thinking-off pair and the vision tail, there is no env hook for a free-form argument, and the
+roster is fixed at boot on purpose, since a request-supplied argv would be remote code execution
+against the GPU container ([ADR-0030](ADR-0030-brain-handoff.md)'s model-host seam). Reaching it is
+a typed field on `TierArgs`, a second artifact path per tier and a VRAM budget row, none of which
+is worth writing before an artifact exists that the pinned server accepts. The entry's trigger is
+therefore upstream-shaped and now says so: an MTP or draft artifact for a shipped tier that this
+build of llama.cpp loads at all.

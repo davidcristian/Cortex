@@ -3055,3 +3055,48 @@ The three records are [docs/refinements/index.md#repo-gates](../refinements/inde
 couplings entry stays open on the three couplings the registry still cannot hold, and what this
 close leaves behind is narrower than the entry it came from, so it is written inside it rather than
 counted beside it.
+
+## Addendum (2026-08-16): per-source memory rules are declined, and the loss they named is smaller
+
+Prices the deferral of "per-source memory rules so a vision turn can be remembered deliberately"
+and **declines it**. Nothing in the tree changes. The finding is that the fix the deferral names
+cannot be built on an honest identifier, while the loss it was written around can be answered
+without one.
+
+### A per-source rule has to name a source, and this seam refuses to carry a name
+
+That refusal is a decision of this ADR, not an omission. `describe` deliberately carries no window
+title and no application name, both being attacker-chosen strings and a caption assembled from them
+being the one part of an untrusted screen that would arrive outside the picture, which decision 3's
+provenance line states in the same words. The only source-shaped value that crosses the wire is
+`CaptureTarget`, and `CaptureScreenReply` carries the resolved target rather than the rectangle it
+resolved to, for the reason written beside the field: coordinates would hand the model the
+coordinate frame this seam declined to take from it. A closed two-value enum of what was pointed at
+is a resolution rule, not an identity. A memory policy written over it would say "remember
+whole-display captures but not focused-window ones", and either target can be showing a password
+manager, so it does not answer the deferral's own example.
+
+### And the target never reaches the write, which is a second wall behind the first
+
+`CaptureScreenTool.invoke` consumes the `ScreenCapture` into `describe(capture)` and leaves
+`ToolResult.source` unset, so the loop notes the same `Provenance(TOOL, "capture_screen")` for both
+targets, and `record_exchange` sees only the opaque bit, the taint bit, the query and the reply.
+Reaching a per-source rule means adding an identifier to the capture seam first, which is the
+decision this ADR already made in the other direction. It reopens on exactly that and nothing else:
+a field that names a source on the operating system's word rather than the screen's, at which point
+the question is a policy over an attested identity and no longer this deferral.
+
+### The residue is the user's own sentence, and it needs no source at all
+
+Decision 4 is right about why it drops the turn: a capture turn's assistant reply **is** the
+untrusted payload in the one form that survives, which is what made
+[ADR-0019](ADR-0019-tainted-memory-recording.md)'s licence false for pixels. But `render_exchange`
+renders both halves and the opaque check skips the whole write, so the user's own message is
+collateral, and the user's own message is the one thing on a capture turn that an attacker cannot
+write. "Remember that my invoice number is 4021" is lost for a reason that does not apply to it.
+Recording that half alone persists no pixel-derived prose at all, and it is a smaller and
+better-aimed change than the declined one. **The area's count moves by one and the residue is filed
+rather than built**, since a bare `User: what does this say?` stored alone is noise a later recall
+would rank against real memories, so it wants a record-time salience judgement or a rule narrow
+enough to state without one, plus an addendum here and at the tainted-recording record rather than
+an edit to either condition.
