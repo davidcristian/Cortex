@@ -2,6 +2,7 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from enum import Enum
 
 from cortex_core.tools import ToolCall
 
@@ -45,7 +46,25 @@ class DecodeCadence:
             raise ValueError(msg)
 
 
-type InferenceEvent = TextChunk | ReasoningChunk | ToolCall | DecodeCadence
+class StopReason(Enum):
+    """Why one completion ended, in this core's words rather than an engine's (ADR-0005
+    finish-reason addendum).
+    """
+
+    FINISHED = "finished"
+    CAPPED = "capped"
+    CALLED = "called"
+    UNKNOWN = "unknown"
+
+
+@dataclass(frozen=True, slots=True)
+class DecodeStop:
+    """Why the server stopped decoding one completion, as that server reports it (ADR-0005)."""
+
+    reason: StopReason
+
+
+type InferenceEvent = TextChunk | ReasoningChunk | ToolCall | DecodeCadence | DecodeStop
 
 
 @dataclass(frozen=True, slots=True)

@@ -1,26 +1,39 @@
 """One placed attempt at a delegated task, and what it produced (ADR-0010/0012/0028)."""
 
 import asyncio
-import json
 from contextlib import aclosing
 
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
 from cortex_core.errors import InferenceError
 from cortex_core.events import ToolActivity
-from cortex_core.inference import GenerationBounds, JsonSchema
+from cortex_core.inference import GenerationBounds
 from cortex_core.loop_events import ToolStep
 from cortex_core.ports import Clock, InferenceBackend
 from cortex_core.progress import ProgressSink
-from cortex_core.subagent_outcome import AttemptFailure, AttemptOutcome, reran_on_cpu
+from cortex_core.stops import StopLedger
+from cortex_core.subagent_outcome import (
+    GENERATION_CAP_BOUND,
+    GENERATION_CAP_MSG,
+    GENERATION_DEADLINE_MSG,
+    INNER_TIMEOUT_MSG,
+    MALFORMED_ENVELOPE_MSG,
+    AttemptFailure,
+    AttemptOutcome,
+    cap_detail,
+    reran_on_cpu,
+)
+from cortex_core.subagent_reply import REPLY_ENVELOPE, settle_reply, unwrap_envelope
 from cortex_core.subagents import UNBOUNDED_ATTEMPT, AttemptBounds, SubagentTask
 from cortex_core.tool_budget import DispatchBudget
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
 from cortex_core.untrusted import TaintLedger, new_nonce, security_preamble_message
 
 # Re-exported so every existing `from cortex_core.subagent_attempt import ...` keeps resolving
-# after the outcome split; the vocabulary itself now lives beside neither collaborator.
+# after the outcome and reply splits; neither vocabulary lives beside a single collaborator now.
 __all__ = [
+    "GENERATION_CAP_BOUND",
+    "GENERATION_CAP_MSG",
     "GENERATION_DEADLINE_MSG",
     "INNER_TIMEOUT_MSG",
     "MALFORMED_ENVELOPE_MSG",
@@ -28,32 +41,12 @@ __all__ = [
     "AttemptFailure",
     "AttemptOutcome",
     "PlacedAttempt",
+    "cap_detail",
     "reran_on_cpu",
+    "settle_reply",
     "task_messages",
+    "unwrap_envelope",
 ]
-
-# The fixed one-field reply envelope a constrained subagent is decoded into (ADR-0028): there is
-# no grammatical position for an appended footer, link, or section, so a jailbroken weak model
-# cannot format-launder. The attempt unwraps ``reply`` before reporting its text.
-REPLY_ENVELOPE: JsonSchema = {
-    "type": "object",
-    "properties": {"reply": {"type": "string"}},
-    "required": ["reply"],
-    "additionalProperties": False,
-}
-
-MALFORMED_ENVELOPE_MSG = "subagent produced a malformed constrained reply"
-
-GENERATION_DEADLINE_MSG = (
-    "the subtask was still generating after {timeout_s:g}s, the whole a delegated run is given, "
-    "and was stopped where it stood; a run that reaches this bound is talking rather than "
-    "working, so treat the subtask as unanswered and narrow it before delegating it again"
-)
-
-# What a bare ``TimeoutError`` from inside the run means, as opposed to the deadline above. A
-# socket that timed out or a tool that raised one is the backend failing to answer, which is the
-# retryable shape, so it is reported as one rather than as a bound this attempt never reached.
-INNER_TIMEOUT_MSG = "the subtask timed out below the delegated run's own deadline"
 
 
 def task_messages(task: SubagentTask) -> list[Message]:
@@ -63,15 +56,6 @@ def task_messages(task: SubagentTask) -> list[Message]:
         framing = Message(role=Role.SYSTEM, text=task.context, at=task.at, turn_id=task.id)
         messages.insert(0, framing)
     return messages
-
-
-def _unwrap_envelope(text: str) -> str | None:
-    """The ``reply`` string from a constrained envelope, or ``None`` if it is malformed."""
-    try:
-        reply = json.loads(text)["reply"]
-    except (json.JSONDecodeError, KeyError, TypeError):
-        return None
-    return reply if isinstance(reply, str) else None
 
 
 class PlacedAttempt:
@@ -116,6 +100,7 @@ class PlacedAttempt:
         # (ADR-0017), which is the niche the envelope defends.
         constrain = self._tools is None and self._constrain_output
         taint = TaintLedger()
+        stops = StopLedger()
         context = ToolLoopContext(
             dispatcher=self._tools,
             clock=self._clock,
@@ -134,6 +119,7 @@ class PlacedAttempt:
             # A run with no spawning turn is its own root and gets the default allowance, as
             # every run did before the turn-wide pool existed.
             budget=DispatchBudget() if budget is None else budget,
+            stops=stops,
         )
         parts: list[str] = []
         deadline = asyncio.timeout(self._bounds.timeout_s)
@@ -170,16 +156,10 @@ class PlacedAttempt:
                 detail=str(err),
                 tainted=taint.tainted,
             )
-        text = "".join(parts)
-        if not constrain:
-            return AttemptOutcome(text=text, tainted=taint.tainted)
-        # Unwrap the envelope so the cortex sees an answer, never raw JSON (ADR-0028).
-        reply = _unwrap_envelope(text)
-        if reply is None:
-            return AttemptOutcome(
-                text=text,
-                failure=AttemptFailure.MALFORMED,
-                detail=MALFORMED_ENVELOPE_MSG,
-                tainted=taint.tainted,
-            )
-        return AttemptOutcome(text=reply, tainted=taint.tainted)
+        return settle_reply(
+            "".join(parts),
+            capped=stops.capped,
+            max_tokens=self._bounds.max_tokens,
+            constrain=constrain,
+            tainted=taint.tainted,
+        )

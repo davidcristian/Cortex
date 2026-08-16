@@ -1,6 +1,6 @@
 """LlamaCppBackend: the InferenceBackend port over llama-server's OpenAI HTTP API."""
 
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Iterator, Sequence
 
 import httpx
 
@@ -14,7 +14,13 @@ from cortex_core import (
     ToolSpec,
 )
 from cortex_core.inference import GenerationBounds, InferenceEvent, JsonSchema
-from cortex_inference.decode import PendingCall, consume_chunk, finish_calls, raise_for_status
+from cortex_inference.decode import (
+    ChunkRead,
+    PendingCall,
+    consume_chunk,
+    finish_calls,
+    raise_for_status,
+)
 from cortex_inference.request import build_payload
 
 _CHAT_COMPLETIONS_PATH = "/v1/chat/completions"
@@ -27,6 +33,18 @@ def _transport_failure(err: httpx.HTTPError, model: str) -> InferenceError:
     if isinstance(err, httpx.ReadTimeout):
         return InferenceError(f"llama-server sent nothing for model {model!r} within its ceiling")
     return InferenceError(f"llama-server request failed for model {model!r}")
+
+
+def _chunk_events(chunk: ChunkRead) -> Iterator[InferenceEvent]:
+    """The events one streamed chunk produces, in the order a consumer must see them."""
+    if chunk.reasoning:
+        yield ReasoningChunk(chunk.reasoning)
+    if chunk.content:
+        yield TextChunk(chunk.content)
+    if chunk.stop is not None:
+        yield chunk.stop
+    if chunk.cadence is not None:
+        yield chunk.cadence
 
 
 class LlamaCppBackend:
@@ -60,15 +78,8 @@ class LlamaCppBackend:
                         data = stripped[len(_SSE_DATA_PREFIX) :].strip()
                         if data == _SSE_DONE:
                             break
-                        content, reasoning, cadence = consume_chunk(data, pending)
-                        # A reasoning model emits its thinking before its reply; keep that order
-                        # (ADR-0020). Either may be present in a chunk, usually not both.
-                        if reasoning:
-                            yield ReasoningChunk(reasoning)
-                        if content:
-                            yield TextChunk(content)
-                        if cadence is not None:
-                            yield cadence
+                        for event in _chunk_events(consume_chunk(data, pending)):
+                            yield event
         except ModelManagerError as err:
             msg = f"model manager could not lease {model!r} for inference"
             raise InferenceError(msg) from err

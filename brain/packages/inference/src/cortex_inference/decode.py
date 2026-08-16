@@ -8,13 +8,21 @@ from typing import cast
 import httpx
 
 from cortex_core import DecodeCadence, InferenceError, ToolCall
+from cortex_core.inference import DecodeStop, StopReason
 
 __all__ = [
+    "ChunkRead",
     "PendingCall",
     "consume_chunk",
     "finish_calls",
     "raise_for_status",
 ]
+
+_STOP_REASONS = {
+    "stop": StopReason.FINISHED,
+    "length": StopReason.CAPPED,
+    "tool_calls": StopReason.CALLED,
+}
 
 # How much of llama-server's error body to quote back. Long enough for its own message (a
 # missing multimodal projector reads as its own hint rather than a bare 500) and short enough
@@ -73,18 +81,35 @@ def _cadence(data: Mapping[str, object]) -> DecodeCadence | None:
     return DecodeCadence(tokens_per_second=rate, tokens=int(tokens))
 
 
-def consume_chunk(
-    payload: str, pending: dict[int, PendingCall]
-) -> tuple[str | None, str | None, DecodeCadence | None]:
-    """Return a chunk's ``(content, reasoning_content, cadence)``, any of which may be ``None``,
-    folding any tool-call fragments into ``pending``.
-    """
+def _stop(choice: Mapping[str, object]) -> DecodeStop | None:
+    """The completion's stop reason off llama.cpp's ``finish_reason``, or ``None`` (ADR-0005)."""
+    raw = choice.get("finish_reason")
+    if raw is None:
+        return None
+    if not isinstance(raw, str):
+        return DecodeStop(StopReason.UNKNOWN)
+    return DecodeStop(_STOP_REASONS.get(raw, StopReason.UNKNOWN))
+
+
+@dataclass(frozen=True, slots=True)
+class ChunkRead:
+    """Everything one streamed chunk had to say, each field ``None`` when it said nothing of it."""
+
+    content: str | None = None
+    reasoning: str | None = None
+    cadence: DecodeCadence | None = None
+    stop: DecodeStop | None = None
+
+
+def consume_chunk(payload: str, pending: dict[int, PendingCall]) -> ChunkRead:
+    """Read one chunk into a ``ChunkRead``, folding any tool-call fragments into ``pending``."""
     try:
         data = json.loads(payload)
         cadence = _cadence(data)
         choices = data["choices"]
         if not choices:
-            return None, None, cadence
+            return ChunkRead(cadence=cadence)
+        stop = _stop(choices[0])
         delta = choices[0]["delta"]
         for fragment in delta.get("tool_calls", ()):
             slot = pending.setdefault(fragment.get("index", 0), PendingCall())
@@ -97,7 +122,12 @@ def consume_chunk(
     except (json.JSONDecodeError, KeyError, IndexError, TypeError, AttributeError) as err:
         msg = f"malformed streaming chunk from llama-server: {payload!r}"
         raise InferenceError(msg) from err
-    return _require_text(content, "content"), _require_text(reasoning, "reasoning_content"), cadence
+    return ChunkRead(
+        content=_require_text(content, "content"),
+        reasoning=_require_text(reasoning, "reasoning_content"),
+        cadence=cadence,
+        stop=stop,
+    )
 
 
 def finish_calls(pending: dict[int, PendingCall]) -> list[ToolCall]:

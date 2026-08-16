@@ -3,15 +3,49 @@
 from dataclasses import dataclass
 from enum import Enum
 
-# What the store records about a re-placed run. ADR-0030 asks for the re-place to be recorded in
-# the result's detail, and a bare copy of either attempt's reason would hide that two loads were
-# spent on one task, which is the whole thing an operator reading a slow spawn wants to see.
+__all__ = [
+    "GENERATION_CAP_BOUND",
+    "GENERATION_CAP_MSG",
+    "GENERATION_DEADLINE_MSG",
+    "INNER_TIMEOUT_MSG",
+    "MALFORMED_ENVELOPE_MSG",
+    "AttemptFailure",
+    "AttemptOutcome",
+    "cap_detail",
+    "reran_on_cpu",
+]
+
 _RERAN_AND_ANSWERED = "the GPU attempt failed ({first}); re-ran on the CPU, which answered"
 _RERAN_AND_FAILED = "the GPU attempt failed ({first}); the CPU re-run failed too ({second})"
 
+MALFORMED_ENVELOPE_MSG = "subagent produced a malformed constrained reply"
+
+GENERATION_DEADLINE_MSG = (
+    "the subtask was still generating after {timeout_s:g}s, the whole a delegated run is given, "
+    "and was stopped where it stood; a run that reaches this bound is talking rather than "
+    "working, so treat the subtask as unanswered and narrow it before delegating it again"
+)
+
+INNER_TIMEOUT_MSG = "the subtask timed out below the delegated run's own deadline"
+
+GENERATION_CAP_MSG = (
+    "the subtask stopped at a token limit rather than at an answer, so the reply is cut where the "
+    "count ran out; a run that reaches such a limit is talking rather than working, so treat the "
+    "subtask as unanswered and narrow it before delegating it again"
+)
+
+GENERATION_CAP_BOUND = " (this run's own cap is {max_tokens:d} decoded tokens per completion)"
+
+
+def cap_detail(max_tokens: int | None) -> str:
+    """The capped-run refusal, naming this deployment's cap when it set one."""
+    if max_tokens is None:
+        return GENERATION_CAP_MSG
+    return GENERATION_CAP_MSG + GENERATION_CAP_BOUND.format(max_tokens=max_tokens)
+
 
 class AttemptFailure(Enum):
-    """Why an attempt did not answer, or that it did. The retry decision reads exactly this."""
+    """Why an attempt did not answer, or that it did."""
 
     NONE = "none"
     INFERENCE = "inference"

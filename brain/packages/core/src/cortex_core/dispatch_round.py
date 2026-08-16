@@ -12,6 +12,7 @@ from cortex_core.loop_events import StepOutcome, ToolStep, step_summary
 from cortex_core.ports import Clock
 from cortex_core.progress import ProgressSink
 from cortex_core.provenance import SourceKind, as_source
+from cortex_core.stops import StopLedger
 from cortex_core.tool_budget import DispatchBudget
 from cortex_core.tool_round import RoundPlan, result_message
 from cortex_core.tools import ToolCall, ToolSpec, TurnStamp
@@ -36,6 +37,7 @@ class ToolLoopContext:
     progress: ProgressSink | None = None
     escalation: EscalationSlot | None = None
     cadence: CadenceWatch | None = None
+    stops: StopLedger | None = None
 
 
 def _refused_by(

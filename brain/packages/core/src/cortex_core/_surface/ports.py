@@ -50,10 +50,12 @@ from cortex_core.images import (
 )
 from cortex_core.inference import (
     DecodeCadence,
+    DecodeStop,
     GenerationBounds,
     InferenceEvent,
     JsonSchema,
     ReasoningChunk,
+    StopReason,
     TextChunk,
 )
 from cortex_core.ports import (
@@ -103,6 +105,7 @@ __all__ = [
     "Clock",
     "Confirmer",
     "DecodeCadence",
+    "DecodeStop",
     "Embedder",
     "EmbedderError",
     "GenerationBounds",
@@ -144,6 +147,7 @@ __all__ = [
     "Sleeper",
     "SourceKind",
     "StatusUpdate",
+    "StopReason",
     "SubagentAdmissionError",
     "SubagentPlacer",
     "SubagentScheduler",

@@ -7,7 +7,14 @@ from typing import Any
 
 from cortex_core.conversation import Message, Role
 from cortex_core.errors import InferenceError, ToolError, ToolNotFoundError
-from cortex_core.inference import GenerationBounds, InferenceEvent, JsonSchema, TextChunk
+from cortex_core.inference import (
+    DecodeStop,
+    GenerationBounds,
+    InferenceEvent,
+    JsonSchema,
+    StopReason,
+    TextChunk,
+)
 from cortex_core.progress import ProgressEvent
 from cortex_core.subagents import SubagentResult, SubagentTask
 from cortex_core.tools import ConfirmationRequest, ToolCall, ToolInvocation, ToolResult, ToolSpec
@@ -35,6 +42,7 @@ class EchoInferenceBackend:
         yield TextChunk("reply ")
         yield TextChunk(f"{len(user_messages)}:")
         yield TextChunk(f" {user_messages[-1].text}")
+        yield DecodeStop(StopReason.FINISHED)
 
 
 class InMemoryTaskStore:

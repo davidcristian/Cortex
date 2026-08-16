@@ -55,6 +55,11 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   quiet, with a token cap on each of a run's completions and a deadline on the whole run
   (`CORTEX_SUBAGENTS_MAX_TOKENS`, `CORTEX_SUBAGENTS_RUN_TIMEOUT_S`), reported as a refusal naming
   the bound rather than as a fragment that reads like an answer.
+  Its 2026-08-16 addendum makes the token half of that report itself: `DecodeStop(reason)` joins the
+  `InferenceEvent` union carrying a closed `StopReason`, the adapter translates llama.cpp's
+  `finish_reason` into it, the tool loop absorbs it into a `StopLedger` the way it absorbs a
+  cadence into a `CadenceWatch`, and a delegated reply the server cut arrives as `TRUNCATED`
+  instead of as a short answer.
 - [ADR-0006: Gate performance](adr/ADR-0006-gate-performance.md): path-filtered CI via
   the fail-closed in-repo classifier (`scripts/ci_paths.py`), PR-only run cancellation,
   SHA-pinned actions + dependabot, parallel `just check`.

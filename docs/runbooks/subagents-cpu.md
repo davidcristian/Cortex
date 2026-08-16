@@ -55,7 +55,13 @@ delegation time (ADR-0012 admission-wall addendum).
 > failure the ceiling above cannot see: a model in a repetition loop is never silent, so it holds
 > its admission and its entry's lease exactly as a wedged stream used to while looking healthy the
 > whole way. Reaching either is an `ok=False` result whose text names the bound, so the cortex
-> reads a refusal it can act on rather than a fragment that looks like an answer. Neither has an
+> reads a refusal it can act on rather than a fragment that looks like an answer. **The token half
+> reports itself only since the finish reason crossed the inference port** (ADR-0005 finish-reason
+> addendum): before that the deadline said which bound it was and a completion cut at the cap came
+> back as a short answer, because llama-server said `finish_reason: "length"` on the wire and
+> nothing carried it inward. A capped run now reads as cut whichever limit did it, this cap or the
+> server's own context window, which the wire cannot tell apart; the refusal quotes this knob only
+> when the deployment set one. Neither has an
 > off switch; the deadline must stay **above** `CORTEX_SUBAGENTS_STALL_TIMEOUT_S`, and the brain
 > refuses to start otherwise, since a wedge reported as a runaway loses the CPU re-run it deserves.
 > The numbers are this hardware's, measured over five subtask shapes on the shipped entry: the cap
