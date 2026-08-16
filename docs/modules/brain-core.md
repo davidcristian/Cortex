@@ -70,8 +70,19 @@ Conversation domain (Slice 3):
   is indistinguishable here from one that never happened, so `ok=False` means "the brain cannot
   say the screen was read", never "it was not read".
 - `TextChunk(text)` / `ReasoningChunk(text)` carries one streamed reply / thinking delta from a
-  backend; `InferenceEvent` is the union `TextChunk | ReasoningChunk | ToolCall | DecodeCadence`,
-  what an `InferenceBackend` yields (ADR-0009/0020/0030).
+  backend; `InferenceEvent` is the union
+  `TextChunk | ReasoningChunk | ToolCall | DecodeCadence | DecodeStop`,
+  what an `InferenceBackend` yields (ADR-0005/0009/0020/0030).
+- `DecodeStop(reason)` is why the server stopped decoding one completion, carrying a `StopReason`
+  of `FINISHED` (the model ended its own turn), `CAPPED` (a token limit ended it instead),
+  `CALLED` (it stopped to call a tool) or `UNKNOWN` (the engine named a reason this core has no
+  word for), ADR-0005 finish-reason addendum. A closed set because the wire value is an engine's
+  own vocabulary, which the core must not depend on; the adapter translates. Not a `*Chunk` for
+  `DecodeCadence`'s reason, arriving once at the end of the completion it describes, and a backend
+  whose engine says nothing emits none, so **silence is "nobody said", never "it finished"**. It
+  is a separate event from the cadence rather than a field on it because the two are independent
+  facts with independent availability, and because `CadenceWatch`, which every loop hands its
+  cadences to, answers a question about rates.
 - `DecodeCadence(tokens_per_second, tokens)` is how fast the server decoded one completion, as it
   reports it (ADR-0030 spill-watch addendum). Not a `*Chunk`, because it is not a delta of
   anything: it arrives once, whole, at the end of the completion it describes, a rate being
@@ -562,7 +573,7 @@ Untrusted-content boundary (Slice 6.5, ADR-0013; the pure primitives in `untrust
 - `ToolLoopContext` is a frozen bundle of a tool loop's per-invocation collaborators (`dispatcher`,
   `clock`, `turn_id`, `taint`, `nonce`, `session_id`, `schema=None`, `bounds=None`,
   `budget=DispatchBudget()` by default factory, `progress=None`, `escalation=None`,
-  `cadence=None`), keeping
+  `cadence=None`, `stops=None`), keeping
   `stream_tool_loop`
   under its argument ceiling. `session_id` is the originating chat the loop stamps onto each
   dispatch (ADR-0027; `""` for a session-less caller, e.g. a subagent); `schema` (ADR-0028), when
@@ -582,7 +593,12 @@ Untrusted-content boundary (Slice 6.5, ADR-0013; the pure primitives in `untrust
   caller) leaves such work unsurfaced, keeping what reaches the overlay depth-1 as the tree is.
   `escalation` (ADR-0030) is the turn's handoff slot, threaded exactly like `progress` so the
   `escalate_to_brain` built-in reads it off each dispatch's stamp; `None` (the default, every
-  escalation-less caller) leaves that tool refusing honestly.
+  escalation-less caller) leaves that tool refusing honestly. `cadence` (ADR-0030 spill-watch
+  addendum) and `stops` (ADR-0005 finish-reason addendum) are where the loop hands each
+  completion's reported decode rate and reported stop reason. Neither is ever a yielded event:
+  both describe the machine rather than the turn, so neither may reach a stream a user reads.
+  `None` drops the report, which is the cortex turn for both, the deep phase passing a
+  `CadenceWatch` and a delegated run a `StopLedger`.
   What a given call spends comes from the dispatcher's `ToolCostPolicy` (ADR-0009 cost addendum),
   so a tool's price travels with the gateway that runs it and is not restated per loop.
 
@@ -730,7 +746,10 @@ unchanged):
   reply) leaves both to the deployment's server flags, so that request is byte-identical to the
   one this port always described. Per request rather than per server because one resident cortex
   both answers the user, where deliberation earns its wait, and folds a history recap, where it is
-  discarded unread.
+  discarded unread. A completion **closes with one `DecodeStop` when the engine says why it ended
+  and one `DecodeCadence` when it reports how fast it decoded**, in that order and both after the
+  text they describe. Reporting either is optional and the two are independent, so no consumer may
+  read a missing cadence as a healthy rate or a missing stop as a model that finished.
 - `ModelManager` provides `acquire(model) -> AbstractAsyncContextManager[ModelLease]`: owns the
   GPU, queues for access, yields a `ModelLease`; leaving the block releases it to the
   next waiter. Consumed by the inference adapter (and, later, the handoff use-case).
@@ -1283,7 +1302,11 @@ Use-case:
   escalation threading landed. Running one planned round of dispatches, and the `ToolLoopContext`
   almost every field of which a round reads, live in `dispatch_round.py` (`run_round`), the split
   made when the outcome landed and `tool_loop.py` reached the complexity ceiling; `tool_loop`
-  re-exports the context, so every existing import still resolves.
+  re-exports the context, so every existing import still resolves. The two closing events a
+  backend may report are **absorbed rather than yielded**: `_reply_text` hands a `DecodeCadence`
+  to `context.cadence` and a `DecodeStop` to `context.stops` and returns nothing for either, so
+  how fast the machine decoded and why it stopped never reach a stream a user reads, and a caller
+  that passed neither collaborator pays nothing for the arm.
   It stamps each dispatch with `context.progress`, so a built-in that spawns further work reaches
   the overlay while this loop is suspended inside that dispatch, and with `context.escalation`
   (ADR-0030), so the escalate built-in reads the turn's handoff slot per call. Mutates
@@ -1604,15 +1627,35 @@ Use-case:
   `AttemptFailure.INFERENCE` outcome carrying `INNER_TIMEOUT_MSG` instead, which keeps it eligible
   for the CPU re-run and stops an unbounded attempt quoting a bound it does not have. Both arms
   sit **above** the envelope check, so a stop landing mid-envelope reports what stopped it rather
-  than the model breaking its grammar. The outcome vocabulary (`AttemptFailure`, `AttemptOutcome`,
-  `reran_on_cpu`) lives in `subagent_outcome.py`, the line-cap split made when the cap landed,
-  and is re-exported here so every existing import resolves. With `constrain_output` on **and**
+  than the model breaking its grammar. The run also passes a `StopLedger` on the loop context and
+  reads it after (ADR-0005 finish-reason addendum): a completion the backend says a token limit
+  cut is an `AttemptFailure.TRUNCATED` outcome carrying `GENERATION_CAP_MSG`, which is what stops
+  a capped delegated reply reading as a finished one. The outcome vocabulary (`AttemptFailure`,
+  `AttemptOutcome`, `reran_on_cpu`, and every refusal template a failure reports as its `detail`)
+  lives in `subagent_outcome.py`, the line-cap split made when the cap landed and widened when the
+  finish reason arrived, and is re-exported here so every existing import resolves. With
+  `constrain_output` on **and**
   the tool-less path (`tools is None`, the ADR-0028 niche where a weak model is reachable), the
   loop's `schema` is `REPLY_ENVELOPE`, so the reply is constrained JSON unwrapped to the `reply`
   string (a malformed envelope is an `AttemptFailure.MALFORMED` outcome whose text keeps the raw
   JSON and whose detail is `MALFORMED_ENVELOPE_MSG`, so the raw text stays in the store, not the
   cortex); a tools-enabled subagent is never constrained (the JSON grammar would fight
   tool-calling). `reran_on_cpu(first, retried)` is the pure fold the runner's re-place uses.
+- `subagent_reply.py` holds the envelope and the settling, split off when the finish reason added a
+  third thing a completed run could be and took the attempt past both the line cap and the
+  complexity ceiling. `REPLY_ENVELOPE` is the schema a constrained request asks for and
+  `unwrap_envelope(text)` reads the answer back, both directions of one grammar. `settle_reply(text,
+  *, capped, max_tokens, constrain, tainted)` is the ordered reading a finished run gets: capped
+  first (`TRUNCATED` with `cap_detail(max_tokens)`, which quotes this deployment's cap only when it
+  set one, a server's context window cutting a run nobody capped being indistinguishable on the
+  wire), then unconstrained text, then the envelope.
+- `StopLedger()` (`stops.py`, ADR-0005 finish-reason addendum) is the pure fold behind that and the
+  twin of `CadenceWatch` on the other closing event: `observe(stop)` takes one completion's
+  `DecodeStop` and `capped` answers whether any of them stopped at a token limit. Any completion
+  counts rather than the last, material a cut round dropped being missing from the answer whichever
+  round ended cleanly; and a backend that reported nothing leaves it saying exactly what it said
+  before anything ran, since manufacturing a cap out of silence would fail every delegated run on
+  a quiet build.
 - `SpawnSubagentsTool(runner, store, clock, *, task_id_factory=<uuid4>)` is the built-in
   `spawn_subagents` tool (`SPAWN_TOOL_NAME`), the cortex's delegation primitive (ADR-0010/0018).
   Its `spec` is **derived from the runner's roster** (built by `build_spawn_spec` in `spawn_spec.py`,
@@ -1710,12 +1753,15 @@ Use-case:
   `ScriptedVisionProbe(answers)` (`fakes_vision.py`), whose script and `rescript` are how a test
   changes the world between the advertisement and the call.
 - `ScriptedInferenceBackend(rounds)` (`fakes_inference.py`) is the `InferenceBackend` twin the
-  decode-cadence contract is driven over: one event list per `stream` call, the last repeating,
+  decode-cadence and stop-reason contracts are driven over: one event list per `stream` call, the
+  last repeating,
   plus a `calls` tally. It exists because `EchoInferenceBackend` must not learn to report a
   cadence: that one is shipped wiring a GPU-less deployment really runs, so a fabricated rate out
   of it would be a made-up number in a real log, on the one path whose whole purpose is telling a
   real number from a plausible one. An echo has no server and therefore no timings, which is the
-  honest answer and is itself half of what the contract checks.
+  honest answer and is itself half of what the contract checks. The stop reason is where that
+  argument stops applying, and the echo does report one: a rate is a measurement only a real
+  server has taken, while why a completion ended is something the echo itself decided.
 - `EscalateToBrainTool()` (`escalate.py`) is the built-in `escalate_to_brain` tool (ADR-0030
   decision 1): the cortex's mid-turn request for the deep-model handoff, cortex-only like every
   built-in. Stateless and dependency-free: it reads the turn's `EscalationSlot` off each
@@ -1834,7 +1880,10 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
 - `EchoInferenceBackend` is the scripted fake: for a history with `n` user messages
   (including the current one, counted from the store-backed history alone) whose
   latest user text is `T`, streams exactly `"reply {n}: {T}"` as three `TextChunk`s
-  (tool-independent, since it never calls a tool); raises `InferenceError` if the history has no
+  (tool-independent, since it never calls a tool) and closes with
+  `DecodeStop(StopReason.FINISHED)`, which is truthful rather than fabricated: it ends because its
+  script does and it honours no `bounds`, so it can end no other way; raises `InferenceError` if
+  the history has no
   user message. Because `n` comes from the store, it keeps counting across a process
   restart. That is observable state survival.
 - `SingleResidentModelManager(resident_model, endpoint)` is the `ModelManager` v1

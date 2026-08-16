@@ -17,6 +17,7 @@ from cortex_core.scheduler import (
 )
 from cortex_core.spawn import SUBAGENT_PROGRESS_STATE, SpawnSubagentsTool
 from cortex_core.spawn_spec import MAX_SPAWN_BATCH, SPAWN_TOOL_NAME
+from cortex_core.stops import StopLedger
 from cortex_core.subagents import (
     DEFAULT_SUBAGENT_MAX_TOKENS,
     DEFAULT_SUBAGENT_RUN_TIMEOUT_S,
@@ -42,6 +43,7 @@ __all__ = [
     "PlacementTarget",
     "ResourceBudgetScheduler",
     "SpawnSubagentsTool",
+    "StopLedger",
     "SubagentProfile",
     "SubagentResources",
     "SubagentResult",

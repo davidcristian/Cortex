@@ -6,6 +6,7 @@ streaming chat completion against the leased endpoint, and yields the assistant 
 ``TextChunk`` deltas, a reasoning model's thinking as ``ReasoningChunk`` deltas (ADR-0020's
 ``reasoning_content``, emitted before the reply), any ``ToolCall`` the model makes from the
 offered ``tools`` (native function-calling, ADR-0009, needing the server started with ``--jinja``),
+a closing ``DecodeStop`` carrying the server's ``finish_reason`` (ADR-0005 finish-reason addendum),
 and a closing ``DecodeCadence`` when the server reported how fast it decoded (ADR-0030
 spill-watch addendum).
 It is a thin HTTP translator with no orchestration and no session state (the one hard rule). Every
@@ -17,7 +18,7 @@ Its two halves live beside it, split off when the cadence arm took this file to 
 is what neither of them can own, the lease and the order events leave in.
 """
 
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Iterator, Sequence
 
 import httpx
 
@@ -31,7 +32,13 @@ from cortex_core import (
     ToolSpec,
 )
 from cortex_core.inference import GenerationBounds, InferenceEvent, JsonSchema
-from cortex_inference.decode import PendingCall, consume_chunk, finish_calls, raise_for_status
+from cortex_inference.decode import (
+    ChunkRead,
+    PendingCall,
+    consume_chunk,
+    finish_calls,
+    raise_for_status,
+)
 from cortex_inference.request import build_payload
 
 _CHAT_COMPLETIONS_PATH = "/v1/chat/completions"
@@ -50,6 +57,25 @@ def _transport_failure(err: httpx.HTTPError, model: str) -> InferenceError:
     if isinstance(err, httpx.ReadTimeout):
         return InferenceError(f"llama-server sent nothing for model {model!r} within its ceiling")
     return InferenceError(f"llama-server request failed for model {model!r}")
+
+
+def _chunk_events(chunk: ChunkRead) -> Iterator[InferenceEvent]:
+    """The events one streamed chunk produces, in the order a consumer must see them.
+
+    A reasoning model emits its thinking before its reply, so that order is kept (ADR-0020);
+    either may be present in one chunk, usually not both. The stop explains the text that just
+    ended, so it sits next to it, and the cadence still closes the stream. llama.cpp puts all four
+    on one chunk when it puts them anywhere, so the order between them is this adapter's own
+    choice rather than the wire's (ADR-0005 finish-reason addendum).
+    """
+    if chunk.reasoning:
+        yield ReasoningChunk(chunk.reasoning)
+    if chunk.content:
+        yield TextChunk(chunk.content)
+    if chunk.stop is not None:
+        yield chunk.stop
+    if chunk.cadence is not None:
+        yield chunk.cadence
 
 
 class LlamaCppBackend:
@@ -85,11 +111,12 @@ class LlamaCppBackend:
         With ``bounds`` set (ADR-0038 cheap-fold addendum) the request carries a ``max_tokens``
         and/or asks the chat template for no thinking; ``None`` leaves both to the server.
 
-        The ``DecodeCadence`` is emitted where the server reports it, on the final chunk, so it
-        arrives after the text it describes and before the tool calls that are only assembled once
-        the stream ends (ADR-0030 spill-watch addendum). A stream that fails partway carries none,
-        which is the same silence a build that reports no timings gives, and both mean "no reading"
-        rather than "the tier was healthy".
+        The ``DecodeStop`` and the ``DecodeCadence`` are emitted where the server reports them, on
+        the final chunk, so both arrive after the text they describe and before the tool calls that
+        are only assembled once the stream ends (ADR-0005 finish-reason addendum, ADR-0030
+        spill-watch addendum). A stream that fails partway carries neither, which is the same
+        silence a build reporting no timings or no finish reason gives, and it means "nothing was
+        said" rather than "the tier was healthy" or "the model finished".
         """
         payload = build_payload(model, messages, tools, schema, bounds)
         pending: dict[int, PendingCall] = {}
@@ -105,15 +132,8 @@ class LlamaCppBackend:
                         data = stripped[len(_SSE_DATA_PREFIX) :].strip()
                         if data == _SSE_DONE:
                             break
-                        content, reasoning, cadence = consume_chunk(data, pending)
-                        # A reasoning model emits its thinking before its reply; keep that order
-                        # (ADR-0020). Either may be present in a chunk, usually not both.
-                        if reasoning:
-                            yield ReasoningChunk(reasoning)
-                        if content:
-                            yield TextChunk(content)
-                        if cadence is not None:
-                            yield cadence
+                        for event in _chunk_events(consume_chunk(data, pending)):
+                            yield event
         except ModelManagerError as err:
             msg = f"model manager could not lease {model!r} for inference"
             raise InferenceError(msg) from err

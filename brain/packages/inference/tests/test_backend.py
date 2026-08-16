@@ -16,6 +16,7 @@ import pytest
 
 from cortex_core import (
     DecodeCadence,
+    DecodeStop,
     GenerationBounds,
     ImagePart,
     InferenceError,
@@ -24,6 +25,7 @@ from cortex_core import (
     ReasoningChunk,
     Role,
     SingleResidentModelManager,
+    StopReason,
     TextChunk,
     ToolCall,
     ToolSpec,
@@ -622,6 +624,7 @@ async def test_the_servers_timings_close_the_stream_as_one_cadence() -> None:
     stream = _backend(lambda _r: httpx.Response(200, content=body)).stream("cortex", _messages())
     assert [event async for event in stream] == [
         TextChunk("hi"),
+        DecodeStop(StopReason.FINISHED),
         DecodeCadence(tokens_per_second=61.66824948507013, tokens=80),
     ]
 
@@ -640,12 +643,15 @@ async def test_content_precedes_the_cadence_when_one_chunk_carries_both() -> Non
     )
     assert [event async for event in stream] == [
         TextChunk("last"),
+        DecodeStop(StopReason.FINISHED),
         DecodeCadence(tokens_per_second=30.5, tokens=64),
     ]
 
 
 async def test_a_choiceless_final_chunk_still_yields_its_cadence() -> None:
     # Read before the choices are, so a build closing on `{"choices":[]}` is not silently unheard.
+    # The exact event list is the other half: the stop is read off the first choice, so a chunk
+    # with no choice has none to report, and only the cadence comes out.
     chunk = json.dumps(
         {"choices": [], "timings": {"predicted_per_second": 12.0, "predicted_n": 40}}
     )
@@ -687,3 +693,99 @@ async def test_a_whole_number_rate_and_count_are_taken_as_written() -> None:
     body = _sse(f'{{"choices":[{{"delta":{{}}}}],"timings":{timings}}}', "[DONE]")
     stream = _backend(lambda _r: httpx.Response(200, content=body)).stream("cortex", _messages())
     assert [event async for event in stream] == [DecodeCadence(tokens_per_second=30.0, tokens=64)]
+
+
+# --- Stop reason (ADR-0005 finish-reason addendum) --------------------------------------------
+#
+# The shared contract in `stop_contract.py` pins what every implementation of the port owes.
+# These pin what only this adapter can get wrong: the words llama.cpp puts on the wire, where on
+# the chunk it puts them, and the three ways a build can be unreadable there. Every wire word
+# below was read off the shipped CPU subagent tier (build `b9879-72874f559`) rather than guessed:
+# `stop` closes an ordinary reply, `length` a request capped at `max_tokens`, and `tool_calls` a
+# completion that ended in a function call.
+
+
+@pytest.mark.parametrize(
+    ("wire", "reason"),
+    [
+        pytest.param("stop", StopReason.FINISHED, id="stop"),
+        pytest.param("length", StopReason.CAPPED, id="length"),
+        pytest.param("tool_calls", StopReason.CALLED, id="tool-calls"),
+        pytest.param("content_filter", StopReason.UNKNOWN, id="a-word-this-core-has-not-learned"),
+    ],
+)
+async def test_the_servers_finish_reason_crosses_the_port_as_a_closed_set(
+    wire: str, reason: StopReason
+) -> None:
+    body = _sse(
+        '{"choices":[{"delta":{"content":"hi"}}]}',
+        f'{{"choices":[{{"finish_reason":"{wire}","index":0,"delta":{{}}}}]}}',
+        "[DONE]",
+    )
+    stream = _backend(lambda _r: httpx.Response(200, content=body)).stream("cortex", _messages())
+    assert [event async for event in stream] == [TextChunk("hi"), DecodeStop(reason)]
+
+
+async def test_a_finish_reason_that_is_not_even_a_string_still_reports_a_stop() -> None:
+    # UNKNOWN rather than silence: the server did end the completion and did name a reason, so
+    # filing it under "nobody said" would put an unreadable answer where no answer belongs.
+    body = _sse('{"choices":[{"finish_reason":7,"index":0,"delta":{"content":"hi"}}]}', "[DONE]")
+    stream = _backend(lambda _r: httpx.Response(200, content=body)).stream("cortex", _messages())
+    assert [event async for event in stream] == [
+        TextChunk("hi"),
+        DecodeStop(StopReason.UNKNOWN),
+    ]
+
+
+async def test_the_chunks_before_the_last_carry_no_stop() -> None:
+    # llama-server puts `finish_reason: null` on every chunk but the final one, so a stream of
+    # four chunks must yield exactly one stop and not four.
+    body = _sse(
+        '{"choices":[{"finish_reason":null,"delta":{"content":"a"}}]}',
+        '{"choices":[{"finish_reason":null,"delta":{"content":"b"}}]}',
+        '{"choices":[{"delta":{"content":"c"}}]}',
+        '{"choices":[{"finish_reason":"stop","index":0,"delta":{}}]}',
+        "[DONE]",
+    )
+    stream = _backend(lambda _r: httpx.Response(200, content=body)).stream("cortex", _messages())
+    assert [event async for event in stream] == [
+        TextChunk("a"),
+        TextChunk("b"),
+        TextChunk("c"),
+        DecodeStop(StopReason.FINISHED),
+    ]
+
+
+async def test_a_stop_and_a_cadence_on_one_chunk_arrive_stop_first() -> None:
+    # The wire puts both on the final chunk, so this order is the adapter's own: the stop explains
+    # the text that just ended, and the cadence still closes the stream.
+    chunk = json.dumps(
+        {
+            "choices": [{"finish_reason": "length", "index": 0, "delta": {"content": "cut"}}],
+            "timings": {"predicted_per_second": 1.81, "predicted_n": 8},
+        }
+    )
+    stream = _backend(lambda _r: httpx.Response(200, content=_sse(chunk, "[DONE]"))).stream(
+        "cortex", _messages()
+    )
+    assert [event async for event in stream] == [
+        TextChunk("cut"),
+        DecodeStop(StopReason.CAPPED),
+        DecodeCadence(tokens_per_second=1.81, tokens=8),
+    ]
+
+
+async def test_the_stop_precedes_the_tool_calls_it_ends_the_completion_for() -> None:
+    # Tool calls are assembled once the stream ends, so they trail both closing events; a
+    # consumer reading the stop still knows a capped completion's calls may be half-built.
+    body = _sse(
+        '{"choices":[{"delta":{"tool_calls":[{"index":0,"id":"c1",'
+        '"function":{"name":"clock_now","arguments":"{}"}}]}}]}',
+        '{"choices":[{"finish_reason":"tool_calls","index":0,"delta":{}}]}',
+        "[DONE]",
+    )
+    stream = _backend(lambda _r: httpx.Response(200, content=body)).stream("cortex", _messages())
+    assert [event async for event in stream] == [
+        DecodeStop(StopReason.CALLED),
+        ToolCall(id="c1", name="clock_now", arguments={}),
+    ]

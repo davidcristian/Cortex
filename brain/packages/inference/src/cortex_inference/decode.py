@@ -5,7 +5,7 @@ took that file to the 300-line cap. Its counterpart is ``request.py``; the seam 
 the direction a value travels, and ``backend.py`` keeps the lease, the HTTP call, and the order
 events come out in.
 
-Two different stances toward a malformed answer live here, and the difference is deliberate:
+Three different stances toward a malformed answer live here, and the differences are deliberate:
 
 - **Reply content, reasoning, and tool calls fail loud.** A chunk this module cannot parse raises
   ``InferenceError`` rather than being skipped, because a silently dropped chunk loses reply text
@@ -15,6 +15,12 @@ Two different stances toward a malformed answer live here, and the difference is
   changes nothing else. Killing a finished reply over a telemetry field would trade the thing the
   user asked for against the thing the operator would have liked, and ``CadenceWatch`` already
   understands "no reading" as its own answer rather than as a pass.
+- **The stop reason fails into a value.** A ``finish_reason`` this module has no member for, or
+  one that is not even a string, is neither raised nor dropped: it becomes ``StopReason.UNKNOWN``,
+  which is the one true statement available (the server said something about why it stopped and
+  this core cannot read it). Raising would cost the reply as above; staying silent would put an
+  unreadable answer in the same place as no answer, and the whole point of carrying the reason is
+  that "it ended for a reason nobody told us" must not read as "it finished".
 """
 
 import json
@@ -25,13 +31,26 @@ from typing import cast
 import httpx
 
 from cortex_core import DecodeCadence, InferenceError, ToolCall
+from cortex_core.inference import DecodeStop, StopReason
 
 __all__ = [
+    "ChunkRead",
     "PendingCall",
     "consume_chunk",
     "finish_calls",
     "raise_for_status",
 ]
+
+# llama.cpp's finish-reason vocabulary mapped onto the core's closed set (ADR-0005 finish-reason
+# addendum). All three are verified against the shipped CPU subagent tier, build
+# ``b9879-72874f559``: a capped request closes on ``length``, an ordinary reply on ``stop``, and a
+# completion that ends in a function call on ``tool_calls``. Anything else is a word this core has
+# not been taught, and it arrives as ``UNKNOWN`` rather than as one of these.
+_STOP_REASONS = {
+    "stop": StopReason.FINISHED,
+    "length": StopReason.CAPPED,
+    "tool_calls": StopReason.CALLED,
+}
 
 # How much of llama-server's error body to quote back. Long enough for its own message (a
 # missing multimodal projector reads as its own hint rather than a bare 500) and short enough
@@ -115,25 +134,63 @@ def _cadence(data: Mapping[str, object]) -> DecodeCadence | None:
     return DecodeCadence(tokens_per_second=rate, tokens=int(tokens))
 
 
-def consume_chunk(
-    payload: str, pending: dict[int, PendingCall]
-) -> tuple[str | None, str | None, DecodeCadence | None]:
-    """Return a chunk's ``(content, reasoning_content, cadence)``, any of which may be ``None``,
-    folding any tool-call fragments into ``pending``. A reasoning model (the cortex, ADR-0020)
-    streams ``reasoning_content`` (its thinking) before ``content`` (its reply); both are surfaced.
-    The cadence rides the last chunk only (ADR-0030 spill-watch addendum).
+def _stop(choice: Mapping[str, object]) -> DecodeStop | None:
+    """The completion's stop reason off llama.cpp's ``finish_reason``, or ``None`` (ADR-0005).
+
+    llama-server carries ``finish_reason`` on the **final** streamed chunk's first choice and
+    ``null`` on every chunk before it, so ``None`` here is both a build that never reports one and
+    every ordinary mid-stream chunk; the two are the same statement, that this chunk did not end
+    the completion. Anything present but unreadable, a word outside ``_STOP_REASONS`` or a value
+    that is not a string at all, is ``UNKNOWN``: the server did end the completion and named a
+    reason, and reporting no stop there would file a fact this core failed to read under the same
+    silence as a fact nobody offered.
+    """
+    raw = choice.get("finish_reason")
+    if raw is None:
+        return None
+    if not isinstance(raw, str):
+        return DecodeStop(StopReason.UNKNOWN)
+    return DecodeStop(_STOP_REASONS.get(raw, StopReason.UNKNOWN))
+
+
+@dataclass(frozen=True, slots=True)
+class ChunkRead:
+    """Everything one streamed chunk had to say, each field ``None`` when it said nothing of it.
+
+    A record rather than a tuple because the chunk carries four independent facts now, two of them
+    closing events that ride the same final chunk without being the same statement (ADR-0005
+    finish-reason addendum), and a caller unpacking four positional optionals reads worse with
+    every one added.
+    """
+
+    content: str | None = None
+    reasoning: str | None = None
+    cadence: DecodeCadence | None = None
+    stop: DecodeStop | None = None
+
+
+def consume_chunk(payload: str, pending: dict[int, PendingCall]) -> ChunkRead:
+    """Read one chunk into a ``ChunkRead``, folding any tool-call fragments into ``pending``.
+
+    A reasoning model (the cortex, ADR-0020) streams ``reasoning_content`` (its thinking) before
+    ``content`` (its reply); both are surfaced. The cadence and the stop reason ride the last chunk
+    only (ADR-0030 spill-watch addendum, ADR-0005 finish-reason addendum), and they are read from
+    different parts of it, the cadence off the chunk's own ``timings`` and the stop off its first
+    choice, which is why a build reporting one and not the other still reports what it has.
 
     Malformed JSON or an unexpected shape raises ``InferenceError``. A silently skipped chunk
     would drop reply text or a tool call, exactly the failure mode the store adapter refuses.
     The cadence is read **before** the choices are, because a build that closes a stream with a
-    choice-less chunk would otherwise never be asked for its timings.
+    choice-less chunk would otherwise never be asked for its timings; such a chunk carries no
+    choice to have ended, so it has no stop reason to read either.
     """
     try:
         data = json.loads(payload)
         cadence = _cadence(data)
         choices = data["choices"]
         if not choices:
-            return None, None, cadence
+            return ChunkRead(cadence=cadence)
+        stop = _stop(choices[0])
         delta = choices[0]["delta"]
         for fragment in delta.get("tool_calls", ()):
             slot = pending.setdefault(fragment.get("index", 0), PendingCall())
@@ -146,7 +203,12 @@ def consume_chunk(
     except (json.JSONDecodeError, KeyError, IndexError, TypeError, AttributeError) as err:
         msg = f"malformed streaming chunk from llama-server: {payload!r}"
         raise InferenceError(msg) from err
-    return _require_text(content, "content"), _require_text(reasoning, "reasoning_content"), cadence
+    return ChunkRead(
+        content=_require_text(content, "content"),
+        reasoning=_require_text(reasoning, "reasoning_content"),
+        cadence=cadence,
+        stop=stop,
+    )
 
 
 def finish_calls(pending: dict[int, PendingCall]) -> list[ToolCall]:

@@ -13,7 +13,14 @@ from typing import Any
 
 from cortex_core.conversation import Message, Role
 from cortex_core.errors import InferenceError, ToolError, ToolNotFoundError
-from cortex_core.inference import GenerationBounds, InferenceEvent, JsonSchema, TextChunk
+from cortex_core.inference import (
+    DecodeStop,
+    GenerationBounds,
+    InferenceEvent,
+    JsonSchema,
+    StopReason,
+    TextChunk,
+)
 from cortex_core.progress import ProgressEvent
 from cortex_core.subagents import SubagentResult, SubagentTask
 from cortex_core.tools import ConfirmationRequest, ToolCall, ToolInvocation, ToolResult, ToolSpec
@@ -27,6 +34,14 @@ class EchoInferenceBackend:
     ``"reply {n}: {T}"``, streamed as three deltas. Because ``n`` is derived from
     the store-backed history alone, it keeps counting across a process restart,
     which is what makes external session state observable end to end.
+
+    It closes with ``DecodeStop(StopReason.FINISHED)``, and that is not the fabrication the
+    decode cadence would be here (``fakes_inference.py`` argues at length why this backend must
+    never report a rate). The two facts differ in who knows them: a rate is a measurement only a
+    real server has taken, so an echo inventing one would put a made-up number in a real log,
+    while why this completion ended is something the echo itself decided and can state truthfully.
+    It ends because its script does, which is a model ending its own turn. It honours no
+    ``bounds``, so it can never end any other way (ADR-0005 finish-reason addendum).
     """
 
     async def stream(
@@ -48,6 +63,7 @@ class EchoInferenceBackend:
         yield TextChunk("reply ")
         yield TextChunk(f"{len(user_messages)}:")
         yield TextChunk(f" {user_messages[-1].text}")
+        yield DecodeStop(StopReason.FINISHED)
 
 
 class InMemoryTaskStore:

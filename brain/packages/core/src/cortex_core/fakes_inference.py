@@ -3,14 +3,21 @@
 Its own module rather than a corner of ``fakes.py``, which sits near the line cap, following the
 ``fakes_body`` / ``fakes_model_host`` / ``fakes_vision`` precedent.
 
-``EchoInferenceBackend`` cannot serve this role and deliberately is not taught to. It is shipped
-wiring, not a test stub: a GPU-less deployment really runs it, and a fabricated rate coming out of
-it would be a made-up number in a real log, on the one path whose whole purpose is telling a real
-number from a plausible one. An echo has no server, so it has no timings, and that is the honest
-answer for it to give.
+``EchoInferenceBackend`` cannot serve this role for the **cadence** and deliberately is not taught
+to. It is shipped wiring, not a test stub: a GPU-less deployment really runs it, and a fabricated
+rate coming out of it would be a made-up number in a real log, on the one path whose whole purpose
+is telling a real number from a plausible one. An echo has no server, so it has no timings, and
+that is the honest answer for it to give.
+
+That argument stops at the **stop reason**, and the echo reports one (ADR-0005 finish-reason
+addendum). The difference is who knows the fact: a rate is a measurement only a real server has
+taken, while why a completion ended is something the echo itself decided, and its script ending is
+a model ending its own turn. So it says ``FINISHED`` truthfully and can say nothing else, honouring
+no ``bounds``; what it still cannot do is vary its answer, which is what this twin is for.
 
 What this twin owes the ``InferenceBackend`` contract is the world-condition no verb can create:
-whether the engine behind a backend reports how fast it decoded. ``ScriptedInferenceBackend``
+whether the engine behind a backend reports how fast it decoded, and what it says about why the
+completion ended. ``ScriptedInferenceBackend``
 takes that condition as its script, the same stance ``ScriptedModelHost`` takes toward readiness
 and a dying process. Its checks therefore pin that the twin honours what it was handed, while the
 same checks over ``LlamaCppBackend`` are driven by a real llama-server transcript, which is where

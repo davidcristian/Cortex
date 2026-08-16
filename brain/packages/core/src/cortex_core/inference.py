@@ -2,8 +2,9 @@
 
 A completion streams ``TextChunk`` (assistant reply text, emitted live) and, from a reasoning
 model, ``ReasoningChunk`` (its private deliberation, emitted before the reply, ADR-0020),
-interleaved with ``ToolCall`` (the model asking to run a tool), and closes with a
-``DecodeCadence`` when the server told the adapter how fast it decoded (ADR-0030 spill-watch
+interleaved with ``ToolCall`` (the model asking to run a tool), and closes with a ``DecodeStop``
+saying why it ended (ADR-0005 finish-reason addendum) and a ``DecodeCadence`` when the server
+told the adapter how fast it decoded (ADR-0030 spill-watch
 addendum). Pure data with no ``ports``
 import, so ``ports`` can name ``InferenceEvent`` in the ``InferenceBackend`` contract without a
 cycle, mirroring how the ``tools`` and ``memory`` values are depended on. ``GenerationBounds``
@@ -13,6 +14,7 @@ rides the same module for the same reason: it is request-side vocabulary the por
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from enum import Enum
 
 from cortex_core.tools import ToolCall
 
@@ -73,7 +75,52 @@ class DecodeCadence:
             raise ValueError(msg)
 
 
-type InferenceEvent = TextChunk | ReasoningChunk | ToolCall | DecodeCadence
+class StopReason(Enum):
+    """Why one completion ended, in this core's words rather than an engine's (ADR-0005
+    finish-reason addendum).
+
+    A closed set, because the wire value is llama.cpp's own vocabulary and the core must not
+    depend on a backend's spelling; an adapter translates into these four and no others. A word
+    no member covers arrives as ``UNKNOWN`` rather than as silence, so a reason nobody has taught
+    this core yet can never be read as a model that finished.
+
+    ``FINISHED`` is the model ending its own turn. ``CAPPED`` is a token limit ending it instead,
+    which is the distinction this whole value exists for: a capped reply stops where the count ran
+    out rather than where the answer did, so a reader who cannot see it mistakes a cut reply for a
+    short one. Which limit is deliberately not part of the answer, a request's own ``max_tokens``
+    and the server's context window being indistinguishable on the wire and equally cut.
+    ``CALLED`` is the model stopping to call a tool, the ordinary end of every round of a tool
+    loop but the last.
+    """
+
+    FINISHED = "finished"
+    CAPPED = "capped"
+    CALLED = "called"
+    UNKNOWN = "unknown"
+
+
+@dataclass(frozen=True, slots=True)
+class DecodeStop:
+    """Why the server stopped decoding one completion, as that server reports it (ADR-0005).
+
+    Not a delta of anything, for ``DecodeCadence``'s reason: it arrives once, whole, at the end of
+    the completion it describes, because why a completion ended is only knowable once it has. A
+    backend whose engine says nothing about it emits none, and every consumer is written for that:
+    the value is evidence when present and silence otherwise, and silence is never read as
+    ``FINISHED``.
+
+    It is its own event rather than a field on the closing cadence, though llama.cpp puts both on
+    one chunk, because the two are separate facts with separate availability. A build that reports
+    no ``timings`` still reports why it stopped, so a reason riding the cadence would be lost
+    exactly where it was reported; and ``CadenceWatch``, which every loop hands its cadences to,
+    answers a question about rates, so a non-rate fact reaching a consumer through it would arrive
+    at a collaborator shaped for another question.
+    """
+
+    reason: StopReason
+
+
+type InferenceEvent = TextChunk | ReasoningChunk | ToolCall | DecodeCadence | DecodeStop
 
 
 @dataclass(frozen=True, slots=True)

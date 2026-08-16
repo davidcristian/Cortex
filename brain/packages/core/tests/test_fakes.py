@@ -6,12 +6,14 @@ import pytest
 
 from cortex_core import (
     ConfirmationRequest,
+    DecodeStop,
     EchoInferenceBackend,
     InferenceError,
     InMemorySessionStore,
     Message,
     RecordingConfirmer,
     Role,
+    StopReason,
     SystemClock,
     TextChunk,
 )
@@ -63,6 +65,21 @@ async def test_echo_backend_counts_only_user_messages() -> None:
     )
     deltas = await _deltas(EchoInferenceBackend(), history)
     assert "".join(deltas) == "reply 2: two"
+
+
+async def test_echo_backend_closes_its_reply_by_saying_it_finished() -> None:
+    """Every backend owes the port an answer about why a completion ended, this one included.
+
+    Its answer is truthful rather than fabricated, which is the line between this and the decode
+    cadence it deliberately never reports: the echo ends because its script does, and it honours no
+    bounds, so it can never end any other way (ADR-0005 finish-reason addendum).
+    """
+    stream = EchoInferenceBackend().stream("cortex", (_message(Role.USER, "hello"),))
+    events = [event async for event in stream]
+    assert [event for event in events if isinstance(event, DecodeStop)] == [
+        DecodeStop(StopReason.FINISHED)
+    ]
+    assert isinstance(events[-1], DecodeStop), "the stop closes the reply it describes"
 
 
 async def test_echo_backend_requires_a_user_message() -> None:
