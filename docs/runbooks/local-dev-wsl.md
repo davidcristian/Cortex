@@ -15,6 +15,12 @@ config contract in [ADR-0003](../adr/ADR-0003-seam-codegen.md).
   `rustup target add x86_64-pc-windows-msvc`. Clippy never links, so no MSVC toolchain is
   needed; on a Windows host this target is already the native one.
 - **cargo-llvm-cov** installs via `cargo install cargo-llvm-cov`.
+- **Neither of those two is pinned to a version, by decision** (the
+  [ADR-0002](../adr/ADR-0002-toolchain-gates.md) toolchain-print addendum), so this machine and CI
+  routinely resolve different ones. `check-body` therefore prints `rustc +nightly --version` and
+  `cargo +nightly llvm-cov --version` before it measures. When the coverage gate fails, read those
+  two lines against the ones in the CI log first: a toolchain that moved and a commit that broke
+  coverage look identical in the totals and nowhere else.
 - **just** provides `just check`, THE gate (AGENTS.md gate 6); run it before calling
   anything done.
 - **pre-commit** needs `pre-commit install` once; the hook is a literal `just check`

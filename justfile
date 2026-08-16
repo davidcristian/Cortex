@@ -102,12 +102,20 @@ check-scripts:
 # The coverage run also excludes Cargo build scripts (`build.rs`), which rustc began
 # instrumenting during the 1.99 nightlies: a build script runs at build time, not under the
 # test harness, so no test can reach it (ADR-0002 build-script addendum).
+# The step names the two versions it is about to measure with BEFORE it measures, because
+# `+nightly` is a channel and cargo-llvm-cov installs unversioned on both sides, so CI and this
+# machine routinely resolve different ones. A coverage failure then carries its own toolchain in
+# the log, which is what tells a toolchain change from the commit under test without a local
+# bisect against two nightlies (ADR-0002 toolchain-print addendum). CI runs this same recipe, so
+# both sides print, and a machine missing nightly now fails here rather than mid-measurement.
 check-body:
     cd body && cargo fmt --all --check
     cd body/app/src-tauri && cargo fmt --check
     cd body && cargo clippy --locked --workspace --all-targets -- -D warnings
     cd body && cargo clippy --locked --target x86_64-pc-windows-msvc -p os-windows --all-targets -- -D warnings
     cd body && cargo test --locked --workspace
+    cd body && rustc +nightly --version
+    cd body && cargo +nightly llvm-cov --version
     cd body && cargo +nightly llvm-cov --locked --branch --workspace --all-targets --ignore-filename-regex '/_generated/|/build[.]rs$' --fail-under-lines 100 --fail-under-regions 100 --json --summary-only --output-path coverage.json
     cd scripts && uv sync --locked
     cd scripts && uv run python coverage_gate.py ../body/coverage.json
