@@ -332,4 +332,63 @@ instrumentation change can break the gate again with no change in this repo, and
 on whichever pull request runs next rather than on the commit that caused it. Pinning trades that
 for a nightly that silently goes stale and that dependabot cannot bump, since the toolchain is a
 channel string rather than an action SHA. That trade is the maintainer's call and is recorded
-open in [R-274](../refinements/tasks/274-unpinned-nightly-drifts-the-coverage-gate.md).
+in [R-274](../refinements/tasks/274-unpinned-nightly-drifts-the-coverage-gate.md).
+
+## Addendum (2026-08-16): the coverage step names its toolchain, and the channel stays a channel
+
+The addendum above closed one instrumentation change and left the drift that delivered it open.
+Reopening it began by re-deriving the claim rather than trusting it, and every half of it still
+holds. The rust job installs `toolchain: nightly` in `.github/workflows/ci.yml`, a channel with no
+date. `check-body` invokes `cargo +nightly llvm-cov`, the same channel by name.
+`docs/runbooks/local-dev-wsl.md` records `rustup toolchain install nightly` and
+`cargo install cargo-llvm-cov` with no version on either. Nothing ties the two sides together. The
+divergence is not a hypothesis either: this machine's `nightly` alias resolves to rustc
+1.98.0-nightly (2026-07-01) while CI resolves whatever exists on the day it runs, so the two sides
+have been measuring branch coverage with compilers six weeks apart ever since that incident. One
+sentence of the addendum above is amended by this one, and only for the rule it broke: it said the
+trade was "recorded open", which writes a status somewhere other than the task's own Status line.
+
+**What landed: the step names what it is about to measure with.** `check-body` now runs
+`rustc +nightly --version` and `cargo +nightly llvm-cov --version` immediately before the
+measurement. One place covers both sides, because CI runs that same recipe rather than its own
+copy of the command, and `just check` buffers the recipe's output and prints it, so a local run
+and a CI run carry the same two lines. Two things follow beyond the log. A machine with no nightly
+installed now fails at a probe that names the toolchain rather than part way through a
+measurement. And cargo-llvm-cov's version is recorded beside the compiler's, which the earlier
+incident could only hold constant by hand.
+
+**Decision: the toolchain stays a channel, and that is a decision rather than a further
+deferral.** Three arguments, the first of which the deferral did not have.
+
+*A dated pin carries an expiry that nobody is scheduled to service.* Nightly runs two releases
+ahead of stable and Rust ships stable every six weeks, so a nightly pinned today sits roughly
+twelve weeks ahead of the stable the rest of `just check` compiles with, and is overtaken by it
+twelve weeks after that. Past that point the coverage step compiles the body under an older
+compiler than every other step in the gate, so the first newly stabilized feature the workspace
+adopts passes fmt, clippy and `cargo test` and fails only under coverage. That failure reads as a
+coverage fault and is not one, which is exactly the confusion this entry exists to remove,
+reintroduced by its own fix and on a clock. The gap is measurable on this machine rather than
+assumed: stable here is 1.96.1 (2026-06-26) and the dated nightly beside it is 1.99.0-nightly
+(2026-08-10), three releases apart.
+
+*A pin on the compiler alone would sell a reproducibility the step does not have.* The coverage
+step has two moving parts, not one. CI installs the tool as `tool: cargo-llvm-cov` with no version
+and the runbook says `cargo install cargo-llvm-cov` with no version, so both sides resolve
+whatever is current there too, and the earlier measurement had to hold the tool at 0.8.7 by hand
+before it could say anything about the compiler. Pinning the tool as well is worse rather than
+better: cargo-llvm-cov reads the profile data the compiler's LLVM writes, so it is the half that
+has to track the compiler, and freezing it against a channel that keeps moving is this same
+mismatch with the roles swapped.
+
+*And the printing buys most of what the pin was wanted for.* Read again, the expensive part of the
+incident was not that the toolchain moved. It was that neither log said which toolchain it was, so
+telling a toolchain change from the commit under test meant installing a second nightly here and
+bisecting against it. Two printed lines read side by side settle that in one pass. What a pin
+would still buy is prevention, at the expiry above, and the trigger recorded for it was a *second*
+instrumentation drift, which has not happened: there has been one.
+
+**What this leaves open.** The versions are printed and no gate reads them. Neither side compares
+its toolchain against the other's, nothing records which toolchain last measured green, and a CI
+log ages out, so recovering that comparison after a future drift still means finding a log from
+before it. Recorded as its own entry,
+[R-275](../refinements/tasks/275-nothing-reads-the-printed-toolchain.md).
