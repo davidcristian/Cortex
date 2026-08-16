@@ -4,13 +4,18 @@ import sys
 import unicodedata
 from dataclasses import dataclass, field
 
+import pytest
+
 from cortex_core import (
     REDACTED_LINK,
+    LookalikeUrlRedactingGuardrail,
     OutputFilter,
+    OutputGuardrail,
     StrictUrlRedactingGuardrail,
     UrlRedactingGuardrail,
     extract_urls,
 )
+from cortex_core.url_identity import host_of, normalize_url
 from cortex_core.url_spellings import NFKC_SPACES
 
 EVIL = "https://evil.example/report"
@@ -1327,3 +1332,210 @@ def test_whitespace_that_breaks_a_line_is_not_a_gap() -> None:
     # wrapped sentence does, so a paragraph that happens to start with `dot` is not a host.
     for breaker in ("\n", "\r", "\u2028", "\u1680"):
         assert extract_urls(f"http://evil{breaker}dot{breaker}example") == {"http://evil"}
+
+
+# --- The lookalike policy: a host that is not plain ASCII (ADR-0015 fourteenth addendum). The
+# ground is a statement about the shape of what is emitted, so it holds whatever the fold carries
+# and whatever this turn collected. Fixtures are \u escapes so the codepoint under test is explicit.
+
+
+# U+0406 Cyrillic Byelorussian-Ukrainian I renders as the `l` it replaces and is one of the 700
+# UTS-39 characters aimed at an ASCII host that the curated table does not carry.
+_UNTABLED = "http://examp\u0406e.com/invoice"
+_LEGIT = "http://example.com/invoice"
+
+# A genuine internationalized domain, the measured cost of the ground. The same host the eleventh
+# addendum used to show that a dotted IDN anchors a slashless authority.
+_IDN = "https://bücher.example/pay"
+
+_POLICIES: tuple[OutputGuardrail, ...] = (
+    UrlRedactingGuardrail(),
+    LookalikeUrlRedactingGuardrail(),
+    StrictUrlRedactingGuardrail(),
+)
+_POLICY_IDS = ("redact", "lookalike", "strict")
+
+
+def _lookalike(taint: _Taint, allow: frozenset[str] = frozenset()) -> OutputFilter:
+    return LookalikeUrlRedactingGuardrail().open(taint, allow=allow)
+
+
+def test_a_homoglyph_outside_the_curated_table_leaks_under_the_default_and_not_the_lookalike() -> (
+    None
+):
+    # The whole entry, in one test. A legitimate link is collected from untrusted content and the
+    # reply spells a lookalike of it: the default policy compares identities, the fold does not
+    # carry this codepoint, so the two do not compare equal and the link is delivered. The
+    # lookalike ground never asks what was collected, so the codepoint the attacker chose is
+    # irrelevant to it.
+    tainted = _Taint(tainted=True, untrusted_urls={_LEGIT})
+    reply = f"Full report at {_UNTABLED} today."
+    default = _filter({_LEGIT})
+    assert default.feed(reply) + default.flush() == reply
+    guard = _lookalike(tainted)
+    assert guard.feed(reply) + guard.flush() == f"Full report at {REDACTED_LINK} today."
+
+
+def test_the_lookalike_policy_still_redacts_a_verbatim_collected_url() -> None:
+    # It is the default policy plus a ground, not a replacement for it: the collected identity is
+    # redacted exactly as before, ASCII host and all.
+    guard = _lookalike(_Taint(tainted=True, untrusted_urls={EVIL}))
+    assert guard.feed(f"see {EVIL} now") + guard.flush() == f"see {REDACTED_LINK} now"
+
+
+def test_the_lookalike_policy_leaves_an_uncollected_ascii_link_alone() -> None:
+    # What separates it from strict, and the reason it can be a default one day: on a tainted turn
+    # the model's own recalled links still reach the user, because a plain ASCII host is the
+    # letters it appears to be.
+    guard = _lookalike(_Taint(tainted=True, untrusted_urls={EVIL}))
+    text = "the docs live at https://good.example/doc today"
+    assert guard.feed(text) + guard.flush() == text
+
+
+def test_a_host_built_wholly_from_the_curated_table_is_still_read_as_a_lookalike() -> None:
+    # The trap this ground had to avoid: `_CYRILLIC_PACE` folds to `pace.example`, so an identity
+    # read the ordinary way carries no sign that anything was respelled, and a rule reading it
+    # would have a table-shaped hole exactly where the table is. The host is read with the
+    # confusable fold switched off, so the Cyrillic letters are still there to be seen.
+    guard = _lookalike(_Taint(tainted=True))
+    assert guard.feed(f"pay at {_CYRILLIC_PACE} ") + guard.flush() == f"pay at {REDACTED_LINK} "
+    # And the default policy, which never collected `pace.example`, delivers it.
+    default = _filter({EVIL})
+    assert default.feed(f"pay at {_CYRILLIC_PACE} ") == f"pay at {_CYRILLIC_PACE} "
+
+
+def test_the_lookalike_ground_needs_no_url_to_have_been_collected() -> None:
+    # Untrusted content that carried no URL at all still taints the turn, which is the case the
+    # default policy short-circuits away from scanning entirely.
+    guard = _lookalike(_Taint(tainted=True))
+    assert guard.feed(f"try {_UNTABLED} ") + guard.flush() == f"try {REDACTED_LINK} "
+
+
+def test_an_untainted_turn_is_untouched_by_the_lookalike_policy() -> None:
+    # No untrusted content, no ground: a turn that read nothing hostile shows every link it has,
+    # internationalized or not, exactly as the unguarded stream would.
+    guard = _lookalike(_Taint())
+    assert guard.feed(f"read {_IDN} now") + guard.flush() == f"read {_IDN} now"
+
+
+def test_the_measured_cost_is_an_internationalized_domain_on_a_tainted_turn() -> None:
+    # The false positive, asserted so it cannot change silently. Nothing without a script database
+    # separates a genuine IDN from a lookalike, and the database is the dependency the thirteenth
+    # addendum declined, so this host is redacted with them. Measured on the Tranco top million:
+    # 0 of the top 1,000 hosts, 8 of the top 10,000, 1,441 of 1,000,000.
+    guard = _lookalike(_Taint(tainted=True))
+    assert guard.feed(f"buy at {_IDN} ") + guard.flush() == f"buy at {REDACTED_LINK} "
+
+
+def test_a_punycode_spelled_lookalike_is_redacted_too() -> None:
+    # The spelling an attacker actually registers. Punycode decoding runs before the host is read,
+    # so the ASCII-looking `xn--` label is judged by the letters it renders as.
+    guard = _lookalike(_Taint(tainted=True))
+    fed = guard.feed("go to https://xn--bcher-kva.example/pay ") + guard.flush()
+    assert fed == f"go to {REDACTED_LINK} "
+
+
+def test_a_non_ascii_path_is_not_a_lookalike() -> None:
+    # The whole false-positive control: only the host says where a link goes, so a Cyrillic article
+    # title in the path of an ASCII host is ordinary content and streams on a tainted turn.
+    guard = _lookalike(_Taint(tainted=True))
+    text = "see https://ru.wikipedia.example/wiki/Привет now"
+    assert guard.feed(text) + guard.flush() == text
+
+
+def test_a_mailto_domain_is_the_host_the_ground_reads() -> None:
+    # A `mailto:` names a host in the only part of it that decides where the mail goes, so the
+    # domain after the `@` is read and the local part is not.
+    guard = _lookalike(_Taint(tainted=True))
+    plain = "write to mailto:abuse@evil.example now"
+    assert guard.feed(plain) + guard.flush() == plain
+    spoofed = _lookalike(_Taint(tainted=True))
+    fed = spoofed.feed("write to mailto:abuse@\u0435vil.example now") + spoofed.flush()
+    assert fed == f"write to {REDACTED_LINK} now"
+
+
+def test_a_scheme_that_names_no_host_is_never_a_lookalike() -> None:
+    # `tel:` is a number and `data:` is an inline payload; neither resolves to a host, so the
+    # ground reads `""` for both and cannot invent one out of their content.
+    guard = _lookalike(_Taint(tainted=True))
+    text = "call tel:+15550000000 or open data:text/plain,\u0435vil now"
+    assert guard.feed(text) + guard.flush() == text
+
+
+def test_a_user_sent_lookalike_survives_the_lookalike_policy() -> None:
+    # The allowlist answers first under every policy: a link the user themselves sent is theirs to
+    # see again, homoglyph host or not.
+    guard = _lookalike(_Taint(tainted=True), allow=frozenset({_IDN}))
+    assert guard.feed(f"as you said, {_IDN} ") + guard.flush() == f"as you said, {_IDN} "
+
+
+def test_an_opaque_turn_escalates_the_lookalike_policy_to_strict() -> None:
+    # The ADR-0029 escalation reaches every policy, since a URL painted into pixels is in no
+    # result text and has no host worth reading either: distrusting every link is what is left.
+    guard = _lookalike(_Taint(tainted=True, opaque=True))
+    fed = guard.feed("the sign reads https://plain.example/pay ") + guard.flush()
+    assert fed == f"the sign reads {REDACTED_LINK} "
+
+
+def test_a_lookalike_split_across_deltas_is_still_redacted() -> None:
+    # The streaming machine is shared, so the hold-back carries a homoglyph host exactly as it
+    # carries a plain one; the ground is only the predicate over a completed match.
+    guard = _lookalike(_Taint(tainted=True))
+    reply = f"settle at {_UNTABLED} now"
+    fed = "".join(guard.feed(char) for char in reply) + guard.flush()
+    assert fed == f"settle at {REDACTED_LINK} now"
+
+
+@pytest.mark.parametrize("policy", _POLICIES, ids=_POLICY_IDS)
+def test_every_policy_leaves_a_clean_turn_byte_identical(policy: OutputGuardrail) -> None:
+    # The contract each `OutputGuardrail` holds: with no untrusted content in play, the guarded
+    # stream is the unguarded one, so the default costs nothing in the common case.
+    guard = policy.open(_Taint(), allow=frozenset())
+    text = f"the docs are at {EVIL} and {_IDN} today"
+    assert guard.feed(text) + guard.flush() == text
+
+
+@pytest.mark.parametrize("policy", _POLICIES, ids=_POLICY_IDS)
+def test_every_policy_lets_the_users_own_url_through(policy: OutputGuardrail) -> None:
+    guard = policy.open(_Taint(tainted=True, untrusted_urls={EVIL}), allow=frozenset({EVIL}))
+    assert guard.feed(f"quoting {EVIL} back") + guard.flush() == f"quoting {EVIL} back"
+
+
+@pytest.mark.parametrize("policy", _POLICIES, ids=_POLICY_IDS)
+def test_every_policy_distrusts_every_link_on_an_opaque_turn(policy: OutputGuardrail) -> None:
+    guard = policy.open(_Taint(tainted=True, opaque=True), allow=frozenset())
+    fed = guard.feed("the capture shows https://plain.example/x ") + guard.flush()
+    assert fed == f"the capture shows {REDACTED_LINK} "
+
+
+@pytest.mark.parametrize("policy", _POLICIES, ids=_POLICY_IDS)
+def test_every_policy_ignores_an_opaque_bit_without_taint(policy: OutputGuardrail) -> None:
+    # `opaque` is only ever set beside `tainted` by the real ledger; the escalation still asks for
+    # the taint bit rather than treating the flag alone as evidence.
+    guard = policy.open(_Taint(opaque=True), allow=frozenset())
+    assert guard.feed(f"see {EVIL} ") + guard.flush() == f"see {EVIL} "
+
+
+def test_host_of_reads_the_authority_and_drops_what_does_not_decide_the_destination() -> None:
+    # Userinfo and a port sit outside the name, and everything from the first `/?#` is a path.
+    assert host_of("https://evil.example/pay?q=1#top") == "evil.example"
+    assert host_of("https://user:pw@evil.example:8443/pay") == "evil.example:8443"
+    assert host_of("https://evil.example") == "evil.example"
+    assert host_of("https://[::1]/pay") == "[::1]"
+
+
+def test_host_of_reads_a_mailto_domain_and_no_other_opaque_scheme() -> None:
+    assert host_of("mailto:abuse@evil.example?subject=hi") == "evil.example"
+    assert host_of("tel:+15550000000") == ""
+    assert host_of("data:text/plain,evil") == ""
+    assert host_of("not a url at all") == ""
+
+
+def test_normalizing_without_the_confusable_fold_leaves_the_letters_written() -> None:
+    # The switch the lookalike ground reads through: every resolver-faithful pass still runs (the
+    # defang here is refanged and the authority still lowercases), and only the one judgement pass
+    # is skipped, so the Cyrillic host is still Cyrillic.
+    assert normalize_url("hxxp://\u0420ACE.example") == "http://pace.example"
+    assert (
+        normalize_url("hxxp://\u0420ACE.example", confusables=False) == "http://\u0440ace.example"
+    )

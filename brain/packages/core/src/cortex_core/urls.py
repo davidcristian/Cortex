@@ -27,7 +27,7 @@ out on the same standing decision. See the ADR for why. Pure state- and I/O-free
 
 import re
 
-from cortex_core.url_identity import DOT_WORD, SPECIAL_SCHEMES, normalize_url
+from cortex_core.url_identity import DOT_WORD, MAILTO_SCHEME, SPECIAL_SCHEMES, normalize_url
 from cortex_core.url_spellings import (
     AUTHORITY_SEPS,
     CHUNK_INNER,
@@ -51,9 +51,11 @@ from cortex_core.url_spellings import (
 # `name.py`, or `metadata:` would redact ordinary prose. Longer variants precede their prefixes
 # (`https` before `http`) so the alternation prefers the full scheme.
 # The authority words are the identity module's `SPECIAL_SCHEMES` plus their CTI defang twins, so
-# the scheme a backslash counts as a solidus in is declared once, beside the fold that reads it.
+# the scheme a backslash counts as a solidus in is declared once, beside the fold that reads it;
+# `mailto` comes from the same module for the same reason, being the one opaque scheme whose
+# content the host reader there has to find a domain in.
 _AUTHORITY_WORDS = (*SPECIAL_SCHEMES, "hxxps", "hxxp")
-_OPAQUE_WORDS = ("mailto", "tel")
+_OPAQUE_WORDS = (MAILTO_SCHEME, "tel")
 
 # What can never belong to a URL in prose: whitespace and the usual prose/markup closers, which
 # also bound a Markdown `(url)`/`[url]`. Held once, since the two classes below are the same set

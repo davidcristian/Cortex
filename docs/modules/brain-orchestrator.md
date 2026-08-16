@@ -49,10 +49,17 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   much newly dropped conversation is worth a fold's model pass; below it the fold waits for the
   next boundary move, which reads everything deferred since. `0` folds on every move, negative
   rejected, and the builder clamps it to the character budget;
-  `output_guardrail: "redact" | "strict" | "off" = "redact"` (`CORTEX_OUTPUT_GUARDRAIL`,
-  ADR-0015) is the model-independent laundering defense: `redact` (default) scrubs
-  verbatim-untrusted-sourced URLs from the reply the user sees, `strict` (addendum) scrubs
-  every non-user URL on a tainted turn, `off` restores the unguarded stream;
+  `output_guardrail: OutputGuardrailName = "redact"` (`CORTEX_OUTPUT_GUARDRAIL`, ADR-0015, the
+  `Literal["redact", "lookalike", "strict", "off"]` declared once at module level so the builder
+  cannot answer to a name nothing can be set to) is the model-independent laundering defense:
+  `redact` (default) scrubs verbatim-untrusted-sourced URLs from the reply the user sees;
+  `lookalike` (fourteenth addendum) adds every URL whose **host is not plain ASCII** on a tainted
+  turn, which is the one answer to a chosen homoglyph that no table gives, and is what to pick when
+  a deployment reads mail or files from strangers and would rather lose the occasional
+  internationalized link (measured: 0 of the Tranco top 1,000 hosts, 1,441 of the top million) than
+  deliver a host that is not the letters it appears to be; `strict` (addendum) scrubs every non-user
+  URL on a tainted turn, which also costs the model's own recalled links there; `off` restores the
+  unguarded stream;
   `generate_titles: bool = False` (`CORTEX_GENERATE_TITLES`, ADR-0021 titles addendum) opts a
   deployment into brain-generated switcher titles (one extra inference call per new session, and a
   cheap one since the pass asks for no thinking and at most 32 tokens, ADR-0038 bounded-side-calls
@@ -451,10 +458,13 @@ The service:
   a gap in neither the window nor the account, and a floor above the budget would make that gap
   wider than everything the model can see. Both windowing and summarization are on by default
   (ADR-0038 cheap-fold addendum).
-- `build_output_guardrail(mode: str) -> UrlRedactingGuardrail | StrictUrlRedactingGuardrail | None`
-  is the turn's output guardrail (ADR-0015): `redact` returns the default verbatim URL-redacting
-  policy, `strict` (addendum) the redact-all-non-user-URL policy, `off` returns `None`. On by
-  default via `BrainRuntimeConfig.output_guardrail`.
+- `build_output_guardrail(mode: OutputGuardrailName) -> OutputGuardrail | None` is the turn's
+  output guardrail (ADR-0015): `redact` returns the default verbatim URL-redacting policy,
+  `lookalike` (fourteenth addendum) that policy plus the non-ASCII-host ground, `strict` (addendum)
+  the redact-all-non-user-URL policy, and `off` returns `None`. It returns the port rather than a
+  union of the concrete classes, and takes the config's own `Literal`, so a name the config does not
+  declare is a type error here rather than a silently unguarded stream. On by default via
+  `BrainRuntimeConfig.output_guardrail`.
 - `build_body_gateway(config: BodyConfig, *, token: str) -> tuple[BodyGateway | None, Callable[[], Awaitable[None]]]`
   is the opt-in body dial (ADR-0023): `grpc` opens a `GrpcBodyGateway` (cortex-body-client) over
   `connect(config.endpoint, token=token)`, attaching the shared `CORTEX_SEAM_TOKEN` as

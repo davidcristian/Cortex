@@ -227,6 +227,14 @@ def test_runtime_env_selects_strict_guardrail(monkeypatch: pytest.MonkeyPatch) -
 
 
 @pytest.mark.usefixtures("clean_env")
+def test_runtime_env_selects_the_lookalike_guardrail(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The opt-in lookalike policy (ADR-0015 fourteenth addendum): the default policy plus every
+    # URL whose host is not plain ASCII on a tainted turn.
+    monkeypatch.setenv("CORTEX_OUTPUT_GUARDRAIL", "lookalike")
+    assert BrainRuntimeConfig().output_guardrail == "lookalike"
+
+
+@pytest.mark.usefixtures("clean_env")
 def test_runtime_rejects_an_unknown_guardrail_mode(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CORTEX_OUTPUT_GUARDRAIL", "maybe")
     with pytest.raises(ValidationError, match="output_guardrail"):
