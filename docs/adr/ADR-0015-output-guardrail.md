@@ -1360,3 +1360,106 @@ and 1,030,733 words. Also left out and not an entry, being a bare address rather
 `at` half of a defanged mail address (`me at evil dot com`). Unchanged: the full UTS-39 confusables
 set, footer/boilerplate heuristics, and the standing decision that a bare domain with no scheme is
 out of scope.
+
+## Addendum (2026-08-16): the full UTS-39 confusables set is priced and declined
+
+Prices the last of the obfuscation-resistant deferrals the fourth addendum wrote down, and
+**declines it**, on measurement rather than on effort. Nothing in the tree changes: the curated
+confusable table (`_CONFUSABLES`, pass 6) stays exactly as it is, both `OutputGuardrail` policies
+are untouched, and the repo stays **deterministic and dependency-free**. What changes is that the
+deferral stops being a note and becomes a decision, with its numbers written down so a future
+reader can reopen it against evidence rather than against a hunch.
+
+### The premise, measured in both directions
+
+The fragment said the full set "needs a dependency". Measured against UTS-39 `confusables.txt`
+v17.0.0, which is 745,683 bytes and carries **6,565 single-codepoint mappings**:
+
+| | count |
+|---|---|
+| mappings whose prototype reduces to one ASCII host character | 1,438 |
+| ... of those, **already folded by stdlib NFKC alone** (pass 5) | 749 (52%) |
+| ... the residue NFKC does not reach | 689 |
+| ... of that residue, already in the curated table | 29 (all of it, exactly) |
+| ... not in the table, and encodable into a host label by the stdlib IDNA codec | 635 |
+| ... distinct characters a table placed **after NFKC** would need to carry them | 483 |
+
+So the premise is **half wrong and half worse than stated**. Half wrong, because the stdlib already
+does most of this: NFKC folds 52% of everything in the file that aims at an ASCII host, and the
+curated table is a strict, correct subset of the rest (all 29 of its entries appear in UTS-39 and
+none is an invention). Half worse, because the remainder is not a curation job at any size. A
+"small curated widening" of the sort the deferral imagines does not exist: Cyrillic alone adds 23
+entries, Cyrillic and Greek together 59 entries covering 175 of the 635, and Cyrillic, Greek and
+Latin together 116 entries covering 249, which is 39%. Full coverage is 483 table entries, which is
+a **data file wearing a source file's clothes**.
+
+### The question, asked of a confusable, answers no
+
+The tenth addendum's question is the one this ADR decides rows by: **is there a resolver in this
+system's path for untrusted content that turns this spelling back into the attacker's URL?** For
+every row it has ever closed the answer was yes, because every one of them was a *respelling* of
+one URL. A confusable host is not. Run in `node`:
+
+| Reply spelling | `new URL(...)` resolves to |
+|---|---|
+| `http://ev<Cyrillic i>l.example/pay` | `http://xn--evl-khd.example/pay` |
+| `http://evil.example/pay` | `http://evil.example/pay` |
+
+Those are **two different hosts**, and no resolver in this path or any other turns one into the
+other. That is what makes pass 6 the odd one out among the eight: the label-separator fold and the
+backslash fold are the resolver's own readings, stated as such when they landed, while the
+confusable fold is a judgement about what looks alike. It is not wrong to have it, but it is not
+the same kind of thing, and the difference is exactly why "the full set" is not the natural
+completion of anything.
+
+### What the table actually buys, measured through both policies
+
+Driven end to end through a real `TaintLedger` and a real streaming filter, with a legitimate
+`http://example.com/invoice` collected and the reply spelling a lookalike of it:
+
+| Homoglyph the reply spells | default policy | strict |
+|---|---|---|
+| U+0430 Cyrillic a, in the curated table | redacted | redacted |
+| U+04CF Cyrillic palochka, in the curated table | redacted | redacted |
+| U+0406 Cyrillic Byelorussian-Ukrainian I, **not** in the table | **leaked** | redacted |
+| the same, collected rather than replied | **leaked** | redacted |
+
+The last two rows are the whole argument. `URL_RE` matches a homoglyph host whatever the table
+holds, because a host character is anything that is not whitespace or a closer, so **strict mode
+covers this entire class identity-independently and always has**. The table only ever moves the
+default policy, and there the attacker picks the codepoint. A fold carrying 29 of 6,565 mappings, or
+116, or 483, is a defence against precisely the characters an attacker would not choose. Widening
+it does not raise the cost of the attack; it only lengthens the table an attacker reads before
+choosing. Nothing about that changes at 483 entries, so the size of the table was never the
+decision.
+
+### Three costs the dependency carries that the note did not name
+
+- **It is not deterministic across upgrades.** This interpreter's bundled character database is
+  UCD 15.0.0 while the current `confusables.txt` is 17.0.0, and **41 of the 483 characters a full
+  table would carry are codepoints this interpreter cannot even name**. A vendored table would fold
+  glyphs the runtime does not know, and would drift again at every Unicode release. Determinism is
+  the property the fourth addendum bought the curated table for in the first place.
+- **The set is confusables, not twins.** UTS-39's mixed-script any-case mapping is deliberately
+  loose: it maps Cyrillic `ш` to `w`, `б` to `6`, `з` to `3` and `г` to `r`. Folding those merges
+  hosts no reader confuses, which is over-redaction buying no catch, in a defence whose whole value
+  is that both sides fold the same way.
+- **It is a dependency in a local-first assistant**, whether taken as a package or vendored as
+  745 KB of table. The repo's URL layer has stayed stdlib-only through eleven addenda, and the
+  seventh addendum already declined the same shape once by finding punycode in the stdlib.
+
+### The decision, and the residue that is honest about it
+
+The full set is **declined**. The curated table stays as it is: a small, high-confidence,
+deterministic fold that covers the homoglyphs a person actually meets, sitting after NFKC so it
+inherits the 52% the stdlib already does. The entry is not deferred any longer, because deferring
+it implied it was work waiting on a blocker, and the measurement says the blocker was never the
+dependency.
+
+What the pass leaves behind is not a bigger table but a sharper statement of where the boundary
+is, and it is worth writing down because it is the opposite of what the deferral assumed: **against
+a chosen homoglyph the default policy's identity comparison is not a boundary at any table size,
+and strict mode is.** That is a policy question rather than a grammar one, so it is recorded as its
+own entry rather than answered here. It reopens this row only in one circumstance: a measurement
+showing a deployed model reproducing a *specific* confusable often enough to name, at which point
+the answer is that character in the curated table, which is one edit, and still not the full set.
