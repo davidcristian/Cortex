@@ -19,6 +19,7 @@ from cortex_core.events import TextDelta, ToolActivity, ToolOutcome, TurnEvent
 from cortex_core.guardrail import OutputFilter
 from cortex_core.loop_events import ReasoningDelta, StepOutcome, ToolStep
 from cortex_core.output_channels import ThinkingChannel
+from cortex_core.stops import StopLedger
 from cortex_core.turn_context import TurnCapabilities
 from cortex_core.untrusted import TaintLedger
 
@@ -27,6 +28,36 @@ _logger = logging.getLogger(__name__)
 # One turn's two guarded output channels: the reply filter (``None`` when unguarded) and the
 # thinking status channel, as ``open_output_channels`` returns them.
 type OutputChannels = tuple[OutputFilter | None, ThinkingChannel]
+
+# What a user is told when their own answer stopped at a token limit rather than at its own end
+# (ADR-0005 capped-reply addendum). App-authored like every swap note, so it needs no guardrail
+# pass, and phrased without naming which limit: a request's ``max_tokens`` and the server's
+# context window are indistinguishable on the wire and equally cut (ADR-0005 decision that a stop
+# says a token limit ended it and nothing finer). It leads with the same blank line the swap notes
+# do, so it reads as a note under the reply rather than as its last sentence.
+REPLY_CAPPED_NOTE = (
+    "\n\n(This answer stopped at the machine's length limit, so it is cut off rather than "
+    "finished. Ask again, or ask for a shorter answer.)"
+)
+
+
+def cap_note(stops: StopLedger, parts: list[str]) -> Iterator[TurnEvent]:
+    """Say so when one of this turn's completions was cut, appending the note to ``parts``.
+
+    The honesty half of a bounded reply, and the one thing a user-facing cap may not do without:
+    a truncated answer that says nothing about being truncated is read as a short answer, which is
+    the same misreading ``StopLedger`` exists to stop on the delegated path. The delegated path can
+    refuse outright, because a delegated reply is read whole by a model; a user is already watching
+    the text arrive, so what is owed here is a sentence under it rather than a refusal.
+
+    It joins ``parts``, so the note is persisted with the reply exactly as ``BRAIN_FAILED_NOTE``
+    is and for the same reason: it explains text the user can still see in their history. A turn
+    whose backend reported no stop at all emits nothing, silence never being read as a cap.
+    """
+    if not stops.capped:
+        return
+    parts.append(REPLY_CAPPED_NOTE)
+    yield TextDelta(text=REPLY_CAPPED_NOTE)
 
 
 def render_exchange(user_text: str, assistant_text: str) -> str:

@@ -146,6 +146,12 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   bundles all four declarations (`gated` + `cost_policy` + `salience_policy` +
   `gate_reason_map`) into the one
   `DispatchPolicy` value every dispatcher in the process is built with.
+- `ReplyBoundsConfig` uses env prefix `CORTEX_REPLY_` (`config_reply.py`, ADR-0005 capped-reply
+  addendum): `CORTEX_REPLY_MAX_TOKENS` (0, meaning no cap) and `CORTEX_REPLY_THINKING` (true) are
+  the two bounds a user-facing reply may carry, and `bounds()` reduces the unset pair to `None` so
+  the request stays byte-identical. The composition root reads it once and hands the value to both
+  `TurnEngine` and `BrainPhase`, one turn keeping one bound across a handoff. The two are set
+  together or not at all: a cap with thinking left on empties the reply rather than shortening it.
 - `SwapConfig` uses env prefix `CORTEX_` (`config_swap.py`, ADR-0030), the brain handoff's one
   switch and the topology it enables: `escalation: bool = False` (`CORTEX_ESCALATION`) gates the
   whole capability, so CI and the GPU-less loop are byte for byte what they were without it;

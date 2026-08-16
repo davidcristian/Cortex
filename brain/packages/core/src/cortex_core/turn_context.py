@@ -18,6 +18,7 @@ from cortex_core.errors import EmbedderError, MemoryDataError, MemoryStoreError
 from cortex_core.events import StatusUpdate
 from cortex_core.guardrail import OutputGuardrail
 from cortex_core.handoff import EscalationSlot
+from cortex_core.inference import GenerationBounds
 from cortex_core.memory import ScoredMemory
 from cortex_core.ports import Clock
 from cortex_core.progress import ProgressSink
@@ -75,6 +76,13 @@ class TurnCapabilities:
     brief. Unlike the stream-lived ``progress``, a slot serves exactly ONE turn (the escalating
     wrapper constructs a fresh inner engine, and slot, per turn); ``None`` (the default) is
     every escalation-less deployment, where the tool refuses honestly if somehow called.
+    ``bounds`` (ADR-0005 capped-reply addendum) is how far each of the turn's completions may
+    decode and whether the model may deliberate first, the deployment's own pair. ``None`` (the
+    default) sends neither key, which is the request this repo has always sent, so the bound a
+    user actually meets stays the server's context window; either way the turn says so when one of
+    them cut the reply. It rides the bundle rather than each engine's arguments because it applies
+    to the whole turn, the deep phase that continues it included, and because both engines are at
+    their argument ceiling.
     """
 
     memory: MemoryRecaller | None = None
@@ -85,6 +93,7 @@ class TurnCapabilities:
     generate_titles: bool = False
     progress: ProgressSink | None = None
     escalation: EscalationSlot | None = None
+    bounds: GenerationBounds | None = None
 
 
 def _render_memory_context(hits: Sequence[ScoredMemory], *, nonce: str, taint: TaintLedger) -> str:
