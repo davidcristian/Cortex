@@ -114,3 +114,34 @@ structural guarantee (a well-formed single-`reply` envelope) as the robust invar
 run's clean reply. The integration-marked
 `test_constrained_decoding_kills_format_laundering_on_the_weak_tier` asserts both halves and
 passed in ~7 s; recipe in [subagents-cpu.md](../runbooks/subagents-cpu.md).
+
+## Addendum (2026-08-16): the GBNF alternative priced, and it is not a keyword
+
+Prices the first of this ADR's deferrals, the raw GBNF `grammar` alternative to the JSON envelope.
+It stays open and nothing changes in the tree, but two things about it were wrong in the backlog
+and both are worth correcting where the next reader will look.
+
+**Its trigger was recorded here all along.** The backlog entry carried none, while the deferred
+list above says "only if a non-JSON shape is ever wanted". Written as an event rather than a
+condition, that is the first constrained caller whose output shape JSON cannot express, and the
+entry now carries it.
+
+**Its bucket was wrong, because nothing bites.** The constraint that shipped does the whole job
+this ADR asked of it, so what is missing is a consumer, which is the state its twin from the same
+deferred list (the per-task caller schema) was already filed in. The seam has in fact gained a
+second constrained caller since, and it argues for the envelope rather than against it: the ranked
+recall's rerank judge passes an `ORDER_ENVELOPE` of `{"order": [int]}` through `drain_text`. So
+decision 1's "None (every caller today)" is out of date, and both callers that arrived are ordinary
+JSON objects.
+
+**And the cost is not the additive keyword decision 1 shipped.** The port carries `schema:
+JsonSchema | None`, where `JsonSchema` is a `Mapping[str, object]`; a GBNF grammar is a string, so
+it does not type-check, and `build_payload` wraps a present schema unconditionally into
+`response_format.json_schema` with `name` and `strict` fixed, there being no free-form sampling
+slot anywhere on that path. An alternative therefore needs the port widened, a branch in the
+request builder, and a second settle path beside `unwrap_envelope`, which parses JSON and nothing
+else; `settle_reply`'s ordering (a cap first, then the unconstrained pass-through, then the unwrap)
+would have to grow a third shape. None of that is hard and all of it is unowed, which is exactly
+what a dead-until-a-consumer entry is for. Decision 3's composition hazard is unchanged and still
+covers it: both subagent servers run with `--jinja`, so any grammar this seam sends stays gated to
+the tool-less path.

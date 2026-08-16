@@ -99,8 +99,9 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   defense behind the tool seams (Slice 6.5) via fail-closed `Trust` on `ToolResult`, a static
   security preamble + nonce-delimited per-result wrap, a turn-local `TaintLedger` in the shared
   loop (propagating subagent → cortex), `ToolSpec.gated` + a dispatcher gate + the one new
-  `Confirmer` port (inert until the first outbound tool), memory-suppress on taint; the screening
-  subagent and the real overlay confirmation adapter deferred.
+  `Confirmer` port (inert until the first outbound tool), memory-suppress on taint; the real
+  overlay confirmation adapter deferred, and the screening subagent since declined, its verdict
+  having nowhere to land that would not put a model's opinion where the gate is.
 - [ADR-0014: Session-history windowing](adr/ADR-0014-history-windowing.md): the Slice-3
   deferral landed as a pure `HistoryWindow` seam in `TurnCapabilities` with a turn-aligned
   char-budget tail (`CharBudgetHistoryWindow`, `CORTEX_HISTORY_CHAR_BUDGET`, on by default,

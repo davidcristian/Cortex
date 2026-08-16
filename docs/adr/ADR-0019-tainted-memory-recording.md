@@ -158,3 +158,33 @@ password manager to be summarized into Postgres.
 
 A per-source policy that could record a vision turn deliberately is recorded as a deferral in
 `docs/refinements/index.md#vision`.
+
+## Addendum (2026-08-16): per-provenance eviction priced, and it is short two things, not one
+
+Prices this ADR's per-provenance eviction deferral. It stays open, no code changes, and the
+correction is to this ADR's own framing: the heading over the deferred list says "behind the
+unchanged `MemoryStore` / `MemoryScope` / `MemoryRecaller` / `TaintLedger` seams", and for this
+item that is not true.
+
+**The filter half is the one everybody wrote down.** A `MemoryRecord` carries `id`, `text`,
+`embedding`, `at`, `scope` and `tainted`, the Postgres table carries those same columns behind a
+single `memories_scope_idx`, and structured provenance lives entirely in the pure core on a ledger
+whose own docstring says it is reconstructed each turn and never persisted. It reaches a store in
+exactly one place, the mid-turn `HandoffRecord`, whose terminal form expires in an hour. So there
+is no column to filter on and no index that would serve one, which is what the
+[ADR-0008](ADR-0008-memory-v1.md) delete-verb addendum already said from the memory side.
+
+**The half nobody wrote down is that there is no verb either.** `delete_scope` is the only removal
+on the port, it is string equality on one namespace with no wildcard by deliberate design, and its
+single caller is the session-delete cascade. Eviction by anything other than a scope is a new
+predicate delete, which is a port change and not a policy written behind an unchanged one. That is
+the same shape the standing warning in the backlog was written about, and it is recorded here so
+the heading above stops implying otherwise.
+
+**The bucket follows from that, and the code says so itself.** `provenance.py` opens by naming its
+two designed-for and unbuilt consumers, the confirmation card and per-provenance eviction, and
+`SourceKind.attested` exists so that eviction by a claimed sender cannot sweep a URI that spells
+the same string. The design is finished; nothing has ever asked it to run. The entry moves from
+fix-when-it-bites to dead-until-a-consumer and gains the trigger it never had: a source found
+hostile after the fact, whose derived memories must be forgotten by where they came from rather
+than by the scope they landed in.
