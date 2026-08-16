@@ -1,16 +1,19 @@
-"""The host-facing half of a residency swap: which moves, in which order (ADR-0030 decision 4).
+"""The host-facing half of a residency swap: what the host is asked, in which order (ADR-0030 d4).
 
 Split out of ``residency.py`` for the line cap, along the seam that module's docstring already
 draws: ``SwappingModelManager`` owns *when* the GPU may change hands and who may lease what,
-while this owns *what the host is asked to do* once it may. Both halves are pure policy over the
+while this owns *what the host is asked* once it may. Both halves are pure policy over the
 injected ``ModelHost``; neither knows how a model process is actually started, and the readiness
 gate arrives as a callable so the manager keeps owning its own bounds.
 
-Two moves, with deliberately opposite failure directions. Swapping in is all or nothing: any
-host failure, or a model that will not gate, becomes a ``SwapFailedError`` and the caller's
-``finally`` restores. Restoring answers a bool instead, because its caller retries it and only
-gives up loudly after that, and because the swap back is the recovery path: it must not raise
-its way out of the very thing it is recovering.
+Two moves, with deliberately opposite failure directions, and above them the one question a
+caller asks before committing to either. Swapping in is all or nothing: any host failure, or a
+model that will not gate, becomes a ``SwapFailedError`` and the caller's ``finally`` restores.
+Restoring answers a bool instead, because its caller retries it and only gives up loudly after
+that, and because the swap back is the recovery path: it must not raise its way out of the very
+thing it is recovering. The question (``is_unhosted``) answers a bool for a third reason of its
+own: a swap that cannot possibly work should be refused before it starts rather than discovered
+halfway through itself, with the cortex already unloaded and minutes owed to putting it back.
 
 The last step of the second move, ``restart_evicted``, is public because boot recovery ends the
 same way (``swap_recovery.py``): putting the standing residency's peers back is one move written
@@ -30,6 +33,36 @@ from cortex_core.residency_tiers import StandingTiers
 type ReadinessGate = Callable[[str], Awaitable[ModelHostState]]
 
 _logger = logging.getLogger(__name__)
+
+
+async def is_unhosted(host: ModelHost, model: str) -> bool:
+    """Whether this host says it carries no such logical model at all.
+
+    The question a handoff asks before it spends anything, and it is asked rather than remembered
+    because of who owns the answer: a roster is env one supervisor process read at its own boot,
+    so the verdict is about the daemon answering right now and about no other. Re-deriving it
+    costs one ``status`` on a tier that is stopped, which is less than the machinery any cache of
+    it would need to stay safe across the restart that changes it.
+
+    ``True`` only for the host's own narrow refusal. Every other failure means the question went
+    unanswered, and an unanswered question must not read as a refusal: over-refusing here would
+    turn one unreachable moment into "this deployment cannot escalate", while a swap that goes
+    ahead against a host that is really down fails at its very next move and reports the failure
+    that really happened.
+    """
+    try:
+        await host.status(model)
+    except ModelNotHostedError:
+        return True
+    except ModelHostError as err:
+        _logger.warning(
+            "the model host could not be asked whether it serves %r, so the handoff was not "
+            "refused on that ground: error=%s",
+            model,
+            err,
+            extra={"model": model, "error": str(err)},
+        )
+    return False
 
 
 async def swap_in(host: ModelHost, plan: ResidencyPlan, model: str, gate: ReadinessGate) -> None:

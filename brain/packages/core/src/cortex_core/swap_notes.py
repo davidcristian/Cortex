@@ -32,6 +32,13 @@ LOADING_DETAIL = "loading the deep model; this takes a few minutes"
 WORKING_DETAIL = "the deep model is working on this"
 RESTORING_DETAIL = "bringing the usual assistant back"
 
+# A deployment that turned escalation on and gave its model host no deep tier to load. Every
+# handoff it is ever asked for ends here, so the note says the thing that will still be true
+# tomorrow rather than inviting a retry: what is missing is a machine setting, not a moment.
+UNHOSTED_TIER_NOTE = (
+    "\n\n(This machine has no deep model set up, so the handoff was not started and nothing was "
+    "unloaded. The answer above is what I have.)"
+)
 ALREADY_ACTIVE_NOTE = (
     "\n\n(A handoff to the deep model is already running, so this one was not started. "
     "Nothing was unloaded; ask again once the other one finishes.)"

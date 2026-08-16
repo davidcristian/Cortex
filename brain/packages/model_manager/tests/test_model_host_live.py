@@ -10,18 +10,25 @@ the real signal escalation against processes that actually exist, which is the h
 cannot prove (that SIGTERM reaches a real process, that a process ignoring it is killed, and that
 ``stop`` does not return until the OS has reaped it).
 
-The remaining two need the ``model-host`` sidecar up with the control API reachable:
+The rest need the ``model-host`` sidecar up with the control API reachable:
 
     just up-modelhost-loopback
     just brain-modelhost-live
 
-The first of those starts, health-gates and stops one real ``llama-server`` through the real
-adapter and the real health gate. The second is the swap itself: a real ``SwappingModelManager``
-residency scope over the real adapter, so entering the scope genuinely evicts one model's process
-and loads another's, and leaving it genuinely restores the first. Both leave the sidecar as they
-found it, and neither asserts anything about VRAM arithmetic or tier scale: the dev GPU cannot
-hold the real cortex beside a real deep model, so that half is host-side by design
+One of them starts, health-gates and stops a real ``llama-server`` through the real adapter and
+the real health gate. Another is the swap itself: a real ``SwappingModelManager`` residency scope
+over the real adapter, so entering the scope genuinely evicts one model's process and loads
+another's, and leaving it genuinely restores the first. One more is the opposite of a swap, and
+the only one that runs on the shipped defaults: a deep tier no roster has, refused by the
+precondition without the standing tier being touched at all. They all leave the sidecar as they
+found it, and none asserts anything about tier scale: the dev GPU cannot hold the real cortex
+beside a real deep model, so that half is host-side by design
 (``docs/runbooks/model-swap.md``).
+
+Measured over the real sidecar on 2026-08-16, which is what the precondition is worth: with the
+deep tier absent from the roster, a residency scope stopped the real cortex, met the 404 at the
+``start``, and spent 29.7 s reloading the cortex, while the conductor asked first and refused in
+under 0.01 s with the cortex never leaving READY.
 
 Distrust-green, measured against the running sidecar rather than argued: deleting
 ``residency_moves.swap_in``'s ``stop`` of the standing resident reddens
@@ -44,6 +51,7 @@ from cortex_core import (
     AsyncioSleeper,
     ModelHostError,
     ModelHostState,
+    ModelNotHostedError,
     Placement,
     PlacementRequest,
     PlacementTarget,
@@ -296,6 +304,59 @@ async def test_a_coresident_scope_leaves_its_peer_serving_beside_the_deep_model(
             assert await host.status(peer) is ModelHostState.READY
         assert await host.status(standing) is ModelHostState.READY
         assert await host.status(peer) is ModelHostState.READY
+    finally:
+        await client.aclose()
+
+
+@pytest.mark.integration
+async def test_a_stock_sidecar_answers_the_escalation_precondition_without_touching_a_thing() -> (
+    None
+):
+    """The refusal's evidence, taken from a real daemon rather than from the twin.
+
+    The shipped defaults name no deep artifact, so the tier is not in the sidecar's roster and
+    every verb answers 404 for it. That is the deployment this precondition exists for, and the
+    claim it rests on is not a CI claim: it is that a **real** supervisor refuses an id its own
+    env never named, and that the adapter turns that one refusal into the narrow error rather
+    than into the broad one every unreachable host also raises.
+
+    What the manager then does with the answer is asserted over the twin (the conductor suite),
+    because it is pure policy. What can only be seen here is the other half: asking costs one
+    ``GET`` and leaves the standing tier exactly where it was, which is the whole difference from
+    the swap that used to discover the same fact with the cortex already unloaded.
+
+    Skips when the sidecar **does** host a deep tier, the inverse of the swap cases above: this
+    one is about the stock stack, and a deployment that named an artifact has nothing to refuse.
+    """
+    endpoint = os.environ.get("CORTEX_MODELHOST_ENDPOINT")
+    if not endpoint:
+        pytest.skip("set CORTEX_MODELHOST_ENDPOINT to a running model-host sidecar")
+    standing = os.environ.get("CORTEX_MODEL_CORTEX", "cortex")
+    deep = os.environ.get("CORTEX_MODEL_BRAIN", "brain")
+    client = httpx.AsyncClient(timeout=httpx.Timeout(_CONTROL_TIMEOUT_S))
+    host = HttpModelHost(endpoint, client)
+    plan = ResidencyPlan(cortex_model=standing, brain_model=deep, load_timeout_s=300.0)
+    manager = SwappingModelManager(
+        host,
+        {standing: "http://127.0.0.1:8080", deep: "http://127.0.0.1:8081"},
+        plan,
+        _SystemClock(),
+        AsyncioSleeper(),
+    )
+    try:
+        try:
+            await host.status(deep)
+        except ModelNotHostedError:
+            pass
+        else:
+            pytest.skip(f"the sidecar hosts a deep tier {deep!r}, so there is nothing to refuse")
+        await host.start(standing)
+        assert await _settled(host, standing) is ModelHostState.READY
+        assert await manager.unhosted(deep) is True
+        # The half only a real daemon can witness: the question changed nothing. A swap that had
+        # gone ahead would have this tier STOPPED right now and owe minutes to reload it.
+        assert await host.status(standing) is ModelHostState.READY
+        assert manager.residency() == RESIDENCY_SERVING
     finally:
         await client.aclose()
 
