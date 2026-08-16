@@ -7,7 +7,12 @@ resolving.
 
 The seam is which half each side owns. This module is the vocabulary two collaborators share:
 ``PlacedAttempt`` writes an outcome and ``SubagentRunner`` reads one to decide whether to re-place,
-so neither owns it. What stays next to the attempt is the running.
+so neither owns it. What stays next to the attempt is the running. The refusal templates every
+failure reports as its ``detail`` moved here with it, when carrying a finish reason across the
+inference port took the attempt past the line cap (ADR-0005 finish-reason addendum): they are the
+``detail`` field's own contents, ``reran_on_cpu`` already folds two of them into a third, and half
+a vocabulary living beside the writer and half beside the reader is the split neither collaborator
+wanted.
 
 ``AttemptFailure`` is the whole reason an outcome is not a bare ``ok`` flag. A backend that did not
 answer is worth trying elsewhere; a model that answered outside its grammar, or one still talking
@@ -18,11 +23,67 @@ model load on either of those to be told the same thing.
 from dataclasses import dataclass
 from enum import Enum
 
+__all__ = [
+    "GENERATION_CAP_BOUND",
+    "GENERATION_CAP_MSG",
+    "GENERATION_DEADLINE_MSG",
+    "INNER_TIMEOUT_MSG",
+    "MALFORMED_ENVELOPE_MSG",
+    "AttemptFailure",
+    "AttemptOutcome",
+    "cap_detail",
+    "reran_on_cpu",
+]
+
 # What the store records about a re-placed run. ADR-0030 asks for the re-place to be recorded in
 # the result's detail, and a bare copy of either attempt's reason would hide that two loads were
 # spent on one task, which is the whole thing an operator reading a slow spawn wants to see.
 _RERAN_AND_ANSWERED = "the GPU attempt failed ({first}); re-ran on the CPU, which answered"
 _RERAN_AND_FAILED = "the GPU attempt failed ({first}); the CPU re-run failed too ({second})"
+
+MALFORMED_ENVELOPE_MSG = "subagent produced a malformed constrained reply"
+
+# What the cortex reads when an attempt outran the deadline a delegated run is given (ADR-0005
+# total-cap addendum). Phrased like the runner's refusal template rather than like an answer: the
+# fragment on the outcome is what the model had said when the clock ran out, mid-sentence by
+# construction, so the guidance is to treat the subtask as unanswered and narrow it, never to read
+# the fragment as a short result. The bound is named in the message for the same reason the
+# admission wait names its own: the reader lands on the knob without going hunting.
+GENERATION_DEADLINE_MSG = (
+    "the subtask was still generating after {timeout_s:g}s, the whole a delegated run is given, "
+    "and was stopped where it stood; a run that reaches this bound is talking rather than "
+    "working, so treat the subtask as unanswered and narrow it before delegating it again"
+)
+
+# What a bare ``TimeoutError`` from inside the run means, as opposed to the deadline above. A
+# socket that timed out or a tool that raised one is the backend failing to answer, which is the
+# retryable shape, so it is reported as one rather than as a bound this attempt never reached.
+INNER_TIMEOUT_MSG = "the subtask timed out below the delegated run's own deadline"
+
+# What the cortex reads when a completion of the attempt stopped at a token limit rather than at an
+# end of its own (ADR-0005 finish-reason addendum), which the backend now says out loud. Phrased
+# like the deadline's refusal and for the same reason: the fragment on the outcome stops where the
+# count ran out, mid-sentence by construction, so a reader must not take it for a short answer.
+# What it does NOT claim is which limit, because the wire cannot tell a request's own cap from the
+# server's context window and both cut the same way.
+GENERATION_CAP_MSG = (
+    "the subtask stopped at a token limit rather than at an answer, so the reply is cut where the "
+    "count ran out; a run that reaches such a limit is talking rather than working, so treat the "
+    "subtask as unanswered and narrow it before delegating it again"
+)
+
+# Appended to the message above only when this deployment set a cap of its own, so the reader lands
+# on the knob the way the deadline's message leaves them on one. An unbounded attempt appends
+# nothing, for the reason the deadline arm asks ``expired()`` first: quoting a bound that does not
+# exist would send the reader after a number nobody chose.
+GENERATION_CAP_BOUND = " (this run's own cap is {max_tokens:d} decoded tokens per completion)"
+
+
+def cap_detail(max_tokens: int | None) -> str:
+    """The capped-run refusal, naming this deployment's cap when it set one."""
+    if max_tokens is None:
+        return GENERATION_CAP_MSG
+    return GENERATION_CAP_MSG + GENERATION_CAP_BOUND.format(max_tokens=max_tokens)
 
 
 class AttemptFailure(Enum):

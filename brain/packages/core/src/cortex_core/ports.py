@@ -80,11 +80,14 @@ class InferenceBackend(Protocol):
     ``bounds`` (ADR-0038 cheap-fold addendum) is how far this one request lets the model go, per
     REQUEST because one resident cortex both answers the user, where deliberation earns its wait,
     and folds a recap, where it is discarded unread. Failures surface as ``InferenceError``.
-    **A backend whose engine reports how fast it decoded closes the stream with one
-    ``DecodeCadence``** (ADR-0030 spill-watch addendum), after the text it describes, since a rate
-    is only knowable once the tokens are counted. Reporting none is a legitimate implementation of
-    this port and says only that the engine offered no figure, so no consumer may read silence as
-    a healthy rate.
+    **A backend whose engine says why a completion ended closes it with one ``DecodeStop``**
+    (ADR-0005 finish-reason addendum) and **a backend whose engine reports how fast it decoded
+    closes the stream with one ``DecodeCadence``** (ADR-0030 spill-watch addendum), in that order
+    and both after the text they describe, since neither is knowable until the tokens are counted.
+    Reporting either is optional and the two are independent, an engine that offers no timings
+    still being able to say what stopped it. Silence is a legitimate implementation of both and
+    says only that the engine offered nothing, so no consumer may read a missing cadence as a
+    healthy rate or a missing stop as a model that finished.
     """
 
     def stream(

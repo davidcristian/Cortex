@@ -20,6 +20,7 @@ from cortex_core import (
     ROUND_OVERSIZED_MSG,
     CadenceWatch,
     DecodeCadence,
+    DecodeStop,
     DispatchPolicy,
     EscalationSlot,
     GenerationBounds,
@@ -33,6 +34,8 @@ from cortex_core import (
     Role,
     SaliencePolicy,
     SourceKind,
+    StopLedger,
+    StopReason,
     TaintLedger,
     TextChunk,
     ToolCall,
@@ -768,4 +771,47 @@ async def test_a_caller_with_no_watch_drops_the_cadence_and_keeps_streaming() ->
     context = _context(RecordingAuditSink(), budget=4)
     assert context.cadence is None
     yielded = [event async for event in stream_tool_loop(_CadencedBackend(), "m", [], context)]
+    assert yielded == ["answer"]
+
+
+class _StoppingBackend:
+    """Streams a reply and closes it with the server's stop reason, once per round."""
+
+    def __init__(self, reason: StopReason) -> None:
+        self._reason = reason
+
+    async def stream(
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
+    ) -> AsyncIterator[InferenceEvent]:
+        del model, messages, tools, schema, bounds
+        yield TextChunk("answer")
+        yield DecodeStop(self._reason)
+
+
+async def test_a_stop_reaches_a_ledger_keeping_caller_and_never_the_stream() -> None:
+    """The delegated run's shape: the reason is collected, the turn's text untouched by it."""
+    ledger = StopLedger()
+    context = replace(_context(RecordingAuditSink(), budget=4), stops=ledger)
+    backend = _StoppingBackend(StopReason.CAPPED)
+    yielded = [event async for event in stream_tool_loop(backend, "m", [], context)]
+    assert yielded == ["answer"]
+    assert ledger.capped
+
+
+async def test_a_caller_with_no_ledger_drops_the_stop_and_keeps_streaming() -> None:
+    """Every cortex turn: the arm must cost a caller that ignores it nothing.
+
+    Without the loop's own branch this reddens loudly rather than subtly, the event falling
+    through to the text arm and having no ``text`` at all.
+    """
+    context = _context(RecordingAuditSink(), budget=4)
+    assert context.stops is None
+    backend = _StoppingBackend(StopReason.FINISHED)
+    yielded = [event async for event in stream_tool_loop(backend, "m", [], context)]
     assert yielded == ["answer"]

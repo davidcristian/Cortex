@@ -43,6 +43,7 @@ import pytest
 
 from cortex_core import (
     AttemptBounds,
+    DecodeStop,
     GenerationBounds,
     InferenceBackend,
     InferenceError,
@@ -55,6 +56,7 @@ from cortex_core import (
     ResourceBudgetScheduler,
     SingleResidentModelManager,
     SpawnSubagentsTool,
+    StopReason,
     SubagentProfile,
     SubagentResources,
     SubagentRoster,
@@ -594,6 +596,190 @@ async def test_an_unbounded_attempt_sends_the_request_this_repo_has_always_sent(
         result = await runner.run("t1")
     assert result.output == "a short answer"
     assert backend.bounds_seen == [None]
+
+
+# --- the cap reported on the wire (ADR-0005 finish-reason addendum) --------------------------
+#
+# The cap above bounds a completion; these are about the deployment being able to SEE that it
+# fired. Before the port carried a finish reason the two capped cases below came back as an
+# ``ok=True`` short answer and as ``MALFORMED``, which named the model rather than the limit.
+
+
+async def test_a_capped_completion_is_reported_as_cut_rather_than_answered() -> None:
+    """The trigger itself: a reply the server stopped must not read as one the model finished.
+
+    The fragment is still persisted, exactly as the deadline's is, so an operator can read what
+    was produced; what the cortex gets is the refusal.
+    """
+    store = InMemoryTaskStore()
+    await _stored_task(store)
+    backend = RecordingBackend(
+        [[TextChunk("the sea is a large body of wat"), DecodeStop(StopReason.CAPPED)]]
+    )
+    runner = _runner(
+        store,
+        _resources(
+            backend,
+            scheduler=ResourceBudgetScheduler(4.0, 8.0),
+            placer=VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0),
+        ),
+        bounds=AttemptBounds(max_tokens=1024, timeout_s=_SUITE_BOUND_S),
+    )
+    async with asyncio.timeout(_SUITE_BOUND_S):
+        result = await runner.run("t1")
+    assert result.ok is False
+    assert "stopped at a token limit" in result.detail
+    assert "1024 decoded tokens per completion" in result.detail
+    stored = await store.get_result("t1")
+    assert stored is not None
+    assert stored.output == "the sea is a large body of wat"
+
+
+async def test_a_completion_that_finished_is_still_an_answer() -> None:
+    """The other half, without which the check above passes on a backend that fails everything."""
+    store = InMemoryTaskStore()
+    await _stored_task(store)
+    backend = RecordingBackend([[TextChunk("blue."), DecodeStop(StopReason.FINISHED)]])
+    runner = _runner(
+        store,
+        _resources(
+            backend,
+            scheduler=ResourceBudgetScheduler(4.0, 8.0),
+            placer=VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0),
+        ),
+        bounds=AttemptBounds(max_tokens=1024, timeout_s=_SUITE_BOUND_S),
+    )
+    async with asyncio.timeout(_SUITE_BOUND_S):
+        result = await runner.run("t1")
+    assert result.ok is True
+    assert result.output == "blue."
+
+
+async def test_a_backend_that_reports_no_reason_at_all_still_answers() -> None:
+    """Silence is a legal answer at the port, so it must not become a refusal here.
+
+    A build that says nothing about why it stopped is the world this repo shipped before the
+    reason crossed the port, and it keeps behaving exactly as it did.
+    """
+    store = InMemoryTaskStore()
+    await _stored_task(store)
+    backend = RecordingBackend([[TextChunk("a quiet answer.")]])
+    runner = _runner(
+        store,
+        _resources(
+            backend,
+            scheduler=ResourceBudgetScheduler(4.0, 8.0),
+            placer=VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0),
+        ),
+        bounds=AttemptBounds(max_tokens=1024, timeout_s=_SUITE_BOUND_S),
+    )
+    async with asyncio.timeout(_SUITE_BOUND_S):
+        result = await runner.run("t1")
+    assert result.ok is True
+    assert result.output == "a quiet answer."
+
+
+async def test_an_unbounded_run_that_a_server_capped_quotes_no_bound_of_its_own() -> None:
+    """The context window can cut a run this deployment never capped, and the wire cannot tell
+    the two apart, so the refusal names the limit it saw and no number nobody chose."""
+    store = InMemoryTaskStore()
+    await _stored_task(store)
+    backend = RecordingBackend([[TextChunk("cut by the context"), DecodeStop(StopReason.CAPPED)]])
+    runner = _runner(
+        store,
+        _resources(
+            backend,
+            scheduler=ResourceBudgetScheduler(4.0, 8.0),
+            placer=VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0),
+        ),
+        bounds=AttemptBounds(),
+    )
+    async with asyncio.timeout(_SUITE_BOUND_S):
+        result = await runner.run("t1")
+    assert result.ok is False
+    assert "stopped at a token limit" in result.detail
+    assert "this run's own cap" not in result.detail
+
+
+async def test_a_cap_that_lands_mid_envelope_is_reported_as_the_cap() -> None:
+    """The precedence the deadline already keeps, in the other unit.
+
+    A constrained reply cut by the server leaves an envelope that will not parse, and calling that
+    a malformed grammar sends the reader to the model instead of to the limit.
+    """
+    store = InMemoryTaskStore()
+    await _stored_task(store)
+    backend = RecordingBackend(
+        [[TextChunk('{"reply": "half a sen'), DecodeStop(StopReason.CAPPED)]]
+    )
+    runner = _runner(
+        store,
+        _resources(
+            backend,
+            scheduler=ResourceBudgetScheduler(4.0, 8.0),
+            placer=VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0),
+        ),
+        bounds=AttemptBounds(max_tokens=64, timeout_s=_SUITE_BOUND_S),
+        constrain_output=True,
+    )
+    async with asyncio.timeout(_SUITE_BOUND_S):
+        result = await runner.run("t1")
+    assert result.ok is False
+    assert "stopped at a token limit" in result.detail
+    assert "malformed" not in result.detail
+
+
+async def test_a_capped_gpu_attempt_is_not_re_run_on_the_cpu() -> None:
+    """A tier that filled its token budget will fill it again, and the slower one is worse.
+
+    Same argument the deadline's own re-place case makes, keyed on the same failure kind.
+    """
+    store = InMemoryTaskStore()
+    await _stored_task(store)
+    capped = [[TextChunk("cut"), DecodeStop(StopReason.CAPPED)]]
+    gpu, cpu = RecordingBackend(capped), RecordingBackend(capped)
+    runner = _runner(
+        store,
+        _resources(
+            gpu,
+            scheduler=ResourceBudgetScheduler(4.0, 8.0),
+            placer=VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0),
+            cpu=cpu,
+        ),
+        bounds=AttemptBounds(max_tokens=64, timeout_s=_SUITE_BOUND_S),
+    )
+    async with asyncio.timeout(_SUITE_BOUND_S):
+        result = await runner.run("t1")
+    assert result.ok is False
+    assert gpu.bounds_seen == [GenerationBounds(max_tokens=64)]
+    assert cpu.bounds_seen == []  # never re-placed
+
+
+async def test_one_capped_round_of_a_tool_loop_cuts_the_whole_attempt() -> None:
+    """The ledger folds across completions, so a later clean round cannot bury an earlier cut."""
+    store = InMemoryTaskStore()
+    await _stored_task(store)
+    backend = RecordingBackend(
+        [
+            [ToolCall(id="c1", name="lookup", arguments={}), DecodeStop(StopReason.CAPPED)],
+            [TextChunk("done."), DecodeStop(StopReason.FINISHED)],
+        ]
+    )
+    dispatcher = ToolDispatcher(AnsweringToolRegistry(), RecordingAuditSink(), FixedClock())
+    runner = _runner(
+        store,
+        _resources(
+            backend,
+            scheduler=ResourceBudgetScheduler(4.0, 8.0),
+            placer=VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0),
+        ),
+        bounds=AttemptBounds(max_tokens=64, timeout_s=_SUITE_BOUND_S),
+        tools=dispatcher,
+    )
+    async with asyncio.timeout(_SUITE_BOUND_S):
+        result = await runner.run("t1")
+    assert result.ok is False
+    assert "stopped at a token limit" in result.detail
 
 
 # --- the value ------------------------------------------------------------------------------

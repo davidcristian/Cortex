@@ -42,7 +42,7 @@ from collections.abc import AsyncGenerator
 
 from cortex_core.conversation import Message
 from cortex_core.dispatch_round import ToolLoopContext, run_round
-from cortex_core.inference import DecodeCadence, ReasoningChunk
+from cortex_core.inference import DecodeCadence, DecodeStop, ReasoningChunk, TextChunk
 from cortex_core.loop_events import ReasoningDelta, StepOutcome, ToolStep
 from cortex_core.ports import InferenceBackend
 from cortex_core.tool_round import call_message, plan_round
@@ -55,6 +55,28 @@ __all__ = ["MAX_TOOL_STEPS", "ToolLoopContext", "stream_tool_loop"]
 # Upper bound on inference↔tool rounds in one loop (ADR-0009): a safety net against a model
 # that never stops calling tools. On exhaustion the loop ends with the text produced so far.
 MAX_TOOL_STEPS = 8
+
+
+def _reply_text(
+    event: TextChunk | DecodeCadence | DecodeStop, context: ToolLoopContext
+) -> str | None:
+    """The reply text an event carries, or ``None`` once it has been absorbed as a machine fact.
+
+    The two closing events describe the machine rather than the turn: how fast it decoded
+    (ADR-0030 spill-watch addendum) and why it stopped (ADR-0005 finish-reason addendum). Neither
+    is something the turn said, so neither is ever yielded into a stream a user reads; each goes to
+    the collaborator on the context that asked for it, and a caller that handed none drops it,
+    which costs nothing because nothing else in the loop reads either.
+    """
+    if isinstance(event, DecodeCadence):
+        if context.cadence is not None:
+            context.cadence.observe(event)
+        return None
+    if isinstance(event, DecodeStop):
+        if context.stops is not None:
+            context.stops.observe(event)
+        return None
+    return event.text
 
 
 async def stream_tool_loop(
@@ -115,14 +137,11 @@ async def stream_tool_loop(
                     calls.append(event)
                 elif isinstance(event, ReasoningChunk):
                     yield ReasoningDelta(event.text)
-                elif isinstance(event, DecodeCadence):
-                    # Absorbed, never yielded: how fast the machine decoded is not something the
-                    # turn said (ADR-0030 spill-watch addendum). A caller with no watch drops it.
-                    if context.cadence is not None:
-                        context.cadence.observe(event)
                 else:
-                    step_text.append(event.text)
-                    yield event.text
+                    text = _reply_text(event, context)
+                    if text is not None:
+                        step_text.append(text)
+                        yield text
         finally:
             # Runs on normal exhaustion, backend failure, and consumer aclose() alike: an
             # abandoned backend generator must not linger half-suspended.

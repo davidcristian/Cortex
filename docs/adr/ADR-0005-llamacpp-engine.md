@@ -405,3 +405,195 @@ because the loop closes the backend's own stream before any step reaches that si
 kept as the discipline `tool_loop` already applies to its own two generators and `drain_text`
 argues for at length, so the release stops depending on where the timer happened to fire; no check
 claims a bound it does not hold.
+
+## Addendum (2026-08-16): the finish reason the port now carries
+
+**Status:** Accepted. Closes "a finish reason the port does not carry" from
+[docs/refinements/index.md#resource-governance](../refinements/index.md#resource-governance), which
+the addendum above opened under its own "What this does not do" heading and priced honestly as a
+port change. It is one, and this is that change.
+
+It lands **ahead of its trigger**, which was "the first capped delegated reply that a reader
+mistakes for a finished one", and the reason to land it anyway is that this trigger cannot fire.
+A truncation that reads as an answer leaves no evidence behind: the store keeps the fragment, the
+result says `ok=True`, nothing marks it, and the reader who was misled is by definition unaware of
+it. A trigger nobody can observe is a trigger that never arrives, so waiting for it means never
+doing the work. The other half of the reason is that the mitigation standing in its place covers
+less than it looks: it is a sizing argument about `max_tokens`, and `max_tokens` is one of two
+limits that end a completion the same way on the wire, the server's context window being the other
+and no part of that argument.
+
+### What the tree actually said
+
+Re-derived rather than trusted, this backlog's own standing warning being that an entry's account
+of the code goes stale.
+
+- The port really did not carry it. `InferenceEvent` was
+  `TextChunk | ReasoningChunk | ToolCall | DecodeCadence` and `InferenceBackend.stream` named
+  exactly those. Every word of the entry's account of the defect held.
+- **The adapter was receiving the fact and stepping over it**, which is sharper than the entry
+  said. `consume_chunk` read `data["choices"][0]["delta"]` and never `choices[0]["finish_reason"]`,
+  while the very transcript the decode-cadence contract runs on carries `"finish_reason":"stop"` on
+  the same final chunk the `timings` object rides. The reason was arriving in the same bytes the
+  rate was being read from.
+- The entry's argument against reading `DecodeCadence.tokens` still holds, and the re-derivation
+  strengthened it into the argument for a separate event. The cadence is emitted only when the
+  server reports `timings`; `finish_reason` comes off a different part of the chunk and is reported
+  whether or not it does. So a reason carried on the cadence would have gone missing on exactly the
+  build the entry named, and the "near miss" would have missed where it mattered.
+- The constrained tool-less path's structural closure is real but weaker than the entry recorded.
+  A cut envelope does fail to parse and arrive as `MALFORMED`, and `MALFORMED` is not re-placed,
+  so the **behaviour** was already right; what was wrong was the diagnosis, which named the model
+  breaking its grammar for a sentence the server had ended.
+- The consumers are as named: `PlacedAttempt` on the delegated path, and the recap fold through
+  `drain_text`, which keeps `TextChunk` and drops everything else.
+
+One thing the entry could not have known, and it decides the shape below: **`finish_reason` is not
+two-valued.** Against the shipped CPU tier (build `b9879-72874f559`) a capped request answers
+`length`, an ordinary reply answers `stop`, and a completion that ends in a function call answers
+`tool_calls`, which is the ordinary ending of every round of a tool loop but the last. A two-member
+set would have filed every tool-using round under whatever it used for "other".
+
+### Decision
+
+1. **The stop is its own event, `DecodeStop(reason)`, not a field on the closing `DecodeCadence`.**
+   The two ride one chunk on this build and are still separate facts with separate availability, so
+   the field would have coupled a reason to a rate's silence. The second argument is the consumer's:
+   every loop hands its cadences to a `CadenceWatch` whose contract is about rates, so a non-rate
+   fact travelling inside that carrier would reach a collaborator shaped for another question. The
+   cost, which the entry priced and this accepts, is that every backend and every consumer owes the
+   new case; pyright is what collects it, the loop's text arm narrowing to a type with no `text`.
+2. **The reason is a closed set the core owns: `StopReason.FINISHED`, `CAPPED`, `CALLED`,
+   `UNKNOWN`.** The wire value is llama.cpp's vocabulary and the core must not depend on a
+   backend's spelling, so the adapter translates and the core's word for a cut completion appears
+   nowhere on the wire. Four members rather than two because `tool_calls` is a real ending, and
+   because a word this core has not been taught must land somewhere that is not one of the other
+   three.
+3. **An unreadable reason is `UNKNOWN`, never silence and never a raise.** This is a third stance
+   beside the two `decode.py` already documents. Raising would kill a finished reply over a
+   telemetry field, which is the cadence's own argument; staying silent would file a fact this core
+   failed to read under the same heading as a fact nobody offered, which is the exact conflation
+   the whole arm exists to remove, one level down.
+4. **Silence stays legal, and no consumer may read it as `FINISHED`.** A backend whose engine says
+   nothing emits no stop, exactly as one whose engine reports no timings emits no cadence. The
+   shared contract's `check_silence_is_a_legal_answer` is what keeps that a permission rather than
+   a sentence in a docstring.
+5. **Which limit cut the completion is not part of the answer.** `length` is what llama-server says
+   for a request's own `max_tokens` and for the server's context window alike, and nothing on the
+   wire separates them. Naming a cap the deployment set would therefore be a guess wherever the
+   context ran out first, so the event says a token limit ended it and the consumer quotes its own
+   knob only when it has one. This is also the hole in the sizing mitigation the previous addendum
+   left in place: five times the longest measured reply is an argument about `max_tokens` and says
+   nothing about the 4096-token per-slot context this compose ships.
+6. **The tool loop absorbs the stop, exactly as it absorbs the cadence.** `ToolLoopContext.stops`
+   takes a `StopLedger` and `stream_tool_loop` hands each completion's reason to it. Why the
+   machine stopped is a fact about the machine and not something the turn said, so it must never
+   reach a stream a user reads, and a caller that hands over no ledger drops it. That also keeps
+   the loop's yield vocabulary, the seam every consumer of a turn is written against, unchanged.
+7. **A capped delegated run is `AttemptFailure.TRUNCATED`, the deadline's own verdict in the other
+   unit.** It reaches the cortex as an `ok=False` `SubagentResult` whose detail says to narrow the
+   subtask, the fragment stays on the stored result for whoever reads the store, and the retry
+   declines to re-place it for the reason a deadline-stopped run is not re-placed: a tier that
+   filled its token budget will fill it again, and the slower tier is the last place to send it.
+8. **The cap is read ahead of the envelope**, which is the precedence both deadline arms already
+   keep. A cut reply lands mid-envelope by construction, so an envelope check that ran first would
+   report a model breaking its grammar and send the reader to the model rather than to the limit.
+9. **Every backend owes the answer, and `EchoInferenceBackend` gives it.** This is where the
+   cadence's argument stops applying rather than extending. That fake must never report a rate,
+   because a rate is a measurement only a real server has taken and a fabricated one would be a
+   made-up number in a real log. Why its completion ended is not a measurement: the echo ends
+   because its script does, it honours no `bounds`, and so it can truthfully say `FINISHED` and
+   can never say anything else.
+
+### What a real server said
+
+Measured 2026-08-16 by the agent through the shipped adapter against the shipped CPU subagent tier
+(gemma-4-E4B QAT q4_0 at `-ngl 0`, llama.cpp build `b9879-72874f559`), which needs no GPU, by
+`packages/inference/tests/test_finish_reason_live.py` as written:
+
+| arm | request | the stop that crossed the port | the text |
+| --- | --- | --- | --- |
+| capped | `max_tokens: 8`, "Write a long essay about the sea." | `CAPPED` | `## The Unbounded Heart: An Ode` |
+| finished | no cap, "Reply with exactly one word: PONG." | `FINISHED` | `PONG` |
+| the core | the capped arm through `PlacedAttempt` | `ok=False` | `## The Blue Expanse: A` |
+
+The third row is the one that matters, because the first two only prove the fact arrives. What the
+attempt returned is the refusal naming the bound, where before this change the identical run
+returned that cut title as an answer.
+
+The `tool_calls` value was read the same day off the same server, by offering it one tool and
+asking it to use it, and it is why `CALLED` exists.
+
+### What this does not do, and where that is recorded
+
+**The recap fold is not a consumer, and the decline is on its merits rather than on cost.**
+`clean_recap` already rejects any account that does not end a sentence, which is strictly stronger
+than reading the transport for its own question: it catches a fold the server cut, a fold the model
+ended mid-thought, and a fold that arrived mangled, where a stop reason catches only the first.
+Making it a consumer also means changing `drain_text`, which returns a `str` today and has three
+callers who want exactly that. What a stop would add is the diagnosis, since a rejected fold is
+silently retried next turn and an operator reading the log cannot tell a cut account from a model
+that wandered. That is worth a log line and not a signature change, and it is filed as its own
+entry rather than folded in here.
+
+**A cap that lands inside a tool call is still reported as a dead backend.** The adapter assembles
+tool calls only once the stream is over, so a completion cut while the model was writing a call's
+`arguments` raises `InferenceError` on the fragment, and the attempt answers that from its own
+`except` arm without consulting the ledger, which by then knows the run was capped. That arm is one
+line from reading it and the line is not obviously right: an `InferenceError` can arrive from a
+round after the capped one, where reporting a truncation would hide a dead backend and skip the
+re-place that exists for exactly it. The shape is rare by construction, a call's arguments being
+short against a 1024-token cap, so it is filed rather than guessed at.
+
+**The cortex turn does not read it.** The user watches the reply arrive and a stop that reached
+that stream would be a fact about the machine on a surface for what was said, which is the same
+argument the decode cadence is absorbed under. A turn that wants to say "this was cut" wants a
+rendered surface for it, which is an overlay change and not this one.
+
+**Nothing crosses the body seam.** `proto/body.proto` is untouched: the stop is read entirely
+inside the brain, and what reaches the body is the same reply text and the same turn events as
+before. A finish reason that ever needs rendering in the overlay would cross there and would be
+declared in that file first.
+
+### Distrust green
+
+The wire word is real in three places and faked in none of them: the shared contract's adapter leg
+reads a real llama-server final chunk, the adapter's own cases carry the three words a live server
+emits, and the integration test drives a real server and follows its answer through the shipped
+attempt.
+
+Twelve mutations, each applied to production code alone with the whole `packages` suite re-run, so
+the counts are measured rather than aimed at.
+
+| mutation | reddens |
+| --- | --- |
+| `_stop` never reads `finish_reason` | **14**, the contract's three answering checks on the adapter leg and every adapter case; no scripted case |
+| `length` maps to `FINISHED` | **4**, the contract's cap check on the adapter leg and the three adapter cases that read the word |
+| the stop is yielded before the text in `_chunk_events` | **3** |
+| a missing `finish_reason` reports `FINISHED` | **29** |
+| `StopLedger.observe` counts every stop as a cap | **8** |
+| `StopLedger` starts capped | **28** |
+| the ledger keeps only the last stop | **2** |
+| a capped run is reported `INFERENCE` | **2**, the re-place case and the tool-loop one |
+| the envelope check runs ahead of the cap | **1** |
+| the refusal always quotes a bound | **1**, the unbounded run |
+| the loop drops the stop instead of observing it | **6** |
+| `EchoInferenceBackend` reports no stop | **1** |
+
+Three of those readings say something the counts alone do not.
+
+**Reordering the adapter's yields does not redden the contract's ordering check**, and the cadence
+contract records the same finding about itself for the same reason: the transcript's final chunk
+carries `finish_reason` on a content-less delta, so text and stop stay in order across chunks
+however the adapter orders them within one. What catches the reorder is the adapter's own case for
+a chunk carrying both, which is why that case lives beside the adapter rather than in the contract.
+
+**A missing reason reported as `FINISHED` reddens 29, and only one of them is a stop check.** Every
+chunk of every stream carries no `finish_reason` until the last, so that mutation puts a stop event
+after every delta in the suite and breaks every case that asserts on a whole event list. The reach
+is the evidence: silence is not a corner of this port, it is most of what a stream is.
+
+**The type checker collects the new case, as claimed.** Deleting the `DecodeStop` arm from
+`_reply_text` and running pyright over that file alone gives
+`Cannot access attribute "text" for class "DecodeStop"`, so a consumer that ignores the event
+cannot compile rather than failing at runtime on the arm that assumed text.

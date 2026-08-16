@@ -27,6 +27,7 @@ from cortex_core.loop_events import StepOutcome, ToolStep, step_summary
 from cortex_core.ports import Clock
 from cortex_core.progress import ProgressSink
 from cortex_core.provenance import SourceKind, as_source
+from cortex_core.stops import StopLedger
 from cortex_core.tool_budget import DispatchBudget
 from cortex_core.tool_round import RoundPlan, result_message
 from cortex_core.tools import ToolCall, ToolSpec, TurnStamp
@@ -66,7 +67,12 @@ class ToolLoopContext:
     is deliberately not a yielded event: how fast a tier decoded is a fact about the machine, not
     about the turn, so it must never reach a stream the user reads. ``None`` (the default, the
     cortex turn and every subagent) drops the report, which costs nothing because the only caller
-    that has a rate to compare against is the deep phase.
+    that has a rate to compare against is the deep phase. ``stops`` (ADR-0005 finish-reason
+    addendum) is its twin on the other closing event, threaded the same way and for the same
+    reason: why a completion ended is a fact about the machine that stopped it, so it is collected
+    here rather than yielded into a stream the user reads. ``None`` (the default, the cortex turn,
+    which streams live and whose reader sees the reply stop) drops the report; the delegated run
+    passes one, a capped subagent reply otherwise being indistinguishable from a finished one.
     """
 
     dispatcher: ToolDispatcher | None
@@ -81,6 +87,7 @@ class ToolLoopContext:
     progress: ProgressSink | None = None
     escalation: EscalationSlot | None = None
     cadence: CadenceWatch | None = None
+    stops: StopLedger | None = None
 
 
 def _refused_by(
