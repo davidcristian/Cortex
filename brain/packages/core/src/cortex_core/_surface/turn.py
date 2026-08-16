@@ -13,6 +13,7 @@ from cortex_core.escalate import (
 from cortex_core.escalating_engine import EscalatingTurnEngine
 from cortex_core.guardrail import (
     REDACTED_LINK,
+    LookalikeUrlRedactingGuardrail,
     OutputFilter,
     OutputGuardrail,
     StrictUrlRedactingGuardrail,
@@ -88,6 +89,7 @@ __all__ = [
     "EscalatingTurnEngine",
     "HistoryRecap",
     "HistoryWindow",
+    "LookalikeUrlRedactingGuardrail",
     "OutputFilter",
     "OutputGuardrail",
     "RoutingHints",

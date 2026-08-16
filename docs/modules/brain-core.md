@@ -603,9 +603,12 @@ Untrusted-content boundary (Slice 6.5, ADR-0013; the pure primitives in `untrust
   so a tool's price travels with the gateway that runs it and is not restated per loop.
 
 Output guardrail (ADR-0015; the pure laundering defense built from the redactor + policies in
-`guardrail.py`, the URL grammar in `urls.py`, one URL's canonical identity in `url_identity.py`, and
-every way a separator character may be spelled in `url_spellings.py`, the three having split at the
-line cap as the seventh and the eleventh addenda landed):
+`guardrail.py`, the URL grammar in `urls.py`, one URL's canonical identity in `url_identity.py`,
+every way a separator character may be spelled in `url_spellings.py`, and the curated confusable
+fold in `url_confusables.py`, the first three having split at the line cap as the seventh and the
+eleventh addenda landed and the fourth by responsibility as the lookalike policy did: it is the one
+pass that is a judgement about what looks alike rather than a resolver's reading, and so the one a
+caller may switch off):
 
 - `extract_urls(text) -> frozenset[str]` (in `urls.py`) finds every clickable URL in `text` (schemes
   `http(s)`, `ftp`, `mailto:`, `tel:`, and `data:` behind a MIME-type anchor so `data:the results`
@@ -685,8 +688,9 @@ line cap as the seventh and the eleventh addenda landed):
   *full* UTS-39 confusables set (priced and **declined**, ADR-0015 thirteenth addendum: NFKC
   already folds 749 of the 1,438 mappings that aim at an ASCII host character, the curated table
   holds 29 more, and the residue is 483 distinct characters that no curation reaches; a confusable
-  host is a *different* host rather than a respelling, and strict mode covers the class whatever
-  the table holds), a slashless authority whose host is a single label (`https:localhost`, which
+  host is a *different* host rather than a respelling, so the boundary is a policy and not a fold:
+  the lookalike and strict policies cover the class whatever the table holds, ADR-0015 fourteenth
+  addendum), a slashless authority whose host is a single label (`https:localhost`, which
   no public suffix makes registrable and which is how a sentence names a scheme), and source-layer
   or bracketless URL-layer escapes of the separator (`\x2e`, `https%3A//`,
   `&amp;#58;`), each measured against a real URL parser, which resolves an escaped host to a
@@ -711,6 +715,12 @@ line cap as the seventh and the eleventh addenda landed):
 - `OutputFilter` (protocol) provides `feed(chunk) -> str` (the scrubbed text safe to emit now; an
   ambiguous suffix (a URL still growing, a partial `http(s)://`/`mailto:`) is carried) and
   `flush() -> str` (end of stream resolves the carry).
+- A policy is a **set of grounds** rather than a mode (ADR-0015 fourteenth addendum): a URL is
+  redacted because its identity was `COLLECTED` from this turn's untrusted content, because it is a
+  `LOOKALIKE` (host not plain ASCII) on a tainted turn, or because it is a `LINK` at all on one.
+  `redact` stands on `{COLLECTED}`, `lookalike` on `{COLLECTED, LOOKALIKE}`, `strict` on `{LINK}`,
+  and an opaque turn unions `{LINK}` into whichever was configured (ADR-0029). The user's own
+  allowlist answers before any ground, under every policy.
 - `UrlRedactingGuardrail` is the default policy: a URL whose normalized form is in
   `taint.untrusted_urls − allow` (collected *verbatim* from untrusted content) is replaced with
   `REDACTED_LINK` (`"[link removed: untrusted source]"`, trailing prose punctuation preserved);
@@ -720,6 +730,20 @@ line cap as the seventh and the eleventh addenda landed):
   never in that text, so the collected set is empty and the default is structurally a no-op for
   exactly the laundering case vision introduces. Measured: the model transcribes an attacker URL
   out of an image verbatim, framed or not.
+- `LookalikeUrlRedactingGuardrail` (ADR-0015 fourteenth addendum) is the default policy plus one
+  ground: on a **tainted** turn, also redact a URL whose **host is not plain ASCII**, whatever this
+  turn collected. It is the one answer to a chosen homoglyph that does not depend on a table, since
+  an identity comparison reaches a lookalike only when the fold happens to carry its characters and
+  the attacker picks the character. The host is read from an identity built with the confusable fold
+  **switched off** (`normalize_url(url, confusables=False)`), because a host spelled wholly out of
+  table entries folds to plain ASCII and would otherwise carry no sign of anything; every other pass
+  still runs, so a punycode, defanged, fullwidth or slashless spelling is resolved first. Only the
+  host counts (`host_of`): an authority's `host[:port]`, a `mailto:`'s domain after the `@`, and
+  nothing at all for `tel:`/`data:`, so a non-ASCII **path** is ordinary content and streams. The
+  cost is a genuine internationalized domain named on a tainted turn, redacted with the lookalikes
+  because nothing without a script database separates them: measured at 0 of the Tranco top 1,000
+  hosts, 8 of the top 10,000 and 1,441 of 1,000,000 (0.14%), against 605 of 605 untabled UTS-39
+  host-aimed characters and 29 of 29 tabled ones caught.
 - `StrictUrlRedactingGuardrail` (ADR-0015 addendum) is the opt-in policy: on a **tainted** turn
   (`taint.tainted`), redact *every* URL outside `allow`, not just the verbatim-collected ones,
   the answer to a model that transforms or reconstructs a laundered link. An untainted turn is

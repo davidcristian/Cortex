@@ -2,7 +2,7 @@ r"""The URL *grammar* behind the output guardrail's laundering defense (ADR-0015
 
 import re
 
-from cortex_core.url_identity import DOT_WORD, SPECIAL_SCHEMES, normalize_url
+from cortex_core.url_identity import DOT_WORD, MAILTO_SCHEME, SPECIAL_SCHEMES, normalize_url
 from cortex_core.url_spellings import (
     AUTHORITY_SEPS,
     CHUNK_INNER,
@@ -20,7 +20,7 @@ from cortex_core.url_spellings import (
 )
 
 _AUTHORITY_WORDS = (*SPECIAL_SCHEMES, "hxxps", "hxxp")
-_OPAQUE_WORDS = ("mailto", "tel")
+_OPAQUE_WORDS = (MAILTO_SCHEME, "tel")
 
 _NON_URL = r"\s<>\"'\)\]\}"
 

@@ -20,6 +20,7 @@ MemoryBackendName = Literal["none", "pgvector"]
 MemoryScopeName = Literal["global", "session"]
 MemoryRecallName = Literal["raw", "reranked", "mmr", "recency_mmr", "judge"]
 MemoryTaintPolicyName = Literal["skip", "record"]
+OutputGuardrailName = Literal["redact", "lookalike", "strict", "off"]
 
 # The port BrainService listens on by default. Named rather than spelled inline because it is
 # not only ours: the compose stack publishes it and dials it in its own healthcheck, and the
@@ -73,7 +74,7 @@ class BrainRuntimeConfig(BaseSettings):
     history_char_budget: int = Field(default=48_000, ge=0)
     history_summary: bool = True
     history_recap_min_chars: int = Field(default=2_000, ge=0)
-    output_guardrail: Literal["redact", "strict", "off"] = "redact"
+    output_guardrail: OutputGuardrailName = "redact"
     generate_titles: bool = False
 
 

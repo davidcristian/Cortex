@@ -14,7 +14,9 @@ from cortex_core import (
     FilteredToolRegistry,
     GatedToolRegistry,
     InferenceBackend,
+    LookalikeUrlRedactingGuardrail,
     ModelManager,
+    OutputGuardrail,
     SingleResidentModelManager,
     SkipUnavailableToolRegistry,
     StrictUrlRedactingGuardrail,
@@ -23,7 +25,7 @@ from cortex_core import (
     UrlRedactingGuardrail,
 )
 from cortex_inference import LlamaCppBackend
-from cortex_orchestrator.config import BodyConfig, InferenceConfig
+from cortex_orchestrator.config import BodyConfig, InferenceConfig, OutputGuardrailName
 from cortex_orchestrator.config_tools import ToolsConfig
 from cortex_orchestrator.dispatch_builders import build_builtin_tools, build_cortex_tools
 from cortex_tools import ReconnectingMcpToolRegistry, streamable_http_session
@@ -106,12 +108,12 @@ def build_tool_registry(
     return root, noop_aclose
 
 
-def build_output_guardrail(
-    mode: str,
-) -> UrlRedactingGuardrail | StrictUrlRedactingGuardrail | None:
+def build_output_guardrail(mode: OutputGuardrailName) -> OutputGuardrail | None:
     """The turn's output guardrail, or None when disabled (ADR-0015)."""
     if mode == "strict":
         return StrictUrlRedactingGuardrail()
+    if mode == "lookalike":
+        return LookalikeUrlRedactingGuardrail()
     return UrlRedactingGuardrail() if mode == "redact" else None
 
 
