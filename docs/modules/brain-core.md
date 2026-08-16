@@ -654,8 +654,10 @@ line cap as the seventh and the eleventh addenda landed):
   which render as nothing yet survive NFKC), **punycode decoding** of `xn--` labels via the stdlib
   `idna` codec (so a *registered* IDN homoglyph host feeds the confusable table), **NFKC**
   folding (fullwidth/compatibility homoglyphs → ASCII), a **curated cross-script confusable** fold
-  (Cyrillic/Greek Latin-lookalikes → ASCII, e.g. Cyrillic `расе`→`pace`), and an **IDNA label
-  separator** fold (`evil。example`→`evil.example`: the stdlib's own IDNA codec splits a host on
+  (Cyrillic/Greek Latin-lookalikes → ASCII, e.g. Cyrillic `расе`→`pace`; the one pass here that is
+  a judgement about what looks alike rather than a resolver's reading, which is why it is curated
+  and stays so), and an **IDNA label separator** fold
+  (`evil。example`→`evil.example`: the stdlib's own IDNA codec splits a host on
   `.`/`。`/`．`/`｡`, and NFKC maps `｡` onto `。` rather than to a dot, so the two ideographic stops
   survived it, ADR-0015 eighth addendum) that also **closes a gap** the same dot was spelled with
   (`evil dot example`→`evil.example`, run there because every other reading has become an ASCII dot
@@ -680,9 +682,13 @@ line cap as the seventh and the eleventh addenda landed):
   not links (ADR-0015 ninth addendum). Held deliberately
   out (they would over-redact prose, need a dependency, or no resolver in this path undoes them):
   bare addresses/domains and with them the *unanchored* whitespace split (`evil dot com`), the
-  *full* UTS-39 confusables set, a slashless authority whose host is a single label (`https:localhost`, which no public suffix
-  makes registrable and which is how a sentence names a scheme), and source-layer or bracketless
-  URL-layer escapes of the separator (`\x2e`, `https%3A//`,
+  *full* UTS-39 confusables set (priced and **declined**, ADR-0015 thirteenth addendum: NFKC
+  already folds 749 of the 1,438 mappings that aim at an ASCII host character, the curated table
+  holds 29 more, and the residue is 483 distinct characters that no curation reaches; a confusable
+  host is a *different* host rather than a respelling, and strict mode covers the class whatever
+  the table holds), a slashless authority whose host is a single label (`https:localhost`, which
+  no public suffix makes registrable and which is how a sentence names a scheme), and source-layer
+  or bracketless URL-layer escapes of the separator (`\x2e`, `https%3A//`,
   `&amp;#58;`), each measured against a real URL parser, which resolves an escaped host to a
   *different* host and refuses the other two outright (ADR-0015 tenth + eleventh addenda).
 - `held_from(buf) -> int` (in `urls.py`) is the streaming hold-back the redactor's `feed` splits on:
