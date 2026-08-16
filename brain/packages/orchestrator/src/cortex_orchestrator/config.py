@@ -20,6 +20,11 @@ MemoryBackendName = Literal["none", "pgvector"]
 MemoryScopeName = Literal["global", "session"]
 MemoryRecallName = Literal["raw", "reranked", "mmr", "recency_mmr", "judge"]
 MemoryTaintPolicyName = Literal["skip", "record"]
+# The output guardrail's policy names, declared once and imported by the builder that maps each to
+# its class, so a rename cannot leave the builder answering a value nothing can be set to. The
+# cross-tree scan cannot reach this pair (it reads column-zero declarations, and these are a
+# Pydantic field's annotation and a comparison inside a function), so the type is what ties them.
+OutputGuardrailName = Literal["redact", "lookalike", "strict", "off"]
 
 # The port BrainService listens on by default. Named rather than spelled inline because it is
 # not only ours: the compose stack publishes it and dials it in its own healthcheck, and the
@@ -107,9 +112,12 @@ class BrainRuntimeConfig(BaseSettings):
     history_recap_min_chars: int = Field(default=2_000, ge=0)
     # env CORTEX_OUTPUT_GUARDRAIL is the model-independent laundering defense (ADR-0015):
     # `redact` (the default, so hardening is on out of the box) replaces URLs sourced verbatim
-    # from untrusted tool results in the reply the user sees; `strict` (ADR-0015 addendum)
-    # redacts every non-user URL on a tainted turn; `off` restores the unguarded stream.
-    output_guardrail: Literal["redact", "strict", "off"] = "redact"
+    # from untrusted tool results in the reply the user sees; `lookalike` (ADR-0015 fourteenth
+    # addendum) adds every URL whose host is not plain ASCII on a tainted turn, which is the one
+    # answer to a homoglyph host that no table can give, at the cost of an internationalized
+    # domain named on such a turn; `strict` (ADR-0015 addendum) redacts every non-user URL on a
+    # tainted turn; `off` restores the unguarded stream.
+    output_guardrail: OutputGuardrailName = "redact"
     # env CORTEX_GENERATE_TITLES turns on brain-generated switcher titles (ADR-0021 titles
     # addendum): on a session's first turn the resident model writes a short title from the
     # opening exchange, which `list_sessions` prefers over the first-message derivation. Default

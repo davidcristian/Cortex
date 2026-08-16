@@ -1,6 +1,6 @@
 # A chosen homoglyph outlives any table
 
-**Status:** open, a seam or port change comes first
+**Status:** landed 2026-08-16
 **Area:** untrusted-content
 **Origin:** [ADR-0015](../../adr/ADR-0015-output-guardrail.md)
 
@@ -36,3 +36,19 @@ name 41.
 - 2026-08-16: Opened by the thirteenth ADR-0015 addendum, which declined the full confusables set
   and found that the boundary against a chosen homoglyph is the policy rather than the fold. Filed
   as a seam-shaped entry because the fix it points at is a third `OutputGuardrail` policy.
+- 2026-08-16: Landed as the fourteenth ADR-0015 addendum, and the narrower of the two answers
+  won. `CORTEX_OUTPUT_GUARDRAIL=lookalike` is a third `OutputGuardrail` policy, the default one
+  plus a ground that redacts a URL whose **host is not plain ASCII** on a tainted turn, whatever
+  was collected; strict did not become the default and the curated table did not grow. The seam
+  held exactly as it stood, which is the entry's own question answered: `open(taint, *, allow)`,
+  `TaintView` and `TaintLedger` are untouched, and what moved is behind the port, a policy becoming
+  the **set of grounds** it stands on rather than a boolean the third case would have made an enum.
+  The one subtlety the entry did not name: the host is read with the confusable fold switched off,
+  since a host spelled wholly out of table entries folds to plain ASCII, and a rule reading the
+  ordinary identity would have had a table-shaped hole exactly where the table is. Measured: 605 of
+  605 untabled UTS-39 host-aimed characters redacted and 29 of 29 tabled ones, against 0 of the
+  Tranco top 1,000 legitimate hosts, 8 of the top 10,000 and 1,441 of 1,000,000. Validated live on
+  the shipped cortex, where an ordinary user request to strip tracking parameters was enough to
+  make the default policy deliver a homoglyph host that the new one redacts. What it left behind is
+  whether that policy should become the shipped default, filed as
+  [R-284](284-the-lookalike-policy-as-the-shipped-default.md).

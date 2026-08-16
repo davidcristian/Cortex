@@ -22,7 +22,8 @@ releases it, so the root's shutdown path is uniform whatever was picked:
   window arrived): a `CharBudgetHistoryWindow` over CORTEX_HISTORY_CHAR_BUDGET, optionally
   wrapped so the turns it drops arrive as a recap.
 - Output guardrail -> `UrlRedactingGuardrail` over CORTEX_OUTPUT_GUARDRAIL (ADR-0015), on by
-  default (hardening ships enabled); `off` restores the unguarded stream.
+  default (hardening ships enabled); `lookalike` adds the non-ASCII-host ground, `strict` distrusts
+  every link on a tainted turn, and `off` restores the unguarded stream.
 - Cortex tool set -> `dispatch_builders.py` (split for the 300-line cap as the built-in set
   grew): the built-in tools and the audited `ToolDispatcher` over them, composed from pieces the
   builders above already made rather than reaching anything itself.
@@ -47,7 +48,9 @@ from cortex_core import (
     FilteredToolRegistry,
     GatedToolRegistry,
     InferenceBackend,
+    LookalikeUrlRedactingGuardrail,
     ModelManager,
+    OutputGuardrail,
     SingleResidentModelManager,
     SkipUnavailableToolRegistry,
     StrictUrlRedactingGuardrail,
@@ -56,7 +59,7 @@ from cortex_core import (
     UrlRedactingGuardrail,
 )
 from cortex_inference import LlamaCppBackend
-from cortex_orchestrator.config import BodyConfig, InferenceConfig
+from cortex_orchestrator.config import BodyConfig, InferenceConfig, OutputGuardrailName
 from cortex_orchestrator.config_tools import ToolsConfig
 from cortex_orchestrator.dispatch_builders import build_builtin_tools, build_cortex_tools
 from cortex_tools import ReconnectingMcpToolRegistry, streamable_http_session
@@ -176,19 +179,23 @@ def build_tool_registry(
     return root, noop_aclose
 
 
-def build_output_guardrail(
-    mode: str,
-) -> UrlRedactingGuardrail | StrictUrlRedactingGuardrail | None:
+def build_output_guardrail(mode: OutputGuardrailName) -> OutputGuardrail | None:
     """The turn's output guardrail, or None when disabled (ADR-0015).
 
     `redact` (`CORTEX_OUTPUT_GUARDRAIL`'s default, so hardening is on out of the box) scrubs URLs
     sourced *verbatim* from untrusted tool results out of the reply the user sees, the
-    model-independent laundering defense; `strict` (ADR-0015 addendum) redacts every non-user
-    URL on a tainted turn; `off` restores the unguarded stream. An untainted/clean turn is
-    untouched by any mode (nothing collected, nothing flagged, nothing scrubbed).
+    model-independent laundering defense; `lookalike` (ADR-0015 fourteenth addendum) adds every
+    URL whose host is not plain ASCII on a tainted turn, the one ground a homoglyph cannot be
+    chosen around; `strict` (ADR-0015 addendum) redacts every non-user URL on a tainted turn;
+    `off` restores the unguarded stream. An untainted/clean turn is untouched by any mode
+    (nothing collected, nothing flagged, nothing scrubbed). The parameter is the config's own
+    `Literal`, so a name that is not one of the four is a type error here rather than a silently
+    unguarded stream.
     """
     if mode == "strict":
         return StrictUrlRedactingGuardrail()
+    if mode == "lookalike":
+        return LookalikeUrlRedactingGuardrail()
     return UrlRedactingGuardrail() if mode == "redact" else None
 
 

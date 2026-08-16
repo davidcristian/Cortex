@@ -41,6 +41,7 @@ from cortex_core import (
     InMemoryToolRegistry,
     JsonSchema,
     JudgeRecallPolicy,
+    LookalikeUrlRedactingGuardrail,
     MemoryRecaller,
     Message,
     MmrRecallPolicy,
@@ -804,6 +805,13 @@ def test_build_output_guardrail_redact_is_the_shipped_defense() -> None:
 def test_build_output_guardrail_strict_is_the_opt_in_policy() -> None:
     # CORTEX_OUTPUT_GUARDRAIL=strict selects the addendum's redact-all-non-user-URL policy.
     assert isinstance(build_output_guardrail("strict"), StrictUrlRedactingGuardrail)
+
+
+def test_build_output_guardrail_lookalike_is_the_homoglyph_policy() -> None:
+    # CORTEX_OUTPUT_GUARDRAIL=lookalike selects the non-ASCII-host ground beside the default one.
+    guard = build_output_guardrail("lookalike")
+    assert isinstance(guard, LookalikeUrlRedactingGuardrail)
+    assert not isinstance(guard, UrlRedactingGuardrail | StrictUrlRedactingGuardrail)
 
 
 def test_build_output_guardrail_off_disables_it() -> None:

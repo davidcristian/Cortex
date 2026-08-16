@@ -127,7 +127,9 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   laundering defense (ADR-0013 hardening deferral landed). The `TaintLedger` collects the
   URLs untrusted content carries in, an `OutputGuardrail` seam in `TurnCapabilities` redacts
   any that reappear in the reply (minus the user's own) before the user sees it,
-  streaming-safe, persisted-equals-shown (`CORTEX_OUTPUT_GUARDRAIL`, on by default).
+  streaming-safe, persisted-equals-shown (`CORTEX_OUTPUT_GUARDRAIL`, on by default). A policy is a
+  set of grounds: the default's collected-identity one, the `lookalike` non-ASCII-host one that a
+  chosen homoglyph cannot be picked around, and `strict`'s every-link-on-a-tainted-turn.
 - [ADR-0016: Seam token](adr/ADR-0016-seam-token.md): assumption 5's shared secret made
   real, via `CORTEX_SEAM_TOKEN` on both sides of the seam; a brain-side gRPC interceptor
   rejects untokened calls UNAUTHENTICATED (structural, covers future RPCs), the body's

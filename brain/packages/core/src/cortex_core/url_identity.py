@@ -19,7 +19,10 @@ into one identity, never splitting one:
 5. *NFKC* folding (fullwidth/compatibility homoglyphs to ASCII, which is also what reduces a
    fullwidth scheme separator the matcher now anchors, a U+FF1A colon or a U+FF0F solidus, to
    its ASCII spelling).
-6. Fold a *curated* table of cross-script confusable letters (Cyrillic/Greek Latin-lookalikes).
+6. Fold a *curated* table of cross-script confusable letters (Cyrillic/Greek Latin-lookalikes),
+   which lives in ``url_confusables`` because it is the one pass here that is a judgement about
+   what looks alike rather than a resolver's reading, and the one a caller may switch off
+   (``confusables=False``) to read a host as the letters it was actually written in.
 7. Fold the *IDNA label separators* NFKC leaves standing (a U+3002 or U+FF61 stop between two
    labels), which the resolver reads as a dot, and close the whitespace a *split* host spells the
    same dot with (``evil dot com``); ADR-0015 eighth + twelfth addenda.
@@ -35,6 +38,8 @@ import html
 import re
 import unicodedata
 from urllib.parse import unquote
+
+from cortex_core.url_confusables import fold_confusables
 
 # The bracket vocabulary every defang token is wrapped in. All three shapes are equivalent wherever
 # one is recognized, so they are held once here rather than spelled out per token (the asymmetry the
@@ -67,6 +72,11 @@ TRAILING_PUNCTUATION = ".,;:!?"
 # the defanged `hxxp` twins, so the two tables cannot drift. Order matters to the alternation the
 # grammar builds: a longer word precedes the shorter one it starts with.
 SPECIAL_SCHEMES = ("https", "http", "ftp")
+
+# The one opaque scheme that still names a host, spelled here because `host_of` below reads it and
+# `urls.py` builds its opaque-scheme words on top of it, the `SPECIAL_SCHEMES` precedent: a
+# `mailto:`'s domain decides where the mail goes exactly as an authority decides where a click goes.
+MAILTO_SCHEME = "mailto"
 
 # Ends the authority (host[:port]) component: from here on a URL is case-sensitive.
 _AUTHORITY_END = re.compile(r"[/?#]")
@@ -159,58 +169,6 @@ def _decode_punycode(url: str) -> str:
     return _PUNYCODE_LABEL.sub(decoded, url)
 
 
-# The common single-script *confusables*: Cyrillic and Greek letters that render identically to an
-# ASCII Latin letter, folded to that letter so a homoglyph host (`<cyr>evil.example`) normalizes to
-# its plain twin (ADR-0015 fourth addendum). A curated, high-confidence table, deterministic and
-# dependency-free, but NOT the full UTS-39 confusables set (which needs a dependency and stays
-# deferred; punycode, which the same note used to bundle in, landed in the seventh addendum).
-# Folding only ever *widens* a redaction and is *symmetric* on both sides of the defense, so its
-# false-positive surface is a legitimately Cyrillic/Greek URL, rare in a single-user deployment, and
-# already redacted on a tainted turn under strict mode. Keys are `\u` escapes so the source stays
-# ASCII and each confusable codepoint is explicit.
-_CONFUSABLES = str.maketrans(
-    {
-        # Cyrillic -> Latin, lowercase (a e o p c y x i j s d h l)
-        "\u0430": "a",
-        "\u0435": "e",
-        "\u043e": "o",
-        "\u0440": "p",
-        "\u0441": "c",
-        "\u0443": "y",
-        "\u0445": "x",
-        "\u0456": "i",
-        "\u0458": "j",
-        "\u0455": "s",
-        "\u0501": "d",
-        "\u04bb": "h",
-        "\u04cf": "l",
-        # Cyrillic -> Latin, the classic uppercase lookalikes (A B E K M H O P C T Y X)
-        "\u0410": "A",
-        "\u0412": "B",
-        "\u0415": "E",
-        "\u041a": "K",
-        "\u041c": "M",
-        "\u041d": "H",
-        "\u041e": "O",
-        "\u0420": "P",
-        "\u0421": "C",
-        "\u0422": "T",
-        "\u0423": "Y",
-        "\u0425": "X",
-        # Greek -> Latin (omicron/rho, both cases)
-        "\u03bf": "o",
-        "\u039f": "O",
-        "\u03c1": "p",
-        "\u03a1": "P",
-    }
-)
-
-
-def _fold_confusables(url: str) -> str:
-    """Fold the curated cross-script confusable letters to their ASCII twin (``_CONFUSABLES``)."""
-    return url.translate(_CONFUSABLES)
-
-
 # The label separators IDNA itself reads as a dot, folded so a host spelled with one shares the
 # identity of the host it resolves to. This is not a judgement about what looks alike: the stdlib's
 # own IDNA codec splits a host on exactly U+002E, U+3002 (ideographic full stop), U+FF0E (fullwidth)
@@ -275,7 +233,7 @@ def _fold_special_slashes(url: str) -> str:
     return f"{match.group(1)}//{rest}"
 
 
-def normalize_url(url: str) -> str:
+def normalize_url(url: str, *, confusables: bool = True) -> str:
     """One URL's identity: escapes decoded (to a fixpoint), defang refanged, format characters
     stripped, punycode decoded, NFKC-folded, confusables and label dots folded, a special scheme's
     backslashes folded to solidi, trailing prose punctuation dropped, scheme+authority lowered.
@@ -288,13 +246,45 @@ def normalize_url(url: str) -> str:
     (`mailto:`/`tel:`/`data:`) has no ``://`` authority to split on, so it folds whole (harmless: it
     only widens a redaction, and both sides fold identically so verbatim matches still compare
     equal).
+
+    ``confusables=False`` runs every pass but the curated confusable fold, which is the only one
+    that is a judgement rather than a resolver's reading. Identity comparison always wants the
+    fold, so both sides of the defense take the default; the lookalike policy wants the host as it
+    was *written*, because a host built wholly out of table entries folds to plain ASCII and would
+    otherwise read as an ordinary name (ADR-0015 fourteenth addendum). Structure is unaffected
+    either way: every pass that decides where the ``://`` and the authority end runs regardless.
     """
     plain = _strip_format_chars(_refang(_decode_escapes(url)))
     normalized = unicodedata.normalize("NFKC", _decode_punycode(plain))
-    folded = _fold_special_slashes(_fold_label_dots(_fold_confusables(normalized)))
+    if confusables:
+        normalized = fold_confusables(normalized)
+    folded = _fold_special_slashes(_fold_label_dots(normalized))
     trimmed = folded.rstrip(TRAILING_PUNCTUATION)
     head, sep, tail = trimmed.partition("://")
     cut = _AUTHORITY_END.search(tail)
     if cut is None:
         return f"{head.lower()}{sep}{tail.lower()}"
     return f"{head.lower()}{sep}{tail[: cut.start()].lower()}{tail[cut.start() :]}"
+
+
+def host_of(identity: str) -> str:
+    """The part of a normalized URL ``identity`` that decides where it goes, or ``""``.
+
+    An authority scheme's is its ``host[:port]``, read off the identity's own ``://`` and ended by
+    the first ``/?#`` exactly as the case rule above ends it; a ``mailto:``'s is the domain after
+    its address's ``@``. One ``rpartition`` serves both, dropping an authority's userinfo and an
+    address's local part together, since neither says where the link leads. ``tel:``, ``data:``
+    and anything else answer ``""``: a phone number and an inline payload name no host, so a policy
+    reading this cannot invent one for them.
+
+    Takes an identity rather than a raw match because the passes behind it are what put the ``://``
+    where it belongs: a defanged, encoded, fullwidth or slashless spelling reaches this function
+    already resolved (ADR-0015 fourteenth addendum).
+    """
+    _, authority, rest = identity.partition("://")
+    if not authority:
+        scheme, _, rest = identity.partition(":")
+        if scheme != MAILTO_SCHEME:
+            return ""
+    cut = _AUTHORITY_END.search(rest)
+    return (rest if cut is None else rest[: cut.start()]).rpartition("@")[2]
