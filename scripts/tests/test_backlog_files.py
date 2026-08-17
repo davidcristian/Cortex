@@ -121,6 +121,69 @@ def test_the_field_block_ends_at_the_first_line_that_is_not_a_field() -> None:
     assert "Trigger" not in task.fields
 
 
+# ── a field wraps like the prose around it ─────────────────────────────────────
+
+
+def test_a_wrapped_field_keeps_every_line_of_its_value() -> None:
+    """The rendered file shows one paragraph, so reading only its first line drops the rest."""
+    text = (
+        f"# {TITLE}\n\n**Status:** open, fix when it bites\n**Area:** brain\n"
+        "**Origin:** ADR-0001\n**Trigger:** a coverage failure where the relayed line is\n"
+        "not enough to settle whether the compiler moved, which would make\nthe check free\n"
+        "\nWhy it waits.\n"
+    )
+    task = backlog.parse_task("refinements", REFINEMENT_PATH, text)
+    assert task.fields["Trigger"] == (
+        "a coverage failure where the relayed line is not enough to settle whether the "
+        "compiler moved, which would make the check free"
+    )
+
+
+def test_a_wrapped_field_that_is_not_the_last_one_keeps_the_fields_after_it() -> None:
+    """Wrapping is presentation, so it may not end the block and swallow what follows."""
+    text = (
+        f"# {TITLE}\n\n**Status:** open, actionable\n**Area:** the brain,\nand its ports\n"
+        "**Origin:** ADR-0001\n"
+    )
+    task = backlog.parse_task("refinements", REFINEMENT_PATH, text)
+    assert task.fields == {
+        "Status": "open, actionable",
+        "Area": "the brain, and its ports",
+        "Origin": "ADR-0001",
+    }
+
+
+def test_a_continuation_line_is_stripped_before_it_is_joined() -> None:
+    """An author may indent the wrap to show it is one; the value is the same either way."""
+    fields = {**REFINEMENT_FIELDS, "Origin": "ADR-0001\n    and its addendum"}
+    task = backlog.parse_task("refinements", REFINEMENT_PATH, _file(fields))
+    assert task.fields["Origin"] == "ADR-0001 and its addendum"
+
+
+def test_a_blank_line_ends_the_field_block_rather_than_wrapping_across_it() -> None:
+    """The block ends where markdown ends its paragraph, so the body is never absorbed."""
+    text = _file(REFINEMENT_FIELDS) + "\nThe body, which is not part of the Origin.\n"
+    task = backlog.parse_task("refinements", REFINEMENT_PATH, text)
+    assert task.fields == REFINEMENT_FIELDS
+
+
+def test_prose_where_the_block_should_start_continues_nothing() -> None:
+    """With no field open there is nothing to wrap onto, so the missing-field check names it."""
+    text = f"# {TITLE}\n\nA body that forgot its fields.\n\n**Status:** open, actionable\n"
+    with pytest.raises(backlog.TaskFileError, match="missing required field 'Status'"):
+        backlog.parse_task("refinements", REFINEMENT_PATH, text)
+
+
+def test_a_bold_line_inside_the_block_that_is_not_a_field_is_rejected() -> None:
+    """`**` opens a field here, so a mistyped one must fail rather than wrap into its neighbour."""
+    text = (
+        f"# {TITLE}\n\n**Status:** open, actionable\n**Area:** brain\n**Origin:** ADR-0001\n"
+        "**Trigger** the colon is missing\n"
+    )
+    with pytest.raises(backlog.TaskFileError, match="is not a field line"):
+        backlog.parse_task("refinements", REFINEMENT_PATH, text)
+
+
 def test_a_field_given_twice_is_rejected() -> None:
     """Two Status lines is the drift this layout exists to make impossible."""
     text = (

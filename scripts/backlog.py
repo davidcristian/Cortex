@@ -170,24 +170,40 @@ def _parse_date(text: str, raw: str) -> date:
 
 
 def _read_header(text: str) -> tuple[str, dict[str, str]]:
-    """Return the H1 title and the field block that follows it."""
+    """Return the H1 title and the field block that follows it.
+
+    A field wraps like every other line of prose here, and the block ends where markdown
+    ends its paragraph: at a blank line. Reading only a field's first line would render a
+    long value truncated mid-sentence while the file itself, opened, reads whole.
+    """
     lines = text.splitlines()
     if not lines or not lines[0].startswith("# ") or not lines[0][2:].strip():
         msg = "the first line must be a non-empty '# Title'"
         raise TaskFileError(msg)
     title = lines[0][2:].strip()
     fields: dict[str, str] = {}
+    last = ""
     for line in lines[1:]:
-        if not line.strip() and not fields:
-            continue  # the single blank line between the title and the field block
+        if not line.strip():
+            if fields:
+                break  # the blank line that closes the block and opens the body
+            continue  # the blank line between the title and the block
         match = FIELD.match(line)
         if match is None:
-            break
-        name, value = match.group(1), match.group(2)
-        if name in fields:
-            msg = f"field {name!r} is given twice"
+            if line.startswith("**"):
+                # `**` opens a field in this block, so a mistyped one must fail here rather
+                # than wrap into the field above it and be read as part of its value.
+                msg = f"{line.strip()!r} is not a field line; expected '**Name:** value'"
+                raise TaskFileError(msg)
+            if not fields:
+                break  # prose where the block should start; the missing-field check names it
+            fields[last] = f"{fields[last]} {line.strip()}"
+            continue
+        last, value = match.group(1), match.group(2)
+        if last in fields:
+            msg = f"field {last!r} is given twice"
             raise TaskFileError(msg)
-        fields[name] = value
+        fields[last] = value
     return title, fields
 
 

@@ -184,3 +184,55 @@ able to fail before being trusted, on a copy of the real tree, in five ways: an 
 area emptied by moving its last tasks out, a rename whose pointers live in task files as well as
 in a decision record, a renamed host sitting, and a renamed hand-written heading that the index
 links to from within itself.
+
+## Addendum (2026-08-17): a field wraps like the prose around it
+
+Decision 3 puts a status on one `**Status:**` line, and the grammar reading it took "one line"
+literally for every field: `_read_header` matched each line against the field pattern and stopped
+at the first line that did not match. A field whose value ran past the column this repo wraps at
+therefore lost everything after its first line, and lost it silently whenever the field that
+wrapped was the last one in the block. Two task files were in that state. R-290's trigger rendered
+in the index as "a coverage failure where the relayed `rustc` line is not enough to settle whether
+the", stopping mid clause and dropping the second of the two conditions it names, which is the one
+that would make the check free. R-285's lost the clause saying which of three positions the
+shipped grammar leaves unanchored. In both, the index disagreed with the file it was generated
+from, and nothing failed.
+
+A wrap anywhere else was already loud: the block ended early, a required field went missing, and
+the gate named the file. So the silent case is exactly a wrapped last field, and the field that
+wraps in practice is the one carrying a sentence, `Trigger`.
+
+**The grammar now reads a field's whole value, joining its continuation lines with a single space,
+and ends the block at a blank line.** The alternative was to refuse a field that wraps, which
+would also have made the truncation loud. It was rejected on three counts.
+
+A task file is markdown that people read rendered, and `**Trigger:** ...` followed by an
+unindented line is one paragraph in every renderer, so the file already shows the whole sentence
+to a person. The defect is that the parser read less than the document says. What closes it is
+making the parser agree with the renderer, not shrinking what the document may say.
+
+Every other line of prose here is wrapped by hand near a column, the bodies of these same task
+files included. Refusing a wrapped field makes one line of one file kind the sole exception, and
+it bites hardest on the longest and most informative triggers; the two found here are 180 and 250
+characters. That puts a temptation to rewrap in front of every future author with a gate failure
+behind it, which is recurring friction bought in exchange for a parser fix made once.
+
+Nothing else in this grammar is presentational. A field name, a status verb and a date are values,
+and where a line happens to break inside a value is not one. Making the source column load bearing
+would be the only rule here that reads the shape of a file rather than what it says.
+
+The end of the block is the one question joining has to answer, a continuation line and the first
+line of the body being the same text. It ends at a blank line, the rule markdown itself uses to
+end a paragraph, and one all 314 task files already obey: a field block glued to a body is
+something nobody has written, because it would render as a single paragraph.
+
+**One guard comes with it, so a silent truncation is not traded for a silent absorption.** Inside
+the block, a line starting with `**` is a field or an error, never a continuation. Without that
+rule `**Trigger** a second adapter arrives`, a field line missing its colon, parses clean and
+becomes part of the `Origin` value above it; `Origin` is rendered nowhere, so the mistyped field
+would simply vanish. It now fails, quoting the line. The cost is that a value may not wrap onto a
+line whose first characters are bold, which fails loudly with a message saying what to do and is
+fixed by rewrapping the sentence.
+
+Regenerating afterwards rewrote both entries in `docs/refinements/index.md` to their full text,
+which is the whole of the visible effect.
