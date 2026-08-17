@@ -62,9 +62,9 @@ check-bindcheck:
 
 # Each backlog index still matches the task files it describes (ADR-0039). A task's
 # status lives on its own Status line and nowhere else, so this is the only thing
-# holding the generated index to it. It also holds every pointer at one of those
-# indexes, path and anchor both, so a renamed area cannot leave a resolving link on a
-# heading nobody renders. Regenerate with `just backlog`.
+# holding the generated index to it. It also holds every fragment written anywhere in
+# the repo to naming a heading its target really offers, so no rename can leave a
+# resolving link on a heading nobody renders. Regenerate with `just backlog`.
 check-backlog:
     cd scripts && uv sync --locked
     cd scripts && uv run python backlogcheck.py --root ..

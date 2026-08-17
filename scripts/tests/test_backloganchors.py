@@ -1,15 +1,16 @@
 """Behaviour of the anchor half of the backlog link gate.
 
 The path half of a link fails loudly when a file moves. The fragment half fails silently
-when a heading stops being rendered, which is what a renamed area and an emptied one both
-do, so these tests are written around that pair of events rather than around the regexes.
+when a heading stops being rendered, which is what a renamed area, an emptied one, and a
+heading renamed in a decision record all do, so these tests are written around those
+events rather than around the regexes.
 """
 
 from pathlib import Path
 
 import backloganchors
 import backlogcheck
-from backloganchors import Index
+from backloganchors import Index, Target
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -33,9 +34,17 @@ def test_local_targets_splits_a_relative_link_from_the_heading_it_aims_at() -> N
         "nor [a bare hash](#), which points at neither a file nor a heading.\n"
     )
     assert backloganchors.local_targets(text) == [
-        ("002-a-slug.md", ""),
-        ("../adr/ADR-0001.md", "decision-7"),
-        ("", "what-remains"),
+        Target(line=1, path="002-a-slug.md", fragment=""),
+        Target(line=1, path="../adr/ADR-0001.md", fragment="decision-7"),
+        Target(line=2, path="", fragment="what-remains"),
+    ]
+
+
+def test_local_targets_numbers_a_link_whose_own_text_wraps_from_where_it_opens() -> None:
+    """Prose here is wrapped by hand, so a link's brackets and its target straddle lines."""
+    text = "Line one.\n\nSee [the decision\nas written](../adr/ADR-0001.md#decision-7).\n"
+    assert backloganchors.local_targets(text) == [
+        Target(line=3, path="../adr/ADR-0001.md", fragment="decision-7")
     ]
 
 
@@ -67,6 +76,17 @@ def test_slug_lowercases_drops_punctuation_and_hyphenates_the_spaces() -> None:
     assert (
         backloganchors.slug('Withdrawn: "the resident figure"') == "withdrawn-the-resident-figure"
     )
+
+
+def test_slug_leaves_the_gap_a_dropped_symbol_stood_in_as_a_second_hyphen() -> None:
+    """The renderer's rule, and the two shapes this repo's own headings really carry.
+
+    Both spend a character between two spaces, and neither the renderer nor this collapses
+    the pair of hyphens that leaves behind. Getting it wrong would strand every pointer at
+    the fourteen headings here with an ampersand and the seven with an arrow.
+    """
+    assert backloganchors.slug("Risks & notes") == "risks--notes"
+    assert backloganchors.slug("hotkey → overlay → chat") == "hotkey--overlay--chat"
 
 
 def test_anchors_reads_every_heading_level_and_nothing_that_only_looks_like_one() -> None:
@@ -135,30 +155,88 @@ def test_check_reports_a_pointer_at_a_heading_the_index_stopped_rendering(tmp_pa
     indexes = _index(tmp_path, "# Deferred refinements\n\n### memory-and-recall\n")
     _write(tmp_path, "docs/adr/ADR-0008.md", "See [the area](../refinements/index.md#memory).\n")
     assert backloganchors.check(tmp_path, indexes) == [
-        "docs/adr/ADR-0008.md: pointer '../refinements/index.md#memory' aims at a heading "
+        "docs/adr/ADR-0008.md:1: pointer '../refinements/index.md#memory' aims at a heading "
         "docs/refinements/index.md does not render"
     ]
+
+
+def test_check_judges_nothing_aimed_at_an_index_whose_rendering_is_unknown(tmp_path: Path) -> None:
+    """A backlog too broken to render is still an index, so its stale file is never read."""
+    _write(tmp_path, "docs/refinements/index.md", "# Deferred refinements\n\n### memory\n")
+    indexes = {
+        (tmp_path / "docs/refinements/index.md").resolve(): Index(
+            name="docs/refinements/index.md", anchors=None
+        )
+    }
+    _write(tmp_path, "docs/adr/ADR-0008.md", "See [the area](../refinements/index.md#gone).\n")
+    assert backloganchors.check(tmp_path, indexes) == []
 
 
 def test_check_reads_an_index_pointer_at_its_own_hand_written_half(tmp_path: Path) -> None:
     """An index links to its own sections, so a pointer with no path is aimed at that file."""
     indexes = _index(tmp_path, "# Deferred refinements\n\n[how](#how-to-work-this-backlog)\n")
     assert backloganchors.check(tmp_path, indexes) == [
-        "docs/refinements/index.md: pointer '#how-to-work-this-backlog' aims at a heading "
+        "docs/refinements/index.md:3: pointer '#how-to-work-this-backlog' aims at a heading "
         "docs/refinements/index.md does not render"
     ]
 
 
-def test_check_is_silent_about_a_fragment_aimed_at_any_other_document(tmp_path: Path) -> None:
-    """Deliberately out of scope: judging those needs a heading set per document in the repo."""
+def test_check_reports_a_fragment_aimed_at_a_heading_any_other_document_lacks(
+    tmp_path: Path,
+) -> None:
+    """The widening: a heading renamed in a decision record strands its readers the same way."""
     indexes = _index(tmp_path, "# Deferred refinements\n\n### memory\n")
-    _write(tmp_path, "docs/adr/ADR-0008.md", "# Memory\n")
+    _write(tmp_path, "docs/adr/ADR-0008.md", "# Memory\n\n## Risks flagged for maintainer review\n")
     _write(
         tmp_path,
         "docs/refinements/tasks/001-a-task.md",
-        "See [the decision](../../adr/ADR-0008.md#a-heading-nobody-wrote) and [it](../index.md).\n",
+        "See [the decision](../../adr/ADR-0008.md#risks-flagged-for-user-review).\n",
+    )
+    assert backloganchors.check(tmp_path, indexes) == [
+        "docs/refinements/tasks/001-a-task.md:1: pointer "
+        "'../../adr/ADR-0008.md#risks-flagged-for-user-review' aims at a heading "
+        "docs/adr/ADR-0008.md does not offer"
+    ]
+
+
+def test_check_passes_a_fragment_aimed_at_a_heading_another_document_carries(
+    tmp_path: Path,
+) -> None:
+    indexes = _index(tmp_path, "# Deferred refinements\n\n### memory\n")
+    _write(tmp_path, "docs/adr/ADR-0008.md", "# Memory\n\n## Risks flagged for maintainer review\n")
+    _write(
+        tmp_path,
+        "docs/refinements/tasks/001-a-task.md",
+        "See [it](../../adr/ADR-0008.md#risks-flagged-for-maintainer-review).\n",
     )
     assert backloganchors.check(tmp_path, indexes) == []
+
+
+def test_check_says_nothing_about_a_fragment_on_a_target_that_is_not_markdown(
+    tmp_path: Path,
+) -> None:
+    """A line anchor addresses a file by number, a scheme with no headings to be wrong about."""
+    indexes = _index(tmp_path, "# Deferred refinements\n\n### memory\n")
+    _write(tmp_path, "proto/body.proto", "service BrainService {}\n")
+    _write(tmp_path, "docs/adr/ADR-0008.md", "See [the rpc](../../proto/body.proto#L42).\n")
+    assert backloganchors.check(tmp_path, indexes) == []
+
+
+def test_check_reports_a_fragment_aimed_at_markdown_the_scan_never_read(tmp_path: Path) -> None:
+    """Fail closed: missing, outside the tree, or vendored all leave the question unanswered."""
+    indexes = _index(tmp_path, "# Deferred refinements\n\n### memory\n")
+    _write(tmp_path, "node_modules/pkg/README.md", "# Vendored\n\n## Install\n")
+    _write(
+        tmp_path,
+        "docs/adr/ADR-0008.md",
+        "See [the gone one](moved-away.md#a-heading)\nand [the vendored one]"
+        "(../../node_modules/pkg/README.md#install).\n",
+    )
+    assert backloganchors.check(tmp_path, indexes) == [
+        f"docs/adr/ADR-0008.md:1: pointer 'moved-away.md#a-heading' {backloganchors.UNREAD}",
+        "docs/adr/ADR-0008.md:2: pointer '../../node_modules/pkg/README.md#install' "
+        f"{backloganchors.UNREAD}",
+    ]
 
 
 def test_check_reports_a_markdown_file_it_cannot_read(tmp_path: Path) -> None:
@@ -194,8 +272,20 @@ def test_the_repo_really_aims_pointers_at_both_indexes_from_outside_the_backlog(
     for path in backloganchors.markdown_files(ROOT):
         if path.parent.name == "tasks" or path.name == "index.md":
             continue
-        for target, fragment in backloganchors.local_targets(path.read_text(encoding="utf-8")):
-            at = (path.parent / target).resolve()
-            if fragment and at in aimed:
+        for target in backloganchors.local_targets(path.read_text(encoding="utf-8")):
+            at = (path.parent / target.path).resolve()
+            if target.fragment and at in aimed:
                 aimed[at] += 1
     assert all(count > 0 for count in aimed.values()), aimed
+
+
+def test_the_repo_really_aims_pointers_at_documents_that_are_not_a_backlog_index() -> None:
+    """The same guard for the half this scan grew: judging nothing new would be a silent no-op."""
+    indexes = _repo_indexes()
+    elsewhere = 0
+    for path in backloganchors.markdown_files(ROOT):
+        for target in backloganchors.local_targets(path.read_text(encoding="utf-8")):
+            at = (path.parent / target.path).resolve() if target.path else path.resolve()
+            if target.fragment and at.suffix == backloganchors.MARKDOWN and at not in indexes:
+                elsewhere += 1
+    assert elsewhere > 0
