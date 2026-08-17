@@ -93,6 +93,9 @@ check-body:
     cd scripts && uv sync --locked
     cd scripts && uv run python coverage_gate.py ../body/coverage.json --rustc "$(rustc +nightly --version)" --llvm-cov "$(cargo +nightly llvm-cov --version)"
 
+check-shell:
+    cd body/app/src-tauri && cargo clippy --locked --all-targets -- -D warnings
+
 check-overlay:
     cd body/app && npm ci
     cd body/app && npm run typecheck

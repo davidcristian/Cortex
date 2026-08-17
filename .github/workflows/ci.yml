@@ -21,6 +21,7 @@ jobs:
       python: ${{ steps.filter.outputs.python }}
       rust: ${{ steps.filter.outputs.rust }}
       overlay: ${{ steps.filter.outputs.overlay }}
+      shell: ${{ steps.filter.outputs.shell }}
     steps:
       # fetch-depth 0: the repo is small, and full history makes computing the
       # diff range trivial (merge bases and `before` SHAs are always present).
@@ -56,6 +57,7 @@ jobs:
             echo "python=true" >> "$GITHUB_OUTPUT"
             echo "rust=true" >> "$GITHUB_OUTPUT"
             echo "overlay=true" >> "$GITHUB_OUTPUT"
+            echo "shell=true" >> "$GITHUB_OUTPUT"
           fi
 
   cross-tree:
@@ -121,6 +123,33 @@ jobs:
         with:
           enable-cache: true
       - run: just check-body
+
+  shell:
+    needs: changes
+    if: needs.changes.outputs.shell == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install the Tauri Linux dev stack (pkg-config metadata only; clippy never links)
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
+            librsvg2-dev libdbus-1-dev
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # pinned master (no releases; dependabot bumps the SHA only)
+        with:
+          toolchain: stable
+          components: clippy
+      - uses: taiki-e/install-action@7f4eb899022d8fe70b20c4f3de697aa85c309026 # v2
+        with:
+          tool: just
+      # The shell is its own cargo workspace, so it needs its own cache key; sharing the
+      # rust job's would thrash both.
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+        with:
+          workspaces: body/app/src-tauri
+      - run: just check-shell
 
   overlay:
     needs: changes

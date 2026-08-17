@@ -74,7 +74,8 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    Docker against the real models (Docker-reachable at the mount, GPU via the container toolkit)
    by the agent, not something to punt to the maintainer; only genuinely OS-native validation
    (the Windows Rust/Tauri body) is host-only. **CI runs without a GPU** and builds each toolchain
-   (Python, Rust, and the `body/app/` overlay's node tree). Each toolchain's job runs when a change
+   (Python, Rust, the `body/app/` overlay's node tree, and the Tauri shell beside it, whose job is
+   the one that installs system libraries). Each toolchain's job runs when a change
    can affect it (path-filtered, ADR-0006); shared gate files (justfile, proto, scripts, workflows)
    and unrecognized paths trigger all of them (fail closed), with one deliberate carve-out:
    `.md` files outside a toolchain tree are toolchain-inert (the classifier's trailing markdown
@@ -118,7 +119,11 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    really offers, a backlog index answering out of the rendering the gate is about to require
    and every other document out of the file on disk
    (ADR-0039). All five run unconditionally, in CI too. Pre-commit mirrors it. Run it
-   before declaring anything done.
+   before declaring anything done. **One recipe is deliberately outside it**, `check-shell`
+   (clippy on the Tauri shell), which CI schedules and `just check` does not run: it is the only
+   check needing system libraries, the Linux GTK/webkit/dbus dev packages a clean dev box need
+   not have, and requiring them would make the single gate unrunnable rather than strict. The
+   divergence is argued in the ADR-0011 shell-clippy addendum; nothing else may join it.
 
 ## Commits
 
@@ -218,7 +223,8 @@ body/             Rust/Tauri workspace, host-native
                   os_windows (real global-hotkey + Core Audio backends, cfg(windows)) +
                   os_linux/os_macos (cfg-gated stubs)
   app/            React+Vite overlay (gated 100%) + its host-native Tauri src-tauri
-                  shell (fmt-checked in CI, else host-validated) named cortex-body, own workspace
+                  shell (fmt- and clippy-checked in CI, running it is host-only) named
+                  cortex-body, own workspace
 scripts/          repo gates, plus the one module here that gates nothing, contrast.py (the
                   interval a live measurement reports, ADR-0038): linecap.py (300-line cap), dashcheck.py (no dash as
                   punctuation), crosscheck.py (one value, spelled in several places, still

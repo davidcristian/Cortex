@@ -20,14 +20,16 @@ The decisions were revised same-day, pre-push, for open-source longevity.
    stdlib-only, gated like every other script: ruff, pyright strict, 100% coverage).
    A `changes` job computes `git diff --name-only` over the run's range (PR: three-dot
    diff against the base ref; push: `event.before..HEAD` when resolvable) and pipes it
-   into the classifier, which emits `python=`/`rust=`/`overlay=` outputs consumed by
-   job-level `if`s. Classification is ordered rules, first match wins, union over all paths:
+   into the classifier, which emits `python=`/`rust=`/`overlay=`/`shell=` outputs consumed
+   by job-level `if`s. Classification is ordered rules, first match wins, union over all paths:
    - **all:** `justfile`, `.python-version` (exact); `proto/`, `scripts/`,
      `.github/workflows/` (prefix);
    - **python:** `ruff.toml` (exact); `brain/` (prefix);
-   - **rust (shell carve-out):** `body/app/src-tauri/` (prefix) is the host-native Tauri
-     shell, which is Rust rather than node and is fmt-checked by `check-body` (ADR-0011),
-     so it is carved back to rust by a rule ordered BEFORE `body/app/`;
+   - **rust+shell (shell carve-out):** `body/app/src-tauri/` (prefix) is the host-native
+     Tauri shell, which is Rust rather than node and is fmt-checked by `check-body`
+     (ADR-0011), so it is carved back off the overlay by a rule ordered BEFORE `body/app/`.
+     It sets `shell=` as well, the one output whose job installs system libraries, so the
+     webkit provisioning `check-shell` needs is paid on a shell edit and on nothing else;
    - **overlay:** `body/app/` (prefix) is the React overlay tree; ordered BEFORE the
      `body/` rule so overlay changes gate the node toolchain, not Rust (the overlay is
      excluded from the gated Rust workspace, ADR-0011);

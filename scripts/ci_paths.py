@@ -5,21 +5,30 @@ from typing import Literal, NamedTuple
 
 
 class Verdict(NamedTuple):
-    """Which toolchain gates a changed path affects, plus a label for CI logs."""
+    """Which toolchain jobs a changed path affects, plus a label for CI logs."""
 
     label: str
     python: bool
     rust: bool
     overlay: bool
+    shell: bool
 
 
-ALL = Verdict("all", python=True, rust=True, overlay=True)
-PYTHON_ONLY = Verdict("python", python=True, rust=False, overlay=False)
-RUST_ONLY = Verdict("rust", python=False, rust=True, overlay=False)
-OVERLAY_ONLY = Verdict("overlay", python=False, rust=False, overlay=True)
-NEITHER = Verdict("neither", python=False, rust=False, overlay=False)
-# Same effect as ALL, but the distinct label makes CI logs say WHY every job ran.
-DEFAULT = Verdict("all (fail-closed default)", python=True, rust=True, overlay=True)
+# `shell=` here is this NamedTuple's fourth field, not subprocess's, which is what S604 is
+# about: nothing in this module runs a process. Ruff matches that rule on the keyword alone.
+ALL = Verdict("all", python=True, rust=True, overlay=True, shell=True)  # noqa: S604
+PYTHON_ONLY = Verdict("python", python=True, rust=False, overlay=False, shell=False)
+RUST_ONLY = Verdict("rust", python=False, rust=True, overlay=False, shell=False)
+OVERLAY_ONLY = Verdict("overlay", python=False, rust=False, overlay=True, shell=False)
+SHELL = Verdict("rust+shell", python=False, rust=True, overlay=False, shell=True)  # noqa: S604
+NEITHER = Verdict("neither", python=False, rust=False, overlay=False, shell=False)
+DEFAULT = Verdict(  # noqa: S604
+    "all (fail-closed default)",
+    python=True,
+    rust=True,
+    overlay=True,
+    shell=True,
+)
 
 
 class Rule(NamedTuple):
@@ -30,6 +39,9 @@ class Rule(NamedTuple):
     verdict: Verdict
 
 
+# Ordered, first match wins. The two `body/app/` rules come before the broader `body/` rule, and
+# the `.md` suffix rule comes last, so a markdown file inside a toolchain tree stays that
+# toolchain's.
 RULES: tuple[Rule, ...] = (
     Rule("exact", "justfile", ALL),
     Rule("exact", ".python-version", ALL),
@@ -38,7 +50,7 @@ RULES: tuple[Rule, ...] = (
     Rule("prefix", ".github/workflows/", ALL),
     Rule("exact", "ruff.toml", PYTHON_ONLY),
     Rule("prefix", "brain/", PYTHON_ONLY),
-    Rule("prefix", "body/app/src-tauri/", RUST_ONLY),
+    Rule("prefix", "body/app/src-tauri/", SHELL),
     Rule("prefix", "body/app/", OVERLAY_ONLY),
     Rule("prefix", "body/", RUST_ONLY),
     Rule("prefix", "docs/", NEITHER),
@@ -69,10 +81,11 @@ def classify(path: str) -> Verdict:
 
 
 def main(lines: list[str] | None = None) -> int:
-    """Classify every stdin path; print the union as exactly three GITHUB_OUTPUT lines."""
+    """Classify every stdin path; print the union as exactly four GITHUB_OUTPUT lines."""
     python = False
     rust = False
     overlay = False
+    shell = False
     source = sys.stdin if lines is None else lines
     for raw in source:
         path = raw.strip()
@@ -83,9 +96,11 @@ def main(lines: list[str] | None = None) -> int:
         python |= verdict.python
         rust |= verdict.rust
         overlay |= verdict.overlay
+        shell |= verdict.shell
     print(f"python={'true' if python else 'false'}")
     print(f"rust={'true' if rust else 'false'}")
     print(f"overlay={'true' if overlay else 'false'}")
+    print(f"shell={'true' if shell else 'false'}")
     return 0
 
 
