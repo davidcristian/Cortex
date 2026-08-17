@@ -374,6 +374,19 @@ other side (ADR-0029 cross-language-constant addendum).
   The ladder's encode wrapper briefly carried one; it hid nine covered regions and no unreachable
   one (the untakeable arm is inside `Result::unwrap_or_default`, std's line and not a region
   here), so it was removed with the gate re-run at 100%.
+- **This workspace's tests run twice per gate, in two different orders** (ADR-0002 rust-shuffle
+  addendum), which is a property of `check-body` and so covers `body-rpc` and the OS crates
+  equally. `cargo test` stays on stable in libtest's alphabetical order; the nightly coverage
+  step appends `-- -Z unstable-options --shuffle-seed=104729` and runs the same tests permuted.
+  Both must pass. Three things follow for anyone adding a test here. The seed is frozen and lives
+  in the `justfile`, libtest taking its arguments only on the command line; it is unrelated to the
+  three other suites' seeds and nothing should tie them. Adding one test re-draws its whole binary,
+  since libtest seeds on the seed plus a hash of the test-name list, so a red can name a pair you
+  did not touch and is still a real, reproducible order dependency. And the shuffle permutes
+  *dispatch* order into 24 parallel threads, so it redraws pairs further apart than the thread
+  count and changes nothing for adjacent ones, which were already racing. Each binary prints
+  `(shuffle seed: 104729)` in its header, so a failing log names its order; `just shuffle [seed]`
+  sweeps the others.
 
 **Dependencies.** `thiserror` and `futures-core` (the `Stream` trait for the `converse`
 return type, and the `Future` bound the retry loop is generic over). Both are trait/type-only,

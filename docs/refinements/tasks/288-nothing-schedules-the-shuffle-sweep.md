@@ -29,3 +29,14 @@ and fail closed on. Rotating the frozen seed on a schedule is the cheapest of th
 most dishonest, since a seed committed as a constant that somebody bumps periodically is a per-run
 lottery with extra steps and a diff. All three are worth less than the first evidence that the
 standing draw actually missed something, which is the trigger above.
+
+## Trail
+
+- 2026-08-17: Narrowed to the two Python suites and the overlay by the pass that shuffled the Rust
+  workspace ([R-287](287-rust-tests-run-in-one-fixed-order.md)). libtest seeds on the seed plus a
+  hash of the binary's test-name list, so growing a Rust test binary re-draws its whole permutation
+  rather than inserting the new test into the existing one. The Rust tree therefore re-draws every
+  pair it holds on every commit that adds a test to that binary, which is what this entry wants a
+  schedule to buy, and it needs no schedule to get it. Nothing about the Python and overlay half
+  changes, `pytest-randomly`'s per-item stability being exactly the property this entry was opened
+  about.

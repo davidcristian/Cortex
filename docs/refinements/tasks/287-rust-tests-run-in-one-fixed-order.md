@@ -1,28 +1,40 @@
 # The Rust suite runs in one fixed order
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-08-17
 **Area:** repo-gates
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
-**Trigger:** a Rust test that passes alone and fails inside `cargo test`, or any order-dependent flake in the body workspace.
 
-Opened 2026-08-16 by the pass that made the shuffle standing in the other three suites
-([ADR-0002 shuffle addendum](../../adr/ADR-0002-toolchain-gates.md)). Both Python suites now run
-shuffled under a fixed seed and so does the overlay's Vitest suite. The Rust workspace does not,
-and the reason is the toolchain rather than a decision anybody made.
+Opened 2026-08-16 by the pass that made the shuffle standing in the other three suites, recording
+the Rust workspace's fixed order as a known asymmetry rather than an oversight. It rested on one
+factual claim, that libtest has no shuffle option and the order it hands out is therefore the
+collected one, and that claim was wrong. libtest has `--shuffle` and `--shuffle-seed SEED`. They
+are unstable, so stable rejects them and nightly rejects them too until `-Z unstable-options`
+precedes them, which is how reading `cargo test -- --help` on stable leads to the conclusion the
+entry drew.
 
-**What is and is not already true.** `cargo test` runs a binary's tests in parallel threads, which
-is easy to mistake for randomization and is not: threads decide when a test runs beside another,
-not what order the list is handed out in. libtest has no shuffle option, so the order is the
-collected one, stable across runs. Parallelism does buy something the Python suites do not have,
-in that a test which depends on a sibling's leftover state is racing rather than reliably second,
-so the dependency shows up as a flake instead of as a pass; but it shows up only when the state is
-shared through something threads can both reach, and never for the ordinary case of a test that
-needs its sibling to have run first.
+So the costed alternative the entry described, adopting `cargo-nextest` as a second test runner
+beside `cargo test` and `cargo llvm-cov` and settling its relationship with coverage, was never
+needed. Nothing joins the gate. `check-body`'s coverage step is already nightly and already runs
+the whole workspace, so it carries `-- -Z unstable-options --shuffle-seed=104729` and `just check`
+now runs the Rust suite twice in two different orders, alphabetically on stable and permuted on
+nightly, both of which must pass. `just shuffle [seed]` gained a fourth arm.
 
-**What would close it.** `cargo-nextest` has `--shuffle`, and it runs each test in its own process,
-which is a stronger isolation than libtest's threads and would make the shuffle mean what it means
-in pytest. The cost is a second test runner in the gate beside `cargo test` and `cargo llvm-cov`,
-which is a real addition to a gate this repo keeps to one command per tree, and nextest's
-relationship with `cargo llvm-cov` is its own question to settle rather than assume. Neither has
-been costed, and no ordering defect has been seen in the Rust tree; this is written down so the
-asymmetry between the two toolchains is a recorded state rather than an oversight.
+The entry's other paragraph, on parallelism being interleaving rather than randomization, holds and
+is now a recorded limit of the shuffle rather than an argument against it: libtest permutes
+dispatch order into as many threads as the machine has, so pairs closer together than the thread
+count race either way and only pairs further apart are genuinely redrawn. Two things the entry did
+not anticipate are recorded at the origin: libtest re-draws a binary's whole permutation whenever
+its test list grows, which is not how `pytest-randomly` behaves and which gives the Rust tree for
+free what [R-288](288-nothing-schedules-the-shuffle-sweep.md) wants a schedule for elsewhere, and a
+test failure under the coverage step is loud and names the test, unlike the coverage shortfall the
+same recipe's single-verdict addendum is about.
+
+## Trail
+
+- 2026-08-17: Landed at the [ADR-0002 rust-shuffle
+  addendum](../../adr/ADR-0002-toolchain-gates.md), which also corrects the shuffle addendum's
+  claim that libtest has no shuffle. Proved able to fail by a planted order-dependent pair with 58
+  filler tests between its halves, passing 5 unshuffled runs of 5 and failing 5 of 5 at the frozen
+  seed, with the real gate line exiting 101 and naming the test; the catch rate is 10 of 20 seeds,
+  beside `scripts/`'s 11 of 20. It narrowed [R-288](288-nothing-schedules-the-shuffle-sweep.md)
+  to the Python and overlay suites and opened nothing.

@@ -89,7 +89,7 @@ check-body:
     cd body && cargo test --locked --workspace
     cd body && rustc +nightly --version
     cd body && cargo +nightly llvm-cov --version
-    cd body && cargo +nightly llvm-cov --locked --branch --workspace --all-targets --ignore-filename-regex '/_generated/|/build[.]rs$' --json --summary-only --output-path coverage.json
+    cd body && cargo +nightly llvm-cov --locked --branch --workspace --all-targets --ignore-filename-regex '/_generated/|/build[.]rs$' --json --summary-only --output-path coverage.json -- -Z unstable-options --shuffle-seed=104729
     cd scripts && uv sync --locked
     cd scripts && uv run python coverage_gate.py ../body/coverage.json --rustc "$(rustc +nightly --version)" --llvm-cov "$(cargo +nightly llvm-cov --version)"
 
@@ -107,6 +107,7 @@ shuffle seed="":
     (cd brain && uv sync --locked && uv run pytest --randomly-seed="$seed")
     (cd scripts && uv sync --locked && uv run pytest --randomly-seed="$seed")
     (cd body/app && npm ci && npx vitest run --coverage --sequence.seed="$seed")
+    (cd body && cargo +nightly test --locked --workspace -- -Z unstable-options --shuffle-seed="$seed")
 
 # Regenerate the committed seam stubs from proto/body.proto (needs local protoc; ADR-0003).
 proto:

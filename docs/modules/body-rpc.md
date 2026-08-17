@@ -250,6 +250,10 @@ Being ignored, they never run in CI and never count toward coverage.
   thread is the proof the call left the async worker; a panicking audio backend answers
   `Internal` twice over the *same* channel, proving the connection survives it; a panicking
   notification backend answers the same way.
+- Every one of those runs twice per gate, alphabetically under the stable `cargo test` and
+  permuted under the nightly coverage step's fixed `--shuffle-seed`; the rule for adding a test to
+  the biggest binaries in this workspace is in `docs/modules/body-core.md`, since the shuffle is
+  `check-body`'s and not any one crate's.
 
 **Dependencies.** `body-core` (the port), `tonic` + `tonic-prost` + `prost`, plus
 `async-stream` (builds the `converse` reply mapping), `tokio-stream` (chains the confirm
