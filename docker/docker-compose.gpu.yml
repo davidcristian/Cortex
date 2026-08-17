@@ -111,6 +111,22 @@ services:
       CORTEX_IMAGE_MAX_TOKENS: "${CORTEX_IMAGE_MAX_TOKENS:-1024}"
       CORTEX_NGL: "${CORTEX_NGL:-99}"
       CORTEX_CTX_SIZE: "${CORTEX_CTX_SIZE:-16384}"
+      # How many tokens a tier may spend thinking before the engine closes the thought and makes
+      # it answer. This is the middle of a dial the brain only had the ends of: a request says
+      # whether to think at all (CORTEX_REPLY_THINKING, and the bounds the recap fold, the session
+      # title and the recall rank already send), and this says how long a think that does happen
+      # may be. -1, the default, emits no flag and leaves the trace unbounded exactly as before;
+      # 0 ends thinking immediately for every request this tier serves; N > 0 lets it think that
+      # far and then answer. Measured on the cortex pick, one open question per arm: unrestricted
+      # spends 2323 to 2996 characters of trace and 10.1 to 12.6 s before the first word, 512
+      # spends about 2000 and 8.4 to 9.2 s, 128 spends about 500 and 1.7 to 2.6 s, and 0 spends
+      # none and 0.2 s, with the reply itself the same size in every arm. Setting this is also
+      # what makes the brain's own CORTEX_REPLY_MAX_TOKENS usable with thinking left on: a cap of
+      # 512 returned an EMPTY reply 3 of 3 against an unbounded trace and a full one under a
+      # budget of 128. The engine has to support it: llama.cpp reads N > 0 as a token budget, and
+      # a build that does not know the flag at all fails the tier at startup rather than ignoring
+      # it, which is why the default emits nothing. See docs/runbooks/llamacpp-gpu.md.
+      CORTEX_REASONING_BUDGET: "${CORTEX_REASONING_BUDGET:--1}"
       # The logical ids, which must match the brain's own (the endpoint map is static config on
       # both sides, since no port carries a path, a layer count, or a URL).
       CORTEX_MODEL_CORTEX: "${CORTEX_MODEL_CORTEX:-cortex}"
@@ -127,6 +143,11 @@ services:
       CORTEX_MODEL_FILE_BRAIN: "${CORTEX_MODEL_FILE_BRAIN:-}"
       CORTEX_NGL_BRAIN: "${CORTEX_NGL_BRAIN:-99}"
       CORTEX_CTX_SIZE_BRAIN: "${CORTEX_CTX_SIZE_BRAIN:-8192}"
+      # The deep tier's own thinking budget, in the same vocabulary and defaulting the same way.
+      # It is separate from the cortex's because the two are read on opposite arguments: the
+      # cortex answers while somebody watches, and this tier was picked for reaching an answer
+      # inside its trace at all, so shortening one is no reason to shorten the other.
+      CORTEX_REASONING_BUDGET_BRAIN: "${CORTEX_REASONING_BUDGET_BRAIN:--1}"
       CORTEX_MODEL_FILE_SUBAGENT_GPU: "${CORTEX_MODEL_FILE_SUBAGENT_GPU:-}"
       CORTEX_SUBAGENT_CTX_SIZE: "${CORTEX_SUBAGENT_CTX_SIZE:-8192}"
       CORTEX_SUBAGENTS_PARALLEL: "${CORTEX_SUBAGENTS_PARALLEL:-2}"

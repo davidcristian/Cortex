@@ -41,6 +41,12 @@ DEFAULT_SUBAGENT_GPU_MODEL = "subagent-gpu"
 # subagent service does.
 _REASONING_OFF = ("--chat-template-kwargs", '{"enable_thinking": false}')
 
+# llama.cpp's own word for a trace nobody bounds, and this repo's "unset" for the same reason it
+# is the engine's default: a deployment that names no budget emits no flag, so its tier comes up
+# with the argv it always did. Zero is a real setting here (thinking ends immediately) rather than
+# an absent one, which is why the sentinel cannot be the falsy value the image budget uses.
+_UNRESTRICTED_REASONING = -1
+
 # llama.cpp's own micro-batch default. A picture is decoded as one non-causal chunk, and the
 # engine asserts the micro-batch is at least as large as that chunk, so a per-image token budget
 # above this number must carry the micro-batch up with it. Measured rather than inferred: raising
@@ -102,12 +108,34 @@ class ModelHostConfig(BaseSettings):
     cortex_ngl: int = Field(default=99, validation_alias="CORTEX_NGL")
     cortex_ctx_size: int = Field(default=16384, gt=0, validation_alias="CORTEX_CTX_SIZE")
     cortex_port: int = Field(default=8080, gt=0, le=65535)
+    # How many tokens this tier may spend deliberating before the engine closes the thought and
+    # makes it answer. The middle of a dial the brain only had the ends of: a request says whether
+    # to think at all (``CORTEX_REPLY_THINKING``, and the bounds the fold, the title and the recall
+    # rank send), and this says how long a think that happens may be. Measured on the cortex pick,
+    # one open question per arm: unrestricted spends 2323 to 2996 characters of trace and 10.1 to
+    # 12.6 s before the first word, 512 spends 2003 and 8.4 s, 128 spends 483 to 536 and 1.7 to
+    # 2.6 s, and 0 spends none and 0.2 s, with the reply itself the same size in every arm.
+    # ``-1`` is the default and emits no flag (docs/runbooks/llamacpp-gpu.md).
+    cortex_reasoning_budget: int = Field(
+        default=_UNRESTRICTED_REASONING,
+        ge=_UNRESTRICTED_REASONING,
+        validation_alias="CORTEX_REASONING_BUDGET",
+    )
 
     brain_model: str = Field(default=DEFAULT_BRAIN_MODEL, validation_alias="CORTEX_MODEL_BRAIN")
     brain_file: str = Field(default="", validation_alias="CORTEX_MODEL_FILE_BRAIN")
     brain_ngl: int = Field(default=99, validation_alias="CORTEX_NGL_BRAIN")
     brain_ctx_size: int = Field(default=8192, gt=0, validation_alias="CORTEX_CTX_SIZE_BRAIN")
     brain_port: int = Field(default=8081, gt=0, le=65535)
+    # The deep tier's own budget, separate because the two tiers are read on opposite arguments:
+    # the cortex answers while somebody watches, and the deep model was picked for reaching an
+    # answer inside its trace at all (ADR-0004), so a deployment that shortens one has no reason
+    # to have shortened the other. Same vocabulary, same ``-1`` default.
+    brain_reasoning_budget: int = Field(
+        default=_UNRESTRICTED_REASONING,
+        ge=_UNRESTRICTED_REASONING,
+        validation_alias="CORTEX_REASONING_BUDGET_BRAIN",
+    )
 
     subagent_gpu_model: str = Field(
         default=DEFAULT_SUBAGENT_GPU_MODEL, validation_alias="CORTEX_MODEL_SUBAGENT_GPU"
@@ -132,7 +160,7 @@ class ModelHostConfig(BaseSettings):
                 ngl=self.cortex_ngl,
                 ctx_size=self.cortex_ctx_size,
                 parallel=1,
-                extra=self._vision(),
+                extra=(*self._vision(), *self._reasoning(self.cortex_reasoning_budget)),
             ),
             TierArgs(
                 model=self.brain_model,
@@ -141,6 +169,7 @@ class ModelHostConfig(BaseSettings):
                 ngl=self.brain_ngl,
                 ctx_size=self.brain_ctx_size,
                 parallel=1,
+                extra=self._reasoning(self.brain_reasoning_budget),
             ),
             TierArgs(
                 model=self.subagent_gpu_model,
@@ -169,6 +198,17 @@ class ModelHostConfig(BaseSettings):
         if not path:
             return ()
         return ("--mmproj", path, *self._image_budget())
+
+    def _reasoning(self, budget: int) -> tuple[str, ...]:
+        """A tier's thinking budget, in llama.cpp's own flag, or nothing at all when unrestricted.
+
+        The subagent tier is deliberately not given one: its deliberation is already off at the
+        template (``_REASONING_OFF``), so a positive count there would be a knob whose effect no
+        env can reach. What this bounds is a think that happens, not whether one does.
+        """
+        if budget == _UNRESTRICTED_REASONING:
+            return ()
+        return ("--reasoning-budget", str(budget))
 
     def _image_budget(self) -> tuple[str, ...]:
         """The per-image token budget, with the micro-batch a raised budget forces beside it.

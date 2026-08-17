@@ -248,3 +248,79 @@ def test_a_negative_image_budget_is_refused(monkeypatch: pytest.MonkeyPatch) -> 
     monkeypatch.setenv("CORTEX_IMAGE_MAX_TOKENS", "-1")
     with pytest.raises(ValidationError):
         ModelHostConfig()
+
+
+def test_a_thinking_budget_reaches_the_cortex_tier_as_the_engines_own_flag(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The middle of the dial: a think that happens, bounded, rather than one that does not.
+
+    Measured on the cortex pick at this very count, the trace falls from 2323 to 2996 characters
+    to about 500 and the first word from 10.1 to 12.6 s to 1.7 to 2.6 s, the reply staying the
+    same size and ending on its own.
+    """
+    monkeypatch.setenv("CORTEX_REASONING_BUDGET", "128")
+    argv = ModelHostConfig().roster()["cortex"].argv
+    assert argv[-2:] == ("--reasoning-budget", "128")
+
+
+def test_an_unbudgeted_tier_names_no_flag_at_all(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The default is the argv this repo always came up with, not one restating the engine's."""
+    monkeypatch.delenv("CORTEX_REASONING_BUDGET", raising=False)
+    assert "--reasoning-budget" not in ModelHostConfig().roster()["cortex"].argv
+
+
+def test_a_zero_budget_is_a_setting_rather_than_an_absent_one(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Zero is llama.cpp's "end the thought immediately", so it must reach the argv; only the
+    engine's own -1 means nobody asked."""
+    monkeypatch.setenv("CORTEX_REASONING_BUDGET", "0")
+    assert ModelHostConfig().roster()["cortex"].argv[-2:] == ("--reasoning-budget", "0")
+
+
+def test_the_deep_tier_carries_its_own_budget(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Two tiers read on opposite arguments, so one knob each: the cortex answers while somebody
+    watches, and the deep model was picked for reaching an answer inside its trace at all."""
+    monkeypatch.setenv("CORTEX_MODEL_FILE_BRAIN", "deep/brain.gguf")
+    monkeypatch.setenv("CORTEX_REASONING_BUDGET_BRAIN", "1024")
+    monkeypatch.delenv("CORTEX_REASONING_BUDGET", raising=False)
+    roster = ModelHostConfig().roster()
+    assert roster["brain"].argv[-2:] == ("--reasoning-budget", "1024")
+    assert "--reasoning-budget" not in roster["cortex"].argv
+
+
+def test_a_budgeted_seeing_cortex_keeps_both_tails(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The vision tail and the budget are independent knobs on one tier, so both must survive."""
+    monkeypatch.setenv("CORTEX_MMPROJ_FILE_CORTEX", "mmproj.gguf")
+    monkeypatch.setenv("CORTEX_IMAGE_MAX_TOKENS", "1024")
+    monkeypatch.setenv("CORTEX_REASONING_BUDGET", "256")
+    argv = ModelHostConfig().roster()["cortex"].argv
+    assert argv[-6:] == (
+        "--image-max-tokens",
+        "1024",
+        "--ubatch-size",
+        "1024",
+        "--reasoning-budget",
+        "256",
+    )
+    assert "--mmproj" in argv
+
+
+def test_the_subagent_tier_keeps_the_lever_it_already_has(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A budget for a tier whose deliberation is already off would be a knob with no effect, so
+    the GPU-placed subagent keeps the template pair and gains nothing."""
+    monkeypatch.setenv("CORTEX_MODEL_FILE_SUBAGENT_GPU", "small/sub.gguf")
+    monkeypatch.setenv("CORTEX_REASONING_BUDGET", "128")
+    argv = ModelHostConfig().roster()["subagent-gpu"].argv
+    assert argv[-2:] == ("--chat-template-kwargs", '{"enable_thinking": false}')
+    assert "--reasoning-budget" not in argv
+
+
+def test_a_budget_below_the_engines_own_default_is_refused(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """-1 is the floor because it is llama.cpp's own word for unrestricted; -2 says nothing."""
+    monkeypatch.setenv("CORTEX_REASONING_BUDGET", "-2")
+    with pytest.raises(ValidationError):
+        ModelHostConfig()

@@ -1,9 +1,8 @@
 # The reasoning budget is all or nothing
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-08-17
 **Area:** inference-model-manager
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Trigger:** a build of llama.cpp, or a request field it accepts, that bounds `reasoning_content` by a token count rather than switching it off.
 
 Opened 2026-08-16 by the capped-reply landing
 ([ADR-0005](../../adr/ADR-0005-llamacpp-engine.md) capped-reply addendum), which measured the
@@ -13,22 +12,27 @@ deliberation of 2545 to 3064 characters, against 0.4 s and an answer of the same
 thinking off. So the wait a user minds is the trace and not the reply, and the bound that would
 fix it precisely is a budget on the trace alone: think for this many tokens, then answer.
 
-Nothing in reach offers one. `--reasoning-budget` is a per-server switch taking 0 or -1, not a
-count, and it does not work on this build at all, which is why the per-request
-`chat_template_kwargs: {"enable_thinking": false}` is the only lever that does. The OpenAI request
-surface llama-server accepts has `max_tokens`, which bounds the whole completion, and a reasoning
-model spends its budget on thinking first: measured on this same cortex, `max_tokens: 512` with
-thinking left on returned an EMPTY reply 3 of 3 under traces of 1465 to 2126 characters. So the
-two settings this repo now offers are the two ends of one dial with nothing in between, and a
-deployment that wants a short think and a full answer has to choose between a full think and no
-think at all.
+The entry as written said nothing in reach offers one, on the reading that `--reasoning-budget`
+takes 0 or -1 and does not work on this build, that the OpenAI request surface bounds only the
+whole completion, and that a client-side budget is worse than either end of the dial. Only the
+last of those survived.
 
-**What would close it, and why none of it was taken now.** Waiting on the engine is the honest
-answer for the per-request half, since a field the server does not read cannot be sent. What this
-repo could build without it is a client-side budget: stop the stream when the `ReasoningChunk`
-count passes a bound and re-ask with thinking off, which spends the whole trace's time and then
-some, or cut the completion outright, which is the empty reply above wearing a different hat.
-Both are worse than either end of the dial, so the entry waits rather than building one.
+**What the engine actually offers, measured 2026-08-17
+([ADR-0005](../../adr/ADR-0005-llamacpp-engine.md) trace-budget addendum).** The binary's own help
+reads `--reasoning-budget N: token budget for thinking: -1 for unrestricted, 0 for immediate end,
+N>0 for token budget`, and on the cortex pick it does exactly that: at 128 the trace falls from
+2323 to 2996 characters to about 500 and the first word from 10.1 to 12.6 s to 1.7 to 2.6 s, the
+reply keeps its size, and every arm still finishes `stop`. It is the engine closing the thought and
+letting the model answer, which is the one thing a client-side cut cannot do, and it is why the
+rejected client-side options stay rejected. It also rescues the cap this repo shipped half usable:
+`max_tokens: 512` returned an empty reply 3 of 3 against an unbounded trace and 1488 to 1561
+characters of answer under a budget of 128.
+
+**What landed** is that count as tier configuration, `CORTEX_REASONING_BUDGET` and
+`CORTEX_REASONING_BUDGET_BRAIN` rendering llama.cpp's own flag onto the tier's argv, with `-1` the
+default and no flag emitted at all. Nothing crosses `InferenceBackend`: the engine reads the budget
+per server and ignores it on a request, measured in both directions, so the port keeps saying
+whether a request wants deliberation while the tier says how long a wanted one may be.
 
 ## Trail
 
@@ -36,3 +40,12 @@ Both are worse than either end of the dial, so the entry waits rather than build
   wait and then found no way to bound it separately. The two levers that did land,
   `CORTEX_REPLY_THINKING` and `CORTEX_REPLY_MAX_TOKENS`, are the ends of the dial this entry wants
   a middle of ([119-disable-thinking-token-budget.md](119-disable-thinking-token-budget.md)).
+- 2026-08-17: Landed as a per-tier trace budget, after re-deriving the engine claim this entry
+  rested on and finding it false: `--reasoning-budget` reads `N > 0` as a token budget on the image
+  this repo runs, and `0` works too, so the lever the entry waited for was already in the box. The
+  measured dial and the argument for keeping it out of the port are in the
+  [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md) trace-budget addendum. What the close opens is
+  that one tier still has one budget
+  ([295-per-request-trace-budget.md](295-per-request-trace-budget.md)) and that what a bounded
+  trace costs a hard answer is unmeasured
+  ([296-trace-budget-quality-floor.md](296-trace-budget-quality-floor.md)).
