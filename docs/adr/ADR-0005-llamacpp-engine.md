@@ -724,3 +724,142 @@ root hands the engine, because `run_from_env` is exercised as a whole rather tha
 passes, so a wiring that read the config and dropped it would be caught by the config's test not
 at all and by the engine's not at all. That gap is the honest cost of a knob whose producer and
 consumer are tested apart, and it is the one thing here a live run is the only witness for.
+## Addendum (2026-08-17): the trace budget, which is the middle of the thinking dial
+
+**Status:** Accepted. Closes "the reasoning budget is all or nothing" from
+[docs/refinements/index.md#inference-model-manager](../refinements/index.md#inference-model-manager),
+which the capped-reply addendum above opened the day it measured the trace as the whole of the
+wait and found no way to bound it separately.
+
+That entry rested on one claim about the engine, and the claim was wrong on the image this
+repo runs. It said `--reasoning-budget` is "a per-server switch taking 0 or -1, not a count, and
+it does not work on this build at all". The binary's own help says otherwise:
+
+```
+--reasoning-budget N   token budget for thinking: -1 for unrestricted, 0 for immediate end,
+                       N>0 for token budget (default: -1)
+```
+
+So the middle the entry wanted exists, in the one place the entry did not look again.
+
+### What the tree actually said
+
+Re-derived rather than trusted, an entry's account of the code being the thing this backlog
+warns about.
+
+- `GenerationBounds(max_tokens, thinking)` is the whole of the per-request vocabulary, and
+  `thinking` renders as `chat_template_kwargs: {"enable_thinking": false}` or as nothing at all.
+  The two ends of the dial, exactly as the entry described them.
+- `tiers.py` is "the one place a llama-server command line is assembled", and `TierArgs.extra`
+  already carries a per-tier tail: the GPU-placed subagent tier's reasoning-off pair. So a tier
+  flag has a home and a precedent, and the cortex and deep tiers carry no tail at all today.
+- Nothing in the brain reads or reports a trace length, so a budget expressed there would have to
+  be a client-side cut, which is the option the entry itself priced and rejected.
+
+### What a real server said
+
+Measured 2026-08-17 by the agent against the shipped cortex tier (gemma-4-12B QAT q4_0, `-ngl 99`,
+`-c 16384`, `--jinja`, the ghcr `server-cuda` image, build `b9870-2d973636e`, on the 24 GB card),
+three ordinary open questions, one run each per arm.
+
+| `--reasoning-budget` | trace | first word | reply | whole turn | finish |
+| --- | --- | --- | --- | --- | --- |
+| unset (shipped) | 2323 / 2996 / 2507 chars | 10.1 / 12.6 / 11.0 s | 4408 / 4712 / 4131 chars | 31.3 / 33.2 / 26.8 s | `stop` 3 of 3 |
+| `512` | 2003 / 1963 / 2004 chars | 8.4 / 9.2 / 8.5 s | 4189 / 4659 / 4170 chars | 25.7 / 29.4 / 24.6 s | `stop` 3 of 3 |
+| `128` | 507 / 483 / 536 chars | **1.7 / 2.6 / 2.5 s** | 4558 / 4450 / 4201 chars | 20.9 / 20.4 / 18.9 s | `stop` 3 of 3 |
+| `0` | none | 0.2 s | 4483 chars | 19.0 s | `stop` |
+
+Five readings decide everything below.
+
+1. **It is a dial, not a third switch.** The first word moves with the count through four
+   settings, and the reply stays the same size in all of them.
+2. **The answer survives the cut.** Every arm finished `stop`, and a trace guillotined mid
+   sentence at 128 was followed by a full coherent reply. That is the difference between the
+   engine's budget and the client-side cut the entry rejected: the engine closes the thought and
+   the model answers, where a client can only stop the stream and re-ask.
+3. **It rescues the cap this ADR shipped half-usable.** `max_tokens: 512` with thinking on
+   returned an empty reply 3 of 3 above; under a budget of 128 the same cap returned 1488 and
+   1561 characters of answer. The pairing rule loosens from "a cap needs thinking off" to "a cap
+   needs a bounded trace", which is what it always meant.
+4. **It is per server and cannot be moved per request.** A request body carrying
+   `reasoning_budget: 128` was ignored on an unbudgeted server (trace 2478 chars), and one
+   carrying `reasoning_budget: -1`, whether at the top level or inside `chat_template_kwargs`, did
+   not lift a budgeted server's own count (508 and 515 chars). Both directions, so this is the
+   engine's answer and not a guess about it.
+5. **Nothing else about the tier moves.** A per-request `enable_thinking: false` still yields no
+   trace at all under a budget (0 chars, 0.34 s), so every pass whose deliberation `drain_text`
+   discards is unaffected; and a trace cut at the count was followed by a well formed tool call
+   parsing to its arguments and finishing `tool_calls`, so the cortex's tool loop is unaffected too.
+
+**The shipped wiring was run, not only the flag.** The gap the capped-reply addendum above named
+in its own distrust-green section, that nothing asserts what the composition root hands the engine,
+is the gap a tier flag has too, so it was closed by running the stack rather than by a unit test:
+with `CORTEX_REASONING_BUDGET=128` in the environment, `just up-gpu` brought the model host up
+healthy and its supervised child's own command line read
+`/app/llama-server --model ... --parallel 1 --jinja --reasoning-budget 128`, with a question through
+that tier spending 498 characters of trace and 2.2 s to its first word for a 4849-character reply.
+
+### Decision
+
+1. **The budget is tier configuration, not a port field.** `CORTEX_REASONING_BUDGET` and
+   `CORTEX_REASONING_BUDGET_BRAIN` reach `ModelHostConfig` and render as llama.cpp's own
+   `--reasoning-budget N` on that tier's argv. Nothing crosses `InferenceBackend`, because there
+   is nothing for it to carry: the engine will not read a budget off a request, and inventing a
+   field the adapter drops would be a knob that lies.
+2. **`GenerationBounds` does not grow.** The port already says whether a request wants
+   deliberation; the tier now says how long a wanted one may be. Two orthogonal facts at the two
+   layers that can express them, and the core stays a pure function over what it was given.
+3. **No client-side budget is built.** The entry priced both candidates and both are worse than
+   either end of the dial: stopping the stream and re-asking with thinking off spends the trace's
+   time and then buys the thinking-off answer, and cutting the completion outright is the empty
+   reply this ADR already measured. Neither can close the thought, which is the only thing that
+   makes a bounded trace produce a whole answer.
+4. **`-1` is the unset value, and `0` is a setting.** `-1` is llama.cpp's own word for
+   unrestricted, so a deployment that names nothing emits no flag and its tier comes up with the
+   argv it always had. Zero means the thought ends at once, so it must reach the argv rather than
+   read as an absent knob, which is why this sentinel cannot be the falsy value the image budget
+   uses.
+5. **Two knobs, because two tiers are read on opposite arguments.** The cortex answers while
+   somebody watches; the deep model was picked for reaching an answer inside its trace at all
+   ([ADR-0004](ADR-0004-model-lineup.md)). A deployment that shortens one has no reason to have
+   shortened the other.
+6. **Neither default flips.** What the measurement earns is the right to bound the trace on a
+   deployment that would rather have its answer sooner, not the right to decide that for every
+   deployment. The runbook's advice is to start at `512` on a tier a user reads.
+7. **The GPU-placed subagent tier gains nothing.** Its deliberation is already off at the
+   template, so a positive count there would be a knob no env can make matter.
+
+### What this does not do, and where that is recorded
+
+- **One tier, one budget.** Two callers on the same tier cannot have different positive budgets,
+  so a deployment wanting a short think for a user's reply and a long one for the deep phase can
+  only get it by putting them on different tiers. Reopening needs an engine that reads the count
+  off a request, which is
+  [docs/refinements/tasks/295-per-request-trace-budget.md](../refinements/tasks/295-per-request-trace-budget.md).
+- **What a bounded trace costs the answer is not measured.** Four multi-step items with one right
+  answer each came back right at unbounded, `128` and `0` alike, so they price the latency and say
+  nothing about the ceiling; the open questions' replies were compared by size and read, not
+  scored. Recorded as
+  [docs/refinements/tasks/296-trace-budget-quality-floor.md](../refinements/tasks/296-trace-budget-quality-floor.md).
+- **`--reasoning-budget-message` is measured and not taken.** The flag injects a sentence before
+  the end of thought, and it works: at a budget of 128 the trace ended with the operator's own
+  words and the reply was full and coherent. It is not shipped because it buys nothing the budget
+  alone did not, and because that sentence lands in `reasoning_content`, which the overlay renders
+  as the user's visible thinking status; an operator's instruction to the model reading as the
+  model's own thought is a surface change, not a knob. Adding it later is one tuple in `_reasoning`.
+- **The flag has to exist in the deployment's own build.** A llama.cpp that does not know it fails
+  the tier at startup rather than ignoring it, which is the argument for the default emitting
+  nothing at all rather than an explicit `-1`.
+
+### Distrust green
+
+Two mutations, each applied to production code alone with the `model_manager` suite re-run.
+
+| mutation | reddens |
+| --- | --- |
+| `_reasoning` always returns no flag | **4**, every tier that asked for a budget |
+| `_reasoning` treats `0` as unset (`budget <= 0`) | **1**, exactly the test written for that line |
+
+The second is the one worth stating: the sentinel is the only thing separating "nobody asked" from
+"end the thought immediately", and a reading that folds them costs a deployment the setting it
+chose while leaving every other test green.

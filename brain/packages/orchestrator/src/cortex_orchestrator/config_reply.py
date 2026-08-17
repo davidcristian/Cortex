@@ -27,6 +27,12 @@ class ReplyBoundsConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="CORTEX_REPLY_")
 
     # env CORTEX_REPLY_MAX_TOKENS caps how far each completion of a user's turn may decode. 0,
+    # NOTE on the pairing below: what a cap must be paired with is a BOUNDED TRACE, and turning
+    # thinking off is only the cheapest way to bound one. A tier started with llama.cpp's own
+    # ``--reasoning-budget N`` (CORTEX_REASONING_BUDGET, ADR-0005 trace-budget addendum) leaves the
+    # cap room to answer in with deliberation still on: measured on the shipped cortex, 512 tokens
+    # against an unbounded trace returned an EMPTY reply 3 of 3 and the same 512 under a budget of
+    # 128 returned 1488 and 1561 characters of answer.
     # the default, sends no cap at all and leaves the real bound where it has always been, the
     # server's context window. Measured on the shipped cortex, an ordinary open question decodes
     # 1715 to 1941 tokens in 32.5 s to 37.5 s, so a cap meant to shorten a wait rather than to
