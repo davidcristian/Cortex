@@ -604,9 +604,11 @@ Untrusted-content boundary (Slice 6.5, ADR-0013; the pure primitives in `untrust
 
 Output guardrail (ADR-0015; the pure laundering defense built from the redactor + policies in
 `guardrail.py`, the URL grammar in `urls.py`, one URL's canonical identity in `url_identity.py`,
-every way a separator character may be spelled in `url_spellings.py`, the curated confusable
+every way a separator character may be spelled in `url_spellings.py`, what may still be growing into
+a URL at a buffer's end in `url_holdback.py`, the curated confusable
 fold in `url_confusables.py`, and what a URL parser removes from its input in `url_removals.py`, the
-first three having split at the line cap as the seventh and the eleventh addenda landed and the last
+first four having split at the line cap as the seventh, the eleventh and the sixteenth addenda
+landed and the last
 two by responsibility: the confusable fold is the one pass that is a judgement about what looks
 alike rather than a resolver's reading, and so the one a caller may switch off, and the removal
 table is read by the grammar and the identity alike, so neither may own it):
@@ -629,9 +631,14 @@ table is read by the grammar and the identity alike, so neither may own it):
   position with a **host anchor** behind it: a lookahead, consuming nothing, that asks for a dotted
   name (any registrable domain, IPv4 literal or IDN, the dot counting in every reading the resolver
   has, which is the IDNA label separators, their HTML references, and the one percent escape
-  `%2e` a parser decodes inside a host) or a bracketed literal carrying a colon (an IPv6 address).
-  A single label is declined and that decline is the whole false-positive budget, so `https:scheme`,
-  `http:foo` and `https:localhost` stay prose, as does everything with a space in it. An authority
+  `%2e` a parser decodes inside a host), a bracketed literal carrying a colon (an IPv6 address), or
+  a **split** host, whose gap is the same dot spelled with whitespace (`https:evil dot example/pay`,
+  ADR-0015 sixteenth addendum: the two widenings did not compose before, since the anchor predates
+  the gap and so read a dotted name only). A single label is declined and that decline is the whole
+  false-positive budget, so `https:scheme`,
+  `http:foo` and `https:localhost` stay prose, and so does a sentence after the colon: what tells a
+  gap from the space between two words is that a gap carries a **dot token** and an English sentence
+  puts none between its words, so `https:no slashes here` is nothing at all. An authority
   scheme also reaches a **whitespace-split host**, the last member of the defang family
   (`hxxp://evil dot example/pay`, `http://evil [.] com`, the gap holding the word, any reading of
   the dot, or the refanger's bracketed token, ADR-0015 twelfth addendum). A gap is admitted only
@@ -706,7 +713,8 @@ table is read by the grammar and the identity alike, so neither may own it):
   or bracketless URL-layer escapes of the separator (`\x2e`, `https%3A//`,
   `&amp;#58;`), each measured against a real URL parser, which resolves an escaped host to a
   *different* host and refuses the other two outright (ADR-0015 tenth + eleventh addenda).
-- `held_from(buf) -> int` (in `urls.py`) is the streaming hold-back the redactor's `feed` splits on:
+- `held_from(buf) -> int` (in `url_holdback.py`) is the streaming hold-back the redactor's `feed`
+  splits on:
   the index from which `buf` may still be growing a URL, so everything before it is final and
   everything from it is carried into the next delta. Four shapes are open, and all four are
   bounded: a `URL_RE` match touching the buffer's end, a **dotless host trailed by a gap that has
@@ -715,7 +723,11 @@ table is read by the grammar and the identity alike, so neither may own it):
   being held), a scheme word whose separator or host has not arrived yet (`http[&#58;`, `https&#5`,
   `https:evil.`), and a trailing prefix of any scheme+separator the tables enumerate. Carrying is
   not redacting, so prose that never becomes a host (`the https:scheme`, `https://evil now`) is
-  released whole and in order by a later `feed` or the `flush`.
+  released whole and in order by a later `feed` or the `flush`. The slashless authority reaches its
+  host through a lookahead, so the grammar spells that anchor **twice**, once finished and once
+  **arriving**: a half-typed split host (`https:evil dot `) satisfies no finished anchor, and the
+  separator alternation takes the anchor as a parameter so the two cannot drift (ADR-0015 sixteenth
+  addendum).
 - `TaintView` (protocol) exposes the **live** taint signals the guardrail reads at scan time
   (`tainted: bool`, `opaque: bool`, `untrusted_urls: AbstractSet[str]`); the turn's
   `TaintLedger` already

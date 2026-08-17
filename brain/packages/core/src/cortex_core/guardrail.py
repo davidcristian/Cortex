@@ -4,8 +4,9 @@ from collections.abc import Set as AbstractSet
 from enum import Enum, auto
 from typing import Protocol
 
+from cortex_core.url_holdback import held_from
 from cortex_core.url_identity import TRAILING_PUNCTUATION, host_of, normalize_url
-from cortex_core.urls import URL_RE, held_from
+from cortex_core.urls import URL_RE
 
 # What the user sees in place of a laundered link. Self-explanatory inline, so the overlay
 # needs no extra event type to surface the redaction.

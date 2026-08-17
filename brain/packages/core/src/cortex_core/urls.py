@@ -2,26 +2,23 @@ r"""The URL *grammar* behind the output guardrail's laundering defense (ADR-0015
 
 import re
 
-from cortex_core.url_identity import DOT_WORD, MAILTO_SCHEME, SPECIAL_SCHEMES, normalize_url
+from cortex_core.url_identity import MAILTO_SCHEME, SPECIAL_SCHEMES, normalize_url
 from cortex_core.url_removals import REMOVED_CHARS
 from cortex_core.url_spellings import (
-    AUTHORITY_SEPS,
     CHUNK_INNER,
     CLOSE_BRACKET,
     COLON_SPELLING,
     DEFANGED_AUTHORITY_SEPS,
     DEFANGED_OPAQUE_SEPS,
     DOT_SPELLING,
-    DOT_TOKENS,
     GAP_WHITESPACE,
-    OPAQUE_SEPS,
     OPEN_BRACKET,
     SOLIDUS_SPELLING,
     SPACED_DOT,
 )
 
-_AUTHORITY_WORDS = (*SPECIAL_SCHEMES, "hxxps", "hxxp")
-_OPAQUE_WORDS = (MAILTO_SCHEME, "tel")
+AUTHORITY_WORDS = (*SPECIAL_SCHEMES, "hxxps", "hxxp")
+OPAQUE_WORDS = (MAILTO_SCHEME, "tel")
 
 _NON_URL = r"\s<>\"'\)\]\}"
 
@@ -29,18 +26,39 @@ _URL_CHAR = rf"(?:[^{_NON_URL}]|{REMOVED_CHARS})"
 
 # A character that may belong to an *authority*: a body character that is not one of the three
 # delimiters ending it, the backslash included since a special scheme's parser reads that as one.
-_HOST_CHAR = rf"[^{_NON_URL}/?#\\]"
+HOST_CHAR = rf"[^{_NON_URL}/?#\\]"
 
-_HOST_ANCHOR = rf"(?={_HOST_CHAR}*{DOT_SPELLING}{_HOST_CHAR}|\[{CHUNK_INNER}*:{CHUNK_INNER}*\])"
+# A label of a **whitespace-split** host: body characters carrying no dot in any reading. The
+# absence is the whole point of the rule below, so it is spelled here rather than assumed.
+SPLIT_LABEL = rf"(?:(?!{DOT_SPELLING}){HOST_CHAR})+"
 
-_OPAQUE_SEP_RE = "|".join((COLON_SPELLING, *(re.escape(s) for s in DEFANGED_OPAQUE_SEPS)))
-_AUTHORITY_SEP_RE = "|".join(
-    (
-        rf"{COLON_SPELLING}{SOLIDUS_SPELLING}{{2}}",
-        *(re.escape(s) for s in DEFANGED_AUTHORITY_SEPS),
-        rf"(?:{_OPAQUE_SEP_RE}){SOLIDUS_SPELLING}?{_HOST_ANCHOR}",
-    )
+# One gap and the label it separates from the last, which is the unit the split host repeats and
+# the unit the host anchor below reads one of to know it is looking at a host at all.
+SPLIT_GAP = rf"{SPACED_DOT}{SPLIT_LABEL}"
+
+_SPLIT_HOST = rf"{SPLIT_LABEL}(?:{SPLIT_GAP})+"
+
+_HOST_ANCHOR = (
+    rf"(?={HOST_CHAR}*{DOT_SPELLING}{HOST_CHAR}"
+    rf"|\[{CHUNK_INNER}*:{CHUNK_INNER}*\]"
+    rf"|{SPLIT_LABEL}{SPLIT_GAP})"
 )
+
+_ARRIVING_HOST_ANCHOR = rf"(?={SPLIT_LABEL}{GAP_WHITESPACE})"
+
+OPAQUE_SEP_RE = "|".join((COLON_SPELLING, *(re.escape(s) for s in DEFANGED_OPAQUE_SEPS)))
+
+
+def _authority_sep(anchor: str) -> str:
+    """An authority scheme's separator alternation, with ``anchor`` behind its slashless branch."""
+    return "|".join(
+        (
+            rf"{COLON_SPELLING}{SOLIDUS_SPELLING}{{2}}",
+            *(re.escape(s) for s in DEFANGED_AUTHORITY_SEPS),
+            rf"(?:{OPAQUE_SEP_RE}){SOLIDUS_SPELLING}?{anchor}",
+        )
+    )
+
 
 _DEFANG_CHUNK = rf"{OPEN_BRACKET}{CHUNK_INNER}+{CLOSE_BRACKET}"
 
@@ -53,88 +71,17 @@ def _family(words: tuple[str, ...], seps: str) -> str:
 
 
 _DATA_ANCHOR = r"(?=[\w.+-]+/|[;,])"
-_DATA_SCHEME = rf"{_family(('data',), _OPAQUE_SEP_RE)}{_DATA_ANCHOR}"
+_DATA_SCHEME = rf"{_family(('data',), OPAQUE_SEP_RE)}{_DATA_ANCHOR}"
 
 
-_AUTHORITY = _family(_AUTHORITY_WORDS, _AUTHORITY_SEP_RE)
-_SCHEME = rf"(?:{_AUTHORITY}|{_family(_OPAQUE_WORDS, _OPAQUE_SEP_RE)}|{_DATA_SCHEME})"
+_AUTHORITY = _family(AUTHORITY_WORDS, _authority_sep(_HOST_ANCHOR))
+ARRIVING_AUTHORITY = _family(AUTHORITY_WORDS, _authority_sep(_ARRIVING_HOST_ANCHOR))
+_SCHEME = rf"(?:{_AUTHORITY}|{_family(OPAQUE_WORDS, OPAQUE_SEP_RE)}|{_DATA_SCHEME})"
 _BODY = rf"(?:{_DEFANG_CHUNK}|{_URL_CHAR})+"
 
-# A label of a **whitespace-split** host: body characters carrying no dot in any reading. The
-# absence is the whole point of the rule below, so it is spelled here rather than assumed.
-_SPLIT_LABEL = rf"(?:(?!{DOT_SPELLING}){_HOST_CHAR})+"
-
-_SPLIT_GAP = rf"{SPACED_DOT}{_SPLIT_LABEL}"
-_SPLIT_HOST = rf"{_SPLIT_LABEL}(?:{_SPLIT_GAP})+"
-
 URL_RE = re.compile(rf"\b(?:{_AUTHORITY}{_SPLIT_HOST}(?:{_BODY})?|{_SCHEME}{_BODY})", re.IGNORECASE)
-
-# Every scheme word, for the hold-back's open-chunk check below. Derived from the same tables as
-# `URL_RE`, so the two cannot drift.
-_SCHEME_WORDS = _AUTHORITY_WORDS + _OPAQUE_WORDS + ("data",)
-
-_SCHEME_PREFIXES = (
-    tuple(w + s for w in _AUTHORITY_WORDS for s in AUTHORITY_SEPS)
-    + tuple(w + s for w in _OPAQUE_WORDS for s in OPAQUE_SEPS)
-    + tuple("data" + s for s in OPAQUE_SEPS)
-)
-
-# The longest string that is a prefix of a scheme+separator but not yet a URL match
-# ("https://" needs one more character to match URL_RE). It is the stream filter's hold-back bound.
-_LONGEST_OPEN_PREFIX = max(len(prefix) for prefix in _SCHEME_PREFIXES)
-
-_UNFINISHED_ENTITY = r"&[#0-9a-z]*"
-
-_OPEN_SEP_RE = re.compile(
-    rf"\b(?:{'|'.join(_SCHEME_WORDS)})"
-    rf"(?:{OPEN_BRACKET}{CHUNK_INNER}*"
-    rf"|(?:{_OPAQUE_SEP_RE}){SOLIDUS_SPELLING}?{_HOST_CHAR}*"
-    rf"|(?:{COLON_SPELLING}|{SOLIDUS_SPELLING})*(?:{_UNFINISHED_ENTITY})?)\Z",
-    re.IGNORECASE,
-)
-
-
-def _prefixes(token: str) -> str:
-    """Every prefix of ``token``, the empty one and the whole included, as one regex fragment.
-
-    Generated by nesting one optional group per character rather than by listing the prefixes,
-    so a token's partial forms cannot drift from the token (`dot` gives ``d``, ``do``, ``dot``).
-    """
-    return "".join(f"(?:{re.escape(char)}" for char in token) + ")?" * len(token)
-
-
-_ARRIVING_GAP = (
-    rf"{GAP_WHITESPACE}+(?:{'|'.join(_prefixes(token) for token in DOT_TOKENS)}"
-    rf"|{_UNFINISHED_ENTITY}|{OPEN_BRACKET}(?:{_prefixes(DOT_WORD)}|\.)?{CLOSE_BRACKET}?)"
-    rf"{GAP_WHITESPACE}*"
-)
-
-_ARRIVING_SPLIT_HOST = re.compile(
-    rf"\b{_AUTHORITY}{_SPLIT_LABEL}(?:{_SPLIT_GAP})*{_ARRIVING_GAP}\Z", re.IGNORECASE
-)
 
 
 def extract_urls(text: str) -> frozenset[str]:
     """Every clickable URL in ``text`` (any listed scheme), normalized for identity comparison."""
     return frozenset(normalize_url(match.group()) for match in URL_RE.finditer(text))
-
-
-def held_from(buf: str) -> int:
-    """The index from which ``buf`` may still be growing a URL. Everything before is final."""
-    last = None
-    for match in URL_RE.finditer(buf):
-        last = match
-    if last is not None and last.end() == len(buf):
-        return last.start()
-    open_gap = _ARRIVING_SPLIT_HOST.search(buf)
-    if open_gap is not None:
-        return open_gap.start()
-    open_sep = _OPEN_SEP_RE.search(buf)
-    if open_sep is not None:
-        return open_sep.start()
-    lower = buf.lower()
-    for size in range(min(len(buf), _LONGEST_OPEN_PREFIX), 0, -1):
-        suffix = lower[-size:]
-        if any(prefix.startswith(suffix) for prefix in _SCHEME_PREFIXES):
-            return len(buf) - size
-    return len(buf)
