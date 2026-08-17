@@ -136,10 +136,16 @@ def _calling_body() -> bytes:
 
 @pytest.fixture
 def scripted() -> BackendUnderTest:
-    """The core twin, scripted with each world rather than asked to derive it."""
+    """The core twin, scripted with each world rather than asked to derive it.
+
+    Every twin here is told it stands for a deployment serving ``CONTRACT_MODEL`` alone, which is
+    the wiring the adapter leg gets from its ``SingleResidentModelManager``. Without it the two
+    legs would disagree about an id no deployment serves, the fake answering where the adapter
+    refuses.
+    """
 
     def build(events: list[InferenceEvent]) -> ScriptedInferenceBackend:
-        return ScriptedInferenceBackend([events])
+        return ScriptedInferenceBackend([events], serves=[CONTRACT_MODEL])
 
     def deliberating() -> ScriptedInferenceBackend:
         return build(

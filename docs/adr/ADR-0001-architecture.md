@@ -583,7 +583,8 @@ answers, so three of the four worlds cannot be put to it, and teaching it any of
 backend a real deployment runs into a test stub, which is the argument `fakes_inference.py` already
 makes about the cadence it must never fabricate. What it owes stays in `core/tests/test_fakes.py`.
 Whether the twin should also refuse a model it does not serve, where the adapter refuses one its
-manager cannot lease, is the one question this list left open and is filed as its own entry.
+manager cannot lease, is the one question this list left open; it was filed as its own entry and is
+answered by the served-model addendum below.
 
 **Proven able to fail, seven times, and once informatively not.** Each break was made against
 production code, measured with the whole `packages` suite (2517 passing), and restored:
@@ -603,3 +604,55 @@ the shared list holds the port and the adapter's suite holds the translation, so
 makes the adapter chatty leaves seven of the eight checks green. That is the division of labour
 rather than a hole. The one check it does redden fails because the role-only opening chunk becomes
 a text delta ahead of the thinking, which is the ordering promise doing its job.
+
+## Addendum (2026-08-17): a backend answers only for a model it serves
+
+The question the streaming list above left open, settled by measuring what the two implementations
+actually did with a model id no deployment hosts. `LlamaCppBackend` asked for `'scribe'` against a
+manager holding one resident raised `InferenceError: model manager could not lease 'scribe' for
+inference`, before any HTTP request left the process. `ScriptedInferenceBackend` asked for the same
+id streamed its whole script, recorded the id in `calls`, and said nothing about it. So the fake
+was more permissive than the adapter it stands in for, which is the direction that hides defects
+rather than inventing them: a wiring change naming an id nobody serves would pass every core test
+written over the twin and fail on the first real turn.
+
+**Both sides were wrong, in the sense the question offered.** The port had no answer to give, so
+neither implementation could be measured against one, and the twin's permissiveness was the port's
+silence rather than a decision. The answer written into `ports.py` is the narrowest one that closes
+the gap: an implementation answers only for the ids it serves, and asked for one it does not it
+fails with `InferenceError`. What it deliberately does not say is **who checks or when**. Which ids
+a deployment serves stays the `ModelManager`'s subject here, and a backend fronting a router would
+legitimately recognise its whole table and take the refusal off the wire; both satisfy the
+obligation, because the obligation is about the reply and not about the check. The reason it is an
+obligation at all is that `model` is the caller's entire statement of which weights it wants
+(ADR-0004): a reply produced by some other model arrives under the requested id with nothing to
+mark it, so a caller cannot detect the substitution the way it detects a failure.
+
+**What the twin gained.** `ScriptedInferenceBackend(rounds, serves=[...])` names the ids it stands
+for, the wiring rather than the script, and refuses anything outside it with the port's one error
+after recording the call, which is `fail_with`'s existing stance about a request a backend took and
+could not answer. `serves=None` stays the default and answers for any id, since a twin told nothing
+about a deployment has made no claim to violate and the fifty-odd scripts written about events
+rather than wiring should not have to invent one. The shared list is driven over a twin that has
+been told, `CONTRACT_MODEL` and nothing else, which is exactly the wiring the adapter leg gets from
+its `SingleResidentModelManager`.
+
+**The ninth check needs no fifth world**, and writing it that way is the point:
+`check_a_backend_answers_only_for_a_model_it_serves` asks the *deliberating* backend for
+`UNSERVED_MODEL` and requires a failure. Every builder in the list already stands for a deployment
+serving `CONTRACT_MODEL` alone, so the world the check wants is the one the fixtures already
+arrange, and a fifth builder would have described the same deployment twice.
+
+**Proven able to fail, twice, once per leg.** Each break was made against production code, measured
+with the whole `packages` suite (2625 tests), and restored:
+
+| Break | Result | Shared checks reddened |
+| --- | --- | --- |
+| the twin's refusal made a no-op | 1 failed | the served-model check on `scripted` alone, which is what proves the new knob load-bearing |
+| `SingleResidentModelManager.acquire` stops checking residency | 3 failed | the served-model check on `llamacpp`; the others are the manager's own test and the adapter's wrapping test |
+
+The asymmetry between the rows is the division of labour again: the twin's refusal is reachable
+only from the shared list, since nothing else in the tree hands the twin an id it does not serve,
+while the adapter's comes from a collaborator two other tests already pin. What is left over is
+that `serves` is opt-in, so the core's own hand-rolled backends still answer for anything, which is
+recorded as its own entry rather than settled here.

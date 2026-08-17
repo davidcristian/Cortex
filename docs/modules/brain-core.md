@@ -822,7 +822,11 @@ unchanged):
   AsyncIterator[InferenceEvent]`: one stateless streamed completion, yielding `TextChunk` deltas
   and each whole `ToolCall` the model makes from the offered `tools` (ADR-0009), the call never
   preceding the words beside it. `model` is a
-  logical id (ADR-0004). `schema` (a `JsonSchema`, `Mapping[str, object]`), when set, constrains
+  logical id (ADR-0004), and **an implementation answers only for the ids it serves**, failing with
+  `InferenceError` on one it does not rather than replying out of whatever model is behind it; who
+  checks and when is left open, a `ModelManager`'s residency here and a router's table elsewhere
+  (ADR-0001 served-model addendum). `schema` (a `JsonSchema`, `Mapping[str, object]`), when set,
+  constrains
   decoding to that JSON Schema (ADR-0028); `None` (every caller but a constrained tool-less
   subagent) leaves output unconstrained. `bounds` (a `GenerationBounds`, ADR-0038 cheap-fold
   addendum) is how far this one request lets the model go: `max_tokens` caps what the server will
@@ -1880,13 +1884,19 @@ Use-case:
   wrong yes spends the user's privacy, a wrong no costs one turn's capability. The core fake is
   `ScriptedVisionProbe(answers)` (`fakes_vision.py`), whose script and `rescript` are how a test
   changes the world between the advertisement and the call.
-- `ScriptedInferenceBackend(rounds)` (`fakes_inference.py`) is the `InferenceBackend` twin the
+- `ScriptedInferenceBackend(rounds, *, serves=None)` (`fakes_inference.py`) is the
+  `InferenceBackend` twin the
   decode-cadence, stop-reason and streaming contracts are driven over: one event list per `stream`
   call, the last repeating,
   plus a `calls` tally and `fail_with(InferenceError(...))`, which is the port's only failure
   channel and the one thing a script cannot say (a server that stops answering is a condition of
   the world, not an event in a stream); the attempt is recorded before it fails, a backend that
-  cannot answer having taken the request all the same. That the script advances per call is
+  cannot answer having taken the request all the same. `serves` is the other half of that
+  world, the wiring rather than the script: it names the model ids this twin stands for, and an
+  id outside them fails with `InferenceError` after the same recorded call, which is how the twin
+  keeps the port's promise that a backend answers only for a model it serves instead of being more
+  permissive than the adapter it stands in for. `None`, the default, answers for any id, a twin
+  told nothing about a deployment having made no claim to violate. That the script advances per call is
   deliberate and is why no contract check asks an implementation to answer twice the same way: a
   sampled model could not. It exists because `EchoInferenceBackend` must not learn to report a
   cadence: that one is shipped wiring a GPU-less deployment really runs, so a fabricated rate out
