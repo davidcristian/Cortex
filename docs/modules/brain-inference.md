@@ -96,10 +96,16 @@ with the cause chained:
   `_transport_failure` naming a **stall** apart from a dead server: an `httpx.ReadTimeout` means
   the client's ceiling fired on a server that took the request and then went quiet, which sends
   an operator somewhere else entirely than "nothing answered" does;
-- a malformed streaming chunk (bad JSON, unexpected shape, non-string content) or a
-  tool call whose accumulated arguments are not valid JSON raises `InferenceError`
-  directly, since a silently skipped chunk would drop reply text or a tool call, the same
-  fail-loud stance the session store takes on corrupt records;
+- a malformed streaming chunk (bad JSON, unexpected shape, non-string content) raises
+  `InferenceError` directly, since a silently skipped chunk would drop reply text or a tool call,
+  the same fail-loud stance the session store takes on corrupt records;
+- a tool call whose accumulated arguments are not valid JSON raises the **narrower**
+  `MalformedToolCallError` (ADR-0005 tool-call-cut addendum), because that fragment is the model's
+  own tokens rather than the server's protocol: measured against a real server, a cap landing mid
+  `arguments` leaves 71 to 899 characters of unterminated string under `finish_reason: "length"`,
+  and the `DecodeStop` has already been yielded when this raises, so a caller holding a
+  `StopLedger` can pair the two into "the run was cut" rather than "the backend died". It is a
+  subclass, so every `except InferenceError` still catches it;
 - **the decode cadence is the one exception, and it fails quiet.** A `timings` object that is
   missing, not an object, missing either field, holding a non-number, holding a bool (which is an
   `int` in Python and would otherwise arrive as 1.0 tok/s), or holding a negative yields no
@@ -135,7 +141,12 @@ with the cause chained:
   real llama-server body, so passing means the parser found the fact in bytes nobody shaped for
   it. The stop's live twin is `tests/test_finish_reason_live.py`
   (`integration`-marked), which caps a real request at eight tokens and follows the answer through
-  the shipped `PlacedAttempt`.
+  the shipped `PlacedAttempt`. `tests/test_cut_tool_call_live.py` is the other half of that live
+  pair: it caps a request while the model is writing a tool call's `arguments`, asserts the server
+  reports the cap before the assembly fails, and follows the same shipped `PlacedAttempt` to a
+  `TRUNCATED` outcome (ADR-0005 tool-call-cut addendum). It needs a server started the way a
+  subagent tier is, deliberation off at the server, since the attempt sends no `thinking` of its
+  own.
 - **What the streaming list holds is what a stream owes, said without saying when.** Eight checks
   over four worlds a fixture arranges (a reasoning model answering, a completion that asks for a
   tool, a completion with nothing to say, a backend that cannot answer): the reply is its deltas

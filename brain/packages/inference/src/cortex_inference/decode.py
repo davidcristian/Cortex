@@ -9,7 +9,11 @@ Three different stances toward a malformed answer live here, and the differences
 
 - **Reply content, reasoning, and tool calls fail loud.** A chunk this module cannot parse raises
   ``InferenceError`` rather than being skipped, because a silently dropped chunk loses reply text
-  or a tool call, which is the failure mode the store adapter refuses too.
+  or a tool call, which is the failure mode the store adapter refuses too. A tool call whose
+  ``arguments`` will not parse raises the narrower ``MalformedToolCallError`` (ADR-0005
+  tool-call-cut addendum), because that fragment is the model's own tokens rather than the
+  server's protocol, and a caller holding the completion's stop reason can then tell a call a
+  token limit cut from a backend that died.
 - **The decode cadence fails quiet.** It is a diagnostic that arrives after the answer, so a
   server whose ``timings`` object is missing, oddly shaped, or negative yields no cadence and
   changes nothing else. Killing a finished reply over a telemetry field would trade the thing the
@@ -30,7 +34,7 @@ from typing import cast
 
 import httpx
 
-from cortex_core import DecodeCadence, InferenceError, ToolCall
+from cortex_core import DecodeCadence, InferenceError, MalformedToolCallError, ToolCall
 from cortex_core.inference import DecodeStop, StopReason
 
 __all__ = [
@@ -212,13 +216,25 @@ def consume_chunk(payload: str, pending: dict[int, PendingCall]) -> ChunkRead:
 
 
 def finish_calls(pending: dict[int, PendingCall]) -> list[ToolCall]:
-    """Turn the reassembled fragments into ``ToolCall``s, parsing each JSON argument string."""
+    """Turn the reassembled fragments into ``ToolCall``s, parsing each JSON argument string.
+
+    The failure here is the port's narrower one (``MalformedToolCallError``, ADR-0005
+    tool-call-cut addendum) rather than a bare ``InferenceError``, because what did not parse is
+    the **model's own tokens** and not the transport: the stream arrived, and the ``arguments``
+    string it carried is not JSON. Measured against a real server, that is what a token limit
+    landing mid ``arguments`` leaves behind (a cap of 20 to 160 tokens on a long-argument call
+    gave 71 to 899 characters of fragment under ``finish_reason: "length"``, unterminated every
+    time), so a caller holding the completion's stop reason can tell a cut call from a dead
+    backend. Every other failure in this module stays the wider type, which is the honest line:
+    a status, a stall, or a chunk this module cannot read is the server's, and another server may
+    do better.
+    """
     calls: list[ToolCall] = []
     for slot in pending.values():
         try:
             arguments: Mapping[str, object] = json.loads(slot.arguments) if slot.arguments else {}
         except json.JSONDecodeError as err:
             msg = f"malformed tool-call arguments from llama-server: {slot.arguments!r}"
-            raise InferenceError(msg) from err
+            raise MalformedToolCallError(msg) from err
         calls.append(ToolCall(id=slot.id, name=slot.name, arguments=arguments))
     return calls

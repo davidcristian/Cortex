@@ -863,3 +863,98 @@ Two mutations, each applied to production code alone with the `model_manager` su
 The second is the one worth stating: the sentinel is the only thing separating "nobody asked" from
 "end the thought immediately", and a reading that folds them costs a deployment the setting it
 chose while leaving every other test green.
+
+## Addendum (2026-08-17): the cap that lands inside a tool call
+
+**Status:** Accepted. Closes "a cap that lands mid tool call reads as a dead backend" from
+[docs/refinements/index.md#subagents](../refinements/index.md#subagents), which the finish-reason
+addendum above opened as the one path where a capped run does not reach the settling that reports
+it.
+
+### What the tree actually said
+
+Re-derived and then reproduced, because this entry's whole claim is an ordering between four
+pieces of code.
+
+- `LlamaCppBackend.stream` yields each chunk's events inside the stream and assembles the model's
+  tool calls only **after** it, so `finish_calls` raises with the `DecodeStop` already delivered.
+- `stream_tool_loop` hands every `DecodeStop` to `context.stops`, so the ledger is already
+  answering "capped" when that raise crosses it.
+- `PlacedAttempt` catches `InferenceError` in an arm that reports `AttemptFailure.INFERENCE`
+  without consulting the ledger.
+- `SubagentRunner._placed` re-places exactly `AttemptFailure.INFERENCE` from a GPU placement.
+
+So a cut tool call cost a second model load to be cut at the same cap again, and the stored detail
+named a JSON decode error where the truth was a token limit.
+
+### What a real server said
+
+Measured 2026-08-17 by the agent against the cortex artifact run in a subagent tier's shape
+(gemma-4-12B QAT q4_0, `-ngl 99`, `-c 16384`, `--jinja`,
+`--chat-template-kwargs '{"enable_thinking": false}'`, build `b9870-2d973636e`), asking for a long
+argument under a small cap, one run per cap:
+
+| cap | `finish_reason` | tool-call fragments | assembled `arguments` |
+| --- | --- | --- | --- |
+| 20 | `length` | 14 | 71 chars, unterminated string |
+| 40 | `length` | 34 | 177 chars, unterminated string |
+| 80 | `length` | 74 | 466 chars, unterminated string |
+| 160 | `length` | 154 | 899 chars, unterminated string |
+
+Two readings settle the design. **The server does stream a partial tool call**, so this is not a
+case the engine swallows, and **it says `length` while doing it**, so the two facts the verdict
+needs are both on the wire. Then the shipped attempt over the shipped adapter, same server, cap 60:
+before the arm it answered `AttemptFailure.INFERENCE` with
+`malformed tool-call arguments from llama-server: '{"body":"Distributed systems are composed of ...`
+and after it `AttemptFailure.TRUNCATED` with the refusal that names the cap.
+
+### Decision
+
+1. **The port grows a narrower error, not a flag.** `MalformedToolCallError(InferenceError)` says
+   the stream arrived and the **model's own tokens** will not parse. It is a subclass, so every
+   existing `except InferenceError` keeps catching it and no consumer changes; only a caller that
+   can act on the distinction names it. The `MemoryDataError` and `ModelNotHostedError` precedent,
+   for the same reason both were subclasses: a fact about the answer, filed apart from a verdict
+   about the machine.
+2. **Only `finish_calls` raises it.** A status, a stall, a chunk this adapter cannot read: all
+   stay the wide type, because those are the server's failures and another server may do better.
+   A tool call's `arguments` are the model's, and the same model on another target writes them
+   again.
+3. **The verdict needs both facts, and the arm asks for both.** `PlacedAttempt` reports
+   `TRUNCATED` only when the narrower error arrives **and** its `StopLedger` saw a capped
+   completion. This is what the entry could not resolve: reading the ledger in the wide arm would
+   report a dead backend on a round after a capped one as a truncation and skip the re-place that
+   exists for exactly that, and reading only the error type would call a model that broke its own
+   grammar a truncation. Neither half alone is the answer, which is why the type had to exist.
+4. **It is reported in the words the ordinary capped path already uses.** `cap_detail` is the same
+   refusal `settle_reply` produces, so the cortex reads one sentence for one situation, and the
+   runner declines to re-place it for the reason it declines the other: a tier that filled its
+   token budget will fill it again.
+5. **Silence stays silence.** A build that reports no finish reason leaves the ledger saying
+   nothing, and an unparsable call under it is reported exactly as it was before this arm existed.
+   The `StopLedger` invariant is unchanged: silence is not a cap.
+
+### What this does not do, and where that is recorded
+
+- **The cortex's own turn is untouched.** The same cut on the cortex path raises through
+  `handle_turn` and surfaces as a seam error naming a JSON decode failure, where the turn's own
+  capped-reply note would be the truer thing to say. It is a different consumer with a different
+  surface, recorded as
+  [docs/refinements/tasks/297-cut-tool-call-fails-the-cortex-turn.md](../refinements/tasks/297-cut-tool-call-fails-the-cortex-turn.md).
+- **Nothing is done about the cut itself.** A run cut inside a tool call is still a run that did
+  not answer; what changed is that it says so, and stops buying a second model load to find out
+  again.
+
+### Distrust green
+
+Four mutations, each applied to production code alone with the whole `packages` suite re-run.
+
+| mutation | reddens |
+| --- | --- |
+| the `MalformedToolCallError` arm deleted, so a cut call falls through to the wide one | **2** |
+| that arm answers `TRUNCATED` without consulting the ledger | **1**, the no-cap case |
+| `finish_calls` raises the wide `InferenceError` again | **1**, the adapter's own case |
+| the ledger read in the **wide** arm instead, the one-line fix the entry warned about | **1**, the dead-backend-after-a-cap case |
+
+The last row is the one worth stating: it is the fix that looks right, it passes every test that
+existed before this arm, and the case it breaks is the case the entry named as the reason to wait.
