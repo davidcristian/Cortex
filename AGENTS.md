@@ -114,8 +114,9 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    materializes a container-written directory the index would take (ADR-0026 bind addendum);
    and `backlogcheck.py`, which holds each backlog index to the task files it describes and
    every link in them to resolving, so a status can be written in exactly one place, and holds
-   every `#fragment` aimed at one of those indexes, wherever in the repo it is written, to
-   naming a heading that index really renders
+   every `#fragment` written anywhere in the repo to naming a heading the document it aims at
+   really offers, a backlog index answering out of the rendering the gate is about to require
+   and every other document out of the file on disk
    (ADR-0039). All five run unconditionally, in CI too. Pre-commit mirrors it. Run it
    before declaring anything done.
 
@@ -227,7 +228,7 @@ scripts/          repo gates, plus the one module here that gates nothing, contr
                   default lands unignored in the tree) + composemounts.py (its compose
                   reader), backlogcheck.py (each backlog index still matches its task files,
                   ADR-0039) + backlog.py (task-file grammar), backlogindex.py (what the
-                  index renders) and backloganchors.py (the anchors an index offers and
+                  index renders) and backloganchors.py (the anchors a document offers and
                   every pointer in the repo aimed at one), coverage_gate.py (Rust
                   branches), ci_paths.py (CI path
                   classifier), commitlint.py (commit-message style)

@@ -97,9 +97,10 @@ def main(argv: list[str] | None = None) -> int:
     for kind, base, group_word in BACKLOGS:
         found, offered = run_one(root, kind, base, group_word, write=args.write)
         problems.extend(found)
-        if offered is not None:
-            name = f"{base}/index.md"
-            indexes[(root / name).resolve()] = backloganchors.Index(name=name, anchors=offered)
+        # Registered even when its rendering is unknown, so the anchor scan knows this
+        # document is an index and leaves it alone rather than reading the stale file.
+        name = f"{base}/index.md"
+        indexes[(root / name).resolve()] = backloganchors.Index(name=name, anchors=offered)
     problems.extend(backloganchors.check(root, indexes))
     for problem in problems:
         print(problem, file=sys.stderr)
@@ -107,11 +108,12 @@ def main(argv: list[str] | None = None) -> int:
         print(
             f"\nbacklogcheck: {len(problems)} problem(s). A task's status is written on its own "
             f"Status line and nowhere else; the index is generated from those files by "
-            f"`just backlog`, and a pointer into one must name a heading it renders.",
+            f"`just backlog`, and a fragment anywhere in the repo must name a heading the "
+            f"document it aims at really offers.",
             file=sys.stderr,
         )
         return 1
-    print("backlogcheck OK: every backlog index matches its task files and the pointers into it")
+    print("backlogcheck OK: every backlog index matches its task files, and every fragment lands")
     return 0
 
 

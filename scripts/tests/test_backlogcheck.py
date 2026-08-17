@@ -243,7 +243,7 @@ def test_main_reports_a_pointer_left_aimed_at_a_renamed_area(
     task.write_text(REFINEMENT.replace("**Area:** brain", "**Area:** brain-core"), encoding="utf-8")
     assert backlogcheck.main(["--root", str(root), "--write"]) == 1
     reported = capsys.readouterr().err
-    assert "docs/adr/ADR-0001.md: pointer '../refinements/index.md#brain' aims at a heading" in (
+    assert "docs/adr/ADR-0001.md:1: pointer '../refinements/index.md#brain' aims at a heading" in (
         reported
     )
     assert "docs/refinements/index.md does not render" in reported
@@ -252,7 +252,11 @@ def test_main_reports_a_pointer_left_aimed_at_a_renamed_area(
 def test_main_judges_no_pointer_at_a_backlog_whose_index_it_could_not_render(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """With the markers gone there is no rendering to judge against, so only that is reported."""
+    """With the markers gone there is no rendering to judge against, so only that is reported.
+
+    The stale file on disk does render `### brain`, so nothing but the index's registration
+    as unjudgeable this run keeps the widened scan from answering out of it.
+    """
     root = _repo(tmp_path)
     _write(root, "docs/adr/ADR-0001.md", "See [the area](../refinements/index.md#brain).\n")
     _write(root, "docs/refinements/index.md", "# The backlog\n\nProse, and no markers.\n")
@@ -260,6 +264,30 @@ def test_main_judges_no_pointer_at_a_backlog_whose_index_it_could_not_render(
     reported = capsys.readouterr().err
     assert "docs/refinements/index.md: the index needs both" in reported
     assert "aims at a heading" not in reported
+
+
+def test_main_reports_a_pointer_left_aimed_at_a_renamed_heading_in_any_document(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The reach the gate grew: the target is an ordinary decision record, not an index."""
+    root = _repo(tmp_path)
+    _write(root, "docs/adr/ADR-0001.md", "# The decision\n\n## Risks flagged for user review\n")
+    task = root / REFINEMENTS / "tasks" / "001-wire-the-memory-port.md"
+    task.write_text(
+        REFINEMENT + "\nSee [the risks](../../adr/ADR-0001.md#risks-flagged-for-user-review).\n",
+        encoding="utf-8",
+    )
+    assert backlogcheck.main(["--root", str(root), "--write"]) == 0
+    _write(
+        root, "docs/adr/ADR-0001.md", "# The decision\n\n## Risks flagged for maintainer review\n"
+    )
+    capsys.readouterr()
+    assert backlogcheck.main(["--root", str(root)]) == 1
+    assert (
+        "docs/refinements/tasks/001-wire-the-memory-port.md:7: pointer "
+        "'../../adr/ADR-0001.md#risks-flagged-for-user-review' aims at a heading "
+        "docs/adr/ADR-0001.md does not offer"
+    ) in capsys.readouterr().err
 
 
 def test_main_rejects_a_root_that_is_not_a_directory(
