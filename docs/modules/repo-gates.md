@@ -183,7 +183,12 @@ every pointer in the repo aimed at one.
 - `backlog.py` is the task-file grammar and has no CLI: `load(directory, kind)` parses every
   `NNN-slug.md` into a `Task`, raising `TaskFileError` naming the file and what is wrong with it.
   A `Status` is parsed from a closed grammar and answers `is_open`, `is_standing` and the index
-  `bucket` it files under, so nothing downstream re-derives a state from prose.
+  `bucket` it files under, so nothing downstream re-derives a state from prose. **A field wraps
+  like the prose around it**: its continuation lines are joined with a single space and the block
+  ends at a blank line, the rule markdown uses to end a paragraph, so a long value cannot render
+  truncated mid-sentence in the index. Inside that block a line starting with `**` is a field or
+  an error, never a continuation, which is what keeps a field line missing its colon from being
+  absorbed into the value above it (ADR-0039 wrapped-field addendum).
 - `backlogindex.py` renders the generated half of an index and has no CLI. `render(tasks,
   group_word)` returns the whole block, markers included: the counted headline, the open set
   under one heading per bucket, the standing items, then the roll call under one `### <group>`
