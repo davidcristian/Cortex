@@ -89,9 +89,9 @@ check-body:
     cd body && cargo test --locked --workspace
     cd body && rustc +nightly --version
     cd body && cargo +nightly llvm-cov --version
-    cd body && cargo +nightly llvm-cov --locked --branch --workspace --all-targets --ignore-filename-regex '/_generated/|/build[.]rs$' --fail-under-lines 100 --fail-under-regions 100 --json --summary-only --output-path coverage.json
+    cd body && cargo +nightly llvm-cov --locked --branch --workspace --all-targets --ignore-filename-regex '/_generated/|/build[.]rs$' --json --summary-only --output-path coverage.json
     cd scripts && uv sync --locked
-    cd scripts && uv run python coverage_gate.py ../body/coverage.json
+    cd scripts && uv run python coverage_gate.py ../body/coverage.json --rustc "$(rustc +nightly --version)" --llvm-cov "$(cargo +nightly llvm-cov --version)"
 
 check-overlay:
     cd body/app && npm ci
