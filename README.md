@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/assets/logomark.png" alt="Cortex" width="200">
+<img src="docs/assets/mark.png" alt="Cortex" width="200">
 
 # Cortex
 
