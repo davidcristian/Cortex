@@ -317,7 +317,14 @@ every pointer in the repo aimed at one.
   purpose, four
   independent numbers rather than one value `crosscheck.py` should tie. And `-p no:randomly` now
   exits 2 on the seed it leaves unrecognized rather than silently disabling nothing, which is what
-  the flag used to do here; the sweep over other orders is `just shuffle [seed]`.
+  the flag used to do here; the sweep over other orders is `just shuffle [seed]`, which
+  `.github/workflows/shuffle.yml` runs weekly and on demand since the same ADR's sweep-schedule
+  addendum. That workflow is the one in this repo that is not the `just check` mirror `ci.yml` is:
+  it runs a committed recipe like every other job, but it gates nothing and is required by
+  nothing, which is what makes an order nobody chose safe to run at all. It draws the seed itself
+  and refuses one that is not digits, since the dispatch input is typed text; the seed and the
+  `just shuffle <seed>` that replays it reach the run summary before the sweep starts, so a
+  cancelled run still names the order it was drawing.
 - `crosscheck.py`'s registry is checked against the real trees by its own suite
   (`test_the_repo_itself_is_tied`), so `check-scripts` catches a drift even when
   `check-crosscheck` is not the recipe that runs. Registering a constant in a language

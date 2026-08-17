@@ -231,7 +231,8 @@ scripts/          repo gates, plus the one module here that gates nothing, contr
                   every pointer in the repo aimed at one), coverage_gate.py (Rust
                   branches), ci_paths.py (CI path
                   classifier), commitlint.py (commit-message style)
-.github/          GPU-less CI running the same `just` recipes as local dev
+.github/          GPU-less CI running the same `just` recipes as local dev: ci.yml is the gate
+                  mirror, shuffle.yml the weekly test-order sweep that gates nothing (ADR-0002)
 justfile          `just check` + check-*; proto, up/down, brain-serve, seam-health, turn-cost,
                   backlog (regenerate each backlog index from its task files), shuffle (every
                   suite at one chosen seed, the sweep the gate's own fixed seed never draws,

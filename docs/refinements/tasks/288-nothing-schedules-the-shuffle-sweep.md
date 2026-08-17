@@ -1,9 +1,8 @@
 # Nothing schedules the shuffle sweep
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-08-17
 **Area:** repo-gates
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
-**Trigger:** an order dependency found by a hand-run sweep that the standing seed had already run past, which is the case the standing gate provably cannot draw.
 
 Opened 2026-08-16 by the decision to make the shuffle standing under a fixed seed rather than a
 per-run one ([ADR-0002 shuffle addendum](../../adr/ADR-0002-toolchain-gates.md)). That decision
@@ -13,22 +12,21 @@ that already coexists under the frozen order keeps the order it has forever. The
 a gate whose red always reproduces. The half it costs is that the pairs already in the tree are
 never re-drawn.
 
-`just shuffle [seed]` is where they get re-drawn, and nothing runs it. It is not in `just check`
-by design, since its whole point is an order nobody chose, and it is deliberately absent from CI
-for the same reason. So the sweep happens exactly when a person remembers it, which is the same
-mechanism this entry's own origin spent four weeks demonstrating the weakness of: the hand-run
-measurement was re-derived three times by three passes that each had to read how the last one did
-it.
+`just shuffle [seed]` is where they get re-drawn, and nothing ran it. It is not in `just check`
+by design, since its whole point is an order nobody chose, and it was absent from CI for the same
+reason. So the sweep happened exactly when a person remembered it, which is the same mechanism
+this entry's own origin spent four weeks demonstrating the weakness of: the hand-run measurement
+was re-derived three times by three passes that each had to read how the last one did it.
 
-**What would close it, and why none of it was taken now.** A scheduled CI job (weekly, or on a
-release) would run the sweep on somebody else's clock, at the cost of a red that arrives detached
-from any commit and of a workflow that is not the `just check` mirror every other job here is. A
-`just check` variant that draws a random seed once a day and caches it would keep the gate
-reproducible within a day and shuffle across days, at the cost of a cache file the gate has to read
-and fail closed on. Rotating the frozen seed on a schedule is the cheapest of the three and the
-most dishonest, since a seed committed as a constant that somebody bumps periodically is a per-run
-lottery with extra steps and a diff. All three are worth less than the first evidence that the
-standing draw actually missed something, which is the trigger above.
+**What closed it.** The first of the three shapes the entry costed, a scheduled workflow, and the
+argument against it turned out to be weaker than written. The recorded cost was "a red that
+arrives detached from any commit", which is a property of the defect rather than of the schedule:
+the pair a sweep finds already coexisted, so no commit introduced it and attaching the red to the
+head would be a fabrication. The other two shapes both put a lottery where a red blocks work, once
+inside `just check` behind a cached daily seed and once by bumping the frozen constant, and the
+shuffle addendum's reason for refusing that has not changed. The remaining move is to put the
+lottery where a red blocks nothing, which is a workflow that gates nothing and is required by
+nothing.
 
 ## Trail
 
@@ -40,3 +38,15 @@ standing draw actually missed something, which is the trigger above.
   schedule to buy, and it needs no schedule to get it. Nothing about the Python and overlay half
   changes, `pytest-randomly`'s per-item stability being exactly the property this entry was opened
   about.
+- 2026-08-17: Landed as `.github/workflows/shuffle.yml` at the [ADR-0002 sweep-schedule
+  addendum](../../adr/ADR-0002-toolchain-gates.md): a weekly cron plus a `workflow_dispatch` that
+  takes a seed, both ending in `just shuffle "$SEED"`, so CI cannot drift from what reproduces
+  locally. It sweeps all four arms rather than the two the narrowing left open, since a Rust binary
+  whose test list has stopped growing holds one permutation exactly as pytest does, and since
+  carving a CI-only variant out of a committed recipe is the drift the path-filter ADR exists to
+  prevent. Proved able to fail on the population this entry is about rather than the easy one: the
+  first planted pair fired at the frozen seed, so the standing gate caught it and it proved nothing
+  about a sweep, and renaming the pair moved its per-item draw until `just check-scripts` reported
+  `593 passed` at 100% coverage over the defect while `just shuffle 5` exited 1 naming it. Catch
+  rate 14 of 40 seeds. It opened [R-291](291-a-red-sweep-leaves-no-trace-in-the-repo.md), the red
+  whose only push channel is a notification nothing in this repo can test.
