@@ -1,8 +1,8 @@
 # GPU-less by design (AGENTS.md gate 3): plain ubuntu runners, no CUDA anywhere.
 # Jobs run the same `just` recipes developers run locally (no drift).
 # Path filtering is a fail-closed in-repo classifier (scripts/ci_paths.py,
-# ADR-0006): unknown paths run both toolchains, and if the diff range cannot be
-# determined we also run both. The cross-tree scans (the 300-line cap, the
+# ADR-0006): unknown paths run every toolchain job, and if the diff range cannot be
+# determined we run them all too. The cross-tree scans (the 300-line cap, the
 # punctuating-dash ban, the cross-language constant check, and the compose bind
 # check) are exempt from the filter and always run. Every action is pinned to a full commit SHA
 # with a version comment; dependabot (.github/dependabot.yml) keeps the pins fresh.
@@ -29,6 +29,7 @@ jobs:
       python: ${{ steps.filter.outputs.python }}
       rust: ${{ steps.filter.outputs.rust }}
       overlay: ${{ steps.filter.outputs.overlay }}
+      shell: ${{ steps.filter.outputs.shell }}
     steps:
       # fetch-depth 0: the repo is small, and full history makes computing the
       # diff range trivial (merge bases and `before` SHAs are always present).
@@ -64,6 +65,7 @@ jobs:
             echo "python=true" >> "$GITHUB_OUTPUT"
             echo "rust=true" >> "$GITHUB_OUTPUT"
             echo "overlay=true" >> "$GITHUB_OUTPUT"
+            echo "shell=true" >> "$GITHUB_OUTPUT"
           fi
 
   # The cross-tree scans are repo-wide and exempt from the path filter, so a Rust-only,
@@ -139,10 +141,47 @@ jobs:
           enable-cache: true
       - run: just check-body
 
+  # The Tauri shell at body/app/src-tauri/ (ADR-0011 shell-clippy addendum). The rust job
+  # above only fmt-checks the shell, which parses without building; clippy has to compile it,
+  # so this is the ONE job that installs system libraries, and the only one running a `just`
+  # recipe that local `just check` does not. It is filtered onto the `shell` output, which
+  # only a body/app/src-tauri/ edit (or a shared gate file, fail-closed) sets, so no other
+  # body/ change pays the apt line. Clippy never links: the packages are installed for the
+  # pkg-config metadata their -sys build scripts probe for, and none of the libraries is
+  # loaded. libsoup-3.0-dev and libjavascriptcoregtk-4.1-dev arrive as webkit's own deps.
+  # GPU-less like every other job, and this still LINTS the shell rather than running it,
+  # which wants a real Win32 desktop session (docs/host/).
+  shell:
+    needs: changes
+    if: needs.changes.outputs.shell == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install the Tauri Linux dev stack (pkg-config metadata only; clippy never links)
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
+            librsvg2-dev libdbus-1-dev
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # pinned master (no releases; dependabot bumps the SHA only)
+        with:
+          toolchain: stable
+          components: clippy
+      - uses: taiki-e/install-action@7f4eb899022d8fe70b20c4f3de697aa85c309026 # v2
+        with:
+          tool: just
+      # The shell is its own cargo workspace, so it needs its own cache key; sharing the
+      # rust job's would thrash both.
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+        with:
+          workspaces: body/app/src-tauri
+      - run: just check-shell
+
   # The React overlay under body/app/ (ADR-0011 addendum): a host-only node toolchain,
   # gated at 100% line+branch by check-overlay (Vitest + v8). Path-filtered like the
-  # others (ADR-0006); the Tauri src-tauri shell in the same tree is host-validated and
-  # never built here. GPU-less/webkit-less by construction. This is npm + jsdom only.
+  # others (ADR-0006); the Tauri src-tauri shell in the same tree is a separate job above,
+  # since it is Rust and needs webkit. GPU-less by construction. This is npm + jsdom only.
   overlay:
     needs: changes
     if: needs.changes.outputs.overlay == 'true'

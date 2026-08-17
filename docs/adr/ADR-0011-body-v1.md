@@ -649,3 +649,58 @@ checks, resting on a read as well. That one is only settled by running the check
   directory, so what a runner would pay for is provisioning, which `rust-cache` does not cache.
   Both triggers stand and the deferral stays open in
   [docs/refinements/index.md#repo-gates](../refinements/index.md#repo-gates).
+
+## Addendum (2026-08-17): the shell's clippy lands in CI, as the one gate `just check` does not run
+
+The deferral recorded above is closed by wiring it, and the thing that changed is not the price
+of the check but who was being asked to pay it. Every reading of this since 2026-07-16 measured
+the cost as though shell clippy had to ride inside `check-body`, and on that assumption the
+decline was right: a webkit `apt-get install` on every `body/` change, every `proto/` change and
+every shared gate file, to lint a subtree most of them never touch. The assumption was the
+defect. Split into its own path-filtered job, the provisioning lands on a `body/app/src-tauri/`
+edit and on nothing else, and the arithmetic that justified the decline no longer applies to it.
+
+Measured here rather than restated, since this entry has twice carried numbers that later reads
+had to correct. The `-dev` closure a runner actually needs is **103 packages, 39.6 MB fetched in
+about 4 s**, resolved from five roots (`libwebkit2gtk-4.1-dev`, `libgtk-3-dev`,
+`libayatana-appindicator3-dev`, `librsvg2-dev`, `libdbus-1-dev`), and the earlier 630-package
+figure was a recursive `apt-cache depends` walk with no `--no-recommends`/`--no-suggests`
+filtering, which counts alternatives and runtime closures a real install does not. From a
+**completely empty target directory**, `cargo clippy --locked --all-targets -- -D warnings` over
+the whole Tauri graph finished in **30.9 s wall** against exactly those five roots and their
+metadata, so the cold compile this entry called the expensive half is well under a minute, and
+`rust-cache` keyed on `body/app/src-tauri` makes every later run cheaper still. Both halves cost
+about a minute, once, on the change that could have broken them.
+
+**Decision: CI runs it, local `just check` does not, and the check itself lives in a `just`
+recipe either can invoke.** `check-shell` is `cargo clippy --locked --all-targets -- -D warnings`
+in `body/app/src-tauri`, and the CI job runs that recipe, so what runs is the same on both sides
+and only the schedule differs. This is a real divergence from the rule that `just check` is the
+single gate and pre-commit mirrors it, and it is worth naming plainly rather than burying: a
+shell clippy finding can now reach a local commit and be caught in CI instead of at the hook,
+which no other check in this repo allows. It is accepted because the alternative is worse in a
+way that is not close. Every other `check-*` recipe runs on a clean checkout with nothing but
+the language toolchains; this one needs the Linux GTK/webkit/dbus dev packages, which the host
+this repo is developed on does not have and cannot `sudo apt-get install`. Putting it in
+`just check` would make the single gate unrunnable on a plausible dev box, and the two ways out
+of that are both worse than the divergence: a check that skips itself when the libraries are
+missing is a gate that cannot fail, which this repo treats as a defect, and a check that fails
+for a missing system library trains the committer to ignore reds. A named recipe that CI
+schedules keeps the check real, keeps it in one place, and keeps `just check` runnable.
+
+The sudo-less route stays useful and is what validated this: `apt-get download` the `-dev`
+closure, `dpkg-deb -x` it into a prefix outside the repo, and point `PKG_CONFIG_PATH` at its
+`pkgconfig` directories. None of those libraries is ever loaded, since clippy does not link; the
+packages exist to get the `-sys` build scripts past a pkg-config probe. That is also why the
+runner installs them with `--no-install-recommends` and why no MSVC-style linking toolchain
+appears anywhere in the job.
+
+Proven able to fail before being trusted, at both levels this touches. A `useless_format` planted
+in the shell's `link.rs` makes `just check-shell` exit **101**, naming the lint on the lib and the
+lib-test unit, and it exits 0 with the file restored. On the routing side, the job is gated on a
+`shell=` output nothing else reads, so a classifier that forgot to set it would leave the job
+unrun and indistinguishable from passing; routing `body/app/src-tauri/` back to plain rust fails
+the classifier suite. The shell's current 978 lines in 12 files are clippy-clean as they stand, so
+this lands green and the check earns its place by what it catches next, not by what it caught
+today. It still LINTS the shell rather than running it, which wants a real Win32 desktop session
+([host/](../host/index.md)).
