@@ -62,8 +62,19 @@ config contract in [ADR-0003](../adr/ADR-0003-seam-codegen.md).
 - **`just shuffle [seed]`** is the deliberate sweep, and the one thing `just check` does not do:
   all four suites at ONE seed of your choosing, a random one by default, printed so the run
   reproduces with `just shuffle <seed>`. Run it when a test behaves as though a sibling left
-  something behind, and after landing a batch of tests. It is not in CI, its whole point being an
-  order nobody chose.
+  something behind, and after landing a batch of tests. It stays out of the gate, its whole point
+  being an order nobody chose, and a red the committer cannot reproduce is what a pre-commit gate
+  cannot absorb.
+- **Something does run that sweep now** (the same ADR's sweep-schedule addendum):
+  `.github/workflows/shuffle.yml` draws a seed every Monday, and takes one from the Actions tab on
+  demand, so the pairs the frozen seeds run past get re-drawn without anyone remembering. It is the
+  one workflow here that is not the `just check` mirror: it gates nothing, is a required check on
+  nothing, and a red there blocks no merge and no push. Read such a red as a real order dependency
+  between two tests that already coexisted, so it is not about whatever commit was at the head; the
+  run's summary names the seed and the `just shuffle <seed>` that replays the whole thing locally.
+  Fix the test, never the seed. Two operational notes: dispatching it with a seed re-runs a red at
+  its own order without a local checkout, and GitHub disables a schedule on a public repository
+  after 60 days of no activity, which is the one way this becomes a sweep that cannot fire.
 - **pre-commit** needs `pre-commit install` once; the hook is a literal `just check`
   (ADR-0002 d9).
 - **protoc 35.x** is needed only to regenerate the committed seam stubs (`just proto`,

@@ -156,8 +156,12 @@ check-overlay:
 # `just shuffle <seed>`, and a suite reproduces alone with `--randomly-seed=<seed>` (pytest),
 # `--sequence.seed=<seed>` (vitest), or `-- -Z unstable-options --shuffle-seed=<seed>` on a
 # nightly `cargo test` (libtest). Run it when a test starts behaving as though a sibling
-# left something behind, and after landing a batch of tests. Never in CI: its whole point is
-# an order nobody chose. The Rust arm is a plain `cargo test` rather than the gate's coverage
+# left something behind, and after landing a batch of tests. Never in `just check`: its whole
+# point is an order nobody chose, and a red the committer cannot reproduce is the one thing a
+# pre-commit gate cannot absorb. It does run on a clock, weekly and on demand, on the one
+# workflow that is not the gate mirror (`.github/workflows/shuffle.yml`, ADR-0002
+# sweep-schedule addendum), where a red names its seed and blocks nothing. The Rust arm is a
+# plain `cargo test` rather than the gate's coverage
 # run, since the order is the only thing under test here and the coverage totals do not move.
 shuffle seed="":
     #!/usr/bin/env bash

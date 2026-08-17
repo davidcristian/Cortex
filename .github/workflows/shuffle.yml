@@ -1,0 +1,110 @@
+# The shuffle sweep, on a clock instead of on somebody remembering (ADR-0002 sweep-schedule
+# addendum). Every gated suite already runs shuffled under a FIXED seed, which draws each pair
+# of tests once and then holds that draw forever; the orders those seeds never draw are drawn
+# here. GPU-less like everything else in this repo (AGENTS.md gate 3).
+#
+# This is deliberately NOT the `just check` mirror that ci.yml is, and the differences are the
+# point rather than an omission. It runs one committed recipe, `just shuffle <seed>`, the same
+# one a person runs by hand, so nothing here can drift away from what is reproducible locally.
+# It is attached to no commit's verdict, is a required check on nothing, and so can never block
+# a merge or a push: a red arrives out of band, naming a seed, and is triaged when read. That
+# is what makes a random order safe to run on a schedule at all, when it is not safe to run in
+# the gate a pre-commit hook fires on every commit.
+name: Shuffle sweep
+
+on:
+  schedule:
+    # Weekly, Monday 03:41 UTC. Off the hour on purpose: Actions queues the whole world's
+    # schedules at the top of one, and a job nobody is waiting on gains nothing by sitting in
+    # that queue. Weekly is a rate, not a deadline; the defect class this finds is a pair that
+    # already coexisted, so it has been latent for a while and will keep.
+    - cron: "41 3 * * 1"
+  # The manual arm, which is also what keeps this from being a workflow nobody can fire: run it
+  # from the Actions tab any time, and re-run a red at its own seed by passing that seed back.
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: "Seed to sweep at (blank draws a fresh one)"
+        required: false
+        type: string
+
+# One sweep at a time. A second run queued behind the first would sweep a different order, which
+# is exactly what next week is for.
+concurrency:
+  group: shuffle-sweep
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    # The four suites take about as long as the gate does. This bound is here because a hung
+    # test has no other way to end: the default is six hours of a runner nobody is watching.
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: body/app/package-lock.json
+      # Nightly only, and only because libtest's shuffle is nightly-only behind
+      # `-Z unstable-options` (ADR-0002 rust-shuffle addendum). No stable toolchain, no
+      # windows target, no cargo-llvm-cov: this sweeps orders, and none of the gate's build,
+      # lint or coverage steps run here.
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # pinned master (no releases; dependabot bumps the SHA only)
+        with:
+          toolchain: nightly
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+        with:
+          workspaces: body
+      - uses: taiki-e/install-action@7f4eb899022d8fe70b20c4f3de697aa85c309026 # v2
+        with:
+          tool: just
+      - id: draw
+        name: Draw the seed this sweep runs at
+        env:
+          # Indirect through the environment rather than interpolating the input into the
+          # script: a `${{ }}` expansion of anything a person can type is a shell-injection
+          # seam, and this one is typed by whoever can press the dispatch button.
+          REQUESTED: ${{ inputs.seed }}
+        run: |
+          set -euo pipefail
+          seed="${REQUESTED:-}"
+          if [ -z "$seed" ]; then
+            seed=$(( (RANDOM << 15) | RANDOM ))
+          fi
+          case "$seed" in
+            *[!0-9]*)
+              echo "a seed must be digits only, got '${seed}'" >&2
+              exit 1
+              ;;
+          esac
+          echo "seed=${seed}" >> "$GITHUB_OUTPUT"
+          # Written BEFORE the sweep runs, so a run that fails, times out or is cancelled still
+          # names the order it was drawing. The summary is the first thing on a run's page, so
+          # the seed and the command that replays it are readable without opening a log.
+          {
+            echo "## Shuffle sweep"
+            echo
+            echo "Seed \`${seed}\`. Every gated suite runs its tests in that order."
+            echo
+            echo "Reproduce this whole sweep locally:"
+            echo
+            echo '```'
+            echo "just shuffle ${seed}"
+            echo '```'
+            echo
+            echo "A red here is an order dependency between two tests that already coexisted,"
+            echo "so it is not about the commit this ran on and it blocks nothing. Fix the"
+            echo "test, never the seed."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Sweep every suite at that seed
+        env:
+          SEED: ${{ steps.draw.outputs.seed }}
+        run: just shuffle "$SEED"
