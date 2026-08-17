@@ -2050,3 +2050,132 @@ boundary really sits, this one leaves the boundary exactly where it already was.
 thing, and only on it: a measured non-URL payload that a deployed model reproduces from untrusted
 content and that the FORM clause did not stop, at which point the answer is a clause or a scheme,
 never a passage classifier.
+
+## Addendum (2026-08-17): the two widenings that sit closest together, composed
+
+Closes the entry the twelfth addendum opened rather than chased, and closes it on the question that
+entry could not answer at the time: what tells a gap between two labels from the space between two
+words in a sentence, in the one position where nothing else carries the anchor. The close is
+**grammar only, with no identity and no seam change**: all three `OutputGuardrail` policies, the
+`TaintLedger`, `TaintView`, the streaming filter and the config are untouched, `normalize_url`
+gains no pass, every policy inherits the wider matching for free, and a clean or untainted turn is
+byte-identical to before. Still **deterministic and dependency-free** (stdlib only).
+
+### The spelling, and why it is not a new family
+
+Nothing here is a new reading of anything. The eleventh addendum admitted a special scheme that
+reaches its host with fewer than two solidi, behind a **host anchor** that asks a lookahead what
+follows the separator; the twelfth admitted a host whose dot is a **gap**. Both are shipped and
+both are argued. What was missing is that the anchor's notion of a host predates the gap, so it
+reads a dotted name and a bracketed literal and nothing else, and a gap is neither. The two never
+met. Measured against the shipped module before any change, in both directions, driven end to end
+through a real `TaintLedger` and a real streaming filter:
+
+| Reply spelling | `extract_urls` before | redact | lookalike | strict | After |
+|---|---|---|---|---|---|
+| `https://evil.example/pay` (control) | the link | redacted | redacted | redacted | unchanged |
+| `https:evil dot example/pay` | `frozenset()` | **leaked** | **leaked** | **leaked** | redacted |
+| `hxxps:evil dot example/pay` | `frozenset()` | **leaked** | **leaked** | **leaked** | redacted |
+| `http[:]evil dot example/pay` | `frozenset()` | **leaked** | **leaked** | **leaked** | redacted |
+
+Anchoring nothing at all, so that every policy is blind and the ledger holds nothing when untrusted
+content writes the link that way, is the severe shape this ADR has now found seven times. It is
+reachable in one refang, which is the standing this whole defang family rests on: a reader who
+closes the gap is left with `https:evil.example/pay`, which a WHATWG parser resolves to
+`https://evil.example/pay` with no further help.
+
+### A gap carries a dot token, which is what the space between two words does not
+
+The entry said this needed a false-positive budget of its own, because the anchor is the eleventh
+addendum's whole budget and a gap is what that budget was spent declining: `https:` in front of
+anything with a space in it is the prose the eighth addendum deliberately protected
+(`https:no slashes here`). Re-derived from the code rather than from the entry, that reading is
+too strong. **The anchor was never narrowed against a space. It was narrowed against a run with no
+dot in it**, and a gap is not a space, it is whitespace wrapped around a **dot token**: the
+spelled-out word, any reading of the dot the identity folds, or the refanger's own bracketed form.
+An English sentence puts no such token between its words. So the anchor gains the split host as a
+third host shape, beside the dotted name and the bracketed literal, and it spends none of the
+budget back:
+
+- `https:no slashes here` is still nothing, because `slashes` is not a dot token.
+- `the https: scheme`, a sentence ending in `https:`, `https:scheme`, `http:foo`,
+  `https:localhost` and `https:evil./pay` are all still nothing, on the single-label and
+  empty-label declines exactly as before.
+- `https: evil dot example` is still nothing: the anchor reads what follows the colon, and a
+  blank is not a label.
+- `visit https:example.com dot the file is there` is still the link plus prose, because the
+  dotless rule reaches the new anchor unchanged. The gap-bearing entry beside this one, a host
+  that mixes a plain dot and a gap, is where that rule is questioned, and it is declined there.
+
+Measured over the repo's own prose at `HEAD`, read from the index, **1,071 files and 1,404,408
+words carrying 2,812 matched spans**: **zero spans lost, zero extended and zero identities
+changed**, with three spans added. All three are this repo writing the attack spelling down (the
+behaviour test, this addendum's own table, and the backlog entry being closed), which is the
+eleventh addendum's own accepted cost restated: a documentation line that writes a slashless link
+with a real host is redacted under strict and lookalike on a tainted turn, and streams untouched
+under the default unless the ledger collected that identity. Nothing else in the corpus moved.
+
+### The hold-back, where the anchor could have been right and useless
+
+A slashless authority is the one opening whose *host* decides whether there is a match at all, and
+a split host is the one host that arrives across more than one delta. Together they make a shape
+the finished grammar can never be asked for: at `https:evil dot ` there is no match, no prefix of
+any separator, and no host yet either, so the opening was released one delta before it became a
+link. The grammar therefore spells its host anchor **twice**, once finished and once arriving, and
+the separator alternation takes the anchor as a parameter so the two cannot drift. The arriving one
+asks only for a dotless label and the blank that may be opening a gap; the arriving-gap branch that
+already existed supplies the dot token behind it.
+
+The accepted cost is the eleventh addendum's, reaching one more shape: prose that might still grow
+a host is **carried** to the flush, so `the https:no slashes here` waits a delta longer than it
+used to. Carrying is not redacting. The text is released whole and in order by the filter that
+always releases it, so the reply the user reads is unchanged and only its arrival moves. Verified
+at every two-way split point of seven probes under all three policies (678 splits) and at one
+character at a time, each agreeing with the whole-string feed.
+
+### The split, and why it is in this commit
+
+`urls.py` could not hold a second host anchor and stay under the line cap, so the **streaming
+hold-back** moved to `url_holdback.py`: `held_from`, the arriving-gap and arriving-split-host
+patterns, the open-separator pattern and the scheme-prefix table, which is everything that answers
+"what may still be growing at a buffer's end" and nothing that answers "what is a URL". That is the
+same split `url_identity.py` and `url_spellings.py` made when the seventh and the eleventh addenda
+landed, made for the same reason and in the same commit as the change that forced it, per the repo
+rule that a file is split by responsibility as the work arrives rather than in a later cleanup
+pass. The grammar fragments the hold-back composes became public names in `urls.py`, the
+`url_spellings` precedent, so the matcher and the hold-back still derive from one grammar.
+
+### Tests, each mutation-proven
+
+Eleven new behaviour tests in `packages/core/tests/test_guardrail.py`, each break applied to the
+production source with `__pycache__` cleared and verified applied before the run, and restored
+after; the arm is `packages/core/tests`, green before and after:
+
+| the break | tests reddened |
+|---|---|
+| the split host is not a host shape (the widening removed) | 7 |
+| the anchor's gap needs no dot token, any blank will do | 8 |
+| the arriving anchor is the finished one (the hold-back branch made useless) | 2 |
+
+The middle row is the one worth reading, because five of its eight are tests that predate this
+pass: the eighth addendum's fullwidth prose, the eleventh's single-label budget and its
+streamed-prose twin, the fifteenth's host-excludes-the-tab. Relaxing the gap to "any blank" is
+exactly the widening the entry feared, and the suite that was already here says so out loud, which
+is why the dot token rather than the blank is what the anchor reads.
+
+A fourth break was tried and is **not** claimed: replacing the finished authority with the arriving
+one inside `URL_RE` reddens nothing, because in that position the split host it is followed by
+already requires the blank the loose anchor asks for, so the two are equivalent there and the
+mutation is a no-op rather than an untested gap.
+
+### What stays open
+
+The **sibling entry stays open**, and this pass deliberately does not touch it: a host that mixes a
+plain dot and a gap (`http://www.evil dot com`, which reads as the host `www.evil` and puts that
+wrong host in the ledger) needs the **dotless rule** relaxed, which is a different question from
+the one answered here. Nothing above weakens that rule; the anchor gained a host shape and the rule
+that says when a gap may follow a label is exactly as it was. Also open and untouched: a **tab
+inside a scheme word or its separator** (`ht<TAB>tp://evil.example`), which the same parser
+resolves and which anchors nothing today. Unchanged: the full UTS-39 confusables set stays
+declined, footer and boilerplate heuristics stay declined, and a bare domain with no scheme at all
+is still out of scope, which is what the single-label decline leans on rather than contradicts.

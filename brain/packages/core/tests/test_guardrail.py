@@ -1301,9 +1301,6 @@ def test_the_twelfth_addendum_composes_with_its_predecessors() -> None:
     # character in one link still fold to the single identity its plain twin has.
     assert extract_urls("hxxps://ev\u200bil &#46; example/pay") == _PLAIN_LINK
     assert extract_urls("hxxps://evil [dot] ex\u3002ample/pay") == {"https://evil.ex.ample/pay"}
-    # The one combination deliberately left out: a slashless authority *and* a split host at once.
-    # The host anchor that admits an absent separator reads a dotted name, and a gap is not one.
-    assert extract_urls("https:evil dot example/pay") == frozenset()
 
 
 def test_a_gap_is_spelled_with_every_space_nfkc_folds() -> None:
@@ -1635,6 +1632,111 @@ def test_the_fifteenth_addendum_composes_with_its_predecessors() -> None:
     assert extract_urls("https://ev\u200bil.exa\tmple/pay") == _PLAIN_LINK
     assert extract_urls("hxxps://evil[.]exa\tmple/pay") == _PLAIN_LINK
     assert extract_urls("https:\\\\evil.exa\tmple/pay") == _PLAIN_LINK
+
+
+# --- The two widenings that sit closest together in this grammar, composed at last (ADR-0015
+# sixteenth addendum). A slashless authority is admitted behind a host anchor, and a split host is
+# a host the anchor did not read, so `https:evil dot example` anchored nothing at all. What tells a
+# gap from the space between two words is that it carries a *dot token*, which is the constraint
+# the split host already spends, so the anchor gains the split host as a third host shape and the
+# prose the slashless form was narrowed for is untouched. ---------------------------------------
+
+
+def test_extract_urls_anchors_a_slashless_authority_whose_host_is_split() -> None:
+    # The combination the twelfth addendum named and left standing: reachable in one refang, since
+    # a reader who closes the gap is left with `https:evil.example/pay`, which a parser resolves.
+    assert extract_urls("https:evil dot example/pay") == _PLAIN_LINK
+    assert extract_urls("hxxps:evil dot example/pay") == _PLAIN_LINK
+    assert extract_urls("https:/evil dot example/pay") == _PLAIN_LINK
+    assert extract_urls("http[:]evil dot example/pay") == {"http://evil.example/pay"}
+    assert extract_urls("https:a dot b dot example") == {"https://a.b.example"}
+
+
+def test_the_split_anchor_inherits_the_gap_tables_rather_than_growing_one() -> None:
+    # The third host shape is the split host itself, so every reading of the dot and every blank
+    # the gap already spends reaches this position without being written down a second time.
+    for spelling in ("dot", ".", "。", "&#46;", "%2e", "[dot]"):
+        assert extract_urls(f"https:evil {spelling} example/pay") == _PLAIN_LINK
+    # And the blank is the gap's own table, so a no-break or thin space reaches here too.
+    assert extract_urls("https:evil\u00a0dot\u2009example/pay") == _PLAIN_LINK
+
+
+def test_the_split_anchor_still_declines_the_prose_the_slashless_form_protects() -> None:
+    # The eleventh addendum's whole false-positive budget, unspent: a gap has to carry a dot token,
+    # and the space between two English words carries none, so `https:` in front of a sentence is
+    # still nothing at all. The single-label and empty-label declines stand with it.
+    assert extract_urls("https:no slashes here") == frozenset()
+    assert extract_urls("the https: scheme is named that way") == frozenset()
+    assert extract_urls("https:scheme") == frozenset()
+    assert extract_urls("http:foo") == frozenset()
+    assert extract_urls("https:localhost and https:evil./pay") == frozenset()
+    # The separator's own space is not a gap either: the anchor reads what follows the colon.
+    assert extract_urls("https: evil dot example") == frozenset()
+
+
+def test_a_dotted_host_is_still_finished_before_any_gap_at_the_slashless_position_too() -> None:
+    # The dotless rule reaches the new anchor unchanged, so the prose after an ordinary slashless
+    # link is prose here exactly as it is after a link spelled with both solidi.
+    assert extract_urls("visit https:example.com dot the file is there") == {"https://example.com"}
+
+
+def test_only_an_authority_scheme_reaches_the_split_anchor() -> None:
+    # The anchor lives on the separator that only a special scheme has, so an opaque scheme still
+    # ends at the first blank and a `data:` still needs its MIME shape.
+    assert extract_urls("mailto:evil dot example") == {"mailto:evil"}
+    assert extract_urls("tel:evil dot example") == {"tel:evil"}
+    assert extract_urls("data:evil dot example") == frozenset()
+
+
+def test_a_slashless_split_transform_of_a_collected_url_is_redacted() -> None:
+    # Both directions, since a mismatch of identities leaks whichever side spells it oddly: the
+    # spelling anchored nothing before, so the ledger held nothing at all when untrusted content
+    # wrote its link this way and both policies were blind to it in the reply.
+    guard = _filter(set(_PLAIN_LINK))
+    assert guard.feed("go to https:evil dot example/pay ") == f"go to {REDACTED_LINK} "
+    plain = _filter(set(extract_urls("https:evil dot example/pay")))
+    assert plain.feed("go to https://evil.example/pay ") == f"go to {REDACTED_LINK} "
+
+
+def test_strict_tainted_turn_redacts_a_slashless_split_host() -> None:
+    # The severe shape a seventh time: a spelling that anchors nothing is invisible to strict mode
+    # too, and it leaves no host beside the marker once it anchors.
+    guard = _strict(_Taint(tainted=True))
+    assert guard.feed("Please visit https:evil dot example/pay now.") == (
+        f"Please visit {REDACTED_LINK} now."
+    )
+
+
+def test_a_slashless_split_host_arriving_across_chunks_is_carried_not_lost() -> None:
+    # The hold-back's arriving-gap branch wears the anchor its own position can satisfy: a buffer
+    # ending at `https:evil dot ` is not a match, is a prefix of no separator, and would otherwise
+    # be released one delta before the gap closed.
+    guard = _filter(set(_PLAIN_LINK))
+    assert guard.feed("at https:evil ") == "at "
+    assert guard.feed("dot example/pay ") == f"{REDACTED_LINK} "
+
+
+def test_a_slashless_split_host_survives_a_one_character_stream() -> None:
+    # The production shape: the filter sees one character at a time.
+    guard = _filter(set(_PLAIN_LINK))
+    reply = "settle at https:evil dot example/pay now"
+    fed = "".join(guard.feed(char) for char in reply) + guard.flush()
+    assert fed == f"settle at {REDACTED_LINK} now"
+
+
+def test_carrying_a_slashless_opening_is_not_redacting_it() -> None:
+    # The accepted cost, which is the eleventh addendum's own: prose that might still grow a host
+    # is carried to the flush and then released whole and in order, never rewritten.
+    guard = _strict(_Taint(tainted=True))
+    reply = "the https:no slashes here at all"
+    assert "".join(guard.feed(char) for char in reply) + guard.flush() == reply
+
+
+def test_the_sixteenth_addendum_composes_with_its_predecessors() -> None:
+    # An entity colon, a defanged scheme, a bracketed gap token and a zero-width character in one
+    # slashless split link still fold to the single identity its plain twin has.
+    assert extract_urls("hxxps&#58;ev\u200bil [dot] example/pay") == _PLAIN_LINK
+    assert extract_urls("https：evil 。 example/pay") == _PLAIN_LINK  # noqa: RUF001
 
 
 def test_normalizing_without_the_confusable_fold_leaves_the_letters_written() -> None:
