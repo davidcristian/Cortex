@@ -645,7 +645,14 @@ table is read by the grammar and the identity alike, so neither may own it):
   immediately after the separator and only while every label so far is **dotless**, because
   defanging replaces a host's dot and never adds one: that one constraint is the entire
   false-positive budget, and it is what keeps `visit http://example.com dot the file` reading as
-  the link plus prose. The blank is a table too: the tab, the space, and the fifteen codepoints
+  the link plus prose. A host that mixes a plain dot and a gap (`http://www.evil dot com`, which
+  reads as the host `www.evil`) is therefore **declined**, and on a number rather than a worry
+  (ADR-0015 addendum): relaxing the rule adds no span over the repo's prose but extends 14 and
+  changes 14 identities, so an ordinary link followed by ` dot the` stops normalizing to itself and
+  a *collected* link is delivered rather than redacted. That is a leak and not an over-redaction,
+  which is the one direction every other widening here never went; what would close the spelling is
+  a defense that emits **both** readings of one span, which the one-identity-per-match seam does
+  not express today. The blank is a table too: the tab, the space, and the fifteen codepoints
   NFKC folds *to* a space (U+00A0, U+2000 to U+200A, U+202F, U+205F, U+3000), since a no-break or
   thin space renders as a blank and so anchored nothing before. What NFKC leaves standing is the
   line-breaking family plus the Ogham space mark, none of which is where a host's label breaks, so

@@ -1,35 +1,35 @@
 # A host that mixes a dot and a gap
 
-**Status:** open, fix when it bites
+**Status:** declined 2026-08-17
 **Area:** untrusted-content
 **Origin:** [ADR-0015](../../adr/ADR-0015-output-guardrail.md)
-**Trigger:** untrusted content, or a reply, spelling a host with a plain dot and a gap at once
 
-Opened by the pass that closed the whitespace-split host, and opened rather than chased for the
-reason the slashless authority was: it is not fixable in the shape the close used, so it needs a
-budget designed rather than a table extended. The close admits a gap only while every label so far
-is **dotless**, because defanging replaces a host's dot and never adds one, and that one rule is
-what buys the close its measured zero false positives over a million words of prose. A host that
-does both at once falls outside it. Measured against the shipped module rather than read off the
-regex: `extract_urls("http://www.evil dot com")` is `{"http://www.evil"}`, and
-`extract_urls("hxxp://www[.]evil dot com")` is `{"http://www.evil"}`, so the ledger holds a **wrong
+Opened by the pass that closed the whitespace-split host, and opened rather than chased because it
+is not fixable in the shape the close used. The close admits a gap only while every label so far is
+**dotless**, because defanging replaces a host's dot and never adds one, and that one rule is what
+buys the close its measured zero false positives over a million words of prose. A host that does
+both at once falls outside it. Measured against the shipped module rather than read off the regex:
+`extract_urls("http://www.evil dot com")` is `{"http://www.evil"}`, so the ledger holds a **wrong
 host** on the collection side and the reply side redacts a prefix while leaving ` dot com` beside
 the marker, which is the third failure shape the closing addendum named. Two labels split and one
 dotted is a spelling a person writes without thinking about it, since the `www.` is the part they
 do not think of as the name.
-
-What makes it an entry and not a row is that relaxing the dotless rule is exactly what reopens the
-prose the rule protects: `visit http://example.com dot the file is there` reads as a host the
-moment a label may carry a dot, which was measured during the close. A fix therefore needs a
-different constraint carrying the same weight, and the candidates each cost something the repo does
-not currently spend: a known-TLD tail (roughly 1,450 entries from IANA, and `dot com`, `dot net`
-and `dot ai` are ordinary English besides), a requirement that the gap be one of at least two, or a
-rule that a gap may follow a dotted prefix only when that prefix is a known subdomain label. None
-is obviously right, which is why the number to beat is written down here: zero added spans across
-707 files and 1,030,733 words.
 
 ## Trail
 
 - 2026-08-16: Opened by the twelfth ADR-0015 addendum, which found it while widening the gap and
   left it standing on purpose, the tenth addendum's own precedent for a spelling whose fix needs
   its own false-positive budget.
+- 2026-08-17: Declined, on a measurement that says the obvious fix makes this guardrail worse
+  rather than wider. Relaxing the dotless rule costs zero added spans over 1,072 files and
+  1,410,285 words, which clears the published bar, but it **extends 14 existing spans and changes
+  14 identities**, and that column is not a false positive: an ordinary link followed by ` dot the`
+  stops normalizing to itself, so a link collected from untrusted content and reproduced in the
+  reply is **delivered rather than redacted**, confirmed end to end through a real ledger and a
+  real streaming filter. An attacker reaches that by asking the model for one extra word. Every
+  narrowing considered is a data table this repo does not carry or does not reach the case at all,
+  because nothing structural separates `http://www.evil dot com` from `http://example.com dot the`.
+  The real fix is not in the grammar: a mixed host has two honest readings and the seam yields one
+  identity per match, so closing this needs a defense that emits both, which is recorded as its own
+  entry (294). Sibling entries closed the same day: the slashless authority whose host is split
+  (282) and the tab inside a scheme word (285), neither of which touches the dotless rule.
