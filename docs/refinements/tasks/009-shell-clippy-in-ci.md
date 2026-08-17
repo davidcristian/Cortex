@@ -1,9 +1,8 @@
 # cargo clippy for the Tauri shell in CI
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-08-17
 **Area:** repo-gates
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md)
-**Trigger:** CI gaining the Tauri desktop stack, or shell findings outpacing local checks.
 
 The shell's clippy still runs nowhere in CI. Unlike the shell's fmt (parse only) and
 `os_windows`'s clippy (a target add, no link), shell clippy needs the shell to actually compile:
@@ -77,6 +76,23 @@ partly populated, so what CI would be paying for is the provisioning rather than
 and `rust-cache` caches none of it. That is this entry's decline measured rather than restated.
 Both triggers stand and the entry stays open.
 
+**Landed 2026-08-17, and neither trigger is what settled it.** Every reading above priced this
+as a step inside `check-body`, which every `body/` change runs, and on that premise the decline
+held four times. The premise was the defect. Shell clippy is now its own path-filtered CI job
+(`check-shell`, gated on a fourth classifier output `shell=`), so the webkit provisioning lands
+on a `body/app/src-tauri/` edit and on nothing else, and the arithmetic the decline rested on
+stops applying. The numbers this entry carried were also too big: the real `-dev` closure is
+**103 packages, 39.6 MB, about 4 s to fetch** from five roots, the 630 being an unfiltered
+`apt-cache depends --recurse` walk, and the whole Tauri graph clippies from an **empty target
+directory in 30.9 s wall**. About a minute, once, on the change that could have broken it.
+`just check` deliberately does NOT run `check-shell`, since it is the only check needing system
+libraries and requiring them would make the single gate unrunnable on a clean checkout; that
+divergence, the first in this repo, is argued at the origin. A planted `useless_format` makes
+`just check-shell` exit 101, and routing the shell subtree back to plain rust fails the
+classifier suite, so neither half is trusted green untested. What did not land with it is the
+verification asymmetry the split creates, filed as
+[300](300-shell-job-never-ran-on-a-runner.md).
+
 ## Trail
 
 - 2026-07-16: Recorded as the residual of the fmt-and-clippy landing and listed as actionable, the
@@ -98,3 +114,11 @@ Both triggers stand and the entry stays open.
   also corrected the entry's route for this host: `pkg-config` is real here and no shim was needed,
   what is missing being 47 `-dev` packages of `.pc` metadata, unpacked without sudo, which is the
   CI provisioning cost the decline rests on measured rather than restated. Neither trigger fired.
+- 2026-08-17: Landed, by splitting rather than by paying: a separate path-filtered CI job running
+  a new `just check-shell`, gated on a fourth classifier output, so only a shell edit provisions
+  webkit. The decline's premise, that this had to ride inside `check-body`, was the defect, and
+  its numbers were high (103 packages and 39.6 MB, not a 630-package closure; 30.9 s for a cold
+  clippy of the whole Tauri graph). `just check` deliberately does not run the new recipe, the
+  first check in this repo CI schedules and the single gate does not, argued at the origin. Both
+  levels were proven able to fail. Residue filed as
+  [300](300-shell-job-never-ran-on-a-runner.md).

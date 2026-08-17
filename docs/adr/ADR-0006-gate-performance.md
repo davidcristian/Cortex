@@ -20,14 +20,16 @@ The decisions were revised same-day, pre-push, for open-source longevity.
    stdlib-only, gated like every other script: ruff, pyright strict, 100% coverage).
    A `changes` job computes `git diff --name-only` over the run's range (PR: three-dot
    diff against the base ref; push: `event.before..HEAD` when resolvable) and pipes it
-   into the classifier, which emits `python=`/`rust=`/`overlay=` outputs consumed by
-   job-level `if`s. Classification is ordered rules, first match wins, union over all paths:
+   into the classifier, which emits `python=`/`rust=`/`overlay=`/`shell=` outputs consumed
+   by job-level `if`s. Classification is ordered rules, first match wins, union over all paths:
    - **all:** `justfile`, `.python-version` (exact); `proto/`, `scripts/`,
      `.github/workflows/` (prefix);
    - **python:** `ruff.toml` (exact); `brain/` (prefix);
-   - **rust (shell carve-out):** `body/app/src-tauri/` (prefix) is the host-native Tauri
-     shell, which is Rust rather than node and is fmt-checked by `check-body` (ADR-0011),
-     so it is carved back to rust by a rule ordered BEFORE `body/app/`;
+   - **rust+shell (shell carve-out):** `body/app/src-tauri/` (prefix) is the host-native
+     Tauri shell, which is Rust rather than node and is fmt-checked by `check-body`
+     (ADR-0011), so it is carved back off the overlay by a rule ordered BEFORE `body/app/`.
+     It sets `shell=` as well, the one output whose job installs system libraries, so the
+     webkit provisioning `check-shell` needs is paid on a shell edit and on nothing else;
    - **overlay:** `body/app/` (prefix) is the React overlay tree; ordered BEFORE the
      `body/` rule so overlay changes gate the node toolchain, not Rust (the overlay is
      excluded from the gated Rust workspace, ADR-0011);
@@ -143,3 +145,30 @@ carve-out stands exactly as above, still justified by the fmt gate it feeds, and
 route a shell change to the rust job that runs shell clippy the day CI can afford it. No rule
 moved; the classifier over-tests a shell change (full body build) in the safe direction it always
 prefers.
+
+## Addendum (2026-08-17): `shell` as a fourth output, and the first job CI runs alone
+
+The addendum above left the shell carve-out routing a shell edit to the rust job and said the
+classifier "would already route a shell change to the rust job that runs shell clippy the day CI
+can afford it". That day is here, and the routing it predicted is not the one that landed: shell
+clippy is a **separate job**, not another step inside `check-body`, and the difference is the
+whole reason it became affordable.
+
+The cost that had kept it out was never the check; it was who pays. Folded into `check-body`, a
+webkit `apt-get install` lands on every `body/` change, every `proto/` change, every shared gate
+file, to lint a subtree that most of them do not touch. Split out, it lands on a
+`body/app/src-tauri/` edit and on nothing else. So the classifier grew a **fourth** output,
+`shell=`, exactly as it grew `overlay=` before it, and the shell carve-out rule now returns a
+verdict setting both `rust` and `shell`: `check-body` still fmt-checks the shell on every rust
+run, and the new job clippies it. Every rule that sets `rust` for a non-shell path leaves `shell`
+false, `NEITHER` leaves it false, and both `ALL` and the fail-closed `DEFAULT` set it true, so an
+unrecognized path still over-tests in the direction this ADR always prefers.
+
+Two properties this ADR states are unchanged and were re-checked rather than assumed. Unknown
+paths still reach every job (`test_classify_fails_closed_to_all_for_unmatched_paths` now asserts
+the fourth field too), and the no-usable-diff-range branch in the workflow writes `shell=true`
+beside the other three. What is new is a job that can be reached by a path no other job is:
+nothing else in CI is gated on `shell=`, so a rule that forgot to set it would leave the job
+permanently unrun and permanently green. Two tests hold that shut from both sides, one asserting
+a `src-tauri` edit sets `shell=true` and one asserting a `body/crates/` plus `body/app/src/`
+change leaves it false, and routing the carve-out back to plain rust fails the suite.

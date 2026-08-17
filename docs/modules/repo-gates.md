@@ -240,14 +240,18 @@ every pointer in the repo aimed at one.
   for a set of changed files. Reads newline-separated repo-relative paths (the output of
   `git diff --name-only`) on stdin; blank lines are ignored. Each path is classified by
   ordered rules, first match wins (the normative rule list lives in ADR-0006); the
-  result is the union over all paths. Writes exactly three `GITHUB_OUTPUT`-format lines
-  to stdout, in order: `python=true|false`, `rust=true|false`, then `overlay=true|false`
+  result is the union over all paths. Writes exactly four `GITHUB_OUTPUT`-format lines
+  to stdout, in order: `python=true|false`, `rust=true|false`, `overlay=true|false`, then
+  `shell=true|false`
   (the overlay = the `body/app/` React tree, gated by `check-overlay`; its Tauri shell
-  subtree `body/app/src-tauri/` is Rust and is carved back to `rust`), and nothing else.
+  subtree `body/app/src-tauri/` is Rust and is carved off the overlay to the `rust+shell`
+  verdict, which sets `rust` for that subtree's fmt check inside `check-body` and `shell`
+  for the separate webkit-carrying job that runs `check-shell`), and nothing else.
   Logs one `ci-paths: PATH -> VERDICT` line per path to stderr so CI logs show why a job
-  ran. Empty input yields all three `false`. Unmatched paths fail closed to ALL three
+  ran. Empty input yields all four `false`. Unmatched paths fail closed to ALL four
   (unknown means over-test, never under-test). Always exits 0, because classification has no
-  failure mode.
+  failure mode. `shell` is the one output no other job reads, so a rule that forgot to set it
+  would leave that job unrun and looking green; two tests hold the routing from both sides.
 - `commitlint.py MESSAGE_FILE [--repo DIR]` is the machine-checkable half of the AGENTS.md
   commit rules, run at the commit-msg stage next to conventional-pre-commit. Checks the
   header (first non-comment line): ≤ 72 chars, lowercase subject, no trailing period. A

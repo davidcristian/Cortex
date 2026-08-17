@@ -103,8 +103,9 @@ check-scripts:
 # windows target, since the native --workspace clippy compiles that crate to nothing on
 # Linux. os_windows fmt is already caught by `cargo fmt --all` above (it is a workspace
 # member and rustfmt ignores cfg). The windows target must be installed (rustup target add
-# x86_64-pc-windows-msvc); clippy never links, so no MSVC toolchain is needed. Shell clippy
-# stays out (it needs the Linux GTK/webkit/dbus dev packages), recorded in docs/refinements.
+# x86_64-pc-windows-msvc); clippy never links, so no MSVC toolchain is needed. Shell CLIPPY
+# stays out of this recipe and has its own, `check-shell` below, because it needs the Linux
+# GTK/webkit/dbus dev packages that this recipe deliberately does not.
 # The coverage run also excludes Cargo build scripts (`build.rs`), which rustc began
 # instrumenting during the 1.99 nightlies: a build script runs at build time, not under the
 # test harness, so no test can reach it (ADR-0002 build-script addendum).
@@ -138,6 +139,21 @@ check-body:
     cd body && cargo +nightly llvm-cov --locked --branch --workspace --all-targets --ignore-filename-regex '/_generated/|/build[.]rs$' --json --summary-only --output-path coverage.json -- -Z unstable-options --shuffle-seed=104729
     cd scripts && uv sync --locked
     cd scripts && uv run python coverage_gate.py ../body/coverage.json --rustc "$(rustc +nightly --version)" --llvm-cov "$(cargo +nightly llvm-cov --version)"
+
+# The Tauri shell (body/app/src-tauri), clippied rather than only fmt-checked. THE ONE
+# `check-*` RECIPE `just check` DOES NOT RUN, and the only place CI runs a gate a local
+# `just check` does not (ADR-0011 shell-clippy addendum). Unlike every other recipe here it
+# needs system libraries: the shell has to actually compile for clippy to see it, which means
+# the Linux GTK/webkit/dbus dev packages providing the pkg-config metadata the `-sys` build
+# scripts probe for. A runner installs those with one apt line; a dev box may have none of
+# them, and requiring them would make the single gate unrunnable on a clean checkout, which is
+# worse than the divergence. So CI owns the schedule and this recipe owns the check, and it is
+# path-filtered onto shell edits alone (ci_paths.py routes body/app/src-tauri/ to `rust+shell`),
+# so no other `body/` change pays for it. Clippy never LINKS, so the metadata is all that is
+# needed and none of those libraries is ever loaded; a sudo-less host runs it with
+# PKG_CONFIG_PATH naming an unpacked prefix, which that addendum records.
+check-shell:
+    cd body/app/src-tauri && cargo clippy --locked --all-targets -- -D warnings
 
 # Overlay frontend (React + Vite): typecheck + Vitest at 100% line+branch coverage
 # (ADR-0011 addendum). Host-only node toolchain, path-filtered in CI (ADR-0006); its .ts/.tsx
