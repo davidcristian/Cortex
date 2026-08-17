@@ -8,7 +8,7 @@ use body_core::{DEFAULT_PROBE_BUDGET, RetryPlan, RetryPolicy, SeamMethod, Transp
 /// Every variant, so the invariant below is checked over the whole port rather than a sample.
 /// A new variant makes `SeamMethod::repeatable`'s exhaustive match fail to compile, which is
 /// the reminder to classify it and add it here.
-const EVERY_METHOD: [SeamMethod; 9] = [
+const EVERY_METHOD: [SeamMethod; 11] = [
     SeamMethod::Health,
     SeamMethod::Converse,
     SeamMethod::ListSessions,
@@ -18,6 +18,8 @@ const EVERY_METHOD: [SeamMethod; 9] = [
     SeamMethod::RenameSession,
     SeamMethod::DeleteSession,
     SeamMethod::SetSessionPinned,
+    SeamMethod::GetPreferences,
+    SeamMethod::SetPreference,
 ];
 
 /// A deliberately patient read schedule: 6 attempts, 500 ms base, ×2, 10 s cap, so its
@@ -51,6 +53,8 @@ fn repeatable_marks_exactly_the_calls_a_repeat_cannot_change() {
     // The pin is idempotent by value, yet still one attempt: a retry could re-assert a pinned
     // value the user's next toggle reversed (the uniform catalog-write convention).
     assert!(!SeamMethod::SetSessionPinned.repeatable());
+    assert!(SeamMethod::GetPreferences.repeatable());
+    assert!(!SeamMethod::SetPreference.repeatable());
 }
 
 #[test]

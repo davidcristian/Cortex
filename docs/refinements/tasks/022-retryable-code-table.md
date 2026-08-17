@@ -1,17 +1,28 @@
 # A retryable-code table beyond `Unavailable`
 
-**Status:** open, fix when it bites
+**Status:** declined 2026-08-17
 **Area:** seam-transport
 **Origin:** [ADR-0024](../../adr/ADR-0024-transport-retry.md)
-**Trigger:** a producer, meaning a brain that answers `RESOURCE_EXHAUSTED` or `ABORTED`.
 
-Its trigger is a producer: a brain that answers `RESOURCE_EXHAUSTED` (an
-admission or GPU-lease wall surfacing on the seam rather than inside a turn) or `ABORTED` (a
-store contention retry). Both are conventionally retryable and both are ambiguous about
-whether the server already did the work, so each would need the repeatability gate consulted
-first exactly as `Unavailable` now is. Until one exists, widening the set widens only the
-configuration surface. `DEADLINE_EXCEEDED` is not on that list and is a separate question:
+Declined on its merits rather than deferred a third time. The producer sweep re-ran against the
+code and found the same two statuses this seam's server has always written, `UNAVAILABLE` from a
+store, schedule, memory or preference failure and `UNAUTHENTICATED` from the seam-token
+interceptor, plus the `UNIMPLEMENTED` of a generated default no implemented method reaches. What
+changed is the reasoning, not the count: waiting for a producer treated the three candidate codes
+as correct-but-unproduced, and read against this seam each is instead *wrong* here.
+`RESOURCE_EXHAUSTED` is the sharpest, because the one producer anywhere in this repo raises it for
+a screen capture too large to send, which is a payload a repeat resends unchanged, so the
+conventionally retryable reading of the code would be exactly inverted. `ABORTED` is a
+store-contention convention no handler performs, and `DEADLINE_EXCEEDED` cannot arrive while
 nothing on this seam sets a deadline.
+
+The idempotency question this entry existed to worry about turns out to be structurally answered.
+A code table is dangerous when a status judged transient reaches a call that must not repeat, and
+that cannot happen here: `RetryPlan::policy_for` refuses an unrepeatable method before any error
+exists, so no classification this table could ever carry reaches `Converse`, `AckReminder`, or a
+catalog write. The table is therefore a pure question about the failure, and widening it later is
+a one-line change that cannot become a correctness bug, which is the strongest reason not to build
+configuration for it now.
 
 ## Trail
 
@@ -31,3 +42,16 @@ nothing on this seam sets a deadline.
   (`session_servicer.py:64,76,88,99,110`, `preference_servicer.py:46,62`, `server.py:201,212`,
   `auth.py:44,52`). The trigger wants a producer on the seam the policy reads and what landed is a
   producer on the other one.
+- 2026-08-17: declined, and the deferral's own premise is what decided it. Re-deriving the sweep
+  confirmed both halves of the 2026-08-09 finding unchanged, and then reading the three candidate
+  codes against *this* seam rather than against gRPC convention found each of them wrong here
+  rather than merely unproduced, which is a decline and not another wait. The classification is
+  now argued per code in the origin decision and pinned by a test that fails when the set grows,
+  so a widening is deliberate. Two smaller things came out of the same reading. The idempotency
+  hazard the entry was really about cannot arise, because repeatability is asked before
+  transience, which is also what makes a future one-code widening cheap. And the gate's whole-port
+  invariant was covering nine of eleven methods: `EVERY_METHOD` called itself every variant while
+  omitting `GetPreferences` and `SetPreference`, which the exhaustive `match` in `repeatable()`
+  cannot force, so both are named now and in the explicit assertions beside it. The residue is
+  [301](301-seam-attempt-deadline.md): the probe budget bounds backoff and not the calls, so a
+  brain that accepts a connection and never answers has no deadline to hit.

@@ -556,6 +556,19 @@ fn is_transient_classifies_every_variant() {
 }
 
 #[test]
+fn the_codes_a_wider_table_would_have_added_are_still_terminal() {
+    for code in ["ResourceExhausted", "Aborted", "DeadlineExceeded"] {
+        assert!(
+            !is_transient(&TransportError::Rpc {
+                code: String::from(code),
+                message: String::new(),
+            }),
+            "{code} was classified transient with no producer to justify it"
+        );
+    }
+}
+
+#[test]
 fn the_decorator_is_send_and_sync() {
     assert_send_sync::<RetryingTransport<FlakyTransport, FakeSleeper>>();
 }
