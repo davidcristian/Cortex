@@ -236,3 +236,71 @@ fixed by rewrapping the sentence.
 
 Regenerating afterwards rewrote both entries in `docs/refinements/index.md` to their full text,
 which is the whole of the visible effect.
+
+## Addendum (2026-08-17): every fragment is judged, and the rule for which targets may be
+
+The anchor addendum above drew its boundary at the target: a fragment was judged when it aimed at
+one of the two backlog indexes and ignored when it aimed at anything else. That was the right
+scope for the pass that built the machinery, and it left a residual, because the argument for
+checking a fragment at all never mentioned the backlog. A heading renamed in a decision record
+strands its readers exactly the way a renamed area does, and the one stale anchor that pass turned
+up was of that kind: the host index aiming into `ADR-0030-brain-handoff.md`, broken by the sweep
+that took every person out of this repo's prose. The scan now judges a fragment wherever it points,
+and this records the rule that makes that safe.
+
+**The population, recounted.** 389 markdown files carry 262 fragments. 253 aim at a backlog index
+and were already gated; the other nine are eight `README.md` links to its own sections and the host
+index's one pointer into that decision record. None is wrong today. So the widening buys nine
+pointers now and an unbounded number later, which is the honest accounting: the value is that the
+next sweeping rename cannot pass silently, not that anything is broken this morning.
+
+**A target is judged when it is a document this same scan reads.** `markdown_files` already
+decides which markdown is this repo's own prose, skipping the vendored and built trees, and that
+decision is now the rule for both halves of a link rather than for sources alone. One list decides
+what may be read and what may be asserted about, so a tree this repo does not maintain is invisible
+here in both directions and cannot drift into being judged by one rule while excluded by another.
+
+Two alternatives were weighed. **Judging whatever git tracks** is the more precise definition of
+"prose this repo ships", and it is the test `bindcheck.py` already applies, but it asks the wrong
+authority: the heading set is read off the file in the working tree, so the permission to read it
+should come from the working tree too. Gating on the index would also fail a document that has been
+written but not yet added, which is an ordinary state in the middle of a slice, and would make the
+gate's verdict depend on what happens to be staged. **Judging everything under the root** is this
+rule without the exclusion, and the exclusion is the whole point: asserting what a vendored
+`README.md` renders is precisely the overreach the residual warned about.
+
+**Fail closed, with one question left unasked.** A markdown target the scan does not read is
+reported rather than skipped, because skipping whatever cannot be answered for is how the stale
+anchor already in the tree survived every gate. That one message covers three causes, a target that
+is missing, one outside the tree, and one inside a vendored or built tree, and the reader can see
+which from the path. The single carve-out is a target whose name is not markdown: `body.proto#L42`
+is a line anchor, an addressing scheme with no headings to be right or wrong about, so the gate's
+question has no meaning there rather than an unknown answer. Reporting those would forbid a
+legitimate idiom and catch nothing.
+
+**A backlog index keeps answering out of its rendering.** The first anchor decision recorded above
+survives the widening intact, and it now needs saying twice: an index is registered as a target
+even on a run that could not work out what it renders, so a broken backlog is skipped rather than
+answered for out of the stale file on disk. Without that, a missing marker would be reported once
+and then again as a hundred dead anchors read from a document nobody intends to keep.
+
+**What the slug rule was checked against.** The rule is one regex approximating what a renderer
+does, so it was measured against the headings this repo actually has: 1,918 of them across those
+389 files. Two shapes are present and both drop a character standing between two spaces, an
+ampersand in fourteen headings and an arrow in seven, which leaves the pair of hyphens neither the
+renderer nor this rule collapses; both are now pinned by a test. Six files repeat a heading, which
+the numbering from the second occurrence covers, and the host index's runbook fences are full of
+shell comments, which the fence rule covers. Four shapes where this regex and a renderer's slugger
+would disagree are absent from the tree: a heading containing a link, one containing an HTML tag,
+one closed with trailing hashes, and one using underscores for emphasis. A setext heading, written
+as an underline rather than with a leading hash, is invisible to the scan entirely and is likewise
+absent. R-292 records all five and names the trigger.
+
+**Proved able to fail before being trusted**, on the real tree in both of the new shapes. Renaming
+`## Risks flagged for maintainer review` in `ADR-0030-brain-handoff.md`, which is the exact rot this
+whole line of work started from, was reported as `docs/host/index.md:602`. Pointing a `README.md`
+fragment at a file that is not there was reported as `README.md:34`. Both were restored and the gate
+returned to green over all 262 pointers.
+
+**A pointer now reports the line it is written on**, which the two-document scope did not need and
+389 files do. It joins the other scans here, all of which report `path:line`.

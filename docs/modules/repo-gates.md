@@ -18,7 +18,7 @@ each split out under the line cap and each named for what it holds: `couplings.p
 `overlaycouplings.py` are the two halves of `crosscheck.py`'s registry, `values.py` is the value
 forms that scan compares on, `composemounts.py` is `bindcheck.py`'s compose reader, and
 `backlog.py`, `backlogindex.py` and `backloganchors.py` are the three `backlogcheck.py` reads a
-backlog through: the task-file grammar, the index renderer, and the anchors an index offers with
+backlog through: the task-file grammar, the index renderer, and the anchors a document offers with
 every pointer in the repo aimed at one.
 
 - `linecap.py [--root DIR] [--max-lines N]` implements AGENTS.md gate 1. Scans
@@ -201,17 +201,22 @@ every pointer in the repo aimed at one.
   reads outside the backlog. `anchors(text)` returns every anchor a document offers, by the slug
   rule a markdown renderer uses (lowercase, drop every character that is not a word character, a
   space or a hyphen, spaces to hyphens, a repeated heading numbered from its second occurrence),
-  with a `#` inside a fenced block not counted as a heading. `check(root, indexes)` walks every
-  markdown file under `--root`, skipping the directory components `dashcheck.py` skips for the
-  reason that gate gives, and reports any fragment aimed at one of those indexes that names no
-  heading it renders; a pointer with no path is aimed at the document it is written in, which is
-  how an index's links to its own hand-written sections are covered. **The anchor set comes from
-  the spliced index**, the hand-written halves around the freshly rendered block, and never from
-  the committed file: a stale index is then judged as the document it is about to become, and its
-  staleness stays one problem instead of a hundred. Sources are repo-wide and targets are not.
-  Most pointers at these anchors live in decision records and runbooks, which are exactly the
-  readers a rename strands, so the scan reads them; a fragment aimed at any other document is out
-  of scope, that being a heading set per document in the repo and a wider scan.
+  with a `#` inside a fenced block not counted as a heading. `local_targets(text)` returns each
+  in-repo link as a `Target(line, path, fragment)`, so a problem names the line it is written on.
+  `check(root, indexes)` walks every markdown file under `--root`, skipping the directory
+  components `dashcheck.py` skips for the reason that gate gives, and reports any fragment that
+  names no heading the document it aims at offers; a pointer with no path is aimed at the document
+  it is written in, which is how an index's links to its own hand-written sections are covered.
+  **A backlog index answers out of the spliced index**, the hand-written halves around the freshly
+  rendered block, and never out of the committed file: a stale index is then judged as the document
+  it is about to become, and its staleness stays one problem instead of a hundred. An index whose
+  rendering this run could not work out is registered with `anchors=None`, which skips every
+  pointer at it rather than reading the stale file. **Every other target answers out of the file on
+  disk, and only if this same scan read it** (ADR-0039 repo-wide-anchor addendum): one list decides
+  which markdown is this repo's prose, for sources and targets alike, so nothing vendored or built
+  is ever asserted about. A markdown target the scan did not read is a reported problem, missing,
+  outside the tree and vendored being the three causes; a target whose name is not markdown is
+  outside the question, `body.proto#L42` being a line anchor with no headings to be wrong about.
 - `coverage_gate.py PATH [--rustc TEXT] [--llvm-cov TEXT]` reads a
   `cargo llvm-cov --json --summary-only` export, requires exactly one `data[]` entry, and gates
   each of `data[0].totals.{lines,regions,branches}` on `covered == count` (the producer's
@@ -351,6 +356,8 @@ every pointer in the repo aimed at one.
   tree, and `test_the_repo_really_aims_pointers_at_both_indexes_from_outside_the_backlog` fails
   if either index ever stops being pointed at from outside its own directory, the population a
   backlog-only scan would have missed being the one that guard exists to keep in the input.
+  `test_the_repo_really_aims_pointers_at_documents_that_are_not_a_backlog_index` is the same guard
+  over the half the scan later grew, so a widening that judged nothing new could not report green.
 - The exclusion lists above are the single definition of "non-test source file" and
   "generated code" for the cap. Change them only with an ADR update.
 - `dashcheck.py`, `commitlint.py`, and their tests spell the dashes as `\uXXXX` escapes
