@@ -34,7 +34,7 @@ drift from the other about what a scheme, a host or a gap is.
 import re
 
 from cortex_core.url_identity import MAILTO_SCHEME, SPECIAL_SCHEMES, normalize_url
-from cortex_core.url_removals import REMOVED_CHARS
+from cortex_core.url_removals import REMOVED_CHARS, REMOVED_RUN, permeable
 from cortex_core.url_spellings import (
     CHUNK_INNER,
     CLOSE_BRACKET,
@@ -144,16 +144,16 @@ _ARRIVING_HOST_ANCHOR = rf"(?={SPLIT_LABEL}{GAP_WHITESPACE})"
 # `_family` adds below is left as it was, matching with no solidus and no host anchor, since its
 # escape marker is already the constraint that keeps it off prose. The anchor is a parameter rather
 # than a constant so the hold-back can wear the arriving one at the same position.
-OPAQUE_SEP_RE = "|".join((COLON_SPELLING, *(re.escape(s) for s in DEFANGED_OPAQUE_SEPS)))
+OPAQUE_SEP_RE = "|".join((COLON_SPELLING, *(permeable(s) for s in DEFANGED_OPAQUE_SEPS)))
 
 
 def _authority_sep(anchor: str) -> str:
     """An authority scheme's separator alternation, with ``anchor`` behind its slashless branch."""
     return "|".join(
         (
-            rf"{COLON_SPELLING}{SOLIDUS_SPELLING}{{2}}",
-            *(re.escape(s) for s in DEFANGED_AUTHORITY_SEPS),
-            rf"(?:{OPAQUE_SEP_RE}){SOLIDUS_SPELLING}?{anchor}",
+            rf"{COLON_SPELLING}{REMOVED_RUN}{SOLIDUS_SPELLING}{REMOVED_RUN}{SOLIDUS_SPELLING}",
+            *(permeable(s) for s in DEFANGED_AUTHORITY_SEPS),
+            rf"(?:{OPAQUE_SEP_RE}){REMOVED_RUN}(?:{SOLIDUS_SPELLING}{REMOVED_RUN})?{anchor}",
         )
     )
 
@@ -181,7 +181,10 @@ _ENCODED_SEP_CHUNK = rf"{OPEN_BRACKET}{CHUNK_INNER}*[&%]{CHUNK_INNER}*{CLOSE_BRA
 
 def _family(words: tuple[str, ...], seps: str) -> str:
     """A regex alternation: any of ``words``, then that family's ``seps`` or an encoded chunk."""
-    return rf"(?:{'|'.join(words)})(?:{seps}|{_ENCODED_SEP_CHUNK})"
+    return (
+        rf"(?:{'|'.join(permeable(word) for word in words)})"
+        rf"{REMOVED_RUN}(?:{seps}|{_ENCODED_SEP_CHUNK})"
+    )
 
 
 # The `data:` scheme opens an inline `data:<mediatype>[;base64],<data>` URL: a clickable phishing
@@ -192,7 +195,7 @@ def _family(words: tuple[str, ...], seps: str) -> str:
 # (`data[&#58;]`) like the other opaque schemes, sharing `_family` so it cannot drift from them;
 # identity folds it whole (no `://` authority to split, so the payload lowercases symmetrically,
 # harmless for comparison). The lookahead consumes nothing; the body matches from the MIME type.
-_DATA_ANCHOR = r"(?=[\w.+-]+/|[;,])"
+_DATA_ANCHOR = rf"(?=(?:[\w.+-]|{REMOVED_CHARS})+/|[;,])"
 _DATA_SCHEME = rf"{_family(('data',), OPAQUE_SEP_RE)}{_DATA_ANCHOR}"
 
 

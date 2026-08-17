@@ -22,6 +22,8 @@ swallowing the next line's first word), against zero for the tab (ADR-0015 fifte
 Deterministic and dependency-free (stdlib only). Pure state- and I/O-free.
 """
 
+import re
+
 # The one character of the three that is admitted. Written as an escape so the source shows it
 # rather than a blank the eye cannot tell from a space, the `_CONFUSABLES` convention.
 REMOVED = "\t"
@@ -30,7 +32,35 @@ REMOVED = "\t"
 # string so the class the matcher admits and the characters the fold drops cannot drift.
 REMOVED_CHARS = f"[{REMOVED}]"
 
+# A run of them, which is what may stand between any two characters of a literal below, and
+# what a caller spells at a junction `permeable` cannot see: between a bracket and the token it
+# wraps, or between a scheme word and its separator.
+REMOVED_RUN = f"{REMOVED_CHARS}*"
+
 _REMOVALS = str.maketrans(dict.fromkeys(REMOVED, None))
+
+
+def permeable(literal: str) -> str:
+    """``literal`` as a regex tolerating a removal between any two of its characters.
+
+    The parser's sentence reaching the second half of this grammar (ADR-0015 seventeenth addendum).
+    The body admitted the character on its own, but every *literal* around it still read as
+    characters in a fixed order, so a scheme word, a separator token and a bracketed defang token
+    each declined a character the parser deletes before it reads any of them: `ht<TAB>tp` is
+    `http`, and `[d<TAB>ot]` is `[dot]`. Generated per character rather than listed, the
+    ``_prefixes`` precedent, so a token's tabbed forms cannot drift from the token.
+
+    This is also the answer to where the removal sits relative to the refanger, which the body
+    position never had to ask. It does not move: the fold still runs *after* the gap fold, so a gap
+    spelled with tabs keeps the reader's reading, and the refanger stops caring where a removal
+    stands by spelling its own literals through here instead.
+
+    One family is deliberately **not** built this way, and the line is the ninth addendum's: an
+    HTML character reference is admitted because *one rendering pass* resolves it, and no renderer
+    resolves ``&#5<TAB>8;``. So the junctions around a reference are permeable and its digits are
+    not, which is why the two are generated separately.
+    """
+    return REMOVED_RUN.join(re.escape(char) for char in literal)
 
 
 def strip_removed(url: str) -> str:

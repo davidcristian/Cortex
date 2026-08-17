@@ -27,8 +27,8 @@ into one identity, never splitting one:
    labels), which the resolver reads as a dot, and close the whitespace a *split* host spells the
    same dot with (``evil dot com``); ADR-0015 eighth + twelfth addenda.
 8. *Drop what a URL parser removes* from its input before parsing it, which is the tab
-   (``url_removals``, run here rather than earlier so a gap spelled with tabs is still a gap);
-   ADR-0015 fifteenth addendum.
+   (``url_removals``, run here rather than earlier so a gap spelled with tabs is still a gap, the
+   literals above being ``permeable`` instead); ADR-0015 fifteenth + seventeenth addenda.
 9. Fold a *special scheme's backslashes* to the solidi the URL parser reads them as, and its run
    of authority slashes to one pair however many it holds (none included), so the JSON-escaped and
    the slashless spellings of a link share the link's identity; ADR-0015 tenth + eleventh addenda.
@@ -43,13 +43,17 @@ import unicodedata
 from urllib.parse import unquote
 
 from cortex_core.url_confusables import fold_confusables
-from cortex_core.url_removals import strip_removed
+from cortex_core.url_removals import REMOVED_RUN, permeable, strip_removed
 
 # The bracket vocabulary every defang token is wrapped in. All three shapes are equivalent wherever
 # one is recognized, so they are held once here rather than spelled out per token (the asymmetry the
 # seventh addendum found: the dot accepted all three while the separator accepted only `[...]`).
-_OPEN_BRACKET = r"[\[({]"
-_CLOSE_BRACKET = r"[\])}]"
+# Each carries the removal run at its junction with the token it wraps, and every word below is
+# spelled through `permeable`, so a removal may stand between any two characters of a defang token:
+# a URL parser deletes them before it reads one, so `[d<TAB>ot]` is `[dot]` to it and to the reader
+# alike (ADR-0015 seventeenth addendum).
+_OPEN_BRACKET = rf"[\[({{]{REMOVED_RUN}"
+_CLOSE_BRACKET = rf"{REMOVED_RUN}[\])}}]"
 
 # A defanged dot inside the host/path: `[.]`, `(.)`, `{.}`, `[dot]`, `(dot)`, `{dot}` (any case),
 # built on the one defang token that is a *word* rather than a mark, which is therefore the one a
@@ -58,12 +62,12 @@ _CLOSE_BRACKET = r"[\])}]"
 # in `urls.py`. Recognized only inside a URL, and public because `url_spellings.py` spends both on
 # the grammar's whitespace-split host, so the grammar and the fold cannot disagree about them.
 DOT_WORD = "dot"
-DEFANG_DOT = rf"{_OPEN_BRACKET}(?:\.|{DOT_WORD}){_CLOSE_BRACKET}"
+DEFANG_DOT = rf"{_OPEN_BRACKET}(?:\.|{permeable(DOT_WORD)}){_CLOSE_BRACKET}"
 
 # The defanged scheme separators, in any bracket shape: `[://]`/`(://)`/`{://}` for an authority
 # scheme, `[:]`/`(:)`/`{:}` for the bare colon (which also covers the `[:]//` split form, as the
 # `//` survives untouched). Unambiguous wherever they appear, so they need no anchoring.
-_DEFANG_AUTHORITY_SEP = rf"{_OPEN_BRACKET}://{_CLOSE_BRACKET}"
+_DEFANG_AUTHORITY_SEP = rf"{_OPEN_BRACKET}{permeable('://')}{_CLOSE_BRACKET}"
 _DEFANG_COLON = rf"{_OPEN_BRACKET}:{_CLOSE_BRACKET}"
 
 # Prose punctuation a URL match may drag along at its end is part of the sentence, never of the URL
@@ -89,7 +93,7 @@ _AUTHORITY_END = re.compile(r"[/?#]")
 # token back to the character it hides. `hxx` is rewritten only at the scheme (anchored), never
 # inside a host/path; the separator and dot forms are unambiguous wherever they appear.
 _REFANG_SUBS: tuple[tuple[re.Pattern[str], str], ...] = (
-    (re.compile(r"\Ahxx", re.IGNORECASE), "htt"),
+    (re.compile(rf"\A{permeable('hxx')}", re.IGNORECASE), "htt"),
     (re.compile(_DEFANG_AUTHORITY_SEP), "://"),
     (re.compile(_DEFANG_COLON), ":"),
     (re.compile(DEFANG_DOT, re.IGNORECASE), "."),
@@ -197,7 +201,7 @@ _LABEL_DOTS = str.maketrans(dict.fromkeys(LABEL_SEPARATORS, "."))
 # refanged, CJK stops translated just above), so the token here is only the mark or the word; and
 # for the same reason the whitespace here is only the tab and the space, NFKC having already
 # reduced the no-break, thin and ideographic spaces the grammar admits (`NFKC_SPACES`).
-_SPACED_DOT = re.compile(rf"[ \t]+(?:{DOT_WORD}|\.)[ \t]+", re.IGNORECASE)
+_SPACED_DOT = re.compile(rf"[ \t]+(?:{permeable(DOT_WORD)}|\.)[ \t]+", re.IGNORECASE)
 
 
 def _fold_label_dots(url: str) -> str:
