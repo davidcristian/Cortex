@@ -1,10 +1,23 @@
 """Repo gate: require 100% line/region/branch coverage from a cargo-llvm-cov JSON export.
 
-``cargo llvm-cov`` has no ``--fail-under-branches`` flag, so this parses the export
-written by ``cargo llvm-cov --json --summary-only`` and checks ``data[0].totals``
-itself. Each metric passes only when ``covered == count`` -- the producer-computed
-``percent`` is never trusted. A metric whose ``count`` is 0 has nothing to cover and is
-treated as satisfied, with a printed note.
+This is the whole coverage verdict on the Rust body, not the branch half of it.
+cargo-llvm-cov has no ``--fail-under-branches`` flag, so branches were always judged here;
+``--fail-under-lines`` and ``--fail-under-regions`` were dropped from the measurement because
+they exit 1 without printing anything once ``--json --output-path`` diverts the report to a
+file, which pre-empted this gate with a mute failure. So this parses the export written by
+``cargo llvm-cov --json --summary-only`` and checks ``data[0].totals`` itself. Each metric
+passes only when ``covered == count`` -- the producer-computed ``percent`` is never trusted.
+A metric whose ``count`` is 0 has nothing to cover and is treated as satisfied, with a
+printed note.
+
+The verdict also names the toolchain that produced the numbers, because the coverage step
+runs on an unpinned nightly and an unpinned cargo-llvm-cov (ADR-0002), so a red run has to
+be readable against the versions that measured it. Two sources, one required and one
+optional. The export records its own writer in ``cargo_llvm_cov.version``, which is required:
+a report that will not say what wrote it is refused. The compiler is nowhere in the export,
+so the step passes what it probed through ``--rustc``, and passes ``--llvm-cov`` too, where
+it is checked against the export's own record rather than merely echoed. Disagreement means
+the numbers being judged are not the ones this run measured.
 """
 
 import argparse
@@ -15,17 +28,32 @@ from typing import NamedTuple, cast
 
 FULL_PERCENT = 100.0
 REQUIRED_METRICS = ("lines", "regions", "branches")
+PRODUCER_KEY = "cargo_llvm_cov"
 
 
 class CoverageReportError(Exception):
     """The coverage export is unreadable, malformed, or missing required data."""
 
 
-class MetricReport(NamedTuple):
-    """Outcome for one coverage metric: a printable line and whether it passed."""
+class Verdict(NamedTuple):
+    """Outcome for one check: a printable line and whether it passed."""
 
     line: str
     ok: bool
+
+
+class Producer(NamedTuple):
+    """What an export records about the run that wrote it."""
+
+    tool: str
+    export_format: str
+
+
+class Toolchain(NamedTuple):
+    """What the coverage step probed before it measured. Either half may be absent."""
+
+    rustc: str | None
+    llvm_cov: str | None
 
 
 def _require_dict(value: object, context: str) -> dict[str, object]:
@@ -43,10 +71,18 @@ def _require_count(entry: dict[str, object], key: str, context: str) -> int:
     return value
 
 
-def evaluate(totals: object) -> list[MetricReport]:
+def _require_version(entry: dict[str, object], key: str, context: str) -> str:
+    value = entry.get(key)
+    if not isinstance(value, str) or not value.strip():
+        msg = f"{context}.{key} must be a non-empty string, got {value!r}"
+        raise CoverageReportError(msg)
+    return value
+
+
+def evaluate(totals: object) -> list[Verdict]:
     """Judge every required metric in a cargo-llvm-cov ``totals`` object."""
     totals_map = _require_dict(totals, "totals")
-    reports: list[MetricReport] = []
+    verdicts: list[Verdict] = []
     for metric in REQUIRED_METRICS:
         if metric not in totals_map:
             msg = f"totals has no {metric!r} entry"
@@ -58,25 +94,45 @@ def evaluate(totals: object) -> list[MetricReport]:
             msg = f"totals.{metric}.covered ({covered}) exceeds count ({count})"
             raise CoverageReportError(msg)
         if count == 0:
-            report = MetricReport(f"PASS {metric}: no {metric} to cover (count 0)", ok=True)
+            verdict = Verdict(f"PASS {metric}: no {metric} to cover (count 0)", ok=True)
         elif covered == count:
-            report = MetricReport(f"PASS {metric}: {FULL_PERCENT:.2f}%", ok=True)
+            verdict = Verdict(f"PASS {metric}: {FULL_PERCENT:.2f}%", ok=True)
         else:
             percent = covered / count * FULL_PERCENT
-            report = MetricReport(
-                f"FAIL {metric}: {percent:.2f}% (need {FULL_PERCENT:g}%)", ok=False
+            verdict = Verdict(f"FAIL {metric}: {percent:.2f}% (need {FULL_PERCENT:g}%)", ok=False)
+        verdicts.append(verdict)
+    return verdicts
+
+
+def attribute(producer: Producer, toolchain: Toolchain) -> list[Verdict]:
+    """Name the run that wrote the export, and refuse one this step did not write."""
+    verdicts = [
+        Verdict(
+            f"measured by cargo-llvm-cov {producer.tool}, llvm export {producer.export_format}",
+            ok=True,
+        )
+    ]
+    if toolchain.rustc is not None:
+        verdicts.append(Verdict(f"measured by {toolchain.rustc}", ok=True))
+    if toolchain.llvm_cov is not None and producer.tool not in toolchain.llvm_cov.split():
+        verdicts.append(
+            Verdict(
+                f"FAIL producer: the export was written by cargo-llvm-cov {producer.tool}, "
+                f"but this step ran {toolchain.llvm_cov!r}; "
+                f"these are not the numbers it measured",
+                ok=False,
             )
-        reports.append(report)
-    return reports
+        )
+    return verdicts
 
 
 def check(totals: object) -> list[str]:
     """Return one failure string per metric below 100%; an empty list means the gate passes."""
-    return [report.line for report in evaluate(totals) if not report.ok]
+    return [verdict.line for verdict in evaluate(totals) if not verdict.ok]
 
 
-def load_totals(report: Path) -> object:
-    """Extract ``totals`` from the single ``data`` entry of a cargo-llvm-cov JSON export."""
+def read_document(report: Path) -> dict[str, object]:
+    """Parse a cargo-llvm-cov JSON export into its top-level object."""
     try:
         payload: object = json.loads(report.read_bytes())
     except OSError as err:
@@ -85,7 +141,11 @@ def load_totals(report: Path) -> object:
     except (json.JSONDecodeError, UnicodeDecodeError) as err:
         msg = f"coverage report {report} is not valid JSON: {err}"
         raise CoverageReportError(msg) from err
-    document = _require_dict(payload, "coverage report")
+    return _require_dict(payload, "coverage report")
+
+
+def load_totals(document: dict[str, object]) -> object:
+    """Extract ``totals`` from the single ``data`` entry of a cargo-llvm-cov JSON export."""
     data = document.get("data")
     if not isinstance(data, list):
         msg = "coverage report 'data' must be a list"
@@ -101,8 +161,20 @@ def load_totals(report: Path) -> object:
     return first["totals"]
 
 
+def load_producer(document: dict[str, object]) -> Producer:
+    """Extract what a cargo-llvm-cov JSON export records about the run that wrote it."""
+    if PRODUCER_KEY not in document:
+        msg = f"coverage report has no {PRODUCER_KEY!r} entry naming the tool that wrote it"
+        raise CoverageReportError(msg)
+    block = _require_dict(document[PRODUCER_KEY], PRODUCER_KEY)
+    return Producer(
+        tool=_require_version(block, "version", PRODUCER_KEY),
+        export_format=_require_version(document, "version", "coverage report"),
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
-    """Run the gate; print one line per metric and return the process exit code."""
+    """Run the gate; print one line per check and return the process exit code."""
     parser = argparse.ArgumentParser(
         description=(
             "Fail unless a cargo-llvm-cov JSON export shows 100% line, region, and branch coverage."
@@ -113,16 +185,30 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         help="path to a `cargo llvm-cov --json --summary-only` export file",
     )
+    parser.add_argument(
+        "--rustc",
+        default=None,
+        help="`rustc +nightly --version` as the step probed it; relayed into the verdict",
+    )
+    parser.add_argument(
+        "--llvm-cov",
+        default=None,
+        help="`cargo +nightly llvm-cov --version` as the step probed it; checked against"
+        " the version the export records for itself",
+    )
     args = parser.parse_args(argv)
     report_path: Path = args.report
+    toolchain = Toolchain(rustc=args.rustc, llvm_cov=args.llvm_cov)
     try:
-        reports = evaluate(load_totals(report_path))
+        document = read_document(report_path)
+        verdicts = attribute(load_producer(document), toolchain)
+        verdicts += evaluate(load_totals(document))
     except CoverageReportError as err:
         print(f"coverage gate: {err}", file=sys.stderr)
         return 1
-    for report in reports:
-        print(report.line)
-    if all(report.ok for report in reports):
+    for verdict in verdicts:
+        print(verdict.line)
+    if all(verdict.ok for verdict in verdicts):
         return 0
     return 1
 
