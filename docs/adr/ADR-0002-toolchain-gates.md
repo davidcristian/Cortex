@@ -574,3 +574,95 @@ covered to 1303, now draws `FAIL lines: 99.39% (need 100%)`, which is within a h
 of the 99.40% the earlier CI failure reported and did not print. The real `just check-body` is green
 end to end on this machine, its verdict reading `measured by cargo-llvm-cov 0.8.7, llvm export
 3.1.0` and `measured by rustc 1.98.0-nightly (4c9d2bfe4 2026-07-01)` above three PASS lines.
+
+## Addendum (2026-08-17): the Rust suite joins the shuffle, on the step that is already nightly
+
+The shuffle addendum above left the Rust workspace out and said why: "libtest has no shuffle
+option, so the order it hands out is the collected one". **That sentence is wrong, and this
+addendum is written because it was wrong rather than because anything changed.** libtest has had
+`--shuffle` and `--shuffle-seed SEED` for years. They are unstable, so they are rejected on stable
+and rejected on nightly too unless `-Z unstable-options` precedes them, which is presumably how a
+reader checking `cargo test -- --help` on stable concludes the feature does not exist. On this
+machine the help text that lists them is nightly's, and the refusal on stable is explicit about
+the way in:
+
+```
+error: The "shuffle-seed" option is only accepted on the nightly compiler with -Z unstable-options
+```
+
+The entry that recorded the gap, R-287, also carried the cost that argued against closing it: a
+second test runner, `cargo-nextest`, beside `cargo test` and `cargo llvm-cov`. No second runner is
+needed. Nothing is added to the gate at all.
+
+**Decision: the shuffle rides the nightly coverage step, under a fixed seed of `104729`.**
+Decision 1 of this ADR puts every build/lint/test gate on stable and only the coverage step on
+nightly, so `cargo test --locked --workspace` cannot carry the flag without moving a stable gate
+onto nightly. It does not have to. The coverage step already runs the entire workspace on nightly,
+so appending `-- -Z unstable-options --shuffle-seed=104729` to it costs no wall time, adds no
+dependency, installs no tool, and leaves decision 1 exactly as written. What the gate gains is
+better than what a single shuffled run would have given it: `just check` now runs the Rust suite
+**twice in two different orders**, once alphabetically on stable and once permuted on nightly, and
+both must pass. `just shuffle [seed]` gains a fourth arm, a plain `cargo +nightly test` at the
+chosen seed, since there the order is the only thing under test.
+
+**The seed is arbitrary, frozen, and deliberately different**, like the other three. `104729` is
+the 10000th prime, a sibling to `scripts/`'s 7919 and no relation to it that any gate should tie:
+four independent numbers, not one value spelled four times. It lives in the `justfile` rather than
+in a config file because libtest takes its arguments only on the command line. `RUST_TEST_SHUFFLE`
+and `RUST_TEST_SHUFFLE_SEED` exist, but they are read only once `-Z unstable-options` has already
+been passed as an argument, so an env var buys nothing here.
+
+**Two properties differ from the Python half, and both were measured rather than carried over.**
+
+*A fixed seed here re-draws the whole permutation when the suite grows.* The shuffle addendum's
+central argument was `pytest-randomly`'s per-item stability: a new test draws its own position and
+every existing pair keeps the order it was proven in. libtest seeds its generator with the seed
+**and a hash of the binary's full test-name list**, so growing the list re-draws everything.
+Measured on a probe binary at seed 104729: eight tests drew `foxtrot alpha charlie echo delta
+bravo golf hotel`, and adding a ninth drew `charlie bravo golf echo foxtrot hotel alpha india
+delta`, in which the original eight do not hold their relative order. This is a difference, not a
+defect, and it cuts in the gate's favour. The property the gate actually requires is that a red
+reproduces, and it does: for a given checkout the order is a pure function of the seed. What is
+additionally true here is that every commit adding a Rust test re-draws every pair in that binary,
+so the Rust tree gets for free what R-288 wants a schedule for on the Python side. The price is
+that such a red may name a pair neither the commit nor its author touched. That is a real cost and
+it is still a reproducible red about a real order dependency, which is the trade this repo takes
+every time.
+
+*libtest runs tests in parallel threads, so the shuffle redraws dispatch order, not a serial
+order.* Tests are handed to at most `--test-threads` workers in list order, 24 on this machine. Two
+tests within one thread-window of each other race whichever way they are drawn, so for them the
+shuffle changes nothing that was not already a race. For every pair separated by more than the
+thread count, and that is the large majority of pairs in a 39-test binary, the later test reliably
+runs after the earlier one finishes, the dependency is a reliable pass in alphabetical order, and
+the shuffle is what redraws it. The shuffle is worth having for that population and is honestly
+worth nothing for the adjacent one.
+
+**Proved able to fail before being trusted.** A plant of the exact defect this exists to find: a
+`static AtomicBool`, `aaa_plant_writes` setting it, `zzz_plant_reads` asserting it, and 58 filler
+tests between them so the pair is separated by more than the thread count and the alphabetical
+order is a reliable pass rather than a race. It passed 5 runs of 5 unshuffled and failed 5 runs of
+5 at the frozen seed. Then, the proof that matters, `just check-body` itself was run over it, and
+the recipe split exactly along the seam this decision is about: the stable `cargo test` step
+reported `test result: ok. 60 passed; 0 failed` on the plant binary, and the nightly coverage step
+that follows it reported `test result: FAILED. 59 passed; 1 failed` naming `zzz_plant_reads` with
+its panic message, the recipe exiting 101. So the shuffled run catches precisely what the
+alphabetical one misses, on the committed recipe rather than a hand-typed command, and a test
+failure here is loud, unlike the mute coverage shortfall the single-verdict addendum is about. The
+catch rate is the coin flip per pair the arithmetic predicts and the Python plant already measured:
+10 of 20 seeds, against `scripts/`'s 11 of 20. The plant was removed. One incidental finding from
+running the whole recipe: `cargo fmt --all --check` rejected the plant before any test ran, which
+is worth knowing for the next person who plants one.
+
+**The shuffle is observable, which a knob that silently does nothing would not be.** Every test
+binary prints its seed in the header it already prints, `running 39 tests (shuffle seed: 104729)`,
+so a red log names the order it ran in. Read serially with `--test-threads=1` on the 39-test
+`body_server` binary, seed 104729 twice is byte-identical, seed 104729 against 7919 moves 58 of 78
+lines, and the shuffled order against the unshuffled one moves 56: the default order is exactly
+sorted and the shuffled one is not. The whole workspace, 228 tests, is green at seeds 1, 2 and
+104729, and coverage still reports 100% on all three metrics, since every test still runs and only
+the order moves.
+
+**What this leaves open.** Nothing new here, and R-288 narrows: the never-re-drawn pair it is about
+is now a Python and overlay concern only, the Rust tree re-drawing every pair whenever a test
+binary grows.
