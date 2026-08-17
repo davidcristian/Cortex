@@ -3,7 +3,7 @@ r"""The URL *grammar* behind the output guardrail's laundering defense (ADR-0015
 import re
 
 from cortex_core.url_identity import MAILTO_SCHEME, SPECIAL_SCHEMES, normalize_url
-from cortex_core.url_removals import REMOVED_CHARS
+from cortex_core.url_removals import REMOVED_CHARS, REMOVED_RUN, permeable
 from cortex_core.url_spellings import (
     CHUNK_INNER,
     CLOSE_BRACKET,
@@ -46,16 +46,16 @@ _HOST_ANCHOR = (
 
 _ARRIVING_HOST_ANCHOR = rf"(?={SPLIT_LABEL}{GAP_WHITESPACE})"
 
-OPAQUE_SEP_RE = "|".join((COLON_SPELLING, *(re.escape(s) for s in DEFANGED_OPAQUE_SEPS)))
+OPAQUE_SEP_RE = "|".join((COLON_SPELLING, *(permeable(s) for s in DEFANGED_OPAQUE_SEPS)))
 
 
 def _authority_sep(anchor: str) -> str:
     """An authority scheme's separator alternation, with ``anchor`` behind its slashless branch."""
     return "|".join(
         (
-            rf"{COLON_SPELLING}{SOLIDUS_SPELLING}{{2}}",
-            *(re.escape(s) for s in DEFANGED_AUTHORITY_SEPS),
-            rf"(?:{OPAQUE_SEP_RE}){SOLIDUS_SPELLING}?{anchor}",
+            rf"{COLON_SPELLING}{REMOVED_RUN}{SOLIDUS_SPELLING}{REMOVED_RUN}{SOLIDUS_SPELLING}",
+            *(permeable(s) for s in DEFANGED_AUTHORITY_SEPS),
+            rf"(?:{OPAQUE_SEP_RE}){REMOVED_RUN}(?:{SOLIDUS_SPELLING}{REMOVED_RUN})?{anchor}",
         )
     )
 
@@ -67,10 +67,13 @@ _ENCODED_SEP_CHUNK = rf"{OPEN_BRACKET}{CHUNK_INNER}*[&%]{CHUNK_INNER}*{CLOSE_BRA
 
 def _family(words: tuple[str, ...], seps: str) -> str:
     """A regex alternation: any of ``words``, then that family's ``seps`` or an encoded chunk."""
-    return rf"(?:{'|'.join(words)})(?:{seps}|{_ENCODED_SEP_CHUNK})"
+    return (
+        rf"(?:{'|'.join(permeable(word) for word in words)})"
+        rf"{REMOVED_RUN}(?:{seps}|{_ENCODED_SEP_CHUNK})"
+    )
 
 
-_DATA_ANCHOR = r"(?=[\w.+-]+/|[;,])"
+_DATA_ANCHOR = rf"(?=(?:[\w.+-]|{REMOVED_CHARS})+/|[;,])"
 _DATA_SCHEME = rf"{_family(('data',), OPAQUE_SEP_RE)}{_DATA_ANCHOR}"
 
 

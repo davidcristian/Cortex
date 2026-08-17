@@ -657,7 +657,15 @@ table is read by the grammar and the identity alike, so neither may own it):
   it to the clipboard intact (ADR-0015 fifteenth addendum). It is admitted in the body alone, the
   host classes still excluding it, which is what leaves a tab between two labels reading as the gap
   above; the newline and carriage return the same parser removes are declined on a measurement,
-  since a link at a line's end would swallow the next line's first word. The matcher
+  since a link at a line's end would swallow the next line's first word. A removal also stands
+  **inside a word**: `permeable` (in `url_removals.py`) generates any literal this grammar spells
+  so that one may sit between any two of its characters, since the parser deletes them before it
+  reads the literal at all, which reaches the scheme words (`ht<TAB>tp://`), the separator's
+  junctions (`http:/<TAB>/`), the defanged separator and dot tokens, the bracket chunk's inner run
+  (`evil[d<TAB>ot]example`, which used to truncate the match at the closing bracket and put a
+  *wrong host* in the ledger), the gap's spelled-out word, and the refanger's own literals. An HTML
+  character reference is the one family deliberately left impermeable, on the same "one rendering
+  pass" line that admitted it: no renderer resolves `&#5<TAB>8;` (ADR-0015 seventeenth addendum). The matcher
   runs before any normalization, so each of those anchored nothing and so escaped both policies
   until it was generated into the table (ADR-0015 eighth + ninth + tenth + eleventh addenda). Nine
   **obfuscation-resistant** passes (in `url_identity.py`) reduce a rewritten link to its plain

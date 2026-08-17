@@ -4,10 +4,11 @@ r"""Every way one URL *separator character* may be spelled, behind the output gu
 import re
 
 from cortex_core.url_identity import DEFANG_DOT, DOT_WORD, LABEL_SEPARATORS
+from cortex_core.url_removals import REMOVED_CHARS, permeable
 
 OPEN_BRACKET = r"[\[({]"
 CLOSE_BRACKET = r"[\])}]"
-CHUNK_INNER = r"[^\s<>\"'\[\](){}]"
+CHUNK_INNER = rf"(?:[^\s<>\"'\[\](){{}}]|{REMOVED_CHARS})"
 
 _BRACKETS = (("[", "]"), ("(", ")"), ("{", "}"))
 
@@ -45,7 +46,9 @@ NFKC_SPACES = (
 )
 GAP_WHITESPACE = rf"[ \t{NFKC_SPACES}]"
 
-SPACED_DOT = rf"{GAP_WHITESPACE}+(?:{DOT_WORD}|{DOT_SPELLING}|{DEFANG_DOT}){GAP_WHITESPACE}+"
+SPACED_DOT = (
+    rf"{GAP_WHITESPACE}+(?:{permeable(DOT_WORD)}|{DOT_SPELLING}|{DEFANG_DOT}){GAP_WHITESPACE}+"
+)
 
 DOT_TOKENS = (DOT_WORD, *_DOTS)
 

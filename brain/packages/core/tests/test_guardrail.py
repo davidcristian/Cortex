@@ -1436,7 +1436,6 @@ def test_extract_urls_reads_a_tab_a_url_parser_removes() -> None:
     assert extract_urls(_TAB_LINK) == _PLAIN_LINK
     assert extract_urls("https://evil.example/p\tay") == _PLAIN_LINK
     assert extract_urls("https://evil.example\t/pay") == _PLAIN_LINK
-    assert extract_urls("ht\ttps://evil.example/pay") == frozenset()
 
 
 def test_a_tab_folds_out_of_every_scheme_the_grammar_reads() -> None:
@@ -1622,3 +1621,98 @@ def test_normalizing_without_the_confusable_fold_leaves_the_letters_written() ->
     assert (
         normalize_url("hxxp://\u0420ACE.example", confusables=False) == "http://\u0440ace.example"
     )
+
+
+def test_extract_urls_reads_a_tab_inside_a_scheme_word() -> None:
+    # The position the body widening left standing, and the severe shape an eighth time: it
+    # anchored nothing at all, so every policy was blind and the ledger held nothing.
+    assert extract_urls("ht\ttp://evil.example/pay") == {"http://evil.example/pay"}
+    assert extract_urls("htt\tps://evil.example/pay") == _PLAIN_LINK
+    assert extract_urls("h\tttps://evil.example/pay") == _PLAIN_LINK
+    assert extract_urls("mail\tto:me@evil.example") == {"mailto:me@evil.example"}
+    assert extract_urls("te\tl:5550100") == {"tel:5550100"}
+    assert extract_urls("da\tta:text/plain,x") == {"data:text/plain,x"}
+
+
+def test_a_tab_stands_inside_a_defanged_scheme_word_at_every_position() -> None:
+    assert extract_urls("hxx\tp://evil.example/pay") == {"http://evil.example/pay"}
+    assert extract_urls("h\txxps://evil.example/pay") == _PLAIN_LINK
+    assert extract_urls("hx\txps://evil.example/pay") == _PLAIN_LINK
+
+
+def test_a_tab_stands_inside_the_separator_too() -> None:
+    # Every junction of the separator, plain and defanged: the parser removes the character before
+    # it reaches any of them, so each spelling is the plain link it resolves to.
+    for spelling in (
+        "https\t://evil.example/pay",
+        "https:\t//evil.example/pay",
+        "https:/\t/evil.example/pay",
+        "https[:\t//]evil.example/pay",
+        "https\t[://]evil.example/pay",
+        "https\t:evil.example/pay",
+        "https\t&#58;//evil.example/pay",
+    ):
+        assert extract_urls(spelling) == _PLAIN_LINK
+
+
+def test_a_tab_inside_a_defang_token_no_longer_truncates_the_host() -> None:
+    # Found while widening the scheme, and worse than the scheme was: the bracket chunk's inner run
+    # excluded the tab, so the match fell back to the body, stopped at the closing bracket, and put
+    # the *wrong host* in the ledger (`https://evil[dot`) rather than nothing at all.
+    assert extract_urls("https://evil[d\tot]example/pay") == _PLAIN_LINK
+    assert extract_urls("https://evil[\t.]example/pay") == _PLAIN_LINK
+    assert extract_urls("https://evil[.\t]example/pay") == _PLAIN_LINK
+
+
+def test_a_tab_does_not_reach_inside_an_entity_reference() -> None:
+    assert extract_urls("https&#5\t8;//evil.example/pay") == frozenset()
+    assert extract_urls("https&col\ton;//evil.example/pay") == frozenset()
+
+
+def test_a_tab_inside_a_gap_token_is_still_the_gap() -> None:
+    # The ordering decision holds at one more position: the gap's spelled-out word is a literal
+    # like any other, so a tab inside it folds with the token rather than dissolving the gap.
+    assert extract_urls("https://evil d\tot example/pay") == _PLAIN_LINK
+    assert extract_urls("https://evil [d\tot] example/pay") == _PLAIN_LINK
+
+
+def test_a_tab_carrying_scheme_transform_of_a_collected_url_is_redacted() -> None:
+    # Both directions, since a mismatch of identities leaks whichever side spells it oddly.
+    guard = _filter(set(_PLAIN_LINK))
+    assert guard.feed("go to htt\tps://evil.example/pay ") == f"go to {REDACTED_LINK} "
+    plain = _filter(set(extract_urls("htt\tps://evil.example/pay")))
+    assert plain.feed("go to https://evil.example/pay ") == f"go to {REDACTED_LINK} "
+
+
+def test_strict_tainted_turn_redacts_a_tab_carrying_scheme() -> None:
+    # The severe shape an eighth time: a spelling that anchors nothing is invisible to strict mode
+    # too, and it leaves no head of the link beside the marker once it anchors.
+    guard = _strict(_Taint(tainted=True))
+    assert guard.feed("Please visit ht\ttps://evil.example/pay now.") == (
+        f"Please visit {REDACTED_LINK} now."
+    )
+
+
+def test_a_tab_split_scheme_arriving_across_chunks_is_carried_not_lost() -> None:
+    # The hold-back compares a buffer's tail against the scheme openings with the removals dropped,
+    # since the parser drops them before it reads the scheme at all, and it counts its window in
+    # the characters that survive that drop so a run of tabs cannot push the opening out of reach.
+    guard = _filter(set(_PLAIN_LINK))
+    assert guard.feed("at ht\tt") == "at "
+    assert guard.feed("ps://evil.example/pay ") == f"{REDACTED_LINK} "
+
+
+def test_a_tab_carrying_scheme_survives_a_one_character_stream() -> None:
+    # The production shape: the filter sees one character at a time.
+    guard = _filter(set(_PLAIN_LINK))
+    reply = "settle at ht\ttps://evil.example/pay now"
+    fed = "".join(guard.feed(char) for char in reply) + guard.flush()
+    assert fed == f"settle at {REDACTED_LINK} now"
+
+
+def test_the_seventeenth_addendum_composes_with_its_predecessors() -> None:
+    # A defanged scheme, an entity colon, a split host and a zero-width character in one link, with
+    # a tab standing inside each literal, still fold to the single identity its plain twin has.
+    assert extract_urls("hx\txps&#58;//evil.example/pay") == _PLAIN_LINK
+    assert extract_urls("hxx\tps://ev\u200bil d\tot example/pay") == _PLAIN_LINK
+    assert extract_urls("ht\ttps:evil dot example/pay") == _PLAIN_LINK
