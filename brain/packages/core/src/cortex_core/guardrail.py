@@ -11,8 +11,9 @@ they reach the user. Three policies (ADR-0015 + addenda), each a set of the *gro
 than a mode: ``UrlRedactingGuardrail`` redacts the verbatim-collected untrusted URLs (the default),
 ``LookalikeUrlRedactingGuardrail`` adds every URL whose host is not plain ASCII on a tainted turn,
 and ``StrictUrlRedactingGuardrail`` redacts *every* non-user URL on a tainted turn. The URL grammar
-and identity live in ``urls.py``, and this module
-recognizes, normalizes, and streams URLs through it, so obfuscation-resistant matching (defang,
+lives in ``urls.py``, its identity in ``url_identity.py`` and its streaming hold-back in
+``url_holdback.py``, and this module
+recognizes, normalizes, and streams URLs through them, so obfuscation-resistant matching (defang,
 percent-encoding, fullwidth homoglyphs) is inherited for free. Model-independent by construction:
 however injectable the generating model is, a laundered link does not survive the seam. Pure, no
 I/O; the only state is one turn's carry buffer, dying with the turn.
@@ -22,8 +23,9 @@ from collections.abc import Set as AbstractSet
 from enum import Enum, auto
 from typing import Protocol
 
+from cortex_core.url_holdback import held_from
 from cortex_core.url_identity import TRAILING_PUNCTUATION, host_of, normalize_url
-from cortex_core.urls import URL_RE, held_from
+from cortex_core.urls import URL_RE
 
 # What the user sees in place of a laundered link. Self-explanatory inline, so the overlay
 # needs no extra event type to surface the redaction.
