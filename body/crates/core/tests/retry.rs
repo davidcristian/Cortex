@@ -565,6 +565,29 @@ fn is_transient_classifies_every_variant() {
 }
 
 #[test]
+fn the_codes_a_wider_table_would_have_added_are_still_terminal() {
+    // The three statuses a retryable-code table would have widened this classifier to, each
+    // pinned terminal so widening is a decision someone makes here rather than a line that
+    // drifts in. `Unavailable` is the whole set on purpose: the other three are conventionally
+    // retryable at a *service* whose meaning for them is known, and this seam has no producer
+    // for any of them, so each would ship as a guess about a failure nobody has seen.
+    // `ResourceExhausted` is the sharpest of the three, because the one producer anywhere on
+    // this seam pair raises it for a payload too large to send (the body's own screen capture),
+    // and a repeat sends the same payload again. `DeadlineExceeded` cannot arrive at all while
+    // nothing here sets a deadline, and `Aborted` needs a store-contention retry no handler
+    // performs. A repeat of any of them buys a second identical answer.
+    for code in ["ResourceExhausted", "Aborted", "DeadlineExceeded"] {
+        assert!(
+            !is_transient(&TransportError::Rpc {
+                code: String::from(code),
+                message: String::new(),
+            }),
+            "{code} was classified transient with no producer to justify it"
+        );
+    }
+}
+
+#[test]
 fn the_decorator_is_send_and_sync() {
     assert_send_sync::<RetryingTransport<FlakyTransport, FakeSleeper>>();
 }

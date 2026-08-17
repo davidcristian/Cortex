@@ -291,3 +291,48 @@ re-running one on resend is worse than paying for dedup. Until then `converse` s
 the sharpened entry moves to fix-when-it-bites in `docs/refinements/index.md#seam-transport`.
 `SeamMethod::Converse` is unchanged: this is not a path that flips it to repeatable, it is the
 reason it is not.
+
+## Addendum (2026-08-17): the retryable-code table is decided, and it stays one entry
+
+The last error-code deferral is answered here rather than deferred again. Decision 3's set
+(`Connection`, plus `Rpc{Unavailable}`) is now the **decided** table and not a placeholder
+waiting for a producer, and the two candidate widenings the deferral named are argued down
+individually.
+
+**The producer sweep, re-run against the code.** Every status this seam's server can write is
+still one of two: `UNAVAILABLE` from a store, schedule, memory or preference failure
+(`session_servicer.py`, `preference_servicer.py`, `server.py`), and `UNAUTHENTICATED` from the
+seam-token interceptor (`auth.py`), plus the `UNIMPLEMENTED` of a generated default no
+implemented method reaches. No handler writes `RESOURCE_EXHAUSTED` or `ABORTED`, nothing on the
+body's side of the seam sets a deadline, so `DEADLINE_EXCEEDED` cannot arrive either. The one
+`RESOURCE_EXHAUSTED` anywhere in this repo is raised by the **body's** `BodyService` for a
+screen capture too large to send (`body/crates/rpc/src/screen.rs`) and consumed by the brain as
+a client (`failures.py`), which is the opposite direction from the policy this decision governs.
+
+**Why the codes are each terminal, not merely unproduced.** `RESOURCE_EXHAUSTED` is the
+instructive one: the single producer on either direction of this seam pair raises it about the
+*payload*, and a repeat sends the same payload, so the conventionally retryable reading of the
+code would be exactly wrong here. `ABORTED` is a store-contention convention no handler
+performs. `DEADLINE_EXCEEDED` is unreachable while nothing sets a deadline, and is the classic
+load amplifier once one exists. Each would ship as a guess about a failure nobody has observed,
+and a wrong guess costs a duplicated wait on every real failure. They are pinned terminal by
+test (`the_codes_a_wider_table_would_have_added_are_still_terminal`), so widening the set is a
+decision someone makes deliberately rather than a line that drifts in.
+
+**Why the idempotency hazard cannot arise, which is what makes the small table safe.** The
+usual danger in a retryable-code table is that a code judged transient reaches a call that must
+not repeat. That cannot happen here, and not by care: the per-method addendum above made
+repeatability the *first* question. `RetryPlan::policy_for` refuses an unrepeatable method
+before any error exists, and the decorator runs the refusal on `RetryPolicy::ONCE`, so no status
+this classifier could ever be taught reaches `Converse`, `AckReminder`, or any catalog write.
+The code table is therefore a pure question about the failure, and a future widening is a
+one-line change that cannot become a correctness bug, which is the strongest possible reason
+not to build configuration for it now.
+
+**Consequences.** `is_transient` is unchanged, so no behaviour changes. What changed is that
+the classification is now argued for every code a widening would have added and pinned by a
+test that fails when the set grows, and that the gate's whole-port invariant covers the whole
+port: `EVERY_METHOD` still called itself every variant while listing nine of eleven, so
+`GetPreferences` and `SetPreference` sat outside the invariant and outside the explicit
+repeatability assertions. Both are named now. A future producer reopens the classification for
+that code alone, against what the producer means by it.

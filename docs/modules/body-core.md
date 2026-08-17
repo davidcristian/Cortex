@@ -158,7 +158,13 @@ stays thin and the retry is exercised against a fake with no network or wall-clo
 - `is_transient(&TransportError) -> bool` is the retryable classifier: `Connection` and
   `Rpc{code=="Unavailable"}` are transient; every other `Rpc` status and `Protocol` are not.
   It is a **necessary** condition for a retry, never a sufficient one: a status says the brain
-  could not serve the call, never that the brain did not already run it.
+  could not serve the call, never that the brain did not already run it. That one-entry set is
+  **decided, not provisional** (ADR-0024 addendum): the seam's server writes only `UNAVAILABLE`
+  and `UNAUTHENTICATED`, and the three codes a wider table would have added are each argued
+  terminal and pinned by test, `RESOURCE_EXHAUSTED` most sharply, since the only producer on
+  either direction of this seam pair raises it about a payload a repeat would resend unchanged.
+  Widening it is safe to do one code at a time because `policy_for` has already refused every
+  call with an effect before this classifier is consulted.
 - `SeamMethod` (`retry::plan`; `Copy`, `Eq`, `Debug`) names every `BrainTransport` method, and
   `repeatable()` is the safety property retry rests on: **repeating the call is observably the
   same as making it once**. True for the four reads (each a view of a store the call does not
