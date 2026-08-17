@@ -79,8 +79,8 @@ markers = [
 ]
 # `--randomly-seed` is FIXED, so the order is not the collection order and is still the same
 # order twice (ADR-0002 shuffle addendum). The number is arbitrary and frozen: changing it
-# reshuffles this suite for no reason, and it differs from the other two suites' seeds on
-# purpose, so nobody reads three independent numbers as one value that has to agree.
+# reshuffles this suite for no reason, and it differs from the other three suites' seeds on
+# purpose, so nobody reads four independent numbers as one value that has to agree.
 # `just shuffle` is the deliberate sweep over other seeds; pytest prints the seed in its header,
 # so a red run names the order it ran in.
 addopts = "--cov --cov-branch --cov-fail-under=100 --cov-report=term-missing --strict-markers -m \"not integration\" --randomly-seed=9973"

@@ -119,6 +119,14 @@ check-scripts:
 # cargo-llvm-cov that just ran. They are probed twice on purpose, once as a standing line so a
 # missing nightly fails before the measurement and once here, which costs milliseconds and
 # spares the recipe a temp file to carry a string between two shells.
+# THE SHUFFLE RIDES THE COVERAGE STEP, not the `cargo test` above it (ADR-0002 rust-shuffle
+# addendum). libtest does have a shuffle, but only on nightly behind `-Z unstable-options`, and
+# ADR-0002 decision 1 keeps every build/lint/test gate on stable. This step is already nightly and
+# already runs the whole workspace, so the gate gets BOTH orders per run at no extra wall time: the
+# stable run in libtest's alphabetical order, this one permuted. The seed is FIXED so a red
+# reproduces, and each test binary prints `(shuffle seed: 104729)` in its header, so a failing log
+# names the order it ran in. Unlike a coverage shortfall, a test failure here is loud and names the
+# test. `just shuffle` is the sweep over the orders this one seed never draws.
 check-body:
     cd body && cargo fmt --all --check
     cd body/app/src-tauri && cargo fmt --check
@@ -127,7 +135,7 @@ check-body:
     cd body && cargo test --locked --workspace
     cd body && rustc +nightly --version
     cd body && cargo +nightly llvm-cov --version
-    cd body && cargo +nightly llvm-cov --locked --branch --workspace --all-targets --ignore-filename-regex '/_generated/|/build[.]rs$' --json --summary-only --output-path coverage.json
+    cd body && cargo +nightly llvm-cov --locked --branch --workspace --all-targets --ignore-filename-regex '/_generated/|/build[.]rs$' --json --summary-only --output-path coverage.json -- -Z unstable-options --shuffle-seed=104729
     cd scripts && uv sync --locked
     cd scripts && uv run python coverage_gate.py ../body/coverage.json --rustc "$(rustc +nightly --version)" --llvm-cov "$(cargo +nightly llvm-cov --version)"
 
@@ -143,12 +151,14 @@ check-overlay:
 # The deliberate shuffle sweep, which `just check` is deliberately not (ADR-0002 shuffle
 # addendum). Each gated suite runs its tests in a shuffled order under a FIXED seed, so the
 # gate is reproducible and draws one order per test rather than a fresh lottery per run. This
-# recipe is where the other orders get drawn: it runs all three suites at ONE seed of your
+# recipe is where the other orders get drawn: it runs all four suites at ONE seed of your
 # choosing, defaulting to a random one, and prints it. A failure here reproduces with
-# `just shuffle <seed>`, and a suite reproduces alone with `--randomly-seed=<seed>` (pytest) or
-# `--sequence.seed=<seed>` (vitest). Run it when a test starts behaving as though a sibling
+# `just shuffle <seed>`, and a suite reproduces alone with `--randomly-seed=<seed>` (pytest),
+# `--sequence.seed=<seed>` (vitest), or `-- -Z unstable-options --shuffle-seed=<seed>` on a
+# nightly `cargo test` (libtest). Run it when a test starts behaving as though a sibling
 # left something behind, and after landing a batch of tests. Never in CI: its whole point is
-# an order nobody chose.
+# an order nobody chose. The Rust arm is a plain `cargo test` rather than the gate's coverage
+# run, since the order is the only thing under test here and the coverage totals do not move.
 shuffle seed="":
     #!/usr/bin/env bash
     set -euo pipefail
@@ -158,6 +168,7 @@ shuffle seed="":
     (cd brain && uv sync --locked && uv run pytest --randomly-seed="$seed")
     (cd scripts && uv sync --locked && uv run pytest --randomly-seed="$seed")
     (cd body/app && npm ci && npx vitest run --coverage --sequence.seed="$seed")
+    (cd body && cargo +nightly test --locked --workspace -- -Z unstable-options --shuffle-seed="$seed")
 
 # Regenerate the committed seam stubs from proto/body.proto (needs local protoc; ADR-0003).
 proto:
