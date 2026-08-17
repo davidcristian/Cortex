@@ -55,3 +55,15 @@ moves to fix-when-it-bites below with its trigger named.
   indicator claims. The per-error-code half was declined for want of a producer, the same test that
   closed blended relevance and `GetVolume`, and reopened as a retryable-code table with its trigger
   named, so the area count held at 3.
+- 2026-08-17: the reopened per-error-code half is now closed for good as
+  [022](022-retryable-code-table.md), declined on the codes' meaning here rather than on the
+  producer count, so nothing of this entry is still outstanding. Two corrections to what landed
+  above, both found by re-deriving that decline. The `Health` claim is narrower than written: the
+  probe budget bounds the backoff between attempts and not an attempt, so `Down` arrives within
+  `probe_budget` only from a brain that answers, and a brain that accepts the connection and goes
+  quiet still has no deadline to hit ([301](301-seam-attempt-deadline.md)). And the gate that
+  enforced the per-method split was checking nine of the eleven methods: the `EVERY_METHOD` array
+  the whole-port invariant runs over called itself every variant while omitting `GetPreferences`
+  and `SetPreference`, which is exactly the silent copy this entry was built to prevent, arriving
+  in the test rather than in the `impl`. The exhaustive `match` cannot force an array. Both
+  methods are named there now.
