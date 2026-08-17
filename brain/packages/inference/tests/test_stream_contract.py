@@ -119,7 +119,7 @@ def scripted() -> BackendUnderTest:
     """The core twin, scripted with each world rather than asked to derive it."""
 
     def build(events: list[InferenceEvent]) -> ScriptedInferenceBackend:
-        return ScriptedInferenceBackend([events])
+        return ScriptedInferenceBackend([events], serves=[CONTRACT_MODEL])
 
     def deliberating() -> ScriptedInferenceBackend:
         return build(

@@ -11,9 +11,15 @@ from cortex_core.tools import ToolSpec
 class ScriptedInferenceBackend:
     """An ``InferenceBackend`` streaming the events it was scripted with, per call."""
 
-    def __init__(self, rounds: Sequence[Sequence[InferenceEvent]] = ()) -> None:
+    def __init__(
+        self,
+        rounds: Sequence[Sequence[InferenceEvent]] = (),
+        *,
+        serves: Sequence[str] | None = None,
+    ) -> None:
         self._rounds = [list(events) for events in rounds] or [[]]
         self._failure: InferenceError | None = None
+        self._served = None if serves is None else frozenset(serves)
         self.calls: list[str] = []
 
     async def stream(
@@ -29,6 +35,9 @@ class ScriptedInferenceBackend:
         del messages, tools, schema, bounds
         index = min(len(self.calls), len(self._rounds) - 1)
         self.calls.append(model)
+        if self._served is not None and model not in self._served:
+            msg = f"this backend does not serve model {model!r} (serves: {sorted(self._served)})"
+            raise InferenceError(msg)
         if self._failure is not None:
             raise self._failure
         for event in self._rounds[index]:

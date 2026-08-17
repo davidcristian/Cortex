@@ -20,6 +20,11 @@ from cortex_core import (
 
 CONTRACT_MODEL = "cortex"
 
+# A logical id shaped like a tier this repo could have (ADR-0004) and hosted by neither leg's
+# deployment. Shaped that way on purpose: what the check is about is a wiring change naming a model
+# nobody serves, which reads like a real id and not like garbage.
+UNSERVED_MODEL = "scribe"
+
 # The reply a deliberating completion arrives at, the thinking it did first, and the words it says
 # before asking for a tool. Constants rather than fixture-local strings, so a check compares what
 # crossed the port against one description both implementations were built to.
@@ -48,9 +53,9 @@ def _messages() -> list[Message]:
     return [Message(role=Role.USER, text="what is the answer", at=_AT, turn_id="t-1")]
 
 
-async def events_of(backend: InferenceBackend) -> list[InferenceEvent]:
+async def events_of(backend: InferenceBackend, model: str = CONTRACT_MODEL) -> list[InferenceEvent]:
     """Drive one completion to exhaustion and return everything it yielded, in order."""
-    return [event async for event in backend.stream(CONTRACT_MODEL, _messages())]
+    return [event async for event in backend.stream(model, _messages())]
 
 
 def _text(events: Sequence[InferenceEvent]) -> str:
@@ -142,6 +147,16 @@ async def check_a_backend_that_cannot_answer_fails_with_inference_error(
     raise AssertionError(msg)
 
 
+async def check_a_backend_answers_only_for_a_model_it_serves(subject: BackendUnderTest) -> None:
+    """Asked for a model it does not serve, a backend fails rather than answering for it."""
+    try:
+        events = await events_of(subject.deliberating(), UNSERVED_MODEL)
+    except InferenceError:
+        return
+    msg = f"a backend answered for {UNSERVED_MODEL!r}, which it does not serve: {events!r}"
+    raise AssertionError(msg)
+
+
 # One check: given an implementation plus its world builders, assert on what came out.
 type StreamCheck = Callable[[BackendUnderTest], Awaitable[None]]
 
@@ -154,4 +169,5 @@ STREAM_CHECKS: tuple[StreamCheck, ...] = (
     check_a_completion_with_nothing_to_say_is_still_a_completion,
     check_an_abandoned_completion_costs_the_backend_nothing,
     check_a_backend_that_cannot_answer_fails_with_inference_error,
+    check_a_backend_answers_only_for_a_model_it_serves,
 )
