@@ -500,3 +500,77 @@ hands out is the collected one
 draws each pair once, so a dependency between two tests that already coexist under this order is
 invisible until somebody runs the sweep, which nothing schedules
 ([R-288](../refinements/tasks/288-nothing-schedules-the-shuffle-sweep.md)).
+
+## Addendum (2026-08-17): the coverage verdict is one place, and it reads its own toolchain
+
+The addendum above left the printed toolchain unread and recorded that as
+[R-275](../refinements/tasks/275-nothing-reads-the-printed-toolchain.md). Re-deriving that entry
+found its claim intact and something larger underneath it, which changes what the fix should be.
+
+**The measurement's own thresholds fail silently, and they were pre-empting the gate that speaks.**
+`check-body` carried `--fail-under-lines 100 --fail-under-regions 100` on the `cargo llvm-cov`
+invocation and then ran `coverage_gate.py`, which by decision 2 already requires `covered == count`
+for lines, regions *and* branches. So the same threshold on the same two metrics was written in two
+languages, and the copy that runs first is the one that cannot explain itself. Measured on this
+machine rather than assumed, with cargo-llvm-cov 0.8.7, the version the build-script incident was
+reproduced under: the exact gate command with the threshold raised to an impossible
+`--fail-under-lines 101` exits 1 after 346 lines of output in which no line names a metric, a
+percentage, or a threshold. Its last line is `Finished report saved to coverage.json`. The report
+is what carries the numbers, and `--json --summary-only --output-path` sends it to a file, so
+diverting the report mutes the verdict on it. The same threshold with the report left on stdout
+prints the per-file table and still no threshold message, which is the tell: the numbers were only
+ever visible as a side effect of printing the report.
+
+Two things follow about the incident this ADR already records. A gate that failed
+`--fail-under-lines 100` in CI told its reader only that a recipe line exited 1, so the totals the
+build-script addendum quotes came from re-measuring rather than from the failing run. And the two
+version probes the addendum above added, whose whole purpose is to make a coverage failure legible,
+had been placed immediately above a failure that says nothing at all.
+
+**Decision: the thresholds come off the measurement, and `coverage_gate.py` is the single
+verdict.** No threshold changes; all three metrics were already gated there. What changes is that
+the verdict is now reached in every failing case and prints one line per metric with the percentage
+recomputed from the counts. The flags were never a second opinion, since neither copy could
+disagree with the other while both said 100; they were the "one value spelled twice" shape
+`crosscheck.py` exists for, with the redundant copy holding the power to silence the informative
+one. Losing the early exit costs nothing: the script runs in about a second after a `uv sync` the
+recipe already does, and a compile error or a failing test still fails the recipe before any of
+this. The reverse repair does not exist, which is why decision 2 exists: cargo-llvm-cov has no
+`--fail-under-branches`.
+
+**Decision: the verdict names the toolchain that produced it, and reads one half of it.** The
+export already records its own writer in `cargo_llvm_cov.version`, beside the llvm export format's
+own `version`, so the tool half needs no second artifact and no stamp file; the gate requires both
+fields and refuses an export that will not say what wrote it. The recipe also hands the gate what
+it probed, `--rustc` and `--llvm-cov`. The compiler is nowhere in the export, so that half is
+relayed into the verdict and printed beside it. The tool half is not merely echoed: the probed
+version has to appear in the export's own record, and a disagreement fails the gate, because it
+means the numbers being judged are not the ones this run measured. The probes run twice, once as
+the standing line that fails a machine with no nightly before the measurement starts and once as
+the argument, which costs milliseconds and spares the recipe a temp file to carry a string between
+two shells.
+
+**What this closes of that entry, and what it does not.** Something reads the printed versions now,
+and the reading is load-bearing rather than decorative: the attribution is a required field of the
+input, so it cannot be lost by editing a recipe. The stamp shape that entry costed wanted the last
+green toolchain in the gate's own output rather than in a log, and that is what a green run now
+prints, obtained from the artifact the gate already reads. Cross-side comparison stays declined on
+the argument the addendum above gave, since failing when the two sides differ needs an expected
+version written down, which is the dated pin under another name. The retrieval half needs less than
+it looked: CI installs the channel fresh on every run, so its compiler is a function of the run's
+date, and rustc's version string carries that date. What genuinely remains is that the export names
+its tool and not its compiler, so the half that actually drifted in the build-script incident is
+the half still relayed rather than checked
+([R-290](../refinements/tasks/290-the-export-names-its-tool-not-its-compiler.md)).
+
+**Proved able to fail before being trusted**, on exports doctored from this machine's real one.
+Editing the recorded writer to `0.9.1` while the step runs 0.8.7 draws
+`FAIL producer: the export was written by cargo-llvm-cov 0.9.1, but this step ran
+'cargo-llvm-cov 0.8.7'; these are not the numbers it measured` and exit 1, with all three metrics
+still passing, so a stale export cannot ride in on good numbers. Deleting the `cargo_llvm_cov`
+block draws `coverage report has no 'cargo_llvm_cov' entry naming the tool that wrote it` on
+stderr, exit 1, printing no verdict at all. And the case that was mute, lines dropped from 1311
+covered to 1303, now draws `FAIL lines: 99.39% (need 100%)`, which is within a hundredth of a point
+of the 99.40% the earlier CI failure reported and did not print. The real `just check-body` is green
+end to end on this machine, its verdict reading `measured by cargo-llvm-cov 0.8.7, llvm export
+3.1.0` and `measured by rustc 1.98.0-nightly (4c9d2bfe4 2026-07-01)` above three PASS lines.

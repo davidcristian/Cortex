@@ -91,8 +91,12 @@ check-scripts:
     cd scripts && uv run pytest
 
 # Rust body workspace: fmt, clippy -D warnings, tests, then coverage at 100%
-# line+region+branch. Branch instrumentation needs nightly, and cargo-llvm-cov has no
-# --fail-under-branches, so the JSON export is checked by coverage_gate.py (ADR-0002).
+# line+region+branch. Branch instrumentation needs nightly, and ALL THREE thresholds are
+# coverage_gate.py's, reading the JSON export (ADR-0002). cargo-llvm-cov's own
+# --fail-under-lines/-regions used to sit here too, and came off: with the report diverted by
+# --json --output-path they exit 1 printing nothing at all, so the one failure this has ever
+# had said only that a recipe line failed, and the gate that names the metric and the
+# percentage never ran (ADR-0002 single-verdict addendum).
 # Two ungated trees the workspace gate would otherwise miss are folded in here (ADR-0011):
 # the excluded Tauri shell (body/app/src-tauri) gets its own fmt --check (parse only, no
 # build, no extra dep), and the cfg(windows) os_windows backend gets a clippy on the
@@ -110,6 +114,11 @@ check-scripts:
 # the log, which is what tells a toolchain change from the commit under test without a local
 # bisect against two nightlies (ADR-0002 toolchain-print addendum). CI runs this same recipe, so
 # both sides print, and a machine missing nightly now fails here rather than mid-measurement.
+# Both probes are then handed to the gate, which reads rather than echoes them: it prints the
+# compiler beside its verdict, and refuses an export whose own recorded writer is not the
+# cargo-llvm-cov that just ran. They are probed twice on purpose, once as a standing line so a
+# missing nightly fails before the measurement and once here, which costs milliseconds and
+# spares the recipe a temp file to carry a string between two shells.
 check-body:
     cd body && cargo fmt --all --check
     cd body/app/src-tauri && cargo fmt --check
@@ -118,9 +127,9 @@ check-body:
     cd body && cargo test --locked --workspace
     cd body && rustc +nightly --version
     cd body && cargo +nightly llvm-cov --version
-    cd body && cargo +nightly llvm-cov --locked --branch --workspace --all-targets --ignore-filename-regex '/_generated/|/build[.]rs$' --fail-under-lines 100 --fail-under-regions 100 --json --summary-only --output-path coverage.json
+    cd body && cargo +nightly llvm-cov --locked --branch --workspace --all-targets --ignore-filename-regex '/_generated/|/build[.]rs$' --json --summary-only --output-path coverage.json
     cd scripts && uv sync --locked
-    cd scripts && uv run python coverage_gate.py ../body/coverage.json
+    cd scripts && uv run python coverage_gate.py ../body/coverage.json --rustc "$(rustc +nightly --version)" --llvm-cov "$(cargo +nightly llvm-cov --version)"
 
 # Overlay frontend (React + Vite): typecheck + Vitest at 100% line+branch coverage
 # (ADR-0011 addendum). Host-only node toolchain, path-filtered in CI (ADR-0006); its .ts/.tsx

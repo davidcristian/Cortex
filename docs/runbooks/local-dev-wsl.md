@@ -18,9 +18,23 @@ config contract in [ADR-0003](../adr/ADR-0003-seam-codegen.md).
 - **Neither of those two is pinned to a version, by decision** (the
   [ADR-0002](../adr/ADR-0002-toolchain-gates.md) toolchain-print addendum), so this machine and CI
   routinely resolve different ones. `check-body` therefore prints `rustc +nightly --version` and
-  `cargo +nightly llvm-cov --version` before it measures. When the coverage gate fails, read those
-  two lines against the ones in the CI log first: a toolchain that moved and a commit that broke
-  coverage look identical in the totals and nowhere else.
+  `cargo +nightly llvm-cov --version` before it measures, and hands both to the gate, whose verdict
+  repeats them next to the numbers they produced:
+
+  ```
+  measured by cargo-llvm-cov 0.8.7, llvm export 3.1.0
+  measured by rustc 1.98.0-nightly (4c9d2bfe4 2026-07-01)
+  PASS lines: 100.00%
+  ```
+
+  When the coverage gate fails, read those lines against the ones in a CI log first: a toolchain
+  that moved and a commit that broke coverage look identical in the totals and nowhere else. CI
+  installs the channel fresh every run, so its compiler is the one dated on the day that run
+  happened, which the version string carries. Two failures here are about the report rather than
+  the code. `FAIL producer:` means the `body/coverage.json` being judged was written by a different
+  cargo-llvm-cov than the one that just ran, so re-run the measurement rather than reading its
+  numbers. `coverage report has no 'cargo_llvm_cov' entry` means the export stopped naming its
+  writer, which the gate refuses on purpose (ADR-0002 single-verdict addendum).
 - **just** provides `just check`, THE gate (AGENTS.md gate 6); run it before calling
   anything done.
 - **Every suite in that gate runs shuffled under a fixed seed** (the

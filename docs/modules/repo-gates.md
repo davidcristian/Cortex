@@ -2,7 +2,7 @@
 
 **Purpose.** The repo's own tooling, in the tree neither shipped artifact contains: the cross-tree
 line cap, the punctuating-dash ban, the cross-language constant check, the compose bind-mount
-check, the backlog gate, the Rust branch coverage threshold, the CI path classifier, the
+check, the backlog gate, the Rust coverage threshold, the CI path classifier, the
 commit-message style hook,
 and, since 2026-08-09, the one module here that gates nothing, the interval a live measurement
 reports. What they have in common is not that each is a gate; it is that each is pure Python that
@@ -207,15 +207,25 @@ every pointer in the repo aimed at one.
   Most pointers at these anchors live in decision records and runbooks, which are exactly the
   readers a rename strands, so the scan reads them; a fragment aimed at any other document is out
   of scope, that being a heading set per document in the repo and a wider scan.
-- `coverage_gate.py PATH` reads a `cargo llvm-cov --json --summary-only` export,
-  requires exactly one `data[]` entry, and gates each of
-  `data[0].totals.{lines,regions,branches}` on `covered == count` (the producer's
+- `coverage_gate.py PATH [--rustc TEXT] [--llvm-cov TEXT]` reads a
+  `cargo llvm-cov --json --summary-only` export, requires exactly one `data[]` entry, and gates
+  each of `data[0].totals.{lines,regions,branches}` on `covered == count` (the producer's
   `percent` is never trusted; displayed percentages are recomputed). A metric with
   `count == 0` passes vacuously (with a printed note). Malformed/missing/non-UTF-8
-  input → typed error, exit 1. Exit 0 only when all three metrics pass. The `check-body` recipe
-  that produces its input prints `rustc +nightly --version` and `cargo +nightly llvm-cov --version`
-  first, neither being pinned, so a verdict here can be read against the toolchain that produced
-  it (ADR-0002 toolchain-print addendum).
+  input → typed error on stderr, exit 1, no verdict printed. Exit 0 only when every check passes.
+  **This is the whole coverage verdict, not the branch half of it** (ADR-0002 single-verdict
+  addendum): cargo-llvm-cov's own `--fail-under-lines/-regions` came off the measurement, since
+  with the report diverted by `--json --output-path` they exit 1 printing nothing at all, which
+  pre-empted this gate with a mute failure while restating a threshold it already enforced.
+  It also attributes the numbers it judges. The export records its own writer in
+  `cargo_llvm_cov.version` beside the llvm export format's `version`; both are **required**, and an
+  export that will not name its writer is refused. `check-body` additionally passes what it probed:
+  `--rustc` is relayed into the verdict, the compiler being absent from the export, and
+  `--llvm-cov` must appear in the export's own record, so an export the running tool did not write
+  fails the gate however good its numbers are. Neither version is pinned on either side
+  (ADR-0002 toolchain-print addendum), which is why a verdict has to carry them.
+  Verdicts print in order: the attribution lines (`measured by ...`), then one `PASS`/`FAIL` line
+  per metric.
 - `ci_paths.py` implements AGENTS.md gate 3 / ADR-0006. Decides which toolchain CI jobs must run
   for a set of changed files. Reads newline-separated repo-relative paths (the output of
   `git diff --name-only`) on stdin; blank lines are ignored. Each path is classified by
