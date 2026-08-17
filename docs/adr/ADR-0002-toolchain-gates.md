@@ -666,3 +666,101 @@ the order moves.
 **What this leaves open.** Nothing new here, and R-288 narrows: the never-re-drawn pair it is about
 is now a Python and overlay concern only, the Rust tree re-drawing every pair whenever a test
 binary grows.
+
+## Addendum (2026-08-17): the sweep runs on a clock, on the one workflow that is not the gate
+
+The two addenda above leave one thing running only when a person remembers it. Each suite's seed is
+frozen, which is what makes a red reproduce, and `pytest-randomly` draws per item, so a pair of
+tests that already coexists under the frozen order keeps that order forever. `just shuffle [seed]`
+is where such a pair gets re-drawn, and nothing ran it. The rust-shuffle addendum narrowed the gap
+without closing it: libtest re-draws a binary's whole permutation whenever its test-name list
+changes, so a Rust binary that is still growing re-draws itself, but a binary whose list has been
+stable for months holds one permutation exactly as pytest does.
+
+**Decision: a second workflow, `.github/workflows/shuffle.yml`, runs `just shuffle <seed>` weekly
+and on demand.** A cron at `41 3 * * 1` draws a fresh seed every Monday; `workflow_dispatch` takes
+an optional seed, so a red is re-run at its own seed from the Actions tab rather than only on
+somebody's laptop. Both arms end in one line, `just shuffle "$SEED"`, the same committed recipe a
+person runs by hand, so nothing in CI can drift away from what reproduces locally.
+
+**Why this rather than the two alternatives the entry costed.** A `just check` variant that draws a
+seed once a day and caches it puts a random order back inside the gate, which the shuffle addendum
+refused for a reason that has not changed: the gate is what a pre-commit hook fires on every
+commit, and a red that a re-run turns green is worse there than a draw that arrives late. The cache
+makes it worse rather than better, since the gate's verdict would then depend on a file outside the
+commit that no review ever sees. Rotating the frozen seed periodically is the same lottery with a
+diff, and it discards every draw the suite has already survived on the old seed. Both alternatives
+try to put the lottery where a red blocks work. The remaining option is to put it where a red
+blocks nothing, and a workflow that is a required check on nothing is exactly that.
+
+**The one recorded cost of a schedule is not a cost of the schedule.** The entry called out "a red
+that arrives detached from any commit". That is a property of the defect, not of the instrument:
+the pair a sweep finds already coexisted, so no commit introduced it, and attaching the red to
+whichever commit happened to be at the head would be a fabrication. Detached is the honest form.
+What a schedule changes is only that somebody is told at all.
+
+**It is deliberately not the `just check` mirror, and that is why it is its own file.** ci.yml runs
+the recipes a developer runs, so its green means the gate's green. This workflow keeps that half of
+the property (it runs a committed recipe, not a hand-typed command list) and breaks the other half
+on purpose: it gates nothing, is required by nothing, and cannot block a merge or a push. Adding a
+`schedule:` trigger to ci.yml instead would have been worse than untidy. That workflow's `changes`
+job classifies a diff range, a scheduled run has none, and the fail-closed default is to run all
+three toolchains, so the sweep would have arrived as a second full run of the gate wearing the
+name of a sweep.
+
+**It sweeps all four arms, not the two the narrowing left open.** The Rust arm is not redundant, by
+the argument above about a binary that has stopped growing. And carving the recipe down to the two
+suites that need it most would put a CI-only variant of a committed recipe in the tree, which is
+the drift ADR-0006 exists to prevent; the recipe is the unit a person runs, so the sweep runs it
+whole. The price is a nightly Rust compile inside the job, and therefore some exposure to a nightly
+that breaks for reasons unrelated to ordering. That exposure is not new: the coverage step is
+nightly on every single gate run already.
+
+**The workflow draws the seed; the recipe never has to be scraped.** A `just shuffle` with no
+argument draws its own seed and prints it, which is right for a person and wrong for a job that has
+to report the seed before it starts. So the job draws `(RANDOM << 15) | RANDOM` when no seed was
+dispatched, and the contract between workflow and recipe stays the recipe's parameter rather than
+the format of its stdout. Whatever the source, the value must be digits and the step fails on
+anything else: it comes from a text box that anybody able to press the dispatch button can type
+into, and a `${{ }}` expansion of typed text into a shell script is the standard injection seam, so
+the input is passed through the environment and validated before any shell sees it. The seed and
+the `just shuffle <seed>` that replays it are written to the run summary **before** the sweep
+starts, so a run that fails, times out or is cancelled still names the order it was drawing, on the
+first thing a reader sees on the run's page rather than a log line thousands of lines above the
+failure.
+
+**Who sees a red, weakest answer last.** The run is permanent in the Actions tab, carrying that
+summary. GitHub notifies the account whose commit last touched the cron when a scheduled run fails,
+which here is whoever lands this file; that is documented behaviour rather than something this pass
+verified, since verifying it means firing the real thing. And nothing waits on the answer: a red
+blocks no merge and no push, so reading it late costs only latency on a defect that has already
+been latent for longer. The failure mode where this becomes a gate that cannot fire is GitHub
+disabling a schedule on a public repository after 60 days without activity, well outside this
+repo's commit rate, and `workflow_dispatch` is the hand crank for it.
+
+**Proved able to fail before being trusted**, on the population this decision is actually about: a
+pair the frozen seed runs past. That distinction cost a rewrite of the plant and is the most useful
+thing measured here. The first plant, a module global written by `test_plant_writes` and asserted
+by `test_plant_reads` in `scripts/`, failed at the frozen 7919 (10 of 20 other seeds too), so the
+standing gate caught it and it proved nothing about a sweep. Renaming the pair to `test_one_leaves`
+and `test_two_finds` moves their per-item draw, and at that point `just check-scripts` reports
+`593 passed` and 100% coverage with the defect sitting in the tree. The sweep is what finds it:
+`just shuffle 5` exits 1, its first line reading
+`=== shuffle seed: 5 (reproduce this run with: just shuffle 5) ===` and its failure naming
+`tests/test_zz_order_plant.py::test_two_finds`. Catch rate 14 of 40 seeds, so a weekly draw expects
+this pair inside a couple of months and the standing gate expects it never. The plant was removed.
+
+The job's own steps were run as written, read out of the YAML rather than retyped. A blank input
+drew `10310448`, `691198537` and `181845216` on three consecutive runs, each time writing the seed
+and its replay command into the step summary; a dispatched `20260817` passed through unchanged; `-1` and `7919"; rm -rf /tmp/nope; #` were both
+refused with `a seed must be digits only`, exit 1, and nothing written to the step output. The green
+baseline is `just shuffle 20260817` over the clean tree: 2589 brain tests (68 integration-marked
+deselected), 591 in `scripts/`, 716 across 57 overlay files and the Rust workspace's binaries, all
+green in 2m08s on this machine, with every suite naming the seed in its own header
+(`Using --randomly-seed=20260817`, `Running tests with seed "20260817"`,
+`running 39 tests (shuffle seed: 20260817)`).
+
+**What this leaves open.** The red's only push channel is a notification this pass cannot test, and
+nothing in the repo records that a sweep ran or what it drew, so a sweep that goes red while the
+notification goes nowhere is a red nobody reads
+([R-291](../refinements/tasks/291-a-red-sweep-leaves-no-trace-in-the-repo.md)).

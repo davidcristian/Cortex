@@ -32,6 +32,11 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   a live contract run gets a Redis logical database of its own, so it reports on the
   adapter rather than on whatever the brain happens to have stored; and the coverage
   step names the compiler and the tool it measured with, neither of which is pinned.
+  Its shuffle addenda run every gated suite in a shuffled order under a frozen seed, so the
+  order is not the collection order and is still the same order twice, with the Rust half
+  riding the nightly coverage step behind `-Z unstable-options`; the sweep over the orders
+  those seeds never draw is `just shuffle [seed]`, run weekly by the one workflow here that
+  gates nothing.
 - [ADR-0003: Seam codegen and packaging](adr/ADR-0003-seam-codegen.md): committed
   stubs in `_generated` dirs (hermetic builds, `just proto` to regen), tonic + grpcio,
   `#[ignore]` tests as the Rust integration suite, stubs shared via `cortex_seam`,
