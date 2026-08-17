@@ -71,7 +71,13 @@ class InferenceBackend(Protocol):
     of assistant text, a reasoning model's ``ReasoningChunk`` deltas before them (ADR-0020), and
     each whole ``ToolCall`` the model makes from ``tools`` (native function-calling, ADR-0009),
     which never precedes the words beside it. With ``tools`` empty the stream is text
-    only, exactly as before. ``model`` is a logical id (ADR-0004), never a file path.
+    only, exactly as before. ``model`` is a logical id (ADR-0004), never a file path, and **an
+    implementation answers only for the ids it serves**: asked for one it does not, it fails with
+    ``InferenceError`` rather than answering out of whatever model is behind it, since the id is
+    the caller's whole statement of which weights it wants and a reply under the wrong one is
+    unreadable as such. Which ids those are is the implementation's own business, a
+    ``ModelManager``'s residency here and a router's table elsewhere, and so is where the refusal
+    comes from.
     ``schema`` (ADR-0028), when set, constrains decoding so every emitted token conforms to
     that JSON Schema; ``None`` (the default, every caller but a constrained tool-less subagent)
     leaves output unconstrained. **Images ride the messages**, not this signature (ADR-0029): a

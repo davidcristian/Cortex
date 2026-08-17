@@ -147,16 +147,25 @@ with the cause chained:
   `TRUNCATED` outcome (ADR-0005 tool-call-cut addendum). It needs a server started the way a
   subagent tier is, deliberation off at the server, since the attempt sends no `thinking` of its
   own.
-- **What the streaming list holds is what a stream owes, said without saying when.** Eight checks
+- **What the streaming list holds is what a stream owes, said without saying when.** Nine checks
   over four worlds a fixture arranges (a reasoning model answering, a completion that asks for a
   tool, a completion with nothing to say, a backend that cannot answer): the reply is its deltas
   joined in arrival order; the thinking crosses as its own kind and is over before the reply
   starts; a tool call crosses whole; a tool call never precedes the words beside it; the two
   closing events arrive at most once each with the stop first and both after what they describe; a
   completion with nothing to say owes no event at all; an abandoned completion costs the backend
-  nothing, the next one arriving whole; and a backend that cannot answer fails its caller with
-  `InferenceError`. Nothing in it counts events, sizes one, or asks when one arrives, because the
-  two implementations produce them at different rates from different sources.
+  nothing, the next one arriving whole; a backend that cannot answer fails its caller with
+  `InferenceError`; and a backend answers only for a model it serves. Nothing in it counts events,
+  sizes one, or asks when one arrives, because the two implementations produce them at different
+  rates from different sources.
+- **The served-model check is the one about the request rather than the stream**, and it needs no
+  fifth world: both legs' builders already stand for a deployment serving `CONTRACT_MODEL` alone,
+  this adapter because its fixture's `SingleResidentModelManager` holds that one resident and the
+  twin because it is constructed `serves=[CONTRACT_MODEL]`, so asking either for `UNSERVED_MODEL`
+  is the world the check wants. This adapter refuses before any request leaves the process, the
+  manager's `ModelUnavailableError` crossing as `InferenceError`; the port asks only that no reply
+  arrive for an id the implementation could not have served, so a backend fronting a router taking
+  the refusal off the wire would pass the same check (ADR-0001 served-model addendum).
 
 **Where this adapter legitimately differs from the core's twin, and so what the shared list does
 not say.** Three, each decided when the streaming list was written rather than left implicit:

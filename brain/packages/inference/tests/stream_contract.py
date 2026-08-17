@@ -25,7 +25,9 @@ or an order:
 - a completion with nothing to say is a completion, owing no stop, no cadence and no error;
 - a completion a caller stops reading costs the backend nothing, the next one arriving whole;
 - a backend that cannot answer fails its caller with ``InferenceError``, and the port
-  deliberately does not say at which moment.
+  deliberately does not say at which moment;
+- a backend answers only for a model it serves, an id outside its deployment failing rather than
+  being answered for by whatever model is behind it.
 
 What is **not** owed is written down in ``docs/modules/brain-inference.md`` rather than checked
 here: a delta carrying no text is permitted by the port and dropped by the adapter as a
@@ -42,6 +44,11 @@ The world-conditions no verb can create are what the engine behind a backend had
 implementation supplies four builders: a reasoning model answering, a completion that asks for a
 tool, a completion that says nothing at all, and a backend that cannot answer. Every check asserts
 on the events that came out of ``stream``, never on how the implementation got them.
+
+The served-model check needs no fifth builder, and that is the point of writing it this way: every
+builder here stands for a deployment that serves ``CONTRACT_MODEL`` and nothing else, the adapter's
+because its manager is constructed with that one resident and the twin's because it is told the
+same, so asking any of them for ``UNSERVED_MODEL`` is already the world the check wants.
 """
 
 import asyncio
@@ -63,6 +70,11 @@ from cortex_core import (
 )
 
 CONTRACT_MODEL = "cortex"
+
+# A logical id shaped like a tier this repo could have (ADR-0004) and hosted by neither leg's
+# deployment. Shaped that way on purpose: what the check is about is a wiring change naming a model
+# nobody serves, which reads like a real id and not like garbage.
+UNSERVED_MODEL = "scribe"
 
 # The reply a deliberating completion arrives at, the thinking it did first, and the words it says
 # before asking for a tool. Constants rather than fixture-local strings, so a check compares what
@@ -104,9 +116,9 @@ def _messages() -> list[Message]:
     return [Message(role=Role.USER, text="what is the answer", at=_AT, turn_id="t-1")]
 
 
-async def events_of(backend: InferenceBackend) -> list[InferenceEvent]:
+async def events_of(backend: InferenceBackend, model: str = CONTRACT_MODEL) -> list[InferenceEvent]:
     """Drive one completion to exhaustion and return everything it yielded, in order."""
-    return [event async for event in backend.stream(CONTRACT_MODEL, _messages())]
+    return [event async for event in backend.stream(model, _messages())]
 
 
 def _text(events: Sequence[InferenceEvent]) -> str:
@@ -243,6 +255,29 @@ async def check_a_backend_that_cannot_answer_fails_with_inference_error(
     raise AssertionError(msg)
 
 
+async def check_a_backend_answers_only_for_a_model_it_serves(subject: BackendUnderTest) -> None:
+    """Asked for a model it does not serve, a backend fails rather than answering for it.
+
+    The one obligation here that is about the request rather than about the stream, and the reason
+    it is an obligation at all: ``model`` is the caller's whole statement of which weights it wants
+    (ADR-0004), so a backend that answers an id it does not host hands back a reply from some other
+    model under the name of the one that was asked for, and the caller has no way to tell. Which
+    ids a deployment serves stays the ``ModelManager``'s subject, and where a backend fronted a
+    router the refusal would come off the wire instead; what the port fixes is only that a reply
+    never arrives for an id the implementation could not have served.
+
+    It matters most to the twin, and that is why it is in the shared list rather than in the
+    adapter's own suite: a fake more permissive than the adapter hides defects rather than
+    inventing them, so a mis-wired model id would land green here and fail on the first real turn.
+    """
+    try:
+        events = await events_of(subject.deliberating(), UNSERVED_MODEL)
+    except InferenceError:
+        return
+    msg = f"a backend answered for {UNSERVED_MODEL!r}, which it does not serve: {events!r}"
+    raise AssertionError(msg)
+
+
 # One check: given an implementation plus its world builders, assert on what came out.
 type StreamCheck = Callable[[BackendUnderTest], Awaitable[None]]
 
@@ -255,4 +290,5 @@ STREAM_CHECKS: tuple[StreamCheck, ...] = (
     check_a_completion_with_nothing_to_say_is_still_a_completion,
     check_an_abandoned_completion_costs_the_backend_nothing,
     check_a_backend_that_cannot_answer_fails_with_inference_error,
+    check_a_backend_answers_only_for_a_model_it_serves,
 )

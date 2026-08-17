@@ -46,11 +46,26 @@ class ScriptedInferenceBackend:
     have anything to disagree about. It is the same knob ``HashEmbedder`` and
     ``InMemoryBodyGateway`` carry. The attempt is still recorded before it fails, a backend that
     cannot answer having taken the request all the same.
+
+    ``serves`` names the model ids this twin stands for, and it is the wiring rather than the
+    script: with it set, an id outside it fails with ``InferenceError`` exactly as
+    ``LlamaCppBackend`` does when its ``ModelManager`` will not lease one, which is what stops the
+    fake being more permissive than the adapter it stands in for. ``None``, the default, is a twin
+    that has been told nothing about a deployment and so answers for any id, the stance a script
+    written about the events rather than about the wiring wants; the shared streaming list is
+    driven over a twin that has been told, since a check about which ids a backend serves needs a
+    backend that serves some. The refusal follows the recorded call for ``fail_with``'s reason.
     """
 
-    def __init__(self, rounds: Sequence[Sequence[InferenceEvent]] = ()) -> None:
+    def __init__(
+        self,
+        rounds: Sequence[Sequence[InferenceEvent]] = (),
+        *,
+        serves: Sequence[str] | None = None,
+    ) -> None:
         self._rounds = [list(events) for events in rounds] or [[]]
         self._failure: InferenceError | None = None
+        self._served = None if serves is None else frozenset(serves)
         self.calls: list[str] = []
 
     async def stream(
@@ -62,10 +77,17 @@ class ScriptedInferenceBackend:
         schema: JsonSchema | None = None,
         bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        """Yield the next scripted round; the script does not read the request."""
+        """Yield the next scripted round; the script does not read the request.
+
+        The one part of the request it does read is ``model``, and only against ``serves``: a twin
+        told which deployment it stands for refuses an id that deployment could not have leased.
+        """
         del messages, tools, schema, bounds
         index = min(len(self.calls), len(self._rounds) - 1)
         self.calls.append(model)
+        if self._served is not None and model not in self._served:
+            msg = f"this backend does not serve model {model!r} (serves: {sorted(self._served)})"
+            raise InferenceError(msg)
         if self._failure is not None:
             raise self._failure
         for event in self._rounds[index]:
