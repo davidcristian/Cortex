@@ -27,7 +27,9 @@ design, AGENTS.md gate 3).
 | `CORTEX_IMAGE_MAX_TOKENS` | how many tokens one picture may occupy, and with it how much of a 4K screen the cortex can read. `1024` is the default, paired with `CORTEX_BODY_CAPTURE_MAX_EDGE=2048` on the brain; `0` hands the budget back to the model, which is the 266-token view that reads 13% of a 4K screen. See the legibility section below before changing it, and never set llama.cpp's `--image-max-tokens` by hand instead | `1024` |
 | `CORTEX_CTX_SIZE` | context window (KV size); **set it**. The model default (262144) alone eats ~8 GB | `16384` |
 | `CORTEX_REPLY_THINKING` | keeps the model's deliberation on for a user's own reply. `false` skips it, which is the lever for the wait rather than for the length: measured on the shipped cortex the whole of 11.8 to 18.1 s before the first word is the trace, against 0.4 s with it off for an answer of the same size. It costs the answer's quality on hard questions and empties the thinking status the overlay renders | `true` |
-| `CORTEX_REPLY_MAX_TOKENS` | caps how far each completion of a user's turn decodes. `0` sends no cap and leaves the real bound at the context window. **Only ever set this together with `CORTEX_REPLY_THINKING=false`:** a reasoning model spends its budget on thinking first, and `max_tokens: 512` with thinking left on returned an empty reply 3 of 3 on this cortex. Whatever cuts a reply, this or the context window, the turn now says so under the text | `0` |
+| `CORTEX_REPLY_MAX_TOKENS` | caps how far each completion of a user's turn decodes. `0` sends no cap and leaves the real bound at the context window. **Never set this against an unbounded trace:** a reasoning model spends its budget on thinking first, and `max_tokens: 512` with thinking left on returned an empty reply 3 of 3 on this cortex. Pair it with `CORTEX_REPLY_THINKING=false`, or with a `CORTEX_REASONING_BUDGET` that leaves the cap room to answer in (at a budget of 128, the same 512-token cap returned 1488 and 1561 characters of reply). Whatever cuts a reply, this or the context window, the turn now says so under the text | `0` |
+| `CORTEX_REASONING_BUDGET` | how many tokens the **cortex tier** may spend thinking before the engine closes the thought and makes it answer. The middle of the dial the two knobs above are the ends of: they say whether to think, this says how long. `-1` (the default) emits no flag and leaves the trace unbounded; `0` ends every think immediately, for every request the tier serves; `N > 0` is a token budget. Measured on the cortex pick, one open question per arm: unrestricted spends 2323 to 2996 chars of trace and 10.1 to 12.6 s before the first word, `512` about 2000 chars and 8.4 to 9.2 s, `128` about 500 chars and 1.7 to 2.6 s, `0` none and 0.2 s, and the reply is the same size in all four. See the thinking-budget section below | `-1` |
+| `CORTEX_REASONING_BUDGET_BRAIN` | the same knob for the **deep tier**, separate because the two are read on opposite arguments: the cortex answers while somebody watches, and the deep model was picked for reaching an answer inside its trace at all (ADR-0004) | `-1` |
 | `CORTEX_NGL` | GPU layers to offload: `99` = all, `0` = CPU-only, partial = hybrid (ADR-0004 addendum) | `99` |
 | `CORTEX_INFERENCE_STALL_TIMEOUT_S` | **on the brain**: how long a resident or deep tier stream may send nothing before the turn fails. It bounds the gap between chunks, **never** the length of a generation, so a long answer is never cut off; size it above the worst legitimate time to first token, not above the longest reply. The default clears the 17.5 s a contended cortex took to its first token here with room for the deep tier, which streams through the same client after a handoff (ADR-0005 stall-ceiling addendum) | `120` |
 
@@ -250,6 +252,64 @@ zero, and it found the whole-turn cost larger than first published (0.979 s agai
 almost all of it in the one question memory cannot answer, where a rank that declines leaves the
 model saying at length that it does not know. Procedure and knobs:
 [memory-pgvector.md](memory-pgvector.md).
+
+## How long the cortex may think, and what each setting costs (ADR-0005, agent-runnable)
+
+Deliberation used to be a switch: a request either kept the model's thinking or asked the chat
+template to skip it. `CORTEX_REASONING_BUDGET` is the count between those two, and it is the
+engine's own, so the model is not cut off mid answer but told to stop thinking and answer.
+llama.cpp reads `--reasoning-budget N` as a token budget for the trace, injects the end of thought
+at the count, and lets the completion finish normally.
+
+The knob is **per tier, not per request**: a request can still turn thinking off entirely
+(`CORTEX_REPLY_THINKING=false`, and the bounds the recap fold, the session title and the recall
+rank already send), and this bounds every think the tier does do. A request cannot raise or lower
+it, which was measured both ways: a body carrying `reasoning_budget` was ignored on an unbudgeted
+server, and one carrying `reasoning_budget: -1` did not lift a budgeted server's own count.
+
+Reproduce it against the cortex tier directly, one open question per arm, watching the stream:
+
+```
+docker run -d --name budget-probe --gpus all --network host -v $CORTEX_MODELS_DIR:/models:ro \
+  ghcr.io/ggml-org/llama.cpp:server-cuda --model /models/$CORTEX_MODEL_FILE_CORTEX \
+  --host 0.0.0.0 --port 8080 -ngl 99 --ctx-size 16384 --parallel 1 --jinja \
+  --reasoning-budget 128
+curl -sN http://127.0.0.1:8080/v1/chat/completions -H 'Content-Type: application/json' \
+  -d '{"model":"cortex","stream":true,"messages":[{"role":"user","content":"What makes a good API design?"}]}'
+```
+
+Measured 2026-08-17 by the agent on the shipped cortex tier (gemma-4-12B QAT q4_0, `-ngl 99`,
+`-c 16384`, `--jinja`, the ghcr `server-cuda` image, build `b9870-2d973636e`, on the 24 GB card),
+three ordinary open questions, one run per arm:
+
+| `--reasoning-budget` | trace | first word | reply | whole turn | finish |
+| --- | --- | --- | --- | --- | --- |
+| unset (shipped) | 2323 / 2996 / 2507 chars | 10.1 / 12.6 / 11.0 s | 4408 / 4712 / 4131 chars | 31.3 / 33.2 / 26.8 s | `stop` |
+| `512` | 2003 / 1963 / 2004 chars | 8.4 / 9.2 / 8.5 s | 4189 / 4659 / 4170 chars | 25.7 / 29.4 / 24.6 s | `stop` |
+| `128` | 507 / 483 / 536 chars | **1.7 / 2.6 / 2.5 s** | 4558 / 4450 / 4201 chars | 20.9 / 20.4 / 18.9 s | `stop` |
+| `0` | none | 0.2 s | 4483 chars | 19.0 s | `stop` |
+
+Four readings decide how to set it.
+
+1. **The wait is the trace and the budget is a dial on it**, not a switch: the first word moves
+   with the count, and the reply stays the same size in every arm.
+2. **The reply still ends on its own.** Every arm finished `stop`, and a trace cut mid sentence at
+   128 was followed by a full coherent answer, which is what the engine's own budget buys over a
+   client-side cut.
+3. **It makes `CORTEX_REPLY_MAX_TOKENS` usable with thinking on.** A cap of 512 against an
+   unbounded trace returned an empty reply 3 of 3; under a budget of 128 the same cap returned
+   1488 and 1561 characters of answer.
+4. **Nothing else about the tier changes.** A per-request `enable_thinking: false` still yields no
+   trace at all under a budget (0 chars, 0.34 s to the first word), and tool calling is unaffected:
+   a trace cut at the count was followed by a well formed `read_file` call parsing to its arguments,
+   finishing `tool_calls`.
+
+What the arms above do **not** measure is the answer's quality on questions hard enough for the
+trace to be doing real work. Four multi-step items with one right answer each (a bat and ball, the
+five machines, a train timetable sum, an ages puzzle) came back right in all three of unbounded,
+`128` and `0`, so they price the latency and say nothing about the ceiling. Start at `512` on a
+tier a user reads, and treat a lower count as a trade to be checked against your own hard
+questions.
 
 ## Framing-efficacy probe (Slice 6.5 / ADR-0013, agent-runnable)
 

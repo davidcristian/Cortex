@@ -123,6 +123,17 @@ first oversized picture rather than answering an error. It hangs off the project
 reason the projector hangs off its file: a text-only tier has no pictures, so it must not pay the
 micro-batch's VRAM. What the default costs, how to refund it, and the failure boundary it still
 leaves are in [docs/runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md).
+`CORTEX_REASONING_BUDGET` (and `CORTEX_REASONING_BUDGET_BRAIN` for the deep tier) adds
+llama.cpp's `--reasoning-budget N`, which is how long a think may be rather than whether one
+happens: the engine closes the thought at the count and lets the completion answer normally, so it
+is the middle of a dial whose ends are the per-request `thinking` bound the brain already sends.
+`-1`, the default, is the engine's own word for unrestricted and emits **no flag at all**, so an
+unasked deployment's argv is the one it always had; `0` is a real setting (thinking ends at once)
+and reaches the argv, which is why the sentinel cannot be the falsy value the image budget uses.
+It is per tier because llama.cpp accepts it per server only: a request body carrying the same key
+is ignored in both directions, measured. The GPU-placed subagent tier deliberately has no such
+knob, its deliberation being off at the template already
+([docs/runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md) has the measured table).
 `RosterError` is a boot-time misconfiguration. `build_supervisor(config)` wires the supervisor and
 the probe client it owns (the three timing knobs are read off those two objects by a gated test,
 because nothing else in the process observes them), `build_model_host(config)` is the composition

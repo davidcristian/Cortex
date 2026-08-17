@@ -27,6 +27,8 @@ DEFAULT_SUBAGENT_GPU_MODEL = "subagent-gpu"
 # subagent service does.
 _REASONING_OFF = ("--chat-template-kwargs", '{"enable_thinking": false}')
 
+_UNRESTRICTED_REASONING = -1
+
 _LLAMA_DEFAULT_UBATCH = 512
 
 
@@ -58,12 +60,22 @@ class ModelHostConfig(BaseSettings):
     cortex_ngl: int = Field(default=99, validation_alias="CORTEX_NGL")
     cortex_ctx_size: int = Field(default=16384, gt=0, validation_alias="CORTEX_CTX_SIZE")
     cortex_port: int = Field(default=8080, gt=0, le=65535)
+    cortex_reasoning_budget: int = Field(
+        default=_UNRESTRICTED_REASONING,
+        ge=_UNRESTRICTED_REASONING,
+        validation_alias="CORTEX_REASONING_BUDGET",
+    )
 
     brain_model: str = Field(default=DEFAULT_BRAIN_MODEL, validation_alias="CORTEX_MODEL_BRAIN")
     brain_file: str = Field(default="", validation_alias="CORTEX_MODEL_FILE_BRAIN")
     brain_ngl: int = Field(default=99, validation_alias="CORTEX_NGL_BRAIN")
     brain_ctx_size: int = Field(default=8192, gt=0, validation_alias="CORTEX_CTX_SIZE_BRAIN")
     brain_port: int = Field(default=8081, gt=0, le=65535)
+    brain_reasoning_budget: int = Field(
+        default=_UNRESTRICTED_REASONING,
+        ge=_UNRESTRICTED_REASONING,
+        validation_alias="CORTEX_REASONING_BUDGET_BRAIN",
+    )
 
     subagent_gpu_model: str = Field(
         default=DEFAULT_SUBAGENT_GPU_MODEL, validation_alias="CORTEX_MODEL_SUBAGENT_GPU"
@@ -88,7 +100,7 @@ class ModelHostConfig(BaseSettings):
                 ngl=self.cortex_ngl,
                 ctx_size=self.cortex_ctx_size,
                 parallel=1,
-                extra=self._vision(),
+                extra=(*self._vision(), *self._reasoning(self.cortex_reasoning_budget)),
             ),
             TierArgs(
                 model=self.brain_model,
@@ -97,6 +109,7 @@ class ModelHostConfig(BaseSettings):
                 ngl=self.brain_ngl,
                 ctx_size=self.brain_ctx_size,
                 parallel=1,
+                extra=self._reasoning(self.brain_reasoning_budget),
             ),
             TierArgs(
                 model=self.subagent_gpu_model,
@@ -120,6 +133,13 @@ class ModelHostConfig(BaseSettings):
         if not path:
             return ()
         return ("--mmproj", path, *self._image_budget())
+
+    def _reasoning(self, budget: int) -> tuple[str, ...]:
+        """A tier's thinking budget, in llama.cpp's own flag, or nothing at all when unrestricted.
+        """
+        if budget == _UNRESTRICTED_REASONING:
+            return ()
+        return ("--reasoning-budget", str(budget))
 
     def _image_budget(self) -> tuple[str, ...]:
         """The per-image token budget, with the micro-batch a raised budget forces beside it.
