@@ -15,6 +15,10 @@ class InferenceError(Exception):
     """An InferenceBackend failed to produce or continue a completion."""
 
 
+class MalformedToolCallError(InferenceError):
+    """The server answered and the tool call the model wrote could not be assembled."""
+
+
 class MemoryStoreError(Exception):
     """A MemoryStore operation failed (memory adapters wrap their backend's errors)."""
 

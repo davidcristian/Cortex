@@ -7,7 +7,7 @@ from typing import cast
 
 import httpx
 
-from cortex_core import DecodeCadence, InferenceError, ToolCall
+from cortex_core import DecodeCadence, InferenceError, MalformedToolCallError, ToolCall
 from cortex_core.inference import DecodeStop, StopReason
 
 __all__ = [
@@ -138,6 +138,6 @@ def finish_calls(pending: dict[int, PendingCall]) -> list[ToolCall]:
             arguments: Mapping[str, object] = json.loads(slot.arguments) if slot.arguments else {}
         except json.JSONDecodeError as err:
             msg = f"malformed tool-call arguments from llama-server: {slot.arguments!r}"
-            raise InferenceError(msg) from err
+            raise MalformedToolCallError(msg) from err
         calls.append(ToolCall(id=slot.id, name=slot.name, arguments=arguments))
     return calls

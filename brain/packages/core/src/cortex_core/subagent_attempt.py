@@ -5,7 +5,7 @@ from contextlib import aclosing
 
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
-from cortex_core.errors import InferenceError
+from cortex_core.errors import InferenceError, MalformedToolCallError
 from cortex_core.events import ToolActivity
 from cortex_core.inference import GenerationBounds
 from cortex_core.loop_events import ToolStep
@@ -147,6 +147,20 @@ class PlacedAttempt:
                 text="".join(parts),
                 failure=AttemptFailure.TRUNCATED,
                 detail=GENERATION_DEADLINE_MSG.format(timeout_s=self._bounds.timeout_s),
+                tainted=taint.tainted,
+            )
+        except MalformedToolCallError as err:
+            if not stops.capped:
+                return AttemptOutcome(
+                    text="".join(parts),
+                    failure=AttemptFailure.INFERENCE,
+                    detail=str(err),
+                    tainted=taint.tainted,
+                )
+            return AttemptOutcome(
+                text="".join(parts),
+                failure=AttemptFailure.TRUNCATED,
+                detail=cap_detail(self._bounds.max_tokens),
                 tainted=taint.tainted,
             )
         except InferenceError as err:

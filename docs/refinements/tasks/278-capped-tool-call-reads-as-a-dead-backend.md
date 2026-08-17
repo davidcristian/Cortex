@@ -1,9 +1,8 @@
 # A cap that lands mid tool call reads as a dead backend
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-08-17
 **Area:** subagents
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Trigger:** the first delegated run observed spending a CPU re-run on a task whose GPU attempt was cut at the cap, which the stored detail names as an inference failure while the fragment ends inside a tool call's arguments.
 
 Opened 2026-08-16 by the close that carried a finish reason across `InferenceBackend`
 ([R-206](206-finish-reason-not-carried.md)), which reports a capped run as `TRUNCATED` everywhere
@@ -25,3 +24,29 @@ the two apart needs the ledger to know which completion it was on, or the arm to
 error came from assembling calls or from the transport, and neither exists today. The failure this
 would fix is also rare by construction: a tool call's arguments are short and the shipped cap is
 1024 decoded tokens, so the cut has to land inside the last few tokens of a round.
+
+**What landed is the second of those two, which turned out to be the cheap one**
+([ADR-0005](../../adr/ADR-0005-llamacpp-engine.md) tool-call-cut addendum). `finish_calls` now
+raises `MalformedToolCallError`, a subclass of `InferenceError` that says the stream arrived and
+the **model's own** tokens will not parse, and the attempt reports `TRUNCATED` only when that error
+and a capped completion are both true. The ambiguity this entry waited on is what the pair
+resolves: a transport failure on a round after a capped one raises the wide type and keeps its
+re-place, and an unparsable call under a backend that reported nothing keeps today's answer too.
+The one-line fix this entry warned about was run as a mutation and reddens exactly the case the
+warning names.
+
+The shape was reproduced rather than assumed. On a real server, a cap of 20 to 160 tokens on a call
+with a long argument streamed 14 to 154 tool-call fragments, closed `finish_reason: "length"`, and
+assembled 71 to 899 characters of unterminated JSON; through the shipped adapter and attempt, the
+outcome went from `INFERENCE` quoting a JSON decode error to `TRUNCATED` naming the cap.
+
+## Trail
+
+- 2026-08-16: Opened by the finish-reason close, which left this one path where a capped run does
+  not reach the settling that reports it.
+- 2026-08-17: Landed. The narrower error type is what made the ambiguity answerable, so the entry
+  closed on the reading it was waiting for rather than on the one-line fix it warned against, and
+  the live arm that reproduces the cut ships beside it
+  (`brain/packages/inference/tests/test_cut_tool_call_live.py`). What the close opens is the same
+  shape one layer up, the cortex's own turn, where a cut tool call still fails the turn as an
+  inference error ([297-cut-tool-call-fails-the-cortex-turn.md](297-cut-tool-call-fails-the-cortex-turn.md)).
