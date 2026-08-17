@@ -2285,3 +2285,98 @@ the tab. What remains beside it is the sibling entry, a **host that mixes a plai
 (`http://www.evil dot com`), which is untouched here: it needs the **dotless rule** relaxed, and no
 rule this pass spells goes near it. Unchanged: the full UTS-39 confusables set stays declined, footer
 and boilerplate heuristics stay declined, and a bare domain with no scheme is still out of scope.
+
+## Addendum (2026-08-17): a host that mixes a plain dot and a gap is priced and declined
+
+Prices the last of the two spellings the twelfth addendum left standing, and **declines it**, on a
+measurement rather than on effort. Nothing in the tree changes: the dotless rule stays exactly as
+it is, all three policies, the ledger, the streaming filter and the config are untouched, and this
+addendum is a decision and its evidence. The entry it closes said the fix "needs a budget designed
+rather than a table extended". Designed and measured, the budget does not exist, and the reason is
+sharper than a false-positive count.
+
+### The gap, re-measured before anything was tried
+
+Measured against the shipped module, which is two closes further on than when the entry was opened:
+
+| spelling | `extract_urls` |
+|---|---|
+| `http://www.evil dot com` | `{"http://www.evil"}` |
+| `hxxp://www[.]evil dot com` | `{"http://www.evil"}` |
+| `https://a.b dot example/pay` | `{"https://a.b"}` |
+
+So the entry's claim holds: the ledger takes a **wrong host** on the collection side, and on the
+reply side a redaction marker lands with ` dot com` still beside it, which is the third failure
+shape the twelfth addendum named. Two labels split and one dotted is a spelling a person writes
+without thinking about it, since the `www.` is the part they do not think of as the name. The
+motivation is real. What follows is why the obvious fix is worse than the gap.
+
+### The relaxation is not a false positive, it is a **leak**
+
+Relaxing the dotless rule means letting a split label carry a plain dot. Measured over the repo's
+own prose at `HEAD`, 1,072 files and 1,410,285 words carrying 2,873 matched spans: **zero added,
+zero lost, 14 extended, and 14 identities changed.** The published bar was zero added spans, and on
+that column alone the relaxation passes. It is the last column that decides it, and that column is
+not a false positive at all.
+
+An extended span here is an *existing, correct* match growing to eat the prose after it, and the
+identity going with it. `http://example.com` followed by ` dot the file is there` stops being
+`http://example.com` and becomes `http://example.com.the`. Driven end to end through a real
+`TaintLedger` and a real streaming filter fed one character at a time, with the ledger built by
+observing untrusted content that carried the plain link:
+
+```
+what untrusted content carried : ['http://example.com']
+reply   : See http://example.com dot the file is there.
+  shipped : See [link removed: untrusted source] dot the file is there.
+  relaxed : See http://example.com dot the file is there.
+```
+
+The relaxed grammar **delivers the attacker's link**. Every other widening in this ADR only ever
+over-redacted, which is a cost paid in prose; this one makes the guardrail miss a link it catches
+today, and it does so on a shape untrusted content can ask for directly, since telling a model to
+end its summary with the word `dot` costs an attacker one sentence. A widening that hands an
+attacker a bypass is not a widening.
+
+### The narrowings, each priced and each still short
+
+The entry named three candidate constraints and they are all still the candidates. None separates
+the two shapes, because **there is nothing structural to separate**: `http://www.evil dot com` and
+`http://example.com dot the` are both a scheme, a dotted host, a gap and a word.
+
+- A **known-TLD tail** distinguishes them, and it is the only thing that does. It is roughly 1,450
+  IANA entries this repo does not carry, it needs updating, and `dot com`, `dot net` and `dot ai`
+  are ordinary English besides, so it buys the separation and hands back a share of it.
+- **At least two gaps** does not reach the case: `www.evil dot com` has exactly one.
+- **A known subdomain label** before the gap is a table again, a much worse one, and `www` is not
+  the only thing a person leaves in front of a name.
+
+Two further rules were tried and are recorded so the next reader does not re-derive them: requiring
+the mixed host to be followed by something other than a blank kills the live spelling the twelfth
+addendum measured from a deployed model (`hxxps://payroll-verify dot example slash claim`), and
+allowing dots only in the labels before the first gap is the same shape as the full relaxation and
+extends the same 14 spans.
+
+### What would actually close it, which is why the residue is an entry and not a note
+
+The failure above is not the gap's fault, it is a consequence of **one match yielding one
+identity**. A mixed host has two honest readings, the truncated `http://www.evil` and the joined
+`http://www.evil.com`, and today the grammar has to pick one, so picking the second destroys the
+first. A defense that emitted **both** would take the ledger's wrong host and the reply's leftover
+host together and lose nothing, because the plain reading would still be there to match.
+
+That is a change to the shape of the seam rather than to the grammar: `extract_urls` returns a
+frozenset and could carry two identities for one span, but the redactor scrubs with `URL_RE.sub`,
+which yields non-overlapping matches and asks one question per match. Reading a second identity off
+a span, or merging overlapping spans, is a slice with its own design and its own tests, and it is
+recorded as its own entry rather than bolted onto a decline.
+
+### The decision, and what it does not open
+
+Declined. The area's count moves by one and one new entry opens, which is the honest arithmetic.
+The dotless rule stands, unchanged and now with a number behind it rather than a worry: it is not a
+conservative guess about prose, it is what keeps an ordinary link's identity intact when prose
+follows it. It reopens on one thing, and only on it: a two-reading defense whose cost has been
+measured, at which point the mixed host is a consequence rather than a case. Unchanged: the full
+UTS-39 confusables set stays declined, footer and boilerplate heuristics stay declined, and a bare
+domain with no scheme is still out of scope.
