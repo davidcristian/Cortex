@@ -17,7 +17,7 @@ from contextlib import aclosing
 
 from cortex_core.conversation import Message, Role
 from cortex_core.dispatch import ToolDispatcher
-from cortex_core.errors import InferenceError
+from cortex_core.errors import InferenceError, MalformedToolCallError
 from cortex_core.events import ToolActivity
 from cortex_core.inference import GenerationBounds
 from cortex_core.loop_events import ToolStep
@@ -229,6 +229,30 @@ class PlacedAttempt:
                 text="".join(parts),
                 failure=AttemptFailure.TRUNCATED,
                 detail=GENERATION_DEADLINE_MSG.format(timeout_s=self._bounds.timeout_s),
+                tainted=taint.tainted,
+            )
+        except MalformedToolCallError as err:
+            # A tool call the model was still writing when a token limit ended the completion
+            # (ADR-0005 tool-call-cut addendum). Two facts make that verdict, and neither does it
+            # alone: this error says the fragment is the **model's own** and not the transport's,
+            # and the ledger says a completion of this loop stopped at a limit. Together they are
+            # the same truncation ``settle_reply`` reports below, reached on the one path that
+            # cannot get there, since assembling the calls raises before the loop ends; so it is
+            # reported in the same words, and the runner declines to re-place it for the same
+            # reason. Apart, each keeps today's answer: an unparsable call with no cap reported is
+            # a backend this attempt cannot vouch for, and a transport failure after a capped
+            # round is still a transport failure, which is the ambiguity that kept this open.
+            if not stops.capped:
+                return AttemptOutcome(
+                    text="".join(parts),
+                    failure=AttemptFailure.INFERENCE,
+                    detail=str(err),
+                    tainted=taint.tainted,
+                )
+            return AttemptOutcome(
+                text="".join(parts),
+                failure=AttemptFailure.TRUNCATED,
+                detail=cap_detail(self._bounds.max_tokens),
                 tainted=taint.tainted,
             )
         except InferenceError as err:

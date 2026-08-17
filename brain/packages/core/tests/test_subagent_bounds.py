@@ -26,7 +26,16 @@ suite re-run, so the counts are measured rather than aimed at:
 - dropping ``bounds`` from the loop's ``backend.stream`` call reddens 1,
   ``test_the_token_cap_rides_every_completion_of_a_delegated_loop``. The unbounded case beside it
   is deliberately **not** a redden proof for that mutation: it pins that a caller who asked for
-  nothing still sends ``None``, which is what makes the whole bound opt-in.
+  nothing still sends ``None``, which is what makes the whole bound opt-in;
+- deleting the ``MalformedToolCallError`` arm so a cut tool call falls through to the wide one
+  reddens 2, the two cut-call cases at the bottom of this file;
+- letting that arm answer without consulting the ledger reddens 1,
+  ``test_an_unparsable_tool_call_with_no_cap_reported_is_still_the_backends_fault``, which is the
+  half that keeps a build reporting no reason at all behaving as it did;
+- reading the ledger in the **wide** arm instead, which is the one-line fix the deferral warned
+  about, reddens 1, ``test_a_dead_backend_after_a_capped_round_is_still_a_dead_backend``: a
+  transport failure on a round after a capped one would be reported as a truncation and skip the
+  re-place that exists for exactly it.
 
 Dropping ``aclosing`` reddens **nothing**, and that is reported rather than hidden: the
 cancellation a deadline delivers lands inside the loop generator at every suspension point this
@@ -49,6 +58,7 @@ from cortex_core import (
     InferenceError,
     InMemoryTaskStore,
     JsonSchema,
+    MalformedToolCallError,
     Message,
     PlacementRequest,
     PlacementTarget,
@@ -780,6 +790,135 @@ async def test_one_capped_round_of_a_tool_loop_cuts_the_whole_attempt() -> None:
         result = await runner.run("t1")
     assert result.ok is False
     assert "stopped at a token limit" in result.detail
+
+
+# --- the cap that lands inside a tool call (ADR-0005 tool-call-cut addendum) -----------------
+#
+# The one path where a capped run could not reach the settling above: the adapter assembles the
+# model's tool calls only once the stream is over, so a cut that lands mid ``arguments`` leaves a
+# JSON fragment and raises before the loop ends. Measured against a real server, a cap of 20 to
+# 160 tokens on a long-argument call gives 71 to 899 characters of unterminated fragment under
+# ``finish_reason: "length"``, so this is the shape, not a hypothesis.
+
+
+class CutToolCallBackend:
+    """Reports the stop the way the real adapter does, then fails assembling the model's call."""
+
+    def __init__(self, *, stop: DecodeStop | None, error: InferenceError) -> None:
+        self._stop = stop
+        self._error = error
+        self.calls = 0
+
+    async def stream(
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
+    ) -> AsyncIterator[InferenceEvent]:
+        del model, messages, tools, schema, bounds
+        self.calls += 1
+        yield TextChunk("about to call")
+        if self._stop is not None:
+            yield self._stop
+        raise self._error
+
+
+def _cut_runner(
+    store: InMemoryTaskStore,
+    gpu: InferenceBackend,
+    cpu: InferenceBackend | None = None,
+) -> SubagentRunner:
+    return _runner(
+        store,
+        _resources(
+            gpu,
+            scheduler=ResourceBudgetScheduler(4.0, 8.0),
+            placer=VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0),
+            cpu=cpu,
+        ),
+        bounds=AttemptBounds(max_tokens=1024, timeout_s=_SUITE_BOUND_S),
+        tools=ToolDispatcher(AnsweringToolRegistry(), RecordingAuditSink(), FixedClock()),
+    )
+
+
+async def test_a_cap_inside_a_tool_call_is_reported_as_the_cap_not_a_dead_backend() -> None:
+    """The entry itself: the ledger has already seen the cap when the fragment fails to parse.
+
+    Before this arm the run came back as an inference failure quoting a JSON error, which reads
+    as a backend that did not answer and costs a second model load.
+    """
+    store = InMemoryTaskStore()
+    await _stored_task(store)
+    backend = CutToolCallBackend(
+        stop=DecodeStop(StopReason.CAPPED),
+        error=MalformedToolCallError('malformed tool-call arguments: \'{"body":"In the real\''),
+    )
+    async with asyncio.timeout(_SUITE_BOUND_S):
+        result = await _cut_runner(store, backend).run("t1")
+    assert result.ok is False
+    assert "stopped at a token limit" in result.detail
+    assert "1024 decoded tokens per completion" in result.detail
+    assert "malformed tool-call arguments" not in result.detail
+    stored = await store.get_result("t1")
+    assert stored is not None
+    assert stored.output == "about to call"
+
+
+async def test_a_cut_tool_call_is_not_re_run_on_the_cpu() -> None:
+    """What the reporting buys: the second model load this shape used to spend, not spent."""
+    store = InMemoryTaskStore()
+    await _stored_task(store)
+    error = MalformedToolCallError('malformed tool-call arguments: \'{"path":"no\'')
+    gpu = CutToolCallBackend(stop=DecodeStop(StopReason.CAPPED), error=error)
+    cpu = CutToolCallBackend(stop=DecodeStop(StopReason.CAPPED), error=error)
+    async with asyncio.timeout(_SUITE_BOUND_S):
+        result = await _cut_runner(store, gpu, cpu).run("t1")
+    assert result.ok is False
+    assert (gpu.calls, cpu.calls) == (1, 0)
+
+
+async def test_an_unparsable_tool_call_with_no_cap_reported_is_still_the_backends_fault() -> None:
+    """Half the pairing, and the half that keeps a quiet build behaving exactly as it did.
+
+    A model that broke its own grammar with nothing said about a limit is not something this
+    attempt can vouch for, so it stays the retryable failure and the re-place still fires.
+    """
+    store = InMemoryTaskStore()
+    await _stored_task(store)
+    error = MalformedToolCallError("malformed tool-call arguments: '{oops'")
+    gpu = CutToolCallBackend(stop=None, error=error)
+    cpu = CutToolCallBackend(stop=None, error=error)
+    async with asyncio.timeout(_SUITE_BOUND_S):
+        result = await _cut_runner(store, gpu, cpu).run("t1")
+    assert result.ok is False
+    assert "malformed tool-call arguments" in result.detail
+    assert "stopped at a token limit" not in result.detail
+    assert (gpu.calls, cpu.calls) == (1, 1)
+
+
+async def test_a_dead_backend_after_a_capped_round_is_still_a_dead_backend() -> None:
+    """The other half, and the ambiguity that kept the entry open.
+
+    A first completion capped but whole enough to dispatch, then a transport failure on the
+    second: reporting that as a truncation would hide the dead backend and skip the re-place
+    that exists for exactly it. The narrower error type is what keeps the two apart, since only
+    an unassemblable call raises it.
+    """
+    store = InMemoryTaskStore()
+    await _stored_task(store)
+    gpu = CutToolCallBackend(
+        stop=DecodeStop(StopReason.CAPPED),
+        error=InferenceError("llama-server sent nothing for model 'subagent' within its ceiling"),
+    )
+    cpu = RecordingBackend([[TextChunk("the cpu answered."), DecodeStop(StopReason.FINISHED)]])
+    async with asyncio.timeout(_SUITE_BOUND_S):
+        result = await _cut_runner(store, gpu, cpu).run("t1")
+    assert result.ok is True
+    assert result.output == "the cpu answered."
+    assert "sent nothing" in result.detail  # the GPU attempt's own reason, kept by the fold
 
 
 # --- the value ------------------------------------------------------------------------------

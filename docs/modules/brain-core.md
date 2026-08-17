@@ -1081,7 +1081,10 @@ unchanged):
   rule-edit addenda). A schedule outlives every model swap and restart, and the one hard rule is the
   reason this port exists.
 - `Clock` provides `now() -> datetime`, always tz-aware. The core's only time source.
-- `SessionStoreError` / `InferenceError` / `ModelManagerError` (+ its
+- `SessionStoreError` / `InferenceError` (+ its `MalformedToolCallError`, ADR-0005 tool-call-cut
+  addendum: the stream arrived and the tool call the model wrote will not parse, which the same
+  model writes again wherever it runs, so a caller holding a `StopLedger` can tell a call a token
+  limit cut from a backend that died) / `ModelManagerError` (+ its
   `ModelUnavailableError`, `SwapFailedError`, `ResidencyRestoreError`, and
   `HandoffInProgressError`, ADR-0030: the two swap failures, plus the refusal that is not a
   failure at all, since it means the deep model IS loaded and working on another turn, which is
@@ -1747,7 +1750,15 @@ Use-case:
   than the model breaking its grammar. The run also passes a `StopLedger` on the loop context and
   reads it after (ADR-0005 finish-reason addendum): a completion the backend says a token limit
   cut is an `AttemptFailure.TRUNCATED` outcome carrying `GENERATION_CAP_MSG`, which is what stops
-  a capped delegated reply reading as a finished one. The outcome vocabulary (`AttemptFailure`,
+  a capped delegated reply reading as a finished one. **A cut that lands inside a tool call takes
+  the same verdict through a different door** (ADR-0005 tool-call-cut addendum): the adapter
+  assembles the model's calls only once the stream is over, so a cap firing mid `arguments` raises
+  `MalformedToolCallError` instead of reaching the settling, and the arm that catches it reports
+  `TRUNCATED` **only when the ledger also saw a cap**. Both facts are needed and neither is
+  sufficient: the error type says the fragment is the model's own rather than the transport's, and
+  the ledger says a limit ended a completion, so a transport failure on a round after a capped one
+  stays `INFERENCE` and keeps its re-place, and an unparsable call under a silent backend stays
+  `INFERENCE` too. The outcome vocabulary (`AttemptFailure`,
   `AttemptOutcome`, `reran_on_cpu`, and every refusal template a failure reports as its `detail`)
   lives in `subagent_outcome.py`, the line-cap split made when the cap landed and widened when the
   finish reason arrived, and is re-exported here so every existing import resolves. With

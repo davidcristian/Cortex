@@ -20,6 +20,8 @@ from cortex_core import (
     GenerationBounds,
     ImagePart,
     InferenceError,
+    InferenceEvent,
+    MalformedToolCallError,
     Message,
     ModelUnavailableError,
     ReasoningChunk,
@@ -65,6 +67,16 @@ def _backend(handler: _Handler, *, resident: str = "cortex") -> LlamaCppBackend:
     manager = SingleResidentModelManager(resident, _ENDPOINT)
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     return LlamaCppBackend(manager, client)
+
+
+async def _drain_into(stream: AsyncIterator[InferenceEvent], seen: list[InferenceEvent]) -> None:
+    """Collect events until the stream raises, keeping what arrived before the raise.
+
+    A comprehension would discard the whole list at the raise, and what arrived before it is the
+    thing under test wherever a stream reports something and then fails.
+    """
+    async for event in stream:
+        seen.append(event)  # noqa: PERF401 -- see above: a comprehension loses this on the raise
 
 
 async def _collect(backend: LlamaCppBackend, model: str = "cortex") -> list[str]:
@@ -445,6 +457,43 @@ async def test_malformed_tool_call_arguments_raise_inference_error() -> None:
     stream = _backend(handler).stream("cortex", _messages(), tools=[_read_spec()])
     with pytest.raises(InferenceError, match="malformed tool-call arguments"):
         [event async for event in stream]
+
+
+async def test_an_unparsable_tool_call_is_the_ports_narrower_failure() -> None:
+    """The model's own tokens, said apart from the transport's (ADR-0005 tool-call-cut addendum).
+
+    Measured against a real server, this is what a token limit landing inside ``arguments``
+    leaves: an unterminated fragment under ``finish_reason: "length"``. Reported as the wide
+    error it reads as a backend that did not answer, and the delegated runner spends a second
+    model load on it; the narrow one lets a caller pair it with the stop reason it already saw.
+    """
+    content = _sse(
+        _chunk(
+            {
+                "tool_calls": [
+                    {
+                        "index": 0,
+                        "id": "c4",
+                        "function": {"name": "write", "arguments": '{"body":"In the realm of'},
+                    }
+                ]
+            }
+        ),
+        '{"choices":[{"finish_reason":"length","index":0,"delta":{}}]}',
+        "[DONE]",
+    )
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=content)
+
+    stream = _backend(handler).stream("cortex", _messages(), tools=[_read_spec()])
+    seen: list[InferenceEvent] = []
+    with pytest.raises(MalformedToolCallError):
+        await _drain_into(stream, seen)
+    # The stop rides the last chunk and the calls are assembled only once the stream is over, so
+    # the caller has already been told the completion was capped when the raise arrives. That
+    # ordering is the whole of what makes the pairing possible.
+    assert seen == [DecodeStop(StopReason.CAPPED)]
 
 
 class _BlockingStream(httpx.AsyncByteStream):

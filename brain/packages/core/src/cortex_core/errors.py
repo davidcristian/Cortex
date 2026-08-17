@@ -15,6 +15,32 @@ class InferenceError(Exception):
     """An InferenceBackend failed to produce or continue a completion."""
 
 
+class MalformedToolCallError(InferenceError):
+    """The server answered and the tool call the model wrote could not be assembled.
+
+    The port's one narrower inference failure, and the distinction is between **a backend that
+    did not answer** and **a model whose own output will not parse** (ADR-0005 tool-call-cut
+    addendum). Every other ``InferenceError`` says the endpoint could not be reached, stalled,
+    refused the request, or broke the streaming protocol, and every one of those is worth trying
+    on another target: a second server may well answer. This one says the stream arrived and the
+    ``arguments`` string it carried is not JSON, which the same model on another target produces
+    again, because the tokens are the model's and not the transport's.
+
+    It is what makes a cut tool call legible. A completion stopped at a token limit mid
+    ``arguments`` leaves exactly this fragment, and a caller holding a ``StopLedger`` can pair the
+    two facts (this error, and a completion that stopped at a limit) into the truthful verdict,
+    where the wider type alone reads as a dead backend and buys a second model load to be cut at
+    the same limit again. Neither fact carries the verdict alone: an unparsable fragment with no
+    cap reported is a model that broke its own grammar, and a cap with an ordinary transport
+    failure after it is still a transport failure.
+
+    It is a subclass rather than a sibling so every existing ``except InferenceError`` keeps
+    catching it, the ``MemoryDataError`` and ``ModelNotHostedError`` precedent: a caller with no
+    use for the distinction goes on failing exactly as it did, and only the callers that can act
+    on it name the narrower type.
+    """
+
+
 class MemoryStoreError(Exception):
     """A MemoryStore operation failed (memory adapters wrap their backend's errors)."""
 
