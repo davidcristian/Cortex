@@ -2179,3 +2179,109 @@ inside a scheme word or its separator** (`ht<TAB>tp://evil.example`), which the 
 resolves and which anchors nothing today. Unchanged: the full UTS-39 confusables set stays
 declined, footer and boilerplate heuristics stay declined, and a bare domain with no scheme at all
 is still out of scope, which is what the single-label decline leans on rather than contradicts.
+
+## Addendum (2026-08-17): a removal inside a word, which is where the fifteenth addendum stopped
+
+Closes the entry the fifteenth addendum opened rather than chased, and closes it with the rule that
+entry said it would need: not one more character admitted to a **class**, which is what every
+widening before it did, but a character admitted **inside a word**. The close is **grammar and
+identity only, with no seam change**: all three `OutputGuardrail` policies, the `TaintLedger`,
+`TaintView`, the streaming filter and the config are untouched, `normalize_url` gains no pass, every
+policy inherits the wider matching for free, and a clean or untainted turn is byte-identical to
+before. Still **deterministic and dependency-free** (stdlib only).
+
+### The entry's own premise, re-derived rather than believed
+
+The entry said the identity had to decide where the removal sits relative to the refanger, "since
+`hxx<TAB>p` refangs only if the removal ran first". Run against the shipped module, that is not
+true: `normalize_url("hxx<TAB>p://evil.example/pay")` already answers `http://evil.example/pay`,
+because the refanger's anchor reads the first three characters and the tab stands after them. The
+real position is one character to the left, and it is a different question. Measured before any
+change:
+
+| spelling | `extract_urls` before | `normalize_url` before |
+|---|---|---|
+| `ht<TAB>tp://evil.example/pay` | `frozenset()` | (never matched) |
+| `hxx<TAB>p://evil.example/pay` | `frozenset()` | the plain link |
+| `h<TAB>xxp://evil.example/pay` | `frozenset()` | `hxxp://evil.example/pay`, unrefanged |
+| `http:/<TAB>/evil.example/pay` | `frozenset()` | (never matched) |
+| `http[:<TAB>//]evil.example/pay` | `frozenset()` | `http[://]evil.example`, unrefanged |
+| `http://evil[d<TAB>ot]example/pay` | **`http://evil[dot`** | a truncated host |
+
+The last row was found while widening the scheme and is worse than the scheme was, so it is closed
+here too. The bracket chunk's inner run excluded every blank, so a tabbed defang token failed the
+chunk, the match fell back to the ordinary body, stopped at the closing bracket the body cannot
+cross, and put a **wrong host** in the ledger. That is not the "anchors nothing" shape, it is the
+"wrong identity" one, and it means untrusted content spelling its own link that way defeated the
+default policy against the *plain* link in the reply.
+
+### One rule, generated per character, and the ordering question it dissolves
+
+The rule is a sentence: **a removal may stand between any two characters of any literal this
+grammar spells**, because a URL parser deletes them before it reads any of those literals. It is
+one helper in `url_removals.py` (`permeable`, generated per character, the `_prefixes` precedent)
+plus a run at the junctions a literal cannot see: between a bracket and the token it wraps, and
+between a scheme word and its separator. It reaches the scheme words, the separator's junctions,
+the defanged separator and dot tokens, the bracket chunk's inner run, the gap's spelled-out word,
+and the refanger's own literals, and it is spelled once for all of them.
+
+That is also the answer to the entry's ordering question, and the answer is that **nothing moves**.
+The removal keeps running after the gap fold, so `evil<TAB>dot<TAB>com` keeps the reader's reading
+(`evil.com`) exactly as the fifteenth addendum decided; the refanger simply stops caring where a
+removal stands, by spelling its own literals through the same helper. Two passes over the same
+question is what the entry expected to have to choose between, and the choice was false.
+
+**One family is deliberately not permeable, and the line is the ninth addendum's own**: an HTML
+character reference is admitted because *one rendering pass* resolves it, and no renderer resolves
+`&#5<TAB>8;` or `&col<TAB>on;`. So the junctions around a reference are permeable and its digits
+and its name are not, which is why the two are generated separately. The host classes stay
+impermeable for the fifteenth addendum's reason, unchanged: it is what leaves a tab between two
+labels reading as the gap.
+
+### False positives, which are the real cost of widening a matcher
+
+Measured over the repo's own prose at `HEAD`, read from the index, **1,072 files and 1,407,583
+words carrying 2,851 matched spans**: **zero spans added, zero lost, zero extended, and zero
+identities changed**, the last checked by normalizing every one of the 2,851 matches under both the
+previous commit's passes and this one's. The tab landed at zero when it was admitted to the body
+and it lands at zero again inside the words, which is the same number the line break failed to
+reach and still does not: nothing here touches that decline.
+
+The accepted cost is the fifteenth addendum's, unchanged and not widened: a tab immediately after a
+link is inside the match, so a strict or lookalike turn redacts the word behind it. Nothing new is
+carried in the stream either, beyond the hold-back now comparing its tail with the removals dropped.
+
+### Tests, each mutation-proven
+
+Eleven new behaviour tests in `packages/core/tests/test_guardrail.py`, each break applied to the
+production source with `__pycache__` cleared and verified applied before the run, and restored
+after; the arm is `packages/core/tests`, green before and after:
+
+| the break | tests reddened |
+|---|---|
+| the helper returns the literal (nothing is permeable) | 10 |
+| the scheme words stay impermeable in the matcher | 7 |
+| the refanger's scheme anchor stays impermeable | 2 |
+| the hold-back compares its tail with the removals left in | 2 |
+| the separator's junctions carry no removal | 1 |
+| the bracket chunk's inner run excludes the removal again | 1 |
+| the removal reaches inside a numeric reference's digits | 1 |
+| the removal reaches inside a named reference | 1 |
+
+The last two are the decline being held rather than the close being proven, which is why they are
+in the table: a rule that only ever widens is a rule nothing can hold, and the ninth addendum's
+"one rendering pass" line is what says where this one stops. The streaming behaviour needed one
+change and no new branch: the tail comparison drops removals before it looks, and its window is
+counted in the characters that survive that drop, so a run of them cannot push an opening out of
+reach of the scan. Verified at every two-way split point of nine probes under all three policies
+(936 splits) and at one character at a time, each agreeing with the whole-string feed.
+
+### What stays open
+
+The tail this came out of stays closed. The **line break** stays declined on its 42 extended spans,
+and this pass does not revisit it: permeability is spelled from the removal table, so admitting the
+line break would have widened every literal at once, which is one more reason the table holds only
+the tab. What remains beside it is the sibling entry, a **host that mixes a plain dot and a gap**
+(`http://www.evil dot com`), which is untouched here: it needs the **dotless rule** relaxed, and no
+rule this pass spells goes near it. Unchanged: the full UTS-39 confusables set stays declined, footer
+and boilerplate heuristics stay declined, and a bare domain with no scheme is still out of scope.

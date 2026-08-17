@@ -27,6 +27,7 @@ concatenates), so the two derive from one table and cannot drift. Pure state- an
 import re
 
 from cortex_core.url_identity import DEFANG_DOT, DOT_WORD, LABEL_SEPARATORS
+from cortex_core.url_removals import REMOVED_CHARS, permeable
 
 # The bracket vocabulary, shared by every bracketed token here and by the chunks `urls.py` builds
 # from it, so the two cannot drift. The inner run excludes whitespace, prose/markup quoting, and
@@ -34,7 +35,11 @@ from cortex_core.url_identity import DEFANG_DOT, DOT_WORD, LABEL_SEPARATORS
 # run fails and backtracks linearly).
 OPEN_BRACKET = r"[\[({]"
 CLOSE_BRACKET = r"[\])}]"
-CHUNK_INNER = r"[^\s<>\"'\[\](){}]"
+# The removal joins the inner run though every other blank is excluded, for the reason the body
+# admits it: a parser deletes it before it reads the chunk, so `[d<TAB>ot]` is `[dot]`. Without
+# it a tabbed token failed the chunk, the match fell back to the body and stopped at the closing
+# bracket, and the ledger held a truncated host (ADR-0015 seventeenth addendum).
+CHUNK_INNER = rf"(?:[^\s<>\"'\[\](){{}}]|{REMOVED_CHARS})"
 
 # Every defang bracket shape is enumerated, not just `[...]`: the refanger always folded `(.)`/`{.}`
 # as readily as `[.]`, but the separator tables listed only the square form, so `http(://)evil.com`
@@ -143,7 +148,9 @@ GAP_WHITESPACE = rf"[ \t{NFKC_SPACES}]"
 # a false-positive worry the twelfth addendum measured instead. The token between the spaces is
 # the spelled-out word, any reading of the dot, or the refanger's own bracketed token, so the
 # three tables above and `DEFANG_DOT` are what say what a gap may hold.
-SPACED_DOT = rf"{GAP_WHITESPACE}+(?:{DOT_WORD}|{DOT_SPELLING}|{DEFANG_DOT}){GAP_WHITESPACE}+"
+SPACED_DOT = (
+    rf"{GAP_WHITESPACE}+(?:{permeable(DOT_WORD)}|{DOT_SPELLING}|{DEFANG_DOT}){GAP_WHITESPACE}+"
+)
 
 # The same tokens as *literal text*, for the streaming hold-back, which has to recognize a gap that
 # has opened but not closed and so needs each token's prefixes rather than the token. The entity
