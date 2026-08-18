@@ -4510,3 +4510,28 @@ putting the share back on tree membership and taking the transition away: the cl
 105.859px in one frame with two distinct values and a boundary step of 135.141 to 241, and the
 opening step to 87.906px in one frame. Removing the override returns every number to the eased
 reading.
+
+## Addendum: the two cards that spend their whole inset on the rail keep it (2026-08-18)
+
+Decision 22 funds the rail out of each container's own inline-end padding, and for two of the seven
+that is the whole padding: `.switcher` and `.reminders` carry a 6px inset which is exactly the rail,
+so on the right the rail *is* the inset and a row's box reaches the reserved band. That tradeoff was
+recorded as a refinement when the decision landed. It is closed here with nothing moved, and the
+reasoning is worth keeping because the entry could only ever have been "implemented" by making the
+overlay worse.
+
+The resting geometry is the property that matters and it is unchanged: rows sit where they sat
+before the rail was reserved, whether or not the list scrolls. The 1px the box clears the thumb by
+is a fact about the box rather than about anything visible, because the hairline between two rows is
+a border-top on a 12px-radius row whose last tinted pixel is nine columns clear of the thumb's
+first, measured in both themes. Text and controls stay 9px to 11px clear, since each row pays its
+own horizontal padding. Undoing it means putting 6px back on the card and living with an inline-end
+inset of twice the left one, or narrowing the rail for these two cards alone, which is a second set
+of numbers to maintain for a defect nobody has reported.
+
+Both of the conditions that would bring it back are edits to other rules, and the place to catch
+them is the stylesheet rather than a backlog file: each card's comment carries the arithmetic and
+says what a row dropping its padding would have to put back. Closing this also fixed four comments
+in that stylesheet still pointing at a per-area backlog document that no longer exists, one of them
+on each of these two cards. A bare path inside a CSS comment is gated by nothing, which is why they
+had gone stale quietly, and it is the one thing here worth watching for again.
