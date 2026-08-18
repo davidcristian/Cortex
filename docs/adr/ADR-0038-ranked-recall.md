@@ -1862,3 +1862,71 @@ against the same store and reddened `check_count_candidates_sizes_the_set_a_sear
 
 **Nothing.** The two derivable causes are answered by not building them, argued in decision 4
 rather than filed, and the count is exact so there is no bound to revisit.
+
+## Cut-fold addendum (2026-08-18): a rejected fold says why, and the earlier "not a signature change" is reversed
+
+A fold whose account `clean_recap` rejects logs one line, "the model returned no usable history
+recap; falling back to the plain window", carrying `session_id` and `boundary` and nothing else.
+The fallback is silent and self-heals on the next boundary move, both by design, and together
+those two properties mean nothing accumulates for a reader to compare: the completion that was
+rejected is gone the moment the turn is. So an operator watching a fold that keeps falling back
+is left with two fixes that point in opposite directions, raising `RECAP_MAX_TOKENS` or folding
+less, versus rewriting `_INSTRUCTION`, and no way to choose between them.
+
+**The behaviour wants nothing, and that has not changed.** `clean_recap` rejects on shape rather
+than on transport, and that check is right whichever way this decision goes: it catches a fold the
+server cut, a fold the model ended mid-thought, and a fold that arrived mangled, where a stop
+reason catches only the first. Rejecting rather than trimming stays load-bearing for the reason
+already recorded, that a stored cut account advances `covers` past turns its missing tail never
+reached. Nothing here touches any of it. This addendum is entirely about the line beside it.
+
+**What the log now carries, and why it is exactly two fields.** `capped`, taken from a
+`StopLedger` the fold hands to `drain_text`, is the only reading that separates a fold the token
+budget cut from one the model ended in the wrong shape. Those are the two cases with opposite
+fixes, and they produce byte-identical text, so no amount of inspecting the rejected account can
+tell them apart. `chars` is the account's length, and it splits the two causes a stop reason
+cannot: `0` is a model that said nothing at all, a number past `RECAP_MAX` is one that ran further
+than the store will hold, and in between is the bucket where `capped` does the work. That second
+half is free and needs no signature at all, which is why it is here rather than filed.
+
+The length is measured through `collapse_recap`, a new one-line public function in
+`recap_prompt.py` that `clean_recap` now calls too. That indirection exists for one reason: the
+number a rejection is *logged* with must be the number the rejection was *decided* on. A second
+spelling of the same normalization would agree with the first everywhere except on a reply sitting
+within a few characters of `RECAP_MAX`, which is precisely the reply whose bucket a reader would
+be trying to settle.
+
+**The reversal, stated rather than slipped in.** ADR-0005's finish-reason addendum considered this
+exact consumer and declined it in writing: making the fold read a stop means changing `drain_text`,
+which returns a `str` and has three callers who want exactly that, and "that is worth a log line
+and not a signature change". That sentence was right about the cost and wrong about the
+alternative, because there is no log line that reaches this without the signature. The stop reason
+is the fact, and the fact is not otherwise in the fold's hands: it comes off the completion and
+`drain_text` was dropping it. So either the helper carries it or the diagnosis does not exist.
+
+What makes the reversal cheap is that the shape it declined is not the shape that landed. It
+priced a result value or an out parameter, either of which would have grown the session title and
+the rerank judge a field they ignore. What landed is an **optional collaborator**,
+`stops: StopLedger | None = None`, which is not a new pattern here at all: it is exactly how
+`ToolLoopContext` threads a ledger into `stream_tool_loop`, and exactly how `cadence` is threaded
+beside it. A caller that hands none drops the stop as this helper always has, the return type is
+still a bare `str`, and the other two callers are byte-identical. ADR-0005's own text stands as
+written; it was true on its date, and this records where it stopped being.
+
+**Consequences.**
+
+- `drain_text` goes from five arguments to six, which is ruff's `max-args` ceiling exactly. It
+  passes, and it is now full: a seventh collaborator wants the `ToolLoopContext` move, a bundle,
+  rather than another keyword. That is stated in the docstring so the next person meets it before
+  the linter does.
+- The two callers that want only a string are unchanged, which was the whole objection to the
+  earlier shape.
+- A quiet backend still reads as uncut. `StopLedger` treats an absent report as "not capped", so a
+  build that reports no reason logs `capped=False` and a reader is not sent after a token budget
+  that was never the problem. That property is the ledger's, not this consumer's, and it is what
+  makes reusing the ledger safe here.
+
+Filed rather than built: `JudgeRecallPolicy` is the other `drain_text` caller with a fallback, and
+its three fallback sites log **nothing at all**, so a rank that quietly fell back to geometry
+cannot be told from one that never ran. The fold now says why it gave up and the judge still does
+not ([R-309](../refinements/tasks/309-a-silent-judge-fallback.md)).

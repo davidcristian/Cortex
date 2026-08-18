@@ -15,8 +15,9 @@ the code rather than at the mercy of the collector.
 from collections.abc import AsyncGenerator, Sequence
 
 from cortex_core.conversation import Message
-from cortex_core.inference import GenerationBounds, JsonSchema, TextChunk
+from cortex_core.inference import DecodeStop, GenerationBounds, JsonSchema, TextChunk
 from cortex_core.ports import InferenceBackend
+from cortex_core.stops import StopLedger
 
 
 async def drain_text(
@@ -26,6 +27,7 @@ async def drain_text(
     *,
     schema: JsonSchema | None = None,
     bounds: GenerationBounds | None = None,
+    stops: StopLedger | None = None,
 ) -> str:
     """Consume one completion to its end, closing the stream whatever happens, and join its text.
 
@@ -40,14 +42,30 @@ async def drain_text(
     caller to decide about, and the stream is closed on that path too, which is the whole reason
     this exists.
 
+    ``stops`` is the optional collaborator that receives the closing ``DecodeStop``, threaded the
+    way ``ToolLoopContext`` threads one into ``stream_tool_loop`` and for the same reason: why a
+    completion ended is a fact about the machine that stopped it rather than something the model
+    said, so it goes to whoever asked instead of into the returned text. A caller that hands none
+    drops the stop exactly as this helper always has, so the return type is still a bare ``str``
+    and the callers that want only that are untouched (ADR-0038's cut-fold addendum). The recap
+    fold passes one, a fold cut at the token cap being otherwise indistinguishable from a model
+    that wandered.
+
     The port promises only an ``AsyncIterator``, and only an async *generator* has an ``aclose``
     to call; a plain iterator holds no suspended ``finally`` and so holds no lease. Both shapes are
     live in this tree, so the close is guarded rather than assumed.
+
+    Six arguments is ruff's ceiling here, deliberately reached rather than approached: a seventh
+    collaborator wants a bundle (the ``ToolLoopContext`` move), not another keyword.
     """
     stream = backend.stream(model, messages, schema=schema, bounds=bounds)
     parts: list[str] = []
     try:
-        parts = [event.text async for event in stream if isinstance(event, TextChunk)]
+        async for event in stream:
+            if isinstance(event, TextChunk):
+                parts.append(event.text)
+            elif isinstance(event, DecodeStop) and stops is not None:
+                stops.observe(event)
     finally:
         if isinstance(stream, AsyncGenerator):
             await stream.aclose()

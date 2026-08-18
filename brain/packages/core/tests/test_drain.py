@@ -14,7 +14,14 @@ import pytest
 
 from cortex_core import InferenceError, Message, ReasoningChunk, Role, TextChunk, ToolCall, ToolSpec
 from cortex_core.drain import drain_text
-from cortex_core.inference import GenerationBounds, InferenceEvent, JsonSchema
+from cortex_core.inference import (
+    DecodeStop,
+    GenerationBounds,
+    InferenceEvent,
+    JsonSchema,
+    StopReason,
+)
+from cortex_core.stops import StopLedger
 
 _AT = datetime(2026, 8, 6, tzinfo=UTC)
 
@@ -153,3 +160,50 @@ def test_a_cap_of_no_tokens_is_a_configuration_mistake_not_a_silent_empty_reply(
         GenerationBounds(max_tokens=0)
     with pytest.raises(ValueError, match="at least 1"):
         GenerationBounds(max_tokens=-1)
+
+
+async def test_a_capped_stop_reaches_the_ledger_a_caller_handed_in() -> None:
+    """The optional collaborator, threaded the way the tool loop threads one.
+
+    A ``DecodeStop`` says why the machine stopped, not what the model said, so it must reach the
+    ledger and never the returned text. The text assertion is half the point: a stop that leaked
+    into the join would put a machine fact into an account a user reads.
+    """
+    ledger = StopLedger()
+    backend = _GeneratorBackend(
+        [TextChunk("They agreed to ship on the"), DecodeStop(reason=StopReason.CAPPED)]
+    )
+    text = await drain_text(backend, "cortex", [_message()], stops=ledger)
+    assert text == "They agreed to ship on the"
+    assert ledger.capped is True
+
+
+async def test_a_completion_that_ended_itself_leaves_the_ledger_uncapped() -> None:
+    """The contrast that makes the flag mean something: same shape, opposite reading."""
+    ledger = StopLedger()
+    backend = _GeneratorBackend(
+        [TextChunk("They agreed to ship on the"), DecodeStop(reason=StopReason.FINISHED)]
+    )
+    assert await drain_text(backend, "cortex", [_message()], stops=ledger) == (
+        "They agreed to ship on the"
+    )
+    assert ledger.capped is False
+
+
+async def test_a_stop_with_no_ledger_is_dropped_exactly_as_it_always_was() -> None:
+    """The two callers that want only a string are untouched by the new keyword.
+
+    A stop arriving with nowhere to go must be discarded silently, which is the behaviour this
+    helper shipped before a ledger could be passed at all.
+    """
+    backend = _GeneratorBackend([TextChunk("a title"), DecodeStop(reason=StopReason.CAPPED)])
+    assert await drain_text(backend, "cortex", [_message()]) == "a title"
+    assert backend.closed
+
+
+async def test_an_event_that_is_neither_text_nor_a_stop_is_dropped_with_a_ledger_watching() -> None:
+    """The arm a ledger must not change: private thinking stays out of the text either way."""
+    ledger = StopLedger()
+    backend = _GeneratorBackend([ReasoningChunk("thinking out loud"), TextChunk("the answer")])
+    assert await drain_text(backend, "cortex", [_message()], stops=ledger) == "the answer"
+    assert ledger.capped is False
