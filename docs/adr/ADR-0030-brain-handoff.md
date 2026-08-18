@@ -3286,3 +3286,75 @@ does host a deep tier.
 - **It does not touch boot recovery.** The `ERROR` at startup stays exactly as it was: it is the
   operator's copy of the same fact, and a deployment that never escalates would otherwise never
   learn it.
+
+## Spill-latch addendum (2026-08-18): the second actor is declined, and its own record was half stale
+
+The spill-watch addendum above ends by recording the obvious second actor as a deferral: a handoff
+that stops promising co-residency once it has watched itself spill. It is closed here on the
+merits, and the first thing the re-derivation found is that the deferral's own two-line reasoning
+had aged badly in both halves.
+
+**A latch would withhold the peers, not the cortex.** The deferral is written as evicting the
+cortex "next time", and `residency_moves` stops the cortex on every handoff already. What
+`coresident` decides is whether the peer tiers are stopped too and whether the subagent pool is
+drained, so the thing an automatic latch would take away is delegation through the handoff.
+
+**"Nowhere to keep the latch" stopped being true the following day.** `ResidencyPlan` is still a
+frozen value, but `StandingTiers` landed on 2026-08-09 as a mutable, process-lifetime residency
+record held by the manager, read by the seam through `note_on`, and already pulling an automatic
+lever off observed evidence when it closes GPU placement. Cost is not the argument any more, and
+leaving that claim in the record would have told the next reader this was expensive when it is not.
+
+**What decides it is evidence and reversibility.** A cadence reading is one handoff wide, and a
+spill can be produced by the desktop taking a gigabyte during a load rather than by the pair
+genuinely not fitting; the runbook records this machine's idle floor moving by about that much, and
+the pairing this stack actually ships was measured to fit with about 908 MiB to spare. The tier
+record heals, because a sweep re-reads each peer's real state and can mark it standing again. A
+co-residency latch has no heal path at all: the only evidence that could clear it is a co-resident
+handoff, which is what it just disabled. So it would trade a transient for a permanent loss of
+delegation, unattended, until the brain restarts.
+
+**The half of the trigger that is real gets its own entry.** A second machine adopting
+`CORTEX_SWAP_CORESIDENT` from this repo's numbers is caught at boot by the required
+`CORTEX_SWAP_BRAIN_VRAM_MIB` and at swap time by the free-memory check, and the residue is the
+under-declaration the decode watch exists to warn about. The operator who never reads the log is
+not covered by any of that, and the answer is to move the fact rather than to disable the feature:
+the verdict can ride a serving residency report's detail exactly as a missing tier does, which
+`Health` already prefers over its version string and the overlay already renders. That is filed as
+[R-304](../refinements/tasks/304-spill-rides-the-residency-report.md), with the honest cost noted
+(the deep phase holds no reference to the manager, so it needs a writer it can reach, and a note
+about one handoff needs a rule for when it stops standing).
+
+## Fenced-claim addendum (2026-08-18): the single-handoff fence is declined, on scope rather than staleness
+
+The 2026-07-18 addendum above recorded that the single-handoff claim binds one process and named
+what would close it. Re-derived on 2026-08-18, every word of it is still true of the tree, one
+identifier having moved (`self._handoff_claimed` is now `HandoffClaim`'s flag, over the residency
+board's condition). It is closed here anyway, because the fence cannot deliver the property its
+name promises.
+
+**It is one guard of five.** The GPU lease is an `asyncio.Lock` on the manager, the residency record
+and the condition every acquire queues on are `ResidencyBoard` instance state, the missing-peer
+record is `StandingTiers`, and the subagent placer's VRAM ledger is instance floats. `swap_builders`
+already states the manager must be a single instance because a second one would be a second lease.
+Two brain processes on one Redis would double-lease the card, publish contradicting residency to two
+seams and charge the same VRAM twice, whether or not the handoff claim is fenced. Landing the fence
+alone would put a cross-process-looking guard at the one place a reader checks, above four guards
+that are still single-process, which reads as a stronger guarantee than the deployment has.
+
+**The atomic claim is also not the `SET NX` that addendum sketched.** `active()` self-heals today: a
+dangling pointer, or one naming a terminal record, reads as no handoff and mutates nothing. A bare
+`NX` on the active key destroys that property, so a stale pointer would refuse every escalation
+until a human cleared the key. Preserving the self-heal inside one atomic step means a Lua script
+that reads the pointer, reads the record it names and claims only when it is absent or terminal,
+plus the lease or owner id that lets boot recovery tell its own strand from another process's live
+handoff. That is a second distributed-concurrency protocol beside the schedule store's, written for
+a claimant population of one.
+
+**The trigger, which a closed task may not carry, lives here.** A second process that can swap: a
+second brain replica, a CLI or worker sharing the Redis, or a supervisor sidecar that swaps itself.
+The deployment still declares one `brain` service with no replicas, and the sidecar still performs
+no swap of its own, its control API able only to start, stop and report the tiers its env names. If
+that day comes, the work is a distributed-residency decision covering the lease, the board, the tier
+record and the ledger together, with a fenced claim as one of its consequences rather than as the
+whole of the change.
