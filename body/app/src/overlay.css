@@ -140,8 +140,8 @@
    matters, but the margins are only exactly symmetrical on the engine that ships. Firefox is not
    a target, so this stays a known asymmetry rather than a second set of numbers to maintain. It is
    an accepted tradeoff rather than an oversight, so it is filed as one in
-   docs/refinements/body-overlay.md (with the fix, which is to measure the UA's rail at startup and
-   publish it as `--rail` instead of assuming it) and at its origin ADR,
+   docs/refinements/tasks/146-reserved-rail-assumed-width.md (with the fix, which is to measure the
+   UA's rail at startup and publish it as `--rail` instead of assuming it) and at its origin ADR,
    docs/adr/ADR-0011-body-v1.md. */
 .stage ::-webkit-scrollbar {
   width: var(--rail);
@@ -300,7 +300,7 @@
    inside it, which a 90px blur buries. No backdrop blur here, measured rather than assumed:
    Chromium does not clip backdrop-filter output by a path() clip, so a liquid panel paints the
    theme's `--panel-solid` instead, and in the v1 window (opaque ground) nothing is visibly lost.
-   Refiled for the transparent-window pass in docs/refinements/body-overlay.md. */
+   Refiled for the transparent-window pass in docs/host/tasks/014-os-window-polish.md. */
 .panel.edge-live {
   background: transparent;
   border-color: transparent;
@@ -2222,9 +2222,10 @@
      not the list is long enough to scroll. The tradeoff of spending the whole inset is that a row's
      box now reaches the rail while the list scrolls, so the clearance between the thumb and the
      title is the row's own 11px of padding (`.switcher-item`), not the card's. A row that ever
-     drops its horizontal padding has to put the 6px back here, which is one of the two triggers
-     this is filed under in docs/refinements/body-overlay.md; the other is the maintainer reading the
-     rail as too close to the chrome. */
+     drops its horizontal padding has to put the 6px back here, which is one of the two things
+     that would bring the tradeoff back; the other is the maintainer reading the rail as too close
+     to the chrome. The tradeoff is argued at the decision it spends, decision 22 of
+     docs/adr/ADR-0035-console-and-motion.md, with the rule in docs/design/overlay-ux.md. */
   padding: 6px 0 6px 6px;
   /* 40vh is what this list may take when nothing else is competing for the column, and the room
      beside it is what the panel actually has (`.view`). The `vh` alone was the whole cap once,
@@ -2523,8 +2524,9 @@
      between two reminders is a border-top on a 12px-radius row, so it has curved away and faded
      into the card long before the box ends. Read off the pixels of the border row in both themes:
      its straight run ends at x=697 (698 in light), its last tinted pixel is x=701, and the thumb's
-     first painted column is x=711, so nine untouched columns sit between them. Filed with the
-     switcher's copy of it in docs/refinements/body-overlay.md. */
+     first painted column is x=711, so nine untouched columns sit between them. The switcher above
+     carries the same arithmetic, and both spend decision 22 of
+     docs/adr/ADR-0035-console-and-motion.md. */
   padding: 6px 0 6px 6px;
   /* The switcher's arithmetic again, and for the same reason: 30vh is this stack with nothing else
      competing for the column, and the room beside it is what the panel actually has (`.view`). */
