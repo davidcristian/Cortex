@@ -764,3 +764,43 @@ green in 2m08s on this machine, with every suite naming the seed in its own head
 nothing in the repo records that a sweep ran or what it drew, so a sweep that goes red while the
 notification goes nowhere is a red nobody reads
 ([R-291](../refinements/tasks/291-a-red-sweep-leaves-no-trace-in-the-repo.md)).
+
+## Addendum (2026-08-18): the relayed compiler stays relayed, and the reason is not effort
+
+The single-verdict addendum above ends by naming what remained: the export names its tool and not
+its compiler, so the half of the attribution that actually drifted in the build-script incident is
+the half still taken on the recipe's word. That is closed here without a mechanism, on a
+re-derivation which found that the shape the entry itself proposed cannot work in this repo.
+
+**The proposal was two-sided broken.** It asked for the relayed string to be refused unless it
+parses as a nightly and carries a date no older than the one the last green run recorded, which
+needs the run to record one. The two sides here deliberately resolve different nightlies, this host
+at 1.98.0-nightly (2026-07-01) and CI at whatever the channel is on the day, which is the
+divergence the addendum above documented rather than fixed. A committed stamp would fail the host on
+every run after CI wrote a newer date; a per-machine ignored stamp is absent on a fresh CI checkout,
+which is the run the check exists for. Neither placement of the stamp survives the arrangement this
+repo has chosen.
+
+**The other half of the trigger buys a check that cannot fail.** If cargo-llvm-cov began recording
+the compiler, the gate would compare a string the recipe probed against one written seconds earlier
+in the same shell by the same `+nightly`. A gate that cannot fail is a defect by this repo's own
+working agreement, so that is not a reason to build it either.
+
+**One route was found while re-deriving, and is recorded rather than taken.** Cargo writes the
+compiler of the instrumented build into `body/target/llvm-cov-target/.rustc_info.json`, which held
+`rustc 1.98.0-nightly (4c9d2bfe4 2026-07-01)` for this machine's run when it was read. That is a
+build-artifact read, the same category as reading `coverage.json`, so it does not put a toolchain
+call inside a pure gate module. It is still not worth doing: it buys the near-empty proposition
+above at the price of binding a gate to an undocumented cargo cache layout.
+
+**What actually drifted has one answer and it is already declined.** Cross-side divergence is caught
+only by an expected version written down, which is the dated pin, twice declined on its expiry cost.
+Nothing here changes that verdict; it records that the residual left beside it is not a smaller
+version of the same idea.
+
+**A hole in the same module, found while reading it, is not closed here.** Both `--rustc` and
+`--llvm-cov` are optional and each verdict is guarded by `is not None`, so deleting the flag from
+`check-body` deletes the producer cross-check silently, printing a full green verdict that no longer
+holds the export against the tool this run used. That is the mute-threshold shape again, and it is
+filed as [R-305](../refinements/tasks/305-optional-toolchain-relays.md) rather than folded in here,
+since making the relay mandatory is a different claim from checking it.
