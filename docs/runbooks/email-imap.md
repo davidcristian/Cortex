@@ -41,6 +41,20 @@ lists your folders, searches INBOX, and reads a message through `EmailReader` ov
 Bridge (the IMAP the fake cannot prove). Reads are non-destructive: EXAMINE + `mark_seen=False`
 never touch your mail.
 
+One of those tests is the guard on what `search_emails` tells a model its `query` may say
+(ADR-0022 search-dialect addendum): it runs one query per criterion family the field description
+names, and fails if the description names a criterion the queries never ran. Run it after any
+Bridge upgrade, because a criterion the server stops accepting becomes a parse error the model
+cannot repair, and this is the only place that shows up:
+
+```
+set -a; . ~/.cortex/email.env; set +a
+cd brain && uv run pytest -m integration --no-cov packages/email/tests/test_email_live.py -k criterion
+```
+
+Add `CORTEX_EMAIL_IMAP_TLS_INSECURE=true` when you are accepting the Bridge's self-signed cert on
+loopback rather than verifying it with an exported `ca_cert`.
+
 ## Bring up the sidecar + end-to-end
 
 ```
