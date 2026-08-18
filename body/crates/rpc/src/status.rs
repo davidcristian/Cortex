@@ -19,7 +19,19 @@ use tonic::Status;
 /// genuinely reported by the brain and maps to [`TransportError::Rpc`]. Shared
 /// with the `converse` adapter (`crate::converse`), which maps `Converse`
 /// stream statuses the same way.
-pub(crate) fn status_to_error(status: &Status) -> TransportError {
+///
+/// **tonic's own expired client-side timeout lands in the `Connection` set**, and
+/// that is a measured fact rather than a read one: `Status::try_from_error`
+/// mints a sourceless `Status::cancelled("Timeout expired")` and then attaches
+/// the originating `tonic::transport::Error` to it, so the walk below finds one.
+/// The honest classification of an expiry is therefore what this returns anyway,
+/// but `Connection` is *retryable* (`body_core::is_transient`), which is why the
+/// per-attempt deadline is still enforced in the core rather than by arming a
+/// tonic timer (ADR-0024 deadline addendum and its correction). Public so the
+/// contract suite can assert that against a real expiry rather than a
+/// constructed one: `tests/client.rs` runs it.
+#[must_use]
+pub fn status_to_error(status: &Status) -> TransportError {
     match transport_source(status) {
         Some(transport) => TransportError::Connection(error_chain(transport)),
         None => TransportError::Rpc {
