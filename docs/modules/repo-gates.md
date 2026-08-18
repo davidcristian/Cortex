@@ -13,13 +13,14 @@ belongs to neither the brain nor the body and is gated exactly like both. A stan
 `bindcheck.py`, `backlogcheck.py` and `coverage_gate.py` invoked by `just` recipes, `ci_paths.py`
 by the CI
 workflow, `commitlint.py` by the commit-msg pre-commit stage, `contrast.py` by `just turn-cost`;
-each also exposes a pure, unit-tested core function). Seven modules here have no CLI of their own,
+each also exposes a pure, unit-tested core function). Eight modules here have no CLI of their own,
 each split out under the line cap and each named for what it holds: `couplings.py` and
 `overlaycouplings.py` are the two halves of `crosscheck.py`'s registry, `values.py` is the value
 forms that scan compares on, `composemounts.py` is `bindcheck.py`'s compose reader, and
-`backlog.py`, `backlogindex.py` and `backloganchors.py` are the three `backlogcheck.py` reads a
-backlog through: the task-file grammar, the index renderer, and the anchors a document offers with
-every pointer in the repo aimed at one.
+`backlog.py`, `backlogindex.py`, `backloganchors.py` and `headingshapes.py` are the four
+`backlogcheck.py` reads a backlog through: the task-file grammar, the index renderer, the anchors a
+document offers with every pointer in the repo aimed at one, and what a heading may look like for
+that last question to have an answer.
 
 - `linecap.py [--root DIR] [--max-lines N]` implements AGENTS.md gate 1. Scans
   `*.py`/`*.rs`/`*.ts`/`*.tsx` under `--root` (default `.`), all three gated toolchains
@@ -217,6 +218,25 @@ every pointer in the repo aimed at one.
   is ever asserted about. A markdown target the scan did not read is a reported problem, missing,
   outside the tree and vendored being the three causes; a target whose name is not markdown is
   outside the question, `body.proto#L42` being a line anchor with no headings to be wrong about.
+  **A document carrying a heading `headingshapes.py` refuses is registered with `anchors=None`
+  too**, for the reason the broken index is: its anchor set is unknown, so nothing aimed at it is
+  judged and the run is already failing on the heading.
+- `headingshapes.py` is what a heading is to that scan, and the one place the gate says out loud
+  what it claims about rendering (ADR-0039 slug-fidelity addendum). `headings(text)` returns every
+  ATX heading outside a fenced block with its line number, which `anchors()` reads. The slug rule
+  is applied to a heading's **source**; a renderer slugs its **rendered** text, and the two agree
+  exactly when every construct in the source is built from characters the rule already drops and
+  carries no text away: plain prose, punctuation, code spans and `*` emphasis all qualify.
+  `unsluggable(text)` returns the six shapes that do not, each as an `Unsluggable(line, heading,
+  reason)`, and `problems(name, text)` renders them for the gate. The six are a link (inline,
+  reference, or image), angle-bracket markup (an HTML tag or an autolink), a closing run of hashes,
+  underscore emphasis, an entity reference, and a setext underline, which is the one that is
+  invisible rather than misread. **They are refused, not emulated**: rendering a heading's inline
+  markdown before slugging it is a transform written against shapes the tree does not contain, and
+  a wrong transform yields a wrong anchor, which is a silent accept nothing here could see, where a
+  refusal is loud. An underscore *inside* a word is never reported, CommonMark reading none as
+  emphasis, and neither is a link quoted inside a code span, whose backticks come off on both
+  sides.
 - `coverage_gate.py PATH [--rustc TEXT] [--llvm-cov TEXT]` reads a
   `cargo llvm-cov --json --summary-only` export, requires exactly one `data[]` entry, and gates
   each of `data[0].totals.{lines,regions,branches}` on `covered == count` (the producer's
@@ -362,6 +382,13 @@ every pointer in the repo aimed at one.
   backlog-only scan would have missed being the one that guard exists to keep in the input.
   `test_the_repo_really_aims_pointers_at_documents_that_are_not_a_backlog_index` is the same guard
   over the half the scan later grew, so a widening that judged nothing new could not report green.
+- `headingshapes.py` is held to the same pair.
+  `test_the_repo_itself_writes_no_heading_this_rule_cannot_slug` measures the clean verdict over
+  every markdown file rather than assuming it, which is what makes the refusal a house style and
+  not a migration, and
+  `test_the_repo_really_offers_the_two_shapes_this_rule_must_not_report` fails if the tree ever
+  stops carrying a code-span heading or an intraword-underscore one, those being the two shapes a
+  detector written slightly too wide would redden first.
 - The exclusion lists above are the single definition of "non-test source file" and
   "generated code" for the cap. Change them only with an ADR update.
 - `dashcheck.py`, `commitlint.py`, and their tests spell the dashes as `\uXXXX` escapes

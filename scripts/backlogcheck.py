@@ -6,7 +6,7 @@ into disagreement with the tasks, because the only way to change it is to change
 file and regenerate, and the gate fails on any difference. What the predecessor layout
 asked a person to keep true by hand, this asks a machine to keep true by construction.
 
-Five things fail here:
+Six things fail here:
 
 1. A task file outside the layout: a name that is not `NNN-slug.md`, a missing or
    duplicated field, a status outside the grammar, a title restating its own status, a
@@ -20,6 +20,10 @@ Five things fail here:
    heading renamed in one of those strands its own readers the same way.
 4. An index whose generated block is stale, missing, or hand-edited.
 5. A `tasks/` directory holding something that is not a task file.
+6. A heading written in one of the six shapes whose anchor the slug rule cannot work out, from
+   a link in the heading to a setext underline. `headingshapes.py` says which and why it
+   refuses them rather than emulating a renderer; the document carrying one has its own
+   anchors left unknown until it is rewritten, so nothing aimed at it is judged meanwhile.
 """
 
 import argparse
