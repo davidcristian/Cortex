@@ -125,6 +125,17 @@ def build_recap_messages(
     ]
 
 
+def collapse_recap(raw: str) -> str:
+    """The model's reply as one paragraph, which is the form every recap rule is written against.
+
+    Its own function so the number a rejection is *logged* with is the number the rejection was
+    *decided* on (ADR-0038's cut-fold addendum). The fold records how long the account was, and a
+    second spelling of this normalization would drift from this one by exactly the whitespace
+    that decides a reply sitting on the ``RECAP_MAX`` boundary.
+    """
+    return " ".join(raw.split())
+
+
 def clean_recap(raw: str) -> str:
     """The model's reply collapsed to one paragraph, or ``""`` if it is not a whole account.
 
@@ -143,7 +154,7 @@ def clean_recap(raw: str) -> str:
     so those turns are read again by the next fold, and this turn falls back to the plain window,
     which is the one failure this whole window is allowed to have.
     """
-    text = " ".join(raw.split())
+    text = collapse_recap(raw)
     if len(text) > RECAP_MAX:
         return ""
     # ``[-1:]`` rather than ``[-1]`` so an empty reply, and one that is nothing but closers,

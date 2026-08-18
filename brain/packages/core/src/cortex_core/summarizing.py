@@ -13,6 +13,16 @@ message PREPENDED to it. Every failure path (the store unreachable, the model un
 model saying nothing usable) returns that selection exactly as the shipped window would have. So
 a broken summarizer costs the user context it might have added, never a word they actually wrote.
 
+**And when it adds nothing, it says why** (ADR-0038's cut-fold addendum). Silently falling back
+self-heals on the next boundary move, which is the design, but it also means nothing accumulates
+for anyone to compare: the completion that was rejected is gone the moment the turn is. So the
+warning carries `capped`, taken from a `StopLedger` the fold hands to `drain_text`, and `chars`,
+the account's own length measured the way the rejection rules measure it. `clean_recap` rejects on
+shape and is right to, catching a
+cut account, a mid-thought one and a mangled one alike where a stop reason catches only the
+first; what the stop adds is not a better rejection but the only reading that separates a cut
+fold from a wandering one, which want opposite fixes.
+
 **It caches rather than recomputes.** The recap lives in Redis behind `SessionStore`, keyed by
 the boundary it covers. History is append-only, so a recap of a prefix can only go incomplete,
 never wrong: when the boundary moves the previous recap is folded together with the newly dropped
@@ -46,8 +56,15 @@ from cortex_core.events import StatusUpdate
 from cortex_core.ports import Clock, InferenceBackend
 from cortex_core.ports_stores import SessionStore
 from cortex_core.progress import ProgressSink
-from cortex_core.recap_prompt import RECAP_BOUNDS, build_recap_messages, clean_recap, fence_recap
+from cortex_core.recap_prompt import (
+    RECAP_BOUNDS,
+    build_recap_messages,
+    clean_recap,
+    collapse_recap,
+    fence_recap,
+)
 from cortex_core.sessions import HistoryRecap
+from cortex_core.stops import StopLedger
 from cortex_core.windowing import HistoryWindow
 
 _logger = logging.getLogger(__name__)
@@ -172,13 +189,28 @@ class SummarizingHistoryWindow:
             at=self._clock.now(),
             turn_id=history[boundary - 1].turn_id,
         )
-        text = clean_recap(
-            await drain_text(self._backend, self._model, prompt, bounds=RECAP_BOUNDS)
-        )
+        stops = StopLedger()
+        raw = await drain_text(self._backend, self._model, prompt, bounds=RECAP_BOUNDS, stops=stops)
+        text = clean_recap(raw)
         if not text:
+            # The two fields beside the message are the whole diagnosis, and they exist because
+            # the completion is gone by the time anyone reads this. ``capped`` separates the two
+            # causes with opposite fixes: True is the token budget running out mid-account, which
+            # wants a larger RECAP_MAX_TOKENS or a smaller fold, and False is a model that ended
+            # by itself and wrote the wrong shape, which wants the instruction rewritten.
+            # ``chars`` is the account's own length, measured the way the rejection rules measure
+            # it, so it splits the other two causes exactly: 0 is a model that said nothing (or
+            # nothing but whitespace), past RECAP_MAX is one that ran further than the store will
+            # hold, and in between is the bucket where a cut and a wander collide and ``capped``
+            # is the only reading that tells them apart.
             _logger.warning(
                 "the model returned no usable history recap; falling back to the plain window",
-                extra={"session_id": session_id, "boundary": boundary},
+                extra={
+                    "session_id": session_id,
+                    "boundary": boundary,
+                    "capped": stops.capped,
+                    "chars": len(collapse_recap(raw)),
+                },
             )
             return previous
         fresh = HistoryRecap(text=text, covers=boundary)

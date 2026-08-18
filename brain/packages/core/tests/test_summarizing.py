@@ -20,6 +20,7 @@ harness whose lock is never really held is green either way.
 """
 
 import asyncio
+import logging
 import re
 from collections.abc import AsyncGenerator, AsyncIterator, Sequence
 from datetime import UTC, datetime, timedelta
@@ -39,7 +40,13 @@ from cortex_core import (
     TextChunk,
     ToolSpec,
 )
-from cortex_core.inference import GenerationBounds, InferenceEvent, JsonSchema
+from cortex_core.inference import (
+    DecodeStop,
+    GenerationBounds,
+    InferenceEvent,
+    JsonSchema,
+    StopReason,
+)
 from cortex_core.recap_prompt import (
     RECAP_BOUNDS,
     build_recap_messages,
@@ -122,9 +129,14 @@ def _history(turns: int, *, size: int = 20) -> list[Message]:
 class _ScriptedBackend:
     """An InferenceBackend that replies with canned text and records what it was asked."""
 
-    def __init__(self, replies: Sequence[str], *, fail: bool = False) -> None:
+    def __init__(
+        self, replies: Sequence[str], *, fail: bool = False, stop: StopReason | None = None
+    ) -> None:
         self._replies = list(replies)
         self._fail = fail
+        # What the engine said about why the completion ended, or nothing at all, which is what a
+        # build reporting no reason looks like and is the pre-existing behaviour.
+        self._stop = stop
         self.prompts: list[str] = []
         self.calls: list[Sequence[Message]] = []
 
@@ -144,6 +156,8 @@ class _ScriptedBackend:
             msg = "llama-server is not answering"
             raise InferenceError(msg)
         yield TextChunk(self._replies.pop(0) if self._replies else "")
+        if self._stop is not None:
+            yield DecodeStop(reason=self._stop)
 
 
 class _BoundsRecordingBackend(_ScriptedBackend):
@@ -774,3 +788,98 @@ async def test_the_plain_window_ignores_both_keywords() -> None:
     without = await budgeted.select(history, session_id=_SESSION)
     assert list(with_sink) == list(without)
     assert list(sink.events) == []
+
+
+# --- and when it adds nothing, it says why ---------------------------------------------------
+
+# One rejected account, reused across the cases below so nothing but the cause can differ. It is
+# unusable for exactly one reason, ending without a sentence, which is the bucket where a fold the
+# server cut and a model that wandered off produce the identical text.
+_UNUSABLE = "They agreed to ship on the fourteenth. The invoice is due"
+
+
+async def _rejected_fold(
+    caplog: pytest.LogCaptureFixture, *, reply: str = _UNUSABLE, stop: StopReason | None = None
+) -> logging.LogRecord:
+    """Drive one fold whose account is rejected, and return the single warning it logged."""
+    caplog.clear()
+    store, backend = InMemorySessionStore(), _ScriptedBackend([reply], stop=stop)
+    kept = await _window(backend, store).select(_history(4), session_id=_SESSION)
+    # The fallback itself, re-asserted here so a record about a fold that silently succeeded
+    # could never satisfy the assertions below.
+    plain = await CharBudgetHistoryWindow(60).select(_history(4), session_id=_SESSION)
+    assert list(kept) == list(plain)
+    assert await store.recap(_SESSION) is None
+    records = [record for record in caplog.records if "no usable history recap" in record.message]
+    assert len(records) == 1
+    return records[0]
+
+
+def _extra(record: logging.LogRecord, field: str) -> object:
+    """One structured field off a log record, ``extra`` landing in the record's own dict."""
+    return record.__dict__[field]
+
+
+async def test_a_cut_fold_and_a_wandering_one_are_told_apart(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The whole point of the change, asserted as a difference rather than as a string.
+
+    Both folds produce the byte-identical unusable account, so `clean_recap` rejects both on the
+    same rule and every other thing the log carries is equal. They want opposite fixes: the cut
+    one wants a larger `RECAP_MAX_TOKENS` or a smaller fold, the wandering one wants the
+    instruction rewritten. Before this, the reader had no way to choose.
+    """
+    caplog.set_level(logging.WARNING, logger="cortex_core.summarizing")
+    cut = await _rejected_fold(caplog, stop=StopReason.CAPPED)
+    wandered = await _rejected_fold(caplog, stop=StopReason.FINISHED)
+
+    # Everything a reader could otherwise go on is identical between the two.
+    assert cut.getMessage() == wandered.getMessage()
+    assert cut.levelno == wandered.levelno == logging.WARNING
+    assert _extra(cut, "chars") == _extra(wandered, "chars") == len(_UNUSABLE)
+    assert _extra(cut, "boundary") == _extra(wandered, "boundary")
+
+    # And the one field that is not tells them apart, in the direction each of them means.
+    assert _extra(cut, "capped") is True
+    assert _extra(wandered, "capped") is False
+
+
+async def test_a_backend_that_reports_no_reason_reads_as_uncut_rather_than_as_cut(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Silence is not a cap. A build that reports nothing must not have a cut invented for it,
+    which would send every reader of every such deployment after the token budget."""
+    caplog.set_level(logging.WARNING, logger="cortex_core.summarizing")
+    assert _extra(await _rejected_fold(caplog, stop=None), "capped") is False
+
+
+@pytest.mark.parametrize(
+    ("reply", "expected_chars"),
+    [
+        # The model said nothing usable at all: whitespace collapses to an empty account, so the
+        # number is 0 rather than the character count of the whitespace it happened to emit.
+        ("   \n  ", 0),
+        # It ran further than the store will hold, which is the third rejection cause and the one
+        # a length reading is the whole answer to. 4001 is what those 2000 "x " pairs plus the
+        # closing full stop collapse to, spelled out rather than computed from the reply: an
+        # expectation derived from the input the same way production derives it would agree with
+        # a broken collapse as readily as with a working one.
+        ("x " * RECAP_MAX + ".", 4001),
+    ],
+)
+async def test_the_length_splits_the_two_causes_a_stop_reason_cannot(
+    caplog: pytest.LogCaptureFixture, reply: str, expected_chars: int
+) -> None:
+    """`capped` is False for both of these, so the length is what separates them: a model that
+    said nothing and one that ran past `RECAP_MAX` are opposite failures with the same flag.
+
+    The number is measured the way the rejection is decided, through the same collapse, so a
+    reply sitting on the boundary is reported as the rule saw it and not a few spaces off.
+    """
+    caplog.set_level(logging.WARNING, logger="cortex_core.summarizing")
+    record = await _rejected_fold(caplog, reply=reply, stop=StopReason.FINISHED)
+    assert _extra(record, "capped") is False
+    assert _extra(record, "chars") == expected_chars
+    # And the two land in the two buckets a reader sorts them into, on either side of the bound.
+    assert (expected_chars == 0) != (expected_chars > RECAP_MAX)
