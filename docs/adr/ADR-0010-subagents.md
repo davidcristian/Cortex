@@ -322,3 +322,51 @@ uptake probe is agent-side work rather than host work. The full correction, and 
 host-side, is at the ADR-0018 addendum of the same date.
 
 No code changed here; this is a records correction at the origin ADR.
+
+## Addendum (2026-08-18): both batch-cap remainders close, and one of them was never an alternative
+
+The batch-cap addendum above ends by naming two items as remaining behind the same tool, a
+`CORTEX_SUBAGENTS_MAX_BATCH` knob and a cost-aware batch. Both were read against the tree on
+2026-08-18 and both are closed here, on separate reasoning, with nothing built and nothing changed
+in the shipped behaviour.
+
+**The knob: the paragraph above already decided it, and the read found a coupling it did not
+know.** "Why a code constant and not an env knob" still describes this tree exactly, and the
+trigger recorded for it is a hypothetical second deployment where this repo has one. What the
+re-derivation added is that the ceiling is not a standalone number:
+`DEFAULT_ADMISSION_WAIT_S = 3600.0` in `scheduler.py` is arithmetic *over* a full batch of eight,
+derived in its own comment from two admitted at a time and 200 to 300 s per CPU subtask and
+doubled for the serialized placement. A per-host ceiling without a retuned admission wait leaves a
+second default deriving from a number it no longer describes, and no gate holds that pair
+together. So the honest form of this knob is two knobs and a documented dependency between them,
+which is a good reason to build it against a real second deployment's measurements rather than
+speculatively. The cost when that day comes is small and is recorded here so nobody re-derives it:
+a keyword-only parameter with the constant as its default, threaded through `build_spawn_spec` and
+`SpawnSubagentsTool.__init__`, breaks none of the existing constructions.
+
+**A correction while we are here.** That addendum places the constant "in `spawn.py`". It has
+lived in `spawn_spec.py` since the line cap split the spec builder out; the value, the refusal and
+the double advertisement are all unchanged. The historical text stays as written and this is the
+amendment.
+
+**The cost-aware batch: both of its currencies are the wrong bound.** A cap in *placements* is
+arithmetically the cap in items, because `invoke` builds one `SubagentTask` per instructions entry
+and the runner places each task exactly once, its one re-run releasing the first reservation
+before it starts and reusing the same admission. A cap in *estimated VRAM* bounds something the
+placer already hard-bounds: `VramBudgetPlacer.place` fit-tests every spawn against the remaining
+headroom and spills to CPU rather than refusing, so no batch size can overspend the card, and the
+currency the addendum above actually worries about is queued inferences rather than GPU bytes. A
+summed-cost cap could also not be enforced where this cap is enforced: `maxItems` is a bound a
+constrained decoder applies structurally and the prose is a bound the model can restate, while a
+cost cap is neither, and it would reverse the deliberate ordering that refuses an oversized array
+before walking it.
+
+The trigger for it was "roster entries differ enough that eight of one is not eight of another",
+and the shipped alternate does not differ that way: it asks the same `cpus` as the default, so the
+scheduler admits two of either at a time, and the only figure that differs is a VRAM number its own
+compose file documents as unmeasured for want of a GPU executor. What would reopen the question is
+a roster entry whose `cpus` differs, and the honest answer there is a per-entry ceiling rather than
+a cost-denominated cap.
+
+Both readings are recorded in
+[docs/refinements/index.md#tools-mcp](../refinements/index.md#tools-mcp).
