@@ -32,7 +32,11 @@ classification behind the overlay's connection indicator (ADR-0011 addendum), an
   e.g. `Internal`, `Unimplemented`) | `Protocol(String)` (reached and streaming, but the
   wire data is uninterpretable: an empty `ServerEvent`, or a `Converse` stream that ended
   before `TurnComplete`, a `converse`-only variant, distinct from a brain-*reported* turn
-  error, which is `TurnEvent::Failed`).
+  error, which is `TurnEvent::Failed`) | `Timeout { after: Duration }` (the attempt was
+  abandoned: nothing came back inside the deadline, so the call was dropped, ADR-0024 deadline
+  addendum). The fourth variant is a fourth thing: `Connection` says nothing accepted the call
+  and `Rpc` says the brain answered, while a deadline says **we stopped waiting**, which
+  neither of the others can report without claiming something that did not happen.
 - `TurnEvent` and `ConfirmDecision` are the turn vocabulary a `converse` call carries, and they
   live in the `transport::turn` submodule (split out for the line cap) re-exported from
   `transport`, so `body_core::TurnEvent` and `body_core::transport::TurnEvent` both still resolve.
@@ -130,9 +134,15 @@ classification behind the overlay's connection indicator (ADR-0011 addendum), an
 Retry resilience (`retry` module, ADR-0024) is a decorator over the port, so the adapter
 stays thin and the retry is exercised against a fake with no network or wall-clock:
 
-- `Sleeper` is a timer effect port: `sleep(&self, Duration) -> impl Future<Output = ()> +
-  Send`. The one seam the retry loop waits on; a fake records the schedule and returns
-  instantly, the real `tokio::time::sleep` lives in the ungated shell.
+- `Sleeper` (`retry::effects`) is the timer effect port, asked two ways: `sleep(&self,
+  Duration) -> impl Future<Output = ()> + Send` is the backoff *between* attempts, and
+  `bounded<F>(&self, deadline, call) -> impl Future<Output = Option<F::Output>> + Send` is the
+  deadline *on* one attempt, `None` meaning the clock won and the call was dropped (which for
+  the gRPC adapter resets the in-flight stream). One port rather than two, because both are the
+  same clock: the core decides how long, an adapter owns the measuring. A fake records the
+  schedule, records the deadline each attempt was given, and scripts which side of the race
+  wins, all returning instantly; the real `tokio::time::sleep` / `tokio::time::timeout` live in
+  the ungated shell.
 - `Randomness` is a jitter effect port (ADR-0024 addendum): `unit(&self) -> f64`, one draw
   in `[0, 1]` per backoff. `FullDelay` (the exported `Randomness` impl returning a constant
   `1.0`) turns jitter off structurally: the retry loop scales each delay by
@@ -150,13 +160,22 @@ stays thin and the retry is exercised against a fake with no network or wall-clo
   attempt remains *and* the error is transient). `Default` = 3 attempts / 200 ms / ×2 / 2 s cap.
   Two helpers serve the probe budget: `worst_case_backoff()` sums every wait the schedule can
   spend before giving up (unjittered, since equal jitter only ever shortens a wait), and
-  `within(budget)` returns the schedule with its attempts trimmed until that sum fits `budget`,
-  leaving the delays themselves alone. One attempt always survives `within`, so a budget buys
-  back patience, never the call. `RetryPolicy::ONCE` is the schedule that cannot retry (one
+  `within(budget, attempt)` returns the schedule with its attempts trimmed until
+  `attempts × attempt + backoff` fits `budget`, leaving the delays themselves alone. The
+  per-attempt cost is why it takes two durations (ADR-0024 deadline addendum): counting only
+  the waits was right while an attempt could return at any time, and promised a bound it could
+  not hold once attempts became bounded, since an attempt that spends its whole deadline and
+  then fails transiently buys a wait on top. One attempt always survives `within`, so a budget
+  buys back patience, never the call, and the guarantee is therefore
+  `attempts × attempt + backoff ≤ max(budget, attempt)`. `RetryPolicy::ONCE` is the schedule that cannot retry (one
   attempt, no wait): what a refused method runs on, so a refusal is *executed* by the same loop
   as a permission instead of by a second code path no test can enter.
 - `is_transient(&TransportError) -> bool` is the retryable classifier: `Connection` and
-  `Rpc{code=="Unavailable"}` are transient; every other `Rpc` status and `Protocol` are not.
+  `Rpc{code=="Unavailable"}` are transient; every other `Rpc` status, `Protocol`, and `Timeout`
+  are not. **`Timeout` is terminal by decision** (ADR-0024 deadline addendum): a retried
+  deadline is the classic load amplifier, and more precisely, an expired deadline is not the
+  brain's report about the call but this side's decision to stop waiting, so it cannot say a
+  second attempt would be faster. The cure for a call that needs longer is a longer deadline.
   It is a **necessary** condition for a retry, never a sufficient one: a status says the brain
   could not serve the call, never that the brain did not already run it. That one-entry set is
   **decided, not provisional** (ADR-0024 addendum): the seam's server writes only `UNAVAILABLE`
@@ -182,17 +201,37 @@ stays thin and the retry is exercised against a fake with no network or wall-clo
   `AckReminder` is the case that shows repeatability is two tests, not one: no duplicated
   effect **and** no changed answer. The match is exhaustive, so a new variant does not compile
   until it is classified.
-- `RetryPlan` (`retry::plan`; `Copy`, `Eq`, `Debug`) is which schedule each method runs under:
-  public fields `reads` (the `RetryPolicy` for the repeatable reads) and `probe_budget` (the
-  ceiling a `Health` probe's backoff is trimmed to, `DEFAULT_PROBE_BUDGET` = 1 s).
+- `RetryPlan` (`retry::plan`; `Copy`, `Eq`, `Debug`) is which schedule and which deadline each
+  method runs under: public fields `reads` (the `RetryPolicy` for the repeatable reads),
+  `probe_budget` (the ceiling a `Health` probe's whole run is trimmed to, attempts and backoff
+  together, `DEFAULT_PROBE_BUDGET` = 1 s), `probe_deadline` (`DEFAULT_PROBE_DEADLINE` = 250 ms)
+  and `call_deadline` (`DEFAULT_CALL_DEADLINE` = 5 s).
   `policy_for(method)` is the **one door every retry decision goes through**, and it answers
   `None` for a method that may not be repeated at all: the caller must then make exactly one
   attempt and surface whatever comes back, however transient it looks. `From<RetryPolicy>`
   reads a bare schedule as a plan governing the reads with the default budget, so a caller
   with no opinion about the probe keeps passing one policy. The probe is split out because the
   connection indicator renders its answer, so patience there is time the dot spends claiming a
-  state the seam has stopped proving; the default budget does not bind the default schedule
-  (600 ms worst case), so it changes nothing until the read knobs are turned up.
+  state the seam has stopped proving; at the shipped defaults the budget leaves the probe two
+  attempts (250 + 200 + 250 fits 1 s, a third try would need 1.35 s) while the reads keep all
+  three.
+- `deadline_for(method)` is the same door for the clock, and it answers `None` for exactly one
+  method: `Converse`, because a turn is long by design and ending one on a clock would be a
+  different feature. Every other call gets a duration, **the writes included**, since bounding
+  a call is not repeating it: repeatability and a deadline are independent questions, so a
+  write the plan refuses to retry is still bounded (ADR-0024 deadline addendum).
+- `within_deadline(deadline, sleeper, call)` (`retry::deadline`) is the composition the
+  decorator wraps around every attempt: the call's own result when it finished in time,
+  `TransportError::Timeout { after }` when it did not. A `None` deadline is spelled as
+  `Duration::MAX` rather than branched on, which is what "no deadline" means to a clock (the
+  timer is armed and never wins; `tokio::time::timeout` saturates it to the far future). The
+  shape is deliberate: this is generic code, so a branch is compiled once per call type and no
+  instantiation the decorator makes could take the unbounded arm, leaving it dead in every copy. It is public so patience *and* a bound
+  compose around a non-seam future too, which the shell's eager `converse` dial uses. The bound
+  lives here rather than in the gRPC adapter for a specific reason: tonic reports its own
+  expired timeout as a sourceless `Status::cancelled`, which the adapter's classifier would
+  read as a status the brain sent, so a transport-level deadline would surface as
+  `TransportError::Rpc` and draw the indicator `Degraded`, claiming an answer that never came.
 - `retry_with(policy, sleeper, randomness, call)` is the bounded-retry loop over any fallible
   async factory (ADR-0024 addendum): re-issues `call()` each attempt, sleeping the jittered
   delay while `backoff` says so. It is the schedule **executor**, not the gate: it takes the
@@ -228,14 +267,19 @@ is domain logic:
   - `from_error(&TransportError)`: `Connection` → `Down` (nothing answered) with the dial
     failure; `Rpc { code, message }` → `Degraded` as `"{code}: {message}"` (the brain answered,
     e.g. `Unauthenticated` for a rejected seam token); `Protocol` → `Degraded` as
-    `"unreadable reply: …"`.
+    `"unreadable reply: …"`; `Timeout { after }` → `Down` as `"no reply within …"`, because
+    `Degraded` means the brain answered and a deadline expiring is precisely the absence of an
+    answer (ADR-0024 deadline addendum). The detail names the deadline, so the tooltip still
+    separates a wedged brain from an absent one.
 - `probe_link(&impl BrainTransport) -> LinkStatus` awaits `health` and classifies the outcome.
   **It never fails**: a failure is the answer, which is what lets a caller render a state
   instead of an error. Composed over `RetryingTransport` it is also the reconnect attempt,
-  since `health` is retried, so `Down` means the whole backoff budget failed to reach the
+  since `health` is retried, so `Down` means the whole probe budget failed to reach the
   brain. That budget is bounded on purpose (`RetryPlan::probe_budget`): patience past the
   point where the answer still matters is the indicator showing a state the seam stopped
-  proving, so the probe's schedule is trimmed to fit while the reads keep theirs.
+  proving, so the probe's schedule is trimmed to fit while the reads keep theirs. The bound is
+  arithmetic rather than hope now that an attempt has its own deadline: `Down` arrives within
+  `max(probe_budget, probe_deadline)`, one attempt always surviving.
 
 OS-capability ports (`os` module) are the first portability seam (ADR-0011):
 

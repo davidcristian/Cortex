@@ -6,9 +6,14 @@
 //! lives in `body_rpc`; the mapping here is mechanical. The eager dial is wrapped
 //! in `retry_with` (ADR-0024 addendum): retrying a *dial* is safe because the
 //! non-idempotent turn has not begun, while a turn that fails after its first
-//! event stays terminal (decision 2).
+//! event stays terminal (decision 2). Each of those dials is also bounded by the
+//! plan's call deadline (ADR-0024 deadline addendum), since a dial that hangs
+//! hangs the turn; the turn's own stream is deliberately left unbounded, because
+//! a model thinking for a minute is not a failure.
 
-use body_core::{BrainTransport, ConfirmDecision, TransportError, TurnEvent, retry_with};
+use body_core::{
+    BrainTransport, ConfirmDecision, TransportError, TurnEvent, retry_with, within_deadline,
+};
 use body_rpc::BrainSeamClient;
 use futures_util::{StreamExt, pin_mut};
 use serde::Serialize;
@@ -17,7 +22,7 @@ use tauri::ipc::Channel;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
 use crate::confirm::ConfirmRoute;
-use crate::seam::{ShellRandomness, TokioSleeper, policy_from_env};
+use crate::seam::{ShellRandomness, TokioSleeper, plan_from_env, policy_from_env};
 
 /// Default brain seam address (matches `body_rpc`); override with `CORTEX_BRAIN_ADDR`.
 const DEFAULT_ADDR: &str = "http://127.0.0.1:50051";
@@ -130,6 +135,14 @@ impl From<TransportError> for WireError {
                 kind: "protocol",
                 message,
             },
+            // Nothing came back inside the deadline (ADR-0024 deadline addendum). Its own kind
+            // rather than "connection", because the overlay reads these to classify the link
+            // and the two prove different things about the brain; both land on the same dot,
+            // and only this one can say the deadline in its message.
+            TransportError::Timeout { after } => Self {
+                kind: "timeout",
+                message: format!("no reply within {after:?}"),
+            },
         }
     }
 }
@@ -185,8 +198,13 @@ pub async fn converse(
     // The effects are bound to locals because the retry future borrows them for its whole run.
     let sleeper = TokioSleeper;
     let randomness = ShellRandomness::from_env();
+    let deadline = Some(plan_from_env().call_deadline);
     let dial = retry_with(policy_from_env(), &sleeper, &randomness, || {
-        BrainSeamClient::connect_with_token(&addr, token.as_deref())
+        within_deadline(
+            deadline,
+            &sleeper,
+            BrainSeamClient::connect_with_token(&addr, token.as_deref()),
+        )
     });
     let client = match dial.await {
         Ok(client) => client,

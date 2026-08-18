@@ -56,13 +56,16 @@ export function linkServing(link: LinkView): LinkView {
 
 /**
  * A turn failed at the transport, which proves the same things a probe failure does and is
- * classified the same way (`body_core::link`): unreachable is `down`, an answered-but-wrong
- * call (a non-OK status, an unreadable reply) is `degraded`.
+ * classified the same way (`body_core::link`): unreachable is `down`, a call that ran out of
+ * time is `down` too (nothing answered), and an answered-but-wrong call (a non-OK status, an
+ * unreadable reply) is `degraded`. Keeping the timeout out of `degraded` is the point: that
+ * state means the brain replied, and a deadline expiring is precisely the absence of a reply.
  */
 export function linkFailed(link: LinkView, error: TransportError): LinkView {
+  const answered = error.kind !== "connection" && error.kind !== "timeout";
   return {
     ...link,
-    state: error.kind === "connection" ? "down" : "degraded",
+    state: answered ? "degraded" : "down",
     detail: error.message,
   };
 }

@@ -36,7 +36,7 @@ export type TurnEvent =
   | { readonly kind: "complete"; readonly turnId: string }
   | { readonly kind: "failed"; readonly code: string; readonly message: string };
 
-export type TransportErrorKind = "connection" | "rpc" | "protocol";
+export type TransportErrorKind = "connection" | "rpc" | "protocol" | "timeout";
 
 export interface TransportError {
   readonly kind: TransportErrorKind;

@@ -8,9 +8,11 @@
 use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use body_core::{
-    BrainTransport, DueReminder, SeamHealth, SessionMessage, SessionSummary, TransportError,
+    BrainTransport, DueReminder, LinkState, RetryPlan, RetryingTransport, SeamHealth,
+    SessionMessage, SessionSummary, Sleeper, TransportError, probe_link,
 };
 use body_rpc::BrainSeamClient;
 use body_rpc::generated::brain_service_client::BrainServiceClient;
@@ -39,6 +41,10 @@ enum Script {
     Ready,
     /// `Health` fails with a gRPC `Internal` status.
     Failing,
+    /// `Health` never answers: the connection is accepted and the call hangs forever. The one
+    /// failure no status can report, and the reason the seam has a deadline (ADR-0024 deadline
+    /// addendum).
+    Hanging,
 }
 
 /// A scripted fake implementing the generated `BrainService` server trait.
@@ -110,6 +116,7 @@ impl BrainService for FakeBrain {
                 detail: String::from("fake brain ready"),
             })),
             Script::Failing => Err(Status::internal("scripted failure")),
+            Script::Hanging => std::future::pending().await,
         }
     }
 
@@ -910,4 +917,59 @@ async fn preference_store_failures_map_to_the_rpc_variant() {
             other => panic!("expected an Rpc error, got {other:?}"),
         }
     }
+}
+
+/// The real `Sleeper` over `tokio::time`, as the shell composes it. Repeated here because the
+/// shell is un-gated and this suite cannot import it: what the check below needs is a *real*
+/// clock, since the point is that a genuine gRPC call which never answers is ended by one.
+struct RealSleeper;
+
+impl Sleeper for RealSleeper {
+    fn sleep(&self, duration: Duration) -> impl std::future::Future<Output = ()> + Send {
+        tokio::time::sleep(duration)
+    }
+
+    async fn bounded<F>(&self, deadline: Duration, call: F) -> Option<F::Output>
+    where
+        F: std::future::Future + Send,
+        F::Output: Send,
+    {
+        tokio::time::timeout(deadline, call).await.ok()
+    }
+}
+
+#[tokio::test]
+async fn a_brain_that_accepts_the_call_and_never_answers_is_ended_by_the_deadline() {
+    // The whole point of the deadline, over a real gRPC call rather than a fake transport: the
+    // fake brain accepts the connection and its `Health` never returns, which is the one
+    // failure no status can report and the case every retry knob was blind to. The plan's
+    // probe deadline ends it, the caller gets a `Timeout` naming that deadline, and the
+    // indicator therefore draws `Down` rather than waiting forever behind its in-flight latch.
+    //
+    // The deadline is deliberately short (120 ms) because this is the one check here that
+    // spends real time; a real clock is the point, so it cannot be faked away.
+    let addr = spawn_fake_brain(FakeBrain::new(Script::Hanging))
+        .await
+        .expect("fake brain should bind a loopback port");
+    let client = BrainSeamClient::connect_lazy_with_token(&format!("http://{addr}"), None)
+        .expect("a lazy client should build for a valid address");
+    let deadline = Duration::from_millis(120);
+    let transport = RetryingTransport::new(
+        client,
+        RealSleeper,
+        RetryPlan {
+            probe_deadline: deadline,
+            ..RetryPlan::default()
+        },
+    );
+    assert_eq!(
+        transport.health().await.unwrap_err(),
+        TransportError::Timeout { after: deadline }
+    );
+    // And the classification the overlay renders from it: nothing answered, so `Down`, with
+    // the deadline in the detail. A status-shaped timeout would have drawn `Degraded` here,
+    // claiming the brain replied, which is the failure this design exists to avoid.
+    let status = probe_link(&transport).await;
+    assert_eq!(status.state, LinkState::Down);
+    assert_eq!(status.detail, format!("no reply within {deadline:?}"));
 }

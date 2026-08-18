@@ -25,13 +25,26 @@ use body_rpc::BrainSeamClient;
 /// Default brain seam address (matches `body_rpc`); override with `CORTEX_BRAIN_ADDR`.
 const DEFAULT_ADDR: &str = "http://127.0.0.1:50051";
 
-/// The real [`Sleeper`]: `tokio::time::sleep`. Kept here in the ungated shell so the timer
-/// effect stays out of the gated crates (ADR-0024 decision 5); a zero-sized unit.
+/// The real [`Sleeper`]: `tokio::time`, for both questions the clock is asked. Kept here in the
+/// ungated shell so the timer effect stays out of the gated crates (ADR-0024 decision 5); a
+/// zero-sized unit.
 pub struct TokioSleeper;
 
 impl Sleeper for TokioSleeper {
     fn sleep(&self, duration: Duration) -> impl Future<Output = ()> + Send {
         tokio::time::sleep(duration)
+    }
+
+    /// The per-attempt deadline (ADR-0024 deadline addendum). `tokio::time::timeout` already is
+    /// exactly this primitive, correctly: it drops the call when the clock wins, which for a
+    /// gRPC call resets the in-flight stream so an abandoned attempt stops costing the brain.
+    /// The core keeps the policy (which call gets how long); this keeps the clock.
+    async fn bounded<F>(&self, deadline: Duration, call: F) -> Option<F::Output>
+    where
+        F: Future + Send,
+        F::Output: Send,
+    {
+        tokio::time::timeout(deadline, call).await.ok()
     }
 }
 
@@ -95,20 +108,24 @@ pub fn connect() -> Result<ResilientTransport, String> {
     ))
 }
 
-/// The per-method retry plan: the read schedule from `CORTEX_BRAIN_RETRY_*`, plus the ceiling
-/// on a `Health` probe's patience from `CORTEX_BRAIN_PROBE_BUDGET_MS` (default 1 s).
+/// The per-method retry plan: the read schedule from `CORTEX_BRAIN_RETRY_*`, the ceiling on a
+/// `Health` probe's whole run from `CORTEX_BRAIN_PROBE_BUDGET_MS` (default 1 s), and the two
+/// per-attempt deadlines, `CORTEX_BRAIN_PROBE_DEADLINE_MS` (default 250 ms) and
+/// `CORTEX_BRAIN_CALL_DEADLINE_MS` (default 5 s).
 ///
 /// The probe is separate because the connection indicator renders its answer: patience there
 /// is time the dot spends claiming a state the seam has stopped proving. Turning the read
 /// knobs up therefore buys a session read more patience without ever buying the indicator a
-/// longer lie. With the shipped defaults the budget does not bind (the schedule's worst case
-/// is 600 ms), so this changes nothing until someone configures it to.
+/// longer lie. The deadlines split for a different reason: a probe that waits a second has
+/// already outlived its usefulness, while a store read may honestly take longer than that.
 pub fn plan_from_env() -> RetryPlan {
+    let default = RetryPlan::default();
     RetryPlan {
         reads: policy_from_env(),
-        probe_budget: env_parse("CORTEX_BRAIN_PROBE_BUDGET_MS")
-            .map(Duration::from_millis)
-            .unwrap_or(RetryPlan::default().probe_budget),
+        probe_budget: env_millis("CORTEX_BRAIN_PROBE_BUDGET_MS").unwrap_or(default.probe_budget),
+        probe_deadline: env_millis("CORTEX_BRAIN_PROBE_DEADLINE_MS")
+            .unwrap_or(default.probe_deadline),
+        call_deadline: env_millis("CORTEX_BRAIN_CALL_DEADLINE_MS").unwrap_or(default.call_deadline),
     }
 }
 
@@ -120,17 +137,19 @@ pub fn policy_from_env() -> RetryPolicy {
     let default = RetryPolicy::default();
     RetryPolicy {
         max_attempts: env_parse("CORTEX_BRAIN_RETRY_ATTEMPTS").unwrap_or(default.max_attempts),
-        base_delay: env_parse("CORTEX_BRAIN_RETRY_BASE_MS")
-            .map(Duration::from_millis)
-            .unwrap_or(default.base_delay),
+        base_delay: env_millis("CORTEX_BRAIN_RETRY_BASE_MS").unwrap_or(default.base_delay),
         multiplier: env_parse("CORTEX_BRAIN_RETRY_MULTIPLIER").unwrap_or(default.multiplier),
-        max_delay: env_parse("CORTEX_BRAIN_RETRY_MAX_MS")
-            .map(Duration::from_millis)
-            .unwrap_or(default.max_delay),
+        max_delay: env_millis("CORTEX_BRAIN_RETRY_MAX_MS").unwrap_or(default.max_delay),
     }
 }
 
 /// Parses an env var as `T`, or `None` if it is unset or does not parse.
 fn env_parse<T: std::str::FromStr>(key: &str) -> Option<T> {
     std::env::var(key).ok().and_then(|value| value.parse().ok())
+}
+
+/// Parses an env var as a count of milliseconds. Every duration knob on this seam is spelled
+/// that way, so the conversion is written once.
+fn env_millis(key: &str) -> Option<Duration> {
+    env_parse(key).map(Duration::from_millis)
 }

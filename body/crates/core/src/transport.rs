@@ -15,6 +15,7 @@ pub mod turn;
 pub use turn::{ConfirmDecision, TurnEvent};
 
 use std::future::Future;
+use std::time::Duration;
 
 use futures_core::Stream;
 
@@ -51,6 +52,19 @@ pub enum TransportError {
     /// brain-*reported* turn error, which arrives as [`TurnEvent::Failed`].
     #[error("malformed seam message: {0}")]
     Protocol(String),
+    /// The attempt was abandoned: nothing came back within the deadline the caller gave it
+    /// (`after`), so the call was dropped (ADR-0024 deadline addendum).
+    ///
+    /// A fourth variant rather than a reuse of the three above, because it is a fourth thing.
+    /// [`TransportError::Connection`] says nothing accepted the call and
+    /// [`TransportError::Rpc`] says the brain answered; a deadline says **we stopped waiting**,
+    /// which neither of those can report without claiming something that did not happen. A brain
+    /// that accepts the connection and then goes quiet produces exactly this and nothing else.
+    #[error("no reply from the brain within {after:?}")]
+    Timeout {
+        /// The deadline that expired, as the caller set it.
+        after: Duration,
+    },
 }
 
 /// The body's typed async client port to the brain (`docs/ARCHITECTURE.md`,

@@ -60,6 +60,7 @@ describe("link state", () => {
     const connection: TransportError = { kind: "connection", message: "refused" };
     const rpc: TransportError = { kind: "rpc", message: "Unauthenticated: bad token" };
     const protocol: TransportError = { kind: "protocol", message: "empty event" };
+    const timeout: TransportError = { kind: "timeout", message: "no reply within 5s" };
     expect(linkFailed(ready, connection)).toEqual({
       state: "down",
       detail: "refused",
@@ -69,6 +70,13 @@ describe("link state", () => {
     expect(linkFailed(ready, rpc).state).toBe("degraded");
     expect(linkFailed(ready, protocol).state).toBe("degraded");
     expect(linkFailed(ready, rpc).detail).toBe("Unauthenticated: bad token");
+    // A deadline that expired proves nothing answered, so it is red like an unreachable brain
+    // and never amber: amber would claim a reply the seam never got.
+    expect(linkFailed(ready, timeout)).toEqual({
+      state: "down",
+      detail: "no reply within 5s",
+      probing: false,
+    });
   });
 
   it("a failure while a probe is out leaves the probe outstanding", () => {
