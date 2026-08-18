@@ -38,6 +38,11 @@ def report_of(tmp_path: Path, document: object) -> str:
     return str(report)
 
 
+def argv_of(report: str, *, rustc: str = PROBED_RUSTC, llvm_cov: str = PROBED_TOOL) -> list[str]:
+    """A full command line: both toolchain relays are mandatory, so every run carries both."""
+    return [report, "--rustc", rustc, "--llvm-cov", llvm_cov]
+
+
 def test_check_passes_when_every_metric_is_full() -> None:
     assert coverage_gate.check(make_totals()) == []
 
@@ -207,42 +212,29 @@ def test_load_producer_refuses_an_export_that_will_not_name_its_writer(
         coverage_gate.load_producer(document)
 
 
-def test_attribute_names_the_export_writer_without_any_probe() -> None:
-    producer = coverage_gate.Producer(tool=TOOL, export_format=EXPORT_FORMAT)
-    verdicts = coverage_gate.attribute(producer, coverage_gate.Toolchain(None, None))
-    assert verdicts == [
-        coverage_gate.Verdict("measured by cargo-llvm-cov 0.8.7, llvm export 3.1.0", ok=True)
-    ]
-
-
-def test_attribute_relays_the_compiler_the_export_cannot_carry() -> None:
+def test_attribute_names_the_export_writer_and_relays_the_compiler() -> None:
     producer = coverage_gate.Producer(tool=TOOL, export_format=EXPORT_FORMAT)
     verdicts = coverage_gate.attribute(producer, coverage_gate.Toolchain(PROBED_RUSTC, PROBED_TOOL))
-    assert [verdict.line for verdict in verdicts[1:]] == [f"measured by {PROBED_RUSTC}"]
+    assert [verdict.line for verdict in verdicts] == [
+        "measured by cargo-llvm-cov 0.8.7, llvm export 3.1.0",
+        f"measured by {PROBED_RUSTC}",
+    ]
     assert all(verdict.ok for verdict in verdicts)
 
 
 @pytest.mark.parametrize("probed", ["cargo-llvm-cov 0.9.1", "", "0.8.70"])
 def test_attribute_fails_an_export_this_step_did_not_write(probed: str) -> None:
     producer = coverage_gate.Producer(tool=TOOL, export_format=EXPORT_FORMAT)
-    verdicts = coverage_gate.attribute(producer, coverage_gate.Toolchain(None, probed))
-    assert [verdict.ok for verdict in verdicts] == [True, False]
-    assert verdicts[1].line == (
+    verdicts = coverage_gate.attribute(producer, coverage_gate.Toolchain(PROBED_RUSTC, probed))
+    assert [verdict.ok for verdict in verdicts] == [True, True, False]
+    assert verdicts[2].line == (
         f"FAIL producer: the export was written by cargo-llvm-cov {TOOL}, "
         f"but this step ran {probed!r}; these are not the numbers it measured"
     )
 
 
 def test_main_passes_on_full_coverage(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    exit_code = coverage_gate.main(
-        [
-            report_of(tmp_path, document_with(make_totals())),
-            "--rustc",
-            PROBED_RUSTC,
-            "--llvm-cov",
-            PROBED_TOOL,
-        ]
-    )
+    exit_code = coverage_gate.main(argv_of(report_of(tmp_path, document_with(make_totals()))))
     assert exit_code == 0
     assert capsys.readouterr().out.splitlines() == [
         "measured by cargo-llvm-cov 0.8.7, llvm export 3.1.0",
@@ -256,10 +248,11 @@ def test_main_passes_on_full_coverage(tmp_path: Path, capsys: pytest.CaptureFixt
 def test_main_fails_on_partial_coverage(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     totals = make_totals()
     totals["branches"] = metric(count=1000, covered=999)
-    exit_code = coverage_gate.main([report_of(tmp_path, document_with(totals))])
+    exit_code = coverage_gate.main(argv_of(report_of(tmp_path, document_with(totals))))
     assert exit_code == 1
     assert capsys.readouterr().out.splitlines() == [
         "measured by cargo-llvm-cov 0.8.7, llvm export 3.1.0",
+        f"measured by {PROBED_RUSTC}",
         "PASS lines: 100.00%",
         "PASS regions: 100.00%",
         "FAIL branches: 99.90% (need 100%)",
@@ -270,22 +263,32 @@ def test_main_fails_a_stale_export_even_at_full_coverage(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     exit_code = coverage_gate.main(
-        [
-            report_of(tmp_path, document_with(make_totals())),
-            "--llvm-cov",
-            "cargo-llvm-cov 0.9.1",
-        ]
+        argv_of(report_of(tmp_path, document_with(make_totals())), llvm_cov="cargo-llvm-cov 0.9.1")
     )
     assert exit_code == 1
     out = capsys.readouterr().out.splitlines()
-    assert out[1].startswith("FAIL producer: the export was written by cargo-llvm-cov 0.8.7")
-    assert out[2:] == ["PASS lines: 100.00%", "PASS regions: 100.00%", "PASS branches: 100.00%"]
+    assert out[2].startswith("FAIL producer: the export was written by cargo-llvm-cov 0.8.7")
+    assert out[3:] == ["PASS lines: 100.00%", "PASS regions: 100.00%", "PASS branches: 100.00%"]
+
+
+@pytest.mark.parametrize("dropped", ["--rustc", "--llvm-cov"])
+def test_main_refuses_a_run_that_deleted_a_toolchain_relay(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], dropped: str
+) -> None:
+    argv = argv_of(report_of(tmp_path, document_with(make_totals())))
+    flag = argv.index(dropped)
+    with pytest.raises(SystemExit) as raised:
+        coverage_gate.main(argv[:flag] + argv[flag + 2 :])
+    assert raised.value.code == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert f"the following arguments are required: {dropped}" in captured.err
 
 
 def test_main_notes_zero_count_metric(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     totals = make_totals()
     totals["branches"] = metric(count=0, covered=0, percent=0.0)
-    exit_code = coverage_gate.main([report_of(tmp_path, document_with(totals))])
+    exit_code = coverage_gate.main(argv_of(report_of(tmp_path, document_with(totals))))
     assert exit_code == 0
     assert "PASS branches: no branches to cover (count 0)" in capsys.readouterr().out
 
@@ -293,7 +296,7 @@ def test_main_notes_zero_count_metric(tmp_path: Path, capsys: pytest.CaptureFixt
 def test_main_reports_malformed_export_on_stderr(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    exit_code = coverage_gate.main([report_of(tmp_path, [])])
+    exit_code = coverage_gate.main(argv_of(report_of(tmp_path, [])))
     assert exit_code == 1
     captured = capsys.readouterr()
     assert captured.out == ""
@@ -305,7 +308,7 @@ def test_main_reports_non_utf8_export_on_stderr(
 ) -> None:
     report = tmp_path / "cov.json"
     report.write_bytes(b'{"data": [\xff\xfd]}')
-    exit_code = coverage_gate.main([str(report)])
+    exit_code = coverage_gate.main(argv_of(str(report)))
     assert exit_code == 1
     captured = capsys.readouterr()
     assert captured.out == ""

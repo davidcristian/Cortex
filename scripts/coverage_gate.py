@@ -1,4 +1,4 @@
-"""Repo gate: require 100% line/region/branch coverage from a cargo-llvm-cov JSON export."""
+"""Fail when a cargo-llvm-cov JSON export shows under 100% line, region or branch coverage."""
 
 import argparse
 import json
@@ -30,10 +30,10 @@ class Producer(NamedTuple):
 
 
 class Toolchain(NamedTuple):
-    """What the coverage step probed before it measured. Either half may be absent."""
+    """What the coverage step probed before it measured."""
 
-    rustc: str | None
-    llvm_cov: str | None
+    rustc: str
+    llvm_cov: str
 
 
 def _require_dict(value: object, context: str) -> dict[str, object]:
@@ -90,11 +90,10 @@ def attribute(producer: Producer, toolchain: Toolchain) -> list[Verdict]:
         Verdict(
             f"measured by cargo-llvm-cov {producer.tool}, llvm export {producer.export_format}",
             ok=True,
-        )
+        ),
+        Verdict(f"measured by {toolchain.rustc}", ok=True),
     ]
-    if toolchain.rustc is not None:
-        verdicts.append(Verdict(f"measured by {toolchain.rustc}", ok=True))
-    if toolchain.llvm_cov is not None and producer.tool not in toolchain.llvm_cov.split():
+    if producer.tool not in toolchain.llvm_cov.split():
         verdicts.append(
             Verdict(
                 f"FAIL producer: the export was written by cargo-llvm-cov {producer.tool}, "
@@ -107,7 +106,7 @@ def attribute(producer: Producer, toolchain: Toolchain) -> list[Verdict]:
 
 
 def check(totals: object) -> list[str]:
-    """Return one failure string per metric below 100%; an empty list means the gate passes."""
+    """Return one failure string per metric below 100%; an empty list means it passes."""
     return [verdict.line for verdict in evaluate(totals) if not verdict.ok]
 
 
@@ -154,7 +153,7 @@ def load_producer(document: dict[str, object]) -> Producer:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Run the gate; print one line per check and return the process exit code."""
+    """Run the check; print one line per metric and return the process exit code."""
     parser = argparse.ArgumentParser(
         description=(
             "Fail unless a cargo-llvm-cov JSON export shows 100% line, region, and branch coverage."
@@ -167,12 +166,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--rustc",
-        default=None,
+        required=True,
         help="`rustc +nightly --version` as the step probed it; relayed into the verdict",
     )
     parser.add_argument(
         "--llvm-cov",
-        default=None,
+        required=True,
         help="`cargo +nightly llvm-cov --version` as the step probed it; checked against"
         " the version the export records for itself",
     )

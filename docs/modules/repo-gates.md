@@ -237,7 +237,7 @@ that last question to have an answer.
   refusal is loud. An underscore *inside* a word is never reported, CommonMark reading none as
   emphasis, and neither is a link quoted inside a code span, whose backticks come off on both
   sides.
-- `coverage_gate.py PATH [--rustc TEXT] [--llvm-cov TEXT]` reads a
+- `coverage_gate.py PATH --rustc TEXT --llvm-cov TEXT` reads a
   `cargo llvm-cov --json --summary-only` export, requires exactly one `data[]` entry, and gates
   each of `data[0].totals.{lines,regions,branches}` on `covered == count` (the producer's
   `percent` is never trusted; displayed percentages are recomputed). A metric with
@@ -254,6 +254,10 @@ that last question to have an answer.
   `--llvm-cov` must appear in the export's own record, so an export the running tool did not write
   fails the gate however good its numbers are. Neither version is pinned on either side
   (ADR-0002 toolchain-print addendum), which is why a verdict has to carry them.
+  **Both relays are required arguments** (ADR-0002 mandatory-relay addendum): a run missing either
+  exits 2 on argparse's usage error, having printed no verdict at all. They were optional once, and
+  the producer cross-check is the half of the attribution that can fail, so deleting `--llvm-cov`
+  from the recipe deleted that check while the run still printed a full green verdict and exited 0.
   Verdicts print in order: the attribution lines (`measured by ...`), then one `PASS`/`FAIL` line
   per metric.
 - `ci_paths.py` implements AGENTS.md gate 3 / ADR-0006. Decides which toolchain CI jobs must run
