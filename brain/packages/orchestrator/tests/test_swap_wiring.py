@@ -5,7 +5,7 @@ import logging
 import os
 import signal
 import socket
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import replace
 from http import HTTPStatus
 from typing import cast
@@ -60,6 +60,14 @@ from cortex_seam import (
     UserTurn,
 )
 from cortex_session import RedisHandoffStore, RedisSessionStore
+
+
+def _stuck_host(*, running: Iterable[str]) -> ScriptedModelHost:
+    """The composition root's own scripted host, with every tier it seeds stuck ``LOADING``."""
+    seeded = list(running)
+    return ScriptedModelHost(
+        running=seeded, status_override=dict.fromkeys(seeded, ModelHostState.LOADING)
+    )
 
 
 def _free_loopback_port() -> int:
@@ -591,6 +599,7 @@ async def test_a_boot_that_could_not_settle_the_cortex_leaves_the_seam_saying_so
     monkeypatch.setenv("CORTEX_ESCALATION", "1")
     monkeypatch.setenv("CORTEX_MODELHOST_BACKEND", "scripted")
     monkeypatch.setenv("CORTEX_BRAIN_ENDPOINT", "http://llama-brain:8081")
+    monkeypatch.setenv("CORTEX_SWAP_LOAD_TIMEOUT_S", "0")
     server = FakeServer()
 
     def fake_from_url(url: str) -> Redis:
@@ -598,25 +607,7 @@ async def test_a_boot_that_could_not_settle_the_cortex_leaves_the_seam_saying_so
         return FakeAsyncRedis(server=server)
 
     monkeypatch.setattr(Redis, "from_url", fake_from_url)
-    real = build_swap_runtime
-
-    def stuck(  # noqa: PLR0913 -- mirrors the builder it stands in for
-        swap: SwapConfig,
-        runtime: BrainRuntimeConfig,
-        inference: InferenceConfig,
-        clock: Clock,
-        sleeper: Sleeper,
-        handoff_store_factory: Callable[[str], RedisHandoffStore] = RedisHandoffStore.from_url,
-        placer: SubagentPlacer | None = None,
-    ) -> SwapRuntime | None:
-        made = real(swap, runtime, inference, clock, sleeper, handoff_store_factory, placer)
-        assert made is not None  # escalation is on in this test's env
-        never_ready = ScriptedModelHost(
-            status_override={made.plan.cortex_model: ModelHostState.LOADING}
-        )
-        return replace(made, host=never_ready, plan=replace(made.plan, load_timeout_s=0.0))
-
-    monkeypatch.setattr(wiring, "build_swap_runtime", stuck)
+    monkeypatch.setattr(swap_builders, "ScriptedModelHost", _stuck_host)
     task = asyncio.create_task(run_from_env(store_factory=lambda _url: _session_store(server)))
     try:
         async with aio.insecure_channel(f"127.0.0.1:{port}") as channel:
@@ -624,6 +615,51 @@ async def test_a_boot_that_could_not_settle_the_cortex_leaves_the_seam_saying_so
             reply = await asyncio.wait_for(_health(BrainServiceStub(channel)), timeout=5.0)
         assert reply.ready is False
         assert reply.detail == RESIDENCY_BOOT_FAILED.detail
+        os.kill(os.getpid(), signal.SIGTERM)
+        await asyncio.wait_for(task, timeout=10)
+    finally:
+        task.cancel()
+
+
+async def test_a_cortex_that_comes_up_after_the_boot_verdict_turns_the_seam_green(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The recovery that used to need a restart of the brain, driven through the whole wiring."""
+    port = _free_loopback_port()
+    monkeypatch.setenv("CORTEX_SEAM_HOST", "127.0.0.1")
+    monkeypatch.setenv("CORTEX_SEAM_PORT", str(port))
+    monkeypatch.setenv("CORTEX_ESCALATION", "1")
+    monkeypatch.setenv("CORTEX_MODELHOST_BACKEND", "scripted")
+    monkeypatch.setenv("CORTEX_BRAIN_ENDPOINT", "http://llama-brain:8081")
+    monkeypatch.setenv("CORTEX_SWAP_LOAD_TIMEOUT_S", "0")
+    monkeypatch.setenv("CORTEX_SWAP_TIER_HEAL_S", "0.01")
+    server = FakeServer()
+
+    def fake_from_url(url: str) -> Redis:
+        del url
+        return FakeAsyncRedis(server=server)
+
+    hosts: list[ScriptedModelHost] = []
+
+    def remembered(*, running: Iterable[str]) -> ScriptedModelHost:
+        hosts.append(_stuck_host(running=running))
+        return hosts[-1]
+
+    monkeypatch.setattr(Redis, "from_url", fake_from_url)
+    monkeypatch.setattr(swap_builders, "ScriptedModelHost", remembered)
+    task = asyncio.create_task(run_from_env(store_factory=lambda _url: _session_store(server)))
+    try:
+        async with aio.insecure_channel(f"127.0.0.1:{port}") as channel:
+            await asyncio.wait_for(channel.channel_ready(), timeout=10)
+            stub = BrainServiceStub(channel)
+            assert (await asyncio.wait_for(_health(stub), timeout=5.0)).ready is False
+            for model in sorted(hosts[0].running):
+                hosts[0].set_status(model, None)  # POST /models/cortex/start, and it came up
+            async with asyncio.timeout(10):
+                # Bounded polling rather than an event, deliberately: what this waits on is the
+                # healer's own loop inside the process under test, which offers nothing to await.
+                while not (await _health(stub)).ready:  # noqa: ASYNC110 -- no event to wait on
+                    await asyncio.sleep(0.01)
         os.kill(os.getpid(), signal.SIGTERM)
         await asyncio.wait_for(task, timeout=10)
     finally:

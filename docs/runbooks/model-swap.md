@@ -138,10 +138,21 @@ came back with stop bounds the brain's own deadline no longer clears. The second
 above, checked again on the one event that can break it; fix it the same way, by editing env and
 restarting, and note that the brain will keep serving ordinary turns meanwhile.
 
-Nothing is watched between handoffs, deliberately. A restart followed by no escalation is noticed
-by nothing, so the connection indicator can show a residency reading taken before the restart until
-the next handoff or the next brain restart. With `CORTEX_ESCALATION` off there is nothing to be
-stale: that manager holds no residency state at all.
+**The daemon comparison itself is still per handoff, and one direction of staleness is watched
+between them.** A sidecar replaced under a brain that then never escalates is noticed by nothing,
+so a green dot can be a reading taken before that restart. What is watched is the direction that
+costs an operator something: a report saying the GPU is **not** serving is re-derived against the
+machine every `CORTEX_SWAP_TIER_HEAL_S` seconds (30 s), so an amber dot clears itself within one
+interval of the cortex actually coming back, whoever brought it back. A green one is deliberately
+not re-derived, since a turn that needs the GPU is a better test of it than a status call, and the
+one line to look for when it heals is
+
+```
+the cortex is serving again, so residency was regained without a restart
+```
+
+With `CORTEX_ESCALATION` off there is nothing to be stale: that manager holds no residency state at
+all, and no pass runs.
 
 ## Bringing the real host up
 
@@ -281,7 +292,10 @@ again once the cortex is back. Both readings say the same thing; the raised cap 
 deployment sizing the budget to this card would use, and the shipped one is what ships. The operator-visible effects:
 delegated work through a co-resident handoff may be slower than the same work outside one, and a
 restore that gave up (`could not restore the cortex after a model swap`) keeps every spawn on the
-CPU until the process is restarted, deliberately, because nothing then knows what is on the card.
+CPU for as long as nobody can describe the card, deliberately. That is no longer until the process
+is restarted: the same background pass that republishes residency charges the cortex again in the
+same breath, so GPU placement reopens within one `CORTEX_SWAP_TIER_HEAL_S` of the cortex actually
+serving.
 With `CORTEX_SWAP_BRAIN_VRAM_MIB` unset there is no charge and the placer behaves as it always did.
 
 **Read the refusal as "there was not room", never the pass as "it fitted".** The check is blind
@@ -359,8 +373,12 @@ but a report of a slow *cortex* after a handoff is the same fault read from the 
   **What does not reconverge is the other direction:** with escalation ON, the brain's residency
   bookkeeping is in-process and nothing tells it the sidecar restarted, so a restart mid handoff
   leaves the brain believing the deep model is resident while the fresh sidecar serves the cortex.
-  Recovery is step 3 below (restart the brain). This is a recorded deferral, not a surprise
-  ([inference-model-manager](../refinements/index.md#inference-model-manager)).
+  That belief is not permanent any more. The handoff's own swap back runs against the fresh daemon
+  and usually settles it (a `start` of a cortex the boot default already started is a no-op that
+  gates ready at once), and if even that gives up, the brain re-reads the machine every
+  `CORTEX_SWAP_TIER_HEAL_S` seconds and publishes the cortex again the first pass that finds it
+  serving with the deep tier off the card. What still needs an operator is a cortex that is
+  genuinely not running: start it as in step 2 below, and the dot follows within the interval.
 - **Both verbs are idempotent, and an unknown id is a 404.** A second `start` spawned no second
   child; a second `stop` answered 200 and `stopped`; `POST /models/ghost/start` answered
   `404 {"error":"unknown model 'ghost'; this host serves cortex, brain"}`. Nothing a request
@@ -453,8 +471,11 @@ could not restore '<cortex model>' after 2 attempts; manual recovery is needed
 That is `ResidencyRestoreError` from `residency.py`, logged just before as
 `could not restore the cortex after a model swap; the GPU serves nothing`. It means the swap
 back failed twice, so the brain now believes **no model is resident** and every later turn that
-needs the GPU fails until residency is fixed. It is the one swap failure that does not
-self-heal, which is why it is loud. On the user's side the turn ends with the matching note:
+needs the GPU fails until residency is fixed. Nothing in the swap will try again, which is why it
+is loud; what does try again is the background pass, which re-reads the machine every
+`CORTEX_SWAP_TIER_HEAL_S` seconds and publishes the cortex as the resident the first time it finds
+it serving with the deep tier off the card. So the fix is to make that true (step 2 below), and the
+brain follows on its own. On the user's side the turn ends with the matching note:
 "the usual assistant could not be reloaded after the handoff, so the next message may fail
 until the machine recovers" (`swap_notes.py`).
 
@@ -537,7 +558,15 @@ stranded record `FAILED` and escalation works again.
    `docker compose ... up -d model-host` recreates it and its boot default starts the cortex;
    `just up-gpu` does the same for the whole GPU stack.
 
-3. **Restart the brain so boot recovery runs.**
+   **This is the step that fixes the dot, and there is nothing to do after it.** Within one
+   `CORTEX_SWAP_TIER_HEAL_S` (30 s) the brain reads the cortex `ready` and the deep tier off the
+   card, publishes the cortex as the resident again, says
+   `the cortex is serving again, so residency was regained without a restart` in its log, and
+   answers `Health` green. Turns work from that moment, and so does the subagent pool's GPU
+   placement, which a handoff that gave up had left overflowing to the CPU. Step 3 is for the
+   store, not for the GPU.
+
+3. **Restart the brain only if a handoff record is stuck.**
 
    ```
    docker compose --project-directory . -f docker/docker-compose.yml \
@@ -546,20 +575,23 @@ stranded record `FAILED` and escalation works again.
 
    At startup, and before the seam serves a turn, `recover_handoffs` (`swap_recovery.py`) marks
    any handoff record a crash stranded as `FAILED` and converges residency back onto the cortex.
-   That is what clears both the dead residency state and a record that would otherwise refuse
-   the next handoff. Conversation state lives in redis, so the restart loses no chat (the same
-   check [local-dev-wsl.md](local-dev-wsl.md) documents).
+   Conversation state lives in redis, so the restart loses no chat (the same check
+   [local-dev-wsl.md](local-dev-wsl.md) documents).
 
-   **This step is not optional once a restore has given up.** The brain's residency is in-process
-   bookkeeping the swap publishes, so a manager that stopped trying goes on answering `Health`
-   with "the usual assistant could not be reloaded" (an amber dot) even after step 2 put the
-   cortex back by hand. Restarting is what re-reads the machine; nothing else does.
+   **What this is for now: the record, not the residency.** The one thing only a restart clears is
+   a handoff record that is still readable as in flight, which refuses every later escalation with
+   "a handoff to the deep model is already running" ("The other error that sends you here" above).
+   Residency itself no longer needs it: the background pass re-reads the machine every
+   `CORTEX_SWAP_TIER_HEAL_S` and republishes the cortex once step 2 has made it true, which is
+   what "the usual assistant could not be reloaded" used to stand through until a restart. So run
+   this step when escalation is being refused, and skip it when the dot is the only complaint.
 
    **Do step 2 first, and check the dot afterwards.** `restart` does not re-evaluate the GPU
    override's `depends_on`, so a brain restarted while the cortex still will not load comes back
    with recovery having failed. It says so rather than lying: the dot stays amber reading "did
-   not come up at startup". A green dot after this step is the confirmation that recovery
-   actually settled the cortex, which is why step 4 is still worth running.
+   not come up at startup", and that amber now clears itself too, the moment the cortex comes up
+   and a pass reads it. A green dot after this step is the confirmation that recovery actually
+   settled the cortex, which is why step 4 is still worth running.
 
 4. **Confirm.** Run one ordinary turn. It must answer normally; escalation is only worth
    retrying after that.

@@ -1,17 +1,12 @@
 """One pass over every peer of the standing residency, not only the doubted ones (ADR-0030)."""
 
 import logging
-from collections.abc import Callable
 
 from cortex_core.errors import ModelHostError, ModelNotHostedError
 from cortex_core.model_host import ModelHostState, ResidencyPlan
 from cortex_core.ports import ModelHost
+from cortex_core.residency_state import Fence
 from cortex_core.residency_tiers import StandingTiers, TierFault
-
-# Whether a pass may still write to the card: no handoff claimed and no residency scope active.
-# Synchronous by contract, because the whole worth of asking again just before a start is that
-# nothing else can run between the answer and the call.
-type Fence = Callable[[], bool]
 
 _logger = logging.getLogger(__name__)
 

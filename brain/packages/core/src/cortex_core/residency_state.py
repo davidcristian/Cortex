@@ -15,6 +15,9 @@ class ResidencyReport:
 type ResidencyPublisher = Callable[[str | None, ResidencyReport], Awaitable[None]]
 
 
+type Fence = Callable[[], bool]
+
+
 # The standing residency: the cortex is up and turns run normally. A fresh manager seeds this
 # too, and the seed is only ever an assumption, so boot convergence republishes it (or does not)
 # from what it actually observed, before the seam serves anything.
@@ -33,9 +36,6 @@ RESIDENCY_DEEP = ResidencyReport(serving=False, detail="a deep task is in progre
 # The swap back, which is the recovery path: the deep model is stopped and the cortex is loading.
 RESIDENCY_RESTORING = ResidencyReport(serving=False, detail="bringing the usual assistant back")
 
-# The one state no retry cleared: the restore gave up loudly and the GPU serves nothing. It
-# stands until the brain restarts and boot recovery converges residency again, which is what
-# docs/runbooks/model-swap.md's manual recovery ends with.
 RESIDENCY_LOST = ResidencyReport(
     serving=False,
     detail="the usual assistant could not be reloaded after a deep task; recovery is manual",

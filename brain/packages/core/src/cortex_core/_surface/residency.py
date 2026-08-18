@@ -15,6 +15,7 @@ from cortex_core.model_host import (
 )
 from cortex_core.residency import SwappingModelManager
 from cortex_core.residency_heal import DEFAULT_TIER_HEAL_INTERVAL_S, TierHealer
+from cortex_core.residency_regain import heal_standing_residency, regain_residency
 from cortex_core.residency_state import (
     RESIDENCY_BOOT_FAILED,
     RESIDENCY_DEEP,
@@ -90,6 +91,8 @@ __all__ = [
     "TierHealer",
     "await_model_ready",
     "converge_residency",
+    "heal_standing_residency",
     "recover_handoffs",
+    "regain_residency",
     "sweep_tiers",
 ]

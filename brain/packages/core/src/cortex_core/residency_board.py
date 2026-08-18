@@ -4,7 +4,7 @@
 import asyncio
 
 from cortex_core.errors import HandoffInProgressError, ModelUnavailableError
-from cortex_core.residency_state import RESIDENCY_SERVING, ResidencyReport
+from cortex_core.residency_state import RESIDENCY_SERVING, Fence, ResidencyReport
 
 
 class ResidencyBoard:
@@ -42,9 +42,27 @@ class ResidencyBoard:
         back both leave nothing resident, so the direction is published rather than inferred.
         """
         async with self._condition:
-            self._resident = model
-            self._report = report
-            self._condition.notify_all()
+            self._write(model, report)
+
+    async def publish_between_handoffs(
+        self, model: str | None, report: ResidencyReport, fence: Fence
+    ) -> bool:
+        """Publish only while nothing owns the GPU, and answer whether the write landed."""
+        async with self._condition:
+            if not fence():
+                return False
+            self._write(model, report)
+            return True
+
+    def _write(self, model: str | None, report: ResidencyReport) -> None:
+        """The invariant in one place: both fields land together, then the queue is woken.
+
+        Called with the condition already held, always, which is what makes "nothing awaited
+        between them" a property of this object rather than of each caller.
+        """
+        self._resident = model
+        self._report = report
+        self._condition.notify_all()
 
     async def publish_report(self, report: ResidencyReport) -> None:
         """Replace what a human is told, and leave what may be leased exactly where it is."""

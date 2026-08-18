@@ -33,3 +33,9 @@ second way to be wrong about the card. Re-derive both against the tree before st
 - 2026-08-18: Opened by the close of [109](109-spill-does-not-latch.md), which argued that the
   answer to an operator who does not read logs is to move the fact rather than to disable
   co-residency automatically.
+- 2026-08-18: One constraint recorded by the residency regain landing beside this
+  ([116](116-reconciliation-without-a-turn.md)), since it decides where the note may live rather
+  than whether it should. That pass republishes the bare `RESIDENCY_SERVING` constant whenever it
+  finds the cortex back, so a detail written **into** the published record would be erased by it;
+  ride the read-time composition `StandingTiers.note_on` already does in `residency()` instead.
+  Nothing else here changed, and the two costs above are still to be re-derived.

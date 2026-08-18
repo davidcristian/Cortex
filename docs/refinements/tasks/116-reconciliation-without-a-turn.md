@@ -1,9 +1,8 @@
 # Reach the residency reconciliation without a turn
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-08-18
 **Area:** inference-model-manager
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
-**Trigger:** A second visit to the manual-recovery path, or a report observed stale by a user rather than by a reading of the code.
 
 Opened 2026-08-09 by the entry above landing, and it is the half a boot id cannot answer. The
 reconciliation fires on one event, a daemon naming a different boot, and at one place, the top of
@@ -23,8 +22,25 @@ rather than only inside a swap, which is a cold path (a refused acquire has alre
 same refusal is reached mid swap while the deep model is loading, where converging would stop
 the very load in flight. So it wants a gate on "no scope is active" and its own concurrency
 argument, and possibly an operator-facing re-converge verb instead, which needs no lock
-reasoning at all. **Trigger:** a second visit to the manual-recovery path, or a report observed
-stale by a user rather than by a reading of the code.
+reasoning at all.
+
+**What landed is not the shape above, and two things this entry said had aged.** The writer it
+names is gone: `_set_resident` became `ResidencyBoard.publish` when the bookkeeping moved into
+[residency_board.py](../../../brain/packages/core/src/cortex_core/residency_board.py) on
+2026-08-09, and the mechanism it describes is otherwise exactly what the tree still did on
+2026-08-18. The delicate refusal path it proposes is no longer the only option either, because the
+fence it says such a thing would have to invent already exists: `TierHealer` runs a fenced pass
+every `CORTEX_SWAP_TIER_HEAL_S` and the manager already refuses to touch the card inside it while a
+handoff is claimed or a scope is active.
+
+So the regain rides that pass rather than the refusal
+([residency_regain.py](../../../brain/packages/core/src/cortex_core/residency_regain.py)): while
+the report says the GPU is not serving it reads the cortex and the deep tier and, when the cortex
+is `READY` and the deep tier is off the card, publishes the standing residency again and reopens
+the placer's GPU. Both halves the entry names are closed by the one reading, since neither state
+is distinguishable to it: the expensive one, where every `acquire` was refused until a restart, and
+the cheap one, where only the dot was wrong. No lock reasoning was needed on `_claim`, nothing is
+converged, and nothing is started.
 
 ## Trail
 
@@ -38,3 +54,13 @@ stale by a user rather than by a reading of the code.
   name, the residency and model-manager entries each recent close opened, whose triggers are
   live-observation shaped, a deployment doing something rather than a file saying something, so no
   reading of the code settles them.
+- 2026-08-18: Landed as a read-only regain on the fenced pass that already sweeps the peers, rather
+  than as the reconciliation on the refusal path this entry sketched: it never converges (that
+  would bounce a co-resident plan's peers and could stop a load in flight), it never starts
+  anything, and it publishes only when the cortex is serving **and** the deep tier is off the card,
+  which is the guard against handing a lease out onto a card that still holds two tiers. The write
+  tests the fence under the residency condition, so a handoff claimed mid pass cannot be overwritten
+  by a reading taken before it. Reasoning at the origin decision's residency-regain addendum, and
+  the runbook's manual recovery no longer ends by restarting the brain. The follow-up it declined to
+  bundle, a pass that also starts the cortex and the operator-facing re-converge verb, is
+  [310](310-a-pass-that-starts-the-cortex.md).

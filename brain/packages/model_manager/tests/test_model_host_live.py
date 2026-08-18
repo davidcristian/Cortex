@@ -389,6 +389,91 @@ async def test_a_real_swap_charges_the_placer_for_the_model_that_holds_the_card(
         await client.aclose()
 
 
+@pytest.mark.integration
+async def test_a_background_pass_regains_residency_from_the_real_sidecar() -> None:
+    """The recovery that used to need a restart of the brain, taken off a real daemon's answers."""
+    endpoint = os.environ.get("CORTEX_MODELHOST_ENDPOINT")
+    if not endpoint:
+        pytest.skip("set CORTEX_MODELHOST_ENDPOINT to a running model-host sidecar")
+    standing = os.environ.get("CORTEX_MODEL_CORTEX", "cortex")
+    deep = os.environ.get("CORTEX_MODEL_BRAIN", "brain")
+    client = httpx.AsyncClient(timeout=httpx.Timeout(_CONTROL_TIMEOUT_S))
+    host = HttpModelHost(endpoint, client)
+    manager = _live_manager(host, standing, deep)
+    try:
+        await host.start(standing)
+        if await _settled(host, standing) is not ModelHostState.READY:
+            pytest.skip(f"the cortex tier {standing!r} is not serving; fix that before this test")
+        await manager.publish_boot_residency(serving=False)
+        assert manager.residency().serving is False
+        before = list(await _tier_states(host, (standing, deep)))
+        await manager.heal_residency()
+        assert manager.residency() == RESIDENCY_SERVING
+        async with manager.acquire(standing) as lease:
+            assert lease.endpoint == "http://127.0.0.1:8080"
+        assert list(await _tier_states(host, (standing, deep))) == before  # a reading, not a move
+    finally:
+        await client.aclose()
+
+
+@pytest.mark.integration
+async def test_a_real_deep_tier_on_the_card_stops_the_regain() -> None:
+    """The guard, against a deep tier that is genuinely resident rather than a scripted one."""
+    endpoint = os.environ.get("CORTEX_MODELHOST_ENDPOINT")
+    if not endpoint:
+        pytest.skip("set CORTEX_MODELHOST_ENDPOINT to a running model-host sidecar")
+    standing = os.environ.get("CORTEX_MODEL_CORTEX", "cortex")
+    deep = os.environ.get("CORTEX_MODEL_BRAIN", "brain")
+    client = httpx.AsyncClient(timeout=httpx.Timeout(_CONTROL_TIMEOUT_S))
+    host = HttpModelHost(endpoint, client)
+    manager = _live_manager(host, standing, deep)
+    try:
+        try:
+            await host.start(deep)
+        except ModelHostError as err:
+            pytest.skip(f"the sidecar does not host a deep tier {deep!r}: {err}")
+        try:
+            await host.start(standing)
+            if (await _settled(host, deep), await _settled(host, standing)) != (
+                ModelHostState.READY,
+                ModelHostState.READY,
+            ):
+                pytest.skip("this card could not hold both tiers, so there is no guard to test")
+            await manager.publish_boot_residency(serving=False)
+            await manager.heal_residency()
+            assert manager.residency().serving is False  # the deep tier still holds the card
+            await host.stop(deep)
+            await manager.heal_residency()
+            assert manager.residency() == RESIDENCY_SERVING
+        finally:
+            await host.stop(deep)
+            await host.start(standing)
+    finally:
+        await client.aclose()
+
+
+def _live_manager(host: HttpModelHost, standing: str, deep: str) -> SwappingModelManager:
+    """The shipped manager over the real adapter, with the endpoints the loopback override maps."""
+    return SwappingModelManager(
+        host,
+        {standing: "http://127.0.0.1:8080", deep: "http://127.0.0.1:8081"},
+        ResidencyPlan(cortex_model=standing, brain_model=deep, load_timeout_s=300.0),
+        _SystemClock(),
+        AsyncioSleeper(),
+    )
+
+
+async def _tier_states(host: HttpModelHost, models: Sequence[str]) -> list[str]:
+    """What the sidecar says each tier is doing, with a 404 read as the fact that it is not one."""
+    states: list[str] = []
+    for model in models:
+        try:
+            states.append((await host.status(model)).value)
+        except ModelNotHostedError:
+            states.append("unhosted")
+    return states
+
+
 def _spawn() -> PlacementRequest:
     """One spawn asking for the shipped subagent VRAM budget."""
     return PlacementRequest("subagent", vram_gb=_SPAWN_GB, cpus=1.0, memory_gb=2.0)

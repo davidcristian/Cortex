@@ -915,9 +915,11 @@ unchanged):
   seed a fresh manager starts from), `RESIDENCY_LOADING` (the swap in, eviction included, nothing
   serving), `RESIDENCY_DEEP` (the deep model resident and working), `RESIDENCY_RESTORING` (the
   swap back), `RESIDENCY_LOST` (a restore that gave up: the GPU serves nothing until boot
-  recovery converges it and republishes), and `RESIDENCY_BOOT_FAILED` (boot recovery ran and did
+  recovery converges it, or a background pass reads the cortex serving again and republishes),
+  and `RESIDENCY_BOOT_FAILED` (boot recovery ran and did
   **not** leave the cortex serving, whether the host was unreachable or the cortex never gated
-  ready; distinct from the one before it because no deep task need have happened). Their
+  ready; distinct from the one before it because no deep task need have happened; the same pass
+  clears it). Their
   `serving` flags and their exact `detail` strings are pinned against literals in one test:
   every other case compares a published report to the constant that names it, which cannot
   catch an edit to the constant itself. All app-authored like `swap_notes.py`, and kept apart
@@ -2111,7 +2113,11 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   serves, what a human is told about it, whether a scope owns the card, and the one
   `asyncio.Condition` all three are published and waited on under. `publish(model, report)` is the
   `ResidencyPublisher` every observer is handed, `publish_report(report)` the one writer that
-  touches display alone (boot recovery's), `await_resident(model)` the acquire's queue, and
+  touches display alone (boot recovery's), `publish_between_handoffs(model, report, fence)` the
+  background pass's, which tests the fence **under the same condition** a claim is taken under and
+  answers whether the write landed (a pass concludes over several awaits, so a check made at its
+  caller could be overtaken by a handoff and would then overwrite the swap's own report),
+  `await_resident(model)` the acquire's queue, and
   `enter_scope`/`leave_scope` the scope flag; `report` and `scope_active` are lock-free reads,
   which is what lets `Health` answer during a load. It is held by the manager and deliberately not
   exported, like `HandoffClaim` beside it. All split off for
@@ -2135,14 +2141,17 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   (`residency_charge.py`, ADR-0030 handoff-window addendum). The handoff charge is written before
   `swap_in` runs, so it holds while the fit check reads the card and while the weights load; the
   reversal fires only once the cortex is genuinely serving again, so a restore that gave up keeps
-  spawning on the CPU. With `brain_vram_mib` at zero there is no honest figure and the window is
-  never entered, which is the shipped behaviour.
-  `heal_standing_tiers()` is the manager's one other public verb, one sweep over every evictable
-  peer, and it returns having done nothing while a handoff owns the GPU, since starting a peer
+  spawning on the CPU until something observes the cortex back, which is the swap back on a later
+  handoff or the background pass below. With `brain_vram_mib` at zero there is no honest figure and
+  the window is never entered, which is the shipped behaviour.
+  `heal_residency()` is the manager's one other public verb, one pass over the standing residency
+  (every evictable peer, then the resident itself), and it returns having done nothing while a
+  handoff owns the GPU, since starting a peer
   while the deep model is alone on the card is the one forbidden move. Its guard is the private
   `_fence()`, which is `HandoffClaim.claimed` **and** `ResidencyBoard.scope_active` and is handed
-  to the sweep as well as read here, so a pass can ask again in the instant before it starts a
-  tier (ADR-0030 tier-sweep addendum). It takes no lease: a peer is never the resident, so holding
+  down as well as read here, so the sweep can ask again in the instant before it starts a tier and
+  the regain's publish can ask again under the residency condition (ADR-0030 tier-sweep and
+  residency-regain addenda). It takes no lease: a peer is never the resident, so holding
   one across a control call would park a turn behind a status probe for nothing, and a pass that
   queued for one would be held for a whole load. `standing_tiers` is the record below, handed out
   for the one caller that writes it from outside a swap: boot recovery, which converges before the
@@ -2175,6 +2184,20 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   before the fence is consulted, so the placer stops sending spawns at that tier whether or not
   this pass may also touch the card. Readiness is observed on a later pass rather than gated
   inside this one. It never raises.
+- `heal_standing_residency(host, plan, board, tiers, fence)` in `residency_regain.py` is what a
+  whole pass does: `sweep_tiers` for the peers, then `regain_residency` for the resident, in that
+  order so the report the second one publishes is composed over a record the first has just
+  refreshed. `regain_residency(host, plan, board, tiers, fence)` is the resident half and the
+  answer to a state nothing else could leave (ADR-0030 residency-regain addendum): a restore that
+  gave up refuses every `acquire`, so no turn runs, so no handoff starts, so the reconciliation
+  inside `_swap_in` is unreachable, and the runbook's recovery used to end by restarting the
+  brain. A **serving** report returns before any call at all, so a healthy deployment pays
+  nothing; otherwise it reads the cortex (`READY` and nothing else), reads the deep tier (off the
+  card means `STOPPED`, `FAILED` or a `ModelNotHostedError`, while `READY` and `LOADING` both mean
+  it still holds the GPU, which is the guard against publishing onto a card two tiers are on), and
+  publishes `RESIDENCY_SERVING` through `publish_between_handoffs` plus the standing charge that
+  reopens GPU placement. A host that cannot answer either question publishes nothing and logs at
+  debug. It never converges, never starts anything, and never raises.
 - `TierHealer(heal, *, interval_s=DEFAULT_TIER_HEAL_INTERVAL_S)` in `residency_heal.py` is the
   loop that keeps calling one such pass, and it owns its own task: `start()` (idempotent),
   `aclose()` (signal, then wait out the in-flight pass), `run()` (the loop, whose pass guard

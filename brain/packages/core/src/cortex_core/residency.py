@@ -13,6 +13,7 @@ from cortex_core.residency_board import ResidencyBoard
 from cortex_core.residency_charge import charge_handoff
 from cortex_core.residency_claim import HandoffClaim
 from cortex_core.residency_moves import is_unhosted, swap_in
+from cortex_core.residency_regain import heal_standing_residency
 from cortex_core.residency_restore import restore_uninterruptibly, restore_with_retries
 from cortex_core.residency_state import (
     RESIDENCY_BOOT_FAILED,
@@ -21,7 +22,6 @@ from cortex_core.residency_state import (
     RESIDENCY_SERVING,
     ResidencyReport,
 )
-from cortex_core.residency_sweep import sweep_tiers
 from cortex_core.residency_tiers import StandingTiers
 from cortex_core.residency_watch import BootWatch
 
@@ -130,10 +130,12 @@ class SwappingModelManager:
             await swap_in(self._host, self._plan, model, self._gate)
             await self._board.publish(model, RESIDENCY_DEEP)
 
-    async def heal_standing_tiers(self) -> None:
-        """Read every evictable peer's state and act on it, unless a handoff owns the GPU."""
+    async def heal_residency(self) -> None:
+        """Read what the GPU is really doing and act on it, unless a handoff owns the card."""
         if self._fence():
-            await sweep_tiers(self._host, self._plan, self._tiers, self._fence)
+            await heal_standing_residency(
+                self._host, self._plan, self._board, self._tiers, self._fence
+            )
 
     def _fence(self) -> bool:
         """Whether no handoff owns the GPU right now, answered synchronously and without I/O."""
