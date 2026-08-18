@@ -35,7 +35,9 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   the eased working depth, `edges.ts` the style registry on the same clock, rendered by
   `components/PanelEdge.tsx` as a clipped background slab under the content so the words never
   sit on the warping layer, ADR-0036), the whispered streaming (`whisper/`: `front.ts` the pure
-  front engine and tokenizer, `useWhisperClock.ts` the frame clock that writes the letter ramps,
+  front engine and tokenizer, `metrics.ts` what a bubble measures about itself, the box that
+  measurement poses and the watch that says when a window change has expired it,
+  `useWhisperClock.ts` the frame clock that writes the letter ramps,
   the gliding mist and the bubble's posed box, rendered by `components/WhisperBubble.tsx`,
   ADR-0037), the appearance record (`overlay/usePreferences.ts`:
   hydrates the theme, mark and window edge from the brain once and writes each change back
@@ -731,7 +733,17 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   never moves visible letters); `whisper/useWhisperClock.ts` is a rAF loop in `useMarkClock`'s
   shape that writes letter opacity and blur, the mist's transform and the bubble's posed box
   imperatively, its only `setState` being the breath-to-talking and talking-to-settled
-  transitions. Letters are INLINE spans inside the inline-block word boxes (an inline-block
+  transitions. `whisper/metrics.ts` holds what the bubble measures about itself, the box that
+  measurement poses for a front standing at a given letter (`boxFor`, so a frame and a resize
+  cannot pose differently), and `watchWrap`, which re-measures on the window's own `resize` and
+  reports only a wrap width that actually moved. A change re-lays the letter DOM at the new
+  width; a bubble still streaming lets its next frame ease the box there, and one whose loop has
+  already stopped is re-posed at once from the last letter and tells the tail pin, since nothing
+  else in the overlay ever revisits a settled bubble's hard px box. The trigger is the window
+  alone, which is complete while the panel's width stays viewport-derived and would not be if it
+  stopped being; a `ResizeObserver` on the log is the wrong instrument here, because the log's
+  height follows the posed bubble every frame and writing the text's width inside an ancestor's
+  observation raises the undelivered-notifications error `overlay/panelWatch.ts` documents. Letters are INLINE spans inside the inline-block word boxes (an inline-block
   letter is laid on whole pixels and reads as a ransom note; inline keeps the text's own
   sub-pixel advances). The bubble announces its growth in the panel's roll contract
   (`overlay/morph.ts`): it carries `data-morphing` from its first spoken letter to its settle,

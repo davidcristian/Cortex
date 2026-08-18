@@ -132,7 +132,8 @@ landed, so the box lurched by words and whole lines ahead of anything visible.
   fallback stack would want a look before anyone changes the font, recorded as a refinement.
 - The wrap width is measured once per streamed bubble, so a window resized mid-stream keeps the
   old wrap until the next message; the v1 body window is fixed-size, so only the browser dev
-  flow can see it. Recorded as a refinement.
+  flow can see it. Recorded as a refinement, and landed in the 2026-08-18 addendum below, which
+  also records the larger version of the cost this bullet undercounted.
 - The drain can grow the bubble a few pixels after the turn's last render; the history's
   min-height floor hides it from the panel's measured moves today, and the tail pin rides
   `onGrow`. The panel learning about between-render growth is recorded as a refinement.
