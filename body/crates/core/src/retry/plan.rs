@@ -24,10 +24,23 @@ use std::time::Duration;
 
 use crate::retry::policy::RetryPolicy;
 
-/// The ceiling a `Health` probe's backoff is trimmed to by default, chosen so the shipped
-/// defaults are unaffected: the default schedule's worst case is 600 ms, well inside this, so
-/// the budget binds only once someone turns the read knobs up.
+/// The ceiling a `Health` probe spends by default, backoff **and** attempts together: with the
+/// shipped deadline the probe keeps two of the read schedule's three attempts (250 + 200 + 250
+/// fits, adding a third does not), so the indicator's verdict arrives inside 700 ms.
 pub const DEFAULT_PROBE_BUDGET: Duration = Duration::from_secs(1);
+
+/// How long a `Health` probe may wait for one answer. Brain-side `Health` is documented
+/// synchronous and lock free precisely so a probe cannot queue behind the model swap it reports
+/// on, and on loopback it answers in single-digit milliseconds, so this is two orders of
+/// magnitude of headroom: past it, the honest reading is a brain the indicator should stop
+/// vouching for rather than one worth waiting on.
+pub const DEFAULT_PROBE_DEADLINE: Duration = Duration::from_millis(250);
+
+/// How long every other unary call may wait for one answer. The reads and the catalog writes
+/// are store operations over loopback, so this is far beyond a healthy one, and short enough
+/// that a switcher opened against a wedged brain admits failure while the user is still
+/// watching rather than spinning forever.
+pub const DEFAULT_CALL_DEADLINE: Duration = Duration::from_secs(5);
 
 /// Every call on the [`crate::transport::BrainTransport`] port, named so a retry decision can
 /// be made about it. Exhaustive by construction: a new port method that wants resilience has
@@ -117,28 +130,39 @@ impl SeamMethod {
     }
 }
 
-/// The retry schedule each seam method runs under, resolved through the repeatability gate.
+/// The retry schedule and the deadline each seam method runs under, resolved through the
+/// repeatability gate.
 ///
 /// One schedule for the reads a user waits on, plus a ceiling for the `Health` probe, because
 /// those two have different consumers: a read that arrives late is still the right answer,
-/// while a probe that arrives late has already let the indicator show the wrong dot.
+/// while a probe that arrives late has already let the indicator show the wrong dot. The
+/// deadlines split for the same reason and are asked separately ([`RetryPlan::deadline_for`]),
+/// because they answer a different question: the schedule bounds the waiting *between*
+/// attempts, the deadline bounds an attempt, and only the second one can say anything about a
+/// brain that accepts the connection and then goes quiet.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RetryPlan {
     /// The schedule for the repeatable reads (`ListSessions`, `GetSessionMessages`,
     /// `ListDueReminders`) and the starting point the probe's is trimmed from.
     pub reads: RetryPolicy,
-    /// The most backoff a `Health` probe may spend before answering. See
-    /// [`RetryPolicy::within`] for what "trimmed to fit" means and
-    /// [`DEFAULT_PROBE_BUDGET`] for why the default changes nothing.
+    /// The most a `Health` probe may spend before answering, attempts and backoff together.
+    /// See [`RetryPolicy::within`] for what "trimmed to fit" means and
+    /// [`DEFAULT_PROBE_BUDGET`] for what the default leaves the probe.
     pub probe_budget: Duration,
+    /// How long one `Health` attempt may wait for an answer ([`DEFAULT_PROBE_DEADLINE`]).
+    pub probe_deadline: Duration,
+    /// How long every other unary attempt may wait for an answer ([`DEFAULT_CALL_DEADLINE`]).
+    pub call_deadline: Duration,
 }
 
 impl Default for RetryPlan {
-    /// The [`RetryPolicy`] default for reads, with the probe budget that does not bind it.
+    /// The [`RetryPolicy`] default for reads, with the shipped budget and deadlines.
     fn default() -> Self {
         Self {
             reads: RetryPolicy::default(),
             probe_budget: DEFAULT_PROBE_BUDGET,
+            probe_deadline: DEFAULT_PROBE_DEADLINE,
+            call_deadline: DEFAULT_CALL_DEADLINE,
         }
     }
 }
@@ -167,8 +191,36 @@ impl RetryPlan {
             return None;
         }
         Some(match method {
-            SeamMethod::Health => self.reads.within(self.probe_budget),
+            SeamMethod::Health => self.reads.within(self.probe_budget, self.probe_deadline),
             _ => self.reads,
         })
+    }
+
+    /// How long one attempt at `method` may wait for an answer, or **`None` when it is not the
+    /// clock's business**.
+    ///
+    /// The `None` belongs to `Converse` alone, and it is a decision rather than a gap: a turn
+    /// is long by design (a model thinks, tools run, tokens stream), so ending one on a clock
+    /// would be a different feature with a different consumer, and the turn's own stream is
+    /// where that would belong. Everything else gets a duration, the writes included. Nothing
+    /// here consults [`SeamMethod::repeatable`], and deliberately: bounding a call is not
+    /// repeating it, so a write the plan refuses to retry still gets an answer or a
+    /// [`crate::transport::TransportError::Timeout`] rather than an open-ended wait.
+    #[must_use]
+    pub fn deadline_for(&self, method: SeamMethod) -> Option<Duration> {
+        match method {
+            SeamMethod::Health => Some(self.probe_deadline),
+            // The one call a clock must not end: see above.
+            SeamMethod::Converse => None,
+            SeamMethod::ListSessions
+            | SeamMethod::SessionMessages
+            | SeamMethod::ListDueReminders
+            | SeamMethod::AckReminder
+            | SeamMethod::RenameSession
+            | SeamMethod::DeleteSession
+            | SeamMethod::SetSessionPinned
+            | SeamMethod::GetPreferences
+            | SeamMethod::SetPreference => Some(self.call_deadline),
+        }
     }
 }

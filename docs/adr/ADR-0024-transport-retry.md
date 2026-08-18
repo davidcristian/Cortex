@@ -336,3 +336,118 @@ port: `EVERY_METHOD` still called itself every variant while listing nine of ele
 `GetPreferences` and `SetPreference` sat outside the invariant and outside the explicit
 repeatability assertions. Both are named now. A future producer reopens the classification for
 that code alone, against what the producer means by it.
+
+## Addendum (2026-08-18): a per-attempt deadline, enforced in the core and never retried
+
+Every duration this decision has spent so far bounds the wait *between* attempts. Nothing bounded
+an attempt, so the whole design assumed a brain that answers or fails and had nothing to say about
+one that accepts the connection and then goes quiet. The consequence recorded above, that `Down`
+arrives within `probe_budget` of the probe starting, held only for a brain that answers. The
+harm is not theoretical at the far end either: the overlay's `useLink` holds an `inFlight` latch
+that is cleared in the promise's `finally`, so one probe that never resolves disables every later
+probe forever and the 5 s recovery interval fires into a no-op for the rest of the session
+(`body/app/src/overlay/useLink.ts`). An unbounded attempt does not merely delay one answer, it
+ends the indicator.
+
+**The obvious shape is a trap, and reading tonic is what found it.** The natural implementation is
+`Endpoint::timeout` or `Request::set_timeout`, letting tonic expire the call. In tonic 0.14 an
+expired client-side timeout is `TimeoutExpired`, and `find_status_in_source_chain` turns that into
+`Status::cancelled("Timeout expired")` with **no source attached** (`tonic/src/status.rs`). The
+adapter's classifier keys on finding a `tonic::transport::Error` in the source chain
+(`body/crates/rpc/src/status.rs`), so a sourceless status is by construction the "the brain
+answered" case: the body's own expired deadline would arrive as `TransportError::Rpc { code:
+"Cancelled" }` and the indicator would draw `Degraded`, which claims the brain replied. A deadline
+built that way would report the hang as an answer, inverting the one signal it exists to make
+honest, and it would look like it worked.
+
+**So the deadline is enforced in the core, over the port that already owns the clock.** `Sleeper`
+gains a second method, `bounded(deadline, call) -> Option<T>`, where `None` means the deadline won
+the race and the call was dropped (which for the gRPC adapter resets the in-flight stream, so an
+abandoned attempt stops costing the brain). `sleep` is the wait between attempts and `bounded` is
+the bound on one attempt: the same effect, asked two ways, and the core keeps the *policy* (how
+long) while an adapter keeps the *clock*. The real implementation is one line of
+`tokio::time::timeout` in the ungated shell beside `TokioSleeper::sleep`, exactly as decision 5
+placed the timer; the fakes grant or expire a call outright, so the decorator's behaviour under a
+deadline is tested with no wall clock. `retry::deadline::within_deadline` is the composition the
+decorator applies around every attempt, and it is public so the shell wraps its eager `converse`
+dial in it too: with that, no call the body makes on this seam is unbounded, the dial included.
+
+**The expiry is its own failure, not a status.** A new `TransportError::Timeout { after }` carries
+the deadline that expired. It is a fourth variant rather than a reuse of `Connection` or `Rpc`
+because it is genuinely a fourth thing: `Connection` is "nothing accepted the call", `Rpc` is "the
+brain answered", and a timeout is "we stopped waiting", which neither of the others can say
+without lying. `LinkStatus::from_error` draws it `Down`, because `Degraded`'s defining property is
+that the brain answered and a timeout is precisely the absence of an answer; the detail line says
+`no reply within 250ms`, so the tooltip still separates a wedged brain from an absent one. The
+variant also unifies a race that would otherwise show two dots for one event: once the courtesy
+`grpc-timeout` header lands, the same expiry can arrive locally or as the brain's own
+`DEADLINE_EXCEEDED`, and both mean the same thing to everything above the adapter.
+
+**Two deadlines, because the consumers differ, and one method has none.** `RetryPlan` carries
+`probe_deadline` (`DEFAULT_PROBE_DEADLINE` = 250 ms) and `call_deadline` (`DEFAULT_CALL_DEADLINE`
+= 5 s), resolved by `deadline_for(method)` the way `policy_for` resolves the schedule. The probe's
+number is defensible from the handler it calls: brain-side `Health` is documented synchronous and
+lock free precisely so a probe cannot queue behind the swap it reports on, and on loopback it
+answers in single-digit milliseconds, so 250 ms is two orders of magnitude of headroom and
+anything past it is a brain the indicator should stop vouching for. The reads and the catalog
+writes are store operations on loopback, so 5 s is far beyond a healthy one and still short enough
+that the switcher admits failure while the user is watching. `Converse` gets `None`: a turn is
+long by design, and a clock is the wrong thing to end one. `within_deadline` spells that `None`
+as `Duration::MAX` instead of branching on it, which is what an absent deadline means to a clock
+and which keeps a dead arm out of generic code that is compiled once per call type. Note that the writes are bounded though
+they are never retried, which is the point worth keeping: bounding is not repeating, so
+repeatability and a deadline are independent questions and every unary call gets an answer or a
+`Timeout`.
+
+**The probe budget now counts the attempts, which is what makes its promise true.** `within` took
+a budget and trimmed attempts until the *backoff* fit; an attempt that can cost up to a deadline
+makes that arithmetic wrong, since a slow attempt that fails transiently spends its deadline and
+then buys a wait. It now takes the per-attempt cost too and trims until
+`attempts × deadline + backoff` fits, so the bound the indicator advertises is real:
+**`Down` arrives within `max(probe_budget, probe_deadline)`**, one attempt always surviving, and
+the first half of that max holds whenever a single attempt fits the budget at all. This does
+change the shipped default, and deliberately: at 250 ms per attempt the probe keeps 2 attempts
+rather than 3 (250 + 200 + 250 = 700 ms fits the 1 s budget, adding a third does not), so the dot
+resolves inside 700 ms worst case and still spends one real retry on a restarting brain. The read
+schedule is untouched.
+
+**A timeout is terminal, and this is the decision the entry existed to make.** The retryable set
+is unchanged: `Connection` and `Rpc{Unavailable}` retry, and `Timeout` joins `Protocol` and every
+other status as terminal. Three reasons, in the order they decided it. First, a retried deadline
+is the classic load amplifier, and it amplifies exactly when the system is least able to take it:
+the condition that produces a timeout is a brain too slow or too stuck to answer, and the response
+of issuing the same call again two more times is the worst available. Second, and this is the
+argument that is specific rather than conventional, a timeout is not the brain's report about the
+call, it is *our own decision to stop waiting*. `Unavailable` is an answer that invites a retry,
+because the brain is saying it could not serve this one; a timeout says nothing whatever about the
+brain, and in particular it cannot say the next attempt will be faster. The cure for a call that
+needs longer is a longer deadline, which is a knob, not a repeat. Third, the abandoned attempt may
+still be running brain side, so a retry stacks a duplicate on a peer that is already too slow to
+answer the first. The earlier decline of `DEADLINE_EXCEEDED` rested on there being no producer;
+that ground is gone now, and the classification stands on its merits instead, which is why the
+pinning test names both the code and the new variant.
+
+**Consequences.**
+
+- No attempt the body makes on this seam is unbounded: the decorator bounds every unary call, and
+  the shell bounds its `converse` dial with the same helper. The turn stream itself is
+  deliberately outside that, since ending a turn on a clock is a different decision with a
+  different consumer.
+- The indicator's bound is now arithmetic rather than hope, and `Down` is what a hang draws. The
+  overlay's `inFlight` latch is released on every path, so the recovery cadence survives a wedged
+  brain.
+- The default probe spends 2 attempts instead of 3. Raising `CORTEX_BRAIN_PROBE_BUDGET_MS` or
+  lowering `CORTEX_BRAIN_PROBE_DEADLINE_MS` buys the third one back; neither can make the dot
+  claim a state the seam stopped proving, because the trim is computed from both.
+- `CORTEX_BRAIN_PROBE_DEADLINE_MS` (default 250) and `CORTEX_BRAIN_CALL_DEADLINE_MS` (default
+  5000) join the retry knobs in the shell, parsed the same way.
+- A brain that is merely slow now fails a read at 5 s where it used to hang, which is a behaviour
+  change for anyone whose store is slower than that. The knob is the answer, and the failure is
+  typed rather than silent.
+
+Still deferred, recorded in `docs/refinements/index.md#seam-transport`: the courtesy `grpc-timeout`
+header, so the brain learns the deadline and abandons its own work rather than finishing a reply
+nobody is waiting for. It is a separate slice because it touches the adapter's client construction
+(the interceptor is the natural place to set it) and because classification must never come to
+depend on tonic's own expiry, which is what the first paragraph above rules out. Safe `converse`
+reconnect before the first event is unchanged, and so is the retry budget / circuit breaker.

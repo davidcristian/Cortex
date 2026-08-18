@@ -13,18 +13,28 @@ use crate::transport::TransportError;
 
 /// Whether a failed seam call is worth retrying: transient reachability/backend conditions
 /// (`Connection`, and the gRPC-conventional `Rpc{Unavailable}`) are; a genuine application
-/// answer (any other `Rpc` status) or uninterpretable wire data (`Protocol`) is not. A repeat
-/// would return the same thing (ADR-0024 decision 3).
+/// answer (any other `Rpc` status), uninterpretable wire data (`Protocol`), or an expired
+/// deadline (`Timeout`) is not. A repeat would return the same thing (ADR-0024 decision 3).
 ///
 /// This is a *necessary* condition for a retry, never a sufficient one. `Unavailable` says the
 /// brain could not serve the call; it does not say the brain did not already run it. Whether a
 /// repeat is safe is [`crate::retry::SeamMethod::repeatable`]'s question, asked first.
+///
+/// **`Timeout` is terminal by decision, not by omission** (ADR-0024 deadline addendum), and it
+/// is the one classification here that a plausible reading would get backwards. A retried
+/// deadline is the classic load amplifier, and it amplifies precisely when the peer is least
+/// able to take it. The argument that decides it, though, is narrower than that convention: a
+/// timeout is not the brain's report about the call, it is **this side's decision to stop
+/// waiting**. `Unavailable` is an answer that invites a repeat, because the brain is saying it
+/// could not serve this one; an expired deadline says nothing whatever about the brain, and in
+/// particular cannot say a second attempt would be faster. The cure for a call that needs
+/// longer is a longer deadline, which is a knob, not a repeat.
 #[must_use]
 pub fn is_transient(error: &TransportError) -> bool {
     match error {
         TransportError::Connection(_) => true,
         TransportError::Rpc { code, .. } => code == "Unavailable",
-        TransportError::Protocol(_) => false,
+        TransportError::Protocol(_) | TransportError::Timeout { .. } => false,
     }
 }
 
@@ -104,23 +114,32 @@ impl RetryPolicy {
         })
     }
 
-    /// This schedule with its attempts trimmed until [`RetryPolicy::worst_case_backoff`] fits
-    /// `budget`, leaving the delays themselves untouched.
+    /// This schedule with its attempts trimmed until the whole run fits `budget`, counting each
+    /// attempt as costing up to `attempt` and every backoff between them, and leaving the
+    /// delays themselves untouched.
+    ///
+    /// The per-attempt cost is why this takes two durations. Summing only the waits was right
+    /// while an attempt could return at any time, and wrong the moment attempts became bounded:
+    /// an attempt that spends its whole deadline and *then* fails transiently buys a wait on
+    /// top, so a budget that counted the waits alone promised a bound it could not hold
+    /// (ADR-0024 deadline addendum).
     ///
     /// One attempt always survives: a budget buys back patience, never the call itself, so a
-    /// zero budget still makes exactly one try. Trimming rather than rescaling keeps the early
-    /// waits at the length that lets a restarting brain come back; what it drops is the long
-    /// tail a caller with a deadline could not spend anyway.
+    /// zero budget still makes exactly one try, and the guarantee is therefore
+    /// `attempts × attempt + backoff ≤ max(budget, attempt)`. Trimming rather than rescaling
+    /// keeps the early waits at the length that lets a restarting brain come back; what it
+    /// drops is the long tail a caller with a budget could not spend anyway.
     #[must_use]
-    pub fn within(self, budget: Duration) -> Self {
-        let mut spent = Duration::ZERO;
+    pub fn within(self, budget: Duration, attempt: Duration) -> Self {
+        let mut spent = attempt;
         let mut delay = self.base_delay.min(self.max_delay);
         let mut max_attempts = 1;
         while max_attempts < self.max_attempts {
-            spent = spent.saturating_add(delay);
-            if spent > budget {
+            let extended = spent.saturating_add(delay).saturating_add(attempt);
+            if extended > budget {
                 break;
             }
+            spent = extended;
             delay = delay.saturating_mul(self.multiplier).min(self.max_delay);
             max_attempts += 1;
         }

@@ -207,8 +207,9 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   reconnect neither flashes green nor forgets it was red) and refusing to look busy for the
   routine probe on an already-ready link. Three sources keep it current, and **none is a
   liveness timer**: the reducer folds every `TurnEvent` as proof of serving and every
-  `transportError` through the same classification `body_core::link` uses (`connection` → down,
-  `rpc`/`protocol` → degraded, because the brain answered); `useLink` probes once per summon;
+  `transportError` through the same classification `body_core::link` uses (`connection` and
+  `timeout` → down, because nothing answered; `rpc`/`protocol` → degraded, because the brain
+  answered); `useLink` probes once per summon;
   and it re-probes every `LINK_RECHECK_MS` (5 s) **only while the overlay is visible and the
   link is not ready**, stopping the moment it answers ready. The re-check is an interval keyed
   on "visible and unhealthy" rather than a timer re-armed per answer, because a probe answering
@@ -773,7 +774,9 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   that matches the TS `WireMessage` in `tauriBridge.ts` field for field (tag `kind`, camelCase, so
   a mid-turn confirm request is `{ kind: "confirmRequest", confirmId, toolName, argumentsJson,
   reason }` and the brain closing it unanswered is `{ kind: "confirmResolved", confirmId,
-  outcome }`, ADR-0022). For the turn's duration it parks a decision sender in the managed
+  outcome }`, ADR-0022). A `TransportError` carries its own `kind` on the same wire
+  (`connection` | `rpc` | `protocol` | `timeout`, the TS `TransportErrorKind`), which the
+  reducer classifies into the link exactly as `body_core::link` classifies a probe's failure. For the turn's duration it parks a decision sender in the managed
   `ConfirmRoute` state (`src-tauri/src/confirm.rs`, one slot, as at most one turn runs at a time);
   the matching receiver stream feeds `BrainTransport::converse`'s `decisions` parameter and is
   cleared when the event loop ends.
@@ -814,14 +817,18 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   un-gated shell so the retry *logic* stays gated in `body_core`. `policy_from_env()` (the shared
   `RetryPolicy` builder) is `pub` so `converse` reuses it for its dial, and `plan_from_env()`
   wraps it in the `RetryPlan` `connect()` passes: the same read schedule, plus
-  `CORTEX_BRAIN_PROBE_BUDGET_MS` as the ceiling on a `Health` probe's patience. Which calls may
-  be retried at all is *not* configurable here and deliberately so; that is the gated
+  `CORTEX_BRAIN_PROBE_BUDGET_MS` as the ceiling on a `Health` probe's whole run and the two
+  per-attempt deadlines, `CORTEX_BRAIN_PROBE_DEADLINE_MS` and `CORTEX_BRAIN_CALL_DEADLINE_MS`
+  (`env_millis` parses every duration knob here, since all of them are spelled in ms). Which
+  calls may be retried at all is *not* configurable here and deliberately so; that is the gated
   `RetryPlan` gate, decided by what each seam method does. The read commands use `connect()`;
   `converse` keeps its **eager** dial but wraps it in `retry_with` (ADR-0024 addendum), so a turn
   started against a briefly-down brain retries the *dial* (safe: the non-idempotent turn has not
   begun) while a turn that fails after its first event stays terminal (decision 2). It first runs
   the lazy constructor as a synchronous config gate, so a bad URI or non-ASCII token fails fast
-  instead of being retried for the whole budget.
+  instead of being retried for the whole budget, and each dial is wrapped in `within_deadline`
+  at the plan's call deadline, so a dial that hangs cannot hang the turn behind it. The turn's
+  own stream is deliberately unbounded: a model thinking is not a failure.
 - **The `body_server` module** (`src-tauri/src/body_server.rs`, ADR-0023/0025): `start()` (`cfg(windows)`)
   binds `CORTEX_BODY_ADDR` (default `127.0.0.1:50151`), reads `CORTEX_SEAM_TOKEN` and
   `CORTEX_TOAST_APP_ID` (default `dev.cortex.body`, the app's Tauri identifier), and serves
@@ -840,8 +847,11 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   to, default `dev.cortex.body`), and the read-transport retry knobs (ADR-0024)
   `CORTEX_BRAIN_RETRY_ATTEMPTS` (default 3), `_BASE_MS` (200), `_MULTIPLIER` (2),
   `_MAX_MS` (2000), plus `CORTEX_BRAIN_PROBE_BUDGET_MS` (1000), the ceiling the `Health`
-  probe's schedule is trimmed to so raising the read knobs cannot slow the connection
-  indicator's verdict. At the defaults it does not bind (the schedule's worst case is 600 ms).
+  probe's whole run is trimmed to so raising the read knobs cannot slow the connection
+  indicator's verdict, and the two per-attempt deadlines (ADR-0024 deadline addendum)
+  `CORTEX_BRAIN_PROBE_DEADLINE_MS` (250) and `CORTEX_BRAIN_CALL_DEADLINE_MS` (5000). At the
+  defaults the budget leaves the probe two of the reads' three attempts, so the dot resolves
+  inside 700 ms worst case and still spends one real retry on a restarting brain.
 
 **Invariants.**
 

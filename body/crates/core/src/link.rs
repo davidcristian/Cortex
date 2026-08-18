@@ -11,6 +11,11 @@
 //!   a rejected seam token as `Unauthenticated`): [`LinkState::Degraded`].
 //! - [`TransportError::Protocol`] means the brain answered something this side cannot read.
 //!   Reachable again, and wrong: [`LinkState::Degraded`].
+//! - [`TransportError::Timeout`] means the attempt was abandoned: nothing came back inside the
+//!   probe's deadline (ADR-0024 deadline addendum). Nothing answered, so [`LinkState::Down`],
+//!   and `Degraded` would be the lie the deadline exists to prevent, since its whole meaning is
+//!   that the brain answered. The detail names the deadline, so the tooltip still separates a
+//!   brain that is wedged from one that is absent.
 //! - A `Health` reply carries the brain's own verdict, so `ready = false` is the brain saying it
 //!   is up and not serving turns: [`LinkState::Degraded`] with its detail shown verbatim.
 //!
@@ -87,6 +92,10 @@ impl LinkStatus {
             TransportError::Protocol(message) => Self {
                 state: LinkState::Degraded,
                 detail: format!("unreadable reply: {message}"),
+            },
+            TransportError::Timeout { after } => Self {
+                state: LinkState::Down,
+                detail: format!("no reply within {after:?}"),
             },
         }
     }
