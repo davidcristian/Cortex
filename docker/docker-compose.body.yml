@@ -1,20 +1,28 @@
+# Body override: the brain calls the host body's BodyService over host.docker.internal. The body is
+# the host-native Rust app, not a container, so this file adds no service. It must bind an interface
+# the container can see (0.0.0.0:50151) rather than its default 127.0.0.1:50151.
 
 services:
   brain:
     environment:
-      # Opt into the brain->body direction; without this the base image runs body=none (ADR-0023).
+      # Turn the brain to body direction on; without this the base image makes no body calls.
       CORTEX_BODY_BACKEND: "grpc"
       # Where the host body's BodyService listens, as seen from the container. 50151 is the
       # body's port (50051 is the brain's BrainService). Override the port to match the host bind.
       CORTEX_BODY_ENDPOINT: "${CORTEX_BODY_ENDPOINT:-host.docker.internal:50151}"
+      # Screen capture. The brain asks the body for at most this long an edge and this many bytes,
+      # and refuses a larger reply. The edge defaults to 2048 rather than the body's own 1600, which
+      # is worth the pixels only because CORTEX_IMAGE_MAX_TOKENS=1024 gives the encoder room.
       CORTEX_BODY_CAPTURE_MAX_EDGE: "${CORTEX_BODY_CAPTURE_MAX_EDGE:-2048}"
       CORTEX_BODY_MAX_IMAGE_BYTES: "${CORTEX_BODY_MAX_IMAGE_BYTES:-6291456}"
+      # Every call is bounded, and the two numbers differ because the calls do: a capture is
+      # legitimately slow, while volume and notify are fast when they work and unbounded when they
+      # do not, since the body runs each on a COM thread that parks for as long as Windows takes.
       CORTEX_BODY_CAPTURE_TIMEOUT_S: "${CORTEX_BODY_CAPTURE_TIMEOUT_S:-10.0}"
-      # auto probes the running llama-server's /props once at startup and advertises
-      # capture_screen only when it reports a vision tower; on and off fix the answer. The
-      # capture tool also needs the host to allow capture at all (CORTEX_HOST_CAPTURE).
+      CORTEX_BODY_CALL_TIMEOUT_S: "${CORTEX_BODY_CALL_TIMEOUT_S:-5.0}"
+      # auto asks the running llama-server's /props once at startup and offers capture_screen only
+      # when it reports a vision tower; on and off set the answer. The host must allow capture too.
       CORTEX_VISION: "${CORTEX_VISION:-auto}"
-    # Reach the Windows-host body; host.docker.internal is automatic on Docker Desktop,
-    # host-gateway is the portable fallback (ROADMAP assumption 3).
+    # host.docker.internal is automatic on Docker Desktop; host-gateway is the portable fallback.
     extra_hosts:
       - "host.docker.internal:host-gateway"

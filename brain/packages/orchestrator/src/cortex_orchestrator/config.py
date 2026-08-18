@@ -1,19 +1,14 @@
-"""Orchestrator configuration: env-driven, read only at the composition root.
-
-Tool dispatch config lives in ``config_tools.py``, scheduling in ``config_schedule.py``, and
-subagents in ``config_subagents.py``, each split off at this module's line cap.
-"""
+"""Orchestrator configuration: env-driven, read only at the composition root."""
 
 from typing import Literal
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from cortex_core import DEFAULT_CORTEX_MODEL, MAX_IMAGE_BYTES, MAX_IMAGE_EDGE
+from cortex_core import DEFAULT_CORTEX_MODEL
 from cortex_orchestrator.converse import DEFAULT_CONFIRM_TIMEOUT_S, DEFAULT_MAX_BUFFERED_EVENTS
 from cortex_session import DEFAULT_REDIS_URL
 
-BodyBackendName = Literal["none", "grpc"]
 InferenceBackendName = Literal["echo", "llamacpp"]
 VisionMode = Literal["auto", "on", "off"]
 MemoryBackendName = Literal["none", "pgvector"]
@@ -76,25 +71,6 @@ class BrainRuntimeConfig(BaseSettings):
     history_recap_min_chars: int = Field(default=2_000, ge=0)
     output_guardrail: OutputGuardrailName = "redact"
     generate_titles: bool = False
-
-
-class BodyConfig(BaseSettings):
-    """Whether the cortex can call the host body over ``BodyService`` (ADR-0023)."""
-
-    model_config = SettingsConfigDict(env_prefix="CORTEX_BODY_")
-
-    backend: BodyBackendName = "none"
-    endpoint: str = ""
-    capture_max_edge: int = Field(default=2048, ge=0, le=MAX_IMAGE_EDGE)
-    max_image_bytes: int = Field(default=MAX_IMAGE_BYTES, gt=0, le=MAX_IMAGE_BYTES)
-    capture_timeout_s: float = Field(default=10.0, gt=0)
-
-    @model_validator(mode="after")
-    def _grpc_needs_an_endpoint(self) -> "BodyConfig":
-        if self.backend == "grpc" and not self.endpoint:
-            msg = "CORTEX_BODY_ENDPOINT is required when CORTEX_BODY_BACKEND=grpc"
-            raise ValueError(msg)
-        return self
 
 
 class InferenceConfig(BaseSettings):

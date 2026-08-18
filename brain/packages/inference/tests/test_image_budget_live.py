@@ -27,7 +27,7 @@ from window_crop_probe import (
 
 from cortex_core import CaptureTarget
 from cortex_model_manager import ModelHostConfig
-from cortex_orchestrator.config import BodyConfig
+from cortex_orchestrator.config_body import BodyConfig
 
 _IMAGE = os.environ.get("CORTEX_LLAMA_IMAGE", "cortex-model-host")
 _MODELS_DIR = os.environ.get("CORTEX_MODELS_DIR", "/srv/models")

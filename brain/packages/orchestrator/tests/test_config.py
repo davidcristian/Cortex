@@ -59,6 +59,7 @@ def clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "CORTEX_BODY_CAPTURE_MAX_EDGE",
         "CORTEX_BODY_MAX_IMAGE_BYTES",
         "CORTEX_BODY_CAPTURE_TIMEOUT_S",
+        "CORTEX_BODY_CALL_TIMEOUT_S",
         "CORTEX_VISION",
     ):
         monkeypatch.delenv(name, raising=False)
@@ -305,11 +306,12 @@ def test_body_defaults_to_disabled() -> None:
     config = BodyConfig()
     assert config.backend == "none"
     assert config.endpoint == ""
-    assert (config.capture_max_edge, config.max_image_bytes, config.capture_timeout_s) == (
-        2048,
-        6291456,
-        10.0,
-    )
+    assert (
+        config.capture_max_edge,
+        config.max_image_bytes,
+        config.capture_timeout_s,
+        config.call_timeout_s,
+    ) == (2048, 6291456, 10.0, 5.0)
 
 
 @pytest.mark.usefixtures("clean_env")
@@ -325,6 +327,10 @@ def test_body_defaults_to_disabled() -> None:
         ("CORTEX_BODY_MAX_IMAGE_BYTES", "5000000000"),
         ("CORTEX_BODY_CAPTURE_TIMEOUT_S", "0"),
         ("CORTEX_BODY_CAPTURE_TIMEOUT_S", "-3"),
+        # A deadline that can never be met is a call that can never succeed, so both refuse the
+        # same two shapes: a zero fails every call on arrival and a negative one is not a wait.
+        ("CORTEX_BODY_CALL_TIMEOUT_S", "0"),
+        ("CORTEX_BODY_CALL_TIMEOUT_S", "-3"),
     ],
 )
 def test_a_capture_bound_outside_the_seam_fails_at_boot(
@@ -343,12 +349,14 @@ def test_a_tightened_capture_bound_is_accepted(monkeypatch: pytest.MonkeyPatch) 
     monkeypatch.setenv("CORTEX_BODY_CAPTURE_MAX_EDGE", "1280")
     monkeypatch.setenv("CORTEX_BODY_MAX_IMAGE_BYTES", "2000000")
     monkeypatch.setenv("CORTEX_BODY_CAPTURE_TIMEOUT_S", "2.5")
+    monkeypatch.setenv("CORTEX_BODY_CALL_TIMEOUT_S", "1.5")
     config = BodyConfig()
-    assert (config.capture_max_edge, config.max_image_bytes, config.capture_timeout_s) == (
-        1280,
-        2_000_000,
-        2.5,
-    )
+    assert (
+        config.capture_max_edge,
+        config.max_image_bytes,
+        config.capture_timeout_s,
+        config.call_timeout_s,
+    ) == (1280, 2_000_000, 2.5, 1.5)
 
 
 @pytest.mark.usefixtures("clean_env")

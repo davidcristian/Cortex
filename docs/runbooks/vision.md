@@ -52,7 +52,8 @@ The other knobs, all optional:
 | `CORTEX_HOST_CAPTURE_NOTIFY` | host | on | `0` silences the body-authored OS notification a successful capture shows. |
 | `CORTEX_BODY_CAPTURE_MAX_EDGE` | brain | `2048` | Longest edge to ask the body for, in physical pixels, **and** the edge the reply is held to on receipt. `2048` is the brain half of the pair that makes a 4K screen legible, and it is only worth its extra pixels because `CORTEX_IMAGE_MAX_TOKENS=1024` on the model host gives the encoder somewhere to put them ([llamacpp-gpu.md](llamacpp-gpu.md)); lower it and the other one together. `0` hands the edge back to the body's own default (1600) and holds the reply to the 8192 px domain ceiling alone. Outside `0..8192` the brain refuses to boot. |
 | `CORTEX_BODY_MAX_IMAGE_BYTES` | brain | `6291456` | The byte budget, sent to the body **and** re-verified on receipt. 6 MiB, the same number as the body's own `MAX_CAPTURE_BYTES`, which `just check-crosscheck` holds it to. It may only tighten: outside `1..6291456` the brain refuses to boot, since the body clamps to its own ceiling anyway. |
-| `CORTEX_BODY_CAPTURE_TIMEOUT_S` | brain | `10.0` | The deadline on the capture call, the only one on this seam. Must be positive. |
+| `CORTEX_BODY_CAPTURE_TIMEOUT_S` | brain | `10.0` | The deadline on the capture call, the long one of the two this seam carries: a blit plus a downscale plus an encode is real work. Must be positive. |
+| `CORTEX_BODY_CALL_TIMEOUT_S` | brain | `5.0` | The deadline on every other call on this seam (volume, notify). Short because those are fast when they work at all; see [body-volume.md](body-volume.md) for why they are bounded. Must be positive. |
 | `CORTEX_TOOLS_GATED` | brain | `escalate_to_brain,send_email` | Adding `capture_screen` here puts an approval card in front of every capture. See "if you want it gated" below. |
 
 ## What the body can be pointed at

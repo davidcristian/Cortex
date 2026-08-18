@@ -48,12 +48,18 @@ state (the one hard rule). The composition root owns the channel's lifecycle.
   - All attach the seam token as `x-cortex-seam-token` metadata when `token` is non-empty
     (built once at construction; ADR-0016, mirrored for this direction), and no metadata when
     empty, which matches the tokenless body server.
-- `GrpcBodyGateway.connect(endpoint, *, token="", capture_timeout_s=10.0) -> (GrpcBodyGateway,
-  closer)` opens an
+- `GrpcBodyGateway.connect(endpoint, *, token="", capture_timeout_s=DEFAULT_CAPTURE_TIMEOUT_S,
+  call_timeout_s=DEFAULT_CALL_TIMEOUT_S) -> (GrpcBodyGateway, closer)` opens an
   insecure channel to `endpoint` (`host:port`, e.g. `host.docker.internal:50151` from the
   dockerized brain) and returns the adapter plus the coroutine that closes the channel, so the
   root's shutdown path is uniform with the other builders. The channel connects **lazily**, so an
-  unreachable body surfaces on the first call, not at connect.
+  unreachable body surfaces on the first call, not at connect, and within `call_timeout_s` rather
+  than after grpc's own connect backoff.
+- `DEFAULT_CAPTURE_TIMEOUT_S = 10.0` and `DEFAULT_CALL_TIMEOUT_S = 5.0` are the two deadlines,
+  declared **here** and imported by the orchestrator's `BodyConfig`, which publishes them as
+  `CORTEX_BODY_CAPTURE_TIMEOUT_S` and `CORTEX_BODY_CALL_TIMEOUT_S`. This package owns the calls,
+  so it owns how long they may take; a settings module spelling its own `5.0` would be a second
+  default that only looks like the first.
 - `MAX_RECEIVE_BYTES = 16 * 1024 * 1024` is the channel's raised
   `grpc.max_receive_message_length`, and the **only** transport limit this repo changes
   (ADR-0029). grpc's own default is 4 MiB, which a legitimate capture can exceed. The limit
@@ -63,14 +69,30 @@ state (the one hard rule). The composition root owns the channel's lifecycle.
   either seam carries a payload, and raising a limit with nothing behind it is an untestable
   change.
 
-**Capture is attempted exactly once, with a deadline.** It is the first call on this seam to
-carry a `timeout` (`CORTEX_BODY_CAPTURE_TIMEOUT_S`, default 10.0), because a 4K blit plus a
-downscale plus a PNG encode is the first that can genuinely park a host thread, and with no
-deadline a wedged backend hangs the tool call, which hangs the turn, forever. The volume and
-notify calls keep their live-validated no-deadline behaviour. It is also **never retried**,
-recorded as a decision rather than built as code: a re-capture photographs a different screen,
-possibly after the user switched windows, so it neither reproduces the answer nor leaves the
-world unchanged, and it would fire a second host receipt for one user intent.
+**Every call carries a deadline, and the two numbers differ because the calls do** (ADR-0029's
+uniform-deadline addendum). A capture gets `capture_timeout_s`, the long one, since a 4K blit plus
+a downscale plus a PNG encode is real work. `get_volume`, `set_volume` and `notify` get
+`call_timeout_s`, the short one, because they are fast when they work at all. What they are not is
+safe to leave unbounded: the body runs **every** handler on `spawn_blocking` precisely because
+Core Audio and the toast manager are COM, which has no async form, and its own `off_worker` doc
+says a COM call can park its thread for as long as the audio stack or the notification service
+takes (`body/crates/rpc/src/server.rs`). Nothing above this adapter bounds a tool call, so a
+wedged endpoint used to hang the turn forever, and a body that is merely absent cost the caller
+grpc's own connect backoff. Folding both onto one number would either end a legitimate capture or
+hand a volume read ten seconds of patience it can never spend.
+
+**An expired deadline is never read as an answer from the body.** grpc-python surfaces a
+client-side timeout as `DEADLINE_EXCEEDED`, which `kind_of` classifies `UNREACHABLE`, the kind
+whose contract is "no answer arrived at all, whether for want of a route or of time". That is
+the honest reading and it is pinned by test rather than inherited from the library: the other
+direction of this seam found the opposite shape the hard way, tonic surfacing its own expiry as a
+sourceless `Cancelled` that its classifier read as a reply (ADR-0024's deadline addendum).
+
+**Capture is attempted exactly once**, and it is **never retried**, recorded as a decision rather
+than built as code: a re-capture photographs a different screen, possibly after the user switched
+windows, so it neither reproduces the answer nor leaves the world unchanged, and it would fire a
+second host receipt for one user intent. Bounding is not repeating, though, so the other three
+calls are bounded on their own argument and nothing here retries anything.
 
 **Error contract.** Every gRPC failure (the body unreachable, a non-OK status) is caught as
 `grpc.aio.AioRpcError` and re-raised as `BodyGatewayError` with the cause chained (and the status

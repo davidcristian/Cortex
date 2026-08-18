@@ -14,6 +14,14 @@ and the host-only Windows validation with real Core Audio.
   `body_rpc::body_service(WindowsAudioControl::new(), WindowsNotify::new(&app_id), &token)`, the
   `BodyService` server fronted by the `SeamTokenValidator`. Each handler runs its synchronous OS
   call on a blocking thread, so a slow endpoint never parks the runtime.
+- **Every call is bounded**, `CORTEX_BODY_CALL_TIMEOUT_S` (default `5.0`) for volume and notify
+  and `CORTEX_BODY_CAPTURE_TIMEOUT_S` (default `10.0`) for a capture. That blocking thread is
+  what makes the short one necessary rather than tidy: Core Audio is COM, a COM call parks its
+  thread for as long as the audio stack takes, and nothing above the gateway bounds a tool call,
+  so a wedged endpoint used to hang the turn with no way out but closing the overlay. What an
+  operator sees on expiry is the ordinary "could not reach the body" tool result, since a
+  deadline this side chose is the absence of an answer and is classified as one. Raise the knob
+  if a real host is slower than the default; the failure is typed and never silent.
 - The seam token is the **same** shared `CORTEX_SEAM_TOKEN` as the `BrainService` direction: the
   brain client attaches `x-cortex-seam-token`, the body server checks it (ADR-0016, mirrored).
   Empty disables auth both ways.

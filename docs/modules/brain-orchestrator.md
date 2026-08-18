@@ -254,20 +254,28 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
 - `BodyConfig` uses env prefix `CORTEX_BODY_` (ADR-0023, Slice 9 brings the first brain→body seam
   direction, the brain as gRPC client of the host body's `BodyService`): `backend: "none" |
   "grpc" = "none"` (`CORTEX_BODY_BACKEND`), `endpoint: str = ""` (`CORTEX_BODY_ENDPOINT`, the
-  host body's bind, `host.docker.internal:50151` from the dockerized brain), plus three
+  host body's bind, `host.docker.internal:50151` from the dockerized brain), plus two
   screen-capture knobs (ADR-0029): `capture_max_edge: int = 2048` and `max_image_bytes: int =
   MAX_IMAGE_BYTES` (6 MiB) are what the brain asks the body for **and** holds the reply to,
   since the body clamps both and an older body ignores both. The edge defaults above the body's
   own 1600 because the pixels are only worth sending when the model host's
   `CORTEX_IMAGE_MAX_TOKENS` gives the encoder somewhere to put them, which is a number this side
   knows and the body does not; `0` still means "the body's own default".
-  `capture_timeout_s: float = 10.0`
-  is the only deadline on this seam, because a blit plus an encode is the only call that can
-  park a host thread. All three are **bounded so a misconfiguration fails at boot** rather than
+  It lives in **`config_body.py`**, split off at `config.py`'s line cap the way `config_tools`,
+  `config_subagents`, `config_reply` and `config_schedule` were.
+  `capture_timeout_s: float = DEFAULT_CAPTURE_TIMEOUT_S` (10.0) and `call_timeout_s: float =
+  DEFAULT_CALL_TIMEOUT_S` (5.0) are the seam's two deadlines, **imported from
+  `cortex_body_client`** rather than restated, since that package owns the calls. The first
+  bounds a capture and the second bounds every other call, so nothing on this seam is unbounded:
+  the body runs each handler on `spawn_blocking` because Core Audio and the toast manager are
+  COM, a COM call parks its thread for as long as the host takes, and nothing above the gateway
+  bounds a tool call (ADR-0029's uniform-deadline addendum). All four are **bounded so a
+  misconfiguration fails at boot** rather than
   turning every capture into a turn-killing exception: `capture_max_edge` `ge=0, le=8192` and
   `max_image_bytes` `gt=0, le=6291456` (it may tighten the domain ceiling, never loosen it, the
-  body clamping to its own regardless), both because the pair rides uint32 proto fields, and
-  `capture_timeout_s` `gt=0`. Validates that
+  body clamping to its own regardless), both because the pair rides uint32 proto fields, and both
+  deadlines `gt=0`, a deadline that can never be met being a call that can never succeed.
+  Validates that
   `grpc` has a non-empty `endpoint`. Off by default (CI + no-GPU dev never dial a host body);
   the shared `CORTEX_SEAM_TOKEN` (SeamServerConfig, not a `CORTEX_BODY_` var) authenticates the
   dial.
