@@ -217,6 +217,23 @@ SEAM_COUPLINGS: tuple[Constant, ...] = (
         ),
     ),
     Constant(
+        label="the salience limit's shipped default",
+        why=(
+            "the compose stack spells the core's default into every container it starts, so "
+            "retuning the core constant alone would leave every deployment still running the "
+            "old number with nothing saying so (ADR-0009 salience addendum)"
+        ),
+        sites=(
+            Site(
+                "brain/packages/core/src/cortex_core/tool_salience.py", "MAX_IDENTICAL_DISPATCHES"
+            ),
+        ),
+        # The knob's compose default, which is a shell substitution rather than a declaration:
+        # there is nothing to parse on that side, so the agreed number is rendered into the
+        # shape and required to appear.
+        mentions=(Mention(BASE_COMPOSE, "${CORTEX_TOOLS_SALIENCE_LIMIT:-{value}}"),),
+    ),
+    Constant(
         label="the brain's seam port",
         why=(
             "the compose stack publishes this port and dials it in its own healthcheck, and the "

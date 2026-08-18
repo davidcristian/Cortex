@@ -35,6 +35,11 @@ services:
       # 'off' restores the unfiltered loop. Listed here rather than in the tool overrides so
       # the knob works whichever sidecar set is layered on, and is not silently inert.
       CORTEX_TOOLS_SALIENCE: ${CORTEX_TOOLS_SALIENCE:-repeat}
+      # How many times one identical call may be dispatched across a 'repeat' loop, for the
+      # deployment where the shipped two proves wrong. The once-per-round clause is absolute
+      # and this number does not move it; a value below 1 fails the brain at boot, and the
+      # knob is inert under 'off'. Listed here for the same reason the switch above is.
+      CORTEX_TOOLS_SALIENCE_LIMIT: ${CORTEX_TOOLS_SALIENCE_LIMIT:-2}
     ports:
       # Loopback-only publish for the single-user security posture (ROADMAP assumption 5):
       # nothing listens beyond 127.0.0.1 on the host.
