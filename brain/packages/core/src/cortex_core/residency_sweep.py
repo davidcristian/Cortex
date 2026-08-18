@@ -23,24 +23,21 @@ corrected by the next reading instead of being believed for ever.
 **The one write to the card, and the fence around it.** Reading is safe at any time; starting a
 tier is not, because a handoff may at that moment be deliberately evicting the very tier a pass
 wants back. So the fence is a callable the manager owns (no handoff claimed, no residency scope
-active), it is read at the top of the pass, and it is read **again immediately before every
-start**, synchronously, with nothing awaited in between so no handoff can begin in the gap. A
+active, declared as ``Fence`` beside the rest of the residency vocabulary in
+``residency_state.py``, since the pass's other half reads the same one), it is read at the top of
+the pass, and it is read **again immediately before every start**, synchronously, with nothing
+awaited in between so no handoff can begin in the gap. A
 start already in flight when a handoff begins is left to the supervisor's own per-model lock: the
 swap in stops these very tiers first and does not return until each child is reaped.
 """
 
 import logging
-from collections.abc import Callable
 
 from cortex_core.errors import ModelHostError, ModelNotHostedError
 from cortex_core.model_host import ModelHostState, ResidencyPlan
 from cortex_core.ports import ModelHost
+from cortex_core.residency_state import Fence
 from cortex_core.residency_tiers import StandingTiers, TierFault
-
-# Whether a pass may still write to the card: no handoff claimed and no residency scope active.
-# Synchronous by contract, because the whole worth of asking again just before a start is that
-# nothing else can run between the answer and the call.
-type Fence = Callable[[], bool]
 
 _logger = logging.getLogger(__name__)
 

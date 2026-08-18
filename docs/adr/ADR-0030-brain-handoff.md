@@ -3358,3 +3358,180 @@ no swap of its own, its control API able only to start, stop and report the tier
 that day comes, the work is a distributed-residency decision covering the lease, the board, the tier
 record and the ledger together, with a fenced claim as one of its consequences rather than as the
 whole of the change.
+
+## Residency-regain addendum (2026-08-18): the reconciliation a refused turn can never reach
+
+The host-generation addendum above put the reconciliation in one place, the top of `_swap_in`, and
+recorded in its own "deliberately does not do" that a brain between handoffs reconciles nothing.
+This closes the expensive half of that, which is not a staleness problem at all: it is a dead end.
+
+### The state, re-derived before anything was designed
+
+A swap back that gives up publishes `(None, RESIDENCY_LOST)` and raises
+(`residency_restore.py`). Nothing being resident, `ResidencyBoard.await_resident` refuses every
+`acquire` with `ModelUnavailableError`, so no turn runs; no turn means no `escalate_to_brain`, no
+handoff, no `swap_scope`, and therefore no `BootWatch.reconcile`. The one thing that re-reads the
+machine is behind the one door that state locks. The runbook's manual recovery ended by restarting
+the brain for exactly this reason, and said so: *restarting is what re-reads the machine; nothing
+else does.*
+
+The same hole has a cheaper twin. A boot that could not confirm the cortex publishes
+`RESIDENCY_BOOT_FAILED` through `publish_report`, which deliberately leaves the resident alone, so
+turns still run and only the dot is wrong. If the cortex comes up a minute later, that sentence
+stands until the next handoff, and a deployment that never escalates has no next handoff.
+
+### The decision: a read-only regain on the pass that already exists
+
+`regain_residency` (`residency_regain.py`) runs as the second half of the background pass the
+tier sweep already pays for, under `TierHealer`'s `CORTEX_SWAP_TIER_HEAL_S` pacing and behind
+`SwappingModelManager._fence`. While the report says the GPU is serving it returns before asking
+anything, so a healthy deployment pays nothing. While it says otherwise it reads two states and
+publishes at most one record:
+
+- the cortex must be `READY`, and nothing else counts (a `LOADING` cortex is the ordinary state
+  seconds after somebody started it, and the next pass takes it);
+- the deep tier must be off the card, meaning `STOPPED`, `FAILED`, or an id this daemon's roster
+  never had (`ModelNotHostedError`), and `READY` or `LOADING` both mean it is still on it;
+- a host that could not answer either question publishes nothing and logs at debug, since the
+  report is already saying something is wrong and a repeating warning would be noise on a cold
+  path.
+
+The publish carries the standing charge with it (`charge_standing`), because the two facts are
+one: a restore that gave up leaves the handoff's VRAM charge in force so spawns overflow to the
+CPU rather than being admitted onto a card nobody can describe, and the reading that describes the
+card again is exactly what spends that reason. Without it the operator would have had one thing
+left to restart the brain for.
+
+### Why it reads rather than converges, and why that is not a smaller version of the same thing
+
+`converge_residency` is the obvious reuse and it is the wrong move here. It stops and restarts
+every `evict_models` tier, so it would take down the peers a `CORTEX_SWAP_CORESIDENT` deployment
+keeps serving on purpose, and it would interrupt a load already in flight. Convergence is
+justified at the two events that invalidate everything (boot, and a daemon replaced under this
+process); a periodic pass is neither. So the pass observes, and the one thing it writes is the
+brain's own belief.
+
+It also does not start the cortex, which is the obvious next step and is deliberately not taken
+here. A cortex start is a whole tier load, minutes at tier scale, and `TierHealer.aclose` waits
+out the in-flight pass, so a pass that gated a load would hold shutdown for the load bound rather
+than for two control calls. It would also be a retry policy laid over an attempt that already
+failed twice, which is a decision about budgets rather than about readings. That, and an
+operator-facing re-converge verb at the seam, are filed as
+[R-310](../refinements/tasks/310-a-pass-that-starts-the-cortex.md).
+
+### The two guards, and what they are worth
+
+**The deep-tier reading is the guard against the recovery making things worse.** A restore can
+give up at the stop as easily as at the start, so the deep model may still hold the card when the
+cortex comes back, and an operator following step 2 of the runbook can put the cortex back beside
+it. Publishing serving there would hand leases out onto a card with two tiers on it, which on this
+machine is a spill at best (the co-residency addendum measured that exact pair 4676 MiB short of
+fitting, both tiers reporting `ready` and the deep model decoding at half its rate) and a CUDA OOM
+at worst.
+
+**The publish tests the fence under the residency condition**, which is why it is a verb on the
+board (`publish_between_handoffs`) rather than a check the pass makes before calling `publish`. A
+pass reads the machine over several awaits, so a handoff can be claimed between what it observed
+and what it concludes; a caller-side check followed by a publish would then overwrite the swap's
+own `RESIDENCY_LOADING` with a reading taken before the swap started, and hand out cortex leases
+while the cortex is being evicted. Reading the fence under the same condition `HandoffClaim` sets
+its flag under, with nothing awaited before the write, makes the two orderings the only two there
+are: the handoff wins and the publish is refused, or the publish lands first and the handoff
+publishes over it a moment later.
+
+**And it promises nothing across processes.** Every guard here is in-process ordering, exactly as
+the fenced-claim addendum above records: the lease, the board, the tier record and the placer's
+ledger are all instance state, and a second brain process would break all four whatever this pass
+did. `publish_between_handoffs` orders two coroutines and says nothing about a second daemon or a
+second replica.
+
+### Naming, and one rename
+
+`SwappingModelManager.heal_standing_tiers` is now `heal_residency`: the pass reads the standing
+residency, which is the cortex and its peers, and a name that said tiers would have been a lie
+about the half that publishes. `TierHealer` and `CORTEX_SWAP_TIER_HEAL_S` keep their names, one
+being deliberately generic about the pass it drives and the other being operator-visible config
+that paces one loop; the loop grew a second half rather than a second identity. The `Fence` type
+moved from `residency_sweep.py` to `residency_state.py` beside `ResidencyPublisher`, both being
+the callables this family hands between its halves, and it is now read by two callers rather than
+one.
+
+### What a probe reads, which matters for the entry filed beside this one
+
+The regain publishes the bare `RESIDENCY_SERVING` constant and nothing else; every detail a human
+reads is composed at read time by `StandingTiers.note_on` in `residency()`. That is what lets one
+pass sweep the peers and then republish the resident without the two contradicting each other: the
+report says the cortex is back and names the tier that has been asked back but not yet observed
+serving. Anything else that wants to ride a serving report, such as the spill verdict in
+[R-304](../refinements/tasks/304-spill-rides-the-residency-report.md), should ride that read-time
+composition for the same reason, since a detail written into the published record would be erased
+by the next writer.
+
+### Proven able to fail before being trusted
+
+Eight mutations, each applied to production code alone with the whole brain workspace re-run, then
+reverted. The counts are measured rather than aimed at and they sit in the header of
+`test_residency_regain.py` beside the cases they name.
+
+| Mutation | Reddens |
+| --- | --- |
+| publishing on the cortex alone, with no deep-tier reading | 6 |
+| an unanswerable cortex read as serving | 1 |
+| an unanswerable deep tier read as off the card | 1 |
+| publishing without testing the fence | 1 |
+| regaining without the standing charge | 1 |
+| reading the machine even while the report says serving | 7 |
+| regaining before the sweep rather than after it | 1 |
+| dropping the regain from the pass | 12 |
+
+Two are worth reading rather than counting. The first is the guard: a regain that trusted the
+cortex alone would publish onto a card the deep model was still holding, and it is the only
+mutation here that would make the recovery worse than the state it recovers from. The sixth is the
+cost claim: seven cases pin a whole pass's op log, so a regain that asked the host anything while
+the report was green could not be landed quietly.
+
+One property has no mutation and says so. That the fence answer and the write sit under one
+condition with nothing awaited between them cannot be shown by inserting an await there, because
+the coroutine that would have to interleave is a claim, and a claim takes that same condition, so
+it blocks rather than races. What is proven is the weaker and still load-bearing half: the fence is
+consulted at the write, not only at the top of the pass.
+
+### Validated against the real sidecar, since the state this exists for is not a CI state
+
+Run 2026-08-18 on the 24 GB card (RTX 5090 Laptop, 24463 MiB, driver 610.88) against the real
+`model-host` container, through the real `HttpModelHost` and the shipped `SwappingModelManager`,
+with the cortex tier serving the shipped gemma-4-12B QAT q4_0 pick. The deep tier was pointed at a
+small stand-in (`Qwen3.5-0.8B-Q8_0` at `--ctx-size 4096`) for the same reason every other live swap
+case here uses one: with the cortex resident the sidecar reported 13718 of 24463 MiB free, which
+does not hold the real deep tier's measured 19125. Both cases are integration-marked in
+`test_model_host_live.py` and ran in 8.6 s.
+
+- **The regain itself.** The manager was told its boot could not confirm the cortex
+  (`publish_boot_residency(serving=False)`, which is the amber dot an operator sees), and one
+  `heal_residency()` pass against the daemon published `RESIDENCY_SERVING` and made the cortex
+  leasable again. The sidecar's own answer for each tier was read before and after the pass and was
+  identical (`ready`, `stopped`), which is the read-only claim asserted rather than argued.
+- **The guard, with a deep tier genuinely on the card.** Started beside the cortex through the
+  control API so that both tiers really answered `ready`, the same pass published nothing; stopping
+  the deep tier and running it again published serving. That is the OOM guard measured against a
+  real roster rather than a scripted one, and it was proven able to fail there too: with the
+  deep-tier reading deleted, the same live case published a serving residency while the sidecar
+  really did have two tiers on the card.
+- **And once more on the shipped defaults**, with no deep artifact named at all, where the sidecar
+  answers `404 unknown model 'brain'; this host serves cortex`: the regain reads that as off the
+  card, which is the one arm of it a stock stack takes, and published serving. The guard case skips
+  there, having no second tier to start.
+
+### What this deliberately does not do
+
+- **It does not take a serving report back.** Only a not-serving report is re-derived, so a green
+  dot is never turned amber by a status call: a turn that needs the GPU is a better test of it
+  than a probe, and a transport blip that could refuse every turn is a worse failure than a dot
+  that is late. The runbook says which direction is watched.
+- **It does not start, stop or converge anything.** Two `status` calls and one record.
+- **It does not reconcile the daemon generation.** `BootWatch` is still asked once per handoff,
+  for the reason its own addendum gives: converging speculatively bounces a co-resident plan's
+  peers. A sidecar replaced under a brain that then never escalates is still noticed by nothing,
+  and it still costs nothing while the report is green.
+- **It does not gate readiness.** A cortex that is `LOADING` is left for the next pass, exactly as
+  a peer tier is.
