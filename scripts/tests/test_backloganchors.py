@@ -4,6 +4,7 @@ from pathlib import Path
 
 import backloganchors
 import backlogcheck
+import headingshapes
 from backloganchors import Index, Target
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -226,6 +227,34 @@ def test_check_reports_a_fragment_aimed_at_markdown_the_scan_never_read(tmp_path
         "docs/adr/ADR-0008.md:2: pointer '../../node_modules/pkg/README.md#install' "
         f"{backloganchors.UNREAD}",
     ]
+
+
+def test_check_reports_a_heading_whose_anchor_the_slug_rule_will_not_guess(
+    tmp_path: Path,
+) -> None:
+    """The refusal reaches the gate: a shape this rule reads too literally is named where it is."""
+    indexes = _index(tmp_path, "# Deferred refinements\n\n### memory\n")
+    _write(tmp_path, "docs/adr/ADR-0008.md", "# Memory\n\n## Press <kbd>Ctrl</kbd>+N\n")
+    assert backloganchors.check(tmp_path, indexes) == [
+        "docs/adr/ADR-0008.md:3: heading 'Press <kbd>Ctrl</kbd>+N' "
+        f"{headingshapes.TAGGED}{headingshapes.PLAINLY}"
+    ]
+
+
+def test_check_judges_nothing_aimed_at_a_document_whose_headings_it_refused(
+    tmp_path: Path,
+) -> None:
+    """Its anchor set is unknown, so saying it "does not offer" one would be an accusation."""
+    indexes = _index(tmp_path, "# Deferred refinements\n\n### memory\n")
+    _write(tmp_path, "docs/adr/ADR-0008.md", "# Memory\n\n## Press <kbd>Ctrl</kbd>+N\n")
+    _write(
+        tmp_path,
+        "docs/refinements/tasks/001-a-task.md",
+        "See [the shortcut](../../adr/ADR-0008.md#ctrln).\n",
+    )
+    problems = backloganchors.check(tmp_path, indexes)
+    assert len(problems) == 1
+    assert problems[0].startswith("docs/adr/ADR-0008.md:3: heading")
 
 
 def test_check_reports_a_markdown_file_it_cannot_read(tmp_path: Path) -> None:

@@ -5,9 +5,10 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import NamedTuple
 
+from headingshapes import headings
+from headingshapes import problems as shape_problems
+
 LINK = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
-HEADING = re.compile(r"^#{1,6} +(\S.*?) *$")
-FENCE = re.compile(r"^\s*(?:```|~~~)")
 DROPPED = re.compile(r"[^\w \-]")
 ELSEWHERE = ("http://", "https://", "mailto:")
 MARKDOWN = ".md"
@@ -48,10 +49,14 @@ class Index(NamedTuple):
 
 
 class Document(NamedTuple):
-    """One markdown file the scan read: what a problem calls it, and the anchors it offers."""
+    """One markdown file the scan read: what a problem calls it, and the anchors it offers.
+
+    ``anchors`` is None when the file carries a heading this rule refuses to slug, in which
+    case nothing aimed at it is judged and the run is already failing on that heading.
+    """
 
     name: str
-    anchors: frozenset[str]
+    anchors: frozenset[str] | None
 
 
 class Target(NamedTuple):
@@ -90,15 +95,8 @@ def anchors(text: str) -> frozenset[str]:
     """Return every anchor the document ``text`` offers a link."""
     offered: set[str] = set()
     seen: dict[str, int] = {}
-    fenced = False
-    for line in text.splitlines():
-        if FENCE.match(line):
-            fenced = not fenced
-            continue
-        found = None if fenced else HEADING.match(line)
-        if found is None:
-            continue
-        base = slug(found.group(1))
+    for _, heading in headings(text):
+        base = slug(heading)
         repeat = seen.get(base, 0)
         offered.add(base if repeat == 0 else f"{base}-{repeat}")
         seen[base] = repeat + 1
@@ -131,7 +129,9 @@ def check(root: Path, indexes: Mapping[Path, Index]) -> list[str]:
             continue
         sources.append((path, text))
         name = path.relative_to(root).as_posix()
-        documents[path.resolve()] = Document(name=name, anchors=anchors(text))
+        refused = shape_problems(name, text)
+        problems.extend(refused)
+        documents[path.resolve()] = Document(name=name, anchors=None if refused else anchors(text))
     for path, text in sources:
         problems.extend(_faults(root, path, text, indexes, documents))
     return problems
@@ -176,6 +176,6 @@ def _fault(
     document = documents.get(aimed)
     if document is None:
         return UNREAD
-    if fragment in document.anchors:
+    if document.anchors is None or fragment in document.anchors:
         return None
     return f"aims at a heading {document.name} does not offer"

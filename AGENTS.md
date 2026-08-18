@@ -234,8 +234,10 @@ scripts/          repo gates, plus the one module here that gates nothing, contr
                   default lands unignored in the tree) + composemounts.py (its compose
                   reader), backlogcheck.py (each backlog index still matches its task files,
                   ADR-0039) + backlog.py (task-file grammar), backlogindex.py (what the
-                  index renders) and backloganchors.py (the anchors a document offers and
-                  every pointer in the repo aimed at one), coverage_gate.py (Rust
+                  index renders), backloganchors.py (the anchors a document offers and
+                  every pointer in the repo aimed at one) and headingshapes.py (what a
+                  heading may look like for that question to have an answer, and the six
+                  shapes the slug rule refuses rather than guesses at), coverage_gate.py (Rust
                   branches), ci_paths.py (CI path
                   classifier), commitlint.py (commit-message style)
 .github/          GPU-less CI running the same `just` recipes as local dev: ci.yml is the gate
