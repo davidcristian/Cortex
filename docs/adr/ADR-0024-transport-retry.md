@@ -451,3 +451,38 @@ nobody is waiting for. It is a separate slice because it touches the adapter's c
 (the interceptor is the natural place to set it) and because classification must never come to
 depend on tonic's own expiry, which is what the first paragraph above rules out. Safe `converse`
 reconnect before the first event is unchanged, and so is the retry budget / circuit breaker.
+
+## Addendum (2026-08-18, later): the retry budget and circuit breaker are declined, not deferred again
+
+Every "Still deferred" line above names a retry budget or a circuit breaker, carried from the
+original decisions to the deadline addendum an hour before this one. It is closed here on the
+merits, on a reading of the tree rather than on the reasoning that first deferred it, and the first
+thing that reading found was that this ADR's own cost estimate for it, "behind the unchanged
+`BrainTransport` / `Sleeper` seams", is wrong.
+
+**No producer.** The transient set is `Connection` and `Rpc{Unavailable}` and nothing else, an
+expired deadline is terminal, and only the five repeatable reads reach the loop. The shipped
+schedule is 3 attempts with a 200 ms base, and the probe trims its attempts to the budget the
+indicator renders. Nothing on the body polls: the overlay probes on summon and re-checks only while
+it is visible and the link is not ready, single-flighted, the liveness poll having been rejected in
+`useLink.ts` for its own reasons. So a flapping brain costs at most two extra connect attempts per
+user action, against a supervised local process on loopback that refuses a connect instantly. A
+breaker is a load-shedding device for a shared or remote peer with many clients, and this seam has
+one client, one user, and one process at the other end.
+
+**Two seam changes, not none.** A breaker holds state across calls, and the shell builds a fresh
+transport per IPC command through `seam::connect()`, so anything kept inside `RetryingTransport`
+dies with the call that made it; the state would have to become process-lifetime shell state. Its
+open-to-half-open transition then has to read a clock, and `Sleeper` can only wait or bound an
+attempt. A clock-reading port would be new, with the fake and the adapter that go with it.
+
+**It would also make the indicator lie.** A call refused by stale open state reports a seam state
+nobody asked the brain about, which is precisely what the probe budget and the per-attempt deadline
+were built to rule out. The one genuinely unbounded cost this seam had was a brain that accepts a
+connection and then goes quiet, and that is what the deadline addendum above closed.
+
+**What would reopen it**, and each is a new entry rather than this one resumed: a background poller
+on the body, so retries pile up while nobody is watching; `CORTEX_BRAIN_ADDR` aimed at a brain that
+is not a supervised loopback process; or a blind retry that starts costing seconds rather than
+microseconds, which is what either of those would make of it. The record and the re-derivation live
+in [docs/refinements/index.md#seam-transport](../refinements/index.md#seam-transport).
