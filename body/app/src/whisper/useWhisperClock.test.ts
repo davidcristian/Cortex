@@ -21,7 +21,9 @@ function fakeFrames() {
 }
 
 /** A bubble with its text and mist, in the document, letters addable with chosen offsets
- *  (jsdom lays nothing out, so the geometry the clock reads is declared by the test). */
+ *  (jsdom lays nothing out, so the geometry the clock reads is declared by the test). The log's
+ *  own width and the letters' offsets are both settable after the fact, which is how a test says
+ *  the window changed size and the paragraph re-wrapped at the new one. */
 function rig(parented = true) {
   const parent = document.createElement("div");
   const bubble = document.createElement("div");
@@ -35,29 +37,52 @@ function rig(parented = true) {
   } else {
     document.body.appendChild(bubble);
   }
+  let logWidth = 0;
+  Object.defineProperty(parent, "clientWidth", { get: () => logWidth });
   const refs: WhisperRefs = {
     bubble: { current: bubble },
     text: { current: text },
     mist: { current: mist },
+  };
+  const spots: { top: number; left: number }[] = [];
+  const place = (
+    count: number,
+    topOf: (i: number) => number,
+    leftOf: (i: number) => number,
+  ): void => {
+    for (let i = 0; i < count; i += 1) {
+      spots[i] = { top: topOf(i), left: leftOf(i) };
+    }
   };
   const lay = (
     count: number,
     topOf: (i: number) => number = () => 0,
     leftOf: (i: number) => number = (i) => 15 + (i % 8) * 7,
   ): HTMLElement[] => {
+    place(count, topOf, leftOf);
     const laid: HTMLElement[] = [];
     for (let i = 0; i < count; i += 1) {
       const ch = document.createElement("span");
       ch.className = "ch";
-      Object.defineProperty(ch, "offsetTop", { value: topOf(i) });
-      Object.defineProperty(ch, "offsetLeft", { value: leftOf(i) });
+      Object.defineProperty(ch, "offsetTop", { get: () => spots[i]!.top });
+      Object.defineProperty(ch, "offsetLeft", { get: () => spots[i]!.left });
       Object.defineProperty(ch, "offsetWidth", { value: 7 });
       text.appendChild(ch);
       laid.push(ch);
     }
     return laid;
   };
-  return { refs, bubble, text, mist, lay };
+  /** The window changed size: the log is this wide now, and the letters lie here. */
+  const resize = (
+    width: number,
+    topOf: (i: number) => number = () => spots[0]!.top,
+    leftOf: (i: number) => number = (i) => spots[i]!.left,
+  ): void => {
+    logWidth = width;
+    place(spots.length, topOf, leftOf);
+    window.dispatchEvent(new Event("resize"));
+  };
+  return { refs, bubble, text, mist, lay, resize };
 }
 
 const facts = (over: Partial<WhisperFacts>): WhisperFacts => ({
@@ -278,6 +303,105 @@ describe("useWhisperClock", () => {
     renderHook(() => useWhisperClock(refs, facts({})));
     tick(0);
     expect(bubble.style.width).toBe("55px");
+  });
+
+  it("re-lays the letters at the new wrap width when the window resizes mid-stream", () => {
+    const { tick } = fakeFrames();
+    const { refs, text, lay, resize } = rig();
+    const letters = lay(12);
+    renderHook(() => useWhisperClock(refs, facts({ letters: 12, confirmed: 12 })));
+    // The wrap the letters were laid at: the log has no width at all, so the cap is the pill.
+    expect(text.style.width).toBe("25px");
+    let now = 0;
+    for (let i = 0; i < 6; i += 1) {
+      tick((now += 50));
+    }
+    expect(letters[0]!.style.opacity).toBe("1");
+    resize(1000);
+    // The paragraph is re-laid at the width the wider log now offers (82% of it, plus padding,
+    // less the padding the text sits inside), and the letters already condensed stay ink: the
+    // paint each one carries is its own, not a fact about where it sits.
+    expect(text.style.width).toBe("820px");
+    expect(letters[0]!.style.opacity).toBe("1");
+  });
+
+  it("writes nothing when a resize leaves the wrap width where it was", () => {
+    const { tick } = fakeFrames();
+    const { refs, text, lay, resize } = rig();
+    lay(6);
+    renderHook(() => useWhisperClock(refs, facts({ letters: 6, confirmed: 6 })));
+    tick(0);
+    text.style.width = "1px";
+    resize(0);
+    expect(text.style.width).toBe("1px");
+  });
+
+  it("re-poses a settled bubble on a resize, without starting the loop again", () => {
+    const { request, tick } = fakeFrames();
+    const { refs, bubble, text, lay, resize } = rig();
+    const grew = vi.fn();
+    lay(12, (i) => (i < 6 ? 0 : 40));
+    const { result, rerender } = renderHook(({ f }) => useWhisperClock(refs, f), {
+      initialProps: { f: facts({ letters: 12, confirmed: 12, onGrow: grew }) },
+    });
+    let now = 0;
+    tick((now += 50));
+    rerender({ f: facts({ letters: 12, confirmed: 12, streaming: false, onGrow: grew }) });
+    for (let i = 0; i < 60 && result.current !== "settled"; i += 1) {
+      tick((now += 50));
+    }
+    expect(result.current).toBe("settled");
+    // Two lines' worth of box, standing on the last letter's line.
+    expect(bubble.style.height).toBe("72.5px");
+    const scheduled = request.mock.calls.length;
+    grew.mockClear();
+    // A window wide enough to hold the reply on one line: the second line's letters come up
+    // beside the first's.
+    resize(1000, () => 0, (i) => 15 + i * 7);
+    expect(text.style.width).toBe("820px");
+    // The box the loop left behind is re-posed from the letters where they lie now, at once and
+    // from the same arithmetic the last frame used, so the settled bubble no longer holds a box
+    // two lines tall around one line of words.
+    expect(bubble.style.width).toBe("142px");
+    expect(bubble.style.height).toBe("42px");
+    expect(grew).toHaveBeenCalled();
+    // And it is a pose, not a restart: nothing was scheduled.
+    expect(request.mock.calls.length).toBe(scheduled);
+  });
+
+  it("leaves the breath pill alone when a turn that never spoke is resized", () => {
+    const { tick } = fakeFrames();
+    const { refs, bubble, text, resize } = rig();
+    const { result, rerender } = renderHook(({ f }) => useWhisperClock(refs, f), {
+      initialProps: { f: facts({}) },
+    });
+    tick(0);
+    rerender({ f: facts({ streaming: false }) });
+    tick(50);
+    expect(result.current).toBe("settled");
+    // A listener that throws is reported to the window rather than to whoever dispatched the
+    // event, so the resize would look like it worked from here; this is what makes it a claim
+    // about the pose reaching a bubble that has no last letter to pose a box around.
+    const raised = vi.fn();
+    window.addEventListener("error", raised);
+    resize(1000);
+    window.removeEventListener("error", raised);
+    expect(raised).not.toHaveBeenCalled();
+    // The wrap width is still re-laid for whatever the DOM holds, but the pill is padding and
+    // the mist, which no window change moves.
+    expect(text.style.width).toBe("820px");
+    expect(bubble.style.width).toBe("55px");
+  });
+
+  it("stops listening for resizes once the bubble unmounts", () => {
+    const { tick } = fakeFrames();
+    const { refs, text, lay, resize } = rig();
+    lay(6);
+    const { unmount } = renderHook(() => useWhisperClock(refs, facts({ letters: 6, confirmed: 6 })));
+    tick(0);
+    unmount();
+    resize(1000);
+    expect(text.style.width).toBe("25px");
   });
 
   it("cancels its pending frame when the bubble unmounts", () => {

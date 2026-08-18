@@ -132,7 +132,8 @@ landed, so the box lurched by words and whole lines ahead of anything visible.
   fallback stack would want a look before anyone changes the font, recorded as a refinement.
 - The wrap width is measured once per streamed bubble, so a window resized mid-stream keeps the
   old wrap until the next message; the v1 body window is fixed-size, so only the browser dev
-  flow can see it. Recorded as a refinement.
+  flow can see it. Recorded as a refinement, and landed in the 2026-08-18 addendum below, which
+  also records the larger version of the cost this bullet undercounted.
 - The drain can grow the bubble a few pixels after the turn's last render; the history's
   min-height floor hides it from the panel's measured moves today, and the tail pin rides
   `onGrow`. The panel learning about between-render growth is recorded as a refinement.
@@ -193,3 +194,62 @@ instrument and the mutation proof are in
 [ADR-0035](ADR-0035-console-and-motion.md), which owns the roll contract and the panel's
 measurement work; the entry that demanded the measurement first is in
 [refinements/index.md#body-overlay](../refinements/index.md#body-overlay).
+
+## Addendum (2026-08-18): the wrap width is re-measured when the window changes size
+
+Decision 4 said the letter DOM is laid at the final wrap width "the moment the bubble mounts", and
+the measurement was taken once, in an effect whose dependencies are all stable, so nothing ever
+re-took it. The consequence recorded above scoped the cost to a bubble that was streaming while the
+window changed. That understated it. Every once-streamed bubble in the log keeps its letter DOM and
+the hard px box the clock left it standing on (`.whisper` carries `max-width: none` precisely
+because the clock owns the cap), and nothing else in the overlay ever revisits either, so a window
+that changed size left the whole conversation laid for a width that no longer existed: bubbles
+overhanging the log, clipped by the history's `overflow-x: clip`, until the chat was reloaded.
+
+**Decision 4 is amended to a per-width property.** The letter DOM is laid at the measured wrap
+width, and letter positions hold for as long as that width does, which is what the decision was
+protecting: a wrap the reader can see happening under a running reveal. A window resize re-lays
+them at the new width, which is exactly what a plain text bubble beside it does, and the reveal is
+undisturbed because the paint each letter carries is its own inline opacity rather than a fact
+about where it sits.
+
+Three things the fix had to get right, each written into `whisper/metrics.ts`, the module the
+measurement and the box arithmetic moved into so that a frame and a resize pose from one function:
+
+- **The trigger is the window's own `resize`**, the idiom `overlay/usePanelMotion.ts` places the
+  panel on, and it is complete for exactly as long as the panel's width stays viewport-derived, as
+  `.panel`'s `width: min(560px, 92vw)` keeps it. That is a standing assumption, not a fact about
+  the DOM, so it is filed as [a refinement](../refinements/tasks/311-wrap-width-trigger-completeness.md)
+  against the day the panel's width comes from anywhere else.
+- **Not a `ResizeObserver` on the log.** It is the general answer and the wrong one here: the log's
+  own height follows the posed bubble every frame of every stream, so the callback would run per
+  frame, and writing the letter DOM's width inside an observation of an ancestor re-gathers at the
+  same depth, which raises the "loop completed with undelivered notifications" error
+  `overlay/panelWatch.ts` has already paid for once.
+- **A bubble whose loop has stopped re-poses at once**, from the last letter's fresh offsets and
+  the same `boxFor` the last frame used, rather than restarting the loop: the window's own resize
+  is the motion, an eased catch-up would only trail the drag, and a restarted loop would replay
+  the phase transitions and the roll contract for a reply that ended minutes ago. It tells the
+  history's tail pin through `onGrow`, because a re-wrap moves the tail and the pin is what
+  restores a reader who was at it. The mist is not re-posed with it: it has already evaporated to
+  opacity zero (`mistgone` runs `forwards`), so its transform is unobservable after the settle.
+
+Traced in headless Chromium, because jsdom has no layout and cannot show a re-wrap. One demo reply
+at 900x1000, where the log is 526px wide and the letters lay at a 431px wrap over two lines. Note
+first what the trace had to be taught: `.panel` is `min(560px, 92vw)`, so the panel is 560px at
+every viewport wider than about 609px, and a sweep across 900, 1400 and 640 changed nothing and
+proved nothing, the watch correctly reporting no change three times. Below the breakpoint it moves.
+Resized to 480 mid-stream the letters re-lay at a 334px wrap and the reply goes on to settle over
+six lines; the settled bubble widened back to 900 re-poses from 364x157.5 to 461x135.5 and narrowed
+to 420 lands at 318x180.5, and at every reading its painted edge sits inside the log. With
+`watchWrap` prevented from attaching its listener, which is the behaviour this addendum replaces,
+the same trace holds the 431px wrap through all of it and the bubble stands 53px past the log's
+right edge at 480 and 109px past it at 420, clipped by the history's `overflow-x: clip`.
+
+One harness lesson from proving the guards, worth more than the guard it saved. A listener that
+throws is reported to the window rather than to whoever dispatched the event, so a test that
+dispatches a resize and then asserts on the DOM cannot see the throw: deleting the "this bubble has
+no last letter" guard left all sixteen tests green. The test for a turn that stopped before its
+first word now listens for `error` on the window across the dispatch, and that mutation goes red
+with the other five (the re-lay, the re-pose, the listener's removal, and the watch's change
+comparison in both directions).

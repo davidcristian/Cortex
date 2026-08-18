@@ -8,9 +8,9 @@ import {
   advance,
   approach,
   goalOf,
-  pxOr,
   rampAt,
 } from "./front";
+import { MIST_GAP, MIST_H, MIST_W, type Metrics, boxFor, measure, watchWrap } from "./metrics";
 
 // The whisper's frame clock (ADR-0037), `useMarkClock`'s shape put to work: one rAF loop that
 // writes the letter ramps, the mist's glide and the bubble's posed box as inline styles, never
@@ -27,10 +27,6 @@ const BOX_GAIN = 10;
 const MIST_GAIN = 12;
 /** How far the front must travel before the breath becomes speech. */
 const TALK_THRESHOLD = 0.05;
-/** The mist's own box (`.mist i` in overlay.css) and the room the pose leaves around it. */
-const MIST_W = 24;
-const MIST_H = 13;
-const MIST_GAP = 2;
 /** How deep the band's blur goes at the mist end of a letter's ramp. */
 const BLUR_PX = 4;
 /** A clock tick is capped here so a background tab's resumed frame cannot teleport the front. */
@@ -56,17 +52,6 @@ export interface WhisperFacts {
   readonly onGrow: () => void;
 }
 
-/** What the clock measured once at mount; every pose is arithmetic over these. */
-interface Metrics {
-  readonly padX: number;
-  readonly padY: number;
-  readonly line: number;
-  /** The bubble's full wrap width (border box), the 82% cap resolved the way `max-width` is. */
-  readonly maxW: number;
-  readonly breathW: number;
-  readonly breathH: number;
-}
-
 /** The per-frame mutable world, deliberately a ref and never state. */
 interface World {
   front: Front;
@@ -78,32 +63,6 @@ interface World {
   h: number;
   mx: number;
   my: number;
-}
-
-function measure(bubble: HTMLElement): Metrics {
-  const cs = getComputedStyle(bubble);
-  const padX = pxOr(cs.paddingLeft, 15);
-  const padY = pxOr(cs.paddingTop, 10);
-  const line = pxOr(cs.lineHeight, 22.5);
-  // The 0.82 restates `.bubble`'s `max-width: 82%` against the same content box; if the two
-  // ever drift, the stylesheet's own max-width still clamps the posed width, so drift shows as
-  // an early wrap rather than an overflow.
-  const parent = bubble.parentElement;
-  let content = 0;
-  if (parent !== null) {
-    const pcs = getComputedStyle(parent);
-    content =
-      parent.clientWidth - pxOr(pcs.paddingLeft, 0) - pxOr(pcs.paddingRight, 0);
-  }
-  const breathW = padX * 2 + MIST_W + 1;
-  return {
-    padX,
-    padY,
-    line,
-    maxW: Math.max(breathW, Math.floor(content * 0.82) + padX * 2),
-    breathW,
-    breathH: padY * 2 + 22,
-  };
 }
 
 /** One letter's paint under the band: fractional opacity and blur, pinned at "1" once done
@@ -153,11 +112,15 @@ export function useWhisperClock(refs: WhisperRefs, facts: WhisperFacts): Whisper
     if (!animated || bubble === null || text === null || mist === null) {
       return undefined;
     }
-    const m = measure(bubble);
+    let m = measure(bubble);
     const s = world.current;
-    // The letter DOM lays out ONCE, at the final wrap width, so letter positions never change
-    // after they are laid: only the posed box's edge moves (ADR-0037 decision 4).
-    text.style.width = `${Math.max(0, m.maxW - m.padX * 2)}px`;
+    // The letter DOM lays out at the measured wrap width, so letter positions hold for as long as
+    // that width does and only the posed box's edge moves (ADR-0037 decision 4). A window that
+    // changes size re-lays them at the new one, below.
+    const layOut = (): void => {
+      text.style.width = `${Math.max(0, m.maxW - m.padX * 2)}px`;
+    };
+    layOut();
     // The waiting pose: the box drawn around the mist, and a front that starts a whole band
     // past whatever is already confirmed, so a bubble remounted mid-stream (maximize onto a
     // running turn) shows the words it already has, fully condensed, instead of replaying
@@ -212,16 +175,8 @@ export function useWhisperClock(refs: WhisperRefs, facts: WhisperFacts): Whisper
       const el = els[fi]!;
       const fx = el.offsetLeft + el.offsetWidth;
       const fy = el.offsetTop;
-      // The box tracks the front: on the first line the width walks with it (plus room for the
-      // mist); past the first wrap it is simply the final one. The height's target steps at a
-      // wrap, and the easing is what turns that step into a curve.
-      const lineOne = fy < m.padY + 5;
       const finished = draining && s.lo >= els.length;
-      const tW = Math.max(
-        m.breathW,
-        lineOne ? Math.min(m.maxW, fx + m.padX + MIST_W + MIST_GAP * 2) : m.maxW,
-      );
-      const tH = Math.max(m.breathH, fy + m.line + m.padY);
+      const { w: tW, h: tH } = boxFor(m, fx, fy);
       // The bubble owns its height for the length of the stream, and says so in the panel's own
       // roll contract (`overlay/morph.ts`): placements defer while the attribute stands, so the
       // panel's auto height follows the box frame by frame instead of replaying it from a
@@ -271,16 +226,50 @@ export function useWhisperClock(refs: WhisperRefs, facts: WhisperFacts): Whisper
       return false;
     };
 
+    // A bubble whose loop has stopped keeps the hard px box the loop left it standing on, and
+    // nothing else in the overlay ever revisits it, so a re-wrap has to pose it itself. It poses
+    // at once rather than easing: the window's own resize is the motion, and a box easing after
+    // it would only trail the drag.
+    const repose = (): void => {
+      const tail = s.letters[s.letters.length - 1];
+      if (tail === undefined) {
+        // A turn that stopped before its first word settled at the breath pill, and that pill is
+        // the paddings and the mist, neither of which a window change moves.
+        return;
+      }
+      const box = boxFor(m, tail.offsetLeft + tail.offsetWidth, tail.offsetTop);
+      s.w = box.w;
+      s.h = box.h;
+      bubble.style.width = `${s.w.toFixed(1)}px`;
+      bubble.style.height = `${s.h.toFixed(1)}px`;
+      // A re-wrap moves the tail of the log, and the pin is what restores a reader who was at it.
+      live.current.onGrow();
+    };
+
+    let stopped = false;
     let last: number | null = null;
     let frame = requestAnimationFrame(function step(now: number) {
       last ??= now;
       const dt = Math.min(MAX_TICK_SECONDS, (now - last) / 1000);
       last = now;
-      if (!tick(dt)) {
+      if (tick(dt)) {
+        stopped = true;
+      } else {
         frame = requestAnimationFrame(step);
       }
     });
+    const unwatch = watchWrap(bubble, m, (next: Metrics) => {
+      m = next;
+      layOut();
+      // While the loop still runs it needs nothing else: the letters keep the inline opacity they
+      // were painted with (paint is per element, not per position), and the next frame reads the
+      // front's fresh offsets and eases the box to where the new wrap put it.
+      if (stopped) {
+        repose();
+      }
+    });
     return () => {
+      unwatch();
       cancelAnimationFrame(frame);
       // A bubble unmounted mid-stream (a chat switch under a running turn) hands the height
       // back explicitly, or the panel would keep deferring to a roll whose section is gone.
