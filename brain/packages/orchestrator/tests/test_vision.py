@@ -14,7 +14,8 @@ import httpx
 import pytest
 
 from cortex_core import CaptureBounds, InMemoryBodyGateway
-from cortex_orchestrator.config import BodyConfig, InferenceConfig
+from cortex_orchestrator.config import InferenceConfig
+from cortex_orchestrator.config_body import BodyConfig
 from cortex_orchestrator.vision import PROBE_TIMEOUT_S, PropsVisionProbe, build_vision
 
 

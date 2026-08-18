@@ -53,7 +53,7 @@ from window_crop_probe import (
 
 from cortex_core import CaptureTarget
 from cortex_model_manager import ModelHostConfig
-from cortex_orchestrator.config import BodyConfig
+from cortex_orchestrator.config_body import BodyConfig
 
 # The sidecar's OWN image, not the base tag the injection harness runs, because two of the three
 # claims below are properties of a particular llama.cpp build and the base tag drifts under you:

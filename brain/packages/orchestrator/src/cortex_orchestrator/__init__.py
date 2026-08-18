@@ -11,12 +11,12 @@ from cortex_orchestrator.builders import (
     build_tool_registry,
 )
 from cortex_orchestrator.config import (
-    BodyConfig,
     BrainRuntimeConfig,
     InferenceConfig,
     MemoryConfig,
     SeamServerConfig,
 )
+from cortex_orchestrator.config_body import BodyConfig
 from cortex_orchestrator.config_schedule import ScheduleConfig
 from cortex_orchestrator.config_subagents import SubagentRosterEntry, SubagentsConfig
 from cortex_orchestrator.config_swap import DEFAULT_BRAIN_MODEL, SwapConfig

@@ -60,7 +60,8 @@ from cortex_core import (
 )
 from cortex_orchestrator import build_builtin_tools, run_from_env, wiring
 from cortex_orchestrator.builders import build_cortex_tools
-from cortex_orchestrator.config import BodyConfig, InferenceConfig
+from cortex_orchestrator.config import InferenceConfig
+from cortex_orchestrator.config_body import BodyConfig
 from cortex_orchestrator.vision import build_vision
 from cortex_seam import BrainServiceStub, ClientEvent, ServerEvent, UserTurn
 from cortex_session import RedisSessionStore
@@ -182,9 +183,13 @@ async def _compose(
     monkeypatch.setattr(Redis, "from_url", fake_from_url)
 
     async def fake_connect(
-        endpoint: str, *, token: str = "", capture_timeout_s: float = 10.0
+        endpoint: str,
+        *,
+        token: str = "",
+        capture_timeout_s: float = 10.0,
+        call_timeout_s: float = 5.0,
     ) -> tuple[object, Callable[[], Awaitable[None]]]:
-        del endpoint, token, capture_timeout_s
+        del endpoint, token, capture_timeout_s, call_timeout_s
 
         async def closer() -> None:
             return None

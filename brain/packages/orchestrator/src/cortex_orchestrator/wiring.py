@@ -45,12 +45,12 @@ from cortex_orchestrator.builders import (
     build_tool_registry,
 )
 from cortex_orchestrator.config import (
-    BodyConfig,
     BrainRuntimeConfig,
     InferenceConfig,
     MemoryConfig,
     SeamServerConfig,
 )
+from cortex_orchestrator.config_body import BodyConfig
 from cortex_orchestrator.config_reply import ReplyBoundsConfig
 from cortex_orchestrator.config_schedule import ScheduleConfig
 from cortex_orchestrator.config_subagents import SubagentsConfig

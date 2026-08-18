@@ -32,7 +32,8 @@ import httpx
 
 from cortex_core import BodyGateway, CaptureBounds, VisionProbe
 from cortex_orchestrator.builders import noop_aclose
-from cortex_orchestrator.config import BodyConfig, InferenceConfig
+from cortex_orchestrator.config import InferenceConfig
+from cortex_orchestrator.config_body import BodyConfig
 
 _PROPS_PATH = "/props"
 

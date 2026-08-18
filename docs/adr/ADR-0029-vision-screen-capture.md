@@ -3100,3 +3100,75 @@ rather than built**, since a bare `User: what does this say?` stored alone is no
 would rank against real memories, so it wants a record-time salience judgement or a rule narrow
 enough to state without one, plus an addendum here and at the tainted-recording record rather than
 an edit to either condition.
+
+## Addendum (2026-08-18): every call on this seam is bounded, and the premise for exempting three was wrong
+
+The capture deadline shipped with a sentence beside it: `capture_timeout_s` is the only deadline on
+this seam, because a blit plus an encode is the only call that can park a host thread, so
+`get_volume`, `set_volume` and `notify` keep their live-validated no-deadline behaviour. Both halves
+of that sentence were re-derived from the code before touching it and **neither survives**, which is
+why this lands now rather than on the second slow call the deferral was waiting for.
+
+**The body's own documentation contradicts the mechanism.** `body/crates/rpc/src/server.rs` hands
+every handler to `off_worker`, and says why in the doc comment on that function: the OS ports are
+synchronous because the OS is, Core Audio and the toast manager are COM, which has no async form,
+and **a COM call can park its thread for as long as the audio stack or the notification service
+takes**. So all four calls park a host thread. Capture is the one whose *expected* duration is long,
+which is a statement about latency, and the exemption was written as though it were a statement
+about mechanism. The distinction matters because a deadline is not a latency budget; it is a ceiling
+on the pathological case, and the pathological case is the same for all four.
+
+**And the guarantee the exemption deferred to does not exist.** "Live-validated" reads as a promise
+about real Core Audio and the real toast manager that a deadline would be overriding. What was
+validated live is the tokened dial across the container boundary against a Linux fake body. The
+three host validations of the real backends are all `**Status:** never attempted` in
+[docs/host/](../host/index.md), so there was no established behaviour of real COM latency to
+protect, only an untested assumption that it is always fast.
+
+**What the hazard actually costs, measured here rather than argued.** Nothing above the gateway
+bounds a tool call: there is no `asyncio.timeout` or `wait_for` anywhere on the dispatch path, and
+the bounds that do exist in the brain cover the subagent attempt, the confirmer and the reminder
+ticker's fire lease. So a wedged audio endpoint on a `get_volume` hangs the turn forever, and with
+proto `Cancel` still deferred the only escape is closing the overlay. A body that is merely **not
+running** is worse than it looks too: driven against a loopback port with nothing listening,
+a deadline-less call takes **20 seconds** to fail, which is grpc's own connect backoff rather than
+anything this repo chose. With a deadline it fails in the time the deadline allows.
+
+**Two knobs, not one.** `CORTEX_BODY_CAPTURE_TIMEOUT_S` stays at 10.0 and
+`CORTEX_BODY_CALL_TIMEOUT_S` joins it at 5.0 for the other three. Folding both onto one number would
+either end a legitimate blit or hand a volume read ten seconds of patience it can never spend, and
+the two are separately defensible: a capture is real work, a volume read is a host lookup. Both
+defaults are declared **once**, in `cortex_body_client.gateway`, and imported by `BodyConfig`, which
+also moved to its own `config_body.py` because `config.py` had reached its line cap. The adapter
+owns the calls, so it owns how long they may take; the settings module publishes them as env and
+does not restate the numbers.
+
+**The Python client does not have the trap the Rust client had, and that is a finding rather than an
+assumption.** The other direction of this seam gained per-attempt deadlines the same day, and
+enforcing them through tonic's own request timeout turned out to be a trap: an expired client-side
+timeout arrives as a *sourceless* `Status::cancelled`, and a classifier keying on the source chain
+reads that as a status the peer sent, so the body's own deadline would have been reported as the
+brain answering (ADR-0024's deadline addendum). The equivalent question here was asked of a running
+client rather than of memory: grpc-python surfaces a client-side timeout as `DEADLINE_EXCEEDED`,
+which `kind_of` already maps to `BodyFailure.UNREACHABLE`, whose contract is "no answer arrived at
+all, whether for want of a route or of time". That is the honest classification of our own expiry,
+so no mapping changed. It is now **pinned by test** rather than inherited from the library, twice
+over: positively, that the kind is `UNREACHABLE`, and negatively, that it is not one of the four
+kinds meaning the body answered and said something.
+
+One consequence is worth stating plainly for an operator. A real host that is slower than 5 seconds
+on a volume read or a toast now fails that tool where it used to wait. The knob is the answer, the
+failure is typed and worded as an unreachable body, and the turn survives either way. This is the
+same trade the other direction took, and the same reason: a call that needs longer wants a longer
+deadline, not an unbounded one.
+
+**Bounding is not repeating.** Nothing here retries. Capture stays attempted exactly once, for its
+own reason (a repeat photographs a different screen and fires a second host receipt for one user
+intent), and the other three are bounded without becoming repeatable. The two questions are
+independent, which is the same conclusion the body-side decision reached from the other end.
+
+Still deferred, and filed rather than built: the two deadline defaults are now each spelled in the
+brain and again in `docker/docker-compose.body.yml`, and `scripts/crosscheck.py` cannot tie them,
+because its value reducer accepts a product of integers, a string, or a `frozenset` of strings, and
+refuses a decimal. Teaching it decimals is what would let these be registered
+([R-308](../refinements/tasks/308-crosscheck-cannot-tie-a-decimal.md)).

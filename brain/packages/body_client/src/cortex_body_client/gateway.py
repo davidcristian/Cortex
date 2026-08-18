@@ -11,13 +11,20 @@ with the cause chained **and the status classified into a ``BodyFailure`` kind**
 unreachable body. No orchestration, no state: the composition root owns the channel's
 lifecycle (``connect`` returns the closer), exactly as ``LlamaCppBackend`` injects its client.
 
-``capture_screen`` (ADR-0029) is the first call on this seam that carries a **deadline** and the
-reason the channel raises its receive limit. It is the first that can genuinely park a thread (a
-4K blit plus a downscale plus a PNG encode), and with no deadline a wedged backend hangs the tool
-call, which hangs the turn, forever; the volume and notify calls keep their live-validated
-no-deadline behaviour, since changing what works is not a change this slice earned. It is also
-**never retried**: a repeat photographs a different screen and fires a second host receipt for
-one user intent.
+**Every call on this seam carries a deadline**, and the two numbers differ because the calls do
+(ADR-0029's uniform-deadline addendum). ``capture_screen`` gets the long one: a 4K blit plus a
+downscale plus a PNG encode is genuinely slow, and it is the reason the channel raises its
+receive limit besides. The volume and notify calls get the short one, because they are fast when
+they work at all. What they are not is safe to leave unbounded: the body runs every handler on
+``spawn_blocking`` precisely because Core Audio and the toast manager are COM, which has no async
+form, and its own ``off_worker`` doc says a COM call can park its thread for as long as the audio
+stack or the notification service takes (``body/crates/rpc/src/server.rs``). Nothing above this
+adapter bounds a tool call, so an unbounded read of a wedged endpoint hangs the turn forever, and
+even a body that is merely absent costs the caller grpc's own connect backoff.
+
+``capture_screen`` is also **never retried**: a repeat photographs a different screen and fires a
+second host receipt for one user intent. Bounding is not repeating, though, so the other three are
+bounded on their own argument and nothing here retries anything.
 
 The generated gRPC stub ships no ``.pyi`` (wire code is gate-exempt, ADR-0002 d4), so the
 stub-method accesses carry the same narrow, justified ignores the seam's other consumers use.
@@ -80,28 +87,54 @@ _TARGET_FROM_WIRE: dict[int, CaptureTarget] = {
 # raised; nothing else on this seam carries a payload.
 MAX_RECEIVE_BYTES = 16 * 1024 * 1024
 
+# How long a screen capture may take before the adapter stops waiting, in seconds. Generous,
+# because the work really is a blit plus a downscale plus an encode of a 4K desktop, and a
+# deadline that fires on a healthy capture is worse than none at all.
+DEFAULT_CAPTURE_TIMEOUT_S = 10.0
+
+# How long every other call on this seam may take. Half an order of magnitude under the capture's,
+# because a volume read and a toast are host calls with no work in them: five seconds is far past
+# a healthy one and short enough that a wedged endpoint fails a tool instead of a turn.
+#
+# Declared here rather than in the orchestrator's settings because this is the adapter that spends
+# it, and a default spelled in both places is two numbers that only look like one (``config_body``
+# imports these, the way ``config.py`` takes its Redis URL from the session adapter).
+DEFAULT_CALL_TIMEOUT_S = 5.0
+
 
 class GrpcBodyGateway:
     """BodyGateway over a ``BodyService`` gRPC channel (the ``LlamaCppBackend`` of OS actions)."""
 
     def __init__(
-        self, channel: aio.Channel, *, token: str = "", capture_timeout_s: float = 10.0
+        self,
+        channel: aio.Channel,
+        *,
+        token: str = "",
+        capture_timeout_s: float = DEFAULT_CAPTURE_TIMEOUT_S,
+        call_timeout_s: float = DEFAULT_CALL_TIMEOUT_S,
     ) -> None:
         self._stub = BodyServiceStub(channel)
         self._capture_timeout_s = capture_timeout_s
+        self._call_timeout_s = call_timeout_s
         # Attach the token on every call when configured; empty token = no metadata, matching
         # the tokenless body server (ADR-0016). Built once because the metadata never changes.
         self._metadata: _Metadata = ((SEAM_TOKEN_HEADER, token),) if token else ()
 
     @classmethod
     async def connect(
-        cls, endpoint: str, *, token: str = "", capture_timeout_s: float = 10.0
+        cls,
+        endpoint: str,
+        *,
+        token: str = "",
+        capture_timeout_s: float = DEFAULT_CAPTURE_TIMEOUT_S,
+        call_timeout_s: float = DEFAULT_CALL_TIMEOUT_S,
     ) -> tuple["GrpcBodyGateway", Callable[[], Awaitable[None]]]:
         """Open an insecure channel to the body at ``endpoint`` (e.g. ``host:50151``).
 
         Returns the adapter and the coroutine that closes its channel, so the composition
         root's shutdown path is uniform with the other builders. The channel connects lazily, so
-        an unreachable body surfaces as ``BodyGatewayError`` on the first call, not here.
+        an unreachable body surfaces as ``BodyGatewayError`` on the first call, not here, and
+        it surfaces within ``call_timeout_s`` rather than after grpc's own connect backoff.
         """
         channel = aio.insecure_channel(
             endpoint, options=[("grpc.max_receive_message_length", MAX_RECEIVE_BYTES)]
@@ -110,13 +143,24 @@ class GrpcBodyGateway:
         async def close() -> None:
             await channel.close()
 
-        return cls(channel, token=token, capture_timeout_s=capture_timeout_s), close
+        gateway = cls(
+            channel,
+            token=token,
+            capture_timeout_s=capture_timeout_s,
+            call_timeout_s=call_timeout_s,
+        )
+        return gateway, close
 
     async def get_volume(self) -> VolumeState:
-        """Read the host volume over ``BodyService.GetVolume``."""
+        """Read the host volume over ``BodyService.GetVolume``, ``call_timeout_s`` of patience."""
         method = self._stub.GetVolume  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
         try:
-            reply = cast("VolumeStatePb", await method(GetVolumeRequest(), metadata=self._metadata))
+            reply = cast(
+                "VolumeStatePb",
+                await method(
+                    GetVolumeRequest(), metadata=self._metadata, timeout=self._call_timeout_s
+                ),
+            )
         except aio.AioRpcError as err:
             msg = f"body get_volume failed: {err.details()}"
             raise BodyGatewayError(msg, kind=kind_of(err)) from err
@@ -128,12 +172,17 @@ class GrpcBodyGateway:
         """Apply a volume change over ``BodyService.SetVolume`` and report the resulting state.
 
         ``level``/``mute`` ride as proto optional fields (``None`` leaves a field unset), so the
-        request carries exactly what the caller set. The body clamps and applies it.
+        request carries exactly what the caller set. The body clamps and applies it. Attempted
+        once, with ``call_timeout_s`` of patience, and never retried: a repeated write is a
+        second host action for one user intent.
         """
         request = SetVolumeRequest(level=level, mute=mute)
         method = self._stub.SetVolume  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
         try:
-            reply = cast("VolumeStatePb", await method(request, metadata=self._metadata))
+            reply = cast(
+                "VolumeStatePb",
+                await method(request, metadata=self._metadata, timeout=self._call_timeout_s),
+            )
         except aio.AioRpcError as err:
             msg = f"body set_volume failed: {err.details()}"
             raise BodyGatewayError(msg, kind=kind_of(err)) from err
@@ -149,11 +198,18 @@ class GrpcBodyGateway:
         ``Unimplemented`` a body predating the toast answers, becomes a
         ``BodyGatewayError``. The ticker treats a declined and a failed push alike: the
         reminder stays deliverable for the pull path.
+
+        ``call_timeout_s`` bounds it. The ticker already bounds the whole fire against the
+        reminder's lease, so this deadline does not save the ticker from hanging; it stops one
+        wedged toast from spending a lease that covers the store writes after it.
         """
         request = NotifyRequest(title=title, body=body, reminder_id=reminder_id, tainted=tainted)
         method = self._stub.Notify  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
         try:
-            reply = cast("NotifyReply", await method(request, metadata=self._metadata))
+            reply = cast(
+                "NotifyReply",
+                await method(request, metadata=self._metadata, timeout=self._call_timeout_s),
+            )
         except aio.AioRpcError as err:
             msg = f"body notify failed: {err.details()}"
             raise BodyGatewayError(msg, kind=kind_of(err)) from err
@@ -181,7 +237,7 @@ class GrpcBodyGateway:
         reports, never the ask. An old body that sets nothing reads as ``DISPLAY``, which is
         exactly what such a body can take.
 
-        Attempted exactly once, with ``timeout`` seconds of patience. Every failure, including a
+        Attempted exactly once, with ``capture_timeout_s`` of patience. Every failure, including a
         bound the wire cannot carry and a reply this side refuses, becomes ``BodyGatewayError``,
         which the tool turns into a recoverable result rather than an exception.
         """
