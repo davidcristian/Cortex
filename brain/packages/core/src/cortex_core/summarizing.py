@@ -1,4 +1,4 @@
-"""A history window that recaps the turns it drops instead of losing them (ADR-0038 decision 9)."""
+"""A history window that recaps the turns it drops instead of losing them."""
 
 import logging
 from collections.abc import Sequence
@@ -10,15 +10,19 @@ from cortex_core.events import StatusUpdate
 from cortex_core.ports import Clock, InferenceBackend
 from cortex_core.ports_stores import SessionStore
 from cortex_core.progress import ProgressSink
-from cortex_core.recap_prompt import RECAP_BOUNDS, build_recap_messages, clean_recap, fence_recap
+from cortex_core.recap_prompt import (
+    RECAP_BOUNDS,
+    build_recap_messages,
+    clean_recap,
+    collapse_recap,
+    fence_recap,
+)
 from cortex_core.sessions import HistoryRecap
+from cortex_core.stops import StopLedger
 from cortex_core.windowing import HistoryWindow
 
 _logger = logging.getLogger(__name__)
 
-# The StatusUpdate.state a fold's progress rides under, beside "thinking", "delegating" and
-# "swapping": what the machine is doing, in the same voice. The detail is app-authored, so like
-# every other progress line it needs no guardrail pass and cannot be steered by what was read.
 RECAP_PROGRESS_STATE = "folding"
 RECAP_PROGRESS_DETAIL = "summarizing the earlier part of this conversation"
 
@@ -85,6 +89,8 @@ class SummarizingHistoryWindow:
         stored = await self._store.recap(session_id)
         if stored is not None and stored.covers == boundary:
             return stored
+        # A stored recap covering more than the boundary is dropped rather than reused: a widened
+        # character budget pulled those messages back into the window, so it would repeat them.
         previous = stored if stored is not None and stored.covers < boundary else None
         start = previous.covers if previous is not None else 0
         newly_dropped = history[start:boundary]
@@ -100,13 +106,18 @@ class SummarizingHistoryWindow:
             at=self._clock.now(),
             turn_id=history[boundary - 1].turn_id,
         )
-        text = clean_recap(
-            await drain_text(self._backend, self._model, prompt, bounds=RECAP_BOUNDS)
-        )
+        stops = StopLedger()
+        raw = await drain_text(self._backend, self._model, prompt, bounds=RECAP_BOUNDS, stops=stops)
+        text = clean_recap(raw)
         if not text:
             _logger.warning(
                 "the model returned no usable history recap; falling back to the plain window",
-                extra={"session_id": session_id, "boundary": boundary},
+                extra={
+                    "session_id": session_id,
+                    "boundary": boundary,
+                    "capped": stops.capped,
+                    "chars": len(collapse_recap(raw)),
+                },
             )
             return previous
         fresh = HistoryRecap(text=text, covers=boundary)

@@ -1392,11 +1392,24 @@ Use-case:
   sitting in neither the window nor the account. And it ANNOUNCES itself: when a caller passes a
   sink the window emits one `StatusUpdate(RECAP_PROGRESS_STATE, RECAP_PROGRESS_DETAIL)` before the
   pass and only when a pass will really happen, so a cache hit and a deferred fold stay silent.
+  And when it adds nothing, it SAYS WHY (ADR-0038 cut-fold addendum). The fallback is silent and
+  self-healing by design, which also means the rejected completion is gone before anyone reads
+  the warning, so the warning carries the diagnosis instead: `capped`, off a `StopLedger` the
+  fold hands to `drain_text`, and `chars`, the account's length measured through the same
+  `collapse_recap` the rejection is decided on. `capped` is the only reading that separates the
+  two causes with opposite fixes, a fold the server cut at `RECAP_MAX_TOKENS` (raise it, or fold
+  less) from a model that ended by itself in the wrong shape (rewrite `_INSTRUCTION`); `chars`
+  splits the other two, `0` being a model that said nothing and a number past `RECAP_MAX` one
+  that ran further than the store will hold. `clean_recap` is unchanged and still rejects on
+  shape, which is strictly stronger than reading the transport, catching a cut account, a
+  mid-thought one and a mangled one alike where a stop reason catches only the first.
   `recap_prompt.py` holds the text on both sides of the call: `build_recap_messages(previous,
   dropped, *, at, turn_id)` returns the two-message prompt, `fence_recap(text)` the fenced,
   self-explaining body of the prepended message, `RECAP_BOUNDS` how far the request may go
   (512 tokens, thinking off, which only work as a pair since a cap against a thinking model
-  returns an empty reply), and `clean_recap(raw)` the reply cleanup (the `session_title.py`
+  returns an empty reply), `collapse_recap(raw)` the one-paragraph normalization every recap rule
+  is written against (its own function so the number a rejection is logged with is the number it
+  was decided on), and `clean_recap(raw)` the reply cleanup (the `session_title.py`
   shape), collapsing to one paragraph and answering `""` for a reply with nothing in it, one that
   does not end a sentence, or one longer than `RECAP_MAX`. The last two are refusals rather than
   truncations on purpose: storing a cut-off account would advance `covers` past turns the missing
@@ -1598,7 +1611,8 @@ Use-case:
   a complete one. `DROPPED_TRAIL_LIMIT` is 20, the shipped pool width (`DEFAULT_RECALL_K` at the
   default `CORTEX_MEMORY_RECALL_POOL_FACTOR`), so a shipped deployment never truncates and the
   bound bites only on a wider over-fetch, where an unbounded line would grow with the pool.
-- `drain_text(backend, model, messages, *, schema=None, bounds=None)` (`drain.py`, ADR-0038) runs
+- `drain_text(backend, model, messages, *, schema=None, bounds=None, stops=None)` (`drain.py`,
+  ADR-0038) runs
   one completion
   to its end and closes the stream in a `finally`, so the adapter's `acquire` block is left before
   the call returns and the turn's own reply is the next acquire of a sequence rather than a nested
@@ -1606,6 +1620,14 @@ Use-case:
   three now pass `bounds`, since a caller whose reasoning this helper drops has no reason to ask
   the model for any; the guard around `aclose` is because the
   `InferenceBackend` port promises only an `AsyncIterator`.
+  `stops` is the optional `StopLedger` that receives the closing `DecodeStop` (ADR-0038 cut-fold
+  addendum), threaded exactly as `ToolLoopContext.stops` is into `stream_tool_loop` and for the
+  same reason: why a completion ended is a fact about the machine that stopped it, not something
+  the model said, so it goes to whoever asked instead of into the returned text. A caller that
+  hands none drops the stop as this helper always has, which is what keeps the return a bare
+  `str` and the other two callers byte-identical; `SummarizingHistoryWindow` is the one that
+  passes one. Six arguments is ruff's `max-args` ceiling, so a seventh collaborator wants a
+  bundle rather than another keyword.
 - `ToolDispatcher(registry, audit, clock, *, confirmer=None, policy=DEFAULT_DISPATCH_POLICY)`
   is the turn's tool gateway and
   capability gate (ADR-0009/0013). `dispatch(call, *, stamp=UNSTAMPED, gated=False,

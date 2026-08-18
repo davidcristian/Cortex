@@ -68,9 +68,14 @@ def build_recap_messages(
     ]
 
 
+def collapse_recap(raw: str) -> str:
+    """The model's reply as one paragraph, which is the form every recap rule is written against."""
+    return " ".join(raw.split())
+
+
 def clean_recap(raw: str) -> str:
     """The model's reply collapsed to one paragraph, or ``""`` if it is not a whole account."""
-    text = " ".join(raw.split())
+    text = collapse_recap(raw)
     if len(text) > RECAP_MAX:
         return ""
     # ``[-1:]`` rather than ``[-1]`` so an empty reply, and one that is nothing but closers,
