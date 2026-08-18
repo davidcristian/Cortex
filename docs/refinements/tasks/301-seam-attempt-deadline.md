@@ -20,10 +20,13 @@ The shell's eager `converse` dial takes the same helper, so no attempt the body 
 is unbounded.
 
 **The enforcement point moved, and the reason is the interesting half.** The shape the entry
-proposed, a request timeout in the adapter, is a trap: tonic turns its own expired timeout into a
-*sourceless* `Status::cancelled`, which `body/crates/rpc/src/status.rs` classifies as a status the
-brain sent, so the body's own deadline would have arrived as `TransportError::Rpc` and drawn the
-indicator `Degraded`, claiming an answer that never came. It would have looked like it worked. So
+proposed, a request timeout in the adapter, is a trap. tonic attaches its `transport::Error` to
+the `Status::cancelled` it raises on its own expiry, so `body/crates/rpc/src/status.rs` classifies
+that as `TransportError::Connection` and the indicator draws `Down`, which is honest. `Connection`
+is in the *retryable* set, though, so a transport-armed deadline would have been retried, two more
+times on the shipped schedule, against a brain that had just proved too slow or too stuck to
+answer. That is the load amplifier this same entry classifies a timeout terminal to avoid, reached
+through a back door and with nothing in the indicator looking wrong while it happened. So
 the bound is enforced in the core over the `Sleeper` port, which gained a second question,
 `bounded(deadline, call)`, whose real implementation is one line of `tokio::time::timeout` in the
 ungated shell beside the existing `sleep`. The failure is its own variant,
@@ -55,11 +58,20 @@ resolves inside 700 ms worst case and still spends one real retry on a restartin
 - 2026-08-18: landed as a deadline on the plan, enforced in the core, classified terminal, with
   the budget arithmetic corrected to count the attempts it now bounds. Two things the re-derivation
   found that the entry did not predict. The adapter is the wrong place for the bound, for the
-  tonic reason above, so the shape this entry proposed would have inverted the signal it exists to
-  make honest. And the harm at the far end was worse than a slow answer: the overlay's `useLink`
+  tonic reason above, so the shape this entry proposed would have amplified load exactly when the
+  brain could least take it. And the harm at the far end was worse than a slow answer: the overlay's `useLink`
   clears its `inFlight` latch in the promise's `finally`, so a single probe that never resolved
   disabled every later probe for the rest of the session and the recovery interval fired into a
   no-op, which the bound now prevents on every path. Two follow-ups: the brain is still never told
   the deadline ([302](302-brain-learns-the-deadline.md)), and the turn stream itself is
   deliberately unbounded, which is right for a working turn and says nothing about a stalled one
   ([303](303-turn-stream-stall.md)).
+- 2026-08-18, later: the tonic claim above was corrected. As landed, this entry recorded that an
+  expired client-side timeout arrives *sourceless* and so classifies `Rpc`, drawing `Degraded`.
+  That was read out of tonic's source and it is false: `find_status_in_source_chain` does mint the
+  cancelled status without a source, and its caller then attaches the originating error, so the
+  expiry classifies `Connection`. A probe against the hanging fake brain reported
+  `code=Cancelled has_transport_source=true chain=["transport error", "Timeout expired"]`. The
+  conclusion survives on the retryability hazard now written above, and the fact is pinned by
+  `tonics_own_expired_timeout_classifies_as_a_retryable_connection_failure` in
+  `body/crates/rpc/tests/client.rs` rather than left as prose. No shipped behaviour changed.

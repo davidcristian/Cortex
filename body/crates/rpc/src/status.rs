@@ -4,7 +4,8 @@ use body_core::TransportError;
 use tonic::Status;
 
 /// Maps a non-OK [`Status`] from a seam call to the port's error taxonomy.
-pub(crate) fn status_to_error(status: &Status) -> TransportError {
+#[must_use]
+pub fn status_to_error(status: &Status) -> TransportError {
     match transport_source(status) {
         Some(transport) => TransportError::Connection(error_chain(transport)),
         None => TransportError::Rpc {

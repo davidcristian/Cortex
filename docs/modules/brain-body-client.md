@@ -84,9 +84,12 @@ hand a volume read ten seconds of patience it can never spend.
 **An expired deadline is never read as an answer from the body.** grpc-python surfaces a
 client-side timeout as `DEADLINE_EXCEEDED`, which `kind_of` classifies `UNREACHABLE`, the kind
 whose contract is "no answer arrived at all, whether for want of a route or of time". That is
-the honest reading and it is pinned by test rather than inherited from the library: the other
-direction of this seam found the opposite shape the hard way, tonic surfacing its own expiry as a
-sourceless `Cancelled` that its classifier read as a reply (ADR-0024's deadline addendum).
+the honest reading and it is pinned by test rather than inherited from the library, which is the
+lesson the other direction of this seam learned the hard way: tonic's own expiry was *recorded*
+as a sourceless `Cancelled` its classifier would read as a reply, on a reading of tonic's source,
+and running it showed the classification is `Connection` instead, honest about the absent answer
+but sitting in that side's retryable set (ADR-0024's deadline addendum and its correction). The
+claim was wrong and the correction was found only by running it.
 
 **Capture is attempted exactly once**, and it is **never retried**, recorded as a decision rather
 than built as code: a re-capture photographs a different screen, possibly after the user switched

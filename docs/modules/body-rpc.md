@@ -9,13 +9,17 @@ over the `body_core::AudioControl` port (brain→body, Slice 9, ADR-0023) and th
 only, with no business logic, and no retries *here*: bounded retry is composed over this adapter
 by `body_core`'s `RetryingTransport` decorator (ADR-0024), for which `connect_lazy_with_token`
 supplies a reconnecting channel. **No deadline here either**, for a sharper reason than
-symmetry: tonic reports its own expired request timeout as a *sourceless* `Status::cancelled`,
-which `status_to_error` reads as a status the brain sent, so a deadline configured on the
-endpoint would surface as `TransportError::Rpc` and draw the connection indicator `Degraded`,
-claiming an answer that never came. The per-attempt deadline is therefore enforced in the core
-over the `Sleeper` port and arrives typed as `TransportError::Timeout` (ADR-0024 deadline
-addendum); `tests/client.rs` proves it end to end against a fake brain that accepts the call and
-never answers. The status→error mapping is split into `status.rs`
+symmetry: tonic attaches its `transport::Error` to the `Status::cancelled` it raises when its own
+request timeout expires, so `status_to_error` classifies that expiry `TransportError::Connection`,
+which is honest (the connection indicator draws `Down`, and nothing answered) but is also in the
+*retryable* set, so a deadline configured on the endpoint would be retried against a peer that has
+just proved too slow to answer. The per-attempt deadline is therefore enforced in the core over
+the `Sleeper` port and arrives typed as `TransportError::Timeout`, outside the transient set
+(ADR-0024 deadline addendum, as corrected the same day: the first reading of tonic here claimed a
+*sourceless* status classified `Rpc`, and running it says otherwise). `tests/client.rs` proves
+both ends of that against a fake brain that accepts the call and never answers: the core's bound
+ending it, and what tonic's own expiry classifies as. The status→error mapping is split into
+`status.rs`
 (`status_to_error` / `error_chain`, shared by every direction) to keep both files under the
 line cap.
 
@@ -94,6 +98,11 @@ line cap.
   - Every `TransportError::Connection` message folds the error's full `source()` chain
     (e.g. `transport error: tcp connect error: Connection refused (os error 111)`), so
     tonic's opaque `"transport error"` `Display` still names the root cause.
+- `status_to_error(status: &Status) -> TransportError` (`src/status.rs`) is that mapping as a
+  function: a status carrying a `tonic::transport::Error` anywhere on its `source()` chain is
+  `Connection`, anything else is `Rpc`. Public only so the contract suite can assert it against
+  statuses tonic really produces, the expired request timeout above being the one whose answer
+  a source reading got wrong.
 - `body_service(audio: A, notifier: N, token: &str)` (Slice 9, ADR-0023; the notifier joined
   in Slice 9.5, ADR-0025; `src/server.rs`) is the brain→body direction: builds the
   `BodyService` server over an `AudioControl` backend, a `Notify` backend, and a
