@@ -28,6 +28,9 @@ impl BrainTransport for FakeTransport {
             Err(TransportError::Protocol(message)) => {
                 Err(TransportError::Protocol(message.clone()))
             }
+            Err(TransportError::Timeout { after }) => {
+                Err(TransportError::Timeout { after: *after })
+            }
         }
     }
 

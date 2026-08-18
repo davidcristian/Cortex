@@ -68,6 +68,10 @@ impl LinkStatus {
                 state: LinkState::Degraded,
                 detail: format!("unreadable reply: {message}"),
             },
+            TransportError::Timeout { after } => Self {
+                state: LinkState::Down,
+                detail: format!("no reply within {after:?}"),
+            },
         }
     }
 }

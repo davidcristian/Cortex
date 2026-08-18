@@ -1,59 +1,24 @@
 //! `RetryingTransport`: bounded-retry resilience over the `BrainTransport` port (ADR-0024).
 
+pub mod deadline;
+pub mod effects;
 pub mod plan;
 pub mod policy;
 
-pub use plan::{DEFAULT_PROBE_BUDGET, RetryPlan, SeamMethod};
+pub use deadline::within_deadline;
+pub use effects::{FullDelay, Randomness, Sleeper};
+pub use plan::{
+    DEFAULT_CALL_DEADLINE, DEFAULT_PROBE_BUDGET, DEFAULT_PROBE_DEADLINE, RetryPlan, SeamMethod,
+};
 pub use policy::{RetryPolicy, is_transient};
 
 use std::future::Future;
-use std::time::Duration;
 
 use futures_core::Stream;
 
+use crate::retry::effects::jittered;
 use crate::session_types::{DueReminder, SessionMessage, SessionSummary};
 use crate::transport::{BrainTransport, ConfirmDecision, SeamHealth, TransportError, TurnEvent};
-
-/// A timer effect: wait `duration` before resolving. The one seam the retry loop uses to
-/// back off, so the *schedule* is testable with a fake that returns immediately (no real
-/// time), and the real `tokio::time::sleep` stays in the ungated composition root (ADR-0024).
-pub trait Sleeper: Send + Sync {
-    /// Resolves after `duration` has elapsed.
-    fn sleep(&self, duration: Duration) -> impl Future<Output = ()> + Send;
-}
-
-/// A randomness effect: one unit-interval draw per backoff, the seam jitter needs (ADR-0024
-/// addendum). Mirrors [`Sleeper`]: the real adapter lives in the ungated shell, tests inject
-/// a scripted fake, and [`FullDelay`] (the constant-1 source) turns jitter off structurally.
-pub trait Randomness: Send + Sync {
-    /// A value in `[0, 1]`. The retry loop sanitizes it defensively (out-of-range clamped, a
-    /// non-finite draw treated as the full delay), so a misbehaving source degrades the spread
-    /// rather than panicking the `Duration` math.
-    fn unit(&self) -> f64;
-}
-
-/// The constant-1 [`Randomness`]: equal jitter scales a delay by `0.5 + 0.5 * unit()`, so a
-/// permanent 1 yields exactly the deterministic v1 schedule.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct FullDelay;
-
-impl Randomness for FullDelay {
-    fn unit(&self) -> f64 {
-        1.0
-    }
-}
-
-/// `delay` scaled by equal jitter: half is kept as a floor (this wait exists to give a restarting
-/// brain time to come back), the other half is scaled by the sanitized draw.
-fn jittered(delay: Duration, randomness: &impl Randomness) -> Duration {
-    let draw = randomness.unit();
-    let scale = if draw.is_finite() {
-        draw.clamp(0.0, 1.0)
-    } else {
-        1.0
-    };
-    delay.mul_f64(0.5 + 0.5 * scale)
-}
 
 /// Runs `call` and retries it while [`RetryPolicy::backoff`] says so, sleeping the (jittered) delay
 /// between tries.
@@ -119,19 +84,24 @@ impl<T, S, R> RetryingTransport<T, S, R> {
 }
 
 impl<T: BrainTransport, S: Sleeper, R: Randomness> RetryingTransport<T, S, R> {
-    /// Runs `call` under the plan's verdict for `method`: [`retry_with`] on the resolved
-    /// schedule when the method is repeatable, and on [`RetryPolicy::ONCE`] when the plan
-    /// refuses it, which makes exactly one attempt and never waits.
+    /// Runs `call` under the plan's verdict for `method`: [`retry_with`] on the resolved schedule
+    /// when the method is repeatable, and on [`RetryPolicy::ONCE`] when the plan refuses it, which
+    /// makes exactly one attempt and never waits.
     async fn guarded<Out, Fut>(
         &self,
         method: SeamMethod,
-        call: impl FnMut() -> Fut,
+        mut call: impl FnMut() -> Fut,
     ) -> Result<Out, TransportError>
     where
         Fut: Future<Output = Result<Out, TransportError>> + Send,
+        Out: Send,
     {
         let policy = self.plan.policy_for(method).unwrap_or(RetryPolicy::ONCE);
-        retry_with(policy, &self.sleeper, &self.randomness, call).await
+        let deadline = self.plan.deadline_for(method);
+        retry_with(policy, &self.sleeper, &self.randomness, || {
+            within_deadline(deadline, &self.sleeper, call())
+        })
+        .await
     }
 }
 

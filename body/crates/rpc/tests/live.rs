@@ -108,6 +108,14 @@ impl Sleeper for RealSleeper {
     fn sleep(&self, duration: Duration) -> impl Future<Output = ()> + Send {
         tokio::time::sleep(duration)
     }
+
+    async fn bounded<F>(&self, deadline: Duration, call: F) -> Option<F::Output>
+    where
+        F: Future + Send,
+        F::Output: Send,
+    {
+        tokio::time::timeout(deadline, call).await.ok()
+    }
 }
 
 /// A patient read schedule, as someone tuning `CORTEX_BRAIN_RETRY_*` for a slow brain restart
@@ -134,6 +142,7 @@ async fn the_probe_budget_bounds_a_down_verdict_against_a_dead_address() {
         RetryPlan {
             reads: patient_reads(),
             probe_budget: Duration::from_secs(1),
+            ..RetryPlan::default()
         },
     );
 
@@ -147,8 +156,6 @@ async fn the_probe_budget_bounds_a_down_verdict_against_a_dead_address() {
         state = status.state.as_str(),
         detail = status.detail
     );
-    // Backoff of 400 + 800 ms overruns the 1 s budget, so the probe keeps two attempts and
-    // waits once. The upper bound is the honesty claim; the lower one proves it still retried.
     assert!(
         probe_took >= Duration::from_millis(400) && probe_took < Duration::from_secs(2),
         "probe took {probe_took:?}, outside the one wait its 1 s budget allows"

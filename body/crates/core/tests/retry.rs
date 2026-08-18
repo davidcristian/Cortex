@@ -9,7 +9,7 @@ use std::time::Duration;
 use body_core::{
     BrainTransport, ConfirmDecision, DueReminder, Randomness, RetryPlan, RetryPolicy,
     RetryingTransport, SeamHealth, SessionMessage, SessionSummary, Sleeper, TransportError,
-    TurnEvent, is_transient, retry_with,
+    TurnEvent, is_transient, retry_with, within_deadline,
 };
 use futures_core::Stream;
 use tokio_stream::StreamExt;
@@ -182,6 +182,8 @@ impl BrainTransport for FlakyTransport {
 #[derive(Clone, Default)]
 struct FakeSleeper {
     recorded: Arc<Mutex<Vec<Duration>>>,
+    bounds: Arc<Mutex<Vec<Duration>>>,
+    expires: bool,
 }
 
 impl Sleeper for FakeSleeper {
@@ -195,11 +197,52 @@ impl Sleeper for FakeSleeper {
             .push(duration);
         std::future::ready(())
     }
+
+    fn bounded<F>(
+        &self,
+        deadline: Duration,
+        call: F,
+    ) -> impl Future<Output = Option<F::Output>> + Send
+    where
+        F: Future + Send,
+        F::Output: Send,
+    {
+        self.bounds
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .push(deadline);
+        let expires = self.expires;
+        async move {
+            if expires {
+                // The deadline won: the call is dropped without ever being polled, so the
+                // fake's own call counter proves the attempt was abandoned, not merely lost.
+                drop(call);
+                return None;
+            }
+            Some(call.await)
+        }
+    }
 }
 
 impl FakeSleeper {
+    /// A sleeper whose every deadline expires: the clock always beats the call.
+    fn expiring() -> Self {
+        Self {
+            expires: true,
+            ..Self::default()
+        }
+    }
+
     fn delays(&self) -> Vec<Duration> {
         self.recorded
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
+    }
+
+    /// The deadline each bounded attempt was given, in order.
+    fn bounds(&self) -> Vec<Duration> {
+        self.bounds
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .clone()
@@ -214,6 +257,16 @@ fn policy(max_attempts: u32) -> RetryPolicy {
         base_delay: Duration::from_millis(100),
         multiplier: 2,
         max_delay: Duration::from_secs(10),
+    }
+}
+
+/// A plan whose probe budget cannot bind, so a test about the retry *loop* sees the schedule it
+/// configured rather than the trimmed probe.
+fn untrimmed(reads: RetryPolicy) -> RetryPlan {
+    RetryPlan {
+        reads,
+        probe_budget: Duration::from_mins(1),
+        ..RetryPlan::default()
     }
 }
 
@@ -239,7 +292,7 @@ async fn succeeds_on_the_first_try_without_sleeping() {
 async fn retries_a_transient_failure_then_succeeds() {
     let flaky = FlakyTransport::new(FailKind::Connection, 2);
     let sleeper = FakeSleeper::default();
-    let transport = RetryingTransport::new(flaky.clone(), sleeper.clone(), policy(3));
+    let transport = RetryingTransport::new(flaky.clone(), sleeper.clone(), untrimmed(policy(3)));
     assert!(transport.health().await.unwrap().ready);
     assert_eq!(flaky.call_count(), 3); // first + two retries
     // Exponential backoff before each retry: base, then base × multiplier.
@@ -556,6 +609,13 @@ fn is_transient_classifies_every_variant() {
 }
 
 #[test]
+fn an_expired_deadline_is_terminal_and_never_buys_another_attempt() {
+    assert!(!is_transient(&TransportError::Timeout {
+        after: Duration::from_millis(250),
+    }));
+}
+
+#[test]
 fn the_codes_a_wider_table_would_have_added_are_still_terminal() {
     for code in ["ResourceExhausted", "Aborted", "DeadlineExceeded"] {
         assert!(
@@ -610,7 +670,7 @@ async fn with_randomness_equal_jitters_each_delay() {
         flaky.clone(),
         sleeper.clone(),
         FakeRandomness::scripted(&[0.0, 1.0]),
-        policy(3),
+        untrimmed(policy(3)),
     );
     assert!(transport.health().await.unwrap().ready);
     assert_eq!(
@@ -630,7 +690,7 @@ async fn out_of_range_and_non_finite_draws_are_sanitized_not_panicked() {
         flaky.clone(),
         sleeper.clone(),
         FakeRandomness::scripted(&[2.0, -3.0, f64::NAN]),
-        policy(4),
+        untrimmed(policy(4)),
     );
     assert!(transport.health().await.unwrap().ready);
     assert_eq!(
@@ -675,6 +735,8 @@ async fn the_probe_budget_shortens_the_health_probe() {
         RetryPlan {
             reads: patient_reads(),
             probe_budget: Duration::from_millis(250),
+            probe_deadline: Duration::from_millis(50),
+            ..RetryPlan::default()
         },
     );
     assert!(transport.health().await.is_err());
@@ -694,6 +756,7 @@ async fn the_same_plan_leaves_the_session_read_patient() {
         RetryPlan {
             reads: patient_reads(),
             probe_budget: Duration::from_millis(250),
+            ..RetryPlan::default()
         },
     );
     assert!(transport.list_sessions(5).await.is_err());
@@ -750,4 +813,149 @@ async fn retry_with_fails_fast_on_a_non_transient_error() {
     assert!(matches!(denied, Err(TransportError::Rpc { .. })));
     assert_eq!(attempts.load(Ordering::SeqCst), 1);
     assert!(sleeper.delays().is_empty());
+}
+
+#[tokio::test]
+async fn each_attempt_carries_the_plans_deadline_for_that_method() {
+    // The clock is asked once per attempt, with the duration the plan resolved for that
+    // method: the probe's own for `health`, the general one for a session read. This is the
+    // half a fake could quietly make vacuous, so it is asserted as a value rather than a count.
+    let flaky = FlakyTransport::new(FailKind::Connection, 1);
+    let sleeper = FakeSleeper::default();
+    let plan = RetryPlan {
+        probe_deadline: Duration::from_millis(40),
+        call_deadline: Duration::from_secs(90),
+        ..RetryPlan::default()
+    };
+    let transport = RetryingTransport::new(flaky.clone(), sleeper.clone(), plan);
+    assert!(transport.health().await.is_ok());
+    // One failure, so two attempts, each bounded by the probe's deadline.
+    assert_eq!(
+        sleeper.bounds(),
+        vec![Duration::from_millis(40), Duration::from_millis(40)]
+    );
+    assert!(transport.list_sessions(3).await.is_ok());
+    assert_eq!(sleeper.bounds().last(), Some(&Duration::from_secs(90)));
+}
+
+#[tokio::test]
+async fn a_hung_attempt_becomes_a_timeout_and_is_not_retried() {
+    let flaky = FlakyTransport::new(FailKind::Connection, 0);
+    let sleeper = FakeSleeper::expiring();
+    let transport = RetryingTransport::new(
+        flaky.clone(),
+        sleeper.clone(),
+        RetryPlan {
+            reads: patient_reads(),
+            probe_deadline: Duration::from_millis(80),
+            ..RetryPlan::default()
+        },
+    );
+    assert_eq!(
+        transport.health().await.unwrap_err(),
+        TransportError::Timeout {
+            after: Duration::from_millis(80),
+        }
+    );
+    assert_eq!(flaky.call_count(), 0);
+    assert_eq!(sleeper.bounds(), vec![Duration::from_millis(80)]);
+    assert!(sleeper.delays().is_empty());
+}
+
+#[tokio::test]
+async fn a_refused_write_is_bounded_even_though_it_is_never_retried() {
+    let flaky = FlakyTransport::new(FailKind::Connection, 0);
+    let sleeper = FakeSleeper::expiring();
+    let transport = RetryingTransport::new(
+        flaky.clone(),
+        sleeper.clone(),
+        RetryPlan {
+            call_deadline: Duration::from_secs(7),
+            ..RetryPlan::default()
+        },
+    );
+    assert_eq!(
+        transport.ack_reminder("r1").await.unwrap_err(),
+        TransportError::Timeout {
+            after: Duration::from_secs(7),
+        }
+    );
+    assert_eq!(flaky.call_count(), 0);
+    assert_eq!(sleeper.bounds(), vec![Duration::from_secs(7)]);
+}
+
+#[tokio::test]
+async fn the_turn_is_the_one_call_no_clock_ends() {
+    // `Converse` is exempt by decision (a turn is long by design), and the exemption is real
+    // rather than nominal: even an expiring clock never sees the turn, which streams its
+    // scripted events verbatim.
+    let flaky = FlakyTransport::new(FailKind::Connection, 0);
+    let sleeper = FakeSleeper::expiring();
+    let transport = RetryingTransport::new(flaky, sleeper.clone(), RetryPlan::default());
+    let events: Vec<_> = transport
+        .converse("s1", "hi", tokio_stream::empty())
+        .collect()
+        .await;
+    assert_eq!(events.len(), 2);
+    assert!(sleeper.bounds().is_empty());
+}
+
+#[tokio::test]
+async fn within_deadline_grants_expires_and_can_be_asked_for_no_bound_at_all() {
+    // The composition itself, driven directly: the three answers it has. The `None` case is
+    // what `Converse` would take if the decorator ever routed a stream through the loop, and
+    // it is also what a caller composing this around a non-seam future can ask for.
+    let granting = FakeSleeper::default();
+    assert_eq!(
+        within_deadline(
+            Some(Duration::from_millis(5)),
+            &granting,
+            std::future::ready(Ok::<_, TransportError>(String::from("in time"))),
+        )
+        .await
+        .unwrap(),
+        "in time"
+    );
+    assert_eq!(granting.bounds(), vec![Duration::from_millis(5)]);
+    // The call's own failure is returned unchanged: bounding a call does not reclassify it.
+    assert_eq!(
+        within_deadline(
+            Some(Duration::from_millis(5)),
+            &granting,
+            std::future::ready(Err::<(), _>(TransportError::Protocol(String::from(
+                "garbled"
+            )))),
+        )
+        .await
+        .unwrap_err(),
+        TransportError::Protocol(String::from("garbled"))
+    );
+    let expiring = FakeSleeper::expiring();
+    assert_eq!(
+        within_deadline(
+            Some(Duration::from_secs(2)),
+            &expiring,
+            std::future::pending::<Result<(), TransportError>>(),
+        )
+        .await
+        .unwrap_err(),
+        TransportError::Timeout {
+            after: Duration::from_secs(2),
+        }
+    );
+    // No deadline: the clock is still asked, at the end of time, which is what unbounded means
+    // to a clock and what keeps this generic function free of an arm no caller could take.
+    let granted = FakeSleeper::default();
+    assert_eq!(
+        within_deadline(
+            None,
+            &granted,
+            std::future::ready(Ok::<_, TransportError>(7))
+        )
+        .await
+        .unwrap(),
+        7
+    );
+    assert_eq!(granted.bounds(), vec![Duration::MAX]);
+    assert_eq!(expiring.bounds(), vec![Duration::from_secs(2)]);
 }

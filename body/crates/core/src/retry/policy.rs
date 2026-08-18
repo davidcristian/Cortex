@@ -5,14 +5,14 @@ use std::time::Duration;
 use crate::transport::TransportError;
 
 /// Whether a failed seam call is worth retrying: transient reachability/backend conditions
-/// (`Connection`, and the gRPC-conventional `Rpc{Unavailable}`) are; a genuine application answer
-/// (any other `Rpc` status) or uninterpretable wire data (`Protocol`) is not.
+/// (`Connection`, and the gRPC-conventional `Rpc{Unavailable}`) are; a genuine application
+/// answer (any other `Rpc` status), uninterpretable wire data (`Protocol`), or an expired
 #[must_use]
 pub fn is_transient(error: &TransportError) -> bool {
     match error {
         TransportError::Connection(_) => true,
         TransportError::Rpc { code, .. } => code == "Unavailable",
-        TransportError::Protocol(_) => false,
+        TransportError::Protocol(_) | TransportError::Timeout { .. } => false,
     }
 }
 
@@ -84,18 +84,20 @@ impl RetryPolicy {
         })
     }
 
-    /// This schedule with its attempts trimmed until [`RetryPolicy::worst_case_backoff`] fits
-    /// `budget`, leaving the delays themselves untouched.
+    /// This schedule with its attempts trimmed until the whole run fits `budget`, counting each
+    /// attempt as costing up to `attempt` and every backoff between them, and leaving the
+    /// delays themselves untouched.
     #[must_use]
-    pub fn within(self, budget: Duration) -> Self {
-        let mut spent = Duration::ZERO;
+    pub fn within(self, budget: Duration, attempt: Duration) -> Self {
+        let mut spent = attempt;
         let mut delay = self.base_delay.min(self.max_delay);
         let mut max_attempts = 1;
         while max_attempts < self.max_attempts {
-            spent = spent.saturating_add(delay);
-            if spent > budget {
+            let extended = spent.saturating_add(delay).saturating_add(attempt);
+            if extended > budget {
                 break;
             }
+            spent = extended;
             delay = delay.saturating_mul(self.multiplier).min(self.max_delay);
             max_attempts += 1;
         }

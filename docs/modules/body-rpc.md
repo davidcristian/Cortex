@@ -8,7 +8,14 @@ over the `body_core::AudioControl` port (brain→body, Slice 9, ADR-0023) and th
 `body_core::Notify` port (the reminder toast, Slice 9.5, ADR-0025). Thin translation
 only, with no business logic, and no retries *here*: bounded retry is composed over this adapter
 by `body_core`'s `RetryingTransport` decorator (ADR-0024), for which `connect_lazy_with_token`
-supplies a reconnecting channel. The status→error mapping is split into `status.rs`
+supplies a reconnecting channel. **No deadline here either**, for a sharper reason than
+symmetry: tonic reports its own expired request timeout as a *sourceless* `Status::cancelled`,
+which `status_to_error` reads as a status the brain sent, so a deadline configured on the
+endpoint would surface as `TransportError::Rpc` and draw the connection indicator `Degraded`,
+claiming an answer that never came. The per-attempt deadline is therefore enforced in the core
+over the `Sleeper` port and arrives typed as `TransportError::Timeout` (ADR-0024 deadline
+addendum); `tests/client.rs` proves it end to end against a fake brain that accepts the call and
+never answers. The status→error mapping is split into `status.rs`
 (`status_to_error` / `error_chain`, shared by every direction) to keep both files under the
 line cap.
 

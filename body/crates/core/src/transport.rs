@@ -5,6 +5,7 @@ pub mod turn;
 pub use turn::{ConfirmDecision, TurnEvent};
 
 use std::future::Future;
+use std::time::Duration;
 
 use futures_core::Stream;
 
@@ -40,6 +41,13 @@ pub enum TransportError {
     /// `TurnComplete`.
     #[error("malformed seam message: {0}")]
     Protocol(String),
+    /// The attempt was abandoned: nothing came back within the deadline the caller gave it
+    /// (`after`), so the call was dropped (ADR-0024 deadline addendum).
+    #[error("no reply from the brain within {after:?}")]
+    Timeout {
+        /// The deadline that expired, as the caller set it.
+        after: Duration,
+    },
 }
 
 /// The body's typed async client port to the brain (`docs/ARCHITECTURE.md`,

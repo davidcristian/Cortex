@@ -2,6 +2,7 @@
 //! the `probe_link` call that turns an answer (or a failure) into a state the overlay can show.
 
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::Duration;
 
 use body_core::{
     BrainTransport, ConfirmDecision, DueReminder, LinkState, LinkStatus, SeamHealth,
@@ -17,6 +18,7 @@ enum Script {
     Connection(&'static str),
     Rpc(&'static str, &'static str),
     Protocol(&'static str),
+    Timeout(Duration),
 }
 
 /// A `BrainTransport` whose `health` follows a script and counts its calls. The other methods
@@ -59,6 +61,7 @@ impl BrainTransport for ScriptedTransport {
                 message: String::from(message),
             }),
             Script::Protocol(message) => Err(TransportError::Protocol(String::from(message))),
+            Script::Timeout(after) => Err(TransportError::Timeout { after }),
         }
     }
 
@@ -201,6 +204,18 @@ async fn an_unreadable_reply_is_degraded_and_says_so() {
         LinkStatus {
             state: LinkState::Degraded,
             detail: String::from("unreadable reply: empty event"),
+        }
+    );
+}
+
+#[tokio::test]
+async fn a_probe_that_ran_out_of_time_is_down_and_names_the_deadline() {
+    let (status, ..) = probe(Script::Timeout(Duration::from_millis(250))).await;
+    assert_eq!(
+        status,
+        LinkStatus {
+            state: LinkState::Down,
+            detail: String::from("no reply within 250ms"),
         }
     );
 }

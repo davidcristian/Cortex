@@ -1,6 +1,8 @@
 //! The `converse` IPC command: run one brain turn and stream it to the webview.
 
-use body_core::{BrainTransport, ConfirmDecision, TransportError, TurnEvent, retry_with};
+use body_core::{
+    BrainTransport, ConfirmDecision, TransportError, TurnEvent, retry_with, within_deadline,
+};
 use body_rpc::BrainSeamClient;
 use futures_util::{StreamExt, pin_mut};
 use serde::Serialize;
@@ -9,7 +11,7 @@ use tauri::ipc::Channel;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
 use crate::confirm::ConfirmRoute;
-use crate::seam::{ShellRandomness, TokioSleeper, policy_from_env};
+use crate::seam::{ShellRandomness, TokioSleeper, plan_from_env, policy_from_env};
 
 /// Default brain seam address (matches `body_rpc`); override with `CORTEX_BRAIN_ADDR`.
 const DEFAULT_ADDR: &str = "http://127.0.0.1:50051";
@@ -122,6 +124,10 @@ impl From<TransportError> for WireError {
                 kind: "protocol",
                 message,
             },
+            TransportError::Timeout { after } => Self {
+                kind: "timeout",
+                message: format!("no reply within {after:?}"),
+            },
         }
     }
 }
@@ -161,8 +167,13 @@ pub async fn converse(
     }
     let sleeper = TokioSleeper;
     let randomness = ShellRandomness::from_env();
+    let deadline = Some(plan_from_env().call_deadline);
     let dial = retry_with(policy_from_env(), &sleeper, &randomness, || {
-        BrainSeamClient::connect_with_token(&addr, token.as_deref())
+        within_deadline(
+            deadline,
+            &sleeper,
+            BrainSeamClient::connect_with_token(&addr, token.as_deref()),
+        )
     });
     let client = match dial.await {
         Ok(client) => client,
