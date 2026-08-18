@@ -5,7 +5,9 @@ never run in CI. Run per docs/runbooks/email-imap.md, e.g. with ~/.cortex/email.
 `cd brain && uv run pytest -m integration --no-cov packages/email`.
 """
 
+import imaplib
 import os
+import re
 import time
 import uuid
 from email import message_from_bytes, policy
@@ -23,6 +25,7 @@ from cortex_email import (
     SmtpConfig,
     SmtpSender,
 )
+from cortex_email.values import SEARCH_QUERY_HELP
 
 
 @pytest.mark.integration
@@ -38,6 +41,75 @@ def test_reader_lists_and_reads_from_a_live_bridge() -> None:
         detail = reader.read("INBOX", summaries[0].uid)
         assert detail is not None
         assert detail.subject == summaries[0].subject
+
+
+# One query per criterion family the `query` description names, written the way it tells a model
+# to write them. The folder is INBOX and the limit is 1 because this asserts the SERVER parses
+# each criterion, which it answers before it counts a single message, so the pass says the same
+# thing against a full mailbox and an empty one.
+_ADVERTISED_QUERIES = (
+    "ALL",
+    'SUBJECT "cortex"',
+    'FROM "someone@example.com"',
+    'TO "someone@example.com"',
+    'CC "someone@example.com"',
+    'BCC "someone@example.com"',
+    'BODY "cortex"',
+    'TEXT "cortex"',
+    'HEADER "Message-Id" "cortex"',
+    "SINCE 01-Jan-2026",
+    "BEFORE 01-Jan-2026",
+    "ON 01-Jan-2026",
+    "SENTSINCE 01-Jan-2026",
+    "SENTBEFORE 01-Jan-2026",
+    "SENTON 01-Jan-2026",
+    "SEEN",
+    "UNSEEN",
+    "ANSWERED",
+    "UNANSWERED",
+    "FLAGGED",
+    "UNFLAGGED",
+    "DRAFT",
+    "UNDRAFT",
+    "DELETED",
+    "UNDELETED",
+    "LARGER 1000",
+    "SMALLER 1000000",
+    'UNSEEN SINCE 01-Jan-2026 OR SUBJECT "invoice" SUBJECT "receipt"',
+    'NOT SUBJECT "cortex"',
+    '(FROM "someone@example.com" SINCE 01-Jan-2026)',
+)
+# The words in the description that are criteria rather than prose. IMAP and SEARCH name the
+# dialect itself, and OR/NOT are exercised inside the composed queries above rather than alone.
+_NOT_CRITERIA = frozenset({"IMAP", "SEARCH", "OR", "NOT"})
+
+
+@pytest.mark.integration
+def test_every_advertised_search_criterion_is_one_the_bridge_accepts() -> None:
+    """The guard on what `search_emails` tells a model: only criteria that work may be named.
+
+    The description was written from a live pass rather than from the RFC, against a server
+    whose SEARCH support is partial by reputation, so this is the test that keeps the two
+    together: name a criterion in `SEARCH_QUERY_HELP` and it is run here, and a server that
+    stops accepting one fails the run instead of quietly answering the model with a parse error.
+    """
+    config = EmailConfig()
+    if not config.user:
+        pytest.skip("set CORTEX_EMAIL_IMAP_USER/PASSWORD (~/.cortex/email.env) to run")
+    named = set(re.findall(r"\b[A-Z][A-Z-]{1,}\b", SEARCH_QUERY_HELP)) - _NOT_CRITERIA
+    exercised = {
+        word for query in _ADVERTISED_QUERIES for word in re.findall(r"\b[A-Z-]{2,}\b", query)
+    }
+    assert named <= exercised, f"described but never run live: {sorted(named - exercised)}"
+
+    reader = EmailReader(ImapMailbox(config))
+    for query in _ADVERTISED_QUERIES:
+        reader.search("INBOX", query, 1)  # a criterion the server refuses raises out of here
+
+    # And the premise the description exists to remove: the client syntax really is refused,
+    # rather than being interpreted as a subject search or quietly matching nothing.
+    with pytest.raises(imaplib.IMAP4.error):
+        reader.search("INBOX", "from:someone@example.com", 1)
 
 
 @pytest.mark.integration
