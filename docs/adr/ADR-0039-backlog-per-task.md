@@ -304,3 +304,60 @@ returned to green over all 262 pointers.
 
 **A pointer now reports the line it is written on**, which the two-document scope did not need and
 389 files do. It joins the other scans here, all of which report `path:line`.
+
+
+## Addendum (2026-08-18): the slug rule states what it claims, and refuses the rest
+
+The repo-wide-anchor addendum pointed the fragment check at every markdown file in the tree, and
+the deferral it opened named the cost: the slug rule is
+`DROPPED.sub("", heading.lower()).replace(" ", "-")` over a heading's **source** line, while a
+renderer slugs its **rendered** text, and those are not the same string. Five shapes where they
+disagree were enumerated and measured absent. Re-deriving that measurement before building found
+it still true, in a tree that has grown since (404 markdown files, 1,993 ATX headings, 267
+fragments, against the 389/1,918/262 recorded then), and found a **sixth**: an entity reference,
+whose letters this rule keeps as text where a renderer resolves the whole of it to one character,
+so a heading pairing two words with `&amp;` would slug with `amp` in the middle of it. Absent too.
+
+**The closure is refusal, not renderer emulation, which is the opposite of what the entry
+proposed.** The entry's own plan was four inline transforms plus reading setext headings, and its
+own stated reason for waiting was that a transform written against no example is a guess. That
+reason does not expire when the transforms are written: a wrong transform produces a wrong anchor,
+and a wrong anchor is a **silent accept**, a pointer the gate passes that no reader can follow.
+Refusing costs about the same lines and cannot invent an anchor. Its two failure modes are both
+loud or inert: a detector too wide reports a legitimate heading, which someone sees immediately,
+and a detector too narrow leaves the old approximation exactly where it already was.
+
+1. **The claim is now written down.** The rule is exact whenever every markdown construct in a
+   heading's source is built from characters it already drops and carries no text away with it.
+   Plain prose, punctuation, code spans and `*` emphasis all qualify, a backtick and an asterisk
+   being dropped on both sides, which is why the 133 code-span headings and 4 starred ones in this
+   tree were never at risk. The six shapes that do not qualify are named, and each makes the rule
+   read a heading MORE literally than a renderer does.
+2. **The refusal lives in `scripts/headingshapes.py`.** Wiring it into `backloganchors.py` took
+   that file to 334 lines, so the responsibility split along the seam that was already there:
+   what a heading *is* moved out, and what anchors a document offers and which pointers land
+   stayed. `backlogcheck.py` needed no change; it already prints whatever the anchor scan returns.
+3. **A document carrying one has its anchors left unknown**, exactly as an index too broken to
+   render does, rather than being judged on the anchors the rule would have guessed. Telling a
+   reader that such a document "does not offer" a heading would be an accusation the rule cannot
+   support, and the run is already failing on the heading itself.
+4. **An underscore inside a word is never reported.** Six headings here carry one after code spans
+   come off (`session_id`, `os_*`, `body_client`, `cortex_core`, `edit_scheduled`), CommonMark
+   reads none of them as emphasis, and a detector without its word-boundary guard reddens
+   `brain/packages/body_client and cortex_core` on the spot, which a test pins.
+
+**Proved before it was trusted.** A scratch document carrying all six shapes was written into
+`docs/` and the gate run against the real tree: six problems, one per shape, each naming the file,
+the line, the heading, the reason, and the remedy, and none of them fired on the legal headings
+sitting beside them in the same file. The document was then deleted and the gate returned to
+`backlogcheck OK`. Five further mutations each redden a distinct set of tests: dropping the
+unknown-anchor rule, unwiring the shape scan from the gate, deleting the entity detector, widening
+the emphasis detector, and not reading setext underlines.
+
+**The taste risk, flagged rather than buried.** This converts a silent approximation into a house
+style: six heading shapes are now unwritable in this repo's prose, and one of them
+(`## <kbd>Ctrl</kbd>+N`) is a heading somebody might genuinely want. The tree carries none of the
+six today, so nothing had to be rewritten, and the message tells an author exactly what to write
+instead. If one of the six is ever wanted badly enough, the answer is to render that one shape and
+prove the transform against the real heading that asked for it, which is a better position to
+write a transform from than this one.

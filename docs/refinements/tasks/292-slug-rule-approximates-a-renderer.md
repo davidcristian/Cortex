@@ -1,9 +1,8 @@
 # One regex stands in for a renderer's slugger
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-08-18
 **Area:** repo-gates
 **Origin:** [ADR-0039](../../adr/ADR-0039-backlog-per-task.md)
-**Trigger:** the first heading written in one of the five shapes below, or any report from this gate against a heading that a renderer resolves fine, either of which turns a measured absence into a live disagreement.
 
 Opened 2026-08-17 by the close of [R-276](276-repo-wide-anchor-check.md), which pointed the anchor
 check at every markdown document in the repo instead of at the two backlog indexes. Judging more
@@ -53,3 +52,14 @@ gate cannot fail on, which is this repo's definition of a defect in a gate.
 - 2026-08-17: written down by the close of [R-276](276-repo-wide-anchor-check.md), which widened
   the anchor check from two documents to every markdown file in the repo and so made the fidelity
   of the slug rule matter everywhere rather than in one generated index.
+- 2026-08-18: became `scripts/headingshapes.py`, which **refuses** the shapes rather than
+  rendering them, the opposite of the closure proposed above and argued in the origin record's
+  dated addendum. The reason this entry gave for waiting is the reason emulation was declined: a
+  transform written against no example is a guess, and a wrong transform yields a wrong anchor,
+  which is a silent accept, where a refusal is loud in both directions. The re-derivation found
+  the measured absence still true in a bigger tree (404 files, 1,993 headings, 267 fragments) and
+  found a **sixth** shape this entry did not enumerate, an entity reference, absent too and now
+  refused with the rest. Wiring the refusal into `backloganchors.py` took it to 334 lines, so what
+  a heading is moved into its own module and what anchors a document offers stayed. A document
+  carrying a refused heading now has its anchors left unknown, the way a broken index does. Opened
+  [307](307-shortcut-reference-link-in-a-heading.md), the one residue the six do not cover.
