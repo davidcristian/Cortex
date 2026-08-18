@@ -929,3 +929,50 @@ about 125 ms, and only a held session removes it (the same calls on a warm sessi
 and 3.8 ms). If a deployment ever makes that bite, the honest scope for a pooled session is **one
 tool loop**, which runs in exactly one task and so is same-task by construction, and the price of
 admission is the port change above. Nothing else was opened behind this.
+
+
+## Addendum (2026-08-18): the salience limit becomes a knob, without becoming a ceiling
+
+The salience addendum's remaining list named `CORTEX_TOOLS_SALIENCE_LIMIT` "if two ever proves
+wrong for a real deployment; the policy already takes the number, so this is config, not design".
+That reading still held when this landed: `RepeatSalience.limit` has been a defaulted field since
+the policy shipped, `__post_init__` has always rejected a non-positive one, and the core suite
+already contract-tested a tighter limit. What was missing was only the wire from env to that
+parameter, and the escape hatch a deployment actually had was binary: `repeat` or `off`, where
+`off` deletes the bound entirely. So a deployment could say "two" or "unbounded" and nothing in
+between.
+
+1. **The knob is a lower half only.** `ToolsConfig.salience_limit` defaults to
+   `MAX_IDENTICAL_DISPATCHES` and `salience_policy` builds `RepeatSalience(limit=...)` from it.
+   A value below 1 fails at boot with `CORTEX_TOOLS_SALIENCE_LIMIT must be positive`, restating
+   the core's own rejection where the operator who typed the number is still watching rather than
+   at the first property read.
+2. **There is deliberately no ceiling**, which is where this diverges from the price knob beside
+   it. `CORTEX_TOOLS_COSTS` is bounded `1..MAX_TOOL_DISPATCHES` at both ends because both ends
+   hide: free stops bounding the tool, unaffordable means it never runs. A large salience limit
+   hides nothing. An identical call can be dispatched at most once per round and a loop runs at
+   most `MAX_TOOL_STEPS` rounds, so any limit at or above that number simply never binds: a knob
+   doing nothing, not a hole. More to the point, a large limit still says something `off` does not,
+   because the once-per-round clause stays absolute under it and vanishes under `off`. A ceiling
+   would have denied that configuration to buy a boot error for a setting that is already inert.
+3. **The property constructs rather than returning the singleton.** Branching on whether the
+   configured number happens to equal the default, so `REPEAT_SALIENCE` could still be handed
+   back, buys one object and costs an untested path. The policy is a frozen dataclass, so a
+   fresh instance compares equal to the singleton and every consumer takes it structurally.
+4. **The compose default is tied to the core constant.** `docker/docker-compose.yml` spells
+   `${CORTEX_TOOLS_SALIENCE_LIMIT:-2}`, which is the core's `MAX_IDENTICAL_DISPATCHES` written a
+   second time, so `crosscheck.py` now carries the pair: retuning the constant alone would leave
+   every container started with the old number and nothing saying so. Proved by drifting the
+   compose default to 3, which reddens the scan with the reason printed, then restoring it.
+
+Three guards were mutation-proven rather than assumed. Dropping the threaded limit
+(`RepeatSalience()` for `RepeatSalience(limit=self.salience_limit)`) reddens exactly two tests:
+the config one that asserts the configured number reaches the policy, and the wiring one that
+asserts it reaches both the cortex dispatcher and the subagent dispatcher, which is the shape a
+refactor threading the kind and dropping the number would take. Deleting the boot check reddens
+both parametrized cases of the below-one test. The wiring test's history is one earlier round
+holding one identical call, so the same-round clause is silent and only the across-loop cap can
+decide it: a limit of 1 refuses, the shipped 2 admits.
+
+**What this does not settle.** Nothing has measured 2 as wrong. The knob exists so a deployment
+that measures it can act without a code change, and the number in the tree is unchanged.

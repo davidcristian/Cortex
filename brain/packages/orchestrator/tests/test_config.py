@@ -9,12 +9,13 @@ from cortex_core import (
     ALWAYS_SALIENT,
     ESCALATE_GATE_REASON,
     ESCALATE_TOOL_NAME,
+    MAX_IDENTICAL_DISPATCHES,
     MAX_TOOL_DISPATCHES,
-    REPEAT_SALIENCE,
     SPAWN_TOOL_NAME,
     AttemptBounds,
     PlacementRequest,
     PlacementTarget,
+    RepeatSalience,
     VramBudgetPlacer,
 )
 from cortex_core.tool_budget import DEFAULT_TOOL_COST
@@ -878,13 +879,36 @@ def test_a_tool_cost_outside_the_budget_range_fails_at_boot(cost: int) -> None:
 def test_salience_defaults_to_refusing_a_repeat() -> None:
     # A bound ships on, like the round cap and the dispatch budget before it: one that ships
     # off protects nobody, and its escape hatch is the knob below.
-    assert ToolsConfig().salience_policy is REPEAT_SALIENCE
+    assert ToolsConfig().salience_policy == RepeatSalience(limit=MAX_IDENTICAL_DISPATCHES)
 
 
 def test_salience_off_restores_the_unfiltered_loop() -> None:
     # The core takes a policy object; the composition root maps the string, the
     # record_tainted_memory precedent.
     assert ToolsConfig(salience="off").salience_policy is ALWAYS_SALIENT
+
+
+def test_the_configured_salience_limit_reaches_the_policy() -> None:
+    # The knob ADR-0009's salience addendum named for the deployment where two proves wrong.
+    # The policy already took the number, so what lands here is the wire from env to it, and a
+    # retune that never reached the policy would leave the loop on the shipped default.
+    assert ToolsConfig(salience_limit=3).salience_policy == RepeatSalience(limit=3)
+
+
+@pytest.mark.parametrize("limit", [0, -1])
+def test_a_salience_limit_below_one_fails_at_boot(limit: int) -> None:
+    # Zero refuses every call including the first, so the loop runs its rounds, dispatches
+    # nothing, and reports refusals the model cannot act on: a silent hole rather than a
+    # visible failure. The core rejects it at construction; the brain refuses to start.
+    expected = f"CORTEX_TOOLS_SALIENCE_LIMIT must be positive: {limit}"
+    with pytest.raises(ValidationError, match=expected):
+        ToolsConfig(salience_limit=limit)
+
+
+def test_the_salience_limit_is_inert_when_salience_is_off() -> None:
+    # AlwaysSalient counts nothing, so a number set beside `off` bounds nothing at all. Pinned
+    # here so the inertness is documented behavior rather than something found in production.
+    assert ToolsConfig(salience="off", salience_limit=5).salience_policy is ALWAYS_SALIENT
 
 
 def test_an_unknown_salience_name_fails_at_boot() -> None:

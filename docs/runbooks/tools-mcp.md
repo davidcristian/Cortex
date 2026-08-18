@@ -131,7 +131,11 @@ A turn that repeats one call has it dispatched at most twice, and at most once p
 round (`CORTEX_TOOLS_SALIENCE`, default `repeat`, ADR-0009 salience addendum). The refusal is
 audited like any other dispatch, so the brain's logs show the repeat as a `tool.invoke` line
 whose detail is the refusal rather than a second sidecar call, and the sidecar sees nothing.
-Set `CORTEX_TOOLS_SALIENCE=off` to restore the unfiltered loop when comparing behavior.
+Set `CORTEX_TOOLS_SALIENCE=off` to restore the unfiltered loop when comparing behavior. To retune
+the across-loop cap rather than remove it, set `CORTEX_TOOLS_SALIENCE_LIMIT` (default 2): `1`
+refuses the second dispatch too, a larger number allows more, and the once-per-round clause is
+absolute either way. A value below 1 fails the brain at boot rather than quietly refusing every
+call, and the number is inert while `CORTEX_TOOLS_SALIENCE=off`.
 
 ## Teardown
 

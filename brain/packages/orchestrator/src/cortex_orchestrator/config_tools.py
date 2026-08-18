@@ -16,10 +16,11 @@ from cortex_core import (
     ALWAYS_SALIENT,
     ESCALATE_GATE_REASON,
     ESCALATE_TOOL_NAME,
+    MAX_IDENTICAL_DISPATCHES,
     MAX_TOOL_DISPATCHES,
-    REPEAT_SALIENCE,
     SPAWN_TOOL_NAME,
     DispatchPolicy,
+    RepeatSalience,
     SaliencePolicy,
     ToolCostPolicy,
 )
@@ -71,8 +72,12 @@ class ToolsConfig(BaseSettings):
     times is the tighter bound. A price outside ``1..MAX_TOOL_DISPATCHES`` fails at boot.
     ``CORTEX_TOOLS_SALIENCE`` picks which calls a tool loop bothers dispatching (ADR-0009
     salience addendum): ``repeat`` (the default) refuses a call the loop has already made, and
-    ``off`` restores the unfiltered loop. ``dispatch_policy`` bundles all three declarations,
-    which is the one value the dispatcher and its builders take.
+    ``off`` restores the unfiltered loop. ``CORTEX_TOOLS_SALIENCE_LIMIT`` retunes how many times
+    one identical call may be dispatched across a ``repeat`` loop, for the deployment where the
+    shipped two proves wrong; it defaults to ``MAX_IDENTICAL_DISPATCHES``, the once-per-round
+    clause is absolute and no number moves it, a value below 1 fails at boot, and the knob is
+    inert under ``off``. ``dispatch_policy`` bundles all three declarations, which is the one
+    value the dispatcher and its builders take.
     """
 
     model_config = SettingsConfigDict(env_prefix="CORTEX_TOOLS_", env_nested_delimiter="__")
@@ -86,6 +91,7 @@ class ToolsConfig(BaseSettings):
     gate_reasons: dict[str, str] = {}
     costs: dict[str, int] = {}
     salience: ToolsSalienceName = "repeat"
+    salience_limit: int = MAX_IDENTICAL_DISPATCHES
 
     @model_validator(mode="after")
     def _mcp_needs_unambiguous_endpoints(self) -> "ToolsConfig":
@@ -113,6 +119,16 @@ class ToolsConfig(BaseSettings):
         # no longer says what is being approved. Misconfiguration fails at boot, not on screen.
         if blank := sorted(n for n, r in self.gate_reasons.items() if not r.strip()):
             msg = f"CORTEX_TOOLS_GATE_REASONS must be non-empty text: {blank}"
+            raise ValueError(msg)
+        # A limit below one refuses every call including the first, which the loop reports as
+        # refusals the model cannot act on rather than as a failure: a silent hole, exactly the
+        # shape `RepeatSalience` already rejects at construction. Restating it here moves the
+        # rejection to boot, where the operator who typed the number is still watching, instead
+        # of to the first property read. There is deliberately no ceiling: a limit at or above
+        # `MAX_TOOL_STEPS` simply never binds, which is a knob doing nothing rather than a hole,
+        # and it still says something `off` does not, since the once-per-round clause stays.
+        if self.salience_limit < 1:
+            msg = f"CORTEX_TOOLS_SALIENCE_LIMIT must be positive: {self.salience_limit}"
             raise ValueError(msg)
         return self
 
@@ -145,9 +161,15 @@ class ToolsConfig(BaseSettings):
         """The core policy deciding which calls a tool loop dispatches (salience addendum).
 
         The core takes a policy object; the composition root maps the string, the
-        `record_tainted_memory` precedent. ``off`` is the pre-policy loop exactly.
+        `record_tainted_memory` precedent. ``off`` is the pre-policy loop exactly, and the
+        limit is inert under it because `AlwaysSalient` counts nothing. The shared
+        `REPEAT_SALIENCE` singleton is not returned even when the limit is its default: a
+        branch on whether the number happens to match would be an untested path bought for one
+        object, and the policy is a frozen dataclass, so a fresh one compares equal anyway.
         """
-        return REPEAT_SALIENCE if self.salience == "repeat" else ALWAYS_SALIENT
+        if self.salience != "repeat":
+            return ALWAYS_SALIENT
+        return RepeatSalience(limit=self.salience_limit)
 
     @property
     def dispatch_policy(self) -> DispatchPolicy:

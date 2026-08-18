@@ -1267,3 +1267,28 @@ def test_the_configured_salience_policy_reaches_both_tool_loop_dispatchers() -> 
     strict = build_cortex_tools(registry, (), SystemClock(), policy=on)
     assert strict is not None
     assert strict.admits(call, already) is False
+
+
+def test_the_configured_salience_limit_reaches_both_tool_loop_dispatchers() -> None:
+    """CORTEX_TOOLS_SALIENCE_LIMIT threads the number, not only the kind (salience addendum).
+
+    Threading which policy a deployment picked while dropping the number it retuned would
+    leave both dispatchers on the shipped two with nothing saying so, which is the failure a
+    knob that reads as set has. The history below is one earlier round holding one identical
+    call, so the same-round clause is silent and only the across-loop cap can decide it.
+    """
+    registry = InMemoryToolRegistry(
+        {"read_file": (ToolSpec(name="read_file", description="", parameters={}), _reply_ok)}
+    )
+    policy = ToolsConfig(salience_limit=1).dispatch_policy
+    cortex = build_cortex_tools(registry, (), SystemClock(), policy=policy)
+    subagent = build_subagent_tools(registry, SystemClock(), policy=policy)
+    assert cortex is not None
+    assert subagent is not None
+    call = ToolCall(id="c2", name="read_file", arguments={"path": "a"})
+    already = [[ToolCall(id="c1", name="read_file", arguments={"path": "a"})], []]
+    assert (cortex.admits(call, already), subagent.admits(call, already)) == (False, False)
+    default = ToolsConfig().dispatch_policy
+    loose = build_cortex_tools(registry, (), SystemClock(), policy=default)
+    assert loose is not None
+    assert loose.admits(call, already) is True
