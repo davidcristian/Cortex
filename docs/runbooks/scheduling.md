@@ -208,5 +208,7 @@ asyncio.run(main())"
 
 `redis-cli hgetall cortex:schedules:dead` is the raw equivalent; drop one entry for good
 with `store.purge_dead_letter(item_id)` (or `redis-cli hdel cortex:schedules:dead <id>`).
-Retention is manual by design: the hash only grows when a record is quarantined, which is
-exceptional, so an automated policy joins the deferred ledger only if volume ever appears.
+Retention is manual by decision, not by omission: the hash gains one field per corrupt item id
+and the same transaction drops that id from every live index, so it cannot grow on its own, and the
+raw bytes are the only record that a record ever corrupted. Purging is the operator's call, and an
+automated expiry would be a new decision (ADR-0025).

@@ -1566,3 +1566,63 @@ and 8px of padding), which puts its first glyph on the title's column, measured 
 The badges beside it are not pulled: their pills are always drawn, and a drawn pill aligns by its
 edge. On hover this one's pill grows into the gutter between the bell and the text, which holds
 nothing.
+
+## Addendum (2026-08-18): three of this ADR's deferrals close without being built
+
+The deferrals list in the decisions above, and the dead-letter addendum's own closing sentence,
+have been carried unchanged since the scheduling slices landed. Three of them were read against the
+tree on 2026-08-18 and are closed here on their merits. Nothing was built, no behaviour changed,
+and each is closed for a different reason, which is why they are argued separately.
+
+**The Postgres durable twin.** It waits on per-provenance queries or a retention policy, and
+neither has a mechanism in this tree to arrive from. The only listing reads are `list_active()`,
+for the creation cap and the model-facing listing, and `deliverable()` for the reminder pull;
+neither takes a session argument, and nothing anywhere filters a schedule by where it came from.
+Retention has nothing to retain: a finished one-shot's record is deleted at `ack`, and the active
+set is capped at `max_active`. Its one named consumer was the occurrence-history table, which is
+itself waiting on a reader that does not exist, so the pair recorded one trigger twice. Two further
+things decide it. `SessionStore` has no backend switch at all, being wired unconditionally to
+Redis, so a Postgres schedule store would make a reminder more durable than the conversation it
+came from, which inverts the priority the one hard rule sets; if Postgres is ever right here it is
+right for sessions first. And the cost is no longer "a pure adapter swap behind the unchanged
+port": `snooze` and `edit` joined, making eleven port methods over a four-module adapter, and the
+shared contract suite is 665 lines whose fenced races are its point. There is no fake Postgres the
+way `fakeredis` twins Redis, so those races would be provable only against a real server in an
+`integration` suite CI never runs, and the twin would ship with weaker evidence than the adapter it
+duplicates.
+
+**Cron expressions.** The two grounds this ADR rejected cron on still describe the tree: a parser
+is a dependency or about 150 lines of pure core serving one field, and the two modules it would
+land beside are at 277 and 280 lines against the 300-line cap, so it forces splits before it parses
+anything; and the authoring model still writes the field, where `0 9 * * 1-5` validates while
+meaning the wrong thing, which is exactly why the day selectors are separate named fields with
+correction strings. The new ground is that cron does not close its own trigger. The rule a personal
+assistant is likeliest to want and cannot express here is an nth or last weekday of the month, and
+POSIX cron cannot express that either, needing the Quartz `L` and `#` extensions; adopting the
+parser would leave the trigger armed. Meanwhile the shape this ADR chose has absorbed three
+extensions with no version bump, `MonthDays`, `YearDays` and the per-rule zone, each riding the
+closed union and the codec's variant-by-key encoding. Two shapes remain genuinely inexpressible and
+neither needs an entry, because both are additive under the closed-union decision: a rule fires at
+one hour and minute, so two times of day is two items today, and `every` is a zone-blind interval,
+so a wall-clock window on a sub-daily interval has no shape. A set of times on `CalendarRule` and a
+fourth union variant are what those would be, if anything ever asks.
+
+**Automated dead-letter retention.** The dead-letter addendum said an automated policy would join
+the deferred ledger "only if reality produces volume", and reality cannot: `quarantine` writes one
+field keyed by item id and, in the same transaction, drops that id from the due, firing and
+deliverable sets and deletes the record, so a quarantined item is never claimed again, and uuid4
+ids mean a repeat overwrites its own field. The ceiling is the number of distinct schedules this
+one user created that also failed to decode. Two arguments then decide it rather than merely
+excusing it. Expiring the hash deletes the only forensic record of the only exceptional event on
+the claim path, after which nobody can tell a clean history from a lost one, where today the hash
+grows by one and logs loudly. And the implicit "add a sweep" cannot be built where it would have to
+live: the ticker holds the port, and this ADR deliberately kept both dead-letter verbs off it
+because the in-memory fake can never produce a quarantine, so a sweep needs either a vacuous port
+method or the concrete adapter injected into the orchestrator. The cheapest correct reversal, if a
+deployment ever wants one, is not a sweep at all but an `hexpire` on the field beside the `hset`,
+adapter-local and in the same transaction; `redis:8-alpine` and the workspace's `fakeredis` both
+answer it, checked the same day. The runbook's closing sentence was reworded to state the decision
+rather than point at a ledger.
+
+All three readings are recorded in
+[docs/refinements/index.md#scheduling](../refinements/index.md#scheduling).
