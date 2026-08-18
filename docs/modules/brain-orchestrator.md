@@ -134,6 +134,15 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   picks which calls a tool loop bothers dispatching: `repeat` refuses a call the loop has already
   made (once per round, twice per loop), `off` is the unfiltered loop. `salience_policy` maps the
   string to the core policy object (the `record_tainted_memory` precedent).
+  `salience_limit: int = MAX_IDENTICAL_DISPATCHES` (`CORTEX_TOOLS_SALIENCE_LIMIT`, ADR-0009
+  salience-limit addendum) is the second half of that mapping: how many times one identical call
+  may be dispatched **across** a `repeat` loop. The once-per-round clause is absolute and this
+  number does not move it, a value below 1 fails at boot (the core's own rejection, restated
+  where the operator who typed it is watching), and there is no ceiling because a limit at or
+  above `MAX_TOOL_STEPS` never binds rather than opening a hole. Under `off` the knob is inert,
+  `AlwaysSalient` counting nothing. `salience_policy` constructs a fresh `RepeatSalience` rather
+  than returning the shared `REPEAT_SALIENCE`, the policy being a frozen dataclass that compares
+  equal either way.
   `gated: tuple[str, ...]` (`CORTEX_TOOLS_GATED`, ADR-0022) defaults to
   `(ESCALATE_TOOL_NAME, "send_email")`: the email fail-closed pairing, plus the escalate
   built-in as the dispatcher-side backstop behind that tool's own always-gated advertised flag

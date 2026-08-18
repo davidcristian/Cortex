@@ -21,6 +21,7 @@ services:
       # times stay UTC. An unknown key fails the brain at startup, by design.
       CORTEX_SCHEDULE_TZ: ${CORTEX_SCHEDULE_TZ:-UTC}
       CORTEX_TOOLS_SALIENCE: ${CORTEX_TOOLS_SALIENCE:-repeat}
+      CORTEX_TOOLS_SALIENCE_LIMIT: ${CORTEX_TOOLS_SALIENCE_LIMIT:-2}
     ports:
       # Loopback-only publish for the single-user security posture (ROADMAP assumption 5):
       # nothing listens beyond 127.0.0.1 on the host.

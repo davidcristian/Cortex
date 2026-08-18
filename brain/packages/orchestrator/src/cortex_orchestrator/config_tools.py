@@ -9,10 +9,11 @@ from cortex_core import (
     ALWAYS_SALIENT,
     ESCALATE_GATE_REASON,
     ESCALATE_TOOL_NAME,
+    MAX_IDENTICAL_DISPATCHES,
     MAX_TOOL_DISPATCHES,
-    REPEAT_SALIENCE,
     SPAWN_TOOL_NAME,
     DispatchPolicy,
+    RepeatSalience,
     SaliencePolicy,
     ToolCostPolicy,
 )
@@ -37,6 +38,7 @@ class ToolsConfig(BaseSettings):
     gate_reasons: dict[str, str] = {}
     costs: dict[str, int] = {}
     salience: ToolsSalienceName = "repeat"
+    salience_limit: int = MAX_IDENTICAL_DISPATCHES
 
     @model_validator(mode="after")
     def _mcp_needs_unambiguous_endpoints(self) -> "ToolsConfig":
@@ -60,6 +62,9 @@ class ToolsConfig(BaseSettings):
         if blank := sorted(n for n, r in self.gate_reasons.items() if not r.strip()):
             msg = f"CORTEX_TOOLS_GATE_REASONS must be non-empty text: {blank}"
             raise ValueError(msg)
+        if self.salience_limit < 1:
+            msg = f"CORTEX_TOOLS_SALIENCE_LIMIT must be positive: {self.salience_limit}"
+            raise ValueError(msg)
         return self
 
     @property
@@ -74,12 +79,10 @@ class ToolsConfig(BaseSettings):
 
     @property
     def salience_policy(self) -> SaliencePolicy:
-        """The core policy deciding which calls a tool loop dispatches (salience addendum).
-
-        The core takes a policy object; the composition root maps the string, the
-        `record_tainted_memory` precedent. ``off`` is the pre-policy loop exactly.
-        """
-        return REPEAT_SALIENCE if self.salience == "repeat" else ALWAYS_SALIENT
+        """The core policy deciding which calls a tool loop dispatches (salience addendum)."""
+        if self.salience != "repeat":
+            return ALWAYS_SALIENT
+        return RepeatSalience(limit=self.salience_limit)
 
     @property
     def dispatch_policy(self) -> DispatchPolicy:
