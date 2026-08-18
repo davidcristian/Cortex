@@ -928,3 +928,48 @@ because the live round-trip uses those two and nothing else. Writing a longer li
 would be advertising a capability nobody has run, on a server whose `SEARCH` support is
 partial by reputation. It wants a live pass over the criteria first, which is a different
 sitting from this one.
+
+## Addendum (2026-08-18): the search dialect, named from a live pass
+
+The addendum above deferred one field rather than closing it: `search_emails`'s `query`, whose
+honest description is a list of criteria that **work**, against a server whose `SEARCH` support is
+partial by reputation. That pass has now run, so the field is described from measurement.
+
+**What was run.** Every criterion below went through this repo's own `ImapMailbox`, so the proven
+form is the one imap-tools actually sends (`UID SEARCH CHARSET US-ASCII ...`), against Proton Mail
+Bridge 03.25.00 over a folder of 1205 messages, read-only throughout (`EXAMINE`, and hit counts
+rather than content). Accepted, each with a discriminating count: `ALL` (1205); the quoted-argument
+criteria `SUBJECT`, `FROM`, `TO`, `CC`, `BCC`, `BODY`, `TEXT` and `HEADER "Name" "value"`; the date
+criteria `SINCE` (417), `BEFORE` (788, a clean partition of the 1205 against `SINCE`), `ON`, and the
+`SENTSINCE`/`SENTBEFORE`/`SENTON` trio; the standalone flags `SEEN`/`UNSEEN`,
+`ANSWERED`/`UNANSWERED`, `FLAGGED`/`UNFLAGGED`, `DRAFT`/`UNDRAFT`, `DELETED`/`UNDELETED`; `LARGER`
+and `SMALLER` in bytes. Composition holds: juxtaposition ANDs (`FROM "..." SINCE 01-Jan-2026` at 8,
+below either alone), `OR` takes exactly the two criteria after it, `NOT` negates the one after it,
+and parentheses group.
+
+**What was refused**, which is the half that makes the description worth the tokens. The client
+syntax a model reaches for comes back as a `BAD` it cannot repair: `from:someone@example.com` and
+`subject:cortex` both fail with `expected space`. An ISO date fails with `expected - after year`,
+so `dd-Mon-yyyy` is a requirement rather than a convention. An unquoted multi-word argument fails
+with `unknown search key`. And `KEYWORD` was refused for the flag it was probed with, which is why
+it is not named: a criterion nobody can demonstrate stays out, exactly as the deferral asked.
+
+Two sibling guesses in the same tools are described in the same edit, since each cost one constant.
+`folder` says the name comes verbatim from `list_folders` and that an invented one is an error
+rather than an empty result (measured: `no such mailbox`), and it is spent by `read_email` too, so
+the two cannot drift. `limit` says the matches it keeps are the first in the folder's own uid
+order, which is not the newest: measured against a virtual All Mail folder whose uid 1 to 4 are
+August 2026 messages, a `SINCE` search truncated to those same four, so a model raising the limit
+to look for recent mail is doing the one thing that cannot work.
+
+**The description is guarded rather than trusted.** An integration-marked test runs one query per
+criterion family the description names, and refuses to pass if the description names a criterion
+the queries never ran, so adding a word to the prose without proving it fails the live pass.
+It also asserts the client syntax still raises, which is the premise the whole description exists
+to remove. It is excluded from the coverage gate and never runs in CI, per the live-adapter rule.
+Proved able to fail by adding `KEYWORD` to the list: the run went red on the Bridge's refusal.
+
+One thing the pass surfaced and did not fix: what escapes on a query the server still refuses is a
+raw `imaplib.IMAP4.error`, so the model reads `UID command error: BAD [Error offset=38]` rather
+than anything naming the dialect it got wrong. That is filed as
+[a refinement](../refinements/tasks/312-search-refusal-is-untyped.md).

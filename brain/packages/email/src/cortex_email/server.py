@@ -25,7 +25,14 @@ from cortex_email.config import EmailConfig, SmtpConfig
 from cortex_email.imap import ImapMailbox
 from cortex_email.reader import EmailReader
 from cortex_email.smtp import EmailSender, SmtpSender
-from cortex_email.values import ATTACHMENTS_HELP, EmailAttachment, EmailDraft
+from cortex_email.values import (
+    ATTACHMENTS_HELP,
+    FOLDER_HELP,
+    SEARCH_LIMIT_HELP,
+    SEARCH_QUERY_HELP,
+    EmailAttachment,
+    EmailDraft,
+)
 
 _SERVER_HOST = "0.0.0.0"  # noqa: S104 - the sidecar binds its container interface; compose publishes loopback-only
 _SERVER_PORT = 9100
@@ -69,7 +76,11 @@ def build_server(reader: EmailReader, sender: EmailSender | None = None) -> Fast
         return "\n".join(await asyncio.to_thread(reader.folders))
 
     @server.tool()
-    async def search_emails(folder: str, query: str, limit: int = _DEFAULT_SEARCH_LIMIT) -> str:
+    async def search_emails(
+        folder: Annotated[str, Field(description=FOLDER_HELP)],
+        query: Annotated[str, Field(description=SEARCH_QUERY_HELP)],
+        limit: Annotated[int, Field(description=SEARCH_LIMIT_HELP)] = _DEFAULT_SEARCH_LIMIT,
+    ) -> str:
         """Search one folder with an IMAP query; return one summary line per match."""
         summaries = await asyncio.to_thread(reader.search, folder, query, limit)
         if not summaries:
@@ -77,7 +88,9 @@ def build_server(reader: EmailReader, sender: EmailSender | None = None) -> Fast
         return "\n".join(f"[{s.uid}] {s.date} | {s.sender} | {s.subject}" for s in summaries)
 
     @server.tool()
-    async def read_email(folder: str, uid: str) -> CallToolResult:
+    async def read_email(
+        folder: Annotated[str, Field(description=FOLDER_HELP)], uid: str
+    ) -> CallToolResult:
         """Read one message in full (headers + plain-text body) by its uid."""
         detail = await asyncio.to_thread(reader.read, folder, uid)
         if detail is None:

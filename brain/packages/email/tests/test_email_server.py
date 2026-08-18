@@ -238,6 +238,43 @@ async def test_send_email_tool_forwards_attachments_as_values() -> None:
     )
 
 
+async def test_the_search_tool_names_the_dialect_its_query_is_written_in() -> None:
+    # `query` reaches the IMAP server unaltered, so a model writing the `key:value` of a mail
+    # client spends a whole dispatch on a parse error it cannot repair. Each phrase below is the
+    # one that *locates* a fact, never a substring that would survive deleting the sentence
+    # carrying it: the quoted-argument form, a date in the only shape the server parses, the two
+    # composition words, and the refusal that names the client syntax by example.
+    server = build_server(EmailReader(FakeMailbox()))
+    (tool,) = [t for t in await server.list_tools() if t.name == "search_emails"]
+    described = tool.inputSchema["properties"]["query"]["description"]
+    for fact in ('FROM "someone@example.com"', "01-Jan-2026", "OR takes", "NOT negates"):
+        assert fact in described
+    assert "from:someone@example.com is refused" in described
+
+
+async def test_the_read_tools_say_where_a_folder_name_comes_from() -> None:
+    # The sibling guess in the same tools, and the cheaper one to get wrong: a folder name is
+    # taken verbatim, so an invented one is an error rather than an empty result. Both tools that
+    # take a folder say so, from one constant, which is what stops the two drifting apart.
+    server = build_server(EmailReader(FakeMailbox()))
+    tools = {t.name: t for t in await server.list_tools()}
+    for name in ("search_emails", "read_email"):
+        assert (
+            "list_folders returned it"
+            in tools[name].inputSchema["properties"]["folder"]["description"]
+        )
+
+
+async def test_the_search_limit_says_which_matches_it_keeps() -> None:
+    # A limit that silently means "the oldest N" is a trap the schema can close: the fetch is
+    # ascending-uid, so raising it is not how a model finds a recent message.
+    server = build_server(EmailReader(FakeMailbox()))
+    (tool,) = [t for t in await server.list_tools() if t.name == "search_emails"]
+    limit = tool.inputSchema["properties"]["limit"]
+    assert limit["default"] == 20
+    assert "not the same as the newest" in limit["description"]
+
+
 async def test_the_send_tool_advertises_the_attachment_shape() -> None:
     # The model can only fill a shape it is told about, and this schema is generated rather
     # than written, so assert the nested object reaches the advertised parameters.

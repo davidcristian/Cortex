@@ -48,7 +48,16 @@ denied outright.
   adds a rich alternative; `attachments` is an array of `{filename, content, subtype}` objects
   (the one nested schema in the tool surface), carrying `ATTACHMENTS_HELP` as its own schema
   description because the two bounds it names belong to the array rather than to any field of
-  an attachment. Each tool returns a single readable string, with
+  an attachment. `search_emails` describes all three of its parameters from `values.py`
+  (ADR-0022 search-dialect addendum): `SEARCH_QUERY_HELP` names the raw IMAP `SEARCH` dialect
+  the query is written in, criterion by criterion and only where a live pass against a real
+  Bridge proved the criterion works, plus the client `from:` syntax that is refused rather than
+  understood; `FOLDER_HELP` (spent by `read_email` too, so the two cannot drift) says a folder
+  name comes verbatim from `list_folders`; `SEARCH_LIMIT_HELP` says the matches kept are the
+  first in the folder's own uid order rather than the newest. The live test
+  `test_every_advertised_search_criterion_is_one_the_bridge_accepts` is the guard on that prose:
+  it runs one query per named family and fails if the description names a criterion no query
+  ran. Each tool returns a single readable string, with
   one exception: `read_email` returns a `CallToolResult` wrapping that same text block plus a
   result `_meta` (`_SOURCE_META_KEY`, `"cortex/source"`) declaring the message sender
   (`{"kind": "sender", "value": <From>}`, `_sender_source`, omitted when there is no `From`). The
