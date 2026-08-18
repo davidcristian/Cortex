@@ -295,7 +295,10 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   `ModelManager.acquire` stays unchanged (ADR-0012); residency moves under an additive swap
   scope so eviction never preempts a mid-stream round, and `Health` answers an honest
   `ready=false` from it while the deep model holds the GPU, or while a boot recovery that could
-  not settle the cortex stands. The CI gate is a parameterized chaos
+  not settle the cortex stands. Since 2026-08-18 that second answer heals itself: the background
+  pass that sweeps the evictable tiers also re-reads the resident, and republishes the cortex the
+  first time it finds it serving with the deep tier off the card, so the runbook's manual recovery
+  no longer ends by restarting the brain. The CI gate is a parameterized chaos
   test over the fake host (kill at every step boundary, converge with no state loss); tier-scale
   swap validation is host-side. Co-residency landed 2026-08-07 with a fit check that reads the
   card between the swap's last eviction and its load, and its blind half closed 2026-08-08: the

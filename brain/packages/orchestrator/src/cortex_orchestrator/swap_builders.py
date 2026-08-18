@@ -101,7 +101,7 @@ def build_swap_runtime(  # noqa: PLR0913 -- one more injected collaborator than 
     endpoints = {plan.cortex_model: inference.endpoint, plan.brain_model: swap.brain_endpoint}
     handoffs = handoff_store_factory(runtime.redis_url)
     manager = SwappingModelManager(host, endpoints, plan, clock, sleeper, placer)
-    healer = TierHealer(manager.heal_standing_tiers, interval_s=swap.swap_tier_heal_s)
+    healer = TierHealer(manager.heal_residency, interval_s=swap.swap_tier_heal_s)
     return SwapRuntime(
         host=host,
         manager=manager,

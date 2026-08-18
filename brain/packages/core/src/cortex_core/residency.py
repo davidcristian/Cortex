@@ -58,6 +58,7 @@ from cortex_core.residency_board import ResidencyBoard
 from cortex_core.residency_charge import charge_handoff
 from cortex_core.residency_claim import HandoffClaim
 from cortex_core.residency_moves import is_unhosted, swap_in
+from cortex_core.residency_regain import heal_standing_residency
 from cortex_core.residency_restore import restore_uninterruptibly, restore_with_retries
 from cortex_core.residency_state import (
     RESIDENCY_BOOT_FAILED,
@@ -66,7 +67,6 @@ from cortex_core.residency_state import (
     RESIDENCY_SERVING,
     ResidencyReport,
 )
-from cortex_core.residency_sweep import sweep_tiers
 from cortex_core.residency_tiers import StandingTiers
 from cortex_core.residency_watch import BootWatch
 
@@ -254,30 +254,34 @@ class SwappingModelManager:
             await swap_in(self._host, self._plan, model, self._gate)
             await self._board.publish(model, RESIDENCY_DEEP)
 
-    async def heal_standing_tiers(self) -> None:
-        """Read every evictable peer's state and act on it, unless a handoff owns the GPU.
+    async def heal_residency(self) -> None:
+        """Read what the GPU is really doing and act on it, unless a handoff owns the card.
 
         Driven by ``TierHealer`` (``residency_heal.py``), which owns the pacing and the task, over
-        ``residency_sweep.py``, which owns what a pass does. Every tier is asked about rather than
-        only the ones already believed missing, because the four ways a peer goes down without a
-        refusal to record it are exactly the ways a record written by refusals cannot see (ADR-0030
-        tier-sweep addendum).
+        ``residency_regain.py``, which owns what a pass does: every evictable peer is asked about
+        rather than only the ones already believed missing (ADR-0030 tier-sweep addendum), and then
+        the resident itself, so a cortex that came back after a restore gave up is noticed here
+        instead of being waited for by a handoff that can no longer start (ADR-0030
+        residency-regain addendum).
 
         The lease is deliberately **not** taken: a peer is never the resident, so holding it across
         a control call would park a user's turn behind a status probe, and a pass that queued for
-        it would be held for a whole load. The fence below is what stands in for it.
+        it would be held for a whole load. The fence below is what stands in for it, read again by
+        the sweep before each start and again by the regain's publish.
         """
         if self._fence():
-            await sweep_tiers(self._host, self._plan, self._tiers, self._fence)
+            await heal_standing_residency(
+                self._host, self._plan, self._board, self._tiers, self._fence
+            )
 
     def _fence(self) -> bool:
         """Whether no handoff owns the GPU right now, answered synchronously and without I/O.
 
         Both halves, because they cover different stretches of one handoff: the claim is taken
         before the conductor drains anything and held to the end, and the scope is the backstop
-        under it for a swap that never claimed. Handed to the sweep as well as read here, so the
-        pass can ask again in the instant before it starts a tier; being a plain read of two flags,
-        nothing can interleave between that answer and the call it guards.
+        under it for a swap that never claimed. Handed down the pass as well as read here, so the
+        sweep can ask again before a start and the regain's write under the residency condition;
+        being a plain read of two flags, nothing can interleave between it and the call it guards.
         """
         return not self._handoff_claim.claimed and not self._board.scope_active
 

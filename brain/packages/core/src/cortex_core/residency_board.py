@@ -14,6 +14,12 @@ cannot drift apart. The single exception is stated as its own verb rather than h
 argument (``publish_report``), because a report written without a resident is a claim about
 display and deliberately not about what may be leased.
 
+The third writer is the same invariant plus a condition on **when** it may be written
+(``publish_between_handoffs``), and it is a verb here rather than a check at its caller for the
+same reason the others are: a background pass concludes something about the GPU over several
+awaits, and only a write that tests the fence under this object's own condition can be sure a
+handoff did not begin in between (``residency_regain.py``).
+
 The condition is the second thing this owns, and it is why the scope flag lives here too: an
 acquire of a model no active scope is about **waits** on that condition rather than failing, and
 the scope's end is the only thing that wakes it. Reading the report is deliberately lock free,
@@ -23,7 +29,7 @@ because the seam probes it every few seconds precisely while a swap holds everyt
 import asyncio
 
 from cortex_core.errors import HandoffInProgressError, ModelUnavailableError
-from cortex_core.residency_state import RESIDENCY_SERVING, ResidencyReport
+from cortex_core.residency_state import RESIDENCY_SERVING, Fence, ResidencyReport
 
 
 class ResidencyBoard:
@@ -71,9 +77,41 @@ class ResidencyBoard:
         back both leave nothing resident, so the direction is published rather than inferred.
         """
         async with self._condition:
-            self._resident = model
-            self._report = report
-            self._condition.notify_all()
+            self._write(model, report)
+
+    async def publish_between_handoffs(
+        self, model: str | None, report: ResidencyReport, fence: Fence
+    ) -> bool:
+        """Publish only while nothing owns the GPU, and answer whether the write landed.
+
+        The background pass's writer (``residency_regain.py``), and a verb of its own rather than a
+        check the caller makes before ``publish``: that pass reads the machine over several awaits,
+        so a handoff can begin between what it observed and what it concludes, and a publish
+        ordered after such a check would overwrite the swap's own report with a reading taken
+        before the swap started. So the fence is read **here**, under this condition, which is the
+        one ``HandoffClaim`` sets its flag under and ``enter_scope`` sets the scope under, with
+        nothing awaited between the answer and the write. A handoff therefore either loses the race
+        and finds the report already published, or wins it and this returns ``False``.
+
+        In-process ordering and nothing more, exactly like every other guard here: it settles two
+        coroutines of this process and says nothing about a second one (ADR-0030 fenced-claim
+        addendum).
+        """
+        async with self._condition:
+            if not fence():
+                return False
+            self._write(model, report)
+            return True
+
+    def _write(self, model: str | None, report: ResidencyReport) -> None:
+        """The invariant in one place: both fields land together, then the queue is woken.
+
+        Called with the condition already held, always, which is what makes "nothing awaited
+        between them" a property of this object rather than of each caller.
+        """
+        self._resident = model
+        self._report = report
+        self._condition.notify_all()
 
     async def publish_report(self, report: ResidencyReport) -> None:
         """Replace what a human is told, and leave what may be leased exactly where it is.

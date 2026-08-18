@@ -51,6 +51,18 @@ class ResidencyReport:
 type ResidencyPublisher = Callable[[str | None, ResidencyReport], Awaitable[None]]
 
 
+# Whether nothing owns the GPU right now: no handoff claimed and no residency scope active. The
+# other half of the pair above, and the one the background pass is handed rather than the writer:
+# a pass may read the machine at any time and may only write when this answers ``True``.
+# **Synchronous by contract**, which is the whole worth of it. Read with nothing awaited between
+# the answer and the call it guards, no handoff can begin in the gap, so the callers that must
+# stand down rather than queue get an answer they can act on instead of a lock they would be
+# waiting on the very handoff for. ``SwappingModelManager._fence`` is the only implementation; the
+# peer sweep (``residency_sweep.py``) reads it before every start and the board's guarded publish
+# (``residency_board.py``) reads it under the condition a claim is taken under.
+type Fence = Callable[[], bool]
+
+
 # The standing residency: the cortex is up and turns run normally. A fresh manager seeds this
 # too, and the seed is only ever an assumption, so boot convergence republishes it (or does not)
 # from what it actually observed, before the seam serves anything.
@@ -69,9 +81,11 @@ RESIDENCY_DEEP = ResidencyReport(serving=False, detail="a deep task is in progre
 # The swap back, which is the recovery path: the deep model is stopped and the cortex is loading.
 RESIDENCY_RESTORING = ResidencyReport(serving=False, detail="bringing the usual assistant back")
 
-# The one state no retry cleared: the restore gave up loudly and the GPU serves nothing. It
-# stands until the brain restarts and boot recovery converges residency again, which is what
-# docs/runbooks/model-swap.md's manual recovery ends with.
+# The one state no retry cleared: the restore gave up loudly and the GPU serves nothing. Nothing
+# in the swap will try again, so it stands until something outside one reads the machine: boot
+# recovery converging residency after a restart, or the background pass finding the cortex serving
+# with the deep tier off the card (``residency_regain.py``), which is why the manual recovery in
+# docs/runbooks/model-swap.md no longer ends by restarting the brain.
 RESIDENCY_LOST = ResidencyReport(
     serving=False,
     detail="the usual assistant could not be reloaded after a deep task; recovery is manual",

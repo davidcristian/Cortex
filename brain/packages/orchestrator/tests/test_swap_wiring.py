@@ -51,6 +51,15 @@ than one of its own. Dropping the root's ``publish_boot_residency`` call reddens
 it a constant ``serving=True``: that argument is the knob turning boot recovery's own observation
 into the seam's first answer, and neither half of it can be dropped silently.
 
+One more for the loop that keeps reading after that first answer. Dropping the regain from the
+background pass (``residency_regain.heal_standing_residency``) reddens 12 across the workspace, and
+exactly one of them is here:
+``test_a_cortex_that_comes_up_after_the_boot_verdict_turns_the_seam_green`` is the only case
+anywhere that drives ``TierHealer``'s own loop over the real composition root, so it is what would
+catch a healer wired to a pass that no longer regains anything. It is bounded by
+``asyncio.timeout`` for the reason the pairing case above is: without the bound the mutation hangs
+the suite rather than reddening, which proves nothing.
+
 One more beside them, for the record that observation is now written into. Handing boot recovery a
 fresh ``StandingTiers`` instead of the manager's own (two records for one fact, which is what any
 version of this that did not reach through the manager would have) reddens exactly 1,
@@ -63,7 +72,7 @@ import logging
 import os
 import signal
 import socket
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import replace
 from http import HTTPStatus
 from typing import cast
@@ -118,6 +127,19 @@ from cortex_seam import (
     UserTurn,
 )
 from cortex_session import RedisHandoffStore, RedisSessionStore
+
+
+def _stuck_host(*, running: Iterable[str]) -> ScriptedModelHost:
+    """The composition root's own scripted host, with every tier it seeds stuck ``LOADING``.
+
+    Substituted for the class the builder calls rather than for the runtime it returns, so the
+    manager, boot recovery and the healer all read one machine, as they do in a deployment.
+    ``set_status(model, None)`` on it is the operator starting that tier by hand.
+    """
+    seeded = list(running)
+    return ScriptedModelHost(
+        running=seeded, status_override=dict.fromkeys(seeded, ModelHostState.LOADING)
+    )
 
 
 def _free_loopback_port() -> int:
@@ -709,6 +731,11 @@ async def test_a_boot_that_could_not_settle_the_cortex_leaves_the_seam_saying_so
     cortex never came up used to log the failure loudly and then answer ``ready=true`` from the
     same boot. The model host here reports the cortex stuck ``LOADING`` past a zero bound, which
     is the shape of the case the runbook's manual recovery exists for.
+
+    One host for the whole runtime, deliberately, because a second one would make this case
+    unfalsifiable: the background pass reads the same machine boot recovery read, so a stuck
+    cortex has to stay stuck for the residency regain as well (ADR-0030 residency-regain
+    addendum). The case below is the other side of that same wiring.
     """
     port = _free_loopback_port()
     monkeypatch.setenv("CORTEX_SEAM_HOST", "127.0.0.1")
@@ -716,6 +743,7 @@ async def test_a_boot_that_could_not_settle_the_cortex_leaves_the_seam_saying_so
     monkeypatch.setenv("CORTEX_ESCALATION", "1")
     monkeypatch.setenv("CORTEX_MODELHOST_BACKEND", "scripted")
     monkeypatch.setenv("CORTEX_BRAIN_ENDPOINT", "http://llama-brain:8081")
+    monkeypatch.setenv("CORTEX_SWAP_LOAD_TIMEOUT_S", "0")
     server = FakeServer()
 
     def fake_from_url(url: str) -> Redis:
@@ -723,25 +751,7 @@ async def test_a_boot_that_could_not_settle_the_cortex_leaves_the_seam_saying_so
         return FakeAsyncRedis(server=server)
 
     monkeypatch.setattr(Redis, "from_url", fake_from_url)
-    real = build_swap_runtime
-
-    def stuck(  # noqa: PLR0913 -- mirrors the builder it stands in for
-        swap: SwapConfig,
-        runtime: BrainRuntimeConfig,
-        inference: InferenceConfig,
-        clock: Clock,
-        sleeper: Sleeper,
-        handoff_store_factory: Callable[[str], RedisHandoffStore] = RedisHandoffStore.from_url,
-        placer: SubagentPlacer | None = None,
-    ) -> SwapRuntime | None:
-        made = real(swap, runtime, inference, clock, sleeper, handoff_store_factory, placer)
-        assert made is not None  # escalation is on in this test's env
-        never_ready = ScriptedModelHost(
-            status_override={made.plan.cortex_model: ModelHostState.LOADING}
-        )
-        return replace(made, host=never_ready, plan=replace(made.plan, load_timeout_s=0.0))
-
-    monkeypatch.setattr(wiring, "build_swap_runtime", stuck)
+    monkeypatch.setattr(swap_builders, "ScriptedModelHost", _stuck_host)
     task = asyncio.create_task(run_from_env(store_factory=lambda _url: _session_store(server)))
     try:
         async with aio.insecure_channel(f"127.0.0.1:{port}") as channel:
@@ -749,6 +759,58 @@ async def test_a_boot_that_could_not_settle_the_cortex_leaves_the_seam_saying_so
             reply = await asyncio.wait_for(_health(BrainServiceStub(channel)), timeout=5.0)
         assert reply.ready is False
         assert reply.detail == RESIDENCY_BOOT_FAILED.detail
+        os.kill(os.getpid(), signal.SIGTERM)
+        await asyncio.wait_for(task, timeout=10)
+    finally:
+        task.cancel()
+
+
+async def test_a_cortex_that_comes_up_after_the_boot_verdict_turns_the_seam_green(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The recovery that used to need a restart of the brain, driven through the whole wiring.
+
+    Boot recovery could not settle the cortex, so the seam is honest and amber; the operator then
+    starts that tier through the model host's own control API, which is step 2 of the runbook's
+    manual recovery and needs no restart of anything. What used to follow was step 3, restarting
+    the brain, because nothing else re-read the machine. The healer's pass is what re-reads it
+    now, so the dot goes green on its own and the next turn runs.
+    """
+    port = _free_loopback_port()
+    monkeypatch.setenv("CORTEX_SEAM_HOST", "127.0.0.1")
+    monkeypatch.setenv("CORTEX_SEAM_PORT", str(port))
+    monkeypatch.setenv("CORTEX_ESCALATION", "1")
+    monkeypatch.setenv("CORTEX_MODELHOST_BACKEND", "scripted")
+    monkeypatch.setenv("CORTEX_BRAIN_ENDPOINT", "http://llama-brain:8081")
+    monkeypatch.setenv("CORTEX_SWAP_LOAD_TIMEOUT_S", "0")
+    monkeypatch.setenv("CORTEX_SWAP_TIER_HEAL_S", "0.01")
+    server = FakeServer()
+
+    def fake_from_url(url: str) -> Redis:
+        del url
+        return FakeAsyncRedis(server=server)
+
+    hosts: list[ScriptedModelHost] = []
+
+    def remembered(*, running: Iterable[str]) -> ScriptedModelHost:
+        hosts.append(_stuck_host(running=running))
+        return hosts[-1]
+
+    monkeypatch.setattr(Redis, "from_url", fake_from_url)
+    monkeypatch.setattr(swap_builders, "ScriptedModelHost", remembered)
+    task = asyncio.create_task(run_from_env(store_factory=lambda _url: _session_store(server)))
+    try:
+        async with aio.insecure_channel(f"127.0.0.1:{port}") as channel:
+            await asyncio.wait_for(channel.channel_ready(), timeout=10)
+            stub = BrainServiceStub(channel)
+            assert (await asyncio.wait_for(_health(stub), timeout=5.0)).ready is False
+            for model in sorted(hosts[0].running):
+                hosts[0].set_status(model, None)  # POST /models/cortex/start, and it came up
+            async with asyncio.timeout(10):
+                # Bounded polling rather than an event, deliberately: what this waits on is the
+                # healer's own loop inside the process under test, which offers nothing to await.
+                while not (await _health(stub)).ready:  # noqa: ASYNC110 -- no event to wait on
+                    await asyncio.sleep(0.01)
         os.kill(os.getpid(), signal.SIGTERM)
         await asyncio.wait_for(task, timeout=10)
     finally:
