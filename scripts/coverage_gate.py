@@ -12,12 +12,17 @@ printed note.
 
 The verdict also names the toolchain that produced the numbers, because the coverage step
 runs on an unpinned nightly and an unpinned cargo-llvm-cov (ADR-0002), so a red run has to
-be readable against the versions that measured it. Two sources, one required and one
-optional. The export records its own writer in ``cargo_llvm_cov.version``, which is required:
-a report that will not say what wrote it is refused. The compiler is nowhere in the export,
-so the step passes what it probed through ``--rustc``, and passes ``--llvm-cov`` too, where
-it is checked against the export's own record rather than merely echoed. Disagreement means
-the numbers being judged are not the ones this run measured.
+be readable against the versions that measured it. Two sources, both required. The export
+records its own writer in ``cargo_llvm_cov.version``: a report that will not say what wrote it
+is refused. The compiler is nowhere in the export, so the step relays what it probed through
+``--rustc``, and relays ``--llvm-cov`` too, where it is checked against the export's own
+record rather than merely echoed. Disagreement means the numbers being judged are not the
+ones this run measured.
+
+Both relays are required arguments, not optional ones. The producer cross-check is the half of
+the attribution that can actually fail, so an optional flag would let a recipe edit delete the
+check while every remaining line still printed green. A run that omits either probe now exits
+on argparse's own usage error instead, having printed no verdict at all.
 """
 
 import argparse
@@ -50,10 +55,10 @@ class Producer(NamedTuple):
 
 
 class Toolchain(NamedTuple):
-    """What the coverage step probed before it measured. Either half may be absent."""
+    """What the coverage step probed before it measured. Both halves are mandatory."""
 
-    rustc: str | None
-    llvm_cov: str | None
+    rustc: str
+    llvm_cov: str
 
 
 def _require_dict(value: object, context: str) -> dict[str, object]:
@@ -110,11 +115,10 @@ def attribute(producer: Producer, toolchain: Toolchain) -> list[Verdict]:
         Verdict(
             f"measured by cargo-llvm-cov {producer.tool}, llvm export {producer.export_format}",
             ok=True,
-        )
+        ),
+        Verdict(f"measured by {toolchain.rustc}", ok=True),
     ]
-    if toolchain.rustc is not None:
-        verdicts.append(Verdict(f"measured by {toolchain.rustc}", ok=True))
-    if toolchain.llvm_cov is not None and producer.tool not in toolchain.llvm_cov.split():
+    if producer.tool not in toolchain.llvm_cov.split():
         verdicts.append(
             Verdict(
                 f"FAIL producer: the export was written by cargo-llvm-cov {producer.tool}, "
@@ -187,12 +191,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--rustc",
-        default=None,
+        required=True,
         help="`rustc +nightly --version` as the step probed it; relayed into the verdict",
     )
     parser.add_argument(
         "--llvm-cov",
-        default=None,
+        required=True,
         help="`cargo +nightly llvm-cov --version` as the step probed it; checked against"
         " the version the export records for itself",
     )

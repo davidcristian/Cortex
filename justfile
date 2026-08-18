@@ -120,6 +120,10 @@ check-scripts:
 # cargo-llvm-cov that just ran. They are probed twice on purpose, once as a standing line so a
 # missing nightly fails before the measurement and once here, which costs milliseconds and
 # spares the recipe a temp file to carry a string between two shells.
+# BOTH RELAYS ARE REQUIRED ARGUMENTS OF THE GATE (ADR-0002 mandatory-relay addendum), so dropping
+# either from the line below is a usage error, exit 2, and not a quieter gate. While they were
+# optional, deleting `--llvm-cov` deleted the producer cross-check with no complaint: the run
+# printed the same five green lines a real pass prints and exited 0.
 # THE SHUFFLE RIDES THE COVERAGE STEP, not the `cargo test` above it (ADR-0002 rust-shuffle
 # addendum). libtest does have a shuffle, but only on nightly behind `-Z unstable-options`, and
 # ADR-0002 decision 1 keeps every build/lint/test gate on stable. This step is already nightly and
