@@ -956,18 +956,23 @@ async def test_build_body_gateway_defaults_to_disabled() -> None:
 async def test_build_body_gateway_selects_grpc_and_returns_a_closer(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The opt-in path: the endpoint, the shared seam token, and the capture deadline all
-    reach GrpcBodyGateway.connect. The deadline is asserted because a knob the composition root
+    """The opt-in path: the endpoint, the shared seam token, and BOTH deadlines all reach
+    GrpcBodyGateway.connect. The deadlines are asserted because a knob the composition root
     silently drops leaves the suite green and the turn hanging."""
     seen: dict[str, object] = {}
     closed: list[str] = []
 
     async def fake_connect(
-        endpoint: str, *, token: str = "", capture_timeout_s: float = 10.0
+        endpoint: str,
+        *,
+        token: str = "",
+        capture_timeout_s: float = 10.0,
+        call_timeout_s: float = 5.0,
     ) -> tuple[object, Callable[[], Awaitable[None]]]:
         seen["endpoint"] = endpoint
         seen["token"] = token
         seen["capture_timeout_s"] = capture_timeout_s
+        seen["call_timeout_s"] = call_timeout_s
 
         async def closer() -> None:
             closed.append("channel")
@@ -976,14 +981,22 @@ async def test_build_body_gateway_selects_grpc_and_returns_a_closer(
 
     monkeypatch.setattr(GrpcBodyGateway, "connect", fake_connect)
     gateway, close = await build_body_gateway(
-        BodyConfig(backend="grpc", endpoint="host.docker.internal:50151", capture_timeout_s=2.5),
+        BodyConfig(
+            backend="grpc",
+            endpoint="host.docker.internal:50151",
+            capture_timeout_s=2.5,
+            call_timeout_s=1.5,
+        ),
         token="s3cret",  # noqa: S106 - test seam token, not a real secret
     )
     assert gateway is not None
+    # Two distinct non-default numbers, so a builder that passed one knob for both, or read the
+    # wrong field, cannot satisfy this by coincidence.
     assert seen == {
         "endpoint": "host.docker.internal:50151",
         "token": "s3cret",
         "capture_timeout_s": 2.5,
+        "call_timeout_s": 1.5,
     }
     await close()  # closes the channel
     assert closed == ["channel"]

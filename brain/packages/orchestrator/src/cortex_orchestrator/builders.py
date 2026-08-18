@@ -59,7 +59,8 @@ from cortex_core import (
     UrlRedactingGuardrail,
 )
 from cortex_inference import LlamaCppBackend
-from cortex_orchestrator.config import BodyConfig, InferenceConfig, OutputGuardrailName
+from cortex_orchestrator.config import InferenceConfig, OutputGuardrailName
+from cortex_orchestrator.config_body import BodyConfig
 from cortex_orchestrator.config_tools import ToolsConfig
 from cortex_orchestrator.dispatch_builders import build_builtin_tools, build_cortex_tools
 from cortex_tools import ReconnectingMcpToolRegistry, streamable_http_session
@@ -208,11 +209,15 @@ async def build_body_gateway(
     volume tools are never registered. ``grpc`` opens a channel to the host body's ``BodyService``
     and attaches the shared seam ``token`` (ADR-0016) on every call; the returned closer closes
     the channel. The channel connects lazily, so an unreachable body fails a volume call (a
-    recoverable ``is_error`` result), never brain startup. ``capture_timeout_s`` becomes the
-    deadline on the one call that can park a host thread (ADR-0029).
+    recoverable ``is_error`` result), never brain startup. Both deadlines ride along:
+    ``capture_timeout_s`` bounds a capture and ``call_timeout_s`` bounds every other call, so no
+    call on this seam is unbounded (ADR-0029's uniform-deadline addendum).
     """
     if config.backend != "grpc":
         return None, noop_aclose
     return await GrpcBodyGateway.connect(
-        config.endpoint, token=token, capture_timeout_s=config.capture_timeout_s
+        config.endpoint,
+        token=token,
+        capture_timeout_s=config.capture_timeout_s,
+        call_timeout_s=config.call_timeout_s,
     )

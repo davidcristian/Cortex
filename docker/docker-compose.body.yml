@@ -34,12 +34,17 @@ services:
       # The edge defaults to 2048 rather than to the body's own 1600, which is the brain half of
       # the pair that makes a 4K desktop legible: it is worth the extra pixels only because
       # CORTEX_IMAGE_MAX_TOKENS=1024 on the model host gives the encoder somewhere to put them
-      # (docs/runbooks/vision.md). 0 hands the edge back to the body's default. The deadline is
-      # the only one on this seam: a blit plus an encode is the only call that can park a host
-      # thread.
+      # (docs/runbooks/vision.md). 0 hands the edge back to the body's default.
       CORTEX_BODY_CAPTURE_MAX_EDGE: "${CORTEX_BODY_CAPTURE_MAX_EDGE:-2048}"
       CORTEX_BODY_MAX_IMAGE_BYTES: "${CORTEX_BODY_MAX_IMAGE_BYTES:-6291456}"
+      # Every call on this seam is bounded, and the two numbers differ because the calls do. A
+      # capture is legitimately slow. The volume and notify calls are fast when they work, and
+      # unbounded when they do not: the body runs each handler on spawn_blocking because Core
+      # Audio and the toast manager are COM, and a COM call parks its thread for as long as the
+      # host takes. Nothing above the gateway bounds a tool call, so an unbounded read of a
+      # wedged endpoint hangs the whole turn.
       CORTEX_BODY_CAPTURE_TIMEOUT_S: "${CORTEX_BODY_CAPTURE_TIMEOUT_S:-10.0}"
+      CORTEX_BODY_CALL_TIMEOUT_S: "${CORTEX_BODY_CALL_TIMEOUT_S:-5.0}"
       # auto probes the running llama-server's /props once at startup and advertises
       # capture_screen only when it reports a vision tower; on and off fix the answer. The
       # capture tool also needs the host to allow capture at all (CORTEX_HOST_CAPTURE).

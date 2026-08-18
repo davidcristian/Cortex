@@ -12,7 +12,7 @@ came to be announced as an unreachable body.
 """
 
 import asyncio
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from typing import cast
 
@@ -20,7 +20,12 @@ import grpc
 import pytest
 from grpc import aio
 
-from cortex_body_client import MAX_RECEIVE_BYTES, GrpcBodyGateway
+from cortex_body_client import (
+    DEFAULT_CALL_TIMEOUT_S,
+    DEFAULT_CAPTURE_TIMEOUT_S,
+    MAX_RECEIVE_BYTES,
+    GrpcBodyGateway,
+)
 from cortex_core import MAX_IMAGE_BYTES, BodyFailure, BodyGatewayError, CaptureTarget
 from cortex_seam import (
     SEAM_TOKEN_HEADER,
@@ -57,6 +62,7 @@ class FakeBody(BodyServiceServicer):
         blob: ImageBlob | None = None,
         no_image: bool = False,
         capture_delay_s: float = 0.0,
+        call_delay_s: float = 0.0,
         resolved_target: CaptureTargetPb = CaptureTargetPb.CAPTURE_TARGET_DISPLAY,
     ) -> None:
         self.level = level
@@ -67,6 +73,9 @@ class FakeBody(BodyServiceServicer):
         self.resolved_target = resolved_target
         self.no_image = no_image
         self.capture_delay_s = capture_delay_s
+        # What a wedged COM call looks like from here: the handler accepted the request and
+        # never answers. `off_worker` on the body side is why that is the shape to fake.
+        self.call_delay_s = call_delay_s
         self.captured: CaptureScreenRequest | None = None
         self.shown = shown
         self._fail = fail
@@ -83,6 +92,11 @@ class FakeBody(BodyServiceServicer):
                 return
         await context.abort(grpc.StatusCode.UNAUTHENTICATED, "invalid or missing seam token")
 
+    async def _park(self) -> None:
+        """Hold the handler open, the way a COM call parks its thread on a wedged host."""
+        if self.call_delay_s:
+            await asyncio.sleep(self.call_delay_s)
+
     async def GetVolume(  # noqa: N802 - method name is fixed by the gRPC codegen interface
         self,
         request: GetVolumeRequest,
@@ -92,6 +106,7 @@ class FakeBody(BodyServiceServicer):
         await self._ensure_token(context)
         if self._fail is not None:
             await context.abort(self._fail, "device unavailable")
+        await self._park()
         return VolumeStatePb(level=self.level, muted=self.muted)
 
     async def SetVolume(  # noqa: N802 - method name is fixed by the gRPC codegen interface
@@ -102,6 +117,7 @@ class FakeBody(BodyServiceServicer):
         await self._ensure_token(context)
         if self._fail is not None:
             await context.abort(self._fail, "set failed")
+        await self._park()
         self.saw_level = request.HasField("level")
         self.saw_mute = request.HasField("mute")
         if request.HasField("level"):
@@ -118,6 +134,7 @@ class FakeBody(BodyServiceServicer):
         await self._ensure_token(context)
         if self._fail is not None:
             await context.abort(self._fail, "notify failed")
+        await self._park()
         self.notified = request
         return NotifyReply(shown=self.shown)
 
@@ -147,12 +164,16 @@ async def _serve(servicer: BodyServiceServicer) -> tuple[str, aio.Server]:
 
 @asynccontextmanager
 async def _gateway(
-    fake: FakeBody, *, token: str = "", capture_timeout_s: float = 10.0
+    fake: FakeBody,
+    *,
+    token: str = "",
+    capture_timeout_s: float = DEFAULT_CAPTURE_TIMEOUT_S,
+    call_timeout_s: float = DEFAULT_CALL_TIMEOUT_S,
 ) -> AsyncGenerator[GrpcBodyGateway]:
     """Serve ``fake`` on loopback, yield a connected gateway, and tear both down (closer too)."""
     endpoint, server = await _serve(fake)
     gateway, close = await GrpcBodyGateway.connect(
-        endpoint, token=token, capture_timeout_s=capture_timeout_s
+        endpoint, token=token, capture_timeout_s=capture_timeout_s, call_timeout_s=call_timeout_s
     )
     try:
         yield gateway
@@ -425,11 +446,79 @@ async def test_an_unimplemented_capture_maps_to_body_gateway_error() -> None:
             await gateway.capture_screen()
 
 
+# A wedged handler parks far longer than either deadline under test, so whichever fires is
+# production's and never the fake running out of sleep.
+_WEDGED_S = 5.0
+# The deadline the gateway is driven at: short enough that a suite notices nothing.
+_IMPATIENT_S = 0.05
+# How long a deadline test may take before the TEST fails, twenty times production's deadline and
+# a fiftieth of the fake's park. It exists so a dropped ``timeout=`` reddens the suite instead of
+# hanging it: an unbounded call is a test that never returns, which reports nothing to anyone.
+_TEST_PATIENCE_S = 1.0
+
+# The kinds that mean the body answered and said something. Our own expired deadline must never
+# be classified into this set: that is the mistake the other direction of this seam found the
+# hard way, where tonic's own expiry arrives as a sourceless ``Cancelled`` and reads as a reply
+# (ADR-0024's deadline addendum). grpc-python does not have that shape, spending
+# ``DEADLINE_EXCEEDED`` for its own expiry, but the property is worth pinning rather than
+# inheriting: what makes it safe is the classification, not the library.
+_THE_BODY_ANSWERED = (
+    BodyFailure.REFUSED,
+    BodyFailure.UNSUPPORTED,
+    BodyFailure.UNREADY,
+    BodyFailure.OVERSIZE,
+)
+
+
 async def test_a_wedged_body_hits_the_capture_deadline() -> None:
-    fake = FakeBody(blob=_blob(), capture_delay_s=5.0)
-    async with _gateway(fake, capture_timeout_s=0.05) as gateway:
-        with pytest.raises(BodyGatewayError, match="capture_screen failed"):
-            await gateway.capture_screen()
+    fake = FakeBody(blob=_blob(), capture_delay_s=_WEDGED_S)
+    async with _gateway(fake, capture_timeout_s=_IMPATIENT_S) as gateway:
+        async with asyncio.timeout(_TEST_PATIENCE_S):
+            with pytest.raises(BodyGatewayError, match="capture_screen failed") as caught:
+                await gateway.capture_screen()
+    assert caught.value.kind is BodyFailure.UNREACHABLE
+
+
+# The three calls that carry the short deadline, each as the name its failure message spells and
+# the one-liner that drives it. Annotated rather than inferred: the parameter's type is what the
+# lambdas are read against, and without it every method access under them is unknown.
+_SHORT_DEADLINE_CALLS: tuple[tuple[str, Callable[[GrpcBodyGateway], Awaitable[object]]], ...] = (
+    ("get_volume", lambda gateway: gateway.get_volume()),
+    ("set_volume", lambda gateway: gateway.set_volume(level=0.5)),
+    ("notify", lambda gateway: gateway.notify(title="t", body="b", reminder_id="r")),
+)
+
+
+@pytest.mark.parametrize(("name", "call"), _SHORT_DEADLINE_CALLS)
+async def test_a_wedged_body_hits_the_call_deadline_on_every_other_call(
+    name: str, call: Callable[[GrpcBodyGateway], Awaitable[object]]
+) -> None:
+    """The three calls that used to have no deadline at all now have one, and the reason is the
+    body's own design: every handler runs on ``spawn_blocking`` because Core Audio and the toast
+    manager are COM, and a COM call parks its thread for as long as the host takes. Nothing above
+    this adapter bounds a tool call, so an unbounded read of a wedged endpoint hung the turn.
+
+    The kind is pinned twice over, once positively and once against the set that would be a lie:
+    a deadline this side chose is the absence of an answer, so it may say the body could not be
+    reached and may never be worded as something the body said.
+    """
+    async with _gateway(FakeBody(call_delay_s=_WEDGED_S), call_timeout_s=_IMPATIENT_S) as gateway:
+        async with asyncio.timeout(_TEST_PATIENCE_S):
+            with pytest.raises(BodyGatewayError, match=f"body {name} failed") as caught:
+                await call(gateway)
+    assert caught.value.kind is BodyFailure.UNREACHABLE
+    assert caught.value.kind not in _THE_BODY_ANSWERED
+
+
+async def test_the_short_deadline_does_not_bound_a_capture() -> None:
+    """Two knobs rather than one, and this is the difference between them. A capture slower than
+    a volume read is a healthy capture, not a wedged host, so the short deadline must not reach
+    it; folding both onto one number would either end a legitimate blit or hand a volume read ten
+    seconds of patience it can never spend."""
+    fake = FakeBody(blob=_blob(), capture_delay_s=_IMPATIENT_S * 4)
+    async with _gateway(fake, call_timeout_s=_IMPATIENT_S) as gateway:
+        capture = await gateway.capture_screen()
+    assert (capture.image.width, capture.image.height) == (1600, 900)
 
 
 def test_the_raised_receive_limit_is_the_number_it_claims_to_be() -> None:
