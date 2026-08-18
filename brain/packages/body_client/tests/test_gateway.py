@@ -457,11 +457,13 @@ _IMPATIENT_S = 0.05
 _TEST_PATIENCE_S = 1.0
 
 # The kinds that mean the body answered and said something. Our own expired deadline must never
-# be classified into this set: that is the mistake the other direction of this seam found the
-# hard way, where tonic's own expiry arrives as a sourceless ``Cancelled`` and reads as a reply
-# (ADR-0024's deadline addendum). grpc-python does not have that shape, spending
-# ``DEADLINE_EXCEEDED`` for its own expiry, but the property is worth pinning rather than
-# inheriting: what makes it safe is the classification, not the library.
+# be classified into this set, and the reason to pin it rather than trust it is what the other
+# direction of this seam found the hard way: tonic's expiry was *recorded* as a sourceless
+# ``Cancelled`` that reads as a reply, from a reading of tonic's source, and running it showed
+# the classification is a connection failure instead (ADR-0024's deadline addendum and its
+# correction). grpc-python spends ``DEADLINE_EXCEEDED`` for its own expiry, which is the honest
+# kind here, but the property is worth pinning rather than inheriting: what makes it safe is the
+# classification, and only a run establishes what the library does.
 _THE_BODY_ANSWERED = (
     BodyFailure.REFUSED,
     BodyFailure.UNSUPPORTED,

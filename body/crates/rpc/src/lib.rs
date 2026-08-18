@@ -40,3 +40,4 @@ pub mod generated {
 pub use auth::SeamTokenValidator;
 pub use client::BrainSeamClient;
 pub use server::{OsService, body_service};
+pub use status::status_to_error;

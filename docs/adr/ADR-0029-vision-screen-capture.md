@@ -3146,9 +3146,12 @@ does not restate the numbers.
 **The Python client does not have the trap the Rust client had, and that is a finding rather than an
 assumption.** The other direction of this seam gained per-attempt deadlines the same day, and
 enforcing them through tonic's own request timeout turned out to be a trap: an expired client-side
-timeout arrives as a *sourceless* `Status::cancelled`, and a classifier keying on the source chain
-reads that as a status the peer sent, so the body's own deadline would have been reported as the
-brain answering (ADR-0024's deadline addendum). The equivalent question here was asked of a running
+timeout arrives as a `Status::cancelled` carrying tonic's `transport::Error`, so a classifier
+keying on the source chain calls it a connection failure, which is honest about the absent answer
+and is also *retryable*, so the body's own deadline would have been retried against a peer already
+too slow to answer (ADR-0024's deadline addendum, as corrected the same day: its first reading
+called the status sourceless and read as an answer, which running it disproved). The equivalent
+question here was asked of a running
 client rather than of memory: grpc-python surfaces a client-side timeout as `DEADLINE_EXCEEDED`,
 which `kind_of` already maps to `BodyFailure.UNREACHABLE`, whose contract is "no answer arrived at
 all, whether for want of a route or of time". That is the honest classification of our own expiry,

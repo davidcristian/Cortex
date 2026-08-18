@@ -4,6 +4,9 @@
 //! healthy round-trip, brain-reported gRPC status → `TransportError::Rpc`,
 //! and every way the brain can be unreachable (bad address, refused dial,
 //! brain death after a successful connect) → `TransportError::Connection`.
+//! Two of them spend real time on purpose, because a clock is what they are
+//! about: the per-attempt deadline ending a brain that never answers, and what
+//! tonic's *own* expired request timeout classifies as (ADR-0024).
 
 use std::net::SocketAddr;
 use std::pin::Pin;
@@ -11,8 +14,8 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use body_core::{
-    BrainTransport, DueReminder, LinkState, RetryPlan, RetryingTransport, SeamHealth,
-    SessionMessage, SessionSummary, Sleeper, TransportError, probe_link,
+    BrainTransport, DueReminder, LinkState, LinkStatus, RetryPlan, RetryingTransport, SeamHealth,
+    SessionMessage, SessionSummary, Sleeper, TransportError, is_transient, probe_link,
 };
 use body_rpc::BrainSeamClient;
 use body_rpc::generated::brain_service_client::BrainServiceClient;
@@ -972,4 +975,57 @@ async fn a_brain_that_accepts_the_call_and_never_answers_is_ended_by_the_deadlin
     let status = probe_link(&transport).await;
     assert_eq!(status.state, LinkState::Down);
     assert_eq!(status.detail, format!("no reply within {deadline:?}"));
+}
+
+#[tokio::test]
+async fn tonics_own_expired_timeout_classifies_as_a_retryable_connection_failure() {
+    // This check exists because the record once said the opposite, and said it from a reading
+    // of tonic rather than a run of it. The deadline decision (ADR-0024) first recorded that an
+    // expired client-side timeout arrives as a *sourceless* `Status::cancelled`, so
+    // `status_to_error` would call it `Rpc` and the indicator would claim the brain answered.
+    // The read stopped one frame early: `find_status_in_source_chain` does mint the cancelled
+    // status without a source, and its caller then attaches the originating
+    // `tonic::transport::Error` to it, so what actually arrives carries a transport source.
+    //
+    // What that means is the hazard this pins. The classification is accidentally honest
+    // (`Connection`, drawn `Down`, since nothing answered), but `Connection` is in the
+    // retryable set, so a deadline armed on the transport would be *retried*: the load
+    // amplifier the same decision rules out, reached through a back door. Nothing in the tree
+    // arms a tonic timer today, so this is the gate that answers the next person who considers
+    // it. If a tonic upgrade changes any of it, this reddens and the answer gets re-derived.
+    let addr = spawn_fake_brain(FakeBrain::new(Script::Hanging))
+        .await
+        .expect("fake brain should bind a loopback port");
+    let mut raw = BrainServiceClient::connect(format!("http://{addr}"))
+        .await
+        .expect("the fake brain accepts connections; it just never answers");
+    let mut request = Request::new(HealthRequest {});
+    // Real time, deliberately little of it: an armed clock is the whole point, 60 ms is enough
+    // of one, and the hanging brain cannot beat it by answering early.
+    request.set_timeout(Duration::from_millis(60));
+    let status = raw
+        .health(request)
+        .await
+        .expect_err("a brain that never answers cannot beat the timeout");
+
+    // The half the original reading got right, kept so the correction is legible here too.
+    assert_eq!(status.code(), tonic::Code::Cancelled);
+    assert_eq!(status.message(), "Timeout expired");
+
+    // The half it got wrong, which is the reason for the test.
+    let error = body_rpc::status_to_error(&status);
+    let TransportError::Connection(message) = &error else {
+        panic!("tonic's own expiry should carry a transport source, got: {error:?}");
+    };
+    assert!(
+        message.contains("Timeout expired"),
+        "the folded chain should name the expiry, got: {message}"
+    );
+    assert_eq!(LinkStatus::from_error(&error).state, LinkState::Down);
+
+    // And the consequence that decides where the deadline is enforced.
+    assert!(
+        is_transient(&error),
+        "a transport-armed deadline would be retried, which is why the bound lives in the core"
+    );
 }

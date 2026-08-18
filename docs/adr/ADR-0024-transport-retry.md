@@ -349,16 +349,21 @@ probe forever and the 5 s recovery interval fires into a no-op for the rest of t
 (`body/app/src/overlay/useLink.ts`). An unbounded attempt does not merely delay one answer, it
 ends the indicator.
 
-**The obvious shape is a trap, and reading tonic is what found it.** The natural implementation is
-`Endpoint::timeout` or `Request::set_timeout`, letting tonic expire the call. In tonic 0.14 an
-expired client-side timeout is `TimeoutExpired`, and `find_status_in_source_chain` turns that into
-`Status::cancelled("Timeout expired")` with **no source attached** (`tonic/src/status.rs`). The
-adapter's classifier keys on finding a `tonic::transport::Error` in the source chain
-(`body/crates/rpc/src/status.rs`), so a sourceless status is by construction the "the brain
-answered" case: the body's own expired deadline would arrive as `TransportError::Rpc { code:
-"Cancelled" }` and the indicator would draw `Degraded`, which claims the brain replied. A deadline
-built that way would report the hang as an answer, inverting the one signal it exists to make
-honest, and it would look like it worked.
+**The obvious shape is a trap, though not where reading tonic first said it was.** The natural
+implementation is `Endpoint::timeout` or `Request::set_timeout`, letting tonic expire the call. In
+tonic 0.14 an expired client-side timeout is `TimeoutExpired`, and it reaches the caller as
+`Status::cancelled("Timeout expired")` carrying the originating `tonic::transport::Error` on its
+source chain. The adapter's classifier keys on finding exactly that
+(`body/crates/rpc/src/status.rs`), so the body's own expired deadline would arrive as
+`TransportError::Connection` and the indicator would draw `Down`, which is the honest reading of a
+call nothing answered. What it would also be is **retryable**: `Connection` is in the transient set
+(decision 3), so a tonic-armed deadline would be retried, which is precisely the load amplifier the
+retryability section below rules out, reached through a back door and looking like it worked.
+
+> **Corrected 2026-08-18.** As first written this paragraph claimed the expiry arrives *sourceless*
+> and therefore classifies `TransportError::Rpc`, drawing `Degraded` and claiming an answer that
+> never came. That was read out of tonic's source, and it is false. The measurement, how the read
+> went astray, and why the conclusion survives it are in the correction addendum below.
 
 **So the deadline is enforced in the core, over the port that already owns the clock.** `Sleeper`
 gains a second method, `bounded(deadline, call) -> Option<T>`, where `None` means the deadline won
@@ -486,3 +491,73 @@ on the body, so retries pile up while nobody is watching; `CORTEX_BRAIN_ADDR` ai
 is not a supervised loopback process; or a blind retry that starts costing seconds rather than
 microseconds, which is what either of those would make of it. The record and the re-derivation live
 in [docs/refinements/index.md#seam-transport](../refinements/index.md#seam-transport).
+
+## Addendum (2026-08-18, later still): tonic's own expiry was misread, and a test now holds the answer
+
+The deadline addendum above opened on a claim about tonic that was reached by reading tonic's
+source and never by running it. The claim is false. It is corrected here rather than quietly
+edited away, because a correction that leaves no trace teaches nothing and the next agent will
+re-derive the same mistake from the same code.
+
+**What the record said.** That an expired client-side timeout arrives as a *sourceless*
+`Status::cancelled`, so `status_to_error` would classify the body's own deadline as
+`TransportError::Rpc { code: "Cancelled" }` and the indicator would draw `Degraded`, claiming an
+answer that never came. The same sentence had been restated in the two backlog task files, in the
+`body_core` and `body_rpc` module docs, in the `retry::deadline` module comment, and twice on the
+other side of the seam, where the Python body client cited it as the shape it was glad not to
+have.
+
+**How the read went astray, which is the part worth keeping.** Every step of it is true about the
+function it looked at. `find_status_in_source_chain` (`tonic/src/status.rs`) really does answer a
+`TimeoutExpired` with `Some(Status::cancelled("Timeout expired"))`, and that status really is
+built with `source: None`. The reading stopped at the `return`. Two lines after the call site, in
+`Status::try_from_error`, the caller writes `status.0.source = Some(err.into())` on whatever that
+helper handed back, so every status minted there gets the originating error attached before any
+caller sees it. On a channel call that error is the `tonic::transport::Error` wrapping the
+expiry, which is exactly what the adapter's classifier hunts for.
+
+**How it was disproved: by running it.** A throwaway probe drove a raw `BrainServiceClient`
+against the existing `Script::Hanging` fake brain (which accepts the connection and never
+answers), armed `Request::set_timeout`, and walked the resulting status's `source()` chain:
+
+```
+PROBE code=Cancelled msg="Timeout expired" elapsed=81.302086ms has_transport_source=true chain=["transport error", "Timeout expired"]
+```
+
+So the true classification is `TransportError::Connection("transport error: Timeout expired")`,
+and `LinkStatus::from_error` draws it `Down`. The indicator would have been accidentally honest.
+
+**The conclusion stands, on a different and worse hazard.** `Connection` is in the transient set
+(decision 3), so an expiry tonic enforced would be **retried**, two more times on the shipped
+schedule, against a peer that has just proved too slow or too stuck to answer. That is the load
+amplifier the retryability section above declines on the merits, arrived at through a back door
+and, unlike the misread version, arrived at *silently*: nothing in the indicator would look wrong
+while it happened. Two smaller reasons survive alongside it. `Connection`'s contract is "nothing
+accepted the call", which is not what an expiry means, and folding the two loses the distinction
+the tooltip renders. And `TransportError::Timeout { after }` carries the deadline that expired,
+which a `Connection` string cannot. So the deadline stays in the core over the `Sleeper` port,
+`Timeout` stays terminal, and nothing in the shipped design changes.
+
+**Pinned rather than asserted.** `tonics_own_expired_timeout_classifies_as_a_retryable_connection_failure`
+(`body/crates/rpc/tests/client.rs`) now runs the probe as a permanent, CI-safe check: it drives a
+real expiry against the hanging fake, asserts the code is `Cancelled` (the half the original
+reading got right), asserts the classification is `Connection` and draws `Down`, and asserts
+`is_transient` says yes, which is the hazard. It fails on either side of the claim: replacing the
+real status with the sourceless one the record described makes it panic with
+`Rpc { code: "Cancelled" }`, and a tonic upgrade that stops attaching the source fails it the same
+way. `status_to_error` is now `pub` for that test, which is the only code change here.
+
+**One measurement the correction turned up, which the courtesy-header follow-up needs.**
+`Request::set_timeout` does not arm a timer of its own: it only inserts the `grpc-timeout`
+metadata (`tonic/src/request.rs`). The client channel's own `GrpcTimeout` layer then parses that
+header back off the outgoing request and arms the local clock from it
+(`tonic/src/transport/service/grpc_timeout.rs`), which is why the probe above expired locally.
+Announcing the deadline to the brain and arming a tonic timer on the body are therefore **the same
+act** in tonic, not two choices. A courtesy header cannot be added without a local timer coming
+with it, so the follow-up has to make sure the core's bound wins that race deterministically
+rather than by luck.
+
+**The rule this is an instance of.** A claim about a dependency's behaviour is a measurement, not
+a reading. Reading names the mechanism and is how you know what to measure; it does not establish
+what happens, because the frame above the one you read can undo it. Where a claim decides a
+design, the run belongs in the record, and better, in a test.

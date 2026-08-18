@@ -7,12 +7,14 @@
 //! session rather than delay one answer.
 //!
 //! **Why the bound is here and not in the gRPC adapter.** The obvious implementation is tonic's
-//! own request timeout, and it is a trap: an expired client-side timeout surfaces as a
-//! *sourceless* `Status::cancelled`, which the adapter's classifier reads as a status the brain
-//! sent, so the body's own deadline would arrive as `TransportError::Rpc` and the indicator
-//! would draw `Degraded`, claiming an answer that never came. Enforcing it here, over the
-//! [`Sleeper`] port, keeps the failure typed as what it is ([`TransportError::Timeout`]) no
-//! matter which transport is underneath.
+//! own request timeout, and it is a trap, though not the trap this comment first named. tonic
+//! attaches its `transport::Error` to the `Status::cancelled` it raises on expiry, so the
+//! adapter classifies it `TransportError::Connection` and the indicator draws `Down`, which is
+//! honest. `Connection` is *retryable*, though, so a transport-armed deadline would be
+//! **retried**, which is the load amplifier a timeout is classified terminal to avoid. Enforcing
+//! it here, over the [`Sleeper`] port, keeps the failure typed as what it is
+//! ([`TransportError::Timeout`]) and outside the transient set, no matter which transport is
+//! underneath. The measurement is pinned by `body/crates/rpc/tests/client.rs`.
 
 use std::future::Future;
 use std::time::Duration;

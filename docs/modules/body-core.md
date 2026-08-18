@@ -228,10 +228,13 @@ stays thin and the retry is exercised against a fake with no network or wall-clo
   shape is deliberate: this is generic code, so a branch is compiled once per call type and no
   instantiation the decorator makes could take the unbounded arm, leaving it dead in every copy. It is public so patience *and* a bound
   compose around a non-seam future too, which the shell's eager `converse` dial uses. The bound
-  lives here rather than in the gRPC adapter for a specific reason: tonic reports its own
-  expired timeout as a sourceless `Status::cancelled`, which the adapter's classifier would
-  read as a status the brain sent, so a transport-level deadline would surface as
-  `TransportError::Rpc` and draw the indicator `Degraded`, claiming an answer that never came.
+  lives here rather than in the gRPC adapter for a specific reason: tonic attaches its
+  `transport::Error` to the `Status::cancelled` it raises on its own expiry, so the adapter
+  classifies a transport-level deadline as `TransportError::Connection`, which is honest but
+  *retryable*, meaning that deadline would be retried against a peer already too slow to answer.
+  Enforced here it arrives as `Timeout`, which is terminal (ADR-0024 deadline addendum, corrected
+  the same day: the first reading claimed a *sourceless* status classified `Rpc`, and running it
+  says otherwise; `body/crates/rpc/tests/client.rs` pins the measurement).
 - `retry_with(policy, sleeper, randomness, call)` is the bounded-retry loop over any fallible
   async factory (ADR-0024 addendum): re-issues `call()` each attempt, sleeping the jittered
   delay while `backoff` says so. It is the schedule **executor**, not the gate: it takes the
