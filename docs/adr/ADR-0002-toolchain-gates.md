@@ -804,3 +804,38 @@ version of the same idea.
 holds the export against the tool this run used. That is the mute-threshold shape again, and it is
 filed as [R-305](../refinements/tasks/305-optional-toolchain-relays.md) rather than folded in here,
 since making the relay mandatory is a different claim from checking it.
+
+## Addendum (2026-08-18): a relay the recipe can delete is not a check
+
+The addendum above filed the hole it found beside its own subject
+([R-305](../refinements/tasks/305-optional-toolchain-relays.md)). Re-deriving that entry found its
+claim exact: `--rustc` and `--llvm-cov` both defaulted to `None`, `attribute` guarded each with
+`is not None`, and the tests covered an empty probed string but never an absent flag.
+
+**Measured before changing anything, on this machine's real export.** With
+`--llvm-cov "$(cargo +nightly llvm-cov --version)"` deleted from the `check-body` line, the gate
+printed `measured by cargo-llvm-cov 0.8.7, llvm export 3.1.0`, the relayed compiler, and three
+`PASS` lines, then exited 0. That output is character for character what a genuine green run prints
+except for the missing producer line, which was never there on a pass anyway, because agreement is
+silent and only disagreement speaks. So the deletion left nothing for a reader to notice: the
+verdict was no longer holding the numbers against the tool that measured them, and said so nowhere.
+
+**Decision: both relays are required arguments.** `required=True` on each, both `is not None`
+guards gone, and `Toolchain` now holds two plain `str`. A run that hands over neither probe exits 2
+on argparse's own usage error, `the following arguments are required: --llvm-cov`, with no verdict
+printed at all, and the whole recipe goes red on it. The same deletion that used to pass now fails
+on the recipe's line before the gate can reach the report. This is the mute-threshold lesson applied
+one level up: there, a check that could fail without explaining itself pre-empted the one that
+speaks; here, a check could be removed without anything saying it was gone.
+
+**Why required rather than defaulted.** A default would have to be a version string, which means
+inventing an expected toolchain, which is the dated pin this ADR has twice declined. Requiring the
+argument asserts only what the recipe already knows and refuses to guess what it does not.
+
+**What this does not reach.** Required is not non-empty: `--llvm-cov ""` still parses, though it
+then fails loudly as a producer mismatch, and `--rustc ""` parses into a relay line naming nothing.
+The rustc half is the quiet one, and it is close to unreachable from the recipe, whose standing
+`rustc +nightly --version` line fails the run before the substitution is ever taken. It is recorded
+as [R-313](../refinements/tasks/313-a-relay-can-be-required-and-empty.md) rather than fixed on the
+same argument the pin keeps losing on: a check worth having has to be able to fail for a reason that
+happens.
