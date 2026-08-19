@@ -1,5 +1,6 @@
 import pytest
 
+import couplings
 import values
 
 
@@ -89,3 +90,87 @@ def test_a_decimal_renders_as_the_digits_a_needle_and_a_fault_both_want() -> Non
     """What a mention substitutes into its template, and what a disagreement prints."""
     assert str(values.parse_value("10.0")) == "10.0"
     assert f"{values.parse_value('10.0')!r}" == "10.0"
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("8.0", "8"),  # the shape this exists for: docker takes `8g` and refuses `8.0g`
+        ("8.00", "8"),  # a longer fraction, still zero
+        ("12", "12"),  # an integer is already whole
+        ("1_024.0", "1024"),  # separators grouped the digits and decide nothing here
+    ],
+)
+def test_a_whole_spelling_drops_a_fraction_that_is_zero(text: str, expected: str) -> None:
+    """The second spelling a far side needs, derived from the first rather than typed beside it."""
+    assert values.spell(values.parse_value(text), couplings.Spelling.WHOLE) == expected
+
+
+@pytest.mark.parametrize("text", ["8.0", "8.00", "12", '"8.0"'])
+def test_the_written_spelling_is_the_digits_the_site_writes(text: str) -> None:
+    """The default spelling changes nothing, whatever the value form: the site's own text."""
+    written = values.spell(values.parse_value(text), couplings.Spelling.WRITTEN)
+    assert written == text.strip('"')
+
+
+def test_a_fraction_that_is_not_zero_cannot_be_spelled_whole() -> None:
+    """Truncating would tie the far side to a number the site does not declare, so it is a fault.
+
+    `8.5` is a budget docker's size suffix cannot carry, and reporting that is the honest answer:
+    a silent `8g` would cap the container half a gigabyte under what the scheduler admits, which
+    is the drift the coupling exists to report rather than to introduce.
+    """
+    with pytest.raises(values.CrossCheckError, match="cannot be spelled whole"):
+        values.spell(values.parse_value("8.5"), couplings.Spelling.WHOLE)
+
+
+@pytest.mark.parametrize("text", ['"eight"', 'frozenset({"8"})'])
+def test_a_value_that_is_not_a_number_has_no_whole_spelling(text: str) -> None:
+    """Fail closed: a re-spelling is arithmetic-shaped, and text has no fractional part to drop."""
+    with pytest.raises(values.CrossCheckError, match="needs a number"):
+        values.spell(values.parse_value(text), couplings.Spelling.WHOLE)
+
+
+SITE = couplings.Site("config.py", "BUDGET")
+WHOLE_SPEND = couplings.Mention("stack.yml", "{value}g", spelling=couplings.Spelling.WHOLE)
+
+
+def _entry(
+    *mentions: couplings.Mention, sites: tuple[couplings.Site, ...] = (SITE,)
+) -> couplings.Constant:
+    return couplings.Constant(
+        label="a budget", why="both halves cap one pool", sites=sites, mentions=mentions
+    )
+
+
+@pytest.mark.parametrize(
+    "constant",
+    [
+        _entry(couplings.Mention("stack.yml", "${BUDGET:-{value}}")),
+        _entry(WHOLE_SPEND, couplings.Mention("stack.yml", "${BUDGET:-{value}}")),
+        _entry(WHOLE_SPEND, sites=(SITE, couplings.Site("body.rs", "BUDGET"))),
+    ],
+)
+def test_a_re_spelling_holds_where_something_keeps_the_written_form(
+    constant: couplings.Constant,
+) -> None:
+    """A second site or a mention rendering the value as written is what catches a dropped point."""
+    assert values.spelling_fault(constant) is None
+
+
+@pytest.mark.parametrize(
+    "constant",
+    [
+        _entry(WHOLE_SPEND),
+        _entry(
+            WHOLE_SPEND,
+            couplings.Mention("stack.yml", "{value}g", spelling=couplings.Spelling.WHOLE),
+        ),
+        _entry(WHOLE_SPEND, couplings.Mention("stack.yml", "var({name})", name="--budget")),
+    ],
+)
+def test_an_entry_that_only_ever_re_spells_is_refused(constant: couplings.Constant) -> None:
+    """`8` and `8.0` render alike whole, so an entry with no written reading goes blind to that."""
+    fault = values.spelling_fault(constant)
+    assert fault is not None
+    assert "nothing holds the spelling the site writes" in fault

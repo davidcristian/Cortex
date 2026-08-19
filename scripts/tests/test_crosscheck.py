@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+import couplings
 import crosscheck
 import values
 
@@ -617,6 +618,88 @@ def test_two_decimal_sites_that_drift_are_reported_with_both_digits(tmp_path: Pa
     assert "brain.py: LEASE_S = 2.50" in fault.detail
 
 
+# ── two spellings of one number ────────────────────────────────────────────────
+
+
+BUDGET = crosscheck.Constant(
+    label="a memory budget",
+    why="the scheduler admits against the number the cgroup enforces",
+    sites=(crosscheck.Site("config.py", "DEFAULT_MEM_BUDGET_GB"),),
+    mentions=(
+        crosscheck.Mention("stack.yml", '"${BUDGET_GB:-{value}}"'),
+        crosscheck.Mention(
+            "stack.yml",
+            '"${BUDGET_GB:-{value}}g"',
+            occurrences=2,
+            spelling=couplings.Spelling.WHOLE,
+        ),
+    ),
+)
+
+
+def _budget(root: Path, declared: str, passed: str, limit: str) -> None:
+    """The real shape: one budget passed to a process and enforced as a docker size beside it."""
+    (root / "config.py").write_text(f"DEFAULT_MEM_BUDGET_GB = {declared}\n", encoding="utf-8")
+    (root / "stack.yml").write_text(
+        f'      BUDGET_GB: "${{BUDGET_GB:-{passed}}}"\n'
+        f'    mem_limit: "${{BUDGET_GB:-{limit}}}g"\n'
+        f'    memswap_limit: "${{BUDGET_GB:-{limit}}}g"\n',
+        encoding="utf-8",
+    )
+
+
+def test_one_number_ties_the_far_side_that_cannot_spell_it_as_written(tmp_path: Path) -> None:
+    """`8.0g` is not a size docker accepts, so the limits spell the same number without a point."""
+    _budget(tmp_path, declared="8.0", passed="8.0", limit="8")
+    assert crosscheck.check_constant(tmp_path, BUDGET) == []
+
+
+def test_retuning_the_budget_alone_reddens_both_spellings(tmp_path: Path) -> None:
+    """The drift this is registered for: a container capped under what the scheduler admits."""
+    _budget(tmp_path, declared="12.0", passed="8.0", limit="8")
+    written, whole = crosscheck.check_constant(tmp_path, BUDGET)
+    assert "does not spell '\"${BUDGET_GB:-12.0}\"'" in written.detail
+    assert "'\"${BUDGET_GB:-12}g\"' as a token of its own: found 0, pinned 2" in whole.detail
+
+
+def test_one_of_the_two_limits_moving_alone_is_a_count_short(tmp_path: Path) -> None:
+    """Memswap equal to memory is what disables swap, so the pair moves together or not at all."""
+    _budget(tmp_path, declared="8.0", passed="8.0", limit="8")
+    stack = tmp_path / "stack.yml"
+    stack.write_text(
+        stack.read_text(encoding="utf-8").replace(':-8}g"\n    memswap', ':-9}g"\n    memswap'),
+        encoding="utf-8",
+    )
+    (fault,) = crosscheck.check_constant(tmp_path, BUDGET)
+    assert "found 1, pinned 2" in fault.detail
+
+
+def test_a_site_that_drops_its_point_is_still_caught(tmp_path: Path) -> None:
+    """What the whole spelling must not undo: `8` and `8.0` render alike whole and differ written.
+
+    The re-spelled mention is blind here by construction, both spellings of one whole number
+    being the same text, and that is why the entry carries a written mention beside it.
+    """
+    _budget(tmp_path, declared="8", passed="8.0", limit="8")
+    (fault,) = crosscheck.check_constant(tmp_path, BUDGET)
+    assert "does not spell '\"${BUDGET_GB:-8}\"'" in fault.detail
+
+
+def test_a_budget_the_far_side_cannot_spell_at_all_is_reported(tmp_path: Path) -> None:
+    """A fraction docker's suffix cannot carry is a fault, never a quietly truncated limit."""
+    _budget(tmp_path, declared="8.5", passed="8.5", limit="8")
+    (fault,) = crosscheck.check_constant(tmp_path, BUDGET)
+    assert "8.5 cannot be spelled whole" in fault.detail
+
+
+def test_an_entry_that_re_spells_everywhere_is_refused(tmp_path: Path) -> None:
+    """A registry entry with no written reading holds nothing against a site changing spelling."""
+    blind = BUDGET._replace(mentions=BUDGET.mentions[1:])
+    _budget(tmp_path, declared="8.0", passed="8.0", limit="8")
+    (fault,) = crosscheck.check_constant(tmp_path, blind)
+    assert "nothing holds the spelling the site writes" in fault.detail
+
+
 def test_check_walks_the_whole_registry(tmp_path: Path) -> None:
     second = BYTE_CEILING._replace(label="another ceiling")
     faults = crosscheck.check(tmp_path, (BYTE_CEILING, second))
@@ -681,6 +764,14 @@ def test_the_registry_reduces_at_least_one_decimal() -> None:
         for site in constant.sites
     ]
     assert any(isinstance(value, values.Digits) for value in read)
+
+
+def test_the_registry_exercises_every_spelling() -> None:
+    """A spelling no entry asks for is a widened gate that cannot fail, same as a comparator."""
+    spelled = {
+        mention.spelling for constant in crosscheck.CONSTANTS for mention in constant.mentions
+    }
+    assert spelled == set(couplings.Spelling)
 
 
 def test_the_registry_exercises_every_relation() -> None:

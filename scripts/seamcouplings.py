@@ -19,10 +19,12 @@ on saying that after the number moves, where a runbook and a module contract des
 does now and are wrong the moment it changes.
 """
 
-from couplings import Constant, Mention, Relation, Site
+from couplings import Constant, Mention, Relation, Site, Spelling
 
 BASE_COMPOSE = "docker/docker-compose.yml"
 BODY_COMPOSE = "docker/docker-compose.body.yml"
+SUBAGENTS_COMPOSE = "docker/docker-compose.subagents.yml"
+SUBAGENTS_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config_subagents.py"
 BODY_GATEWAY = "brain/packages/body_client/src/cortex_body_client/gateway.py"
 BODY_CLIENT_DOC = "docs/modules/brain-body-client.md"
 VISION_RUNBOOK = "docs/runbooks/vision.md"
@@ -217,6 +219,38 @@ SEAM_COUPLINGS: tuple[Constant, ...] = (
             Mention(VISION_RUNBOOK, "| `CORTEX_BODY_CALL_TIMEOUT_S` | brain | `{value}` |"),
             Mention(VOLUME_RUNBOOK, "`CORTEX_BODY_CALL_TIMEOUT_S` (default `{value}`)"),
             Mention(BODY_CLIENT_DOC, "`DEFAULT_CALL_TIMEOUT_S = {value}`"),
+        ),
+    ),
+    Constant(
+        label="the subagent memory budget's shipped default",
+        why=(
+            "one compose file spells this number four times, once as the soft budget the "
+            "admission scheduler is given and twice as the hard cgroup cap on the container "
+            "running what it admits, so retuning the brain's field alone would cap that "
+            "container at the old number while the scheduler admitted against the new one, "
+            "which is the failure the resource governance exists to prevent (ADR-0012)"
+        ),
+        sites=(Site(SUBAGENTS_CONFIG, "DEFAULT_MEM_BUDGET_GB"),),
+        # Four spends of one number, in the two spellings it has to be written in. The
+        # environment passthrough and the comment claiming the twinning carry the digits the
+        # field declares; docker's size suffix cannot, `8.0g` being a size it refuses, so the
+        # two container limits and the sentence that counts admissions against them take the
+        # whole spelling. Each template covers the whole of what it pins (the quotes around a
+        # compose scalar, the paren closing the claim), a needle stopping at the substitution's
+        # own `}` being satisfied by the size limits and leaving the passthrough free to drift.
+        # The limits are counted because they are one set: memswap equal to memory is what
+        # disables the container's swap, and one moving without the other re-enables it in
+        # silence, which is a subagent that takes minutes per token and reads as a hang.
+        mentions=(
+            Mention(SUBAGENTS_COMPOSE, '"${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-{value}}"'),
+            Mention(
+                SUBAGENTS_COMPOSE,
+                '"${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-{value}}g"',
+                occurrences=2,
+                spelling=Spelling.WHOLE,
+            ),
+            Mention(SUBAGENTS_COMPOSE, "MEM_BUDGET_GB {value})"),
+            Mention(SUBAGENTS_COMPOSE, "under the {value} GB budget", spelling=Spelling.WHOLE),
         ),
     ),
 )

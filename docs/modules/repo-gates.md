@@ -17,7 +17,7 @@ each also exposes a pure, unit-tested core function). Nine modules here have no 
 each split out under the line cap and each named for what it holds: `couplings.py` is the
 vocabulary `crosscheck.py`'s registry is written in and `seamcouplings.py` and
 `overlaycouplings.py` are the two halves of the registry itself, `values.py` is the value
-forms that scan compares on, `composemounts.py` is `bindcheck.py`'s compose reader, and
+forms that scan compares on and the spellings a mention writes one in, `composemounts.py` is `bindcheck.py`'s compose reader, and
 `backlog.py`, `backlogindex.py`, `backloganchors.py` and `headingshapes.py` are the four
 `backlogcheck.py` reads a backlog through: the task-file grammar, the index renderer, the anchors a
 document offers with every pointer in the repo aimed at one, and what a heading may look like for
@@ -88,14 +88,28 @@ that last question to have an answer.
   needle, which is a template question rather than a matcher one, so the compose publish is
   registered as `"127.0.0.1:{value}:{value}"` and the healthcheck dial beside it as its own
   mention.
+  **Re-spelled where the far side's syntax cannot take the value as written** (ADR-0029 spelling
+  addendum). `Mention.spelling` is `Spelling.WRITTEN` by default, which is the site's own text;
+  `Spelling.WHOLE` renders the same number with no fractional part, for a syntax that carries none
+  (docker parses `mem_limit: "8g"` as a size and refuses `8.0g`, so the subagent memory budget is
+  spelled `8.0` in the environment block and `8` in the two container limits of one compose file).
+  The second spelling is DERIVED by `values.spell` and never typed into the registry, so one number
+  is still written down once, and a value it would have to change to fit is refused: a budget at
+  `8.5` fails the scan naming the far side that cannot spell it rather than quietly capping a
+  container half a gigabyte under what the scheduler admits. A re-spelling is blind to a site that
+  drops its point (`8` and `8.0` are one whole number and one whole spelling), which is the drift
+  the textual reduction exists to catch, so `values.spelling_fault` refuses an entry whose mentions
+  all re-spell: a second site, or a mention rendering the value as written, must stand beside them.
   **Counted where the occurrences are one set.** A mention is a presence check unless it carries
   `occurrences`, so a file spending the value twice and losing one of them passes by default,
   which is what a half applied rename looks like. `occurrences` pins an EXACT number of bounded
   matches rather than a floor, because a floor cannot notice the far side has grown past it and so
   widens itself by however much the tree drifted; a count below 1 is refused, zero being a mention
-  asking the value to be absent. It is opt in, and the survey that set it is in the ADR: three of
-  the twenty-six registered mentions are counted, `Message.tsx` at 2 (the `className` and the
-  `aria-label` of one chip), `overlay.css`'s `:not([{value}="0"])` at 2 (the two section share
+  asking the value to be absent. It is opt in, and the survey that set it is in the ADR: four of
+  the thirty registered mentions are counted, `Message.tsx` at 2 (the `className` and the
+  `aria-label` of one chip), `docker-compose.subagents.yml`'s `mem_limit` pair at 2 (memswap equal
+  to memory is what disables the container's swap, so one moving without the other re-enables it in
+  silence), `overlay.css`'s `:not([{value}="0"])` at 2 (the two section share
   caps, whose handover is symmetric or nothing), and `overlay.css`'s `var(--roll)` at 2 (the two
   rules that must land WITH a roll, which is the set the entry's own reason names), while the bare
   `[{value}` mention stays a presence check because its three rules are the sum of two unrelated
@@ -387,7 +401,9 @@ that last question to have an answer.
   and `test_the_registry_spends_at_least_one_rendered_name` hold the two newest fields to the same
   rule, a field no entry sets being a dead wire, and
   `test_the_registry_reduces_at_least_one_decimal` holds the newest value form to it, a form the
-  real tree never spells being unexercised in exactly the same way.
+  real tree never spells being unexercised in exactly the same way, and
+  `test_the_registry_exercises_every_spelling` holds `Spelling` to the rule `Relation` already
+  answers to.
 - `bindcheck.py` does the same (`test_the_repo_itself_is_clean`), with a guard on the guard:
   `test_the_repo_really_declares_binds_for_this_gate_to_have_checked` fails if the reader ever
   finds fewer than six defaulted bind sources under `docker/`, so the clean verdict cannot go

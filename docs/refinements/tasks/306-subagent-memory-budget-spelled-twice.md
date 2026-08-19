@@ -1,6 +1,6 @@
 # A subagent budget's default is spelled twice in one compose file and tied nowhere
 
-**Status:** open, actionable
+**Status:** landed 2026-08-19
 **Area:** repo-gates
 **Origin:** [ADR-0012](../../adr/ADR-0012-resource-governance.md)
 
@@ -52,3 +52,17 @@ places, two of them in the same file.
   rather than a bare number, and a far side spelling the same number twice in a shape the first
   cannot render. The honest closure is still one of the two written above, and the first of them
   (a module constant the field cites) is now the cheaper one.
+- 2026-08-19: landed as one registry entry over four spends, and both halves of the obstacle were
+  resolved the way this entry framed them rather than around them. The site took the first option:
+  `DEFAULT_MEM_BUDGET_GB = 8.0` is a module constant in `config_subagents.py` that `mem_budget_gb`
+  cites, because a reducer taught to read `Field(...)` would be a language-agnostic module knowing
+  pydantic, and three fields in that class already cite module constants. The mentions took the
+  second: `Mention.spelling` picks `Spelling.WRITTEN` or `Spelling.WHOLE`, the whole spelling is
+  derived from the declared value rather than typed beside it, and a fraction that is not zero is
+  refused instead of truncated. `values.spelling_fault` keeps the decimal form's textual strictness
+  from being undone, refusing any entry whose mentions all re-spell, since `8` and `8.0` are one
+  whole spelling. Proved able to fail seven times on the real tree and reverted each time. The
+  reasoning is the ADR-0012 budget-tie addendum; the vocabulary is recorded at ADR-0029 beside the
+  decimal it extends. [R-315](315-subagent-cpu-budget-and-its-siblings.md) opens for the CPU budget
+  in the same file, which is the same shape and needs no second spelling, and for the three asks
+  beside it, one of which disagrees with its field on purpose.

@@ -3254,3 +3254,29 @@ addendum. One narrower task opens in its place, an ordering that cannot compare 
 neighbouring task loses half of what blocked it, the subagent memory budget whose remaining
 obstacles are a `Field(...)` call the reducer still will not read and two spellings of one number
 that no single needle can cover.
+
+## Addendum (2026-08-19): a mention may re-spell the value, and never on trust
+
+The addendum above made the reducer textual, which was the right call and immediately met the far
+side it could not reach: a number one place writes as `8.0` and another must write as `8`, because
+docker parses `mem_limit` as a size and refuses `8.0g`. Rendering the agreed value into a template
+reaches the first and cannot reach the second, and writing `8` into the registry beside `8.0` would
+be a second uncoupled copy wearing a gate's clothes.
+
+So a `Mention` now carries a `Spelling`. `WRITTEN` is the default and what every mention registered
+before this used; `WHOLE` renders the same value with no fractional part. The second spelling is
+**derived** from the declared value, never typed, so the registry still holds one number. It refuses
+what it would have to change to fit: a fraction that is not zero is a fault naming the far side that
+cannot spell it, rather than a truncation that would tie that far side to a number the site does not
+declare.
+
+Textual strictness survives it because the scan says so. A re-spelling is blind to a site that drops
+its point, both spellings of one whole number being identical text, so `values.spelling_fault`
+refuses any entry whose mentions all re-spell: a second site, or a mention that renders the value as
+the site writes it, has to stand beside them and carry that drift. The rule is registry-shaped like
+the ones beside it (a name pinned as a spend that nothing pays, a template rendering nothing, a
+count below one) and fails the entry rather than passing it quietly.
+
+The first entry using it is the subagent memory budget, whose four spends live in one compose file
+in both spellings; the reasoning and the proof-of-failure runs are recorded at
+[ADR-0012](ADR-0012-resource-governance.md).
