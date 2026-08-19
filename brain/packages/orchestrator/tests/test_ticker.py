@@ -2,9 +2,12 @@
 (ADR-0025 decision 4). No wall-clock waits. The clock is fixed and `run` is paced to 0."""
 
 import asyncio
+import logging
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
+
+import pytest
 
 from cortex_core import (
     BodyGatewayError,
@@ -15,6 +18,7 @@ from cortex_core import (
     FireOutcome,
     InMemoryBodyGateway,
     InMemoryScheduleStore,
+    PlainFormatter,
     RecordingAuditSink,
     ScheduleClaim,
     ScheduledItem,
@@ -31,6 +35,7 @@ from cortex_core import (
 from cortex_orchestrator import REMINDER_TITLE, TASK_TITLE, ScheduleTicker, TickerSettings
 
 _NOW = datetime(2026, 7, 12, 12, 0, 0, tzinfo=UTC)
+_TICKER_LOGGER = "cortex_orchestrator.ticker"
 _SETTINGS = TickerSettings(poll_s=0.001, lease=timedelta(minutes=5), claim_limit=8)
 
 
@@ -420,6 +425,30 @@ async def test_a_failing_release_is_left_to_the_lease() -> None:
     store.release_fails = True
     await store.add(_item("r1"))
     await _ticker(store).run_once()  # logs; must not raise, since the lease recovers the claim
+
+
+async def test_both_pass_degradation_lines_name_the_item_they_are_about(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A failed fire and a failed release each carry the id, the way the push failure beside them
+    already did.
+
+    Neither line named anything before: an operator reading a busy log found "schedule fire
+    failed" and could not tell which of the claimed items it was about, though the claim was in
+    hand at both call sites. The fire line reads its id off the claim `gather` answered for,
+    which is why the results are zipped with the claims rather than filtered out of them.
+    """
+    store = _FinishFailsStore()
+    store.release_fails = True
+    await store.add(_item("r1"))
+    with caplog.at_level(logging.ERROR, logger=_TICKER_LOGGER):
+        await _ticker(store).run_once()
+    formatter = PlainFormatter()
+    assert [formatter.format(record).splitlines()[0] for record in caplog.records] == [
+        f"ERROR:{_TICKER_LOGGER}:schedule fire failed; the lease re-fires it reminder_id=r1",
+        f"ERROR:{_TICKER_LOGGER}:release failed; the lease recovers the claim reminder_id=r1",
+    ]
+    assert [record.__dict__["reminder_id"] for record in caplog.records] == ["r1", "r1"]
 
 
 class _FlakyClaimStore(InMemoryScheduleStore):

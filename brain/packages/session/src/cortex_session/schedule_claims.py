@@ -130,7 +130,10 @@ async def edit_item(client: Redis, item_id: str, edit: ScheduleEdit) -> bool:
 
 async def quarantine(client: Redis, item_id: str, raw: bytes | str) -> None:
     """Dead-letter an undecodable claimed record so the pass degrades by one item."""
-    logger.error("quarantining corrupt schedule record %r to %r", item_id, DEAD_KEY)
+    logger.error(
+        "quarantining a corrupt schedule record",
+        extra={"item_id": item_id, "dead_key": DEAD_KEY},
+    )
     async with client.pipeline(transaction=True) as pipe:
         pipe.hset(DEAD_KEY, item_id, raw)
         pipe.zrem(DUE_KEY, item_id)
@@ -190,7 +193,9 @@ async def _claim_one(
         try:
             item, _, _ = decode(raw, item_id)
         except ScheduleStoreError:
-            logger.exception("undecodable schedule record on the claim path")
+            logger.exception(
+                "undecodable schedule record on the claim path", extra={"item_id": item_id}
+            )
             await pipe.unwatch()
             await quarantine(client, item_id, raw)
             return None
