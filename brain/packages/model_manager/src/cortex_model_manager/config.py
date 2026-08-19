@@ -17,7 +17,7 @@ roster it did build is on ``GET /health``, which is where an operator looks firs
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from cortex_core import DEFAULT_CORTEX_MODEL
+from cortex_core import DEFAULT_CORTEX_MODEL, DEFAULT_LOG_FORMAT
 from cortex_model_manager.spec import ModelSpec, build_roster
 from cortex_model_manager.supervisor import (
     DEFAULT_PROBE_TIMEOUT_S,
@@ -82,6 +82,10 @@ class ModelHostConfig(BaseSettings):
     # readiness probe gets, both being control-plane reads a swap step waits on.
     nvidia_smi: str = "nvidia-smi"
     log_level: str = "info"
+    # How a line is rendered, the sidecar's own half of the brain's CORTEX_LOG_FORMAT. Under this
+    # prefix because it sits beside the level it pairs with and because this container's env is
+    # its own: the two processes are configured separately and may be read by different people.
+    log_format: str = DEFAULT_LOG_FORMAT
 
     # The three tiers. The ids must match the brain's (CORTEX_MODEL_CORTEX / CORTEX_MODEL_BRAIN /
     # the evict list), so they carry the same aliases rather than this module's prefix.

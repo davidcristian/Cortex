@@ -54,7 +54,10 @@ source of audited, model-callable tools.
   large or sensitive); a failure logs the short error detail; both log the tool name,
   arguments, the result's `trust` provenance (so "did this turn read untrusted content?"
   is answerable from the durable trail alone, per ADR-0013 decision 2), and timestamp (the
-  AGENTS.md audit gate).
+  AGENTS.md audit gate). All of it rides the record as `extra` and reaches the line through the
+  process entry's formatter (ADR-0038 rendered-fields addendum); the sink used to serialize its
+  own JSON copy into the message because the shipped handler printed no `extra`, and no longer
+  does, so the trail now depends on that formatter being installed.
 
 **Error contract.** Every MCP transport/protocol failure crosses the `ToolRegistry` port as
 `ToolError` with the cause chained: a listing/call failure on a live session (`McpError`,

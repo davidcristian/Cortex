@@ -40,6 +40,12 @@ services:
       # and this number does not move it; a value below 1 fails the brain at boot, and the
       # knob is inert under 'off'. Listed here for the same reason the switch above is.
       CORTEX_TOOLS_SALIENCE_LIMIT: ${CORTEX_TOOLS_SALIENCE_LIMIT:-2}
+      # How a log line is written for whoever reads `docker compose logs brain`. The shipped
+      # 'plain' appends each record's own fields after the message it already printed, which is
+      # what makes a rejected fold's readings, a stranded handoff's id and the two audit trails
+      # legible at all; 'packed' writes the whole record as one JSON object for a deployment that
+      # collects rather than reads. A name the build does not carry fails the brain at startup.
+      CORTEX_LOG_FORMAT: ${CORTEX_LOG_FORMAT:-plain}
     ports:
       # Loopback-only publish for the single-user security posture (ROADMAP assumption 5):
       # nothing listens beyond 127.0.0.1 on the host.

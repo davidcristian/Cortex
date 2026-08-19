@@ -154,6 +154,50 @@ docker compose logs -f brain
 docker compose down
 ```
 
+## Read the brain's logs
+
+`docker compose logs brain` is where every diagnosis in these runbooks ends up, and since the
+ADR-0038 rendered-fields addendum a line carries the fields the code attached to it rather than
+the message alone:
+
+```text
+brain-1  | INFO:cortex_orchestrator.server:seam server listening host=0.0.0.0 port=50051
+```
+
+Everything after the message is `key=value` pairs in **name order**, which is what makes two lines
+of the same kind comparable column by column and what makes `grep "capped=True"` work. Three
+reading rules:
+
+- A scalar is written the way Python writes it, so a boolean reads `True` and not `true`.
+- A value carrying whitespace or a quote is quoted (`error="permission denied"`), so it stays one
+  field.
+- Anything structured is compact JSON (`hits=[{"id":"m1","score":0.87}]`), so it can be pasted
+  into `jq` or read as it stands.
+
+**Two things never appear**, and both are the formatter's doing rather than each call site's. A
+field whose name looks like a secret (`token`, `password`, `secret`, `credential`, `api_key`,
+`authorization`, `cookie`, and anything containing one of those) prints `<redacted>` in place of
+its value, the key still there so a withheld field reads differently from a missing one. And the
+credential inside any URL is stripped from the whole line, message and traceback included, so a
+`redis://` or `imap://` connection error names its host and never its password.
+
+For a deployment that would rather collect than read, `CORTEX_LOG_FORMAT=packed` writes one JSON
+object per line instead, with the fields under their own `fields` key:
+
+```sh
+CORTEX_LOG_FORMAT=packed docker compose up -d --build
+docker compose logs brain | sed 's/^brain-1  | //' | jq -c 'select(.fields.model)'
+```
+
+The sidecar has its own half of the same knob, `CORTEX_MODELHOST_LOG_FORMAT`, under its own
+container's prefix. A name neither build carries fails the process at startup rather than falling
+back to a rendering nobody asked for, so a typo is loud.
+
+The two per-line trails worth knowing about are the tool audit (`cortex.tools.audit`, always on,
+[tools-mcp.md](tools-mcp.md)) and the recall trail (`cortex.memory.recall`, behind
+`CORTEX_MEMORY_RECALL_AUDIT`, [memory-pgvector.md](memory-pgvector.md)). Both write a bare message
+and put everything in fields, so they are read the way every other line here is.
+
 ## Talk Converse from the host
 
 With a brain running either way, one full turn over the real seam (the deterministic

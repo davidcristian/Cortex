@@ -154,6 +154,12 @@ apart:
 | `capped=False chars=0` | The model emitted no answer text whatever, which on this path means a tier that ignored the request to skip thinking and put the whole reply in its reasoning. | The model's own chat template, and the thinking switch the inference adapter sends with the request. |
 | `capped=False` and `chars` above zero | Text arrived and was not the envelope, so constrained decoding did not hold. | Whether the llama-server build honours the JSON schema the rank request carries. |
 
+Those two readings are **fields**, printed after the message by the formatter the process entry
+installs (ADR-0038 rendered-fields addendum), and fields render in name order, so they arrive
+adjacently as `capped=True chars=0`. The judge used to spell them into its message as well, back
+when the shipped handler printed no field at all; it no longer does, so a deployment reading these
+lines through some other handler sees the message alone.
+
 Both lines name `pool`, the candidates that went unjudged, and `k`, the width asked of the rank.
 Neither can name the session: `RecallPolicy` is handed the pool, the question and `k`, and no
 conversation identity crosses that seam, so on a brain serving several conversations a burst of
@@ -166,7 +172,11 @@ empty pool, there being nothing to rank.
 Set `CORTEX_MEMORY_RECALL_AUDIT=1` to turn that trail on: one `cortex.memory.recall` line per
 recall, in the brain's container logs, carrying the pool size, how many candidates were available
 to it, the rank basis, whether keys on that
-basis may be compared, and each kept hit's memory id, cosine score and rank key. It never carries
+basis may be compared, and each kept hit's memory id, cosine score and rank key. It is a bare
+`memory.recall` message followed by those as `key=value` fields, `hits` and `dropped` arriving as
+compact JSON inside their own field, so one line is both readable and pasteable into `jq`
+(`CORTEX_LOG_FORMAT=packed` makes the whole line one JSON object if you would rather not slice it
+out; see [local-dev-wsl.md](local-dev-wsl.md)). It never carries
 text, neither the query nor a recalled memory, so a line names *which* memories came back and never
 what they said; pair an id with the `memories` table when you need the content. This is the answer
 to "why did recall return these?", which used to need a throwaway script against the store.

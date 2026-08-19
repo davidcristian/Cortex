@@ -9,7 +9,6 @@ subject. The read-only v1 tools carry no payloads there. Every line carries the 
 trail alone (ADR-0013 decision 2).
 """
 
-import json
 import logging
 
 from cortex_core import ToolInvocation
@@ -20,10 +19,11 @@ _logger = logging.getLogger("cortex.tools.audit")
 class LoggingAuditSink:
     """ToolAuditSink writing one structured `logging` record per invocation.
 
-    The fields ride the record twice: as `extra` attributes (for structured log collectors)
-    and JSON-serialized into the message itself. A plain stdlib formatter shows only the
-    message, so without the embedded payload the trail would print bare `tool.invocation`
-    lines and the forensic fields would never reach the container logs.
+    The fields ride the record once, as `extra` attributes, and the process entry's formatter
+    (`cortex_core.log_format`) renders them into the line. They used to be JSON-serialized into
+    the message as well, because the shipped handler printed the message alone and the forensic
+    fields would otherwise never have reached the container logs; a formatter that renders fields
+    makes that copy a duplicate of the same trail.
     """
 
     async def record(self, invocation: ToolInvocation) -> None:
@@ -39,5 +39,4 @@ class LoggingAuditSink:
             fields["result_chars"] = len(invocation.detail)
         else:
             fields["error"] = invocation.detail
-        payload = json.dumps(fields, ensure_ascii=False, sort_keys=True, default=str)
-        _logger.info("tool.invocation %s", payload, extra=fields)
+        _logger.info("tool.invocation", extra=fields)

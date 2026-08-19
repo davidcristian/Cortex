@@ -36,7 +36,6 @@ is not the sink's: the value it is handed carries an id and a score and has no f
 there was nothing here to withhold.
 """
 
-import json
 import logging
 
 from cortex_core import RecallAudit
@@ -47,10 +46,11 @@ _logger = logging.getLogger("cortex.memory.recall")
 class LoggingRecallSink:
     """RecallAuditSink writing one structured `logging` record per recall.
 
-    The fields ride the record twice, as `extra` attributes for a structured collector and
-    JSON-serialized into the message, because a plain stdlib formatter shows only the message and
-    the trail would otherwise print bare `memory.recall` lines (the tool audit's adapter learned
-    the same thing).
+    The fields ride the record once, as `extra` attributes, and the process entry's formatter
+    (`cortex_core.log_format`) is what renders them. They used to ride it twice, JSON-serialized
+    into the message as well, because the shipped handler was the stdlib's own and printed the
+    message alone; with a formatter that renders fields, a second copy is the same line printed
+    twice.
     """
 
     async def record(self, audit: RecallAudit) -> None:
@@ -79,5 +79,4 @@ class LoggingRecallSink:
             "dropped_omitted": audit.dropped.omitted,
             "at": audit.at.isoformat(),
         }
-        payload = json.dumps(fields, ensure_ascii=False, sort_keys=True, default=str)
-        _logger.info("memory.recall %s", payload, extra=fields)
+        _logger.info("memory.recall", extra=fields)

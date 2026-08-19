@@ -170,6 +170,10 @@ services:
       # reading, which is what a brain with no measured figure never asks about anyway. Bounded by
       # the probe timeout above, both being control-plane reads a swap step waits on.
       CORTEX_MODELHOST_NVIDIA_SMI: "${CORTEX_MODELHOST_NVIDIA_SMI:-nvidia-smi}"
+      # The sidecar's half of the brain's CORTEX_LOG_FORMAT, under its own prefix because this
+      # container's env is its own. 'plain' appends each lifecycle line's tier, pid and port after
+      # the message; 'packed' writes the whole record as one JSON object.
+      CORTEX_MODELHOST_LOG_FORMAT: "${CORTEX_MODELHOST_LOG_FORMAT:-plain}"
     volumes:
       # Models stay on the Windows drive, mounted read-only (ADR-0004 d3). Forward slashes
       # work in Docker Desktop on Windows; override the source with CORTEX_MODELS_DIR.

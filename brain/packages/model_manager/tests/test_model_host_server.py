@@ -16,7 +16,6 @@ Distrust-green proofs, each applied to production code alone with the whole
   reddens 2: that case and ``test_api.py``'s health case, which reads them back off the wire.
 """
 
-import logging
 from http import HTTPStatus
 from typing import Any, cast
 
@@ -25,7 +24,7 @@ import pytest
 import uvicorn
 from starlette.applications import Starlette
 
-from cortex_core import ControlBounds
+from cortex_core import PACKED_FORMAT, PLAIN_FORMAT, ControlBounds
 from cortex_model_manager import (
     ModelHostConfig,
     build_model_host,
@@ -80,24 +79,49 @@ def test_main_serves_the_configured_interface_and_port_and_configures_the_root_l
     ``uvicorn.run`` configures uvicorn's own loggers and leaves root alone, so measured in the
     image: without this call every lifecycle line the package logs at INFO is dropped and the one
     WARNING that escapes goes through logging's last-resort handler, which renders neither the
-    level nor the timestamp. The recorded call is the assertion here (the effect is a global, and
-    the container log is where it is verified for real).
+    level nor the timestamp. The rendering travels with the level, because a handler that prints
+    the message alone drops the tier, pid and port every lifecycle line attaches. The recorded
+    call is the assertion here (the effect is a global, and the container log is where it is
+    verified for real).
     """
     served: list[tuple[str, int, str]] = []
-    configured: list[str] = []
+    configured: list[tuple[str, str]] = []
 
     def fake_run(app: Starlette, *, host: str, port: int, log_level: str) -> None:
         assert isinstance(app, Starlette)
         served.append((host, port, log_level))
 
-    def fake_basic_config(*, level: str) -> None:
-        configured.append(level)
+    def fake_configure(level: str, *, style: str) -> None:
+        configured.append((level, style))
 
     monkeypatch.setattr(uvicorn, "run", fake_run)
-    monkeypatch.setattr(logging, "basicConfig", fake_basic_config)
+    monkeypatch.setattr("cortex_model_manager.server.configure_logging", fake_configure)
     monkeypatch.setenv("CORTEX_MODELHOST_BIND_HOST", "127.0.0.1")
     monkeypatch.setenv("CORTEX_MODELHOST_BIND_PORT", "9999")
     monkeypatch.setenv("CORTEX_MODELHOST_LOG_LEVEL", "warning")
+    monkeypatch.setenv("CORTEX_MODELHOST_LOG_FORMAT", PACKED_FORMAT)
     main()
     assert served == [("127.0.0.1", 9999, "warning")]
-    assert configured == ["WARNING"]
+    assert configured == [("WARNING", PACKED_FORMAT)]
+
+
+def test_the_sidecar_renders_its_fields_the_way_a_reader_gets_them_by_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A deployment that names no rendering gets the one a person reads, not a bare message."""
+    configured: list[tuple[str, str]] = []
+    served: list[str] = []
+
+    def fake_run(app: Starlette, *, host: str, port: int, log_level: str) -> None:
+        assert isinstance(app, Starlette)
+        served.append(f"{host}:{port}@{log_level}")
+
+    def fake_configure(level: str, *, style: str) -> None:
+        configured.append((level, style))
+
+    monkeypatch.setattr(uvicorn, "run", fake_run)
+    monkeypatch.setattr("cortex_model_manager.server.configure_logging", fake_configure)
+    monkeypatch.delenv("CORTEX_MODELHOST_LOG_FORMAT", raising=False)
+    main()
+    assert configured == [("INFO", PLAIN_FORMAT)]
+    assert served == ["0.0.0.0:9300@info"]
