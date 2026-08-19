@@ -973,3 +973,69 @@ One thing the pass surfaced and did not fix: what escapes on a query the server 
 raw `imaplib.IMAP4.error`, so the model reads `UID command error: BAD [Error offset=38]` rather
 than anything naming the dialect it got wrong. That is filed as
 [a refinement](../refinements/tasks/312-search-refusal-is-untyped.md).
+
+## Addendum (2026-08-19): the refused search is the port's own error, not imaplib's
+
+The addendum above closed with the one thing its live pass surfaced and did not fix: a query the
+Bridge refuses escaped `ImapMailbox` as a raw `imaplib.IMAP4.error`, so the model read
+`UID command error: BAD [b'[Error offset=38]: expected space']`, an offset into a wire command it
+never composed, from a library nothing had told it about. This closes it, and the shape it lands
+in is the one every other refusal in this sidecar already has.
+
+**The port gained a failure channel, so the adapter's library no longer has one.** `cortex_email`
+now declares its own two typed errors (`errors.py`), in the two-member shape `cortex_core.errors`
+established for `MemoryStoreError`/`MemoryDataError` and `ModelHostError`/`ModelNotHostedError`,
+and declared here rather than there because the sidecar deliberately cannot import the core.
+`MailboxError` says the mailbox could not answer: the Bridge was unreachable, TLS or the login was
+refused, the folder could not be examined, the connection went away. `SearchRefusedError` is the
+one narrower fact, and the line between them is whether rewriting the query would change anything.
+Every other failure heals when the machine is fixed and nothing about the query touches it; this
+one heals only when the query is rewritten, which is something the model reading the result can
+do. So it carries the `query` it refused, and its message names where the dialect is written down
+rather than restating it, since the field description is already in the model's context on the
+turn it reads the refusal.
+
+**The classification looks rather than assumes.** imaplib raises a plain `IMAP4.error` for a `BAD`
+tagged response and its `IMAP4.abort` subclass when the connection goes away mid-command, and
+those are opposite facts about the same query: one says the text was wrong, the other says the
+text may have been perfect and the server stopped listening. Reporting an abort as a refusal would
+send a model round a rewrite loop that cannot end, so `_search_failure` tests for the subclass
+first and only the remaining `IMAP4.error` becomes a refusal. Everything else the IMAP stack
+raises, imap-tools' own `NO` exceptions included, crosses as `MailboxError` with the cause
+chained, so no exception of the library reaches a caller through any of the three methods.
+
+**What the model reads, checked end to end.** A tool that lets an exception out is restated by
+FastMCP as `Error executing tool search_emails: <the exception>`, which is the truth for a mailbox
+that could not answer and a falsehood for a search the server read and declined: the tool ran, and
+what it has to say is a correction. So `search_emails` catches the refusal and answers with a
+`CallToolResult` of its own, the shape `read_email` already used for its source declaration, with
+`isError` set and the text untouched. Driven through the low-level server's real request handler
+and then through the brain's `McpToolRegistry`, the refusal arrives in `ToolResult.content`
+verbatim and `is_error` True: the registry restates nothing, which answers the question the
+refinement entry raised about it. The contrast case was driven the same way and still reads
+`Error executing tool search_emails: the mailbox could not run that search: connection refused`,
+which is what a failed tool should say.
+
+**Ports before adapters, so the fake refuses too.** The `Mailbox` port had no shared contract, only
+a fake in the reader tests and a stand-in imap-tools box in the adapter tests. It has one now
+(`mailbox_contract.py`), four checks driven over both implementations, with the one condition no
+method can create supplied as a knob exactly as the `Embedder` contract supplies a broken backend:
+the server refuses the next search. Two of the checks are about the refusal, and one of those is
+that the message carries no fragment of the wire answer, which is the promise a future adapter
+could quietly break. The stand-in box and the fake mailbox moved into shared test modules so the
+adapter is driven over one stand-in rather than two that could drift.
+
+**Validation.** `just check` green. Both new gates were proved able to fail: deleting the abort
+branch reds the connection-lost test, and removing the wrap entirely reds two contract checks on
+the `imap` arm with the wire text visible in the failure. Live against a real Bridge on this
+machine, `from:someone@example.com` came back as `SearchRefusedError` carrying that query, with
+`UID command error: BAD [b'[Error offset=38]: expected space']` on the chained cause where an
+operator finds it and the model does not. The live criterion guard now asserts that type rather
+than imaplib's, which is the only place the branch is taken on an answer a real server sent.
+
+One sibling this opened rather than closed: `folder` is described just as carefully as `query` and
+a name no mailbox has still comes back as imap-tools' own sentence inside a `MailboxError`, filed
+as [a refinement](../refinements/tasks/318-a-folder-refusal-is-untyped.md). And the observation
+this slice made in passing, that a search which read nothing still taints the turn and so closes
+the outbound surface behind it, is
+[filed too](../refinements/tasks/319-a-refusal-taints-the-turn.md).

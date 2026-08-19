@@ -1,8 +1,9 @@
 """Behavior tests for EmailReader: parse raw RFC822 into email values over a fake Mailbox."""
 
-from collections.abc import Sequence
+import pytest
+from mailbox_fake import FakeMailbox
 
-from cortex_email import EmailReader, RawEmail
+from cortex_email import EmailReader, RawEmail, SearchRefusedError
 
 _SIMPLE = (
     b"From: Alice <alice@example.com>\r\n"
@@ -37,33 +38,6 @@ _HTML_IMAGE_ONLY = (
     b"\r\n"
     b'<img src="cid:photo">\r\n'
 )
-
-
-class FakeMailbox:
-    """A fake Mailbox returning canned raw messages, recording the search it was asked."""
-
-    def __init__(
-        self,
-        *,
-        folders: Sequence[str] = (),
-        found: Sequence[RawEmail] = (),
-        one: RawEmail | None = None,
-    ) -> None:
-        self._folders = folders
-        self._found = found
-        self._one = one
-        self.searched: list[tuple[str, str, int]] = []
-
-    def list_folders(self) -> Sequence[str]:
-        return self._folders
-
-    def search(self, folder: str, query: str, limit: int) -> Sequence[RawEmail]:
-        self.searched.append((folder, query, limit))
-        return self._found
-
-    def fetch(self, folder: str, uid: str) -> RawEmail | None:
-        del folder, uid
-        return self._one
 
 
 def test_folders_pass_through() -> None:
@@ -114,3 +88,13 @@ def test_read_keeps_raw_html_when_nothing_extracts() -> None:
     )
     assert detail is not None
     assert detail.body == '<img src="cid:photo">'
+
+
+def test_a_refused_search_reaches_the_caller_as_the_port_s_error() -> None:
+    # The reader maps hits to summaries and owns no failure of its own, so a refusal must
+    # arrive at the tool exactly as the port raised it: same type, same query, nothing added.
+    mailbox = FakeMailbox()
+    mailbox.refuse()
+    with pytest.raises(SearchRefusedError) as raised:
+        EmailReader(mailbox).search("INBOX", "from:someone@example.com", 10)
+    assert raised.value.query == "from:someone@example.com"
