@@ -1,26 +1,24 @@
 //! Session translation for `BrainSeamClient`, forming the unary session half of the
-//! `body_core::BrainTransport` port (ADR-0021).
+//! `body_core::BrainTransport` port.
 
 use body_core::{SessionMessage, SessionSummary, TransportError};
 
-use crate::client::SeamChannel;
-use crate::generated::brain_service_client::BrainServiceClient;
+use crate::call::SeamCall;
 use crate::generated::{
     DeleteSessionRequest, GetSessionMessagesRequest, ListSessionsRequest, RenameSessionRequest,
     SetSessionPinnedRequest,
 };
-use crate::status::status_to_error;
 
-/// Lists recent chats newest-active first (`BrainService.ListSessions`). At most
-/// `limit`; `0` means the brain's default.
+/// Lists recent chats newest-active first (`BrainService.ListSessions`).
 pub(crate) async fn list_sessions(
-    mut client: BrainServiceClient<SeamChannel>,
+    call: SeamCall,
     limit: i32,
 ) -> Result<Vec<SessionSummary>, TransportError> {
+    let mut client = call.client();
     let reply = client
         .list_sessions(ListSessionsRequest { limit })
         .await
-        .map_err(|status| status_to_error(&status))?
+        .map_err(|status| call.error(&status))?
         .into_inner();
     Ok(reply
         .sessions
@@ -35,16 +33,16 @@ pub(crate) async fn list_sessions(
         .collect())
 }
 
-/// Loads one session's persisted history in append order
-/// (`BrainService.GetSessionMessages`). An unknown session is an empty history.
+/// Loads one session's persisted history in append order (`BrainService.GetSessionMessages`).
 pub(crate) async fn session_messages(
-    mut client: BrainServiceClient<SeamChannel>,
+    call: SeamCall,
     session_id: String,
 ) -> Result<Vec<SessionMessage>, TransportError> {
+    let mut client = call.client();
     let reply = client
         .get_session_messages(GetSessionMessagesRequest { session_id })
         .await
-        .map_err(|status| status_to_error(&status))?
+        .map_err(|status| call.error(&status))?
         .into_inner();
     Ok(reply
         .messages
@@ -58,40 +56,40 @@ pub(crate) async fn session_messages(
         .collect())
 }
 
-/// Renames one chat (`BrainService.RenameSession`, ADR-0021 management addendum).
+/// Renames one chat (`BrainService.RenameSession`).
 pub(crate) async fn rename_session(
-    mut client: BrainServiceClient<SeamChannel>,
+    call: SeamCall,
     session_id: String,
     title: String,
 ) -> Result<(), TransportError> {
-    client
+    call.client()
         .rename_session(RenameSessionRequest { session_id, title })
         .await
-        .map_err(|status| status_to_error(&status))?;
+        .map_err(|status| call.error(&status))?;
     Ok(())
 }
 
-/// Deletes one chat (`BrainService.DeleteSession`, ADR-0021 management addendum).
+/// Deletes one chat (`BrainService.DeleteSession`).
 pub(crate) async fn delete_session(
-    mut client: BrainServiceClient<SeamChannel>,
+    call: SeamCall,
     session_id: String,
 ) -> Result<(), TransportError> {
-    client
+    call.client()
         .delete_session(DeleteSessionRequest { session_id })
         .await
-        .map_err(|status| status_to_error(&status))?;
+        .map_err(|status| call.error(&status))?;
     Ok(())
 }
 
-/// Pins or unpins one chat (`BrainService.SetSessionPinned`, ADR-0021 pinning addendum).
+/// Sets or clears the `pinned` mark on one chat (`BrainService.SetSessionPinned`).
 pub(crate) async fn set_session_pinned(
-    mut client: BrainServiceClient<SeamChannel>,
+    call: SeamCall,
     session_id: String,
     pinned: bool,
 ) -> Result<(), TransportError> {
-    client
+    call.client()
         .set_session_pinned(SetSessionPinnedRequest { session_id, pinned })
         .await
-        .map_err(|status| status_to_error(&status))?;
+        .map_err(|status| call.error(&status))?;
     Ok(())
 }

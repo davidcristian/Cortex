@@ -1,14 +1,28 @@
 //! The gRPC-status → [`TransportError`] mapping shared across the seam adapters.
 
+use std::time::Duration;
+
 use body_core::TransportError;
-use tonic::Status;
+use tonic::{Code, Status};
 
 /// Maps a non-OK [`Status`] from a seam call to the port's error taxonomy.
 #[must_use]
 pub fn status_to_error(status: &Status) -> TransportError {
-    match transport_source(status) {
-        Some(transport) => TransportError::Connection(error_chain(transport)),
-        None => TransportError::Rpc {
+    announced_status_to_error(status, None)
+}
+
+/// [`status_to_error`] for a call that told the brain a deadline (`announced`, ADR-0024
+/// courtesy-header addendum), which adds exactly one answer to the taxonomy.
+pub(crate) fn announced_status_to_error(
+    status: &Status,
+    announced: Option<Duration>,
+) -> TransportError {
+    if let Some(transport) = transport_source(status) {
+        return TransportError::Connection(error_chain(transport));
+    }
+    match announced {
+        Some(after) if status.code() == Code::DeadlineExceeded => TransportError::Timeout { after },
+        _ => TransportError::Rpc {
             code: format!("{:?}", status.code()),
             message: status.message().to_owned(),
         },
@@ -50,12 +64,13 @@ mod tests {
 
     use std::error::Error;
     use std::fmt;
+    use std::time::Duration;
 
     use body_core::TransportError;
     use tonic::Status;
     use tonic::transport::Endpoint;
 
-    use super::{error_chain, status_to_error};
+    use super::{announced_status_to_error, error_chain, status_to_error};
 
     /// Test-only wrapper exposing the wrapped error as its `source()`.
     #[derive(Debug)]
@@ -112,6 +127,41 @@ mod tests {
             TransportError::Rpc {
                 code: String::from("Unknown"),
                 message: String::from("wrapped"),
+            }
+        );
+    }
+
+    #[test]
+    fn an_announcement_never_moves_where_tonics_own_expiry_lands() {
+        let status = Status::from_error(Box::new(Wrapped(transport_error())));
+        assert_eq!(
+            announced_status_to_error(&status, Some(Duration::from_secs(5))),
+            TransportError::Connection(error_chain(&transport_error())),
+        );
+    }
+
+    #[test]
+    fn a_deadline_exceeded_becomes_a_timeout_only_for_a_call_that_announced_one() {
+        let status = Status::deadline_exceeded("gave up");
+        assert_eq!(
+            announced_status_to_error(&status, Some(Duration::from_millis(500))),
+            TransportError::Timeout {
+                after: Duration::from_millis(500),
+            }
+        );
+        assert_eq!(
+            announced_status_to_error(&status, None),
+            TransportError::Rpc {
+                code: String::from("DeadlineExceeded"),
+                message: String::from("gave up"),
+            }
+        );
+        // And an announcement does not turn every status into a timeout: only that one code.
+        assert_eq!(
+            announced_status_to_error(&Status::internal("boom"), Some(Duration::from_secs(1))),
+            TransportError::Rpc {
+                code: String::from("Internal"),
+                message: String::from("boom"),
             }
         );
     }

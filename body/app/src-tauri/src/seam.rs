@@ -77,13 +77,15 @@ pub fn connect() -> Result<ResilientTransport, String> {
     let token = std::env::var("CORTEX_SEAM_TOKEN")
         .ok()
         .filter(|token| !token.is_empty());
+    let plan = plan_from_env();
     let client = BrainSeamClient::connect_lazy_with_token(&addr, token.as_deref())
-        .map_err(|error| error.to_string())?;
+        .map_err(|error| error.to_string())?
+        .announcing(plan);
     Ok(RetryingTransport::with_randomness(
         client,
         TokioSleeper,
         ShellRandomness::from_env(),
-        plan_from_env(),
+        plan,
     ))
 }
 

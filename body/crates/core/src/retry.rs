@@ -8,7 +8,8 @@ pub mod policy;
 pub use deadline::within_deadline;
 pub use effects::{FullDelay, Randomness, Sleeper};
 pub use plan::{
-    DEFAULT_CALL_DEADLINE, DEFAULT_PROBE_BUDGET, DEFAULT_PROBE_DEADLINE, RetryPlan, SeamMethod,
+    ANNOUNCED_DEADLINE_GRACE_MS, DEFAULT_CALL_DEADLINE, DEFAULT_PROBE_BUDGET,
+    DEFAULT_PROBE_DEADLINE, RetryPlan, SeamMethod,
 };
 pub use policy::{RetryPolicy, is_transient};
 

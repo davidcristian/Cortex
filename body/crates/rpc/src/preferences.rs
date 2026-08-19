@@ -3,20 +3,18 @@
 
 use body_core::TransportError;
 
-use crate::client::SeamChannel;
-use crate::generated::brain_service_client::BrainServiceClient;
+use crate::call::SeamCall;
 use crate::generated::{GetPreferencesRequest, SetPreferenceRequest};
-use crate::status::status_to_error;
 
-/// Reads every stored setting (`BrainService.GetPreferences`). Values are opaque to this layer:
-/// it hands the caller the pairs verbatim, in the order the brain sorted them.
+/// Reads every stored setting (`BrainService.GetPreferences`).
 pub(crate) async fn get_preferences(
-    mut client: BrainServiceClient<SeamChannel>,
+    call: SeamCall,
 ) -> Result<Vec<(String, String)>, TransportError> {
+    let mut client = call.client();
     let reply = client
         .get_preferences(GetPreferencesRequest {})
         .await
-        .map_err(|status| status_to_error(&status))?
+        .map_err(|status| call.error(&status))?
         .into_inner();
     Ok(reply
         .preferences
@@ -25,17 +23,15 @@ pub(crate) async fn get_preferences(
         .collect())
 }
 
-/// Writes one setting (`BrainService.SetPreference`). An empty `value` clears the key, which the
-/// brain applies; this side only carries it. The reply is a bare acknowledgement, so on success
-/// there is nothing to map back.
+/// Writes one setting (`BrainService.SetPreference`).
 pub(crate) async fn set_preference(
-    mut client: BrainServiceClient<SeamChannel>,
+    call: SeamCall,
     key: String,
     value: String,
 ) -> Result<(), TransportError> {
-    client
+    call.client()
         .set_preference(SetPreferenceRequest { key, value })
         .await
-        .map_err(|status| status_to_error(&status))?;
+        .map_err(|status| call.error(&status))?;
     Ok(())
 }

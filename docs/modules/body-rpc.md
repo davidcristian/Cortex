@@ -8,26 +8,38 @@ over the `body_core::AudioControl` port (brain→body, Slice 9, ADR-0023) and th
 `body_core::Notify` port (the reminder toast, Slice 9.5, ADR-0025). Thin translation
 only, with no business logic, and no retries *here*: bounded retry is composed over this adapter
 by `body_core`'s `RetryingTransport` decorator (ADR-0024), for which `connect_lazy_with_token`
-supplies a reconnecting channel. **No deadline here either**, for a sharper reason than
-symmetry: tonic attaches its `transport::Error` to the `Status::cancelled` it raises when its own
-request timeout expires, so `status_to_error` classifies that expiry `TransportError::Connection`,
-which is honest (the connection indicator draws `Down`, and nothing answered) but is also in the
-*retryable* set, so a deadline configured on the endpoint would be retried against a peer that has
-just proved too slow to answer. The per-attempt deadline is therefore enforced in the core over
-the `Sleeper` port and arrives typed as `TransportError::Timeout`, outside the transient set
+supplies a reconnecting channel. **The deadline is announced here and enforced there**, for a
+sharper reason than symmetry: tonic attaches its `transport::Error` to the `Status::cancelled` it
+raises when its own request timeout expires, so `status_to_error` classifies that expiry
+`TransportError::Connection`, which is honest (the connection indicator draws `Down`, and nothing
+answered) but is also in the *retryable* set, so a deadline configured on the endpoint would be
+retried against a peer that has just proved too slow to answer. The per-attempt deadline is
+therefore enforced in the core over the `Sleeper` port and arrives typed as
+`TransportError::Timeout`, outside the transient set
 (ADR-0024 deadline addendum, as corrected the same day: the first reading of tonic here claimed a
-*sourceless* status classified `Rpc`, and running it says otherwise). `tests/client.rs` proves
-both ends of that against a fake brain that accepts the call and never answers: the core's bound
-ending it, and what tonic's own expiry classifies as. The status→error mapping is split into
+*sourceless* status classified `Rpc`, and running it says otherwise). What this adapter does put
+on the wire is the **courtesy** `grpc-timeout` header (ADR-0024 courtesy-header addendum), which a
+client sends once `announcing(plan)` tells it which plan the decorator above it enforces. Sending
+it necessarily arms tonic's clock too (the channel's own `GrpcTimeout` layer parses the header back
+off the outgoing request), so the announced value is the plan's `announced_deadline_for`, strictly
+longer than what the core enforces: the two clocks are ordered by construction and the retryable
+one never fires first. `tests/client.rs` proves all of it against a fake brain that accepts the
+call and never answers: the core's bound ending it, what tonic's own expiry classifies as, and the
+bound still winning with the announcement armed. The status→error mapping is split into
 `status.rs`
 (`status_to_error` / `error_chain`, shared by every direction) to keep both files under the
-line cap.
+line cap, and what one call carries on the wire into `call.rs` (`SeamCall`, the per-call
+interceptor, and the `SEAM_TOKEN_HEADER` declaration it attaches).
 
 **Public contract.**
 
 - `BrainSeamClient` (`Clone` lets clones share the channel; `Debug` never carries the seam
-  token: the interceptor holding it has no `Debug`, and tonic prints interceptors by type
-  name only).
+  token: it is hand-written and prints the token's *presence* as `<redacted>`, the derive having
+  been given up when the client started holding the `MetadataValue` itself rather than a
+  `Debug`-less interceptor. `tests/client.rs` asserts a configured token cannot reach a `{:?}`).
+  What it holds is the channel, the token, and optionally the `RetryPlan` it announces from; the
+  generated client is built **per call** (`SeamCall`, `src/call.rs`), which is the only way a
+  per-call value reaches an interceptor that is otherwise built once per connection.
   - `BrainSeamClient::connect(addr: &str) -> Result<Self, TransportError>` (async)
     dials e.g. `http://127.0.0.1:50051` sending no seam token; an invalid URI or
     unreachable endpoint maps to `TransportError::Connection`.
@@ -45,6 +57,17 @@ line cap.
     demand. This is the channel `body_core`'s `RetryingTransport` retries over. A call
     against a briefly-down brain fails `Connection`, the decorator backs off, and tonic
     reconnects transparently. The ungated shell's `seam::connect()` composes the two.
+  - `BrainSeamClient::announcing(plan: RetryPlan) -> Self` (ADR-0024 courtesy-header addendum)
+    turns on the courtesy `grpc-timeout` header: every unary call then announces
+    `plan.announced_deadline_for(method)`, which is that method's enforced deadline plus
+    `ANNOUNCED_DEADLINE_GRACE_MS` (250 ms). `Converse` announces nothing (the plan gives a turn no
+    deadline, and a header would hand tonic a clock to end one with), and a client nobody called
+    this on announces nothing at all, which is what every constructor returns. `plan` must be the
+    **same plan the decorator above the client enforces**: `seam::connect()` reads
+    `plan_from_env()` once and hands the one value to both, which is what makes the ordering
+    between the two clocks structural rather than a convention. An announcement the header cannot
+    spell (past its 8-digit ceiling, which tonic's encoder panics on) is dropped rather than
+    clamped, a shorter announcement being the one thing that would lose the race on purpose.
   - `impl BrainTransport`: `health()` calls `BrainService.Health`; an Ok reply maps to
     `SeamHealth { ready, detail }`. A non-OK gRPC status splits by origin: a status
     tonic *synthesized* from a client-local transport failure (detected by a
@@ -70,9 +93,10 @@ line cap.
   - `list_sessions(limit)` / `session_messages(session_id)` (the read-only session views,
     ADR-0021; `src/sessions.rs`) are unary calls to `BrainService.ListSessions` /
     `GetSessionMessages` mapping each reply row to a core `SessionSummary` (including its `pinned`
-    flag, ADR-0021 pinning addendum) / `SessionMessage`; a non-OK status reuses `status_to_error` →
-    `Rpc`/`Connection` (a store failure is `Rpc{code:"Unavailable"}`). Kept in their own module so
-    `client.rs` stays under the line cap.
+    flag, ADR-0021 pinning addendum) / `SessionMessage`; a non-OK status maps through the
+    `SeamCall` the client hands in (`status_to_error` plus that call's announcement) →
+    `Rpc`/`Connection`/`Timeout` (a store failure is `Rpc{code:"Unavailable"}`). Kept in their own
+    module so `client.rs` stays under the line cap.
   - `rename_session(session_id, title)` (the user-driven catalog write, ADR-0021 management
     addendum; same `src/sessions.rs`) is a unary call to `BrainService.RenameSession`; the reply
     is a bare ack, so success maps to `()` and a non-OK status maps the same way as the reads.
@@ -102,7 +126,14 @@ line cap.
   function: a status carrying a `tonic::transport::Error` anywhere on its `source()` chain is
   `Connection`, anything else is `Rpc`. Public only so the contract suite can assert it against
   statuses tonic really produces, the expired request timeout above being the one whose answer
-  a source reading got wrong.
+  a source reading got wrong. Its crate-internal twin `announced_status_to_error(status,
+  announced)` is what a call that announced a deadline maps through, and it adds exactly one
+  answer: a **brain-sent** `DEADLINE_EXCEEDED` becomes `TransportError::Timeout { after }`
+  carrying the announcement, since the body's own expired clock and the brain's report of the
+  same deadline mean one thing to everything above the adapter. tonic's local expiry is caught by
+  the transport-source arm before that one and is unmoved; a `DEADLINE_EXCEEDED` on a call that
+  announced nothing stays `Rpc`, there being no deadline of ours to name. All three are terminal,
+  so no retry decision turns on the difference.
 - `body_service(audio: A, notifier: N, token: &str)` (Slice 9, ADR-0023; the notifier joined
   in Slice 9.5, ADR-0025; `src/server.rs`) is the brain→body direction: builds the
   `BodyService` server over an `AudioControl` backend, a `Notify` backend, and a
@@ -236,6 +267,12 @@ Being ignored, they never run in CI and never count toward coverage.
   `generated` wrapper module whose inner allows scope the clippy exemption; the
   `check-body` coverage run excludes it via `--ignore-filename-regex '/_generated/'`.
   Hand-written code is fully gated: 100% line+region+branch.
+- The courtesy deadline is contract-tested off the **request the fake brain received**, since no
+  reply echoes a header: the fake records every call's `grpc-timeout`, and the checks assert the
+  per-method value (a probe and a read announce differently), silence from a client with no plan
+  and from every turn, silence rather than a panic for a deadline the header cannot spell, that a
+  hanging brain still ends as `Timeout` with the announcement armed (the ordering, measured rather
+  than asserted), and that a brain-sent `DEADLINE_EXCEEDED` arrives as the same `Timeout`.
 - Contract tests exercise a scripted in-process fake `BrainService` over loopback
   (`127.0.0.1:0`) only, which is CI-safe, with no real network. They cover both sides of the
   status-origin split, including brain death after a successful connect (graceful

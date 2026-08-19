@@ -1,6 +1,10 @@
-//! tonic adapter for the body↔brain gRPC seam (`proto/body.proto`).
+//! The tonic adapter for the body to brain gRPC interface defined in `proto/body.proto`.
+//!
+//! It holds the committed stubs, [`BrainSeamClient`] behind the `body_core::BrainTransport`
+//! port, and [`body_service`], the server the brain calls. No business logic lives here.
 
 mod auth;
+mod call;
 mod client;
 mod converse;
 mod preferences;
@@ -10,7 +14,8 @@ mod server;
 mod sessions;
 mod status;
 
-/// Generated tonic/prost stubs for the `cortex.seam.v1` package.
+/// Generated tonic/prost stubs for the `cortex.seam.v1` package. Public because the contract
+/// tests drive the generated server and client directly.
 pub mod generated {
     #![allow(
         clippy::all,

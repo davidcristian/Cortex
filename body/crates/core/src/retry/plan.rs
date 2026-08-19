@@ -16,6 +16,11 @@ pub const DEFAULT_PROBE_DEADLINE: Duration = Duration::from_millis(250);
 /// How long every other unary call may wait for one answer.
 pub const DEFAULT_CALL_DEADLINE: Duration = Duration::from_secs(5);
 
+/// How much longer the deadline the body **announces** to the brain is than the one it
+/// **enforces**, in milliseconds ([`RetryPlan::announced_deadline_for`], ADR-0024 courtesy-header
+/// addendum).
+pub const ANNOUNCED_DEADLINE_GRACE_MS: u64 = 250;
+
 /// Every call on the [`crate::transport::BrainTransport`] port, named so a retry decision can
 /// be made about it. Exhaustive by construction: a new port method that wants resilience has
 /// to appear here and be classified, which is the whole point (see the module docs).
@@ -139,5 +144,14 @@ impl RetryPlan {
             | SeamMethod::GetPreferences
             | SeamMethod::SetPreference => Some(self.call_deadline),
         }
+    }
+
+    /// How long one attempt at `method` **tells the brain** it will be waited on, or `None` when
+    /// it tells it nothing (ADR-0024 courtesy-header addendum).
+    #[must_use]
+    pub fn announced_deadline_for(&self, method: SeamMethod) -> Option<Duration> {
+        let grace = Duration::from_millis(ANNOUNCED_DEADLINE_GRACE_MS);
+        self.deadline_for(method)
+            .map(|deadline| deadline.saturating_add(grace))
     }
 }
