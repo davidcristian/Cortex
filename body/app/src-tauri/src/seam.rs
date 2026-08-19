@@ -93,18 +93,28 @@ pub type ResilientTransport = RetryingTransport<BrainSeamClient, TokioSleeper, S
 /// Builds the resilient read transport, reading the address + optional seam token (ADR-0016)
 /// and the retry knobs from env. Fails only on a bad URI / non-ASCII token. The lazy channel
 /// never dials at construction, so an unreachable brain is a retry, not a connect error.
+///
+/// **One plan, read once, handed to both halves** (ADR-0024 courtesy-header addendum). The
+/// decorator enforces the plan's per-attempt deadline and the client announces it to the brain as
+/// `grpc-timeout`; the announcement is the longer of the two by the plan's own grace margin, so
+/// the enforced bound wins the race the announcement inevitably starts. That ordering holds
+/// because the same `RetryPlan` value reaches both, which is why it is a local here rather than
+/// two calls to `plan_from_env()`: two reads of the same env could not drift today, but two
+/// sources of one policy is the shape that eventually does.
 pub fn connect() -> Result<ResilientTransport, String> {
     let addr = std::env::var("CORTEX_BRAIN_ADDR").unwrap_or_else(|_| DEFAULT_ADDR.to_owned());
     let token = std::env::var("CORTEX_SEAM_TOKEN")
         .ok()
         .filter(|token| !token.is_empty());
+    let plan = plan_from_env();
     let client = BrainSeamClient::connect_lazy_with_token(&addr, token.as_deref())
-        .map_err(|error| error.to_string())?;
+        .map_err(|error| error.to_string())?
+        .announcing(plan);
     Ok(RetryingTransport::with_randomness(
         client,
         TokioSleeper,
         ShellRandomness::from_env(),
-        plan_from_env(),
+        plan,
     ))
 }
 

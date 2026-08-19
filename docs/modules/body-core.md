@@ -205,7 +205,9 @@ stays thin and the retry is exercised against a fake with no network or wall-clo
   method runs under: public fields `reads` (the `RetryPolicy` for the repeatable reads),
   `probe_budget` (the ceiling a `Health` probe's whole run is trimmed to, attempts and backoff
   together, `DEFAULT_PROBE_BUDGET` = 1 s), `probe_deadline` (`DEFAULT_PROBE_DEADLINE` = 250 ms)
-  and `call_deadline` (`DEFAULT_CALL_DEADLINE` = 5 s).
+  and `call_deadline` (`DEFAULT_CALL_DEADLINE` = 5 s). One constant beside them is not a field
+  and not configurable, `ANNOUNCED_DEADLINE_GRACE_MS = 250`: how much longer the deadline the body
+  announces is than the one it enforces (see `announced_deadline_for` below).
   `policy_for(method)` is the **one door every retry decision goes through**, and it answers
   `None` for a method that may not be repeated at all: the caller must then make exactly one
   attempt and surface whatever comes back, however transient it looks. `From<RetryPolicy>`
@@ -220,6 +222,19 @@ stays thin and the retry is exercised against a fake with no network or wall-clo
   different feature. Every other call gets a duration, **the writes included**, since bounding
   a call is not repeating it: repeatability and a deadline are independent questions, so a
   write the plan refuses to retry is still bounded (ADR-0024 deadline addendum).
+- `announced_deadline_for(method)` is the same question asked about the wire (ADR-0024
+  courtesy-header addendum): what the body **tells the brain** a call will be waited on, which the
+  gRPC adapter sends as `grpc-timeout` so a brain still working on an abandoned call learns it has
+  been. It is `deadline_for` plus `ANNOUNCED_DEADLINE_GRACE_MS = 250`, never equal to it, and
+  `None` wherever `deadline_for` is. The margin is the mechanism rather than a nicety: announcing
+  a deadline arms the transport's own clock from the same header, and an expiry the transport
+  enforces classifies `Connection`, which is *retryable*, so the announcement has to be the later
+  of the two clocks by construction. Its size is argued at the constant: a loopback round trip and
+  the brain's header parse cost microseconds, the header's encoding truncates by at most a
+  millisecond, and what actually sizes it is the scheduler stall the ordering must survive, since
+  a runtime stopped past both deadlines finds them both due in one poll and the call is polled
+  before the clock. `retry_plan.rs` holds the ordering over every method and several plans, the
+  saturating edge included.
 - `within_deadline(deadline, sleeper, call)` (`retry::deadline`) is the composition the
   decorator wraps around every attempt: the call's own result when it finished in time,
   `TransportError::Timeout { after }` when it did not. A `None` deadline is spelled as

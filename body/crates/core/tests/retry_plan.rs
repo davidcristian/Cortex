@@ -10,8 +10,8 @@
 use std::time::Duration;
 
 use body_core::{
-    DEFAULT_CALL_DEADLINE, DEFAULT_PROBE_BUDGET, DEFAULT_PROBE_DEADLINE, RetryPlan, RetryPolicy,
-    SeamMethod, TransportError,
+    ANNOUNCED_DEADLINE_GRACE_MS, DEFAULT_CALL_DEADLINE, DEFAULT_PROBE_BUDGET,
+    DEFAULT_PROBE_DEADLINE, RetryPlan, RetryPolicy, SeamMethod, TransportError,
 };
 
 /// Every variant, so the invariant below is checked over the whole port rather than a sample.
@@ -387,5 +387,67 @@ fn every_call_but_the_turn_is_bounded_by_a_deadline() {
     assert_eq!(
         split.deadline_for(SeamMethod::ListSessions),
         Some(Duration::from_secs(90))
+    );
+}
+
+#[test]
+fn the_announced_deadline_outlives_the_enforced_one_on_every_call_that_has_one() {
+    // The ordering the courtesy `grpc-timeout` header rests on (ADR-0024 courtesy-header
+    // addendum). Announcing a deadline arms the transport's own clock as a side effect, and an
+    // expiry the transport enforces classifies `Connection`, which is RETRYABLE: the load
+    // amplifier a timeout is classified terminal to avoid. So the announcement has to be the
+    // later of the two clocks by construction rather than by luck, on every plan, not only the
+    // shipped one. Three plans, chosen for where an off-by-one would hide: the default, a
+    // tighter-than-default one, and one whose deadlines are shorter than the grace itself.
+    let grace = Duration::from_millis(ANNOUNCED_DEADLINE_GRACE_MS);
+    for plan in [
+        RetryPlan::default(),
+        RetryPlan {
+            probe_deadline: Duration::from_millis(40),
+            call_deadline: Duration::from_secs(90),
+            ..RetryPlan::default()
+        },
+        RetryPlan {
+            probe_deadline: Duration::from_millis(1),
+            call_deadline: Duration::from_millis(2),
+            ..RetryPlan::default()
+        },
+    ] {
+        for method in EVERY_METHOD {
+            let Some(enforced) = plan.deadline_for(method) else {
+                // The turn announces nothing because nothing bounds it: there is no deadline to
+                // tell the brain about, and a header would hand the transport a clock to end a
+                // turn with, which is the one thing the exemption exists to prevent.
+                assert_eq!(plan.announced_deadline_for(method), None);
+                continue;
+            };
+            let announced = plan
+                .announced_deadline_for(method)
+                .expect("a bounded call announces the bound it is under");
+            assert!(
+                announced > enforced,
+                "{method:?} would announce {announced:?}, which the body's own {enforced:?} \
+                 does not beat",
+            );
+            // And it is the margin exactly, not merely something larger: the number is what the
+            // grace argument is about, so a change to it should redden here rather than pass
+            // under an inequality.
+            assert_eq!(announced, enforced + grace);
+        }
+    }
+}
+
+#[test]
+fn a_deadline_at_the_end_of_time_still_announces_something_a_clock_can_hold() {
+    // The saturating edge. `RetryPlan`'s fields are public, so a caller can build a deadline
+    // within the grace of `Duration::MAX`; the addition must not panic, and what it answers is
+    // the ceiling rather than a wrapped-around instant.
+    let plan = RetryPlan {
+        call_deadline: Duration::MAX,
+        ..RetryPlan::default()
+    };
+    assert_eq!(
+        plan.announced_deadline_for(SeamMethod::ListSessions),
+        Some(Duration::MAX)
     );
 }

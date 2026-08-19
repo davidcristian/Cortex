@@ -27,6 +27,9 @@ SUBAGENTS_COMPOSE = "docker/docker-compose.subagents.yml"
 SUBAGENTS_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config_subagents.py"
 BODY_GATEWAY = "brain/packages/body_client/src/cortex_body_client/gateway.py"
 BODY_CLIENT_DOC = "docs/modules/brain-body-client.md"
+BODY_CORE_DOC = "docs/modules/body-core.md"
+BODY_RPC_DOC = "docs/modules/body-rpc.md"
+RETRY_PLAN = "body/crates/core/src/retry/plan.rs"
 VISION_RUNBOOK = "docs/runbooks/vision.md"
 VOLUME_RUNBOOK = "docs/runbooks/body-volume.md"
 
@@ -51,7 +54,7 @@ SEAM_COUPLINGS: tuple[Constant, ...] = (
         ),
         sites=(
             Site("body/crates/rpc/src/auth.rs", "SEAM_TOKEN_HEADER"),
-            Site("body/crates/rpc/src/client.rs", "SEAM_TOKEN_HEADER"),
+            Site("body/crates/rpc/src/call.rs", "SEAM_TOKEN_HEADER"),
             Site("brain/packages/seam/src/cortex_seam/__init__.py", "SEAM_TOKEN_HEADER"),
         ),
         # The fourth copy, and the one whose drift would be silent: the brain container's own
@@ -219,6 +222,24 @@ SEAM_COUPLINGS: tuple[Constant, ...] = (
             Mention(VISION_RUNBOOK, "| `CORTEX_BODY_CALL_TIMEOUT_S` | brain | `{value}` |"),
             Mention(VOLUME_RUNBOOK, "`CORTEX_BODY_CALL_TIMEOUT_S` (default `{value}`)"),
             Mention(BODY_CLIENT_DOC, "`DEFAULT_CALL_TIMEOUT_S = {value}`"),
+        ),
+    ),
+    Constant(
+        label="the grace between the announced deadline and the enforced one",
+        why=(
+            "the body announces this much more than it enforces so its own bound wins the race "
+            "the announcement starts, and two module contracts quote the margin as the number a "
+            "future agent reads instead of the tree, so retuning the constant alone would leave "
+            "both of them describing an ordering the code no longer has (ADR-0024)"
+        ),
+        sites=(Site(RETRY_PLAN, "ANNOUNCED_DEADLINE_GRACE_MS"),),
+        # The contracts spell it in the two shapes their sentences need: the core's names the
+        # constant it is reading out, the adapter's spends it as the millisecond value a reader
+        # compares against the deadlines beside it. Both carry a unit or a name, a bare 250 being
+        # a number the probe deadline on the same page would satisfy.
+        mentions=(
+            Mention(BODY_CORE_DOC, "`ANNOUNCED_DEADLINE_GRACE_MS = {value}`"),
+            Mention(BODY_RPC_DOC, "`ANNOUNCED_DEADLINE_GRACE_MS` ({value} ms)"),
         ),
     ),
     Constant(

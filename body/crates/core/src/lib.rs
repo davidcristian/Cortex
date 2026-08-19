@@ -35,9 +35,9 @@ pub use os::{
     NotifyError, RawFrame, ScreenCapture, TargetRect, VolumeChange, VolumeState,
 };
 pub use retry::{
-    DEFAULT_CALL_DEADLINE, DEFAULT_PROBE_BUDGET, DEFAULT_PROBE_DEADLINE, FullDelay, Randomness,
-    RetryPlan, RetryPolicy, RetryingTransport, SeamMethod, Sleeper, is_transient, retry_with,
-    within_deadline,
+    ANNOUNCED_DEADLINE_GRACE_MS, DEFAULT_CALL_DEADLINE, DEFAULT_PROBE_BUDGET,
+    DEFAULT_PROBE_DEADLINE, FullDelay, Randomness, RetryPlan, RetryPolicy, RetryingTransport,
+    SeamMethod, Sleeper, is_transient, retry_with, within_deadline,
 };
 pub use session_types::{DueReminder, SessionMessage, SessionSummary};
 pub use transport::{BrainTransport, ConfirmDecision, SeamHealth, TransportError, TurnEvent};
