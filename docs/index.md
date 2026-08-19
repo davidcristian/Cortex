@@ -482,7 +482,8 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
   - [body-app.md](modules/body-app.md) covers `body/app`: the React overlay (gated 100%) + its
     host-native Tauri shell (`cortex-body`).
   - [repo-gates.md](modules/repo-gates.md) covers `scripts/`: linecap, dashcheck, crosscheck
-    (with its `couplings` registry), bindcheck (with its `composemounts` reader), the
+    (with its `couplings` vocabulary and the two registry halves written in it), bindcheck
+    (with its `composemounts` reader), the
     coverage gate, the CI path classifier, and the commit-message CLI.
 
 ## Runbooks

@@ -228,7 +228,8 @@ body/             Rust/Tauri workspace, host-native
 scripts/          repo gates, plus the one module here that gates nothing, contrast.py (the
                   interval a live measurement reports, ADR-0038): linecap.py (300-line cap), dashcheck.py (no dash as
                   punctuation), crosscheck.py (one value, spelled in several places, still
-                  agreeing) + couplings.py and overlaycouplings.py (its registry, in the two
+                  agreeing) + couplings.py (the vocabulary its registry is written in) +
+                  seamcouplings.py and overlaycouplings.py (the registry itself, in the two
                   halves the line cap split it into) + values.py (what a value reduces to and
                   how a constant's readings must stand), bindcheck.py (no compose bind
                   default lands unignored in the tree) + composemounts.py (its compose

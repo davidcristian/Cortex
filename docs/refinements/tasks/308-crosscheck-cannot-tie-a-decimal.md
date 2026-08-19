@@ -1,6 +1,6 @@
 # The constant scan cannot tie a decimal
 
-**Status:** open, actionable
+**Status:** landed 2026-08-19
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -32,3 +32,21 @@ pair and watch the scan redden.
 
 - 2026-08-18: Opened by the close of [R-264](264-uniform-per-call-deadline.md), which added the
   second decimal to this seam and found the scan could not hold either of them.
+- 2026-08-19: Landed as a fourth value form in `scripts/values.py`. A decimal reduces to
+  `Digits`, a one-field named tuple holding the characters it is written with, so the comparison
+  stays textual and `5` never passes for `5.0`; its own type rather than a `str`, so it cannot tie
+  to a string literal spelling the same characters. Digits, one point, digits, with `_` grouping
+  either run; a leading or trailing point, a sign, an exponent and a Rust type suffix are refused.
+  An ordering still compares integers and now says so, a decimal under one being a fault rather
+  than a guess. Both deadlines are registered, each with one site and four mentions (the compose
+  default, [vision.md](../../runbooks/vision.md), [body-volume.md](../../runbooks/body-volume.md)
+  and [brain-body-client.md](../../modules/brain-body-client.md)); the origin ADR is deliberately
+  not among them, a decision record having to go on saying what was decided after the number
+  moves. Proved able to fail four times on the real tree: the site retuned to `5.5`, the same site
+  retyped as `5`, the compose default alone at `12.0`, and the runbook cell alone at `30.0`, each
+  exiting 1, where the reducer at the previous commit raised on `10.0` and the entries could not
+  be written at all. The close cost a file, `scripts/couplings.py` splitting on the seam its own
+  first sentence named: the entries moved to `scripts/seamcouplings.py` and the vocabulary stayed
+  behind. What it leaves open is narrower and filed as
+  [R-314](314-decimal-form-refusals.md); [R-306](306-subagent-memory-budget-spelled-twice.md)
+  loses half of what blocked it. Written up in the ADR's 2026-08-19 addendum.

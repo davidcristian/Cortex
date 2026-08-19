@@ -9,13 +9,13 @@ from typing import NamedTuple
 from couplings import (
     NAME_PLACEHOLDER,
     PLACEHOLDER,
-    SEAM_COUPLINGS,
     Constant,
     Mention,
     Relation,
     Site,
 )
 from overlaycouplings import OVERLAY_COUPLINGS
+from seamcouplings import SEAM_COUPLINGS
 from values import CrossCheckError, Reading, Value, parse_value, relation_fault
 
 CONSTANTS: tuple[Constant, ...] = (*SEAM_COUPLINGS, *OVERLAY_COUPLINGS)
@@ -120,7 +120,7 @@ def check_mention(root: Path, mention: Mention, value: Value) -> None:
     elif found != wanted:
         msg = (
             f"{mention.path} spells {needle!r} as a token of its own: found {found}, pinned "
-            f"{wanted}; move the whole set, or correct occurrences in couplings.py"
+            f"{wanted}; move the whole set, or correct occurrences in the registry"
         )
         raise CrossCheckError(msg)
 
@@ -206,7 +206,7 @@ def main(argv: list[str] | None = None) -> int:
     if faults:
         print(
             f"\ncrosscheck: {len(faults)} cross-tree constant(s) are not tied. Change every "
-            "place together, or update the registry in couplings.py if one of them moved.",
+            "place together, or update the registry beside this scan if one of them moved.",
             file=sys.stderr,
         )
         return 1

@@ -13,9 +13,10 @@ belongs to neither the brain nor the body and is gated exactly like both. A stan
 `bindcheck.py`, `backlogcheck.py` and `coverage_gate.py` invoked by `just` recipes, `ci_paths.py`
 by the CI
 workflow, `commitlint.py` by the commit-msg pre-commit stage, `contrast.py` by `just turn-cost`;
-each also exposes a pure, unit-tested core function). Eight modules here have no CLI of their own,
-each split out under the line cap and each named for what it holds: `couplings.py` and
-`overlaycouplings.py` are the two halves of `crosscheck.py`'s registry, `values.py` is the value
+each also exposes a pure, unit-tested core function). Nine modules here have no CLI of their own,
+each split out under the line cap and each named for what it holds: `couplings.py` is the
+vocabulary `crosscheck.py`'s registry is written in and `seamcouplings.py` and
+`overlaycouplings.py` are the two halves of the registry itself, `values.py` is the value
 forms that scan compares on, `composemounts.py` is `bindcheck.py`'s compose reader, and
 `backlog.py`, `backlogindex.py`, `backloganchors.py` and `headingshapes.py` are the four
 `backlogcheck.py` reads a backlog through: the task-file grammar, the index renderer, the anchors a
@@ -53,14 +54,14 @@ that last question to have an answer.
 - `crosscheck.py [--root DIR]` ties the values this repo spells in more than one place, because
   both sides of a seam must hold the same one and neither toolchain can import the other's
   (ADR-0029 cross-language-constant addendum and its 2026-08-08 widening). The scan is all of the
-  logic; `couplings.py` and `overlaycouplings.py` are all of the data, one entry per value: a
+  logic; `seamcouplings.py` and `overlaycouplings.py` are all of the data, one entry per value: a
   label, the reason its places must agree (printed with any failure), its `Site`s, an optional
   `relation`, and optional `mentions`. The registry is written in two files and read as one,
-  `crosscheck.CONSTANTS` being `SEAM_COUPLINGS` followed by `OVERLAY_COUPLINGS`: the first file
-  holds the vocabulary every entry is written in plus the couplings that tie the body to the brain,
-  the second the ones that tie the overlay's TypeScript to its own stylesheet, which is where the
-  entries were already accumulating when the one file outgrew the cap. Nothing in the scan depends
-  on which half an entry sits in. `values.py` is the third piece and the one neither of the others
+  `crosscheck.CONSTANTS` being `SEAM_COUPLINGS` followed by `OVERLAY_COUPLINGS`: the first holds
+  the couplings that tie the body to the brain, and the brain to the stack and the runbooks that
+  ship its numbers, the second the ones that tie the overlay's TypeScript to its own stylesheet.
+  `couplings.py` is the vocabulary both are written in, left behind when each half moved out under
+  the cap. Nothing in the scan depends on which half an entry sits in. `values.py` is the third piece and the one neither of the others
   is: it reduces a right-hand side to a comparable value and says whether a constant's readings
   hold together, so the scan finds declarations and that module judges them.
   **A `Site` declares the value** (a repo-relative path plus the identifier declared in it) and is
@@ -93,7 +94,7 @@ that last question to have an answer.
   matches rather than a floor, because a floor cannot notice the far side has grown past it and so
   widens itself by however much the tree drifted; a count below 1 is refused, zero being a mention
   asking the value to be absent. It is opt in, and the survey that set it is in the ADR: three of
-  the seventeen registered mentions are counted, `Message.tsx` at 2 (the `className` and the
+  the twenty-six registered mentions are counted, `Message.tsx` at 2 (the `className` and the
   `aria-label` of one chip), `overlay.css`'s `:not([{value}="0"])` at 2 (the two section share
   caps, whose handover is symmetric or nothing), and `overlay.css`'s `var(--roll)` at 2 (the two
   rules that must land WITH a roll, which is the set the entry's own reason names), while the bare
@@ -103,7 +104,8 @@ that last question to have an answer.
   check does not.
   **`Relation`** is `EQUAL` by default; `ORDERED` holds an entry's sites to non-decreasing order
   in registry order, for a bound that must sit under another rather than match it. An ordering
-  compares numbers only (a string under one is a fault), and it may carry no mentions, there being
+  compares integers only (a string under one is a fault, and so is a decimal, which is text here
+  and would sort `10.0` under `9.0`), and it may carry no mentions, there being
   no single value to spell. `MEMBER` is the third and it reads registry order too: every site but
   the last must declare a value the last site's collection carries, which is the shape of a value
   one tree produces and another accepts a set of (the body's `CAPTURE_MIME` inside the brain's
@@ -114,11 +116,20 @@ that last question to have an answer.
   editing either side alone fails and a deliberate change is a change to all of them.
   `proto/body.proto` is not the source: protobuf has no constant, so a value could only sit
   there as a comment, which is one more uncoupled copy. Values are compared after reduction,
-  so `6291456` and `6 * 1024 * 1024` tie; the three forms that reduce are a product of integer
-  literals, a plain double-quoted string, and a one-line `frozenset` of those strings, which is
+  so `6291456` and `6 * 1024 * 1024` tie; the four forms that reduce are a product of integer
+  literals, a plain double-quoted string, a one-line `frozenset` of those strings, which is
   how this repo spells an allow-list and is what a membership is decided against (a set literal
   is mutable and a multi-line spelling never reaches the reducer, a declaration being captured one
-  line at a time). `DECLARATIONS` holds one declaration syntax
+  line at a time), and a decimal literal.
+  **A decimal reduces to its digits rather than to a number** (ADR-0029 decimal addendum), which is
+  the one place the reducer stops short of arithmetic: `5` and `5.0` are one number and two
+  spellings, and the spelling is what a mention needs, a needle rendered as `5` finding nothing in
+  `${CORTEX_BODY_CALL_TIMEOUT_S:-5.0}`. So a decimal becomes a `values.Digits`, its own type so it
+  cannot tie to a string literal spelling the same characters, and it compares as text: a site that
+  drops its point stops agreeing, where a float would have kept agreeing while every place spending
+  it went unfound. Digits, one point, digits, with `_` grouping either run; a leading or trailing
+  point, a sign, an exponent and a language's own type suffix are refused with everything else the
+  reducer will not guess at. `DECLARATIONS` holds one declaration syntax
   per language (`.py`, `.rs`, `.ts`), matching module-level and item-level constants only: the
   Python and TypeScript forms are anchored at column 0, so an indented `const` is a local and not
   a second declaration of the module's constant. A mention needs no declaration syntax, so its
@@ -374,7 +385,9 @@ that last question to have an answer.
   registry must exercise every `Relation` member and both kinds of place, since a comparator no
   entry uses is a gate that cannot fail. `test_the_registry_pins_at_least_one_occurrence_count`
   and `test_the_registry_spends_at_least_one_rendered_name` hold the two newest fields to the same
-  rule, a field no entry sets being a dead wire.
+  rule, a field no entry sets being a dead wire, and
+  `test_the_registry_reduces_at_least_one_decimal` holds the newest value form to it, a form the
+  real tree never spells being unexercised in exactly the same way.
 - `bindcheck.py` does the same (`test_the_repo_itself_is_clean`), with a guard on the guard:
   `test_the_repo_really_declares_binds_for_this_gate_to_have_checked` fails if the reader ever
   finds fewer than six defaulted bind sources under `docker/`, so the clean verdict cannot go
