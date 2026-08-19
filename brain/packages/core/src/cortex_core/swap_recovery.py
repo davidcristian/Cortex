@@ -122,11 +122,25 @@ async def converge_residency(
 
     The restart runs **after** the ``except``, also deliberately: a host that could not be reached
     was never asked to run a peer, and this record's one rule is that only a refusal marks.
+
+    The clearing and the settling are two ``try`` blocks because they are about two models, and a
+    boot that says only that the host failed leaves an operator to read a traceback for the one
+    fact they need first: which tier the daemon refused. Splitting them is also what makes the
+    404 arm say what it has always meant. ``_clear_deep`` answers that case itself, so the arm
+    below can only ever be the cortex, and the model it names is now the model of the one call
+    the block wraps rather than a fact a reader has to go and confirm elsewhere.
     """
     for peer in plan.evict_models:
         await _clear_peer(host, peer)
     try:
         await _clear_deep(host, plan.brain_model)
+    except ModelHostError:
+        _logger.exception(
+            "the model host failed while clearing the deep model at boot",
+            extra={"model": plan.brain_model},
+        )
+        return False
+    try:
         settled = await _settle_cortex(host, plan, clock=clock, sleeper=sleeper)
     except ModelNotHostedError:
         _logger.exception(
@@ -135,7 +149,10 @@ async def converge_residency(
         )
         return False
     except ModelHostError:
-        _logger.exception("the model host was unreachable during boot recovery")
+        _logger.exception(
+            "the model host was unreachable during boot recovery",
+            extra={"model": plan.cortex_model},
+        )
         return False
     await restart_evicted(host, plan, tiers)
     return settled

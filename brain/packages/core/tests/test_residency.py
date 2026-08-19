@@ -82,6 +82,17 @@ reddens 9: the three cases here that watch a restart or read the op log, plus
 ``test_swap_conductor.py``'s clean handoff and four chaos boundaries, all of which pin the ask as
 the first thing a swap does to the host. Dropping the seed from ``publish_boot_residency`` reddens
 2, both restart cases here, since a comparison with nothing on the other side of it never fires.
+
+Three more for the model a restore failure names, measured once the eviction and the start stopped
+sharing a ``try``, each applied to production code alone with the whole brain workspace re-run:
+
+- naming the cortex on the eviction's failure reddens **1**,
+  ``test_a_restore_that_cannot_evict_the_deep_model_names_it_and_not_the_cortex``;
+- naming the swapped-in model on the cortex's own failure reddens **1**,
+  ``test_a_restore_that_fails_once_retries_and_succeeds``, which is what the fields added to that
+  case's assertions buy: on the message alone it stayed green;
+- putting the eviction, the start and the gate back under one ``try`` reddens **1**, the eviction
+  case, which is the only one whose failure the collapsed arm would name wrongly.
 """
 
 import asyncio
@@ -113,6 +124,7 @@ from cortex_core import (
     ScriptedModelHost,
     SwapFailedError,
     SwappingModelManager,
+    record_fields,
 )
 
 _CORTEX_URL = "http://llama-cortex:8080"
@@ -669,9 +681,52 @@ async def test_a_restore_that_fails_once_retries_and_succeeds(
     # Each record is pinned to the module that emits it, not only to its text: the attempt is
     # reported where the attempt is made and the retry where the retries are counted, so a
     # message that drifts to another module stops satisfying this test.
-    assert [(record.name, record.message) for record in caplog.records] == [
-        ("cortex_core.residency_moves", "the model host failed while restoring the cortex"),
-        ("cortex_core.residency_restore", "restoring the cortex failed; retrying"),
+    # The fields ride along, because the message alone no longer says which model the host
+    # refused: this failure is the cortex's start, and a line naming the other one would send an
+    # operator after a tier that is already off the card.
+    assert [(record.name, record.message, record_fields(record)) for record in caplog.records] == [
+        (
+            "cortex_core.residency_moves",
+            "the model host failed while restoring the cortex",
+            {"model": "cortex"},
+        ),
+        (
+            "cortex_core.residency_restore",
+            "restoring the cortex failed; retrying",
+            {"model": "cortex", "attempt": 1},
+        ),
+    ]
+
+
+async def test_a_restore_that_cannot_evict_the_deep_model_names_it_and_not_the_cortex(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The other model a restore can fail about, and the reason its ``try`` is its own.
+
+    The swap back has two subjects: the model it is taking off the card and the cortex it is
+    putting back. This failure is the first of them, one call before the cortex is asked about at
+    all, so the line names the deep model. The retry then succeeds, which is what makes this the
+    ordinary case rather than an outage: a stop that loses one race must not be reported as the
+    usual assistant having failed to come back.
+    """
+    host = ScriptedModelHost(running=["cortex"], fail_once={("stop", "brain"): "still reaping"})
+    manager = _manager(host)
+    with caplog.at_level(logging.WARNING):
+        async with manager.swap_scope("brain"):
+            pass
+    assert host.running == {"cortex"}
+    assert host.calls.count(("stop", "brain")) == 2  # the refused eviction, then the retry
+    assert [(record.name, record.message, record_fields(record)) for record in caplog.records] == [
+        (
+            "cortex_core.residency_moves",
+            "the model host failed while taking the swapped-in model off the card",
+            {"model": "brain"},
+        ),
+        (
+            "cortex_core.residency_restore",
+            "restoring the cortex failed; retrying",
+            {"model": "cortex", "attempt": 1},
+        ),
     ]
 
 

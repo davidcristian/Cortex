@@ -52,6 +52,20 @@ measured mutations, one per direction:
 - answering ``True`` where a cortex the daemon does not serve is caught reddens **1**,
   ``..._is_amber_and_says_which_it_is``, which is the guard on the whole change: the tolerance is
   for a tier nothing can be resident under, never for the model that has to be.
+
+Three more for the model a failure names, measured once the clearing and the settling stopped
+sharing a ``try``, each applied to production code alone with the whole brain workspace re-run:
+
+- naming the cortex on the deep model's clearing reddens **2**,
+  ``..._an_unreachable_host_does_not_fail_the_boot`` and
+  ``..._a_deep_model_that_really_will_not_stop_still_fails_the_boot``, the two cases that fail at
+  the deep model;
+- naming the deep model on the cortex's own failure reddens **1**,
+  ``..._a_host_that_fails_at_the_cortex_names_the_cortex_and_not_the_deep_model``;
+- putting both calls back under one ``try`` reddens **2**, the same two deep-model cases and
+  **not** the cortex one, which is why they are the pair that has to exist: a cortex that fails
+  last is the model a collapsed arm happens to name, so a suite holding only the new case would
+  let the collapse back in.
 """
 
 import logging
@@ -71,10 +85,21 @@ from cortex_core import (
     StandingTiers,
     SystemClock,
     converge_residency,
+    record_fields,
     recover_handoffs,
 )
 
 _TIER = "subagent-gpu"
+
+
+def _said(caplog: pytest.LogCaptureFixture) -> list[tuple[str, dict[str, object]]]:
+    """What each line says and what it carries, read the way the formatter reads a record.
+
+    The message alone is not the assertion these cases want any more. A boot failure's whole job
+    is to name the tier the host refused, and that name rides as a field, so a check on the
+    sentence would pass just as well on a line that named the other model.
+    """
+    return [(record.message, record_fields(record)) for record in caplog.records]
 
 
 async def _recover(
@@ -190,6 +215,11 @@ async def test_an_unreachable_host_does_not_fail_the_boot(
     Dead to every call, which is what makes the last assertion mean something: this plan names a
     peer tier and this host would refuse to start it, so a convergence that asked anyway would
     have something to record.
+
+    The dead call this reaches first is the deep model's ``status``, so the line names the deep
+    model. That is the point of the narrowing: a host that is dead to everything is still refusing
+    one call at a time, and the boot says which one it was rather than which one it might have
+    been.
     """
     host = ScriptedModelHost(
         fail={
@@ -204,8 +234,8 @@ async def test_an_unreachable_host_does_not_fail_the_boot(
         )
     # Nothing was observed about the cortex, and the honest report of an unobserved GPU is amber.
     assert settled is False
-    assert [record.message for record in caplog.records] == [
-        "the model host was unreachable during boot recovery"
+    assert _said(caplog) == [
+        ("the model host failed while clearing the deep model at boot", {"model": "brain"})
     ]
     # And nothing was observed about the peers either: a host that could not be reached was never
     # asked to run one, and this record's one rule is that only a refusal marks.
@@ -311,8 +341,10 @@ async def test_a_deep_model_that_really_will_not_stop_still_fails_the_boot(
         settled = await _recover(RecordingHandoffStore(), host)
     assert settled is False
     assert ("status", "cortex") not in host.calls
-    assert [record.message for record in caplog.records] == [
-        "the model host was unreachable during boot recovery"
+    # The wedged tier is the deep model, and the line says so: the cortex was never even asked
+    # about here, so a failure naming it would be an invention.
+    assert _said(caplog) == [
+        ("the model host failed while clearing the deep model at boot", {"model": "brain"})
     ]
 
 
@@ -329,8 +361,33 @@ async def test_a_cortex_the_daemon_does_not_serve_is_amber_and_says_which_it_is(
     with caplog.at_level(logging.ERROR, logger="cortex_core.swap_recovery"):
         settled = await _recover(RecordingHandoffStore(), host)
     assert settled is False
-    assert [record.message for record in caplog.records] == [
-        "the model host does not serve the cortex this brain names, so nothing can"
+    # The one arm that could always name its model, and now the only call it wraps is the
+    # cortex's, so the name is structural rather than a fact read out of another function.
+    assert _said(caplog) == [
+        (
+            "the model host does not serve the cortex this brain names, so nothing can",
+            {"model": "cortex"},
+        )
+    ]
+
+
+async def test_a_host_that_fails_at_the_cortex_names_the_cortex_and_not_the_deep_model(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The other half of the narrowing, and the case the old single ``try`` could not tell apart.
+
+    The deep model is already off the card, so the clearing passes and the refusal lands on the
+    cortex's own ``status``. One block ago this said the same sentence as a wedged deep model and
+    named nothing; naming the deep model here would send an operator to restart a tier that is
+    behaving perfectly.
+    """
+    host = ScriptedModelHost(fail={("status", "cortex"): "supervisor unreachable"})
+    with caplog.at_level(logging.ERROR, logger="cortex_core.swap_recovery"):
+        settled = await _recover(RecordingHandoffStore(), host)
+    assert settled is False
+    assert ("status", "brain") in host.calls  # the clearing really did run and really did pass
+    assert _said(caplog) == [
+        ("the model host was unreachable during boot recovery", {"model": "cortex"})
     ]
 
 

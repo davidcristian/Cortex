@@ -2512,8 +2512,11 @@ is a fact about where delegated work runs. That asymmetry has a residue, recorde
 
 The first two share a line on purpose, which the `RESIDENCY_BOOT_FAILED` docstring already argued:
 nothing was observed either way and the operator's next move is the same, so they are separated in
-the log (`the model host was unreachable during boot recovery` against `the cortex is not serving
-after boot recovery`) rather than on the dot. The third is the one that had to become tellable, and
+the log rather than on the dot. An unreachable sidecar says which call it refused and which model
+that call was about (`the model host failed while clearing the deep model at boot` when the
+clearing is where it died, `the model host was unreachable during boot recovery` when the cortex
+is, both carrying a `model` field), against `the cortex is not serving after boot recovery` for a
+sidecar that answered. The third is the one that had to become tellable, and
 two independent things keep it apart from the other two. The record is written only where a `start`
 was refused, and an unreachable host returns before that call is ever made, so nothing is marked
 about peers nobody could ask about. And `StandingTiers.note_on` annotates only a **serving** report,

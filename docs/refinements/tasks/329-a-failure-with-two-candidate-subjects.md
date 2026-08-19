@@ -1,6 +1,6 @@
 # A failure that wraps two calls names neither model
 
-**Status:** open, actionable
+**Status:** landed 2026-08-19
 **Area:** inference-model-manager
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
 
@@ -29,3 +29,22 @@ naming a model were simply never considered.
 - 2026-08-19: Opened by the close of
   [326](326-a-line-that-names-nothing-it-happened-to.md), which judged these two honest as they
   stand and recorded why a field would have been an invention.
+- 2026-08-19: Landed as the ADR-0038 narrowed-block addendum. The open question was answered
+  against the code and **both** blocks were narrowed. The asymmetry this entry noticed turned out
+  to argue for narrowing rather than against it: boot recovery's `ModelNotHostedError` arm was
+  right about the cortex only because `_clear_deep` swallows that error one function away, and
+  splitting the block makes it right by shape. So `converge_residency` clears under one `try` that
+  says `the model host failed while clearing the deep model at boot` with `model` set to the deep
+  tier, and settles under another that keeps `the model host was unreachable during boot recovery`
+  with the cortex on it; `restore_standing` evicts under one that says `the model host failed while
+  taking the swapped-in model off the card` with the handoff's own model, and starts and gates
+  under another that keeps `the model host failed while restoring the cortex` with the cortex. Both
+  verdicts, the boot bool and the restore bool, are byte for byte what they were. One test was
+  added per new branch and the two existing boot cases now assert the field as well as the
+  sentence, since both of them fail at the deep model and a check on the words alone would pass on
+  a line naming the other tier. Six mutations were measured over the whole brain workspace, which
+  is the table in the addendum. Not verified live on purpose: this is pure policy over the injected
+  port, so a bring-up would run the same branch through a slower host. `docs/adr/ADR-0030` and
+  `docs/modules/brain-core.md` were corrected where they described the old single line. What it
+  opened is [330](330-a-bool-loses-which-model-failed.md), the bool that loses which of the two a
+  restore attempt failed on.
