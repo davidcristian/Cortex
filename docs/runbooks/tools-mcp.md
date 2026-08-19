@@ -93,6 +93,12 @@ default (`CORTEX_TOOLS_HANDSHAKE_SAMPLES`), about 16 s against the shipped sidec
 With both up, `docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.tools.yml up` runs the
 brain with `CORTEX_TOOLS_BACKEND=mcp`, so a turn that needs a file calls the tool, the dispatch
 is audited (one `cortex.tools.audit` line per call), and the result is fed back to the model.
+That line is a bare `tool.invocation` message followed by its fields, the tool's name, `ok`, the
+arguments, the result's `trust` and either `result_chars` or `error`, printed in name order by the
+formatter the process entry installs (ADR-0038 rendered-fields addendum). It used to carry a JSON
+copy of the same fields inside the message, which is what the trail needed back when the shipped
+handler printed no field at all; see [local-dev-wsl.md](local-dev-wsl.md) for how a line reads
+now and what it withholds.
 A real model that emits tool calls also needs the GPU compose up (`--jinja` is baked into its
 command). Validated 2026-07-03: with both up, a `Converse` turn asking for a file's contents made
 the resident gemma-4-12B natively emit `read_text_file` through the audited loop and answer with

@@ -1,6 +1,5 @@
 """LoggingRecallSink: the RecallAuditSink writing the recall trail to structured logs (ADR-0038)."""
 
-import json
 import logging
 
 from cortex_core import RecallAudit
@@ -37,5 +36,4 @@ class LoggingRecallSink:
             "dropped_omitted": audit.dropped.omitted,
             "at": audit.at.isoformat(),
         }
-        payload = json.dumps(fields, ensure_ascii=False, sort_keys=True, default=str)
-        _logger.info("memory.recall %s", payload, extra=fields)
+        _logger.info("memory.recall", extra=fields)

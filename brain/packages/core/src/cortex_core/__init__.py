@@ -1,6 +1,7 @@
 """Cortex brain pure core: typed logic and ports, no I/O."""
 
 from ._surface.fakes import *
+from ._surface.logs import *
 from ._surface.memory import *
 from ._surface.ports import *
 from ._surface.residency import *

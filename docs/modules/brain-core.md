@@ -7,10 +7,10 @@ model's phase, and the escalating turn wrapper, ADR-0030). No I/O, ever. This is
 (`tool_loop.stream_tool_loop`) that both the cortex turn and each subagent run (ADR-0010).
 
 **Public contract** (everything importable from `cortex_core`; the barrel's re-exports are the
-API. Since 2026-08-06 the barrel does not list the names itself: they live in eight area
+API. Since 2026-08-06 the barrel does not list the names itself: they live in nine area
 sub-barrels under `cortex_core._surface` (`ports`, `turn`, `tools`, `subagents`, `memory`,
-`schedule`, `residency`, `fakes`), each importing its area's names from their defining modules
-and declaring them in its own `__all__`, and `cortex_core/__init__.py` re-exports all eight
+`schedule`, `residency`, `logs`, `fakes`), each importing its area's names from their defining
+modules and declaring them in its own `__all__`, and `cortex_core/__init__.py` re-exports all nine
 wholesale. Nothing outside the package names `_surface`: `from cortex_core import X` reaches
 every public name, as it always did. A new public name is added to its area's file, which is
 where the 300-line cap now applies, and the choice of area is the only judgement it asks for.
@@ -1607,8 +1607,10 @@ Use-case:
   that could not be asked (the error as `exc_info`) and one for a reply no order could be read out
   of, that one carrying `capped` from a `StopLedger` it hands `drain_text` and `chars`, the reply's
   length, since a rank the bound cut and a model that ended in the wrong shape arrive as the same
-  text and want opposite fixes. Both readings ride the message as well as the record, the shipped
-  handler printing no `extra`. The other two verdict-less exits are silent on purpose: an empty
+  text and want opposite fixes. Both ride the record alone, the process entry's formatter being
+  what renders them onto the line (ADR-0038 rendered-fields addendum); they used to be spelled
+  into the message too, back when the shipped handler printed no `extra`. The other two
+  verdict-less exits are silent on purpose: an empty
   pool is a no-op, and a refusal is a judgement that the trail already reports as `demur`, so every
   line from the module means the configured rank did not run. Selected at the composition root via `CORTEX_MEMORY_RECALL`
   (`raw`, `reranked`, `mmr`, `recency_mmr`, `judge`, the last of them the default since the ADR-0038
@@ -2071,6 +2073,41 @@ Use-case:
   name the inner registry currently advertises as gated (live walk, no cached view) as
   `ToolNotFoundError`, failing closed as a real layer. Wraps the subagent tool subset in the wiring
   so a subagent is never *handed* an outbound/gated tool, whatever the shared registry grows.
+
+Log rendering (ADR-0038 rendered-fields addendum; `log_fields.py` + `log_format.py`):
+
+- `configure_logging(level, *, style=DEFAULT_LOG_FORMAT)` installs the root handler a process logs
+  through. **Called only from a process entry**, never from a library: it is the one function in
+  the core that changes process-wide state, and it forces its handler on, an entry stating what
+  this process logs like rather than asking. Both brain entries call it
+  (`cortex_orchestrator.config_logging.configure_from_env` and
+  `cortex_model_manager.server.main`), and without it every `extra` field this repo attaches is
+  written onto a record and dropped, which is what the stdlib's own format does.
+- `build_formatter(style)` returns the rendering `style` names, or raises `UnknownLogFormatError`
+  naming the ones that exist. `LOG_FORMATS` is the registry it reads: `PLAIN_FORMAT` (`"plain"`,
+  and `DEFAULT_LOG_FORMAT`) builds `PlainFormatter`, `PACKED_FORMAT` (`"packed"`) builds
+  `PackedFormatter`.
+- `PlainFormatter` prints `logging.BASIC_FORMAT` and then the record's own fields as `key=value`
+  pairs in name order. The half before the fields is byte for byte what `basicConfig` printed, so
+  the change is additive and every runbook grep pattern still matches. Fields are appended in
+  `formatMessage`, the hook the stdlib calls *before* it appends a traceback, so a warning that
+  carries both prints its fields on the first line.
+- `PackedFormatter` prints one JSON object per line: `level`, `logger`, `message`, an `exception`
+  when the record carries one, and the fields under their own `fields` key, so no attached field
+  can shadow the other three.
+- `record_fields(record)` is what both read: every attribute not in `RESERVED_ATTRS`, which is the
+  stdlib's own set plus the `message`/`asctime` pair a `Formatter` adds while it runs.
+- **Secrets are withheld by the formatter, not by its callers** (AGENTS.md gate 5). A field whose
+  name contains any of `SECRET_NAMES` (`token`, `password`, `passwd`, `secret`, `credential`,
+  `apikey`, `api_key`, `authorization`, `cookie`, case-insensitively) renders `REDACTED`
+  (`<redacted>`) instead of its value, the key still printed so a withheld field reads differently
+  from a missing one. The match is a substring, so `max_tokens` is withheld too, which is the
+  direction of error a denylist is chosen for. Separately, `redact_urls` strips the credential
+  from every URL in the **whole rendered line**, message and traceback included, since
+  `redis://:pw@redis:6379` is what a connection error prints.
+- `render_value` writes a scalar the way Python does, so `capped=True` keeps the spelling the
+  runbooks read, and anything else as compact JSON, so a list of ranked hits stays parseable. A
+  string is quoted exactly when whitespace or a quote of its own would run it into its neighbour.
 
 Reference implementations (pure, shipped in core; the runtime wiring until Slice 4):
 

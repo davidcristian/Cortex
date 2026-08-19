@@ -429,7 +429,14 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   reproduces the time to first token independently (0.539 s against 0.515 s, null arm spanning
   zero) and revises the whole-turn figure upward to 0.979 s, almost all of the excess sitting in
   the one question memory cannot answer, where a rank that declines leaves the model saying at
-  length that it does not know.
+  length that it does not know. **The rendered-fields addendum** reaches every line the brain
+  prints rather than only this ADR's: both process entries now install a formatter that renders
+  whatever a record carries beyond the standard attributes, so the `extra` fields this repo has
+  always attached stop being written and dropped, the three adapters that had hand-rolled their
+  own copy into the message stop doing it, and the formatter itself withholds a field named for a
+  secret and strips a credential out of any URL on the line. `plain` ships because the operator
+  here reads a terminal; `packed` is one JSON object per line for a deployment that collects, and
+  `CORTEX_LOG_FORMAT` picks between them.
 
 - [ADR-0039: One file per backlog task, and an index nobody writes by hand](adr/ADR-0039-backlog-per-task.md):
   the two backlogs had reached 15,021 lines across 24 files, and the same status was written in

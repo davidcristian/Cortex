@@ -6,6 +6,7 @@ import httpx
 import uvicorn
 from starlette.applications import Starlette
 
+from cortex_core import configure_logging
 from cortex_model_manager.api import build_app
 from cortex_model_manager.children import AsyncioChildProcesses
 from cortex_model_manager.config import ModelHostConfig
@@ -50,9 +51,6 @@ def build_model_host(config: ModelHostConfig) -> Starlette:
 def main() -> None:
     """Serve the control API until the container stops. Config errors fail here, loudly."""
     config = ModelHostConfig()
-    # Handler config belongs only at a process entry, and this is the sidecar's: the lifecycle
-    # trail is the whole diagnosis of a swap that went wrong, so a dropped INFO record is a
-    # missing answer rather than missing noise.
-    logging.basicConfig(level=config.log_level.upper())
+    configure_logging(config.log_level.upper(), style=config.log_format)
     app = build_model_host(config)
     uvicorn.run(app, host=config.bind_host, port=config.bind_port, log_level=config.log_level)

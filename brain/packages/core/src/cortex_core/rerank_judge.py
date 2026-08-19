@@ -134,10 +134,7 @@ class JudgeRecallPolicy:
         order = parse_order(raw, pool_size=len(hits), k=k)
         if order is None:
             _logger.warning(
-                "the model returned no usable recall order; falling back to the unjudged"
-                " ranking: capped=%s chars=%d",
-                stops.capped,
-                len(raw),
+                "the model returned no usable recall order; falling back to the unjudged ranking",
                 extra={"pool": len(hits), "k": k, "capped": stops.capped, "chars": len(raw)},
             )
             return await self._fallback.select(hits, query=query, now=now, k=k)

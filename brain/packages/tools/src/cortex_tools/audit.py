@@ -1,6 +1,5 @@
 """LoggingAuditSink: the ToolAuditSink that writes the tool audit trail to structured logs."""
 
-import json
 import logging
 
 from cortex_core import ToolInvocation
@@ -24,5 +23,4 @@ class LoggingAuditSink:
             fields["result_chars"] = len(invocation.detail)
         else:
             fields["error"] = invocation.detail
-        payload = json.dumps(fields, ensure_ascii=False, sort_keys=True, default=str)
-        _logger.info("tool.invocation %s", payload, extra=fields)
+        _logger.info("tool.invocation", extra=fields)

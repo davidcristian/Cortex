@@ -1,14 +1,12 @@
-"""`python -m cortex_orchestrator` serves the brain's gRPC seam.
-
-Env: CORTEX_SEAM_HOST/PORT (bind), CORTEX_REDIS_URL (session state),
-CORTEX_MODEL_CORTEX (logical cortex model id). Wiring: `wiring.run_from_env`.
-"""
+"""`python -m cortex_orchestrator` serves the brain's gRPC interface."""
 
 import asyncio
-import logging
 
+from cortex_orchestrator.config_logging import configure_from_env
 from cortex_orchestrator.wiring import run_from_env
 
 if __name__ == "__main__":  # pragma: no cover - module entry guard, reachable only via -m
-    logging.basicConfig(level=logging.INFO)
+    # Installs the formatter that renders each record's own fields. Without it the stdlib
+    # prints the message alone and every ``extra`` this repo attaches is dropped.
+    configure_from_env()
     asyncio.run(run_from_env())

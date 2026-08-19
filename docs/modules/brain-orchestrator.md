@@ -161,6 +161,14 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   the request stays byte-identical. The composition root reads it once and hands the value to both
   `TurnEngine` and `BrainPhase`, one turn keeping one bound across a handoff. The two are set
   together or not at all: a cap with thinking left on empties the reply rather than shortening it.
+- `LoggingConfig` uses env prefix `CORTEX_LOG_` (`config_logging.py`, ADR-0038 rendered-fields
+  addendum): `CORTEX_LOG_FORMAT` (`plain`) picks how a line is written, `packed` being one JSON
+  object per line for a deployment that collects rather than reads. `configure_from_env()` is what
+  `__main__` calls, and it is the whole of what the entry guard does about logging: INFO is
+  deliberately **not** a knob here, since the tool audit trail and the recall trail both log at it
+  and a deployment that turned the level down would silently empty a record it is obliged to keep.
+  A rendering this build does not carry raises `UnknownLogFormatError` at the entry rather than
+  falling back to one nobody asked for.
 - `SwapConfig` uses env prefix `CORTEX_` (`config_swap.py`, ADR-0030), the brain handoff's one
   switch and the topology it enables: `escalation: bool = False` (`CORTEX_ESCALATION`) gates the
   whole capability, so CI and the GPU-less loop are byte for byte what they were without it;
@@ -763,7 +771,8 @@ The service:
   below receives ports. Server construction stays injectable for tests.
 - Seam names are imported only via the `cortex_seam` facade, never from `_generated`.
 - Fully typed, pyright strict clean; 100% line+branch coverage. The `__main__` guard is
-  the only coverage pragma. Tests are loopback-only (ephemeral ports, fakeredis), CI-safe.
+  the only coverage pragma, which is why the logging decision lives in `config_logging.py` and
+  the guard holds one call to it. Tests are loopback-only (ephemeral ports, fakeredis), CI-safe.
 
 **Dependencies.** cortex-core, cortex-body-client (the `GrpcBodyGateway` dial, ADR-0023),
 cortex-inference, cortex-seam, cortex-session (workspace), grpcio (`grpc.aio`), httpx (the

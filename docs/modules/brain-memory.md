@@ -10,8 +10,10 @@ pool (the one hard rule).
 **Public contract** (everything importable from `cortex_memory`; `__all__` is the API):
 
 - `LoggingRecallSink()` is a `RecallAuditSink` (`audit.py`, ADR-0038). `record(audit)` writes one
-  `cortex.memory.recall` line per recall, fields both JSON-serialized into the message and set as
-  `extra` attributes: the session, the query's *length*, the pool size, how many candidates were
+  `cortex.memory.recall` line per recall, its fields set as `extra` attributes and rendered onto
+  the line by the process entry's formatter (ADR-0038 rendered-fields addendum; they used to be
+  JSON-serialized into the message as well, because the shipped handler printed no `extra`): the
+  session, the query's *length*, the pool size, how many candidates were
   available to it, `k`, the rank basis, whether
   keys on that basis may be compared, each kept hit's `id` / `score` / `key` / `tainted`, the
   candidates the rank dropped, and the time. It carries **no text at all**, neither the query nor a
