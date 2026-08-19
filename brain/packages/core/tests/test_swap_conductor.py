@@ -92,6 +92,7 @@ from cortex_core import (
     InMemoryBodyGateway,
     InMemoryToolRegistry,
     ModelHostState,
+    PlainFormatter,
     RecordingAuditSink,
     RecordingConfirmer,
     ScriptedModelHost,
@@ -274,9 +275,12 @@ async def test_a_deployment_whose_host_has_no_deep_tier_is_refused_before_the_dr
     assert live.host.running == {"cortex"}  # the cortex was never unloaded, so never reloaded
     assert live.handoffs.states == []  # no record was written, so none has to be settled
     assert live.backend.calls == 0
-    # The operator's half: the deployment is misconfigured and nothing else says so.
+    # The operator's half: the deployment is misconfigured and nothing else says so. The two env
+    # names are prose and are read off the message; the tier's own name rides the record, so it is
+    # read off the line the entry point's formatter renders, which is where it now prints.
     assert "CORTEX_MODEL_FILE_BRAIN" in caplog.text
     assert "CORTEX_ESCALATION" in caplog.text
+    assert "model=brain" in " ".join(PlainFormatter().format(r) for r in caplog.records)
 
 
 async def test_a_host_that_gains_the_deep_tier_stops_refusing_the_handoff() -> None:

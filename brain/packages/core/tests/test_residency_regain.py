@@ -58,6 +58,7 @@ from cortex_core import (
     ModelUnavailableError,
     PlacementRequest,
     PlacementTarget,
+    PlainFormatter,
     RecordingSleeper,
     ResidencyPlan,
     ResidencyRestoreError,
@@ -72,12 +73,9 @@ _TIER = "subagent-gpu"
 _ENDPOINTS = {_CORTEX: "http://llama-cortex:8080", _DEEP: "http://llama-brain:8081"}
 _REGAIN_LOGGER = "cortex_core.residency_regain"
 _REGAINED = "the cortex is serving again, so residency was regained without a restart"
-_NO_CORTEX_READING = (
-    "the model host could not be asked whether the cortex is serving again: error=%s"
-)
-_NO_DEEP_READING = (
-    "the model host could not be asked whether the deep model is still resident: error=%s"
-)
+_NO_CORTEX_READING = "the model host could not be asked whether the cortex is serving again"
+_NO_DEEP_READING = "the model host could not be asked whether the deep model is still resident"
+_REFUSED = "connection refused"
 
 
 class _FixedClock:
@@ -124,6 +122,20 @@ def _stalled_host(**overrides: object) -> ScriptedModelHost:
 def _regain_log(caplog: pytest.LogCaptureFixture) -> list[str]:
     """Only this module's own lines: every case here first drove a swap that logged its failure."""
     return [record.msg for record in caplog.records if record.name == _REGAIN_LOGGER]
+
+
+def _regain_lines(caplog: pytest.LogCaptureFixture) -> list[str]:
+    """The same lines as an operator reads them, fields and all.
+
+    The cause used to be spelled into the message as well as attached to the record, so a test
+    could read it off the message; the entry point's formatter renders whatever a record carries,
+    which made that second copy a duplicate. It is asserted here instead, where it now prints.
+    """
+    return [
+        PlainFormatter().format(record)
+        for record in caplog.records
+        if record.name == _REGAIN_LOGGER
+    ]
 
 
 async def _give_up(manager: SwappingModelManager) -> None:
@@ -256,7 +268,7 @@ async def test_a_host_that_cannot_be_asked_about_the_cortex_publishes_nothing(
     A pass that read a transport failure as a serving cortex would hand out leases onto a card it
     has no evidence about, every interval, on the one path where the evidence is the whole point.
     """
-    host = ScriptedModelHost(running=[_CORTEX], fail={("status", _CORTEX): "connection refused"})
+    host = ScriptedModelHost(running=[_CORTEX], fail={("status", _CORTEX): _REFUSED})
     manager = _manager(host)
     await _give_up(manager)
     host.calls.clear()
@@ -264,21 +276,27 @@ async def test_a_host_that_cannot_be_asked_about_the_cortex_publishes_nothing(
         await manager.heal_residency()
     assert host.calls == [("status", _CORTEX)]
     assert manager.residency() == RESIDENCY_LOST
-    assert _regain_log(caplog) == [_NO_CORTEX_READING]
+    # The whole line, so the cause and the tier are pinned where they now print rather than in a
+    # message that used to spell them a second time.
+    assert _regain_lines(caplog) == [
+        f'DEBUG:{_REGAIN_LOGGER}:{_NO_CORTEX_READING} error="{_REFUSED}" model={_CORTEX}'
+    ]
 
 
 async def test_a_host_that_cannot_be_asked_about_the_deep_model_publishes_nothing(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """The same posture one reading later: an unanswered deep tier is not a cleared one."""
-    host = _stalled_host(fail={("status", _DEEP): "connection refused"})
+    host = _stalled_host(fail={("status", _DEEP): _REFUSED})
     manager = _manager(host)
     await _give_up(manager)
     host.set_status(_CORTEX, None)
     with caplog.at_level(logging.DEBUG, logger=_REGAIN_LOGGER):
         await manager.heal_residency()
     assert manager.residency() == RESIDENCY_LOST
-    assert _regain_log(caplog) == [_NO_DEEP_READING]
+    assert _regain_lines(caplog) == [
+        f'DEBUG:{_REGAIN_LOGGER}:{_NO_DEEP_READING} error="{_REFUSED}" model={_DEEP}'
+    ]
 
 
 async def test_a_handoff_that_begins_mid_pass_wins_the_publish() -> None:

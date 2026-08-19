@@ -56,10 +56,8 @@ async def is_unhosted(host: ModelHost, model: str) -> bool:
         return True
     except ModelHostError as err:
         _logger.warning(
-            "the model host could not be asked whether it serves %r, so the handoff was not "
-            "refused on that ground: error=%s",
-            model,
-            err,
+            "the model host could not be asked whether it serves this model, so the handoff was "
+            "not refused on that ground",
             extra={"model": model, "error": str(err)},
         )
     return False
@@ -161,10 +159,7 @@ async def _refuse_a_load_the_card_cannot_hold(
         )
         raise SwapFailedError(msg)
     _logger.info(
-        "the card has room for the deep model: model=%s needed_mib=%d free_mib=%d",
-        model,
-        plan.brain_vram_mib,
-        memory.free_mib,
+        "the card has room for the deep model",
         extra={
             "model": model,
             "needed_mib": plan.brain_vram_mib,
@@ -213,9 +208,7 @@ async def _stop_what_was_swapped_in(host: ModelHost, model: str) -> None:
         await host.stop(model)
     except ModelNotHostedError as err:
         _logger.warning(
-            "the model host does not serve %r, so there was nothing of it to stop: %s",
-            model,
-            err,
+            "the model host does not serve this model, so there was nothing of it to stop",
             extra={"model": model, "error": str(err)},
         )
 

@@ -70,9 +70,7 @@ def build_model_host(config: ModelHostConfig) -> Starlette:
     """
     supervisor, client = build_supervisor(config)
     _logger.info(
-        "model host configured: models=%s boot_model=%s",
-        list(supervisor.models),
-        config.cortex_model,
+        "model host configured",
         extra={"models": list(supervisor.models), "boot_model": config.cortex_model},
     )
     return build_app(

@@ -19,8 +19,8 @@ Distrust-green proofs, measured across ``packages/model_manager`` one mutation a
   parameterization of ``test_a_state_word_this_version_does_not_know_is_a_failure_not_a_guess``;
 - reporting READY whatever the sidecar said reddens 11, of which 4 are here and 7 are the shared
   contract suite's supervisor cases;
-- dropping the tier and the exit code from the FAILED log line's own message (leaving them in
-  ``extra``, which no stdlib formatter renders) reddens exactly 1,
+- dropping the tier and the exit code from the FAILED log line's ``extra``, which is the only
+  place they ride now that the entry's formatter renders a record's own fields, reddens exactly 1,
   ``test_a_failed_state_is_a_normal_answer_and_is_logged_with_its_detail``;
 - reading a partial set of control bounds as bounds (guarding only the first of the three terms)
   reddens 2, the negative-bound and bool-bound rows of
@@ -51,6 +51,7 @@ from cortex_core import (
     ModelHostError,
     ModelHostState,
     ModelNotHostedError,
+    PlainFormatter,
 )
 from cortex_model_manager import HttpModelHost
 
@@ -115,10 +116,12 @@ async def test_a_failed_state_is_a_normal_answer_and_is_logged_with_its_detail(
     assert await host.status("brain") is ModelHostState.FAILED
     record = caplog.records[-1]
     assert record.levelno == logging.ERROR
-    # The rendered text, not just the attributes: the brain's own formatter shows no ``extra``, so
-    # a message that did not name the tier and the exit code would carry the diagnosis nowhere.
-    assert record.getMessage() == (
-        "a hosted model process has failed: model=brain detail=the process exited with code 1"
+    # The whole rendered line, not just the attributes: the fields are the only place the tier and
+    # the exit code ride now, so an assertion on the message alone would pass over a line that
+    # carried the diagnosis nowhere.
+    assert PlainFormatter().format(record) == (
+        "ERROR:cortex_model_manager.adapter:a hosted model process has failed "
+        'detail="the process exited with code 1" model=brain'
     )
     assert record.__dict__["detail"] == "the process exited with code 1"
 

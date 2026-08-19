@@ -174,28 +174,27 @@ async def check_control_deadline(swap: SwapRuntime | None) -> SwapRuntime | None
     except ModelHostError as err:
         _logger.warning(
             "the model host could not be asked for its control bounds; the deadline pairing is "
-            "unchecked: deadline_s=%s error=%s",
-            deadline_s,
-            err,
+            "unchecked",
             extra={"deadline_s": deadline_s, "error": str(err)},
         )
         return swap
     if bounds is None:
         _logger.info(
-            "the model host reports no control bounds, so nothing bounds its stop to check "
-            "against: deadline_s=%s",
-            deadline_s,
+            "the model host reports no control bounds, so nothing bounds its stop to check against",
             extra={"deadline_s": deadline_s},
         )
         return swap
     if bounds.clears(deadline_s):
         _logger.info(
-            "the control deadline clears the model host's worst stop: deadline_s=%s worst_s=%s",
-            deadline_s,
-            bounds.worst_case_stop_s,
+            "the control deadline clears the model host's worst stop",
             extra={"deadline_s": deadline_s, "worst_s": bounds.worst_case_stop_s},
         )
         return swap
+    # The three readings above ride the record alone, because the process entry's formatter
+    # appends whatever a record carries and a second copy in the message would print each of them
+    # twice. This refusal is the one place the numbers stay in the prose: the same string is the
+    # exception's text, read where no formatter runs, and a caller told only that the pairing
+    # failed would have to go back to the logs to learn by how much.
     msg = (
         f"CORTEX_MODELHOST_TIMEOUT_S is {deadline_s} s and the model host's worst stop is "
         f"{bounds.worst_case_stop_s} s (probe {bounds.probe_timeout_s} s, grace "

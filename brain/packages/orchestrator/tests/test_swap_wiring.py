@@ -95,6 +95,7 @@ from cortex_core import (
     ModelHostState,
     PlacementRequest,
     PlacementTarget,
+    PlainFormatter,
     ScriptedModelHost,
     Sleeper,
     SubagentPlacer,
@@ -454,6 +455,12 @@ def _with_bounds(bounds: ControlBounds | None) -> SwapRuntime:
     return replace(runtime, host=ScriptedModelHost(running=["cortex"], control_bounds=bounds))
 
 
+def _only(caplog: pytest.LogCaptureFixture) -> logging.LogRecord:
+    """The single record the check emitted, so the shipped formatter can be run over it."""
+    (record,) = caplog.records
+    return record
+
+
 async def test_the_shipped_bounds_and_the_shipped_deadline_still_clear_each_other() -> None:
     """The two containers' defaults, compared as the running pair rather than as prose.
 
@@ -521,7 +528,11 @@ async def test_a_deadline_that_clears_the_worst_stop_is_wired_and_says_so(
     )
     with caplog.at_level(logging.INFO):
         await check_control_deadline(runtime)
-    assert "clears the model host's worst stop: deadline_s=60.0 worst_s=45.0" in caplog.text
+    assert "clears the model host's worst stop" in caplog.text
+    # The two numbers ride the record rather than the message, so the pair an operator greps for
+    # is read off the line the shipped formatter renders. ``caplog.text`` carries the message
+    # alone, and asserting the pair against it would pass only while the values were printed twice.
+    assert "deadline_s=60.0 worst_s=45.0" in PlainFormatter().format(_only(caplog))
     await swap_closer(runtime)()
 
 

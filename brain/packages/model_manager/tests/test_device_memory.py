@@ -22,7 +22,7 @@ import logging
 
 import pytest
 
-from cortex_core import DeviceMemory
+from cortex_core import DeviceMemory, PlainFormatter
 from cortex_model_manager import NoDeviceMemory, NvidiaSmiMemory
 
 _BINARY = "/usr/bin/nvidia-smi"
@@ -54,6 +54,17 @@ def _answering(
     return seen
 
 
+def _rendered(caplog: pytest.LogCaptureFixture) -> str:
+    """The one captured line as an operator reads it, fields and all.
+
+    The seam's readings ride their records as `extra` and the process entry's formatter is what
+    puts them on the line, so `caplog.text`, which renders no field, would pass over a warning
+    that reported nothing about the query it is warning about.
+    """
+    (record,) = caplog.records
+    return PlainFormatter().format(record)
+
+
 async def test_a_host_with_no_probe_reports_no_card_without_asking_anything() -> None:
     """The default a CPU-only deployment gets: an answer, not an error and not a guess."""
     assert await NoDeviceMemory().read() is None
@@ -78,6 +89,9 @@ async def test_more_than_one_visible_gpu_is_no_reading_rather_than_a_guess(
     with caplog.at_level(logging.WARNING, logger="cortex_model_manager.device_memory"):
         assert await NvidiaSmiMemory(_BINARY, 5.0).read() is None
     assert "exactly one visible GPU" in caplog.text
+    # How many were visible is a field now rather than a clause of the message, and a field is
+    # only worth attaching if it is rendered, so the count is read off the line an operator sees.
+    assert "rows=2" in _rendered(caplog)
 
 
 async def test_a_reading_that_is_not_two_integers_is_no_reading(
@@ -103,7 +117,10 @@ async def test_a_failed_query_is_no_reading_rather_than_an_error(
     _answering(monkeypatch, "", returncode=9)
     with caplog.at_level(logging.WARNING, logger="cortex_model_manager.device_memory"):
         assert await NvidiaSmiMemory(_BINARY, 5.0).read() is None
-    assert "exited with code 9" in caplog.text
+    assert _rendered(caplog) == (
+        "WARNING:cortex_model_manager.device_memory:"
+        f"the device memory query exited with a non-zero code binary={_BINARY} returncode=9"
+    )
 
 
 async def test_a_missing_binary_is_the_normal_answer_on_a_machine_with_no_gpu(

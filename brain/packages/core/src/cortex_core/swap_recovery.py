@@ -162,11 +162,9 @@ async def _clear_deep(host: ModelHost, model: str) -> None:
             await host.stop(model)
     except ModelNotHostedError as err:
         _logger.error(  # noqa: TRY400 -- the fault is the deployment's config, not this stack
-            "escalation is enabled but the model host does not serve %r, so no handoff can ever "
-            "run: name an artifact for that tier (CORTEX_MODEL_FILE_BRAIN) or turn escalation "
-            "off (CORTEX_ESCALATION); the cortex is unaffected: %s",
-            model,
-            err,
+            "escalation is enabled but the model host does not serve the deep model, so no "
+            "handoff can ever run: name an artifact for that tier (CORTEX_MODEL_FILE_BRAIN) or "
+            "turn escalation off (CORTEX_ESCALATION); the cortex is unaffected",
             extra={"model": model, "error": str(err)},
         )
 

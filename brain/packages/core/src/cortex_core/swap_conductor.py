@@ -193,10 +193,10 @@ class SwapConductor:
             # remembered, because the daemon that answers is replaceable by one whose roster was
             # fixed, and a brain that cached the verdict would refuse a deployment that now works.
             _logger.error(
-                "escalation was asked for but the model host does not serve %r, so the handoff "
-                "was refused with nothing drained and nothing unloaded: name an artifact for "
-                "that tier (CORTEX_MODEL_FILE_BRAIN) or turn escalation off (CORTEX_ESCALATION)",
-                self._plan.brain_model,
+                "escalation was asked for but the model host does not serve the deep model, so "
+                "the handoff was refused with nothing drained and nothing unloaded: name an "
+                "artifact for that tier (CORTEX_MODEL_FILE_BRAIN) or turn escalation off "
+                "(CORTEX_ESCALATION)",
                 extra={"model": self._plan.brain_model, "turn": turn_id},
             )
             return UNHOSTED_TIER_NOTE

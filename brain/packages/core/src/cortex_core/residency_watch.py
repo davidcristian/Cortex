@@ -132,8 +132,7 @@ class BootWatch:
             return await self._host.boot_id()
         except ModelHostError as err:
             _logger.warning(
-                "the model host could not be asked which daemon is answering: error=%s",
-                err,
+                "the model host could not be asked which daemon is answering",
                 extra={"error": str(err)},
             )
             return None
@@ -203,8 +202,7 @@ class BootWatch:
         except ModelHostError as err:
             _logger.warning(
                 "the model host could not be asked for its control bounds after a restart, so "
-                "the deadline pairing is unchecked: error=%s",
-                err,
+                "the deadline pairing is unchecked",
                 extra={"error": str(err)},
             )
             return None
