@@ -21,6 +21,13 @@ class Relation(Enum):
     MEMBER = "members of the collection the last site declares"
 
 
+class Spelling(Enum):
+    """How a mention writes the agreed value down, where the far side's syntax differs."""
+
+    WRITTEN = "as the declaring site writes it"
+    WHOLE = "as a whole number, which the declared value must be"
+
+
 class Site(NamedTuple):
     """One declaration: a repo-relative file and the identifier declared in it."""
 
@@ -35,6 +42,7 @@ class Mention(NamedTuple):
     template: str
     occurrences: int | None = None
     name: str | None = None
+    spelling: Spelling = Spelling.WRITTEN
 
 
 class Constant(NamedTuple):

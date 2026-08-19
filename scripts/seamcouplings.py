@@ -1,9 +1,11 @@
 """The couplings outside the overlay: what the body, the brain, its stack and its runbooks share."""
 
-from couplings import Constant, Mention, Relation, Site
+from couplings import Constant, Mention, Relation, Site, Spelling
 
 BASE_COMPOSE = "docker/docker-compose.yml"
 BODY_COMPOSE = "docker/docker-compose.body.yml"
+SUBAGENTS_COMPOSE = "docker/docker-compose.subagents.yml"
+SUBAGENTS_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config_subagents.py"
 BODY_GATEWAY = "brain/packages/body_client/src/cortex_body_client/gateway.py"
 BODY_CLIENT_DOC = "docs/modules/brain-body-client.md"
 VISION_RUNBOOK = "docs/runbooks/vision.md"
@@ -190,6 +192,28 @@ SEAM_COUPLINGS: tuple[Constant, ...] = (
             Mention(VISION_RUNBOOK, "| `CORTEX_BODY_CALL_TIMEOUT_S` | brain | `{value}` |"),
             Mention(VOLUME_RUNBOOK, "`CORTEX_BODY_CALL_TIMEOUT_S` (default `{value}`)"),
             Mention(BODY_CLIENT_DOC, "`DEFAULT_CALL_TIMEOUT_S = {value}`"),
+        ),
+    ),
+    Constant(
+        label="the subagent memory budget's shipped default",
+        why=(
+            "one compose file spells this number four times, once as the soft budget the "
+            "admission scheduler is given and twice as the hard cgroup cap on the container "
+            "running what it admits, so retuning the brain's field alone would cap that "
+            "container at the old number while the scheduler admitted against the new one, "
+            "which is the failure the resource governance exists to prevent (ADR-0012)"
+        ),
+        sites=(Site(SUBAGENTS_CONFIG, "DEFAULT_MEM_BUDGET_GB"),),
+        mentions=(
+            Mention(SUBAGENTS_COMPOSE, '"${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-{value}}"'),
+            Mention(
+                SUBAGENTS_COMPOSE,
+                '"${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-{value}}g"',
+                occurrences=2,
+                spelling=Spelling.WHOLE,
+            ),
+            Mention(SUBAGENTS_COMPOSE, "MEM_BUDGET_GB {value})"),
+            Mention(SUBAGENTS_COMPOSE, "under the {value} GB budget", spelling=Spelling.WHOLE),
         ),
     ),
 )

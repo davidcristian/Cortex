@@ -212,7 +212,13 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   costs at its shipped shape, so one spawn fits the 5.4 GiB headroom and the next overflows,
   ADR-0012 measured-ask addendum; the rest are GPU-less-safe placeholders the maintainer measures
   on the host). Set by `docker/docker-compose.subagents.yml`, which declares the same 3.5 and is
-  tied to this default by nothing but the two comments that say so. The flat fields define the roster's
+  tied to this default by nothing but the two comments that say so. `mem_budget_gb` is the
+  exception and the only one: its default is the module constant `DEFAULT_MEM_BUDGET_GB` (**8.0**)
+  so `scripts/crosscheck.py` can read it, and that scan holds all four spellings of the number in
+  that compose file to this one, the container's `mem_limit` and `memswap_limit` taking it without
+  its point because docker parses `8g` as a size and refuses `8.0g` (ADR-0012 budget-tie addendum).
+  Retuning here alone used to cap the CPU subagent container at the old number while the scheduler
+  admitted against the new one. The flat fields define the roster's
   **default entry** (the robust ADR-0004 pick; `model_description` /
   `CORTEX_SUBAGENTS_MODEL_DESCRIPTION` is its advertised text); each
   `CORTEX_SUBAGENTS_ROSTER__<name>` adds one **alternate** model as a JSON

@@ -22,6 +22,8 @@ DEFAULT_SUBAGENT_MODEL = "subagent"
 # (ADR-0017 is enforced in the core, whatever this says).
 DEFAULT_SUBAGENT_DESCRIPTION = "the injection-robust default; safe for any subtask"
 
+DEFAULT_MEM_BUDGET_GB = 8.0
+
 
 class SubagentRosterEntry(BaseModel):
     """One alternate subagent model: a ``CORTEX_SUBAGENTS_ROSTER__<name>`` JSON value (ADR-0018)."""
@@ -48,7 +50,7 @@ class SubagentsConfig(BaseSettings):
     cpus: float = Field(default=2.0, gt=0)
     memory_gb: float = Field(default=2.0, gt=0)
     cpu_budget: float = Field(default=4.0, gt=0)
-    mem_budget_gb: float = Field(default=8.0, gt=0)
+    mem_budget_gb: float = Field(default=DEFAULT_MEM_BUDGET_GB, gt=0)
     roster: dict[str, SubagentRosterEntry] = {}
     stall_timeout_s: float = Field(default=600.0, gt=0)
     admission_wait_s: float = Field(default=DEFAULT_ADMISSION_WAIT_S, ge=0)

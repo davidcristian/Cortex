@@ -16,7 +16,15 @@ from couplings import (
 )
 from overlaycouplings import OVERLAY_COUPLINGS
 from seamcouplings import SEAM_COUPLINGS
-from values import CrossCheckError, Reading, Value, parse_value, relation_fault
+from values import (
+    CrossCheckError,
+    Reading,
+    Value,
+    parse_value,
+    relation_fault,
+    spell,
+    spelling_fault,
+)
 
 CONSTANTS: tuple[Constant, ...] = (*SEAM_COUPLINGS, *OVERLAY_COUPLINGS)
 
@@ -101,7 +109,7 @@ def rendered(mention: Mention, value: Value) -> str:
             f"mention {mention.template!r} carries the name {mention.name!r} and renders it nowhere"
         )
         raise CrossCheckError(msg)
-    spelled = mention.template.replace(PLACEHOLDER, str(value))
+    spelled = mention.template.replace(PLACEHOLDER, spell(value, mention.spelling))
     return spelled if mention.name is None else spelled.replace(NAME_PLACEHOLDER, mention.name)
 
 
@@ -133,7 +141,7 @@ def registry_fault(constant: Constant) -> str | None:
         return "names fewer than two places, so it compares nothing"
     if constant.relation is not Relation.EQUAL and constant.mentions:
         return f"is {constant.relation.value}, so it has no one value a mention could spell"
-    return spend_fault(constant.mentions)
+    return spelling_fault(constant) or spend_fault(constant.mentions)
 
 
 def spend_fault(mentions: tuple[Mention, ...]) -> str | None:

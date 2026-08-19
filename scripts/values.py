@@ -4,7 +4,7 @@ import re
 from itertools import pairwise
 from typing import NamedTuple
 
-from couplings import Constant, Relation, Site
+from couplings import PLACEHOLDER, Constant, Relation, Site, Spelling
 
 # The only comment marker a declaration's right-hand side may carry. Rust and TypeScript need
 # none: their value is captured up to the terminating semicolon, so a trailing `//` never
@@ -101,6 +101,44 @@ def parse_value(text: str) -> Value:
     if DECIMAL_POINT in _expression(stripped):
         return _decimal_value(stripped)
     return _integer_value(stripped)
+
+
+def _whole_spelling(value: Value) -> str:
+    """A number with no fractional part, for a far side whose syntax carries none."""
+    if isinstance(value, int):
+        return str(value)
+    if not isinstance(value, Digits):
+        msg = f"a whole spelling needs a number, and this constant declares {value!r}"
+        raise CrossCheckError(msg)
+    whole, _, fraction = value.written.partition(DECIMAL_POINT)
+    if fraction.strip("0"):
+        msg = (
+            f"{value.written} cannot be spelled whole, its fraction being lost rather than "
+            "zero, so the far side would be tied to a number the site does not declare"
+        )
+        raise CrossCheckError(msg)
+    return whole
+
+
+def spell(value: Value, spelling: Spelling) -> str:
+    """The text a mention writes ``value`` as, in the spelling that mention asks for."""
+    return str(value) if spelling is Spelling.WRITTEN else _whole_spelling(value)
+
+
+def spelling_fault(constant: Constant) -> str | None:
+    """The complaint about a re-spelling with no written form beside it, or None when one is."""
+    if all(mention.spelling is Spelling.WRITTEN for mention in constant.mentions):
+        return None
+    written = (
+        mention.spelling is Spelling.WRITTEN and PLACEHOLDER in mention.template
+        for mention in constant.mentions
+    )
+    if len(constant.sites) > 1 or any(written):
+        return None
+    return (
+        "re-spells its one value everywhere it is spent, so nothing holds the spelling the site "
+        "writes and a site that changed spelling alone would go unreported"
+    )
 
 
 def _member_fault(readings: list[Value], shown: str, generic: str) -> str | None:
