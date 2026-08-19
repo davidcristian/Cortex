@@ -1930,3 +1930,88 @@ Filed rather than built: `JudgeRecallPolicy` is the other `drain_text` caller wi
 its three fallback sites log **nothing at all**, so a rank that quietly fell back to geometry
 cannot be told from one that never ran. The fold now says why it gave up and the judge still does
 not ([R-309](../refinements/tasks/309-a-silent-judge-fallback.md)).
+
+## Unjudged-rank addendum (2026-08-19): the rank that fell back to geometry says which way it did
+
+`JudgeRecallPolicy` is the shipped default recall policy, so its fallback is the path most turns
+take when anything is wrong with the model, and until now it took that path in complete silence.
+`rerank_judge.py` imported no logger at all. The pool came back ranked by cosine, the ranking
+carried the fallback's own basis, and nothing anywhere said the model had been asked and had not
+answered. A deployment whose judge had never once answered was indistinguishable from one where it
+answers every turn, which is a worse blindness than the fold's: a rejected fold at least logged a
+line saying it had been attempted and rejected.
+
+**The behaviour is untouched, again.** Every fallback still falls back to the same policy with the
+same basis, the refusal is still believed, and `parse_order` still has its three outcomes. This is
+the line beside them.
+
+**Two of the four exits log, and two do not, and which is which is the decision.** A `select` that
+returns without a verdict does so in one of four ways, and they are not one event:
+
+- An **empty pool** logs nothing. No candidates means no judgement was possible and none was
+  attempted, so there is no fault to report; a line here would fire on every turn a deployment
+  recalls nothing on and would dilute the two that mean a rank was lost. This is the same silence
+  `SummarizingHistoryWindow` keeps when its inner window dropped nothing.
+- An **`InferenceError`** logs `the model could not be asked to rank recall; falling back to the
+  unjudged ranking`, carrying the pool it gave up on, the `k` asked of it, and the backend's own
+  error as `exc_info`. There is no completion to describe on this path, so the cause is the
+  exception rather than a field.
+- A **reply no order can be read out of** logs `the model returned no usable recall order; falling
+  back to the unjudged ranking`, with the two readings below.
+- A **refusal**, the complete `{"order": []}`, logs nothing, and that is how the failure/refusal
+  distinction `parse_order` draws survives into the log rather than being flattened back. A refusal
+  is the model judging and declining, which is the one thing a judge can do that geometry cannot,
+  and it is already on the recall trail as the `demur` basis beside every other per-recall fact. A
+  line for it would put a second, ungated per-recall stream next to the one this ADR deliberately
+  put behind `CORTEX_MEMORY_RECALL_AUDIT`. So every line from this module means the same thing, the
+  configured rank did not run, and a reader counting them counts faults rather than unanswerable
+  questions.
+
+**The stop reason is carried here too, and the open question is answered by the precedent rather
+than against it.** The bounded-side-calls addendum argued that this path need not consume a stop,
+since the judge decodes under `ORDER_ENVELOPE` and a cut envelope is not JSON, so `parse_order`
+catches it structurally. That argument is still true about the **behaviour** and says nothing about
+the **reading**, which is exactly where the cut-fold addendum reopened the same question for the
+recap fold one day earlier. The two `drain_text` callers with a fallback now answer it the same
+way. What made it cheap here is that the fold already paid for it: `drain_text` grew
+`stops: StopLedger | None = None` then, so this rank threads a ledger and changes no signature at
+all.
+
+**What the line carries, and why exactly two readings.** `capped` separates the two causes with
+opposite fixes, and they are indistinguishable in the text: a rank cut at `rank_bounds(k)` comes
+back `{"order":` (measured), and a model that ended by itself in the wrong shape can come back the
+same way. True wants a wider bound or a smaller `k`; False wants the constrained decoding checked.
+`chars` splits that second case again for free: `0` is a model that emitted no assistant text at
+all, which on this path means a reasoning tier ignoring `thinking=False` and putting the whole
+reply where `drain_text` drops it, and any other length is text that arrived and was not the
+envelope. Unlike the fold, no normalization stands between the number and the decision:
+`parse_order` is handed the same `raw` whose length is logged, so there is no second spelling to
+disagree with the first and no `collapse_recap` analogue is needed.
+
+**Both readings ride the message as well as the record.** The brain configures
+`logging.basicConfig(level=logging.INFO)` and nothing else, so the shipped handler prints
+`levelname:name:message` and no `extra` field reaches an operator's `docker compose logs`. This is
+the lesson `LoggingRecallSink` already records for the trail, where the fields ride the record
+twice for exactly this reason. The `extra` keys stay, since they are what a structured collector
+reads, and the message carries `capped=` and `chars=` so the diagnosis is legible under the handler
+this repo actually ships.
+
+**Consequences.**
+
+- The judge's warnings cannot name a session or a turn, because `RecallPolicy.select` carries
+  neither: the port takes the pool, the query, the clock's reading and `k`. Every neighbouring
+  degradation warning names a session, and so does the recall trail line an operator would want to
+  correlate with, so this is a real gap and it is a port change rather than a log change
+  ([R-316](../refinements/tasks/316-a-rank-fallback-cannot-name-its-turn.md)).
+- The recap fold's own `capped` and `chars` remain `extra`-only, so they are invisible under the
+  shipped handler while these are legible. The general fix is a handler that renders the fields
+  rather than a second module rendering them by hand
+  ([R-317](../refinements/tasks/317-shipped-handler-drops-every-field.md)).
+- Nothing about the rank's cost changes: no call is added, and the ledger is a local object with
+  one boolean.
+
+### Deferred by this addendum
+
+The two consequences above, both filed rather than built: the session a fallback happened in, which
+needs the port to carry one, and the handler that would make every `extra` field in the brain
+readable.
