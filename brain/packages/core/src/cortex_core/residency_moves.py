@@ -184,13 +184,29 @@ async def restore_standing(
     tier fails at its start, and a restore that then treated the *same* 404 as a machine failure
     would abandon the cortex it had already evicted, twice, and end at the loudest failure in the
     design over a card that is in fact empty and idle.
+
+    Two ``try`` blocks rather than one, because the two failures are about two different models
+    and a field is only worth attaching when it is not a guess. The eviction is about the model
+    the handoff swapped in; the start and its gate are both about the cortex, so they share a
+    block and it stays unambiguous. Either verdict is the same ``False`` the caller retries on:
+    what the split buys is a line an operator can act on without opening the traceback to find
+    out which of two tiers the host actually refused.
     """
     try:
         await _stop_what_was_swapped_in(host, model)
+    except ModelHostError:
+        _logger.exception(
+            "the model host failed while taking the swapped-in model off the card",
+            extra={"model": model},
+        )
+        return False
+    try:
         await host.start(plan.cortex_model)
         state = await gate(plan.cortex_model)
     except ModelHostError:
-        _logger.exception("the model host failed while restoring the cortex")
+        _logger.exception(
+            "the model host failed while restoring the cortex", extra={"model": plan.cortex_model}
+        )
         return False
     if state is not ModelHostState.READY:
         return False

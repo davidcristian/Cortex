@@ -2413,3 +2413,91 @@ The two the decisions name:
 its session but not itself, and
 [R-329](../refinements/tasks/329-a-failure-with-two-candidate-subjects.md), the two model-host
 failures that wrap two calls and so name neither model.
+
+## Narrowed-block addendum (2026-08-19): a failure names the model it was acting on
+
+The addendum above left two lines carrying nothing and wrote down why: each wrapped two host calls
+about two different models, so a `model` field would have named the wrong one about half the time,
+and a wrong field is trusted where a missing one is not. This closes both of them the only way that
+keeps the field honest, which is to make each block wrap calls about one model rather than to guess
+better.
+
+### Both blocks, decided per block rather than by symmetry
+
+[R-329](../refinements/tasks/329-a-failure-with-two-candidate-subjects.md) asked whether both
+blocks wanted the treatment or only one, on the ground that boot recovery already names its model
+on the `ModelNotHostedError` arm while the swap back names nothing anywhere. Read against the code,
+that asymmetry argues for narrowing both rather than for leaving one alone. `_clear_deep` catches
+`ModelNotHostedError` itself, so that arm was already reachable only from `_settle_cortex` and its
+`plan.cortex_model` was already right; it was right by a fact a reader has to go one function away
+to confirm. The swap back has no such arm and exactly the same two subjects, so leaving it would
+have kept the file the entry described as reading like naming a model was never considered. Neither
+block is left as it stands.
+
+### Decision 1: boot recovery clears and settles under two blocks
+
+`converge_residency` wrapped `_clear_deep(host, plan.brain_model)` and `_settle_cortex(host, plan)`
+in one `try`, whose `ModelHostError` arm said `the model host was unreachable during boot recovery`
+and named nothing. It is now two blocks. The clearing's own arm says `the model host failed while
+clearing the deep model at boot` with `model` set to the deep tier; the settling keeps the old
+sentence and carries `plan.cortex_model`. Both still answer `False` and neither raises, so the
+boot verdict and its amber dot are exactly what they were.
+
+The second gain is the one that was not asked for. The 404 arm now wraps one call, so the cortex it
+names is the model of the call it guards rather than a conclusion drawn from what another function
+swallows, and a later edit to `_clear_deep` cannot quietly make it wrong.
+
+### Decision 2: the swap back evicts and restarts under two blocks
+
+`restore_standing` wrapped `_stop_what_was_swapped_in(host, model)`, `host.start(plan.cortex_model)`
+and the gate in one `try` and logged `the model host failed while restoring the cortex`. The
+eviction is now its own block, saying `the model host failed while taking the swapped-in model off
+the card` with the handoff's own model on it. The start and the gate stay together, both being
+about the cortex, and that block keeps the old sentence with `plan.cortex_model` attached. Both
+arms answer the same `False` the retry policy reads, so the retry, the give-up and the
+`ResidencyRestoreError` an operator is sent to the runbook with are untouched.
+
+### Distrust green
+
+Six mutations, each applied to production code alone with the whole brain workspace re-run
+(2752 tests), so the counts are what actually reddened rather than what was expected to:
+
+| Mutation | Reddens | Which |
+| --- | --- | --- |
+| boot clearing's field names the cortex | **2** | both boot cases that fail at the deep model |
+| boot settling's field names the deep model | **1** | the cortex case added for this branch |
+| boot recovery back to one `try` | **2** | the same two deep-model cases |
+| swap back's eviction field names the cortex | **1** | the eviction case added for this branch |
+| swap back's restore field names the swapped-in model | **1** | the retry case, which fails at the cortex |
+| swap back to one `try` | **1** | the eviction case |
+
+The third row is the interesting one. Collapsing boot recovery back into one `try` leaves the
+cortex case green, because a cortex that fails last is the model the collapsed arm happens to
+name; what reddens is the pair that fail at the deep model, which then read as the cortex having
+gone. That is the fault this addendum exists to remove, so the pair is where it has to be caught,
+and a suite that had only the new case would have let the collapse back in.
+
+### Not verified live, deliberately
+
+Every other decision in this ADR was checked against a running stack, and this one is not, because
+there is nothing on a stack to check. Both blocks are pure policy in the core over the injected
+`ModelHost` port, the change is which `try` a call sits in, and the fake and the real supervisor
+adapter answer the same contract suite. A bring-up would re-run the same branch through a slower
+host and prove the same thing the sweep above proves.
+
+### Consequences
+
+- **Five sentences an operator can grep where there were three**, and every one of them carries the
+  model it is about. `docs/adr/ADR-0030-brain-handoff.md`'s boot table said an unreachable sidecar
+  prints one particular line; it now says which of the two it prints and that both name a model.
+- **The failure branches each file tests went up by one**, which is what the entry priced and why
+  it was not folded into a logging sweep. Both files stay well under the line cap (276 and 226).
+- **The residue is at the caller, not in these blocks.** `restore_standing` still answers a bool,
+  so `restore_with_retries` cannot tell the two failures apart and its retry line names the cortex
+  either way. That is filed rather than fixed, since it is a signature change.
+
+### Deferred by this addendum
+
+[R-330](../refinements/tasks/330-a-bool-loses-which-model-failed.md), the bool that loses which of
+the two models a restore attempt failed on, and with it the question of whether the give-up error
+should name the refused tier.
