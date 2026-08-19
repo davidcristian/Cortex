@@ -1,6 +1,12 @@
 """Public core names for which model is on the GPU, and the handoff that changes the answer."""
 
-from cortex_core.cadence import MIN_CADENCE_TOKENS, CadenceReading, CadenceWatch
+from cortex_core.cadence import (
+    MIN_CADENCE_TOKENS,
+    NO_CADENCE_TERMS,
+    CadenceReading,
+    CadenceTerms,
+    CadenceWatch,
+)
 from cortex_core.handoff import EscalationRefs, EscalationSlot, HandoffRecord, HandoffState
 from cortex_core.health_gate import await_model_ready
 from cortex_core.model import ModelLease, SingleResidentModelManager
@@ -15,6 +21,11 @@ from cortex_core.model_host import (
 )
 from cortex_core.residency import SwappingModelManager
 from cortex_core.residency_heal import DEFAULT_TIER_HEAL_INTERVAL_S, TierHealer
+from cortex_core.residency_pace import (
+    DEFAULT_SPILL_DWELL_S,
+    SPILLED_PACE_DETAIL,
+    HandoffPace,
+)
 from cortex_core.residency_regain import heal_standing_residency, regain_residency
 from cortex_core.residency_state import (
     RESIDENCY_BOOT_FAILED,
@@ -24,6 +35,7 @@ from cortex_core.residency_state import (
     RESIDENCY_RESTORING,
     RESIDENCY_SERVING,
     ResidencyReport,
+    with_note,
 )
 from cortex_core.residency_sweep import sweep_tiers
 from cortex_core.residency_tiers import TIERS_MISSING_DETAIL, StandingTiers, TierFault
@@ -49,6 +61,7 @@ __all__ = [
     "ALREADY_ACTIVE_NOTE",
     "BRAIN_FAILED_NOTE",
     "DEFAULT_HEALTH_POLL_INTERVAL_S",
+    "DEFAULT_SPILL_DWELL_S",
     "DEFAULT_SWAP_DRAIN_TIMEOUT_S",
     "DEFAULT_SWAP_LOAD_TIMEOUT_S",
     "DEFAULT_TIER_HEAL_INTERVAL_S",
@@ -56,6 +69,7 @@ __all__ = [
     "DRAIN_TIMEOUT_NOTE",
     "LOADING_DETAIL",
     "MIN_CADENCE_TOKENS",
+    "NO_CADENCE_TERMS",
     "OPAQUE_TURN_NOTE",
     "RESIDENCY_BOOT_FAILED",
     "RESIDENCY_DEEP",
@@ -65,6 +79,7 @@ __all__ = [
     "RESIDENCY_SERVING",
     "RESTORE_FAILED_NOTE",
     "RESTORING_DETAIL",
+    "SPILLED_PACE_DETAIL",
     "STORE_FAILED_NOTE",
     "SWAPPING_STATE",
     "SWAP_FAILED_NOTE",
@@ -72,11 +87,13 @@ __all__ = [
     "UNHOSTED_TIER_NOTE",
     "WORKING_DETAIL",
     "CadenceReading",
+    "CadenceTerms",
     "CadenceWatch",
     "ControlBounds",
     "DeviceMemory",
     "EscalationRefs",
     "EscalationSlot",
+    "HandoffPace",
     "HandoffRecord",
     "HandoffState",
     "ModelHostState",
@@ -95,4 +112,5 @@ __all__ = [
     "recover_handoffs",
     "regain_residency",
     "sweep_tiers",
+    "with_note",
 ]

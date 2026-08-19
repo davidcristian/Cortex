@@ -1,6 +1,6 @@
 # A spilled handoff is only ever in the log
 
-**Status:** open, actionable
+**Status:** landed 2026-08-19
 **Area:** inference-model-manager
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
 
@@ -28,6 +28,18 @@ read. It also needs a rule for how long such a note stands, since a spill is a f
 handoff while the tier record it would ride is a fact about now, and a note that never clears is a
 second way to be wrong about the card. Re-derive both against the tree before starting.
 
+**What landed, and what the re-derivation found.** Both costs stood. The deep phase really does
+hold no residency (the wiring hands it the declared rate and nothing else), so the writer is a
+port: `PaceSink`, one method, a verdict and never a reading, synchronous because the phase calls it
+between its stream ending and its reply being persisted. The record behind it is
+[residency_pace.py](../../../brain/packages/core/src/cortex_core/residency_pace.py), held by the
+manager beside the peer record and composed into a **serving** report as it is read, which is the
+constraint above respected rather than rediscovered. The standing rule is that a later handoff
+decides the note in both directions and, failing one, it lapses after an hour; the two notes join
+rather than compete, through one shared `with_note`, since a down peer and a spilled handoff have
+different remedies. One cost the entry did not name turned up: `residency.py` was one line under
+the cap, so the honesty surface moved out as `ResidencyProbeMixin`.
+
 ## Trail
 
 - 2026-08-18: Opened by the close of [109](109-spill-does-not-latch.md), which argued that the
@@ -39,3 +51,12 @@ second way to be wrong about the card. Re-derive both against the tree before st
   finds the cortex back, so a detail written **into** the published record would be erased by it;
   ride the read-time composition `StandingTiers.note_on` already does in `residency()` instead.
   Nothing else here changed, and the two costs above are still to be re-derived.
+- 2026-08-19: Landed. The verdict now rides a serving residency report's detail and reads in the
+  connection tooltip as "the last deep task ran far slower than this deployment measured for it, so
+  deep tasks are taking much longer than they should", which names the consequence because a
+  tooltip's reader can act on lost time and not on a decode rate. Reasoning at the origin
+  decision's spill-note addendum; the seven mutations that prove it are in the headers of
+  `test_residency_pace.py` and `test_brain_phase.py`. Two narrower entries came out of it: the
+  display compromise a one-string detail field forces is
+  [320](320-one-detail-string-two-facts.md), and the history the one hour dwell throws away is
+  [321](321-a-spill-nobody-saw-is-forgotten.md).

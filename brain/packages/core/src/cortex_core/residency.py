@@ -13,20 +13,16 @@ from cortex_core.residency_board import ResidencyBoard
 from cortex_core.residency_charge import charge_handoff
 from cortex_core.residency_claim import HandoffClaim
 from cortex_core.residency_moves import is_unhosted, swap_in
+from cortex_core.residency_pace import HandoffPace
+from cortex_core.residency_probe import ResidencyProbeMixin
 from cortex_core.residency_regain import heal_standing_residency
 from cortex_core.residency_restore import restore_uninterruptibly, restore_with_retries
-from cortex_core.residency_state import (
-    RESIDENCY_BOOT_FAILED,
-    RESIDENCY_DEEP,
-    RESIDENCY_LOADING,
-    RESIDENCY_SERVING,
-    ResidencyReport,
-)
+from cortex_core.residency_state import RESIDENCY_DEEP, RESIDENCY_LOADING
 from cortex_core.residency_tiers import StandingTiers
 from cortex_core.residency_watch import BootWatch
 
 
-class SwappingModelManager:
+class SwappingModelManager(ResidencyProbeMixin):
     """ModelManager v2: one resident model at a time, swapped only inside a residency scope."""
 
     def __init__(
@@ -47,6 +43,7 @@ class SwappingModelManager:
         # Which peers of the cortex the standing residency is missing (``residency_tiers.py``),
         # written wherever a start was refused and read by the seam and by the retry.
         self._tiers = StandingTiers(placer)
+        self._pace = HandoffPace(clock)
         # Which supervisor daemon every belief below was formed against (``residency_watch.py``).
         # It is asked once per handoff, because a daemon replaced under this process leaves all of
         # them describing a machine that no longer exists, the peer record included.
@@ -70,20 +67,6 @@ class SwappingModelManager:
     def handoff_claim(self) -> AbstractAsyncContextManager[None]:
         """Own the whole swap sequence for this block, or refuse at once (``residency_claim``)."""
         return self._handoff_claim.held()
-
-    async def publish_boot_residency(self, *, serving: bool) -> None:
-        """Replace the constructor's seed with what boot recovery actually observed."""
-        await self._boot.seed()
-        await self._board.publish_report(RESIDENCY_SERVING if serving else RESIDENCY_BOOT_FAILED)
-
-    @property
-    def standing_tiers(self) -> StandingTiers:
-        """The peers the standing residency is missing, for boot recovery to write from outside."""
-        return self._tiers
-
-    def residency(self) -> ResidencyReport:
-        """What the GPU is serving right now, answered synchronously and without I/O."""
-        return self._tiers.note_on(self._board.report)
 
     @asynccontextmanager
     async def swap_scope(self, model: str) -> AsyncGenerator[None, None]:

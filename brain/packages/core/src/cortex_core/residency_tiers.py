@@ -3,7 +3,7 @@
 from enum import Enum
 
 from cortex_core.ports import SubagentPlacer
-from cortex_core.residency_state import ResidencyReport
+from cortex_core.residency_state import ResidencyReport, with_note
 
 TIERS_MISSING_DETAIL = (
     "the model host is not running {models}, so delegated work is running on the CPU"
@@ -62,8 +62,6 @@ class StandingTiers:
 
     def note_on(self, report: ResidencyReport) -> ResidencyReport:
         """The report a probe should see: unchanged, or a serving one that names what is down."""
-        if not report.serving or not self._faults:
+        if not self._faults:
             return report
-        return ResidencyReport(
-            serving=True, detail=TIERS_MISSING_DETAIL.format(models=", ".join(self.missing))
-        )
+        return with_note(report, TIERS_MISSING_DETAIL.format(models=", ".join(self.missing)))

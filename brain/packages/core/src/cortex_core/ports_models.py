@@ -8,7 +8,7 @@ from cortex_core.residency_state import ResidencyReport
 
 
 class ModelHost(Protocol):
-    """Starts, stops, and reports one logical model's server process (ADR-0030 decision 3)."""
+    """Starts, stops, and reports one logical model's server process."""
 
     async def start(self, model: str) -> None: ...
 
@@ -24,7 +24,7 @@ class ModelHost(Protocol):
 
 
 class ResidencyController(Protocol):
-    """Changes which model is resident on the GPU, for the duration of a scope (ADR-0030 d5)."""
+    """Changes which model is resident on the GPU, for the duration of a scope."""
 
     def swap_scope(self, model: str) -> AbstractAsyncContextManager[None]: ...
 
@@ -34,6 +34,12 @@ class ResidencyController(Protocol):
 
 
 class ResidencyReporter(Protocol):
-    """Reads what the GPU is serving right now, for the seam to answer with (ADR-0030 d6)."""
+    """Reads what the GPU is serving right now, for a health report to state."""
 
     def residency(self) -> ResidencyReport: ...
+
+
+class PaceSink(Protocol):
+    """Where a phase records whether the tier it just ran kept the speed measured for it."""
+
+    def note_pace(self, *, spilled: bool) -> None: ...

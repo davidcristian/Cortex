@@ -164,6 +164,22 @@ class RecordingProgressSink:
         return tuple(self._events)
 
 
+class RecordingPaceSink:
+    """PaceSink that records the verdicts a deep phase published, in order (ADR-0030)."""
+
+    def __init__(self) -> None:
+        self._verdicts: list[bool] = []
+
+    def note_pace(self, *, spilled: bool) -> None:
+        """Record how one handoff's tier ran."""
+        self._verdicts.append(spilled)
+
+    @property
+    def verdicts(self) -> Sequence[bool]:
+        """Every verdict published so far, in order, one per handoff that settled a reading."""
+        return tuple(self._verdicts)
+
+
 class SystemClock:
     """Clock backed by the system time, always timezone-aware UTC."""
 

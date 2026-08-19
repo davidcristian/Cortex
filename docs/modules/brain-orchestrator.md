@@ -188,8 +188,9 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   before the load and refuses the handoff when it is short; `brain_decode_tps`
   (`CORTEX_SWAP_BRAIN_DECODE_TPS`, 0.0) is the after-the-fact half of that same claim, the tokens
   per second the deep tier reaches when the card really does hold it, which the deep phase
-  compares a real completion against and logs a warning when it never cleared (ADR-0030
-  spill-watch addendum); `swap_drain_timeout_s` (60 s) and
+  compares a real completion against, logs a warning when it never cleared (ADR-0030
+  spill-watch addendum), and publishes to the manager's own record so a spilled handoff reaches
+  the connection tooltip and not only the log (ADR-0030 spill-note addendum); `swap_drain_timeout_s` (60 s) and
   `swap_load_timeout_s` (300 s) are the swap's two bounds; `swap_tier_heal_s`
   (`CORTEX_SWAP_TIER_HEAL_S`, 30 s) paces the sweep of every `CORTEX_SWAP_EVICT_MODELS` tier,
   which the swap back's own restart is best effort about and which can also die with nobody
@@ -323,7 +324,12 @@ The service:
     line wins over the version string while `ready` stays true: the standing residency is the
     cortex plus the peer tiers a handoff evicts, so it can be whole enough to serve turns and
     still be missing one of them, with delegated work running on the CPU meanwhile (ADR-0030
-    tier-outage addendum). The overlay already renders a ready detail, as `Brain ready: <line>`.
+    tier-outage addendum). It may carry more than one sentence, joined: a missing peer and a
+    handoff that ran far under this deployment's measured rate are both true of a brain that is
+    serving and have different remedies, so neither wins (ADR-0030 spill-note addendum). Nothing
+    here chooses between them; the composition happens in the core's `residency()` and this reply
+    carries whatever it composed. The overlay already renders a ready detail, as
+    `Brain ready: <line>`.
     The read is
     `ResidencyReporter.residency()`, synchronous and lock-free by that port's contract, because
     a probe arrives every few seconds precisely while a swap is in flight and one that queued on
@@ -614,7 +620,9 @@ The service:
   `SeamPorts` as the seam's `residency` reporter (which is what makes `Health` honest mid
   handoff, ADR-0030 decision 6); and returns an `EscalatingTurnEngine` from `make_engine`: a
   fresh slot and inner engine per turn, and a `SwapConductor` over a dispatcher built from THIS
-  stream's confirmer, so the deep model's phase runs the same audited tools the cortex phase did,
+  stream's confirmer, whose `BrainPhase` is handed
+  `CadenceTerms(swap.plan.brain_decode_tps, swap.manager.handoff_pace)`, which is the one place
+  the deep phase's decode watch is joined to the record a probe reads, so the deep model's phase runs the same audited tools the cortex phase did,
   with no slot of its own and **without `capture_screen`** (ADR-0029: the root builds a second
   built-in set with `vision=None` for the deep tier, because the probe asked the cortex's endpoint
   and no brain-tier candidate on the mount carries a projector, so registration follows the tier

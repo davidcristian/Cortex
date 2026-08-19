@@ -15,6 +15,7 @@ from cortex_core import (
     RESIDENCY_LOADING,
     RESIDENCY_LOST,
     RESIDENCY_RESTORING,
+    SPILLED_PACE_DETAIL,
     TIERS_MISSING_DETAIL,
     AsyncioSleeper,
     EchoInferenceBackend,
@@ -191,6 +192,22 @@ async def test_health_stays_ready_and_names_a_peer_tier_that_did_not_come_back()
             reply = await _health(BrainServiceStub(channel))
         assert reply.ready is True
         assert reply.detail == TIERS_MISSING_DETAIL.format(models="subagent-gpu")
+    finally:
+        await server.stop(grace=None)
+
+
+async def test_health_stays_ready_and_says_the_last_deep_task_ran_far_slower_than_measured() -> (
+    None
+):
+    """The other sentence a serving brain can now say, and the one nothing else would mention."""
+    manager = _swapping_manager(ScriptedModelHost(running=["cortex"]))
+    manager.handoff_pace.note_pace(spilled=True)
+    server, address = await _serving(manager)
+    try:
+        async with aio.insecure_channel(address) as channel:
+            reply = await _health(BrainServiceStub(channel))
+        assert reply.ready is True
+        assert reply.detail == SPILLED_PACE_DETAIL
     finally:
         await server.stop(grace=None)
 

@@ -3,7 +3,7 @@
 import logging
 from collections.abc import AsyncGenerator, Sequence
 
-from cortex_core.cadence import CadenceReading, CadenceWatch
+from cortex_core.cadence import NO_CADENCE_TERMS, CadenceReading, CadenceTerms, CadenceWatch
 from cortex_core.conversation import Message, Role
 from cortex_core.errors import InferenceError
 from cortex_core.events import TextDelta, TurnEvent
@@ -49,21 +49,21 @@ class BrainPhase:
         clock: Clock,
         brain_model: str,
         capabilities: TurnCapabilities,
-        decode_floor_tps: float = 0.0,
+        cadence: CadenceTerms = NO_CADENCE_TERMS,
     ) -> None:
         self._store = store
         self._backend = backend
         self._clock = clock
         self._model = brain_model
         self._caps = capabilities
-        self._decode_floor_tps = decode_floor_tps
+        self._cadence = cadence
 
     async def run(self, record: HandoffRecord) -> AsyncGenerator[TurnEvent, None]:
         """Rehydrate, run the shared tool loop on the deep model, persist, and stream it out."""
         history = await self._store.history(record.session_id)
         query = _user_query(history, record)
         taint = record.taint_ledger()
-        watch = CadenceWatch(self._decode_floor_tps)
+        watch = CadenceWatch(self._cadence.floor_tps)
         # The deep tier is where a cut answer is likeliest and least visible: it ships an 8192
         # context and the measured pick spends 3847 to 4448 tokens reaching an answer, so the
         # wall is one long question away even with no cap set (ADR-0004 brain-pick table).
@@ -136,8 +136,14 @@ class BrainPhase:
         }
         if reading.collapsed:
             _logger.warning(SPILLED_LOG_MSG, extra=extra | {"shortfall": reading.shortfall})
-            return
-        _logger.info(_MEASURED_LOG_MSG, extra=extra)
+        else:
+            _logger.info(_MEASURED_LOG_MSG, extra=extra)
+        self._note_pace(reading)
+
+    def _note_pace(self, reading: CadenceReading) -> None:
+        """Publish the verdict past the log, when there is one and somewhere to publish it."""
+        if self._cadence.sink is not None and reading.verdict is not None:
+            self._cadence.sink.note_pace(spilled=reading.verdict)
 
     async def _persist(
         self, record: HandoffRecord, *, query: str, reply: str, taint: TaintLedger

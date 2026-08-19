@@ -3,8 +3,15 @@
 from dataclasses import dataclass
 
 from cortex_core.inference import DecodeCadence
+from cortex_core.ports import PaceSink
 
-__all__ = ["MIN_CADENCE_TOKENS", "CadenceReading", "CadenceWatch"]
+__all__ = [
+    "MIN_CADENCE_TOKENS",
+    "NO_CADENCE_TERMS",
+    "CadenceReading",
+    "CadenceTerms",
+    "CadenceWatch",
+]
 
 MIN_CADENCE_TOKENS = 32
 
@@ -19,13 +26,20 @@ class CadenceReading:
     judged: int
 
     @property
+    def verdict(self) -> bool | None:
+        """Whether the tier spilled, or ``None`` when there was nothing to judge it against."""
+        if self.floor <= 0:
+            return None
+        return self.observed.tokens_per_second < self.floor
+
+    @property
     def collapsed(self) -> bool:
         """Whether the tier never reached the rate its deployment measured for it.
 
         False whenever no floor was declared, because a watch with nothing to compare against
         cannot find a shortfall; that deployment gets the number and no verdict.
         """
-        return self.floor > 0 and self.observed.tokens_per_second < self.floor
+        return self.verdict is True
 
     @property
     def shortfall(self) -> float:
@@ -65,3 +79,17 @@ class CadenceWatch:
         return CadenceReading(
             observed=self._best, floor=self._floor, samples=self._samples, judged=self._judged
         )
+
+
+@dataclass(frozen=True, slots=True)
+class CadenceTerms:
+    """The terms one deep phase's watch runs under: what the tier is held to, and who hears it."""
+
+    floor_tps: float = 0.0
+    sink: PaceSink | None = None
+
+
+# The watch that judges nothing and tells nobody: the default a phase is built with when its
+# caller says nothing about cadence at all. Shared because it is frozen, exactly as the seam's
+# empty port bundle is.
+NO_CADENCE_TERMS = CadenceTerms()

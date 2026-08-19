@@ -11,7 +11,12 @@ from cortex_core.inference import GenerationBounds, InferenceEvent, JsonSchema
 from cortex_core.model import ModelLease
 from cortex_core.placement import PlacementRequest
 from cortex_core.ports_body import BodyGateway
-from cortex_core.ports_models import ModelHost, ResidencyController, ResidencyReporter
+from cortex_core.ports_models import (
+    ModelHost,
+    PaceSink,
+    ResidencyController,
+    ResidencyReporter,
+)
 from cortex_core.ports_placement import SubagentPlacer
 from cortex_core.ports_stores import (
     HandoffStore,
@@ -34,6 +39,7 @@ __all__ = [
     "MemoryStore",
     "ModelHost",
     "ModelManager",
+    "PaceSink",
     "PreferenceStore",
     "RecallAuditSink",
     "ResidencyController",
