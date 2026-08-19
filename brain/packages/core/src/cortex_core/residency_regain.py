@@ -1,4 +1,4 @@
-"""Getting the standing residency back without a turn: read the machine, publish if it agrees."""
+"""Recovering the usual residency without a turn: read the machine, publish when it agrees."""
 
 import logging
 
@@ -17,7 +17,7 @@ _logger = logging.getLogger(__name__)
 async def heal_standing_residency(
     host: ModelHost, plan: ResidencyPlan, board: ResidencyBoard, tiers: StandingTiers, fence: Fence
 ) -> None:
-    """One pass over the standing residency: every evictable peer, and then the resident."""
+    """One pass over the usual residency: every evictable peer, and then the resident."""
     await sweep_tiers(host, plan, tiers, fence)
     await regain_residency(host, plan, board, tiers, fence)
 
@@ -41,28 +41,26 @@ async def regain_residency(
 
 
 async def _cortex_is_serving(host: ModelHost, model: str) -> bool:
-    """Whether the standing resident is actually answering right now."""
+    """Whether the cortex is actually ready right now."""
     try:
         return await host.status(model) is ModelHostState.READY
     except ModelHostError as err:
         _logger.debug(
-            "the model host could not be asked whether the cortex is serving again: error=%s",
-            err,
+            "the model host could not be asked whether the cortex is serving again",
             extra={"model": model, "error": str(err)},
         )
         return False
 
 
 async def _deep_tier_is_off_the_card(host: ModelHost, model: str) -> bool:
-    """Whether the deep model is not holding the GPU, so a serving cortex is the standing shape."""
+    """Whether the deep model is off the GPU, so a serving cortex is the usual state."""
     try:
         state = await host.status(model)
     except ModelNotHostedError:
         return True
     except ModelHostError as err:
         _logger.debug(
-            "the model host could not be asked whether the deep model is still resident: error=%s",
-            err,
+            "the model host could not be asked whether the deep model is still resident",
             extra={"model": model, "error": str(err)},
         )
         return False

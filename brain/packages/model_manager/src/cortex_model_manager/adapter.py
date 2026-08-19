@@ -57,10 +57,7 @@ class HttpModelHost:
         total = payload.get("device_total_mib")
         if not isinstance(free, int) or not isinstance(total, int):
             _logger.info(
-                "the model host reports no device memory: free=%r total=%r",
-                free,
-                total,
-                extra={"free": free, "total": total},
+                "the model host reports no device memory", extra={"free": free, "total": total}
             )
             return None
         return DeviceMemory(free_mib=free, total_mib=total)
@@ -73,10 +70,7 @@ class HttpModelHost:
         reap = _seconds(payload.get("reap_timeout_s"))
         if probe is None or grace is None or reap is None:
             _logger.info(
-                "the model host reports no control bounds: probe=%r grace=%r reap=%r",
-                probe,
-                grace,
-                reap,
+                "the model host reports no control bounds",
                 extra={"probe": probe, "grace": grace, "reap": reap},
             )
             return None
@@ -87,11 +81,7 @@ class HttpModelHost:
         payload = await self._request("GET", "/health", "which daemon is answering")
         boot = payload.get("boot_id")
         if not isinstance(boot, str) or not boot:
-            _logger.info(
-                "the model host does not name its own boot: boot_id=%r",
-                boot,
-                extra={"boot_id": boot},
-            )
+            _logger.info("the model host does not name its own boot", extra={"boot_id": boot})
             return None
         return boot
 
@@ -102,10 +92,7 @@ class HttpModelHost:
         )
         state = self._read(model, payload)
         _logger.info(
-            "asked the model host for a lifecycle change: model=%s verb=%s state=%s",
-            model,
-            verb,
-            state.value,
+            "asked the model host for a lifecycle change",
             extra={"model": model, "verb": verb, "state": state.value},
         )
 
@@ -151,9 +138,6 @@ class HttpModelHost:
         if state is ModelHostState.FAILED:
             detail = str(payload.get("detail", ""))
             _logger.error(
-                "a hosted model process has failed: model=%s detail=%s",
-                model,
-                detail,
-                extra={"model": model, "detail": detail},
+                "a hosted model process has failed", extra={"model": model, "detail": detail}
             )
         return state

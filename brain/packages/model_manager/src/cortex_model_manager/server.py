@@ -35,9 +35,7 @@ def build_model_host(config: ModelHostConfig) -> Starlette:
     """The ASGI app for this deployment's roster, with the probe's client closed on shutdown."""
     supervisor, client = build_supervisor(config)
     _logger.info(
-        "model host configured: models=%s boot_model=%s",
-        list(supervisor.models),
-        config.cortex_model,
+        "model host configured",
         extra={"models": list(supervisor.models), "boot_model": config.cortex_model},
     )
     return build_app(
@@ -49,7 +47,7 @@ def build_model_host(config: ModelHostConfig) -> Starlette:
 
 
 def main() -> None:
-    """Serve the control API until the container stops. Config errors fail here, loudly."""
+    """Serve the control API until the container stops."""
     config = ModelHostConfig()
     configure_logging(config.log_level.upper(), style=config.log_format)
     app = build_model_host(config)

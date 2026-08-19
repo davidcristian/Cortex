@@ -436,9 +436,10 @@ but a report of a slow *cortex* after a handoff is the same fault read from the 
   record). Three log lines say which phase saw it,
   `a tier the standing residency includes could not be cleared at boot`,
   `a tier named for eviction is not in the model host's roster at all`, and, from the sweep,
-  `the model host does not serve '<tier>' at all, so this tier will not be asked about again`,
-  which names both knobs. The fix is to name the artifact (or to
-  drop the tier from the evict list) and `docker compose up -d`; nothing here needs a restart of
+  `the model host does not serve this model at all, so this tier will not be asked about again`,
+  which names both knobs and carries the tier's id in its own `model=` field
+  ([local-dev-wsl.md](local-dev-wsl.md#read-the-brains-logs)). The fix is to name the artifact (or
+  to drop the tier from the evict list) and `docker compose up -d`; nothing here needs a restart of
   the brain. **What still goes amber at boot** is the cortex itself failing to gate, an unreachable
   sidecar, a deep model that is resident and will not stop, and a cortex id the daemon's roster
   does not have.
@@ -446,11 +447,12 @@ but a report of a slow *cortex* after a handoff is the same fault read from the 
   with `CORTEX_MODEL_FILE_BRAIN` unset leaves the deep tier out of the roster, so it 404s for the
   life of that container. The dot stays green, because the cortex is serving and nothing can be
   resident under a name the daemon never had, and the brain says once at startup:
-  `escalation is enabled but the model host does not serve '<deep model>', so no handoff can ever
+  `escalation is enabled but the model host does not serve the deep model, so no handoff can ever
   run: name an artifact for that tier (CORTEX_MODEL_FILE_BRAIN) or turn escalation off
-  (CORTEX_ESCALATION)`. Until it is fixed, every escalation the user asks for is **refused before
+  (CORTEX_ESCALATION); the cortex is unaffected`, with the tier's id in the line's `model=` field.
+  Until it is fixed, every escalation the user asks for is **refused before
   anything is drained or evicted**: the conductor asks the host whether it carries the tier at all,
-  logs `escalation was asked for but the model host does not serve '<deep model>', so the handoff
+  logs `escalation was asked for but the model host does not serve the deep model, so the handoff
   was refused with nothing drained and nothing unloaded` (naming the same two knobs), and the reply
   ends with "this machine has no deep model set up, so the handoff was not started and nothing was
   unloaded". The subagent pool never stops admitting and the cortex never leaves the card, so the
@@ -552,10 +554,10 @@ stranded record `FAILED` and escalation works again.
    a GPU it could not settle, "did not come up at startup"), or from the logs below.
    Logs for either:
    `docker compose logs model-host` (the daemon and every child, interleaved, each daemon line
-   naming its tier and pid) or `docker compose logs brain`. Both now print each line's own fields
-   after its message, and the daemon's lifecycle lines still spell their tier, pid and port into
-   the message as well, so those three read twice on a line until that older habit is swept
-   ([how to read either log](local-dev-wsl.md)). Which tier is up, precisely:
+   naming its tier and pid) or `docker compose logs brain`. Both print each line's own fields after
+   its message, and a message never spells a field it already carries, so `started a model process
+   model=cortex pid=8 port=8080` reads each value once
+   ([how to read either log](local-dev-wsl.md#read-the-brains-logs)). Which tier is up, precisely:
 
    ```
    docker compose --project-directory . -f docker/docker-compose.yml \

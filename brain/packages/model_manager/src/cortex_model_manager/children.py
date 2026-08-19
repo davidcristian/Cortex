@@ -1,4 +1,4 @@
-"""Spawning and signalling one child process: the daemon's OS seam (port + asyncio adapter)."""
+"""Spawning and signalling one child process: a port and its asyncio adapter."""
 
 import asyncio
 import logging
@@ -25,7 +25,7 @@ class ChildProcess(Protocol):
 
 
 class ChildProcesses(Protocol):
-    """Starts one child from a complete argv. The only OS write the daemon performs."""
+    """Starts one child from a complete argv."""
 
     async def spawn(self, argv: Sequence[str]) -> ChildProcess: ...
 
@@ -58,9 +58,7 @@ class AsyncioChild:
             send()
         except ProcessLookupError:
             _logger.info(
-                "the child had already exited when the signal was sent: pid=%d signal=%s",
-                self._process.pid,
-                name,
+                "the child had already exited when the signal was sent",
                 extra={"pid": self._process.pid, "signal": name},
             )
 

@@ -12,6 +12,7 @@ from cortex_core import (
     ModelHostError,
     ModelHostState,
     ModelNotHostedError,
+    PlainFormatter,
 )
 from cortex_model_manager import HttpModelHost
 
@@ -76,10 +77,12 @@ async def test_a_failed_state_is_a_normal_answer_and_is_logged_with_its_detail(
     assert await host.status("brain") is ModelHostState.FAILED
     record = caplog.records[-1]
     assert record.levelno == logging.ERROR
-    # The rendered text, not just the attributes: the brain's own formatter shows no ``extra``, so
-    # a message that did not name the tier and the exit code would carry the diagnosis nowhere.
-    assert record.getMessage() == (
-        "a hosted model process has failed: model=brain detail=the process exited with code 1"
+    # The whole rendered line, not just the attributes: the fields are the only place the tier and
+    # the exit code ride now, so an assertion on the message alone would pass over a line that
+    # carried the diagnosis nowhere.
+    assert PlainFormatter().format(record) == (
+        "ERROR:cortex_model_manager.adapter:a hosted model process has failed "
+        'detail="the process exited with code 1" model=brain'
     )
     assert record.__dict__["detail"] == "the process exited with code 1"
 

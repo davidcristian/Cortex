@@ -8,7 +8,7 @@ from model_host_contract import CORTEX, DEEP
 from process_fakes import FakeChildProcesses, FakeProbe
 from test_model_host_contract import contract_roster
 
-from cortex_core import ModelHostState
+from cortex_core import ModelHostState, PlainFormatter
 from cortex_model_manager import ModelStatus, ModelSupervisor, SupervisorError, UnknownModelError
 
 _TINY = 0.05
@@ -100,16 +100,18 @@ async def test_a_spawn_that_fails_over_a_dead_child_keeps_reporting_that_childs_
 async def test_the_lifecycle_log_lines_name_the_tier_and_the_pid_they_are_about(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The identifying fields have to be in the message: a stdlib formatter renders no ``extra``."""
+    """The identifying fields have to reach the line, which is the entry's formatter's job now."""
     supervisor, processes, _ = _supervisor()
     with caplog.at_level(logging.INFO):
         await supervisor.start(CORTEX)
         await supervisor.stop(CORTEX)
     pid = processes.spawned[0].pid
     port = contract_roster()[CORTEX].port
-    assert [record.getMessage() for record in caplog.records] == [
-        f"started a model process: model={CORTEX} pid={pid} port={port}",
-        f"stopped a model process: model={CORTEX} pid={pid}",
+    formatter = PlainFormatter()
+    assert [formatter.format(record) for record in caplog.records] == [
+        f"INFO:cortex_model_manager.supervisor:started a model process "
+        f"model={CORTEX} pid={pid} port={port}",
+        f"INFO:cortex_model_manager.supervisor:stopped a model process model={CORTEX} pid={pid}",
     ]
     assert [record.__dict__["model"] for record in caplog.records] == [CORTEX, CORTEX]
 

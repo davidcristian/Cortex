@@ -174,6 +174,17 @@ reading rules:
 - Anything structured is compact JSON (`hits=[{"id":"m1","score":0.87}]`), so it can be pasted
   into `jq` or read as it stands.
 
+**The message says what happened and the fields say what it happened to**, so a value appears once
+on the line. A message is a constant sentence: `started a model process model=cortex pid=41
+port=8081`, never that sentence with `model=cortex pid=41 port=8081` written into it as well. That
+is what makes the greps in these runbooks match on a message's words and read the values out of the
+fields beside them, and it is why `docker compose logs brain | grep "could not be asked"` finds
+every control call the sidecar left unanswered, however many tiers and errors they name. Two kinds
+of line still carry a value in their prose, and neither is a field printed twice: one whose message
+the code also raises as an exception's text, which has to read on its own where no formatter runs,
+and one whose sentence needs a word to finish it (`a tier of the standing residency could not be
+started`), that word being a word rather than a field and never attached as one.
+
 **Two things never appear**, and both are the formatter's doing rather than each call site's. A
 field whose name looks like a secret (`token`, `password`, `secret`, `credential`, `api_key`,
 `authorization`, `cookie`, and anything containing one of those) prints `<redacted>` in place of

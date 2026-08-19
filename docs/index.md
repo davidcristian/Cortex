@@ -436,7 +436,11 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   own copy into the message stop doing it, and the formatter itself withholds a field named for a
   secret and strips a credential out of any URL on the line. `plain` ships because the operator
   here reads a terminal; `packed` is one JSON object per line for a deployment that collects, and
-  `CORTEX_LOG_FORMAT` picks between them.
+  `CORTEX_LOG_FORMAT` picks between them. **The twice-printed-field addendum** finishes that work
+  at the 31 call sites which had written their own fields into their messages back when nothing
+  else printed them: a message is now a constant sentence and every value on the line is a field,
+  so a value reads once and a runbook's `grep` matches every instance of a line rather than the one
+  whose id it quoted.
 
 - [ADR-0039: One file per backlog task, and an index nobody writes by hand](adr/ADR-0039-backlog-per-task.md):
   the two backlogs had reached 15,021 lines across 24 files, and the same status was written in

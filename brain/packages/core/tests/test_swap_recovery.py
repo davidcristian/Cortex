@@ -10,6 +10,7 @@ from cortex_core import (
     HandoffState,
     HandoffStoreError,
     ModelHostState,
+    PlainFormatter,
     RecordingSleeper,
     ResidencyPlan,
     ScriptedModelHost,
@@ -207,15 +208,12 @@ async def test_a_deep_tier_the_daemon_does_not_serve_is_a_config_fault_not_an_am
         settled = await _recover(RecordingHandoffStore(), host)
     assert settled is True
     assert host.running == {"cortex"}
-    # Said once, at ERROR, naming both knobs that produce the state and the one it does not touch.
-    assert [(record.levelno, record.getMessage()) for record in caplog.records] == [
-        (
-            logging.ERROR,
-            "escalation is enabled but the model host does not serve 'brain', so no handoff can "
-            "ever run: name an artifact for that tier (CORTEX_MODEL_FILE_BRAIN) or turn "
-            "escalation off (CORTEX_ESCALATION); the cortex is unaffected: unknown model 'brain'; "
-            "this twin was told it does not host it",
-        )
+    assert [PlainFormatter().format(record) for record in caplog.records] == [
+        "ERROR:cortex_core.swap_recovery:escalation is enabled but the model host does not serve "
+        "the deep model, so no handoff can ever run: name an artifact for that tier "
+        "(CORTEX_MODEL_FILE_BRAIN) or turn escalation off (CORTEX_ESCALATION); the cortex is "
+        "unaffected error=\"unknown model 'brain'; this twin was told it does not host it\" "
+        "model=brain"
     ]
 
 
