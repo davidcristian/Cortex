@@ -5,28 +5,28 @@
 //! read-only `ListSessions` and `GetSessionMessages`, and the user-driven writes `RenameSession`,
 //! `DeleteSession`, and `SetSessionPinned`. Thin translation only. Map the request, await the unary
 //! reply, map each row to its typed core value; a non-OK gRPC status maps the same way `health`
-//! does (via [`crate::status::status_to_error`]).
+//! does, through the [`SeamCall`] the client hands in, which carries both the per-call client and
+//! the deadline that call announced (ADR-0024 courtesy-header addendum).
 
 use body_core::{SessionMessage, SessionSummary, TransportError};
 
-use crate::client::SeamChannel;
-use crate::generated::brain_service_client::BrainServiceClient;
+use crate::call::SeamCall;
 use crate::generated::{
     DeleteSessionRequest, GetSessionMessagesRequest, ListSessionsRequest, RenameSessionRequest,
     SetSessionPinnedRequest,
 };
-use crate::status::status_to_error;
 
 /// Lists recent chats newest-active first (`BrainService.ListSessions`). At most
 /// `limit`; `0` means the brain's default.
 pub(crate) async fn list_sessions(
-    mut client: BrainServiceClient<SeamChannel>,
+    call: SeamCall,
     limit: i32,
 ) -> Result<Vec<SessionSummary>, TransportError> {
+    let mut client = call.client();
     let reply = client
         .list_sessions(ListSessionsRequest { limit })
         .await
-        .map_err(|status| status_to_error(&status))?
+        .map_err(|status| call.error(&status))?
         .into_inner();
     Ok(reply
         .sessions
@@ -44,13 +44,14 @@ pub(crate) async fn list_sessions(
 /// Loads one session's persisted history in append order
 /// (`BrainService.GetSessionMessages`). An unknown session is an empty history.
 pub(crate) async fn session_messages(
-    mut client: BrainServiceClient<SeamChannel>,
+    call: SeamCall,
     session_id: String,
 ) -> Result<Vec<SessionMessage>, TransportError> {
+    let mut client = call.client();
     let reply = client
         .get_session_messages(GetSessionMessagesRequest { session_id })
         .await
-        .map_err(|status| status_to_error(&status))?
+        .map_err(|status| call.error(&status))?
         .into_inner();
     Ok(reply
         .messages
@@ -67,47 +68,47 @@ pub(crate) async fn session_messages(
 /// Renames one chat (`BrainService.RenameSession`, ADR-0021 management addendum). A user-driven
 /// catalog write: `title` is the new display label, `""` clears any override. The reply is a
 /// bare acknowledgement, so on success there is nothing to map back; a non-OK gRPC status maps
-/// via [`status_to_error`] (a store failure surfaces as `TransportError::Rpc` `Unavailable`).
+/// via [`SeamCall::error`] (a store failure surfaces as `TransportError::Rpc` `Unavailable`).
 pub(crate) async fn rename_session(
-    mut client: BrainServiceClient<SeamChannel>,
+    call: SeamCall,
     session_id: String,
     title: String,
 ) -> Result<(), TransportError> {
-    client
+    call.client()
         .rename_session(RenameSessionRequest { session_id, title })
         .await
-        .map_err(|status| status_to_error(&status))?;
+        .map_err(|status| call.error(&status))?;
     Ok(())
 }
 
 /// Deletes one chat (`BrainService.DeleteSession`, ADR-0021 management addendum). A user-driven
 /// destructive write: the brain hard-deletes the transcript and cascades to the session's private
 /// memories. The reply is a bare acknowledgement, so on success there is nothing to map back; a
-/// non-OK gRPC status maps via [`status_to_error`] (a store/memory failure surfaces as `Unavailable`).
+/// non-OK gRPC status maps via [`SeamCall::error`] (a store/memory failure surfaces as `Unavailable`).
 pub(crate) async fn delete_session(
-    mut client: BrainServiceClient<SeamChannel>,
+    call: SeamCall,
     session_id: String,
 ) -> Result<(), TransportError> {
-    client
+    call.client()
         .delete_session(DeleteSessionRequest { session_id })
         .await
-        .map_err(|status| status_to_error(&status))?;
+        .map_err(|status| call.error(&status))?;
     Ok(())
 }
 
 /// Pins or unpins one chat (`BrainService.SetSessionPinned`, ADR-0021 pinning addendum). A
 /// user-driven catalog write: `pinned` is the target state, and a pinned chat is unioned into
 /// `ListSessions` regardless of recency. The reply is a bare acknowledgement, so on success there
-/// is nothing to map back; a non-OK gRPC status maps via [`status_to_error`] (a store failure
+/// is nothing to map back; a non-OK gRPC status maps via [`SeamCall::error`] (a store failure
 /// surfaces as `TransportError::Rpc` `Unavailable`).
 pub(crate) async fn set_session_pinned(
-    mut client: BrainServiceClient<SeamChannel>,
+    call: SeamCall,
     session_id: String,
     pinned: bool,
 ) -> Result<(), TransportError> {
-    client
+    call.client()
         .set_session_pinned(SetSessionPinnedRequest { session_id, pinned })
         .await
-        .map_err(|status| status_to_error(&status))?;
+        .map_err(|status| call.error(&status))?;
     Ok(())
 }

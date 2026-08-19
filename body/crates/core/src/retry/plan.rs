@@ -42,6 +42,34 @@ pub const DEFAULT_PROBE_DEADLINE: Duration = Duration::from_millis(250);
 /// watching rather than spinning forever.
 pub const DEFAULT_CALL_DEADLINE: Duration = Duration::from_secs(5);
 
+/// How much longer the deadline the body **announces** to the brain is than the one it
+/// **enforces**, in milliseconds ([`RetryPlan::announced_deadline_for`], ADR-0024 courtesy-header
+/// addendum). A count of milliseconds rather than a [`Duration`] because this is the one duration
+/// here that a module contract quotes as a number, and `scripts/crosscheck.py` ties the two by
+/// reading this declaration, which it can do for an integer and cannot for a constructor call.
+///
+/// **Why there is a margin at all.** The announcement is `grpc-timeout`, and on this client it
+/// cannot be made without also arming a local timer: `Request::set_timeout` writes the header and
+/// nothing else, but the channel's own `GrpcTimeout` layer parses that header back off the
+/// outgoing request and starts a clock from it. Announcing and arming are therefore one act. An
+/// expiry tonic enforces arrives as a `Status::cancelled` carrying its `transport::Error`, which
+/// the adapter classifies [`crate::transport::TransportError::Connection`], and that is in the
+/// **retryable** set, so a tonic timer that won the race would turn one abandoned call into three:
+/// the load amplifier a timeout is classified terminal to avoid. The margin makes the core's own
+/// bound win deterministically instead, leaving tonic's timer armed but never first.
+///
+/// **Why a quarter second.** It pays for three things, in ascending order of size. A loopback
+/// round trip plus the brain's own header parse costs tens of microseconds. The header's encoding
+/// truncates to whole units of whichever unit it picks, which costs at most a millisecond and
+/// costs exactly nothing for every value the shipped plan produces. And the two clocks are
+/// ordered by their deadlines only while the runtime is scheduling: were the body's runtime to
+/// stall past both, one poll would find both due and tonic's would answer first, since a
+/// `bounded` call polls the call before the clock. So the margin is sized by the longest stall
+/// the ordering must survive, and a quarter second is far beyond any this runtime should have.
+/// It is bounded above by its own purpose: the brain works at most this long past the moment the
+/// body stopped waiting, which is the waste the header exists to cut.
+pub const ANNOUNCED_DEADLINE_GRACE_MS: u64 = 250;
+
 /// Every call on the [`crate::transport::BrainTransport`] port, named so a retry decision can
 /// be made about it. Exhaustive by construction: a new port method that wants resilience has
 /// to appear here and be classified, which is the whole point (see the module docs).
@@ -222,5 +250,26 @@ impl RetryPlan {
             | SeamMethod::GetPreferences
             | SeamMethod::SetPreference => Some(self.call_deadline),
         }
+    }
+
+    /// How long one attempt at `method` **tells the brain** it will be waited on, or `None` when
+    /// it tells it nothing (ADR-0024 courtesy-header addendum).
+    ///
+    /// The courtesy half of [`RetryPlan::deadline_for`]: the body enforces that one itself, and
+    /// this is what it puts on the wire so the brain can stop working on a call nobody is waiting
+    /// for. It is the enforced deadline plus [`ANNOUNCED_DEADLINE_GRACE_MS`], never equal to it,
+    /// because the transport arms a clock of its own from the announcement and the body's own
+    /// bound has to win that race by construction rather than by luck. `Converse` announces
+    /// nothing, having no enforced deadline to announce; nothing else is exempt.
+    ///
+    /// The addition saturates, which changes the answer only for a deadline within the margin of
+    /// [`Duration::MAX`]. Such a plan is unreachable from the millisecond knobs the shell parses
+    /// and would announce a deadline no wire can spell in any case, which the adapter refuses
+    /// separately.
+    #[must_use]
+    pub fn announced_deadline_for(&self, method: SeamMethod) -> Option<Duration> {
+        let grace = Duration::from_millis(ANNOUNCED_DEADLINE_GRACE_MS);
+        self.deadline_for(method)
+            .map(|deadline| deadline.saturating_add(grace))
     }
 }

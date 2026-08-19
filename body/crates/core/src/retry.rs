@@ -32,6 +32,11 @@
 //! of hanging the caller. That failure is terminal by decision, not by omission: a retried
 //! deadline is the classic load amplifier, and a timeout is our own decision to stop waiting
 //! rather than the brain's report that a repeat might go better (ADR-0024 deadline addendum).
+//! The plan answers a second question about the same clock, [`RetryPlan::announced_deadline_for`],
+//! which is what the *adapter* tells the brain the call will be waited on. It is deliberately
+//! longer than the bound enforced here, by [`ANNOUNCED_DEADLINE_GRACE_MS`], because announcing a
+//! deadline arms a clock in the transport too and this one has to win that race by construction
+//! (ADR-0024 courtesy-header addendum).
 
 pub mod deadline;
 pub mod effects;
@@ -41,7 +46,8 @@ pub mod policy;
 pub use deadline::within_deadline;
 pub use effects::{FullDelay, Randomness, Sleeper};
 pub use plan::{
-    DEFAULT_CALL_DEADLINE, DEFAULT_PROBE_BUDGET, DEFAULT_PROBE_DEADLINE, RetryPlan, SeamMethod,
+    ANNOUNCED_DEADLINE_GRACE_MS, DEFAULT_CALL_DEADLINE, DEFAULT_PROBE_BUDGET,
+    DEFAULT_PROBE_DEADLINE, RetryPlan, SeamMethod,
 };
 pub use policy::{RetryPolicy, is_transient};
 

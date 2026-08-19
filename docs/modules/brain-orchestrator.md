@@ -366,7 +366,13 @@ The service:
     chat above the recency window. Same structural user-only gate as `RenameSession`/`DeleteSession`;
     a `SessionStoreError` aborts `UNAVAILABLE`. Idempotent by value.
   - The session RPCs are unary; a `SessionStoreError` aborts them `UNAVAILABLE` (the body
-    maps that to `TransportError::Rpc`). Their servicer method bodies live in
+    maps that to `TransportError::Rpc`). Every unary call now arrives carrying a `grpc-timeout`
+    the body announced (ADR-0024 courtesy-header addendum), which no handler here reads and
+    grpc.aio enforces on its own: a handler still running at the deadline is cancelled where it
+    awaits. Nothing legitimate is at risk from that, the announcement being longer than the bound
+    the body itself gave up at, and `Converse` announces none at all, a turn being long by design.
+    Reading the remaining time and shaping work with it is
+    [R-322](../refinements/tasks/322-brain-reads-the-remaining-time.md). Their servicer method bodies live in
     `preference_servicer.PreferenceRpcMixin` (the two settings RPCs, ADR-0032; empty reads and
     dropped writes when no store is wired, the `ScheduleStore` precedent), `stores.RedisStores`
     (the session + preference stores the composition root opens from one URL and closes as a

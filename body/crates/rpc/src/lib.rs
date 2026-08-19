@@ -9,6 +9,7 @@
 //! `body_core::ScreenCapture` port, Slice 10, ADR-0029). No business logic lives here.
 
 mod auth;
+mod call;
 mod client;
 mod converse;
 mod preferences;

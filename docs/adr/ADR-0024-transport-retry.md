@@ -561,3 +561,89 @@ rather than by luck.
 a reading. Reading names the mechanism and is how you know what to measure; it does not establish
 what happens, because the frame above the one you read can undo it. Where a claim decides a
 design, the run belongs in the record, and better, in a test.
+
+## Addendum (2026-08-19): the courtesy `grpc-timeout` lands, a grace margin ahead of our own clock
+
+The deadline addendum above left the brain unable to see the bound it was being held to: the body
+enforced a per-attempt deadline, dropped the call when its clock won, and put nothing on the wire
+saying how long it had meant to wait. The header for exactly this exists, so it is sent now. What
+made this a slice rather than a line is the constraint the correction addendum turned up, that
+announcing a deadline and arming tonic's own clock are the same act, and the design is built around
+losing that race deliberately.
+
+**Announce longer than you enforce, by a named margin.** `RetryPlan` grows a second question next
+to `deadline_for`: `announced_deadline_for(method)`, which is the enforced deadline plus
+`ANNOUNCED_DEADLINE_GRACE_MS` (250 ms), and `None` for `Converse`, which has no deadline to
+announce. That ordering is what makes the race deterministic rather than lucky. Both clocks start
+on the same runtime, ours strictly first (the `bounded` timer is armed before the call future is
+polled, and tonic's `GrpcTimeout` layer only sees the request after that), so a strictly longer
+announcement cannot fire first. The margin pays for three things, in ascending order of size: a
+loopback round trip plus the brain's own header parse, which is tens of microseconds; the header
+encoding's truncation to whole units, at most a millisecond and exactly zero for every value the
+shipped plan produces; and, the one that actually sizes it, the scheduler slack the ordering has to
+survive, since a runtime stalled past *both* deadlines would find them both due in one poll and
+`tokio::time::timeout` polls the call before the clock. A quarter second is far beyond any stall
+this runtime should have, and it is bounded above by its own purpose: the brain works at most that
+long past the moment the body stopped waiting.
+
+**Where the per-call value enters.** The interceptor is the only place every outgoing request
+passes through, and it is built once per client, so the client had to gain a way to carry a
+per-call deadline into it. Of the shapes considered, the client now holds the channel, the token
+and the plan, and builds the generated client per call (`SeamCall`, `body/crates/rpc/src/call.rs`,
+which took the interceptor and the `SEAM_TOKEN_HEADER` declaration with it under the line cap).
+Threading a duration through every translation helper was the alternative and would have put the
+same number in four modules' signatures; a tonic `Extensions` value on each request reaches the
+interceptor too, but the request is built inside those same helpers, so it is the same threading
+wearing a different hat. Holding the plan also answers the reply side, which the header alone
+cannot: `SeamCall` carries what it announced, so a brain-sent `DEADLINE_EXCEEDED` maps to
+`TransportError::Timeout { after }` naming the announcement that expired. The seam token now lives
+in a struct the client owns, so `Debug` is written out and redacts it rather than being derived.
+
+**The classification did not move, and that is the point.** tonic's own expiry still carries a
+`transport::Error` and still classifies `Connection` (retryable);
+`tonics_own_expired_timeout_classifies_as_a_retryable_connection_failure` is unchanged and still
+green, and a new unit check pins that an *announced* call does not move it either. The only new
+answer is for a status the brain sent, and only on a call that announced something: without an
+announcement there is no deadline of ours that expired and nothing honest to put in `after`, so it
+stays `Rpc{DeadlineExceeded}`, which is terminal too. Nothing about a retry decision turns on
+which of the two it is.
+
+**One refusal, for a panic this would otherwise have introduced.** `grpc-timeout` carries at most
+8 digits, and tonic's encoder walks its unit ladder and then panics (`expect("duration is
+unrealistically large")`). `RetryPlan`'s fields are public and its millisecond knobs are `u64`, so
+that duration is reachable. An announcement past the header's ceiling is therefore dropped rather
+than clamped, since clamping would announce something *shorter* than the core enforces and hand
+the race to tonic, which is the one outcome the margin exists to prevent.
+
+**What the brain does with it, measured end to end rather than assumed.** The entry that asked for
+this supposed a brain that keeps working on an abandoned call: the store query, the memory cascade
+and the reply serialization all burning for a reply nobody will read. A throwaway probe put a real
+`grpc.aio` `BrainService` on loopback, whose `ListSessions` sleeps for twenty seconds, and drove it
+from a real `BrainSeamClient` announcing an 800 ms plan. Both ends reported:
+
+```
+PROBE elapsed=801.000257ms error=Timeout { after: 800ms } announced=Some(1.05s)
+{"time_remaining": 1.0484976768493652, "cancelled_after": 0.8001443940156605}
+```
+
+Three things are in those two lines. The header crosses to grpc-python intact and arrives as a
+real deadline, so the brain can already see the bound rather than infer it. The body's own clock
+won by the margin it was built to win by, the failure arriving as `Timeout` (terminal) at 801 ms
+rather than as tonic's retryable `Connection` at 1.05 s. And the handler was cancelled at exactly
+the moment the body dropped the call, 250 ms before the deadline it had been told, which is the
+correction worth keeping: `grpc.aio` turns the client's stream reset into an `asyncio` cancellation
+of the servicer coroutine, so the abandoned-work waste this entry was opened over was already
+mostly cut before the header existed. What the announcement adds is therefore narrower than the
+entry claimed and still real. It is a bound the brain holds on **its own** clock rather than one
+that depends on a reset arriving, which a killed body, a half-open connection, or anything between
+them may never send; and it is a number a handler can plan against before it starts work rather
+than a signal it receives after. No legitimate call is at risk from that enforcement, since the
+announcement is always longer than the bound the body has already given up at, and a turn
+announces nothing.
+
+**What is not in this slice.** The brain reading `time_remaining()` and shaping work with it,
+which is where the second half of the value is: declining a cascade it cannot finish, logging the
+abandonment as such, passing the remaining time down into the model host and the MCP tools it
+calls. That is a decision per handler about what "not enough time left" means, in a different
+tree with its own tests, and it is filed as
+[R-322](../refinements/tasks/322-brain-reads-the-remaining-time.md) rather than carried here.

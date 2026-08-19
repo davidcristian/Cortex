@@ -21,7 +21,7 @@ use body_core::{ConfirmDecision, TransportError, TurnEvent};
 use futures_core::Stream;
 use tokio_stream::StreamExt;
 
-use crate::client::SeamChannel;
+use crate::call::SeamChannel;
 use crate::generated::brain_service_client::BrainServiceClient;
 use crate::generated::{
     ClientEvent, ConfirmResponse, ServerEvent, UserTurn, client_event, server_event,

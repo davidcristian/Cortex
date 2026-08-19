@@ -833,14 +833,21 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   per-attempt deadlines, `CORTEX_BRAIN_PROBE_DEADLINE_MS` and `CORTEX_BRAIN_CALL_DEADLINE_MS`
   (`env_millis` parses every duration knob here, since all of them are spelled in ms). Which
   calls may be retried at all is *not* configurable here and deliberately so; that is the gated
-  `RetryPlan` gate, decided by what each seam method does. The read commands use `connect()`;
+  `RetryPlan` gate, decided by what each seam method does. `connect()` reads that plan **once**
+  and hands the one value to both halves it governs, the `RetryingTransport` that enforces its
+  per-attempt deadline and the client that announces it as `grpc-timeout` (`announcing(plan)`,
+  ADR-0024 courtesy-header addendum): the announcement is longer than the enforced bound by the
+  plan's own grace margin, and one plan value reaching both is what keeps that ordering
+  structural. The read commands use `connect()`;
   `converse` keeps its **eager** dial but wraps it in `retry_with` (ADR-0024 addendum), so a turn
   started against a briefly-down brain retries the *dial* (safe: the non-idempotent turn has not
   begun) while a turn that fails after its first event stays terminal (decision 2). It first runs
   the lazy constructor as a synchronous config gate, so a bad URI or non-ASCII token fails fast
   instead of being retried for the whole budget, and each dial is wrapped in `within_deadline`
   at the plan's call deadline, so a dial that hangs cannot hang the turn behind it. The turn's
-  own stream is deliberately unbounded: a model thinking is not a failure.
+  own stream is deliberately unbounded: a model thinking is not a failure. The turn's client is
+  the one that announces nothing, and needs no `announcing`: `Converse` has no deadline in the
+  plan, so there is none to tell the brain about.
 - **The `body_server` module** (`src-tauri/src/body_server.rs`, ADR-0023/0025): `start()` (`cfg(windows)`)
   binds `CORTEX_BODY_ADDR` (default `127.0.0.1:50151`), reads `CORTEX_SEAM_TOKEN` and
   `CORTEX_TOAST_APP_ID` (default `dev.cortex.body`, the app's Tauri identifier), and serves

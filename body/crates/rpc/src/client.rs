@@ -9,58 +9,56 @@
 //! bounded-retry policy lives in `body_core`'s `RetryingTransport` decorator
 //! over this adapter (ADR-0024), and [`BrainSeamClient::connect_lazy_with_token`]
 //! gives it a reconnecting channel to retry over.
+//!
+//! **The deadline is announced here and enforced there** (ADR-0024 courtesy-header addendum).
+//! A client told which `RetryPlan` the decorator above it runs ([`BrainSeamClient::announcing`])
+//! puts each call's `grpc-timeout` on the wire, so a brain still working on a call the body has
+//! abandoned learns that it has been. It is a courtesy and not a second enforcement point: the
+//! header is deliberately *longer* than the bound the core keeps, by the plan's grace margin,
+//! because tonic arms a clock of its own from that same header and the core's bound has to win
+//! that race by construction. The client is therefore rebuilt per call ([`SeamCall`]), which is
+//! the only way a per-call value reaches an interceptor built once per connection, and it is why
+//! the channel and the token are held here rather than folded into one generated client.
+
+use std::fmt;
 
 use body_core::{
-    BrainTransport, ConfirmDecision, DueReminder, SeamHealth, SessionMessage, SessionSummary,
-    TransportError, TurnEvent,
+    BrainTransport, ConfirmDecision, DueReminder, RetryPlan, SeamHealth, SeamMethod,
+    SessionMessage, SessionSummary, TransportError, TurnEvent,
 };
 use futures_core::Stream;
 use tonic::metadata::{Ascii, MetadataValue};
-use tonic::service::Interceptor;
-use tonic::service::interceptor::InterceptedService;
 use tonic::transport::Channel;
-use tonic::{Request, Status};
 
+use crate::call::SeamCall;
 use crate::generated::HealthRequest;
-use crate::generated::brain_service_client::BrainServiceClient;
-use crate::status::{error_chain, status_to_error};
-
-/// The metadata key the seam token travels under (ADR-0016; lowercase per gRPC). Declared again
-/// in `auth.rs` and once more in the brain's `cortex_seam`; `scripts/crosscheck.py` ties all
-/// three, so a rename here that misses either of the others fails the gate rather than the seam.
-const SEAM_TOKEN_HEADER: &str = "x-cortex-seam-token";
-
-/// The service every seam call runs over: tonic's [`Channel`] fronted by the
-/// token interceptor (which is a pass-through when no token is configured).
-pub(crate) type SeamChannel = InterceptedService<Channel, SeamTokenInterceptor>;
-
-/// Attaches the shared seam token to every outgoing request (ADR-0016).
-///
-/// Deliberately NOT `Debug`: it holds the secret, and tonic's
-/// `InterceptedService` debug-prints interceptors by type name only. The
-/// token cannot reach a log through a `{:?}` of the client either.
-#[derive(Clone)]
-pub(crate) struct SeamTokenInterceptor {
-    token: Option<MetadataValue<Ascii>>,
-}
-
-impl Interceptor for SeamTokenInterceptor {
-    fn call(&mut self, mut request: Request<()>) -> Result<Request<()>, Status> {
-        if let Some(token) = &self.token {
-            request
-                .metadata_mut()
-                .insert(SEAM_TOKEN_HEADER, token.clone());
-        }
-        Ok(request)
-    }
-}
+use crate::status::error_chain;
 
 /// gRPC client for `BrainService`, connected over a tonic [`Channel`].
 ///
-/// Cheap to clone: clones share the underlying HTTP/2 connection.
-#[derive(Clone, Debug)]
+/// Cheap to clone: clones share the underlying HTTP/2 connection. The generated client is built
+/// per call instead of held, because the token interceptor also carries that call's announced
+/// deadline (see the module docs), so what is held is the channel, the token, and the plan the
+/// announcement is read out of.
+#[derive(Clone)]
 pub struct BrainSeamClient {
-    inner: BrainServiceClient<SeamChannel>,
+    channel: Channel,
+    token: Option<MetadataValue<Ascii>>,
+    plan: Option<RetryPlan>,
+}
+
+/// Redacting by construction: the token is a shared secret (ADR-0016) and the only thing here
+/// that must never reach a log, so it is printed as its presence and never as its value. Written
+/// out rather than derived for exactly that reason, the derive having printed the
+/// `MetadataValue` itself.
+impl fmt::Debug for BrainSeamClient {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("BrainSeamClient")
+            .field("channel", &self.channel)
+            .field("token", &self.token.as_ref().map(|_| "<redacted>"))
+            .field("plan", &self.plan)
+            .finish()
+    }
 }
 
 impl BrainSeamClient {
@@ -119,11 +117,42 @@ impl BrainSeamClient {
         Ok(Self::with_token(endpoint(addr)?.connect_lazy(), token))
     }
 
-    /// Wraps a ready channel in the client with the token interceptor attached.
-    fn with_token(channel: Channel, token: Option<MetadataValue<Ascii>>) -> Self {
+    /// Announces each call's deadline to the brain as `grpc-timeout`, read per method out of
+    /// `plan` (ADR-0024 courtesy-header addendum). Without this the client sends no header at
+    /// all, which is what every constructor above returns.
+    ///
+    /// `plan` must be the **same plan the `RetryingTransport` above this client enforces**, and
+    /// the shell's `seam::connect()` passes one value to both for that reason. The header is the
+    /// plan's `announced_deadline_for`, which is strictly longer than the `deadline_for` the core
+    /// keeps, so the two clocks the announcement inevitably starts are ordered: the core's own
+    /// bound expires first and the call fails `TransportError::Timeout` (terminal), rather than
+    /// tonic's expiring first and the call failing `TransportError::Connection` (retryable, and
+    /// so a deadline that amplifies load against a brain already too slow to answer).
+    #[must_use]
+    pub const fn announcing(mut self, plan: RetryPlan) -> Self {
+        self.plan = Some(plan);
+        self
+    }
+
+    /// Wraps a ready channel in the client, announcing nothing until [`Self::announcing`] says
+    /// otherwise.
+    const fn with_token(channel: Channel, token: Option<MetadataValue<Ascii>>) -> Self {
         Self {
-            inner: BrainServiceClient::with_interceptor(channel, SeamTokenInterceptor { token }),
+            channel,
+            token,
+            plan: None,
         }
+    }
+
+    /// One call's generated client, whose interceptor carries the seam token and this method's
+    /// announced deadline, paired with that announcement for the reply mapping ([`SeamCall`]).
+    fn call(&self, method: SeamMethod) -> SeamCall {
+        SeamCall::new(
+            self.channel.clone(),
+            self.token.clone(),
+            self.plan
+                .and_then(|plan| plan.announced_deadline_for(method)),
+        )
     }
 }
 
@@ -148,12 +177,12 @@ fn endpoint(addr: &str) -> Result<tonic::transport::Endpoint, TransportError> {
 
 impl BrainTransport for BrainSeamClient {
     async fn health(&self) -> Result<SeamHealth, TransportError> {
-        let reply = self
-            .inner
-            .clone()
+        let call = self.call(SeamMethod::Health);
+        let reply = call
+            .client()
             .health(HealthRequest {})
             .await
-            .map_err(|status| status_to_error(&status))?
+            .map_err(|status| call.error(&status))?
             .into_inner();
         Ok(SeamHealth {
             ready: reply.ready,
@@ -167,8 +196,11 @@ impl BrainTransport for BrainSeamClient {
         text: &str,
         decisions: impl Stream<Item = ConfirmDecision> + Send + 'static,
     ) -> impl Stream<Item = Result<TurnEvent, TransportError>> + Send {
+        // The one method that announces nothing, because it is the one the plan gives no
+        // deadline: a turn is long by design, and a header would hand tonic a clock to end it
+        // with. Its statuses therefore map through the plain classifier.
         crate::converse::converse_turn(
-            self.inner.clone(),
+            self.call(SeamMethod::Converse).client(),
             session_id.to_owned(),
             text.to_owned(),
             decisions,
@@ -176,31 +208,41 @@ impl BrainTransport for BrainSeamClient {
     }
 
     async fn list_sessions(&self, limit: i32) -> Result<Vec<SessionSummary>, TransportError> {
-        crate::sessions::list_sessions(self.inner.clone(), limit).await
+        crate::sessions::list_sessions(self.call(SeamMethod::ListSessions), limit).await
     }
 
     async fn session_messages(
         &self,
         session_id: &str,
     ) -> Result<Vec<SessionMessage>, TransportError> {
-        crate::sessions::session_messages(self.inner.clone(), session_id.to_owned()).await
+        crate::sessions::session_messages(
+            self.call(SeamMethod::SessionMessages),
+            session_id.to_owned(),
+        )
+        .await
     }
 
     async fn list_due_reminders(&self) -> Result<Vec<DueReminder>, TransportError> {
-        crate::reminders::list_due_reminders(self.inner.clone()).await
+        crate::reminders::list_due_reminders(self.call(SeamMethod::ListDueReminders)).await
     }
 
     async fn ack_reminder(&self, reminder_id: &str) -> Result<bool, TransportError> {
-        crate::reminders::ack_reminder(self.inner.clone(), reminder_id.to_owned()).await
-    }
-
-    async fn rename_session(&self, session_id: &str, title: &str) -> Result<(), TransportError> {
-        crate::sessions::rename_session(self.inner.clone(), session_id.to_owned(), title.to_owned())
+        crate::reminders::ack_reminder(self.call(SeamMethod::AckReminder), reminder_id.to_owned())
             .await
     }
 
+    async fn rename_session(&self, session_id: &str, title: &str) -> Result<(), TransportError> {
+        crate::sessions::rename_session(
+            self.call(SeamMethod::RenameSession),
+            session_id.to_owned(),
+            title.to_owned(),
+        )
+        .await
+    }
+
     async fn delete_session(&self, session_id: &str) -> Result<(), TransportError> {
-        crate::sessions::delete_session(self.inner.clone(), session_id.to_owned()).await
+        crate::sessions::delete_session(self.call(SeamMethod::DeleteSession), session_id.to_owned())
+            .await
     }
 
     async fn set_session_pinned(
@@ -208,15 +250,24 @@ impl BrainTransport for BrainSeamClient {
         session_id: &str,
         pinned: bool,
     ) -> Result<(), TransportError> {
-        crate::sessions::set_session_pinned(self.inner.clone(), session_id.to_owned(), pinned).await
+        crate::sessions::set_session_pinned(
+            self.call(SeamMethod::SetSessionPinned),
+            session_id.to_owned(),
+            pinned,
+        )
+        .await
     }
 
     async fn get_preferences(&self) -> Result<Vec<(String, String)>, TransportError> {
-        crate::preferences::get_preferences(self.inner.clone()).await
+        crate::preferences::get_preferences(self.call(SeamMethod::GetPreferences)).await
     }
 
     async fn set_preference(&self, key: &str, value: &str) -> Result<(), TransportError> {
-        crate::preferences::set_preference(self.inner.clone(), key.to_owned(), value.to_owned())
-            .await
+        crate::preferences::set_preference(
+            self.call(SeamMethod::SetPreference),
+            key.to_owned(),
+            value.to_owned(),
+        )
+        .await
     }
 }
