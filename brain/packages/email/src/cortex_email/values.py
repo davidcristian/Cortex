@@ -57,6 +57,12 @@ SEARCH_QUERY_HELP = (
     "after it, and parentheses group. So unread mail from this year about either of two things "
     'is: UNSEEN SINCE 01-Jan-2026 OR SUBJECT "invoice" SUBJECT "receipt".'
 )
+SEARCH_REFUSED = (
+    "The mail server refused this search as malformed, so nothing was searched and no message "
+    "was read. The query is raw IMAP SEARCH criteria, and the query field's own description "
+    "spells that dialect out in full, criterion by criterion: write the search again from it "
+    "rather than sending this one a second time, which is refused again. The refused query was "
+)
 FOLDER_HELP = (
     "One folder name spelled exactly as list_folders returned it, such as INBOX or All Mail. A "
     "folder inside another carries its parent and a '/' between them, as in Folders/Jobs. "

@@ -1,8 +1,4 @@
-"""Behavior tests for the email FastMCP server: the tools call the reader, in-process.
-
-Each tool returns a single readable string; these assert on that text (what a text client,
-and thus the model, actually receives), not on FastMCP's structured side-channel.
-"""
+"""Behavior tests for the email FastMCP server: the tools call the reader, in-process."""
 # The autouse env-isolation fixture below is invoked by pytest, not statically
 # referenced. Pyright cannot see that. (Same class as server.py's decorator handlers.)
 # pyright: reportUnusedFunction=false
@@ -11,7 +7,9 @@ from collections.abc import Sequence
 from typing import cast
 
 import pytest
+from mailbox_fake import FakeMailbox
 from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp.exceptions import ToolError
 from mcp.types import CallToolResult, TextContent
 
 import cortex_email.server as server_module
@@ -19,6 +17,7 @@ from cortex_email import (
     EmailAttachment,
     EmailDraft,
     EmailReader,
+    MailboxError,
     RawEmail,
     SmtpSender,
     build_server,
@@ -51,33 +50,10 @@ def _clean_smtp_env(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv(name, raising=False)
 
 
-class FakeMailbox:
-    def __init__(
-        self,
-        *,
-        folders: Sequence[str] = (),
-        found: Sequence[RawEmail] = (),
-        one: RawEmail | None = None,
-    ) -> None:
-        self._folders = folders
-        self._found = found
-        self._one = one
-
-    def list_folders(self) -> Sequence[str]:
-        return self._folders
-
-    def search(self, folder: str, query: str, limit: int) -> Sequence[RawEmail]:
-        del folder, query, limit
-        return self._found
-
-    def fetch(self, folder: str, uid: str) -> RawEmail | None:
-        del folder, uid
-        return self._one
-
-
 async def _text(server: FastMCP, name: str, args: dict[str, object]) -> str:
-    # read_email returns a CallToolResult (it declares a source, below); the string-returning tools
-    # come back as FastMCP's (unstructured, structured) pair. Both reduce to the readable text.
+    # search_emails and read_email return a CallToolResult (one marks a refusal, the other
+    # declares a source, both below); the string-returning tools come back as FastMCP's
+    # (unstructured, structured) pair. Both reduce to the readable text.
     result: object = await server.call_tool(name, args)
     if isinstance(result, CallToolResult):
         blocks: Sequence[object] = result.content
@@ -101,6 +77,43 @@ async def test_search_emails_tool_reports_no_matches() -> None:
     server = build_server(EmailReader(FakeMailbox(found=[])))
     assert await _text(server, "search_emails", {"folder": "INBOX", "query": "ALL"}) == (
         "(no matching messages)"
+    )
+
+
+async def test_search_emails_tool_hands_a_refusal_to_the_model_in_its_own_words() -> None:
+    mailbox = FakeMailbox()
+    mailbox.refuse()
+    server = build_server(EmailReader(mailbox))
+    result = cast(
+        "CallToolResult",
+        await server.call_tool(
+            "search_emails", {"folder": "INBOX", "query": "from:someone@example.com"}
+        ),
+    )
+    assert result.isError is True
+    text = "".join(b.text for b in result.content if isinstance(b, TextContent))
+    assert text == (
+        "The mail server refused this search as malformed, so nothing was searched and no "
+        "message was read. The query is raw IMAP SEARCH criteria, and the query field's own "
+        "description spells that dialect out in full, criterion by criterion: write the search "
+        "again from it rather than sending this one a second time, which is refused again. The "
+        "refused query was 'from:someone@example.com'"
+    )
+
+
+async def test_a_mailbox_that_cannot_answer_is_still_a_tool_failure() -> None:
+    class DownMailbox(FakeMailbox):
+        def search(self, folder: str, query: str, limit: int) -> Sequence[RawEmail]:
+            del folder, query, limit
+            msg = "the mailbox could not run that search: connection refused"
+            raise MailboxError(msg)
+
+    server = build_server(EmailReader(DownMailbox()))
+    with pytest.raises(ToolError) as raised:
+        await server.call_tool("search_emails", {"folder": "INBOX", "query": "ALL"})
+    assert str(raised.value) == (
+        "Error executing tool search_emails: the mailbox could not run that search: "
+        "connection refused"
     )
 
 

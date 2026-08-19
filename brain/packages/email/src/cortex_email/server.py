@@ -12,6 +12,7 @@ from mcp.types import CallToolResult, TextContent, ToolAnnotations
 from pydantic import Field
 
 from cortex_email.config import EmailConfig, SmtpConfig
+from cortex_email.errors import SearchRefusedError
 from cortex_email.imap import ImapMailbox
 from cortex_email.reader import EmailReader
 from cortex_email.smtp import EmailSender, SmtpSender
@@ -29,6 +30,11 @@ _SERVER_PORT = 9100
 _DEFAULT_SEARCH_LIMIT = 20
 
 _SOURCE_META_KEY = "cortex/source"
+
+
+def _one_text(text: str, *, failed: bool = False) -> CallToolResult:
+    """One readable text block as the whole tool result, ``isError`` when it reports a failure."""
+    return CallToolResult(content=[TextContent(type="text", text=text)], isError=failed)
 
 
 def _sender_source(sender: str) -> dict[str, dict[str, str]] | None:
@@ -56,12 +62,16 @@ def build_server(reader: EmailReader, sender: EmailSender | None = None) -> Fast
         folder: Annotated[str, Field(description=FOLDER_HELP)],
         query: Annotated[str, Field(description=SEARCH_QUERY_HELP)],
         limit: Annotated[int, Field(description=SEARCH_LIMIT_HELP)] = _DEFAULT_SEARCH_LIMIT,
-    ) -> str:
+    ) -> CallToolResult:
         """Search one folder with an IMAP query; return one summary line per match."""
-        summaries = await asyncio.to_thread(reader.search, folder, query, limit)
+        try:
+            summaries = await asyncio.to_thread(reader.search, folder, query, limit)
+        except SearchRefusedError as refusal:
+            return _one_text(str(refusal), failed=True)
         if not summaries:
-            return "(no matching messages)"
-        return "\n".join(f"[{s.uid}] {s.date} | {s.sender} | {s.subject}" for s in summaries)
+            return _one_text("(no matching messages)")
+        lines = "\n".join(f"[{s.uid}] {s.date} | {s.sender} | {s.subject}" for s in summaries)
+        return _one_text(lines)
 
     @server.tool()
     async def read_email(
@@ -70,8 +80,7 @@ def build_server(reader: EmailReader, sender: EmailSender | None = None) -> Fast
         """Read one message in full (headers + plain-text body) by its uid."""
         detail = await asyncio.to_thread(reader.read, folder, uid)
         if detail is None:
-            text = f"message {uid} not found in {folder}"
-            return CallToolResult(content=[TextContent(type="text", text=text)])
+            return _one_text(f"message {uid} not found in {folder}")
         text = (
             f"From: {detail.sender}\nTo: {detail.recipients}\n"
             f"Date: {detail.date}\nSubject: {detail.subject}\n\n{detail.body}"

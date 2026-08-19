@@ -1,6 +1,5 @@
 """EmailReader + ImapMailbox against a live ProtonMail Bridge (host-only, ADR-0009)."""
 
-import imaplib
 import os
 import re
 import time
@@ -17,6 +16,7 @@ from cortex_email import (
     EmailDraft,
     EmailReader,
     ImapMailbox,
+    SearchRefusedError,
     SmtpConfig,
     SmtpSender,
 )
@@ -91,10 +91,10 @@ def test_every_advertised_search_criterion_is_one_the_bridge_accepts() -> None:
     for query in _ADVERTISED_QUERIES:
         reader.search("INBOX", query, 1)  # a criterion the server refuses raises out of here
 
-    # And the premise the description exists to remove: the client syntax really is refused,
-    # rather than being interpreted as a subject search or quietly matching nothing.
-    with pytest.raises(imaplib.IMAP4.error):
+    with pytest.raises(SearchRefusedError) as raised:
         reader.search("INBOX", "from:someone@example.com", 1)
+    assert raised.value.query == "from:someone@example.com"
+    assert "offset" not in str(raised.value)
 
 
 @pytest.mark.integration
