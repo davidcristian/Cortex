@@ -20,6 +20,7 @@ from cortex_email import (
     EmailConfig,
     EmailDraft,
     EmailReader,
+    FolderUnknownError,
     ImapMailbox,
     SearchRefusedError,
     SmtpConfig,
@@ -116,6 +117,34 @@ def test_every_advertised_search_criterion_is_one_the_bridge_accepts() -> None:
         reader.search("INBOX", "from:someone@example.com", 1)
     assert raised.value.query == "from:someone@example.com"
     assert "offset" not in str(raised.value)
+
+
+@pytest.mark.integration
+def test_a_folder_no_mailbox_has_is_refused_by_name_and_by_the_folder_list() -> None:
+    """The live half of the unknown-folder classification, and the premise it rests on.
+
+    Two facts only a real server can settle. Every name no mailbox has is refused the same way,
+    whatever shape the wrong name takes, so the classification is not reading one accident of one
+    spelling; and every name `list_folders` returns really does open, so nothing the tool tells a
+    model to use comes back as the refusal it warns about. The `NO` the Bridge sends carries no
+    RFC 5530 response code, only the words, which is why the words are what is read
+    (ADR-0022 unknown-folder addendum).
+    """
+    config = EmailConfig()
+    if not config.user:
+        pytest.skip("set CORTEX_EMAIL_IMAP_USER/PASSWORD (~/.cortex/email.env) to run")
+    mailbox = ImapMailbox(config)
+    for name in ("Receipts", "INBOX/Receipts", "inbox/", '"Receipts"'):
+        with pytest.raises(FolderUnknownError) as raised:
+            mailbox.search(name, "ALL", 1)
+        assert raised.value.folder == name
+        assert "list_folders" in str(raised.value)
+        assert "Response status" not in str(raised.value)  # nothing of imap-tools reaches a model
+    with pytest.raises(FolderUnknownError):
+        mailbox.fetch("Receipts", "1")  # the other tool that takes a folder, same answer
+
+    for folder in mailbox.list_folders():
+        mailbox.search(folder, "ALL", 1)  # a listed name that would not open raises out of here
 
 
 @pytest.mark.integration

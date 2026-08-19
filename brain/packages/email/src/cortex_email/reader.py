@@ -27,11 +27,14 @@ class RawEmail:
 class Mailbox(Protocol):
     """Read-only slice of IMAP the reader needs; the imap-tools adapter and a fake both match.
 
-    The port fails in exactly two ways, and every implementation owes both (`errors.py`):
-    `SearchRefusedError` when the server reads a query and refuses it as malformed, which the
-    caller fixes by writing a different one, and `MailboxError` for every way the mailbox could
-    not answer at all. No implementation may let its own library's exception out, which is why
-    the fake raises these too and the contract test drives the same checks over both.
+    The port fails in exactly three ways, and every implementation owes all three (`errors.py`).
+    Two of them are the caller's to fix, one per argument it guessed: `SearchRefusedError` when
+    the server reads a query and refuses it as malformed, fixed by writing a different one, and
+    `FolderUnknownError` when no mailbox has the folder that was named, fixed by reading
+    `list_folders`. The third is `MailboxError`, for every way the mailbox could not answer at
+    all, and it is what a refusal that cannot be proved to be either of the first two stays. No
+    implementation may let its own library's exception out, which is why the fake raises these
+    too and the contract test drives the same checks over both.
     """
 
     def list_folders(self) -> Sequence[str]: ...

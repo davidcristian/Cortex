@@ -94,6 +94,18 @@ FOLDER_HELP = (
     "Nothing is normalised or guessed at, and a name no folder has is an error rather than an "
     "empty result, so read the list rather than inventing a likely name."
 )
+# The other guess those same two tools invite, said at the moment it fails. `FOLDER_HELP` above is
+# what a model reads before it names a folder; this is what it reads once the server has answered
+# that no mailbox has that name. Both `search_emails` and `read_email` take a folder, so it names
+# neither searching nor reading in particular. It says outright what the correction is, because
+# here the correction is one call away: `list_folders` returns the exact spellings, so the next
+# attempt can be a lookup rather than a second likely-looking name.
+FOLDER_UNKNOWN = (
+    "The mail server has no folder by that name, so nothing was searched and no message was "
+    "read. Folder names are matched exactly and are never normalised or guessed at: call "
+    "list_folders and use a name spelled exactly as that list returns it, rather than trying "
+    "another name that looks likely. The folder name that was refused was "
+)
 SEARCH_LIMIT_HELP = (
     "How many matches to return at most. They are the first matches in the folder's own uid "
     "order, which is not the same as the newest: narrow the search with the criteria above "

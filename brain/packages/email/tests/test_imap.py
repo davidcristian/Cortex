@@ -10,10 +10,16 @@ import ssl
 from imaplib import IMAP4
 
 import pytest
-from imap_stub import FakeBox, Msg, config, patch_box
+from imap_stub import UNOPENABLE_FOLDER_ANSWER, FakeBox, Msg, config, patch_box
 from imap_tools import MailboxFolderSelectError
 
-from cortex_email import ImapMailbox, MailboxError, RawEmail, SearchRefusedError
+from cortex_email import (
+    FolderUnknownError,
+    ImapMailbox,
+    MailboxError,
+    RawEmail,
+    SearchRefusedError,
+)
 
 
 def test_list_folders_logs_in_and_lists(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -88,21 +94,38 @@ def test_a_connection_lost_mid_search_is_not_reported_as_a_refusal(
     assert "connection dropped" in str(raised.value)
 
 
-def test_a_folder_no_mailbox_has_fails_without_leaking_the_library(
+def test_a_select_refused_for_another_reason_keeps_the_library_s_account_of_why(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # A NO to SELECT is imap-tools' own exception rather than imaplib's, and it is not a refused
-    # query either: the mailbox could not answer, which is what the base type says.
-    def refuse_select(*_args: object, **_kwargs: object) -> None:
-        raise MailboxFolderSelectError(("NO", [b"no such mailbox"]), "OK")
-
+    # The fail-safe branch, and the one a live pass cannot reach: a real Bridge refuses a SELECT
+    # only for a name no mailbox has, so every other NO is scripted here. The port promise (it is
+    # not reported missing) is a contract check; what this adds is the other half, that the base
+    # error still carries what the server did say, since for a mailbox that could not answer that
+    # text is the only account of why there is.
     box = FakeBox(names=["INBOX"])
-    monkeypatch.setattr(box.folder, "set", refuse_select)
+    box.folder.select_error = MailboxFolderSelectError(UNOPENABLE_FOLDER_ANSWER, "OK")
     patch_box(monkeypatch, box)
     with pytest.raises(MailboxError) as raised:
-        ImapMailbox(config()).search("Invented", "ALL", 5)
-    assert not isinstance(raised.value, SearchRefusedError)
+        ImapMailbox(config()).search("INBOX", "ALL", 5)
+    assert not isinstance(raised.value, FolderUnknownError)
     assert "could not run that search" in str(raised.value)
+    assert "INUSE" in str(raised.value)
+
+
+def test_the_standard_s_own_word_for_a_missing_mailbox_is_read_too(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The Bridge answers a name no mailbox has in plain words rather than with a response code,
+    # so this is the portable half of the same fact: a server that sends RFC 5530's NONEXISTENT
+    # is saying exactly what the Bridge spells out, and the classification reads either.
+    box = FakeBox(names=["INBOX"])
+    box.folder.select_error = MailboxFolderSelectError(
+        ("NO", [b"[NONEXISTENT] Mailbox does not exist"]), "OK"
+    )
+    patch_box(monkeypatch, box)
+    with pytest.raises(FolderUnknownError) as raised:
+        ImapMailbox(config()).fetch("INBOX", "7")
+    assert raised.value.folder == "INBOX"
 
 
 def test_an_unreachable_bridge_crosses_the_port_as_a_mailbox_error(

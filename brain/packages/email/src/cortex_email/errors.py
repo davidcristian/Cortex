@@ -1,12 +1,13 @@
 """Typed errors of the `Mailbox` port: the IMAP library's own exceptions never cross it.
 
 The sidecar cannot import the brain's core (it is deployed on its own, ADR-0009), so the port's
-failure channel is declared here rather than in `cortex_core.errors`, in the same two-member
-shape that module established: one base for every way the mailbox could not answer, and one
-narrower type for the single failure a caller can act on.
+failure channel is declared here rather than in `cortex_core.errors`, in the same shape that
+module established: one base for every way the mailbox could not answer, and beneath it the
+narrower types for the failures a caller can act on. There are two, one per guess the read tools
+invite: the query and the folder.
 """
 
-from cortex_email.values import SEARCH_REFUSED
+from cortex_email.values import FOLDER_UNKNOWN, SEARCH_REFUSED
 
 
 class MailboxError(Exception):
@@ -23,8 +24,8 @@ class MailboxError(Exception):
 class SearchRefusedError(MailboxError):
     """The server read the search and refused it: the query is malformed (a `BAD` answer).
 
-    The port's one narrower failure, and the distinction is between **a mailbox that could not
-    answer** and **a request the server understood well enough to reject** (ADR-0022
+    The first of the two narrower failures, and the distinction is between **a mailbox that could
+    not answer** and **a request the server understood well enough to reject** (ADR-0022
     refused-search addendum). Every other `MailboxError` heals on its own once the Bridge, the
     network, or the credentials are fixed, and nothing about the query changes it. This one heals
     only when the query is rewritten, which is something the model reading the result can do, so
@@ -44,3 +45,30 @@ class SearchRefusedError(MailboxError):
     def __init__(self, query: str) -> None:
         super().__init__(f"{SEARCH_REFUSED}{query!r}")
         self.query = query
+
+
+class FolderUnknownError(MailboxError):
+    """No mailbox has the folder that was named: it was guessed rather than read off the list.
+
+    `SearchRefusedError`'s sibling, on the same line and for the same reason: the mailbox
+    answered, and what it said is something the caller can fix rather than something the machine
+    has to. Both read tools take a folder, `FOLDER_HELP` tells a model outright that the name is
+    spelled exactly as `list_folders` returned it and that an invented one is an error rather than
+    an empty result, and this is what that promise costs when it goes unkept. The correction is
+    cheaper than the query's: one call, not a rewrite. So it carries the `folder` it was given and
+    sends the caller to `list_folders` rather than to a second likely name.
+
+    It carries no part of the server's answer, for `SearchRefusedError`'s reason. What imap-tools
+    raises here reads ``Response status "OK" expected, but "NO" received. Data:
+    [b'no such mailbox']``, a command status reported to a caller that never sent a command; that
+    stays on the chained cause, where an operator reading a traceback finds it.
+
+    Raised only for a refusal whose own text says the mailbox does not exist. A `NO` to `SELECT`
+    also covers a folder that is really there and could not be opened, and a folder that cannot be
+    proved missing must not be reported missing (ADR-0022 unknown-folder addendum), so every other
+    refusal stays a plain `MailboxError`.
+    """
+
+    def __init__(self, folder: str) -> None:
+        super().__init__(f"{FOLDER_UNKNOWN}{folder!r}")
+        self.folder = folder

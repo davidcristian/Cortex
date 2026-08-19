@@ -2,9 +2,11 @@
 
 Shared by the adapter's own behavior tests and by the `Mailbox` contract driver, so the real
 adapter is driven over one stand-in rather than two that could drift apart on what an IMAP
-library does. It is scriptable in the one direction a test cannot otherwise reach: `FakeBox`
+library does. It is scriptable in the two directions a test cannot otherwise reach: `FakeBox`
 takes the exception the *server* side of a fetch raises, which is how a refused query and a
-dropped connection are both reproduced without a Bridge.
+dropped connection are both reproduced without a Bridge, and `FolderManager.select_error` is the
+same knob for a SELECT. Unscripted, the folder manager answers a name it does not list exactly as
+a real Bridge does, so the common case needs no script at all.
 """
 
 import ssl
@@ -12,6 +14,7 @@ from collections.abc import Sequence
 from typing import Self
 
 import pytest
+from imap_tools import MailboxFolderSelectError
 from pydantic import SecretStr
 
 import cortex_email.imap as imap_module
@@ -37,6 +40,14 @@ class Msg:
         self.obj = Obj(raw)
 
 
+# What a real ProtonMail Bridge answers to a SELECT of a name no mailbox has, measured verbatim
+# and identically for every shape of wrong name (ADR-0022 unknown-folder addendum).
+MISSING_FOLDER_ANSWER = ("NO", [b"no such mailbox"])
+# A NO that is not that: RFC 5530's code for a mailbox that exists and is not available. No
+# server this repo can reach produces one, so the fail-safe branch is reached only from here.
+UNOPENABLE_FOLDER_ANSWER = ("NO", [b"[INUSE] Mailbox in use"])
+
+
 class Folder:
     """One named folder, as ``folder.list()`` returns it."""
 
@@ -45,17 +56,29 @@ class Folder:
 
 
 class FolderManager:
-    """The ``box.folder`` manager: lists names and records every ``set`` (folder, readonly)."""
+    """The ``box.folder`` manager: lists names and records every ``set`` (folder, readonly).
+
+    A name it does not list is refused the way a real Bridge refuses one, verbatim from a live
+    measurement (`MISSING_FOLDER_ANSWER`), so the adapter's classification is driven over the
+    answer it will really meet. ``select_error``, when set, replaces that with whatever a test
+    wants a refused SELECT to say instead, which is the only way to reach the other kind of
+    ``NO``.
+    """
 
     def __init__(self, names: Sequence[str], set_calls: list[tuple[str, bool]]) -> None:
         self._names = names
         self._set_calls = set_calls
+        self.select_error: BaseException | None = None
 
     def list(self) -> list[Folder]:
         return [Folder(name) for name in self._names]
 
     def set(self, folder: str, readonly: bool = False) -> None:  # noqa: FBT001, FBT002
         self._set_calls.append((folder, readonly))
+        if self.select_error is not None:
+            raise self.select_error
+        if folder not in self._names:
+            raise MailboxFolderSelectError(MISSING_FOLDER_ANSWER, "OK")
 
 
 class FakeBox:
@@ -68,7 +91,7 @@ class FakeBox:
 
     def __init__(
         self,
-        names: Sequence[str] = (),
+        names: Sequence[str] = ("INBOX",),
         messages: Sequence[Msg] = (),
         fetch_error: BaseException | None = None,
     ) -> None:

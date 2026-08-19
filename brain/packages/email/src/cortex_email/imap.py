@@ -7,8 +7,9 @@ connection (the Bridge is local) so the server holds no IMAP state. Real network
 live test hits a real Bridge; CI covers the mapping over a fake imap-tools ``MailBox``.
 
 No exception of the IMAP stack crosses the port (ADR-0022 refused-search addendum): whatever
-imap-tools, imaplib or the socket raises is wrapped as `MailboxError`, and the one failure a
-model can act on, a search the server answered ``BAD``, as `SearchRefusedError`.
+imap-tools, imaplib or the socket raises is wrapped as `MailboxError`, and the two failures a
+model can act on get their own types, a search the server answered ``BAD`` as
+`SearchRefusedError` and a folder no mailbox has as `FolderUnknownError`.
 """
 
 import ssl
@@ -16,10 +17,17 @@ from collections.abc import Generator, Sequence
 from contextlib import contextmanager
 from imaplib import IMAP4
 
-from imap_tools import A, BaseMailBox, ImapToolsError, MailBox, MailBoxStartTls
+from imap_tools import (
+    A,
+    BaseMailBox,
+    ImapToolsError,
+    MailBox,
+    MailboxFolderSelectError,
+    MailBoxStartTls,
+)
 
 from cortex_email.config import EmailConfig
-from cortex_email.errors import MailboxError, SearchRefusedError
+from cortex_email.errors import FolderUnknownError, MailboxError, SearchRefusedError
 from cortex_email.reader import RawEmail
 
 # What the IMAP stack raises: imap-tools' own errors (a NO where an OK was expected), imaplib's
@@ -41,6 +49,37 @@ def _translated(action: str) -> Generator[None, None, None]:
     except _LIBRARY_FAILURES as err:
         msg = f"the mailbox could not {action}: {err}"
         raise MailboxError(msg) from err
+
+
+# What a refused SELECT must itself say for the folder to be *known* missing. Measured against a
+# real Bridge (ADR-0022 unknown-folder addendum): every name no mailbox has comes back as
+# ``('NO', [b'no such mailbox'])``, and nothing else this machine can make it refuse comes back
+# at all. The RFC 5530 response code is listed beside it because it is the standard's own
+# machine-readable spelling of the same fact, so a server that sends it is saying exactly this.
+# Anything else a ``NO`` can carry is not proof, and what cannot be proved missing is not
+# reported missing.
+_FOLDER_MISSING_ANSWERS = ("no such mailbox", "[nonexistent]")
+
+
+def _select(box: BaseMailBox, folder: str) -> None:
+    """Open ``folder`` read-only (EXAMINE), saying which of the two things a refusal means.
+
+    A ``NO`` to `SELECT` is not by itself a missing folder: the same status covers a mailbox that
+    exists and could not be opened, so the name is called wrong only when the server's own answer
+    says no mailbox has it. That is the fail-safe direction. Sending a model to `list_folders`
+    over a folder that is really there would have it hunt for a name it already had, while the
+    base error it gets instead says the mailbox could not answer, which is true either way.
+
+    imap-tools renders the refused command's status and data into its exception message, so the
+    server's words are read from there rather than from a wire the adapter never sees.
+    """
+    try:
+        box.folder.set(folder, readonly=True)  # pyright: ignore[reportUnknownMemberType]
+    except MailboxFolderSelectError as err:
+        answer = str(err).lower()
+        if any(said in answer for said in _FOLDER_MISSING_ANSWERS):
+            raise FolderUnknownError(folder) from err
+        raise
 
 
 def _search_failure(query: str, err: IMAP4.error) -> MailboxError:
@@ -88,11 +127,12 @@ class ImapMailbox:
     def search(self, folder: str, query: str, limit: int) -> Sequence[RawEmail]:
         """Fetch message headers for the folder's messages matching ``query`` (read-only).
 
-        A query the server refuses as malformed raises `SearchRefusedError`; every other way
-        this can fail raises `MailboxError`.
+        A query the server refuses as malformed raises `SearchRefusedError` and a folder no
+        mailbox has raises `FolderUnknownError`; every other way this can fail raises
+        `MailboxError`.
         """
         with _translated("run that search"), self._open() as box:
-            box.folder.set(folder, readonly=True)  # pyright: ignore[reportUnknownMemberType]
+            _select(box, folder)
             try:
                 found = list(box.fetch(query, limit=limit, headers_only=True, mark_seen=False))
             except IMAP4.error as err:
@@ -102,9 +142,13 @@ class ImapMailbox:
             ]
 
     def fetch(self, folder: str, uid: str) -> RawEmail | None:
-        """Fetch one full message by uid, or None when it does not exist (read-only)."""
+        """Fetch one full message by uid, or None when it does not exist (read-only).
+
+        A folder no mailbox has raises `FolderUnknownError`, the same as a search: the guess is
+        the same guess, and it fails before any uid is looked at.
+        """
         with _translated("read that message"), self._open() as box:
-            box.folder.set(folder, readonly=True)  # pyright: ignore[reportUnknownMemberType]
+            _select(box, folder)
             messages = list(box.fetch(A(uid=uid), limit=1, mark_seen=False))
             if not messages:
                 return None
