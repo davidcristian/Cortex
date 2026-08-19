@@ -26,6 +26,7 @@ from dataclasses import replace
 from cortex_core import (
     AsyncioSleeper,
     BrainPhase,
+    CadenceTerms,
     Confirmer,
     EscalatingTurnEngine,
     ProgressSink,
@@ -261,7 +262,7 @@ async def run_from_env(
                     clock,
                     swap.plan.brain_model,
                     deep,
-                    swap.plan.brain_decode_tps,
+                    CadenceTerms(swap.plan.brain_decode_tps, swap.manager.handoff_pace),
                 ),
                 swap.plan,
                 clock,

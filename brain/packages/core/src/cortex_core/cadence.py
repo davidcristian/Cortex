@@ -23,14 +23,24 @@ Two rules keep the verdict honest, and both exist because a rate is easy to misr
 The floor itself is the deployment's own measurement of its own card, the twin of
 ``ResidencyPlan.brain_vram_mib`` and just as unknowable from inside a container: zero (the
 default) means the deployment declared none, and then the watch reports what it saw and judges
-nothing.
+nothing. It arrives with the other half of the instrument's wiring, ``CadenceTerms``: what the
+tier is held to, and who is told how it did. What is then *done* with the verdict is no more this
+module's business than the logging is, which is why the second half is a port and not a record
+(``residency_pace.py`` is the one that answers a probe with it).
 """
 
 from dataclasses import dataclass
 
 from cortex_core.inference import DecodeCadence
+from cortex_core.ports import PaceSink
 
-__all__ = ["MIN_CADENCE_TOKENS", "CadenceReading", "CadenceWatch"]
+__all__ = [
+    "MIN_CADENCE_TOKENS",
+    "NO_CADENCE_TERMS",
+    "CadenceReading",
+    "CadenceTerms",
+    "CadenceWatch",
+]
 
 # Below this many decoded tokens a completion's reported rate says more about the server's start
 # than about the card. Chosen against the measured contrast rather than by feel: the spilled and
@@ -57,13 +67,28 @@ class CadenceReading:
     judged: int
 
     @property
+    def verdict(self) -> bool | None:
+        """Whether the tier spilled, or ``None`` when there was nothing to judge it against.
+
+        The three-state answer, kept here because it is a rule about what a rate means and not a
+        rule about what to say: a deployment that declared no floor gets the number and no
+        judgement at all, which is a different thing from a tier that was found to be fine. The
+        difference matters wherever a verdict is *published* rather than logged, since a note that
+        stands until something contradicts it must not be cleared by a deployment that never had
+        an opinion (``residency_pace.py``).
+        """
+        if self.floor <= 0:
+            return None
+        return self.observed.tokens_per_second < self.floor
+
+    @property
     def collapsed(self) -> bool:
         """Whether the tier never reached the rate its deployment measured for it.
 
         False whenever no floor was declared, because a watch with nothing to compare against
         cannot find a shortfall; that deployment gets the number and no verdict.
         """
-        return self.floor > 0 and self.observed.tokens_per_second < self.floor
+        return self.verdict is True
 
     @property
     def shortfall(self) -> float:
@@ -114,3 +139,28 @@ class CadenceWatch:
         return CadenceReading(
             observed=self._best, floor=self._floor, samples=self._samples, judged=self._judged
         )
+
+
+@dataclass(frozen=True, slots=True)
+class CadenceTerms:
+    """The terms one deep phase's watch runs under: what the tier is held to, and who hears it.
+
+    Two halves of one instrument, travelling together because the dependency ceiling is a design
+    rule (ruff.toml) and because neither is worth much alone: a floor nobody is told about ends in
+    a log line, and a sink with no floor to judge against has no verdict to be told.
+
+    ``floor_tps`` is the deployment's own measurement of its own card, zero (the default, and
+    every deployment that has not measured one) meaning the rate is reported and nothing is
+    judged. ``sink`` is where the verdict goes beyond the log (``PaceSink``, implemented by the
+    residency record the seam reads), ``None`` being every caller that watches without publishing:
+    a test, and any deployment wired before the note existed.
+    """
+
+    floor_tps: float = 0.0
+    sink: PaceSink | None = None
+
+
+# The watch that judges nothing and tells nobody: the default a phase is built with when its
+# caller says nothing about cadence at all. Shared because it is frozen, exactly as the seam's
+# empty port bundle is.
+NO_CADENCE_TERMS = CadenceTerms()

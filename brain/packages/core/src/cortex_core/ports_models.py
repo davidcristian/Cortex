@@ -146,3 +146,28 @@ class ResidencyReporter(Protocol):
     """
 
     def residency(self) -> ResidencyReport: ...
+
+
+class PaceSink(Protocol):
+    """Where a phase says whether the tier it just ran held the pace its deployment measured.
+
+    The one writer is the deep model's phase, which watches decode cadence for the overcommit no
+    memory reading can see (ADR-0030 spill-watch addendum) and, until the spill-note addendum,
+    said so only in the container's log. The one implementation is the residency record the seam
+    reads (``residency_pace.py``), so the verdict reaches the person who can act on it.
+
+    A port rather than a reference to the manager, for the reason ``SubagentPlacer`` is one: the
+    phase is built per stream out of that stream's own collaborators, owns no residency, and must
+    not learn how to reach the object that does. What crosses is a **verdict and never a
+    reading**: the phase owns the instrument and the rule that reads it, and this owns what is
+    done with the answer.
+
+    ``note_pace`` is **synchronous and free of I/O by contract**, because it is called on the way
+    out of a handoff, after the reply has streamed and before it is persisted, where an await
+    would put an unrelated collaborator inside the one hard rule's own persist path. It is called
+    at most once per handoff, and a phase with no verdict at all (a completion too short to judge,
+    or one that died before decoding anything) calls it **not at all**: no reading is not a pass,
+    so it must neither write a spill nor clear one.
+    """
+
+    def note_pace(self, *, spilled: bool) -> None: ...

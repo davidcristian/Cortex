@@ -3535,3 +3535,147 @@ does not hold the real deep tier's measured 19125. Both cases are integration-ma
   and it still costs nothing while the report is green.
 - **It does not gate readiness.** A cortex that is `LOADING` is left for the next pass, exactly as
   a peer tier is.
+
+## Spill-note addendum (2026-08-19): the spilled handoff rides the report, while it still describes now
+
+The spill-latch addendum above declined the automatic co-residency latch and left one half of its
+trigger open: the deployment whose operator does not read logs. A spilled handoff **succeeds**,
+both tiers report `ready`, the card reads like a fit, and the whole consequence of the watch was
+one `warning` record in the container. This closes that half by moving the fact rather than by
+disabling anything, which is what the latch's own argument pointed at.
+
+### The two costs, re-derived before anything was designed
+
+The entry named two, and both were re-read against the tree rather than trusted.
+
+**The phase really does hold no residency.** `wiring.py` builds `BrainPhase` per Converse stream
+out of that stream's own collaborators and hands it `swap.plan.brain_decode_tps` and nothing else;
+the manager that owns the residency record is not in scope for it and must not be, since the phase
+is per stream and the manager is per process. So the cost stands: this needs a writer the phase can
+reach, and that is a port question. It is now a port.
+
+**The record's shape had moved on, in the direction that helps.** `StandingTiers.note_on` still
+annotates a serving report and `Health` still prefers that detail over its version string, exactly
+as the entry recorded. What the entry could not have recorded is the constraint the residency-regain
+addendum added the same week: the background pass republishes the bare `RESIDENCY_SERVING` constant
+whenever it finds the cortex back, so a detail written **into** the record lives until the next
+pass. That is now checked rather than remembered, by a case that publishes a note, regains
+residency through the real pass, and reads the note back.
+
+One cost the entry did not name showed up in the re-derivation, and it is the reason the
+composition is a shared function now: two annotators over one string is a rule about ordering, and
+a rule about ordering that is written twice is a rule that will be broken once.
+
+### Decision 1: the writer is a port, and what crosses it is a verdict
+
+`PaceSink` (one method, `note_pace(*, spilled: bool)`) is the deep phase's whole knowledge of where
+its verdict goes. The record behind it in a live brain is `HandoffPace`, held by the manager beside
+`StandingTiers` and handed out the same way; the contract twin is `RecordingPaceSink`, and both run
+the same contract cases in `test_residency_pace.py`.
+
+Three properties are deliberate. It is **synchronous by contract**, because the phase calls it
+between its stream ending and its reply being persisted, and an await there would put an unrelated
+collaborator inside the one hard rule's own sequence. What crosses is a **verdict and never a
+reading**, so the instrument and the rule that reads it stay in `cadence.py` where they already
+live. And a phase with **no** verdict calls nothing at all: a completion too short to judge is not
+a pass, and neither is a deployment that declared no floor, which is why `CadenceReading` grew a
+three-state `verdict` and `collapsed` is now derived from it. A "no" for want of an opinion would
+clear a standing note as firmly as a real one.
+
+The floor and the sink travel together as `CadenceTerms`, which is the dependency ceiling doing its
+job rather than a workaround: they are the two halves of one instrument, and neither is worth much
+alone.
+
+### Decision 2: the note stands for one hour, or until a handoff decides it
+
+A spill is a fact about **one handoff**; the report it rides is a fact about **now**. A note that
+never cleared would be a second way to be wrong about the card, which is the same failure the
+tier record avoids by being swept. Two things end this one:
+
+- **A later handoff decides it, in both directions.** One that held its pace clears it on the
+  spot, that being the only direct evidence there is that the card has room again, and one that
+  spilled re-arms it from that moment.
+- **Otherwise it lapses after an hour.** Escalation is rare on a personal machine, so waiting for
+  the next handoff can mean waiting days. The hour comes from the two lifetimes a spill actually
+  has: memory the desktop took is gone as soon as that window is closed, while a declared cost
+  that is too low is env and outlives everything until the brain restarts, which takes the note
+  with it anyway. An hour is long enough to still be there when somebody who walked away from a
+  minutes-long deep task comes back, and short enough that a card left alone for an afternoon is
+  not still being described by a verdict about the morning.
+
+The dwell is a constructor bound rather than env. It decides how long one sentence is displayed and
+nothing about what the machine does, so it is the kind of number a deployment may want to tune
+later and none should have to set now.
+
+### Decision 3: two notes are two sentences, not a contest
+
+A peer that is down and a handoff that spilled can be true at once, and they have different
+remedies: put the tier back, and give the card room. Letting whichever wrote last win would send an
+operator to fix one while the other stayed broken. So `residency_state.with_note` is the one place
+either of them joins a report, the standing condition composes first and the last handoff second,
+and both annotators inherit the rule that neither may speak over a report that is not serving.
+`Health` is unchanged: it still prefers a serving report's detail over its version string, and it
+never learns how many facts that detail carries.
+
+### What the sentence says, and to whom
+
+`the last deep task ran far slower than this deployment measured for it, so deep tasks are taking
+much longer than they should`, rendered by the overlay as `Brain ready: <that line>`.
+
+It names the deployment's own measurement rather than a rate, because the reader of a tooltip has
+no way to judge a number, and it names the consequence rather than the mechanism because
+"overcommitted", "paged" and "decode rate" are all true and none of them tells a person what they
+are losing. What they are losing is time on every deep task until the card has room. The log line
+keeps the mechanism and the numbers; the two audiences are different people.
+
+### Where it sits, and the split it forced
+
+`residency.py` was at 299 lines, so the honesty surface moved out to `residency_probe.py` as
+`ResidencyProbeMixin` (`publish_boot_residency`, `standing_tiers`, `handoff_pace`, `residency`),
+mixed into `SwappingModelManager` the way `BrainService` mixes in its session RPCs. The seam it is
+split along is the one that module's docstring already drew: owning the GPU is one thing, being
+honest about it is another, and the second is now the file that holds every fact composed into a
+report as it is read.
+
+### Proven able to fail before being trusted
+
+Seven mutations, each applied to production code alone with the whole brain workspace re-run, then
+reverted. The counts are measured rather than aimed at and they sit in the headers of
+`test_residency_pace.py` and `test_brain_phase.py` beside the cases they name.
+
+| Mutation | Reddens |
+| --- | --- |
+| dropping the pace note from `residency()`'s composition | 4 |
+| `with_note` annotating a report that is not serving | 4 |
+| `with_note` replacing the note it found instead of joining it | 2 |
+| a note that never lapses | 1 |
+| a second spill that does not re-arm the dwell | 1 |
+| the phase publishing `collapsed` rather than the three-state `verdict` | 1 |
+| the phase logging the verdict and publishing nothing | 3 |
+
+The second one is worth reading rather than counting: it reddens the peer record's own
+down-versus-evicted case as well as the three new ones, which is the whole point of the two
+annotators sharing one composition rather than each keeping the rule.
+
+### What was not run live, and why that is honest here
+
+The condition this publishes was already measured on this card on 2026-08-08 and the numbers are in
+`docs/runbooks/model-swap.md`: 20.38 to 22.77 tok/s spilled against 31.08 to 33.78 alone, both tiers
+reporting `ready` throughout. What this addendum adds is pure policy over that same signal, plus a
+composition the seam's own tests drive over a real `SwappingModelManager` and a real gRPC server. A
+live re-run would have to arrange a genuine overcommit (a co-resident deployment with a deliberately
+under-declared figure, minutes of tier-scale loading each way) to observe a sentence whose inputs
+are already proven, so it is recorded as not run rather than dressed up.
+
+### What this deliberately does not do
+
+- **It does not change what a handoff decides.** The reply has already streamed by the time the
+  rate is known; nothing refuses, degrades, or withholds co-residency on it. That remains declined
+  on the reversibility argument in the spill-latch addendum above.
+- **It does not persist.** The note is one timestamp in the process that observed the handoff, and
+  a brain that restarts has no last handoff to describe. Storing it would make a fact about now
+  survive the only event that reliably fixes its commonest cause.
+- **It does not gate readiness.** A spilled handoff leaves the brain serving, and the dot stays
+  green, because turns work.
+- **It does not reach the overlay as anything new.** No proto change, no overlay change: the
+  sentence rides the detail the connection indicator already renders.

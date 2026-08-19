@@ -306,7 +306,12 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   judges a whole handoff on its fastest judgeable completion, and the deep phase warns once when
   the tier never reached `CORTEX_SWAP_BRAIN_DECODE_TPS`. Measured on the card: 20.38 to 22.77
   tok/s spilled against 31.08 to 33.78 alone, **both tiers reporting `ready` and the card reading
-  like a fit in each**.
+  like a fit in each**. Since 2026-08-19 that verdict leaves the log as well: the deep phase
+  publishes it through a `PaceSink` port to a record the seam composes into a **serving** report's
+  detail, so a spilled handoff reads as `Brain ready: the last deep task ran far slower than this
+  deployment measured for it…` in the connection tooltip, joined to a missing peer's note when
+  both are true, cleared by the next handoff that holds its pace and lapsing on its own after an
+  hour.
 
 - [ADR-0031: The bubble mark, and the mark as a picked style](adr/ADR-0031-bubble-mark.md): the
   overlay's activity mark, **landed**. The living rings retired (concentric turning rings read as

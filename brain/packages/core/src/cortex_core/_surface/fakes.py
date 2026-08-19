@@ -11,6 +11,7 @@ from cortex_core.fakes import (
     InMemoryToolRegistry,
     RecordingAuditSink,
     RecordingConfirmer,
+    RecordingPaceSink,
     RecordingProgressSink,
     SystemClock,
 )
@@ -47,6 +48,7 @@ __all__ = [
     "InMemoryToolRegistry",
     "RecordingAuditSink",
     "RecordingConfirmer",
+    "RecordingPaceSink",
     "RecordingProgressSink",
     "RecordingRecallSink",
     "RecordingSleeper",

@@ -215,6 +215,29 @@ class RecordingProgressSink:
         return tuple(self._events)
 
 
+class RecordingPaceSink:
+    """PaceSink that records the verdicts a deep phase published, in order (ADR-0030).
+
+    The contract twin of ``HandoffPace``, which is what a live brain wires. This one keeps every
+    verdict, so a test can assert that one handoff published exactly one and which way it went;
+    the real record keeps only the answer that still stands, which is a fact about display and
+    not about the port. Both are synchronous and neither may await: the phase calls this between
+    its stream ending and its reply being persisted.
+    """
+
+    def __init__(self) -> None:
+        self._verdicts: list[bool] = []
+
+    def note_pace(self, *, spilled: bool) -> None:
+        """Record how one handoff's tier ran."""
+        self._verdicts.append(spilled)
+
+    @property
+    def verdicts(self) -> Sequence[bool]:
+        """Every verdict published so far, in order, one per handoff that settled a reading."""
+        return tuple(self._verdicts)
+
+
 class SystemClock:
     """Clock backed by the system time, always timezone-aware UTC."""
 

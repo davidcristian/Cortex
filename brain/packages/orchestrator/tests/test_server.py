@@ -29,10 +29,11 @@ as the literal ``False`` it has to be, and each of those two mutations reddens i
 (plus the core's constants case, and nothing else). Answering ready unconditionally now reddens
 6 rather than 3.
 
-The last case is the one readiness that is **true** and still has something to say: dropping the
+Two cases are the readiness that is **true** and still has something to say. Dropping the
 serving-detail branch from ``Health`` (so a healthy brain always answers its version string)
-reddens exactly it, and dropping ``mark_missing`` in the core reddens it too, which is what ties
-the seam's sentence to the record behind it rather than to a string this file arranged.
+reddens both, and each is also tied to the record behind it rather than to a string this file
+arranged: dropping ``mark_missing`` in the core reddens the peer one, and dropping the pace note
+from the core's read-time composition reddens the spilled-handoff one.
 """
 
 import asyncio
@@ -50,6 +51,7 @@ from cortex_core import (
     RESIDENCY_LOADING,
     RESIDENCY_LOST,
     RESIDENCY_RESTORING,
+    SPILLED_PACE_DETAIL,
     TIERS_MISSING_DETAIL,
     AsyncioSleeper,
     EchoInferenceBackend,
@@ -250,6 +252,28 @@ async def test_health_stays_ready_and_names_a_peer_tier_that_did_not_come_back()
             reply = await _health(BrainServiceStub(channel))
         assert reply.ready is True
         assert reply.detail == TIERS_MISSING_DETAIL.format(models="subagent-gpu")
+    finally:
+        await server.stop(grace=None)
+
+
+async def test_health_stays_ready_and_says_the_last_deep_task_ran_far_slower_than_measured() -> (
+    None
+):
+    """The other sentence a serving brain can now say, and the one nothing else would mention.
+
+    A spilled handoff succeeds: both tiers report ready, the card reads like a fit, and only the
+    throughput says otherwise (ADR-0030 spill-note addendum). Written where a deep phase writes
+    it, through the manager's own record, so what this asserts is the seam's end of that path and
+    not a string the test arranged.
+    """
+    manager = _swapping_manager(ScriptedModelHost(running=["cortex"]))
+    manager.handoff_pace.note_pace(spilled=True)
+    server, address = await _serving(manager)
+    try:
+        async with aio.insecure_channel(address) as channel:
+            reply = await _health(BrainServiceStub(channel))
+        assert reply.ready is True
+        assert reply.detail == SPILLED_PACE_DETAIL
     finally:
         await server.stop(grace=None)
 
