@@ -20,9 +20,23 @@ denied outright.
   line breaks, entities decoded, whitespace collapsed), keeping the raw HTML only when nothing
   extracts (e.g. an image-only body), so the body is never empty when the message has one.
 - `Mailbox` is the `Protocol` the reader needs (`list_folders`, `search`, `fetch` → `RawEmail`);
-  the imap-tools adapter and a fake both satisfy it.
+  the imap-tools adapter and a fake both satisfy it. It fails in exactly two ways and every
+  implementation owes both, the fake included, which is what the shared contract
+  (`tests/mailbox_contract.py`, driven over the fake and the adapter) exists to hold.
+- `MailboxError` says the mailbox could not answer: unreachable Bridge, refused TLS or login, a
+  folder that could not be examined, a connection that went away. `SearchRefusedError` is its one
+  narrower subclass, the server having read a query and refused it as malformed, and the line
+  between them is whether rewriting the query would change anything (ADR-0022 refused-search
+  addendum). It carries the `query` it refused and its message points the model at the `query`
+  field's own description rather than restating the dialect; it carries no part of the server's
+  answer, that fragment (`UID command error: BAD [b'[Error offset=38]: expected space']`) being an
+  offset into a wire command the model never saw. The cause chain keeps it for an operator.
 - `ImapMailbox(config)` is the `Mailbox` over imap-tools. Connects per call (the Bridge is local)
-  so the server holds no IMAP state.
+  so the server holds no IMAP state. No exception of the IMAP stack escapes it: a `BAD` answer to
+  a search becomes `SearchRefusedError`, and everything else, imaplib's `IMAP4.abort` for a
+  connection lost mid-command included, becomes `MailboxError` with the cause chained. The abort
+  is tested for by subclass rather than assumed away, since reporting a dropped connection as a
+  refused query would send a model round a rewrite loop that cannot end.
 - `EmailConfig` holds env-driven settings (`CORTEX_EMAIL_IMAP_*`): host/port/user/password
   (`SecretStr`), `security` (starttls|ssl), and `ca_cert` / `tls_insecure` for the Bridge's
   self-signed cert. Defaults target a local Bridge (127.0.0.1:1143, STARTTLS).
@@ -57,8 +71,13 @@ denied outright.
   first in the folder's own uid order rather than the newest. The live test
   `test_every_advertised_search_criterion_is_one_the_bridge_accepts` is the guard on that prose:
   it runs one query per named family and fails if the description names a criterion no query
-  ran. Each tool returns a single readable string, with
-  one exception: `read_email` returns a `CallToolResult` wrapping that same text block plus a
+  ran, and it asserts that the client syntax comes back as `SearchRefusedError` carrying the
+  query. Each tool answers with a single readable text block. Two of them build that block into
+  a `CallToolResult` themselves (`_one_text`), each for something the block alone cannot carry.
+  `search_emails` marks a refused query `isError` while keeping the port's own wording, because a
+  tool that lets an exception out is restated by FastMCP as `Error executing tool <name>: ...`,
+  which is the truth for a mailbox that could not answer (deliberately left to escape) and a
+  falsehood for a search the server read and declined. `read_email` adds a
   result `_meta` (`_SOURCE_META_KEY`, `"cortex/source"`) declaring the message sender
   (`{"kind": "sender", "value": <From>}`, `_sender_source`, omitted when there is no `From`). The
   `_meta` rides beside the text, so the model-facing content is unchanged; the brain's tool
@@ -99,8 +118,11 @@ when deliberately enabled, and is gated + confirmed brain-side (ADR-0022).
 - Adapter-only I/O: the real IMAP work is `ImapMailbox` (integration-tested against a live
   Bridge); the parsing + tools are pure and 100%-covered without a server.
 - Fully typed, pyright strict clean; 100% line+branch over fakes, namely a fake `Mailbox` for the
-  reader/tools, a fake imap-tools `MailBox` for `ImapMailbox`. The live contract is the
-  `integration`-marked `tests/test_email_live.py` (run per docs/runbooks/email-imap.md).
+  reader/tools (`tests/mailbox_fake.py`) and a stand-in imap-tools `MailBox` for `ImapMailbox`
+  (`tests/imap_stub.py`), each shared so the same one drives every suite. Both `Mailbox`
+  implementations are run through `tests/mailbox_contract.py`, which is where the port's promises
+  are written, the refusal among them. The live contract is the `integration`-marked
+  `tests/test_email_live.py` (run per docs/runbooks/email-imap.md).
 - Pinned to the MCP SDK v1.x (`mcp>=1.23,<2`).
 - The advertised schema is **generated, never written**, so what the model is told about an
   attachment is whatever `values.py` and the tool signature say. The server tests assert the

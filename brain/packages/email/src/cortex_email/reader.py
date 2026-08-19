@@ -25,7 +25,14 @@ class RawEmail:
 
 
 class Mailbox(Protocol):
-    """Read-only slice of IMAP the reader needs; the imap-tools adapter and a fake both match."""
+    """Read-only slice of IMAP the reader needs; the imap-tools adapter and a fake both match.
+
+    The port fails in exactly two ways, and every implementation owes both (`errors.py`):
+    `SearchRefusedError` when the server reads a query and refuses it as malformed, which the
+    caller fixes by writing a different one, and `MailboxError` for every way the mailbox could
+    not answer at all. No implementation may let its own library's exception out, which is why
+    the fake raises these too and the contract test drives the same checks over both.
+    """
 
     def list_folders(self) -> Sequence[str]: ...
 

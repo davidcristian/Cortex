@@ -22,6 +22,7 @@ from mcp.types import CallToolResult, TextContent, ToolAnnotations
 from pydantic import Field
 
 from cortex_email.config import EmailConfig, SmtpConfig
+from cortex_email.errors import SearchRefusedError
 from cortex_email.imap import ImapMailbox
 from cortex_email.reader import EmailReader
 from cortex_email.smtp import EmailSender, SmtpSender
@@ -47,6 +48,18 @@ _DEFAULT_SEARCH_LIMIT = 20
 _SOURCE_META_KEY = "cortex/source"
 
 
+def _one_text(text: str, *, failed: bool = False) -> CallToolResult:
+    """One readable text block as the whole tool result, ``isError`` when it reports a failure.
+
+    A tool that lets an exception out is restated by FastMCP as ``Error executing tool <name>:
+    <the exception>``, which is the truth for a mailbox that could not answer and a falsehood for
+    a search the server read and declined: the tool ran, and what it has to say is a correction
+    the model can act on. Returning the result itself is how that text reaches the model as
+    written, and ``isError`` still marks it a failure for the brain's audit trail.
+    """
+    return CallToolResult(content=[TextContent(type="text", text=text)], isError=failed)
+
+
 def _sender_source(sender: str) -> dict[str, dict[str, str]] | None:
     """The result ``_meta`` declaring ``sender`` as the message's source, or ``None`` when absent.
 
@@ -59,12 +72,14 @@ def _sender_source(sender: str) -> dict[str, dict[str, str]] | None:
 def build_server(reader: EmailReader, sender: EmailSender | None = None) -> FastMCP:
     """Register the email tools on a FastMCP server: reads always, send only with a sender.
 
-    Each tool returns a single readable string: the model consumes tool results as text, and
-    a list/dict return would be split into per-item content blocks a text client cannot
-    reassemble. One string keeps the result clean end to end. ``read_email`` is the one
-    exception: it returns a ``CallToolResult`` wrapping that same single text block plus a result
-    ``_meta`` declaring the message sender (``_SOURCE_META_KEY``), which rides beside the text and
-    so leaves what the model reads unchanged.
+    Each tool answers with a single readable text block: the model consumes tool results as
+    text, and a list/dict return would be split into per-item content blocks a text client
+    cannot reassemble. One string keeps the result clean end to end. Two of them build that one
+    block into a ``CallToolResult`` themselves, each for something the block alone cannot carry:
+    ``read_email`` adds a result ``_meta`` declaring the message sender (``_SOURCE_META_KEY``),
+    which rides beside the text and so leaves what the model reads unchanged, and
+    ``search_emails`` marks a refused query ``isError`` while keeping its own wording
+    (`_one_text`).
     """
     server = FastMCP(
         "cortex-email", host=_SERVER_HOST, port=_SERVER_PORT, streamable_http_path="/mcp"
@@ -80,12 +95,16 @@ def build_server(reader: EmailReader, sender: EmailSender | None = None) -> Fast
         folder: Annotated[str, Field(description=FOLDER_HELP)],
         query: Annotated[str, Field(description=SEARCH_QUERY_HELP)],
         limit: Annotated[int, Field(description=SEARCH_LIMIT_HELP)] = _DEFAULT_SEARCH_LIMIT,
-    ) -> str:
+    ) -> CallToolResult:
         """Search one folder with an IMAP query; return one summary line per match."""
-        summaries = await asyncio.to_thread(reader.search, folder, query, limit)
+        try:
+            summaries = await asyncio.to_thread(reader.search, folder, query, limit)
+        except SearchRefusedError as refusal:
+            return _one_text(str(refusal), failed=True)
         if not summaries:
-            return "(no matching messages)"
-        return "\n".join(f"[{s.uid}] {s.date} | {s.sender} | {s.subject}" for s in summaries)
+            return _one_text("(no matching messages)")
+        lines = "\n".join(f"[{s.uid}] {s.date} | {s.sender} | {s.subject}" for s in summaries)
+        return _one_text(lines)
 
     @server.tool()
     async def read_email(
@@ -94,8 +113,7 @@ def build_server(reader: EmailReader, sender: EmailSender | None = None) -> Fast
         """Read one message in full (headers + plain-text body) by its uid."""
         detail = await asyncio.to_thread(reader.read, folder, uid)
         if detail is None:
-            text = f"message {uid} not found in {folder}"
-            return CallToolResult(content=[TextContent(type="text", text=text)])
+            return _one_text(f"message {uid} not found in {folder}")
         text = (
             f"From: {detail.sender}\nTo: {detail.recipients}\n"
             f"Date: {detail.date}\nSubject: {detail.subject}\n\n{detail.body}"

@@ -5,7 +5,6 @@ never run in CI. Run per docs/runbooks/email-imap.md, e.g. with ~/.cortex/email.
 `cd brain && uv run pytest -m integration --no-cov packages/email`.
 """
 
-import imaplib
 import os
 import re
 import time
@@ -22,6 +21,7 @@ from cortex_email import (
     EmailDraft,
     EmailReader,
     ImapMailbox,
+    SearchRefusedError,
     SmtpConfig,
     SmtpSender,
 )
@@ -107,9 +107,15 @@ def test_every_advertised_search_criterion_is_one_the_bridge_accepts() -> None:
         reader.search("INBOX", query, 1)  # a criterion the server refuses raises out of here
 
     # And the premise the description exists to remove: the client syntax really is refused,
-    # rather than being interpreted as a subject search or quietly matching nothing.
-    with pytest.raises(imaplib.IMAP4.error):
+    # rather than being interpreted as a subject search or quietly matching nothing. The type is
+    # the port's, not imaplib's, and this is the live half of that: a real Bridge answering BAD
+    # is what `ImapMailbox` classifies as a refusal, and only a live run proves the branch is
+    # taken on the answer a real server sends rather than on the one the stand-in was scripted
+    # with (ADR-0022 refused-search addendum).
+    with pytest.raises(SearchRefusedError) as raised:
         reader.search("INBOX", "from:someone@example.com", 1)
+    assert raised.value.query == "from:someone@example.com"
+    assert "offset" not in str(raised.value)
 
 
 @pytest.mark.integration

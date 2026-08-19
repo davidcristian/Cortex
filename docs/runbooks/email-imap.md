@@ -44,8 +44,11 @@ never touch your mail.
 One of those tests is the guard on what `search_emails` tells a model its `query` may say
 (ADR-0022 search-dialect addendum): it runs one query per criterion family the field description
 names, and fails if the description names a criterion the queries never ran. Run it after any
-Bridge upgrade, because a criterion the server stops accepting becomes a parse error the model
-cannot repair, and this is the only place that shows up:
+Bridge upgrade, because a criterion the server stops accepting becomes a refusal the model has to
+work back from, and this is the only place that shows up. The same test asserts what a refusal
+looks like: a query the Bridge answers `BAD` reaches the model as `SearchRefusedError`, naming the
+query and pointing at the dialect, with imaplib's own `UID command error: BAD [...]` left on the
+chained cause where an operator reading a traceback finds it (ADR-0022 refused-search addendum):
 
 ```
 set -a; . ~/.cortex/email.env; set +a
