@@ -3,6 +3,7 @@
 """
 
 import json
+import logging
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 
@@ -17,6 +18,7 @@ from cortex_core import (
     FireOutcome,
     InMemoryScheduleStore,
     MonthDays,
+    PlainFormatter,
     ScheduleClaim,
     ScheduleEdit,
     ScheduleStatus,
@@ -260,6 +262,27 @@ async def test_claim_path_quarantines_a_corrupt_record() -> None:
     assert await client.zscore(DUE_KEY, "poison") is None
     # The next pass no longer sees the quarantined id at all.
     assert await store.claim_due(_NOW + _LEASE + _LEASE, lease=_LEASE, limit=8) != ()
+
+
+async def test_the_quarantine_lines_carry_the_id_and_the_key_as_fields(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The only record of an item leaving the working set names it where a reader can select on it.
+    """
+    client = FakeAsyncRedis(server=FakeServer())
+    store = RedisScheduleStore(client)
+    await _seed_raw(client, "poison", "not json")
+    with caplog.at_level(logging.ERROR, logger="cortex_session.schedule_claims"):
+        assert await store.claim_due(_NOW, lease=_LEASE, limit=8) == ()
+    formatter = PlainFormatter()
+    assert [formatter.format(record).splitlines()[0] for record in caplog.records] == [
+        "ERROR:cortex_session.schedule_claims:undecodable schedule record on the claim path"
+        " item_id=poison",
+        "ERROR:cortex_session.schedule_claims:quarantining a corrupt schedule record"
+        f" dead_key={DEAD_KEY} item_id=poison",
+    ]
+    # On the record itself, not only in the rendered line: a packed deployment reads it from here.
+    assert [record.__dict__["item_id"] for record in caplog.records] == ["poison", "poison"]
 
 
 async def test_claim_drops_a_dangling_index_entry() -> None:

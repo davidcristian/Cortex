@@ -1,6 +1,6 @@
 # A line that names nothing it happened to
 
-**Status:** open, actionable
+**Status:** landed 2026-08-19
 **Area:** cross-cutting
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
 
@@ -32,3 +32,24 @@ which is the whole reason the fields are printed now.
   [R-323](323-a-field-spelled-into-its-own-message.md), whose sweep of every message that spelled a
   field it carried had to read every log site in the brain, and found these at the other end of the
   same question.
+- 2026-08-19: Landed as the ADR-0038 named-subject addendum. Re-derived from the tree first with
+  an AST pass over all 91 `logger.*` calls in the brain, which confirmed the **17**: nine were
+  judged honest and left exactly as they are (three pass guards with no subject, two failures
+  wrapping two candidate models, three store reads that fail before an id exists, and the pump's
+  own failure, which is not about a turn), and eight were converted. The quarantine line keeps its
+  words and carries `item_id` and `dead_key`, with the traceback one frame up carrying `item_id`
+  too so one id finds both; `converse_stream`'s three turn failures and its ignored-event line
+  carry `session_id`, and the ignored event also carries the payload `kind` that would name an
+  unhandled new member of the oneof; the ticker's fire failure now reads its id off the claim
+  `gather` answered for (the results are zipped with the claims rather than filtered out of them)
+  and its release failure off the claim it was releasing, both as `reminder_id`, the name the push
+  line beside them already uses. No user content was attached anywhere: a turn holds the user's own
+  text and the formatter's denylist cannot see content, so the test asserts the absence as well as
+  the presence. Verified live twice on a running stack, a planted corrupt record quarantined by the
+  ticker's own pass, once in `plain` (the id printed once per line) and once under
+  `CORTEX_LOG_FORMAT=packed` (the id under `fields`, the message constant), which is the claim this
+  entry made. `docs/runbooks/scheduling.md` gained the grep it could not offer while the id was
+  prose. What it opened is
+  [328](328-a-failed-turn-cannot-name-itself.md), the turn id no failed turn can name, and
+  [329](329-a-failure-with-two-candidate-subjects.md), the two lines whose failure has two
+  candidate models.

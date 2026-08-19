@@ -117,7 +117,10 @@ class ConverseStream:
                         approved=event.confirm_response.approved,
                     )
                 else:
-                    _logger.debug("ignoring client event without a known payload")
+                    _logger.debug(
+                        "ignoring client event without a known payload",
+                        extra={"session_id": event.session_id, "kind": kind},
+                    )
             self._confirmer.close()
             await self._drain_turns()
         except Exception as err:  # deliberately broad: nothing may escape the seam unhandled
@@ -159,13 +162,15 @@ class ConverseStream:
         try:
             await self._run_turn(session_id, text)
         except SessionStoreError as err:
-            _logger.exception("session store failed mid-turn")
+            _logger.exception("session store failed mid-turn", extra={"session_id": session_id})
             self._fail(ERROR_CODE_SESSION_STORE_UNAVAILABLE, str(err))
         except InferenceError as err:
-            _logger.exception("inference failed mid-turn")
+            _logger.exception("inference failed mid-turn", extra={"session_id": session_id})
             self._fail(ERROR_CODE_INFERENCE_FAILED, str(err))
         except Exception as err:  # deliberately broad: nothing may escape the seam unhandled
-            _logger.exception("unexpected failure handling a turn")
+            _logger.exception(
+                "unexpected failure handling a turn", extra={"session_id": session_id}
+            )
             self._fail(ERROR_CODE_INTERNAL, str(err))
         finally:
             self._turn = None
