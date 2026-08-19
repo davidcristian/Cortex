@@ -29,6 +29,7 @@ from cortex_core import (
     ScriptedModelHost,
     SwapFailedError,
     SwappingModelManager,
+    record_fields,
 )
 
 _CORTEX_URL = "http://llama-cortex:8080"
@@ -538,12 +539,42 @@ async def test_a_restore_that_fails_once_retries_and_succeeds(
             pass
     assert host.running == {"cortex"}
     assert host.calls.count(("start", "cortex")) == 2  # the failed attempt, then the retry
-    # Each record is pinned to the module that emits it, not only to its text: the attempt is
-    # reported where the attempt is made and the retry where the retries are counted, so a
-    # message that drifts to another module stops satisfying this test.
-    assert [(record.name, record.message) for record in caplog.records] == [
-        ("cortex_core.residency_moves", "the model host failed while restoring the cortex"),
-        ("cortex_core.residency_restore", "restoring the cortex failed; retrying"),
+    assert [(record.name, record.message, record_fields(record)) for record in caplog.records] == [
+        (
+            "cortex_core.residency_moves",
+            "the model host failed while restoring the cortex",
+            {"model": "cortex"},
+        ),
+        (
+            "cortex_core.residency_restore",
+            "restoring the cortex failed; retrying",
+            {"model": "cortex", "attempt": 1},
+        ),
+    ]
+
+
+async def test_a_restore_that_cannot_evict_the_deep_model_names_it_and_not_the_cortex(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The other model a restore can fail about, and the reason its ``try`` is its own."""
+    host = ScriptedModelHost(running=["cortex"], fail_once={("stop", "brain"): "still reaping"})
+    manager = _manager(host)
+    with caplog.at_level(logging.WARNING):
+        async with manager.swap_scope("brain"):
+            pass
+    assert host.running == {"cortex"}
+    assert host.calls.count(("stop", "brain")) == 2  # the refused eviction, then the retry
+    assert [(record.name, record.message, record_fields(record)) for record in caplog.records] == [
+        (
+            "cortex_core.residency_moves",
+            "the model host failed while taking the swapped-in model off the card",
+            {"model": "brain"},
+        ),
+        (
+            "cortex_core.residency_restore",
+            "restoring the cortex failed; retrying",
+            {"model": "cortex", "attempt": 1},
+        ),
     ]
 
 

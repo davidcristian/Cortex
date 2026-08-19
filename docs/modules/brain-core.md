@@ -1321,7 +1321,9 @@ Use-case:
   and start the evicted tiers back through the swap back's own `restart_evicted`, so a boot leaves
   the machine where the scope's `finally`
   would have. It deliberately does not resume a deep
-  phase, and it never raises: a dead host or store is logged loudly and served around. What it
+  phase, and it never raises: a dead host or store is logged loudly and served around, and the
+  clearing and the settling sit in separate `try` blocks so the failure names the model whose call
+  the host actually refused rather than one of the two it might have been. What it
   **returns** is whether the **cortex** was observed `READY` when it finished (`False` also for an
   unreachable host, which observed nothing), and the composition root publishes that onto the
   manager: without it a boot that could not settle the cortex logs the failure and then answers
@@ -2185,9 +2187,11 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   start; stop and restore the standing residency, whose last step `restart_evicted` is public
   because boot recovery ends the same way) live in `residency_moves.py`, beside the one question
   asked before either of them (`is_unhosted(host, model)`, the one `status` call behind the
-  manager's `unhosted`); both of the
+  manager's `unhosted`). The swap back's two host failures are logged under separate `try` blocks
+  for the same reason boot recovery's are: the eviction is about the model the handoff swapped in
+  and the start is about the cortex, so each line carries the model it was acting on. Both of the
   swap back's own guarantees, its retry policy (`restore_with_retries`) and its uninterruptible
-  wait, in `residency_restore.py`; and the bookkeeping every one of them publishes into, in
+  wait, live in `residency_restore.py`; and the bookkeeping every one of them publishes into, in
   `ResidencyBoard` (`residency_board.py`, ADR-0030 boot-verdict addendum): which model the GPU
   serves, what a human is told about it, whether a scope owns the card, and the one
   `asyncio.Condition` all three are published and waited on under. `publish(model, report)` is the

@@ -50,6 +50,13 @@ async def converge_residency(
         await _clear_peer(host, peer)
     try:
         await _clear_deep(host, plan.brain_model)
+    except ModelHostError:
+        _logger.exception(
+            "the model host failed while clearing the deep model at boot",
+            extra={"model": plan.brain_model},
+        )
+        return False
+    try:
         settled = await _settle_cortex(host, plan, clock=clock, sleeper=sleeper)
     except ModelNotHostedError:
         _logger.exception(
@@ -58,7 +65,10 @@ async def converge_residency(
         )
         return False
     except ModelHostError:
-        _logger.exception("the model host was unreachable during boot recovery")
+        _logger.exception(
+            "the model host was unreachable during boot recovery",
+            extra={"model": plan.cortex_model},
+        )
         return False
     await restart_evicted(host, plan, tiers)
     return settled

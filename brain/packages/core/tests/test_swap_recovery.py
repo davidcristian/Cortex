@@ -17,10 +17,16 @@ from cortex_core import (
     StandingTiers,
     SystemClock,
     converge_residency,
+    record_fields,
     recover_handoffs,
 )
 
 _TIER = "subagent-gpu"
+
+
+def _said(caplog: pytest.LogCaptureFixture) -> list[tuple[str, dict[str, object]]]:
+    """What each line says and what it carries, read the way the formatter reads a record."""
+    return [(record.message, record_fields(record)) for record in caplog.records]
 
 
 async def _recover(
@@ -145,8 +151,8 @@ async def test_an_unreachable_host_does_not_fail_the_boot(
         )
     # Nothing was observed about the cortex, and the honest report of an unobserved GPU is amber.
     assert settled is False
-    assert [record.message for record in caplog.records] == [
-        "the model host was unreachable during boot recovery"
+    assert _said(caplog) == [
+        ("the model host failed while clearing the deep model at boot", {"model": "brain"})
     ]
     # And nothing was observed about the peers either: a host that could not be reached was never
     # asked to run one, and this record's one rule is that only a refusal marks.
@@ -226,8 +232,10 @@ async def test_a_deep_model_that_really_will_not_stop_still_fails_the_boot(
         settled = await _recover(RecordingHandoffStore(), host)
     assert settled is False
     assert ("status", "cortex") not in host.calls
-    assert [record.message for record in caplog.records] == [
-        "the model host was unreachable during boot recovery"
+    # The wedged tier is the deep model, and the line says so: the cortex was never even asked
+    # about here, so a failure naming it would be an invention.
+    assert _said(caplog) == [
+        ("the model host failed while clearing the deep model at boot", {"model": "brain"})
     ]
 
 
@@ -239,8 +247,27 @@ async def test_a_cortex_the_daemon_does_not_serve_is_amber_and_says_which_it_is(
     with caplog.at_level(logging.ERROR, logger="cortex_core.swap_recovery"):
         settled = await _recover(RecordingHandoffStore(), host)
     assert settled is False
-    assert [record.message for record in caplog.records] == [
-        "the model host does not serve the cortex this brain names, so nothing can"
+    # The one arm that could always name its model, and now the only call it wraps is the
+    # cortex's, so the name is structural rather than a fact read out of another function.
+    assert _said(caplog) == [
+        (
+            "the model host does not serve the cortex this brain names, so nothing can",
+            {"model": "cortex"},
+        )
+    ]
+
+
+async def test_a_host_that_fails_at_the_cortex_names_the_cortex_and_not_the_deep_model(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The other half of the narrowing, and the case the old single ``try`` could not tell apart."""
+    host = ScriptedModelHost(fail={("status", "cortex"): "supervisor unreachable"})
+    with caplog.at_level(logging.ERROR, logger="cortex_core.swap_recovery"):
+        settled = await _recover(RecordingHandoffStore(), host)
+    assert settled is False
+    assert ("status", "brain") in host.calls  # the clearing really did run and really did pass
+    assert _said(caplog) == [
+        ("the model host was unreachable during boot recovery", {"model": "cortex"})
     ]
 
 

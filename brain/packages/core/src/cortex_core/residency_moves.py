@@ -104,10 +104,19 @@ async def restore_standing(
     """One attempt at the standing residency: stop ``model``, bring the cortex and its peers up."""
     try:
         await _stop_what_was_swapped_in(host, model)
+    except ModelHostError:
+        _logger.exception(
+            "the model host failed while taking the swapped-in model off the card",
+            extra={"model": model},
+        )
+        return False
+    try:
         await host.start(plan.cortex_model)
         state = await gate(plan.cortex_model)
     except ModelHostError:
-        _logger.exception("the model host failed while restoring the cortex")
+        _logger.exception(
+            "the model host failed while restoring the cortex", extra={"model": plan.cortex_model}
+        )
         return False
     if state is not ModelHostState.READY:
         return False
