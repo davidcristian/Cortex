@@ -2758,8 +2758,10 @@ model host does not serve the cortex this brain names, so nothing can`), since t
 operator's next move, which is to read the daemon's roster.
 
 **What a caller learns about the missing escalation is a log line, and deliberately only that.**
-`escalation is enabled but the model host does not serve 'brain', so no handoff can ever run: name
-an artifact for that tier (CORTEX_MODEL_FILE_BRAIN) or turn escalation off (CORTEX_ESCALATION)`.
+`escalation is enabled but the model host does not serve the deep model, so no handoff can ever
+run: name an artifact for that tier (CORTEX_MODEL_FILE_BRAIN) or turn escalation off
+(CORTEX_ESCALATION)`, the tier's own id riding the line as its `model=` field since the ADR-0038
+twice-printed-field addendum.
 It is logged at `ERROR` because the deployment is misconfigured and nothing else will say so, and
 it is logged once per boot rather than published, for the reason the boot-verdict addendum gave
 about widening the health surface: the report carries one detail line, that line already belongs to

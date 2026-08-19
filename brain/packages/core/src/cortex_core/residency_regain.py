@@ -101,8 +101,7 @@ async def _cortex_is_serving(host: ModelHost, model: str) -> bool:
         return await host.status(model) is ModelHostState.READY
     except ModelHostError as err:
         _logger.debug(
-            "the model host could not be asked whether the cortex is serving again: error=%s",
-            err,
+            "the model host could not be asked whether the cortex is serving again",
             extra={"model": model, "error": str(err)},
         )
         return False
@@ -124,8 +123,7 @@ async def _deep_tier_is_off_the_card(host: ModelHost, model: str) -> bool:
         return True
     except ModelHostError as err:
         _logger.debug(
-            "the model host could not be asked whether the deep model is still resident: error=%s",
-            err,
+            "the model host could not be asked whether the deep model is still resident",
             extra={"model": model, "error": str(err)},
         )
         return False

@@ -32,7 +32,7 @@ from model_host_contract import CORTEX, DEEP
 from process_fakes import FakeChildProcesses, FakeProbe
 from test_model_host_contract import contract_roster
 
-from cortex_core import DeviceMemory, ModelHostState
+from cortex_core import DeviceMemory, ModelHostState, PlainFormatter
 from cortex_model_manager import (
     DeviceMemoryProbe,
     ModelSupervisor,
@@ -208,6 +208,14 @@ async def test_a_boot_start_that_fails_is_logged_and_the_api_still_serves(
     assert response.status_code == HTTPStatus.OK
     assert processes.spawned == []
     # Names the tier it failed on: the boot default is configurable, so "a model" is not an answer.
-    assert "the boot-default model could not be started; serving without it: model=ghost" in (
-        caplog.text
+    # Read off the rendered line rather than `caplog.text`, which carries no field: the tier rides
+    # this record as one, and the traceback the formatter appends stays below the fields.
+    (record,) = caplog.records
+    assert (
+        PlainFormatter()
+        .format(record)
+        .startswith(
+            "ERROR:cortex_model_manager.api:"
+            "the boot-default model could not be started; serving without it model=ghost\n"
+        )
     )

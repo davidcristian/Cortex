@@ -83,9 +83,7 @@ class AsyncioChild:
             send()
         except ProcessLookupError:
             _logger.info(
-                "the child had already exited when the signal was sent: pid=%d signal=%s",
-                self._process.pid,
-                name,
+                "the child had already exited when the signal was sent",
                 extra={"pid": self._process.pid, "signal": name},
             )
 

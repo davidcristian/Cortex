@@ -82,6 +82,7 @@ from cortex_core import (
     ModelHostState,
     PlacementRequest,
     PlacementTarget,
+    PlainFormatter,
     RecordingSleeper,
     ResidencyPlan,
     ScriptedModelHost,
@@ -110,6 +111,18 @@ def _open() -> bool:
 def _retry_log(caplog: pytest.LogCaptureFixture) -> list[str]:
     """Only the sweep's own lines: a case that swapped first also captured the swap's failure."""
     return [record.msg for record in caplog.records if record.name == _RETRY_LOGGER]
+
+
+def _retry_lines(caplog: pytest.LogCaptureFixture) -> list[str]:
+    """The same lines as an operator reads them, through the formatter a process entry installs.
+
+    Which tier it was, and what the host said, used to be spelled into the message as well as
+    attached to the record; the formatter renders whatever a record carries, so that second copy
+    printed each of them twice. They are asserted here, on the line where they now arrive.
+    """
+    return [
+        PlainFormatter().format(record) for record in caplog.records if record.name == _RETRY_LOGGER
+    ]
 
 
 class _FixedClock:
@@ -288,9 +301,10 @@ async def test_a_start_the_host_refuses_leaves_the_tier_recorded_and_the_pass_al
         ("start", _OTHER_TIER),
     ]
     assert tiers.missing == (_TIER, _OTHER_TIER)
-    assert "a tier of the standing residency could not be %s: model=%s error=%s" in _retry_log(
-        caplog
-    )
+    assert (
+        f"WARNING:{_RETRY_LOGGER}:a tier of the standing residency could not be started"
+        f' error="no such device" model={_TIER}'
+    ) in _retry_lines(caplog)
 
 
 def test_marking_a_tier_standing_that_was_never_missing_changes_nothing() -> None:
@@ -357,8 +371,9 @@ async def test_a_sweep_that_cannot_reach_the_host_leaves_the_record_alone(
     with caplog.at_level(logging.WARNING, logger=_RETRY_LOGGER):
         await manager.heal_residency()
     assert placer.place(_spawn()).target is PlacementTarget.CPU
-    assert _retry_log(caplog) == [
-        "a tier of the standing residency could not be %s: model=%s error=%s"
+    assert _retry_lines(caplog) == [
+        f"WARNING:{_RETRY_LOGGER}:a tier of the standing residency could not be asked about"
+        f' error="connection refused" model={_TIER}'
     ]
     standing = StandingTiers(_placer())
     await sweep_tiers(host, _plan(), standing, _open)
@@ -432,9 +447,10 @@ async def test_a_peer_that_died_between_handoffs_is_found_without_any_handoff(
     with caplog.at_level(logging.WARNING, logger=_RETRY_LOGGER):
         await manager.heal_residency()
     assert placer.place(_spawn()).target is PlacementTarget.CPU
-    assert _retry_log(caplog) == [
-        "a tier of the standing residency stopped without anything asking it to: model=%s "
-        "state=%s; delegated work runs on the CPU until it is serving again"
+    assert _retry_lines(caplog) == [
+        f"WARNING:{_RETRY_LOGGER}:a tier of the standing residency stopped without anything "
+        f"asking it to; delegated work runs on the CPU until it is serving again "
+        f"model={_TIER} state=failed"
     ]
 
 
@@ -508,7 +524,12 @@ async def test_a_tier_the_roster_never_had_is_recorded_once_and_never_asked_agai
     await manager.heal_residency()
     await manager.heal_residency()
     assert host.calls == []  # two whole passes that spend nothing on a fixed answer
-    assert len(_retry_log(caplog)) == 1
+    # Said once, and which tier it was said about is read off the rendered line: the message names
+    # no tier now, and a line that lost the field would send an operator to a roster without
+    # telling them which entry of it to look at.
+    (line,) = _retry_lines(caplog)
+    assert f"model={_GHOST}" in line
+    assert "CORTEX_SWAP_EVICT_MODELS" in line
 
 
 async def test_a_restart_refused_for_a_tier_the_roster_lacks_is_not_an_ordinary_refusal() -> None:

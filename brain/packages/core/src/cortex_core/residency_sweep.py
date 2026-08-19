@@ -91,10 +91,8 @@ async def _act_on(
         return
     if tiers.fault_of(model) is None:
         _logger.warning(
-            "a tier of the standing residency stopped without anything asking it to: model=%s "
-            "state=%s; delegated work runs on the CPU until it is serving again",
-            model,
-            state.value,
+            "a tier of the standing residency stopped without anything asking it to; delegated "
+            "work runs on the CPU until it is serving again",
             extra={"model": model, "state": state.value},
         )
     # Before the start, deliberately: the placer must stop sending spawns at that tier whether or
@@ -119,11 +117,9 @@ def _unhosted(model: str, tiers: StandingTiers, err: ModelHostError) -> None:
     every later pass, so this line is written where the belief changes and nowhere else.
     """
     _logger.error(
-        "the model host does not serve %r at all, so this tier will not be asked about again "
-        "until the daemon is replaced: name an artifact for it or drop it from "
-        "CORTEX_SWAP_EVICT_MODELS; delegated work runs on the CPU meanwhile: %s",
-        model,
-        err,
+        "the model host does not serve this model at all, so this tier will not be asked about "
+        "again until the daemon is replaced: name an artifact for it or drop it from "
+        "CORTEX_SWAP_EVICT_MODELS; delegated work runs on the CPU meanwhile",
         extra={"model": model, "error": str(err)},
     )
     tiers.mark_unhosted(model)
@@ -131,10 +127,14 @@ def _unhosted(model: str, tiers: StandingTiers, err: ModelHostError) -> None:
 
 def _unanswered(model: str, verb: str, err: ModelHostError) -> None:
     """A host that could not answer leaves the record alone, so a blip cannot close the pool."""
+    # The one interpolation left in this package's log messages, and it is not a field: ``verb`` is
+    # this sentence's own predicate, which is why it is not attached as an ``extra`` and so cannot
+    # be printed twice by the formatter the entry points install. It also has to stay in the
+    # message because docs/runbooks/model-swap.md sends an operator to grep the whole sentence
+    # "a tier of the standing residency could not be started". The model and the cause come off,
+    # both being fields the record already carries.
     _logger.warning(
-        "a tier of the standing residency could not be %s: model=%s error=%s",
+        "a tier of the standing residency could not be %s",
         verb,
-        model,
-        err,
         extra={"model": model, "error": str(err)},
     )

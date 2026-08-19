@@ -2160,3 +2160,127 @@ Two, both filed rather than built: the wider family of fields spelled into their
 ([R-323](../refinements/tasks/323-a-field-spelled-into-its-own-message.md)), and the fact that a
 field's rendered value is unbounded, so an `extra` carrying a large or conversational value would
 print in full ([R-324](../refinements/tasks/324-a-rendered-field-has-no-bound.md)).
+
+## Twice-printed-field addendum (2026-08-19): a message stops spelling the fields its own record carries
+
+The addendum above installed the formatter, took out the three hand-rolled renderings it had come
+for, and filed the wider family it found beside them rather than sweeping it. This is that sweep.
+Every site in it had the same history: the field was on the record and invisible, so the call site
+wrote it into the message too, and the moment a formatter rendered records the workaround became
+the same value printed twice, `started a model process: model=cortex pid=41 port=8081 model=cortex
+pid=41 port=8081`. Nothing was wrong with the fields; what was wrong was the second copy.
+
+### Re-derived from the tree first, and the entry's count was half the real one
+
+The entry said "about twenty". An AST pass over every `logging` call in `brain/packages/*/src`
+found **31**, across 13 files. The entry's file list was right as far as it went and named eleven
+files; two more carry a site of the same family and are what the re-derivation added,
+`swap_conductor.py` (the refused escalation) and `swap_recovery.py` (the boot line that says no
+handoff can ever run). The count matters only in that it is the second time this ADR's entry
+survey undercounted a family, which is the argument for re-deriving one from the tree before
+believing it.
+
+By package: 16 in `cortex_model_manager` (`supervisor.py` 4, `adapter.py` 5, `api.py` 2,
+`device_memory.py` 3, `children.py` 1, `server.py` 1), 12 in `cortex_core` (`residency_sweep.py` 3,
+`residency_moves.py` 3, `residency_regain.py` 2, `residency_watch.py` 2, `swap_conductor.py` 1,
+`swap_recovery.py` 1) and 3 in `cortex_orchestrator` (`swap_builders.py`). `cortex_email` is
+untouched for the reason the addendum above gave: it configures no logging and attaches no field.
+
+### Decision 1: the message is a constant sentence and every value on the line is a field
+
+A value the record carries is not interpolated into the message. What is left is a constant string,
+so the message half of a line no longer varies (with the two exceptions decided below) and the
+varying half is entirely on the right, in name order. Seven of the 31 needed more than a deleted token, because the value was a
+word of the sentence rather than a token appended to it, and each was rewritten to say the same
+thing without it. `no device memory reading is available from %s` became `no device memory reading
+is available`, the binary being the `binary` field the line already carried; `the device memory
+query exited with code %s` became `exited with a non-zero code`, which is the branch's own
+condition, with the code in `returncode`; and the five `%r` clauses in the residency and swap paths
+name generically what they used to interpolate (`does not serve this model at all`, `does not serve
+the deep model`) with the id in `model=`.
+
+**The gain is a grep that matches every instance of a line rather than one.** `docker compose logs
+brain | grep "a model-host request failed"` now finds all of them however many models and errors
+they name, where before a pattern either carried a value or stopped at the colon. That is also the
+cost, stated honestly: a runbook that used to quote a line with a placeholder in it, as
+`model-swap.md` did three times with `'<tier>'` and `'<deep model>'`, now quotes the whole sentence,
+and the id it used to show inside the quote is read off the field beside it.
+
+### Decision 2: two shapes keep a value in their prose, each for its own reason
+
+- **A message that is also a raised exception's text.** Six sites build one string, log it, and
+  raise it as a typed error. The string has to read on its own where no formatter runs (in a reply,
+  in a traceback, in the runbook that quotes it), so it keeps its numbers, and the fields beside it
+  repeat them. That is a real second reading of one value and it is deliberate; the alternatives,
+  two strings per site or dropping the log call, are weighed in
+  [R-325](../refinements/tasks/325-a-raised-message-is-also-a-logged-one.md).
+- **A word that is the sentence's own predicate.** `residency_sweep._unanswered` keeps
+  `a tier of the standing residency could not be %s`, where the verb is `started`. It is not a
+  field, is not attached as one, and therefore cannot print twice; and `model-swap.md` sends an
+  operator to grep that whole sentence. Attaching it as `verb=` would have cost the runbook its
+  grep and the sentence its predicate, to gain a field nothing selects on.
+
+### Distrust green
+
+Each mutation was applied to production code alone, with the package's own suite re-run:
+
+- dropping `extra=` from the two supervisor lifecycle lines reddens exactly
+  `test_the_lifecycle_log_lines_name_the_tier_and_the_pid_they_are_about` (1 of 136);
+- dropping `extra=` from the adapter's FAILED line reddens exactly
+  `test_a_failed_state_is_a_normal_answer_and_is_logged_with_its_detail` (1 of 136);
+- dropping `model` from the sweep's unhosted-tier line reddens exactly
+  `test_a_tier_the_roster_never_had_is_recorded_once_and_never_asked_again`;
+- dropping `error` from boot recovery's deep-tier line reddens exactly
+  `test_a_deep_tier_the_daemon_does_not_serve_is_a_config_fault_not_an_amber_boot`;
+- dropping `worst_s` from the deadline-pairing line reddens exactly the assertion that reads it off
+  the rendered line, which is the one that moved.
+
+The mutations matter more here than the count does. A test that asserted a field through
+`getMessage()` would have gone on passing with the field deleted from the record entirely, which is
+the failure this change had to avoid: a field silently lost is worse than a field printed twice,
+and every assertion that depended on the message now reads the rendered line instead.
+
+### Verified live
+
+`docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.gpu.yml
+logs model-host` against the real sidecar on this machine, twice: once from a build of the tree as
+it stood before this addendum, and once from the tree after it, the same daemon starting the same
+tier off the same mount both times. Before:
+
+```text
+model-host-1  | INFO:cortex_model_manager.server:model host configured: models=['cortex'] boot_model=cortex boot_model=cortex models=["cortex"]
+model-host-1  | INFO:cortex_model_manager.supervisor:started a model process: model=cortex pid=8 port=8080 model=cortex pid=8 port=8080
+model-host-1  | WARNING:cortex_model_manager.api:a model-host request failed: model=brain error=unknown model 'brain'; this host serves cortex error="unknown model 'brain'; this host serves cortex" model=brain
+```
+
+After:
+
+```text
+model-host-1  | INFO:cortex_model_manager.server:model host configured boot_model=cortex models=["cortex"]
+model-host-1  | INFO:cortex_model_manager.supervisor:started a model process model=cortex pid=8 port=8080
+model-host-1  | WARNING:cortex_model_manager.api:a model-host request failed error="unknown model 'brain'; this host serves cortex" model=brain
+```
+
+Every field appears once, none of them was lost, and the third line is the one worth reading twice:
+the error the daemon returns is a sentence with its own punctuation, so the doubled copy ran two
+readings of it together where the rendered field quotes it as one value.
+
+### Consequences
+
+- **Every runbook that quoted one of these lines moved with the code**, in the same commit:
+  `model-swap.md` (three quotes and the log-reading pointer), `local-dev-wsl.md` (the reading rules
+  gain the one this addendum adds), and `brain-model-manager.md`'s claim that the daemon's
+  lifecycle lines still spell their tier and pid into the message, which was true when it was
+  written and is now the opposite of what they do.
+- **A line's message is now stable enough to be a grep pattern**, which is what these runbooks were
+  already treating it as.
+- Nothing about a turn's cost changes: this is a shorter format string and one fewer interpolation
+  per emitted record.
+
+### Deferred by this addendum
+
+Two, both filed rather than built: the six messages that are logged and raised
+([R-325](../refinements/tasks/325-a-raised-message-is-also-a-logged-one.md)), and the other end of
+the same question, the lines that attach no field at all, headed by a quarantine line that names
+the record it moved in prose only
+([R-326](../refinements/tasks/326-a-line-that-names-nothing-it-happened-to.md)).

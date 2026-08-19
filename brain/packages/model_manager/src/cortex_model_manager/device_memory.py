@@ -82,16 +82,13 @@ class NvidiaSmiMemory:
         except (OSError, TimeoutError) as err:
             # The normal case on a machine with no GPU: the binary is not in the image at all.
             _logger.info(
-                "no device memory reading is available from %s: %s",
-                self._binary,
-                err,
+                "no device memory reading is available",
                 extra={"binary": self._binary, "error": str(err)},
             )
             return None
         if process.returncode != 0:
             _logger.warning(
-                "the device memory query exited with code %s",
-                process.returncode,
+                "the device memory query exited with a non-zero code",
                 extra={"binary": self._binary, "returncode": process.returncode},
             )
             return None
@@ -103,9 +100,7 @@ def _parse(output: str) -> DeviceMemory | None:
     rows = [row for row in output.splitlines() if row.strip()]
     if len(rows) != 1:
         _logger.warning(
-            "a device memory reading needs exactly one visible GPU; got %d",
-            len(rows),
-            extra={"rows": len(rows)},
+            "a device memory reading needs exactly one visible GPU", extra={"rows": len(rows)}
         )
         return None
     fields = rows[0].split(",")

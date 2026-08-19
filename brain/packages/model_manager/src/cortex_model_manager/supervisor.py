@@ -162,10 +162,7 @@ class ModelSupervisor:
                 raise SupervisorError(msg) from err
             self._children[model] = child
             _logger.info(
-                "started a model process: model=%s pid=%d port=%d",
-                model,
-                child.pid,
-                spec.port,
+                "started a model process",
                 extra={"model": model, "pid": child.pid, "port": spec.port},
             )
 
@@ -182,12 +179,7 @@ class ModelSupervisor:
                 # STOPPED. The caller's retry then tries again on the same process.
                 await self._end(model, child)
             del self._children[model]
-            _logger.info(
-                "stopped a model process: model=%s pid=%d",
-                model,
-                child.pid,
-                extra={"model": model, "pid": child.pid},
-            )
+            _logger.info("stopped a model process", extra={"model": model, "pid": child.pid})
 
     async def status(self, model: str) -> ModelStatus:
         """What ``model`` is doing: the process first, the health probe only if it is alive."""
@@ -212,9 +204,7 @@ class ModelSupervisor:
                 await self.stop(model)
             except SupervisorError:
                 _logger.exception(
-                    "a model process could not be stopped at shutdown: model=%s",
-                    model,
-                    extra={"model": model},
+                    "a model process could not be stopped at shutdown", extra={"model": model}
                 )
 
     def _spec(self, model: str) -> ModelSpec:
@@ -231,10 +221,7 @@ class ModelSupervisor:
         if await self._reaped(child, self._bounds.stop_grace_s):
             return
         _logger.warning(
-            "a model process ignored SIGTERM; killing it: model=%s pid=%d grace_s=%s",
-            model,
-            child.pid,
-            self._bounds.stop_grace_s,
+            "a model process ignored SIGTERM; killing it",
             extra={"model": model, "pid": child.pid, "grace_s": self._bounds.stop_grace_s},
         )
         child.kill()

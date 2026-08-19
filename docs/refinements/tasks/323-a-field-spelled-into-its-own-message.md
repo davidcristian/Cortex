@@ -1,6 +1,6 @@
 # A field spelled into its own message now prints twice
 
-**Status:** open, actionable
+**Status:** landed 2026-08-19
 **Area:** cross-cutting
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
 
@@ -30,3 +30,21 @@ should not have to rule out mid incident.
 - 2026-08-19: Opened by the close of
   [R-317](317-shipped-handler-drops-every-field.md), whose survey of hand-rolled renderings named
   three and whose re-derivation from the tree found this fourth family beside them.
+- 2026-08-19: Landed as the ADR-0038 twice-printed-field addendum. Re-derived from the tree first,
+  which found **31** sites and not "about twenty", across 13 files: the eleven this entry named,
+  plus `swap_conductor.py` and `swap_recovery.py`. Every one of them now logs a constant sentence
+  and carries its values as fields alone, so a value appears once on the line and a runbook's
+  `grep` matches every instance of a line rather than the one whose id it quoted. No field was
+  lost: every value taken out of a message was already attached, which is why nothing had to be
+  rescued, and each site's assertions moved onto `PlainFormatter().format(record)` rather than
+  staying on a message that no longer carries them. Seven messages needed rewording rather than a
+  deleted token, the two device-memory lines whose value was a word of the sentence and the five
+  `%r` clauses that now name their subject generically. Two shapes deliberately keep a value in
+  prose: a message that is also a raised exception's text, and the sweep's own predicate
+  (`could not be started`), which is not a field and so cannot double. The runbooks moved in the
+  same commit: `model-swap.md` (three quoted lines and the log-reading pointer),
+  `local-dev-wsl.md` (a fourth reading rule) and `brain-model-manager.md`. Verified live against
+  the real sidecar, before and after, in `docker compose logs model-host`. What it opened is
+  [R-325](325-a-raised-message-is-also-a-logged-one.md), the six messages that are logged and
+  raised, and [R-326](326-a-line-that-names-nothing-it-happened-to.md), the lines at the other end
+  of the question that attach no field at all.

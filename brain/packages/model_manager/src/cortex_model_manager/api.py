@@ -129,8 +129,7 @@ def model_host_lifespan(
             # policy and hide the cause; a control API that answers can be asked what went wrong,
             # and the brain's own boot recovery starts the standing resident again regardless.
             _logger.exception(
-                "the boot-default model could not be started; serving without it: model=%s",
-                boot_model,
+                "the boot-default model could not be started; serving without it",
                 extra={"model": boot_model},
             )
         try:
@@ -170,10 +169,5 @@ async def _answer(action: _Action, request: Request) -> Response:
 
 def _refused(model: str, err: SupervisorError, code: HTTPStatus) -> Response:
     """Encode a typed refusal, logged with the id that asked for it (never a stack per request)."""
-    _logger.warning(
-        "a model-host request failed: model=%s error=%s",
-        model,
-        err,
-        extra={"model": model, "error": str(err)},
-    )
+    _logger.warning("a model-host request failed", extra={"model": model, "error": str(err)})
     return JSONResponse({"error": str(err)}, status_code=code)
