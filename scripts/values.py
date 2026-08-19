@@ -20,6 +20,17 @@ site that dropped its point would keep agreeing while every place spending it we
 decimal therefore becomes ``Digits``, compared as the characters it is written with; an ordering
 compares integers and refuses one rather than guessing how text sorts.
 
+**Spellings.** Because the comparison is textual, a far side whose syntax cannot take the value as
+the site writes it cannot be reached by rendering that text: docker parses `8g` as a size and
+refuses `8.0g`, so a budget declared `8.0` is spelled `8` there. ``spell`` re-spells the agreed
+value for such a mention, deriving the second spelling from the first rather than taking a second
+one on trust, and refusing any value it would have to change to fit. It stays out of arithmetic
+exactly as the reducer does: a whole spelling is the digits before the point, taken when the digits
+after it are zeros, and a fraction that is not zero is a fault rather than a truncation. A
+re-spelling cannot see a site that dropped its point, both spellings of one whole number rendering
+alike, so ``spelling_fault`` requires an entry that re-spells to hold the written form somewhere
+too, which is where that drift is caught.
+
 **Relations.** Most couplings are equalities. ``ORDERED`` holds the sites to non-decreasing order,
 for the bounds that must sit under one another rather than match. ``MEMBER`` holds every site but
 the last inside the collection the last one declares, which is the shape of a value one tree
@@ -32,7 +43,7 @@ import re
 from itertools import pairwise
 from typing import NamedTuple
 
-from couplings import Constant, Relation, Site
+from couplings import PLACEHOLDER, Constant, Relation, Site, Spelling
 
 # The only comment marker a declaration's right-hand side may carry. Rust and TypeScript need
 # none: their value is captured up to the terminating semicolon, so a trailing `//` never
@@ -143,6 +154,58 @@ def parse_value(text: str) -> Value:
     if DECIMAL_POINT in _expression(stripped):
         return _decimal_value(stripped)
     return _integer_value(stripped)
+
+
+def _whole_spelling(value: Value) -> str:
+    """A number with no fractional part, for a far side whose syntax carries none.
+
+    An integer is already whole. A decimal gives up the digits behind its point when they are
+    zeros, and is refused when they are not: `8.5` is a number docker's size suffix cannot spell,
+    and truncating it here would tie that far side to `8` while the site went on declaring `8.5`,
+    which is the drift this scan exists to report rather than to create.
+    """
+    if isinstance(value, int):
+        return str(value)
+    if not isinstance(value, Digits):
+        msg = f"a whole spelling needs a number, and this constant declares {value!r}"
+        raise CrossCheckError(msg)
+    whole, _, fraction = value.written.partition(DECIMAL_POINT)
+    if fraction.strip("0"):
+        msg = (
+            f"{value.written} cannot be spelled whole, its fraction being lost rather than "
+            "zero, so the far side would be tied to a number the site does not declare"
+        )
+        raise CrossCheckError(msg)
+    return whole
+
+
+def spell(value: Value, spelling: Spelling) -> str:
+    """The text a mention writes ``value`` as, in the spelling that mention asks for."""
+    return str(value) if spelling is Spelling.WRITTEN else _whole_spelling(value)
+
+
+def spelling_fault(constant: Constant) -> str | None:
+    """The complaint about a re-spelling with no written form beside it, or None when one is.
+
+    A re-spelled mention is deliberately blind to a spelling change that leaves the number alone:
+    `8` and `8.0` are one whole number, so the needle it renders is the same either way. That is
+    the whole point of the second spelling and it must not become the entry's only reading, or a
+    site that dropped its point would go unreported. So an entry that re-spells has to carry the
+    written form as well, in a second site the sites compare textually against, or in a mention
+    that renders the value the way the site writes it.
+    """
+    if all(mention.spelling is Spelling.WRITTEN for mention in constant.mentions):
+        return None
+    written = (
+        mention.spelling is Spelling.WRITTEN and PLACEHOLDER in mention.template
+        for mention in constant.mentions
+    )
+    if len(constant.sites) > 1 or any(written):
+        return None
+    return (
+        "re-spells its one value everywhere it is spent, so nothing holds the spelling the site "
+        "writes and a site that changed spelling alone would go unreported"
+    )
 
 
 def _member_fault(readings: list[Value], shown: str, generic: str) -> str | None:

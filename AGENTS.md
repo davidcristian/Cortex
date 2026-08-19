@@ -108,8 +108,8 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    (ADR-0026); `crosscheck.py`, which ties every value this repo spells in more than one place,
    whether the far side declares it, orders itself against it, carries it among the several it
    accepts, or merely spends it inside a string, a stylesheet or a bare literal, down to the
-   name a stylesheet spends it under (ADR-0029
-   cross-language-constant addendum); `bindcheck.py`, which holds every compose bind
+   name a stylesheet spends it under and the second spelling a far side's own syntax forces
+   (ADR-0029 cross-language-constant addendum); `bindcheck.py`, which holds every compose bind
    mount to resolving outside the repo, onto a path git tracks, or onto one git ignores, so
    no `docker compose up`
    materializes a container-written directory the index would take (ADR-0026 bind addendum);
@@ -230,8 +230,9 @@ scripts/          repo gates, plus the one module here that gates nothing, contr
                   punctuation), crosscheck.py (one value, spelled in several places, still
                   agreeing) + couplings.py (the vocabulary its registry is written in) +
                   seamcouplings.py and overlaycouplings.py (the registry itself, in the two
-                  halves the line cap split it into) + values.py (what a value reduces to and
-                  how a constant's readings must stand), bindcheck.py (no compose bind
+                  halves the line cap split it into) + values.py (what a value reduces to, how a
+                  constant's readings must stand, and the spelling a mention writes one in),
+                  bindcheck.py (no compose bind
                   default lands unignored in the tree) + composemounts.py (its compose
                   reader), backlogcheck.py (each backlog index still matches its task files,
                   ADR-0039) + backlog.py (task-file grammar), backlogindex.py (what the

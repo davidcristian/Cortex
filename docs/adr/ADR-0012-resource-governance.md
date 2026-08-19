@@ -997,3 +997,84 @@ in the repo, and `test_placer.py` is where the port's checks live, so the new ve
 there beside the old ones and exercised end to end in the core's `test_residency_tiers.py`, where
 a real residency scope is what writes them. Distrust green: consulting the headroom before the
 closed flag in `place` reddens 7 tests across two packages, two of them in `test_placer.py`.
+
+## Addendum (2026-08-19): the subagent memory budget is one number, and the gates now hold it
+
+The budget the admission scheduler runs against and the cgroup that catches anything admitted past
+it were the same number written four times, agreeing only by hand. `SubagentsConfig.mem_budget_gb`
+declared `8.0`; `docker/docker-compose.subagents.yml` passed `${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8.0}`
+into the brain, spent `${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8}g` as the CPU subagent container's
+`mem_limit` and again as its `memswap_limit`, and claimed the twinning in prose twice more. Raising
+the field to 12 left a container capped at 8 while the scheduler believed it could admit 12 GB of
+subagents, which is precisely the failure this record exists to prevent, and nothing reported it.
+
+The constant scan (`scripts/crosscheck.py`) could not be pointed at it as it stood, for two
+independent reasons. Both are now resolved, and the reasoning matters more than the entry.
+
+### The site: a named constant, not a reducer that reads calls
+
+`values.py` reduces a declaration's right-hand side and **refuses what it cannot read** rather than
+guessing, which is the property that keeps the gate from agreeing with itself. `Field(default=8.0,
+gt=0)` is a call, so it was refused. The two ways forward were to teach the reducer that call, or
+to give the number a name the reducer already reads.
+
+The name wins, and not narrowly. A reducer that reads `Field(...)` is a reducer that knows pydantic:
+it would have to pick the `default` keyword out of a call that also accepts a positional default and
+a `default_factory`, in a module that is deliberately language-agnostic and understands four value
+forms and no call at all. Every such rule is a place where the gate infers a value nobody wrote
+down. And the alternative is not a workaround but this package's own idiom: `admission_wait_s`,
+`max_tokens` and `run_timeout_s` already cite module constants in their `Field(...)`, three of them
+imported from the core. So `DEFAULT_MEM_BUDGET_GB = 8.0` sits with `DEFAULT_SUBAGENT_MODEL` at the
+top of `config_subagents.py`, `mem_budget_gb` cites it, and the number is nameable in the module
+contract and in this record for the first time.
+
+### The mentions: one number, two spellings, and the second one derived
+
+The far side spells this number two ways and neither is a matter of taste. Docker parses the size
+suffix, so `mem_limit` takes `8g` and refuses `8.0g`; the environment passthrough carries the float
+the brain parses. Since the close of the decimal work (ADR-0029, 2026-08-19) a decimal reduces to
+**the digits it is written with**, on purpose, so `8.0` and `8` are two values and one needle cannot
+find both.
+
+`Mention.spelling` is the answer, and its shape is chosen so that the textual comparison survives
+it. `Spelling.WRITTEN` is the default and every existing mention keeps it. `Spelling.WHOLE` renders
+the same value without a fractional part, and it is **derived from the declared value rather than
+typed into the registry**: nobody writes `8` beside `8.0` and asks the gate to trust that they
+match. A fraction that is not zero is refused rather than truncated, so a budget retuned to `8.5`
+fails the scan naming the far side that cannot spell it, instead of quietly capping a container half
+a gigabyte under what the scheduler admits.
+
+The one thing a re-spelling cannot do is notice a site that drops its point, `8` and `8.0` being one
+whole number and therefore one whole spelling. That is exactly the drift the decimal work made the
+reducer textual to catch, so `values.spelling_fault` refuses any entry whose mentions all re-spell:
+a second site or a mention rendering the value as written has to stand beside them. The registered
+entry carries two of each, and the drift is caught by the written pair.
+
+### What is registered, and what is deliberately not
+
+One site (`DEFAULT_MEM_BUDGET_GB`) and four mentions, all in `docker-compose.subagents.yml`: the
+environment passthrough, the two container limits as one counted set (memswap equal to memory is
+what disables the container's swap, so one moving without the other re-enables it in silence), and
+the two comments that restate the number, one claiming the twinning and one counting admissions
+against it. Each template covers the whole of what it pins, including the quotes around a compose
+scalar: a needle stopping at the substitution's own `}` is satisfied by the size limits and leaves
+the passthrough free to drift, which is the prefix hole the port publish taught the registry to
+close.
+
+This record is not a far side and no decision record ever is: it says what was decided on a date and
+must go on saying it after the number moves. The wider survey stays unasked here too. Around fifty
+`${CORTEX_*:-default}` substitutions live under `docker/`, most naming a path, a model file or a
+host-shaped number no Python constant declares, and the sibling knobs in this very file include one
+pair that disagrees on purpose (`CORTEX_SUBAGENTS_MEMORY_GB` ships 3.0 where the field defaults to
+2.0). The neighbouring CPU budget is the closest twin and is filed rather than folded in
+([R-315](../refinements/tasks/315-subagent-cpu-budget-and-its-siblings.md)).
+
+### Proved able to fail, seven times
+
+Each drift was planted on the real tree, run through `crosscheck.py`, and reverted. The site alone at
+`12.0` exits 1 naming all four spends. The environment passthrough alone at `9.0`, one container
+limit alone at `9` (reported as found 1, pinned 2), the twinning comment alone at `9.0`, and the
+admission sentence alone at `9 GB` each exit 1 naming that one place. The site retyped as `8`, the
+same number in the other spelling, exits 1 on both written mentions and is the proof that the
+re-spelling did not undo the textual comparison. The site at `8.5` exits 1 twice more, reporting a
+number the size suffix cannot carry at all.

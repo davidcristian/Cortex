@@ -27,6 +27,17 @@ DEFAULT_SUBAGENT_MODEL = "subagent"
 # (ADR-0017 is enforced in the core, whatever this says).
 DEFAULT_SUBAGENT_DESCRIPTION = "the injection-robust default; safe for any subtask"
 
+# The soft admission ceiling on the memory of everything admitted at once (ADR-0012), in GB, and
+# the hard twin of the CPU subagent container's own `mem_limit`: the scheduler stops admitting at
+# this sum and the cgroup is what happens if anything ever admits past it. A module constant
+# rather than a literal inside `Field(...)` so the constant scan can read it, which is what ties
+# this declaration to the four spellings of it in `docker/docker-compose.subagents.yml` (the
+# environment passthrough, the container's memory and swap limits, and the comment that claims
+# the twinning, where docker's size suffix takes the same number without its point). Retuning
+# here alone would leave that container capped at the old number while the scheduler admitted
+# against the new one, which is the failure the resource governance exists to prevent.
+DEFAULT_MEM_BUDGET_GB = 8.0
+
 
 class SubagentRosterEntry(BaseModel):
     """One alternate subagent model: a ``CORTEX_SUBAGENTS_ROSTER__<name>`` JSON value (ADR-0018).
@@ -84,7 +95,7 @@ class SubagentsConfig(BaseSettings):
     cpus: float = Field(default=2.0, gt=0)
     memory_gb: float = Field(default=2.0, gt=0)
     cpu_budget: float = Field(default=4.0, gt=0)
-    mem_budget_gb: float = Field(default=8.0, gt=0)
+    mem_budget_gb: float = Field(default=DEFAULT_MEM_BUDGET_GB, gt=0)
     roster: dict[str, SubagentRosterEntry] = {}
     # env CORTEX_SUBAGENTS_STALL_TIMEOUT_S is how long a delegated stream may send nothing before
     # the adapter gives up on it (ADR-0005 stall-ceiling addendum), bounding the gap between

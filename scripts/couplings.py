@@ -36,6 +36,17 @@ floor cannot notice it has gone stale, and a count over a far side whose occurre
 independent of each other is arithmetic that reddens on every unrelated addition. Set it only
 where losing one occurrence is a defect rather than a design change.
 
+**`Spelling`** is how a mention WRITES the value down, for the far side whose syntax cannot carry
+it the way the declaring site does. Docker reads `8g` as a size and refuses `8.0g`, so a budget
+declared as `8.0` is spelled without its point in a `mem_limit` and with it in the environment
+block three dozen lines above. Both are the same number and neither can be rendered from the
+other's text, so the mention says which spelling it wants and the value is re-spelled for it. The
+re-spelling is DERIVED from the declared value and never typed into the registry, and it refuses
+any value it would have to change to fit, so it cannot quietly tie a far side to a different
+number. A re-spelling is also blind to the drift the textual comparison exists to catch (`8` and
+`8.0` are one whole number), so an entry that re-spells must hold the written form somewhere too:
+a second site, or a mention that renders the value as the site writes it.
+
 **`Relation`** says how a constant's sites must stand to each other. Most couplings are
 equalities. A few are orderings, where one side's bound has to sit under another's rather than
 equal it, and an ordering compares integers only. One is a membership, where the value one tree
@@ -64,6 +75,19 @@ class Relation(Enum):
     MEMBER = "members of the collection the last site declares"
 
 
+class Spelling(Enum):
+    """How a mention writes the agreed value down, where the far side's syntax differs.
+
+    ``WRITTEN`` is every mention that spells the value the way its site declares it, which is all
+    of them until a far side cannot. ``WHOLE`` drops a fractional part a syntax will not take, and
+    refuses a value whose fraction is not zero rather than truncating one: a far side that cannot
+    spell the number the site declares is a fault, not a rounding.
+    """
+
+    WRITTEN = "as the declaring site writes it"
+    WHOLE = "as a whole number, which the declared value must be"
+
+
 class Site(NamedTuple):
     """One declaration: a repo-relative file and the identifier declared in it."""
 
@@ -80,12 +104,17 @@ class Mention(NamedTuple):
     ``name`` is the name that far side spends the value under, rendered wherever the template
     carries the name placeholder. It is the only thing that reaches a spend the value never
     appears in, and it is set exactly when the template renders one.
+
+    ``spelling`` is how the value is written into the template, for a far side whose syntax cannot
+    take it as the site declares it. It defaults to the site's own spelling, which is what a
+    mention wants unless something stops it.
     """
 
     path: str
     template: str
     occurrences: int | None = None
     name: str | None = None
+    spelling: Spelling = Spelling.WRITTEN
 
 
 class Constant(NamedTuple):
