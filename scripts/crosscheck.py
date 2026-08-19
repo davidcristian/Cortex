@@ -4,8 +4,9 @@ A few constants exist twice, once per language, because both sides of the seam m
 same number or the same string and neither toolchain can import the other's. Each side already
 pins its own literal in its own suite, which catches an edit to the constant alone. What nothing
 caught is an edit to a constant **and** its own pin: both suites stay green while the two trees
-disagree. That is the drift this gate closes. The registry it reads is `couplings.py` and the
-overlay's half beside it, which are all of the data the way this file is all of the logic.
+disagree. That is the drift this gate closes. The registry it reads is `seamcouplings.py` and
+`overlaycouplings.py`, which are all of the data the way this file is all of the logic, written in
+the vocabulary `couplings.py` holds.
 
 **No master.** proto/body.proto is the source of truth for the seam's *shape*, but protobuf has
 no constant, so a value could only live there as a comment, and a comment is one more uncoupled
@@ -56,13 +57,13 @@ from typing import NamedTuple
 from couplings import (
     NAME_PLACEHOLDER,
     PLACEHOLDER,
-    SEAM_COUPLINGS,
     Constant,
     Mention,
     Relation,
     Site,
 )
 from overlaycouplings import OVERLAY_COUPLINGS
+from seamcouplings import SEAM_COUPLINGS
 from values import CrossCheckError, Reading, Value, parse_value, relation_fault
 
 # The registry, in the two files it is written in and in one order: the values the body and the
@@ -177,7 +178,7 @@ def check_mention(root: Path, mention: Mention, value: Value) -> None:
     elif found != wanted:
         msg = (
             f"{mention.path} spells {needle!r} as a token of its own: found {found}, pinned "
-            f"{wanted}; move the whole set, or correct occurrences in couplings.py"
+            f"{wanted}; move the whole set, or correct occurrences in the registry"
         )
         raise CrossCheckError(msg)
 
@@ -263,7 +264,7 @@ def main(argv: list[str] | None = None) -> int:
     if faults:
         print(
             f"\ncrosscheck: {len(faults)} cross-tree constant(s) are not tied. Change every "
-            "place together, or update the registry in couplings.py if one of them moved.",
+            "place together, or update the registry beside this scan if one of them moved.",
             file=sys.stderr,
         )
         return 1

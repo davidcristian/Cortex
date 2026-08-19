@@ -44,3 +44,11 @@ places, two of them in the same file.
 
 - 2026-08-18: opened by the close of [40](040-salience-limit-knob.md), whose own compose default
   was tied in the same sitting; this is the neighbour that survey found untied.
+- 2026-08-19: half of the obstacle above is gone and the entry stays open. The close of
+  [R-308](308-crosscheck-cannot-tie-a-decimal.md) taught `values.py` a decimal, so `8.0` reduces
+  now, and it reduces to the digits it is written with, which settles the second half the other
+  way: `8.0` and `8` are two spellings and therefore two values, so the two container limits still
+  cannot be covered by one needle. What remains is a site that declares `Field(default=8.0, gt=0)`
+  rather than a bare number, and a far side spelling the same number twice in a shape the first
+  cannot render. The honest closure is still one of the two written above, and the first of them
+  (a module constant the field cites) is now the cheaper one.
