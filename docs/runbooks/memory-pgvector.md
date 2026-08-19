@@ -134,6 +134,35 @@ cosine, so every floor that silences the second silences the first, worst of all
 answers in words the question never used. Reproduce or reopen it behind another embedding model
 with `packages/inference/tests/test_recall_floor_live.py`, which needs only the CPU embedder below.
 
+**A judge that falls back says so, with the trail off** (ADR-0038 unjudged-rank addendum). The
+rank warns in the brain's own container logs whenever something stops it ranking, so a deployment
+whose judge has never once answered no longer reads exactly like one where it answers every turn:
+
+    docker compose --project-directory . -f docker/docker-compose.yml \
+      -f docker/docker-compose.gpu.yml -f docker/docker-compose.memory.yml logs brain \
+      | grep "unjudged ranking"
+
+There are two lines and which one arrives is most of the diagnosis. `the model could not be asked
+to rank recall` is the backend: the cortex is not serving, or the model host is down, and the
+traceback printed under the line says which. `the model returned no usable recall order` is a reply
+that arrived and could not be read as an order, and it carries two readings that split its causes
+apart:
+
+| Reading | What happened | Where to look next |
+| --- | --- | --- |
+| `capped=True` | The reply ran out of tokens mid-envelope, so it is not JSON at all. | Recall fewer notes, or widen the rank bound (`RANK_ENVELOPE_TOKENS` and `RANK_TOKENS_PER_CANDIDATE` in `rerank_judge.py`). |
+| `capped=False chars=0` | The model emitted no answer text whatever, which on this path means a tier that ignored the request to skip thinking and put the whole reply in its reasoning. | The model's own chat template, and the thinking switch the inference adapter sends with the request. |
+| `capped=False` and `chars` above zero | Text arrived and was not the envelope, so constrained decoding did not hold. | Whether the llama-server build honours the JSON schema the rank request carries. |
+
+Both lines name `pool`, the candidates that went unjudged, and `k`, the width asked of the rank.
+Neither can name the session: `RecallPolicy` is handed the pool, the question and `k`, and no
+conversation identity crosses that seam, so on a brain serving several conversations a burst of
+these cannot be attributed to one of them.
+
+Silence means the rank is working. A pool the model ordered and a pool it read and declined both
+pass without a line, the second showing as the `demur` basis on the trail below, and so does an
+empty pool, there being nothing to rank.
+
 Set `CORTEX_MEMORY_RECALL_AUDIT=1` to turn that trail on: one `cortex.memory.recall` line per
 recall, in the brain's container logs, carrying the pool size, how many candidates were available
 to it, the rank basis, whether keys on that

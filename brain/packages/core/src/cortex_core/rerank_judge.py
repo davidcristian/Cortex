@@ -17,9 +17,18 @@ discipline: the model call goes through ``drain_text``, which closes its stream 
 the turn's own reply acquires the GPU lease as the second acquire of a sequence and never nests.
 The same call carries ``rank_bounds(k)``, so the request asks for the order alone rather than for
 the deliberation ``drain_text`` drops before this module sees it.
+
+**A rank that does not happen says so** (ADR-0038 unjudged-rank addendum). Four things end a
+``select`` without a verdict, and two of them are faults that each log their own warning: a backend
+that could not be asked, and a reply no order could be read out of. The other two are silent
+because neither is a fault. An empty pool is a no-op with nothing to judge. An empty ``order`` is
+the model judging and declining, which the recall trail reports as the ``DEMUR`` basis beside every
+other per-recall fact. So a line from here always means the one thing, that the rank a deployment
+configured did not run, and no line means the pool was judged or there was nothing to judge.
 """
 
 import json
+import logging
 from collections.abc import Sequence
 from datetime import datetime
 from typing import cast
@@ -32,6 +41,9 @@ from cortex_core.memory import ScoredMemory
 from cortex_core.ports import InferenceBackend
 from cortex_core.ranking import RankBasis, RankedMemory, Ranking
 from cortex_core.rerank import RAW_RECALL_POLICY, RecallPolicy
+from cortex_core.stops import StopLedger
+
+_logger = logging.getLogger(__name__)
 
 # The reply shape. An array of candidate numbers, best first, and nothing else: there is no
 # grammatical position for an explanation, so the parse is a list lookup rather than prose mining.
@@ -145,7 +157,11 @@ class JudgeRecallPolicy:
     an empty pool, an ``InferenceError``, a reply outside the envelope, or an order that parses to
     nothing usable. The ranking then carries the fallback's own basis, so the audit
     trail says what actually ranked rather than what was configured, which is the difference
-    between an observable rank and a hopeful one.
+    between an observable rank and a hopeful one. The faults among them are **logged** where they
+    happen, one line for a backend that could not be asked and one for a reply no order could be
+    read out of (the last two causes are that one parse outcome), because the trail is opt-in and a
+    deployment whose judge has never once answered would otherwise read exactly like one where it
+    answers every turn.
 
     **A model that picks nothing is believed, not overruled** (ADR-0038 abstention addendum). An
     ``order`` that arrives empty is the model reading the pool and answering that no candidate
@@ -181,7 +197,12 @@ class JudgeRecallPolicy:
     ) -> Ranking:
         """Ask the model to order the pool: fall back on a failure, keep nothing on a refusal."""
         if not hits:
+            # The one fallback that is not a fault: no candidates, so no judgement was possible
+            # and none was attempted. Silent for the reason the summarizing window is silent when
+            # its inner window dropped nothing: a line here would fire on every turn a deployment
+            # recalls nothing on, and it would dilute the two below, which mean something broke.
             return await self._fallback.select(hits, query=query, now=now, k=k)
+        stops = StopLedger()
         try:
             raw = await drain_text(
                 self._backend,
@@ -189,11 +210,36 @@ class JudgeRecallPolicy:
                 build_rank_messages(query, hits, k=k, at=now),
                 schema=ORDER_ENVELOPE,
                 bounds=rank_bounds(k),
+                stops=stops,
             )
         except InferenceError:
+            # The backend, rather than the reply: there is no completion to describe, so the
+            # cause rides as ``exc_info`` the way every other degraded-turn warning carries it.
+            _logger.warning(
+                "the model could not be asked to rank recall; falling back to the unjudged ranking",
+                extra={"pool": len(hits), "k": k},
+                exc_info=True,
+            )
             return await self._fallback.select(hits, query=query, now=now, k=k)
         order = parse_order(raw, pool_size=len(hits), k=k)
         if order is None:
+            # The two readings beside the message are the whole diagnosis, and they exist because
+            # the reply is gone by the time anyone reads this. ``capped`` separates the two causes
+            # with opposite fixes: True is ``rank_bounds`` running out mid-envelope, which wants a
+            # wider bound or a smaller ``k``, and False is a model that ended by itself and wrote
+            # something else. ``chars`` splits that second case again, ``0`` being a model that
+            # emitted no assistant text at all (a reasoning tier ignoring ``thinking=False``, whose
+            # deliberation ``drain_text`` drops unread) and any other length being text that
+            # arrived and was not the envelope, which is constrained decoding not holding. Both
+            # ride the message as well as the record: the shipped handler prints the message
+            # alone, the lesson ``LoggingRecallSink`` records for the same reason.
+            _logger.warning(
+                "the model returned no usable recall order; falling back to the unjudged"
+                " ranking: capped=%s chars=%d",
+                stops.capped,
+                len(raw),
+                extra={"pool": len(hits), "k": k, "capped": stops.capped, "chars": len(raw)},
+            )
             return await self._fallback.select(hits, query=query, now=now, k=k)
         if not order:
             return Ranking(hits=(), basis=RankBasis.DEMUR)
