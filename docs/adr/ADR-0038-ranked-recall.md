@@ -2284,3 +2284,132 @@ Two, both filed rather than built: the six messages that are logged and raised
 the same question, the lines that attach no field at all, headed by a quarantine line that names
 the record it moved in prose only
 ([R-326](../refinements/tasks/326-a-line-that-names-nothing-it-happened-to.md)).
+
+## Named-subject addendum (2026-08-19): a line that reports a failure says what it failed on
+
+The addendum above took the values out of messages that carried them twice. This one is the other
+end of the same question: the lines that carry no value at all. Most of them are honest, and the
+two kinds that are not are fixed here, so a line saying something went wrong can be followed to
+the record or the session it went wrong for.
+
+### Re-derived from the tree first, and this time the count held
+
+An AST pass over every `logger.*` call in `brain/packages` (91 of them, tests and generated stubs
+excluded) found **17** that attach no `extra`, the number
+[R-326](../refinements/tasks/326-a-line-that-names-nothing-it-happened-to.md) recorded. Nine of the
+seventeen are honest and were left exactly as they are, which is the more interesting half of the
+answer:
+
+- **A pass guard has no subject.** `ticker.run`, `residency_heal.run` and the ticker's own
+  done-callback each report that a whole pass or a whole loop failed. There is no id in scope
+  because the failure is not about an item; the traceback is the diagnosis.
+- **Two candidate subjects are worse than none.** `residency_moves` restoring the cortex and
+  `swap_recovery` during boot each wrap two host calls naming two different models, so a `model`
+  field on the failure would name the wrong one about half the time. Narrowing those try blocks so
+  each failure names its own model is filed as
+  [R-329](../refinements/tasks/329-a-failure-with-two-candidate-subjects.md) rather than guessed at
+  here.
+- **A traceback beside a store that could not be read.** `swap_conductor`'s two handoff-store
+  failures and `swap_recovery`'s stranded-record read fail before there is an id to name, which is
+  the entry's own example of an honest line.
+- **The pump's own failure.** `converse_stream._pump` fails for the client stream, not for a turn:
+  no session is in hand there, and the three turn failures below are the ones that hold one.
+
+### Decision 1: the quarantine line's two values become fields
+
+`quarantine` logged `quarantining corrupt schedule record %r to %r`, spelling the item id and the
+dead-letter key into the message and attaching neither, so the one record of an item leaving the
+working set could be grepped as a sentence and never selected on: `item_id=` matched nothing, and
+`CORTEX_LOG_FORMAT=packed` put the id inside `message` instead of under `fields`. It now logs the
+constant sentence `quarantining a corrupt schedule record` with `item_id` and `dead_key` attached,
+which is the addendum above pointing the other way. The exception line one frame up, `undecodable
+schedule record on the claim path`, carries `item_id` too: it is the same item, and a traceback
+that names nothing cannot be joined to the quarantine that follows it.
+
+### Decision 2: a mid-turn failure names the session, and nothing it does not honestly hold
+
+`converse_stream`'s three turn failures (session store, inference, and the broad catch-all) attach
+`session_id`. That is the whole of what the handler holds. **The `turn_id` is not available**: it
+is minted inside the engine and only ever leaves it on a `TurnComplete` event, so a failed turn has
+no id to name and reaching through the engine to manufacture one is exactly the layer-crossing this
+repo does not do. What that costs, and what it would take to close, is
+[R-328](../refinements/tasks/328-a-failed-turn-cannot-name-itself.md).
+
+**The turn's text is not attached, deliberately.** It is the user's own words, and the formatter's
+defence is a name denylist plus URL-credential stripping, neither of which can recognize user
+content. The rule for this family is therefore: ids, counts and reasons ride as fields; anything a
+person typed, a model generated, or a tool returned does not. The test asserts the absence, not
+just the presence.
+
+The fourth line in that module, the ignored client event, carries `session_id` and `kind`. `kind`
+is `None` for the event a client sends with no payload set, which is not much; it is attached for
+the other shape, a payload added to `ClientEvent` and not to the dispatcher, where the field prints
+the new member's own name and is the only thing that would say so.
+
+### Decision 3: the ticker's failures read their id off the claim beside them
+
+
+`run_once` reported a failed fire by filtering the exceptions out of `asyncio.gather`'s results,
+which threw away the one thing that identifies them: `gather` answers in the order it was asked, so
+the claim beside a failure is the item that failed. The results are now zipped with the claims
+(`strict=True`) and the line carries `reminder_id`. The release failure in the `finally` below
+carries the same field off the claim it was releasing.
+
+**`reminder_id` rather than `item_id`, which is a judgement call.** A claim can be a `TASK` as well
+as a `REMINDER`, so the generic name reads more honestly; but `_deliver` already spends
+`reminder_id` for both kinds (it is the seam's own field name on `notify`), and one id under two
+names in one file is worse for the operator than one name that is slightly too specific. The
+session adapter keeps `item_id`, which is what that module has always called it.
+
+### Distrust green
+
+Three mutations, each applied to production code alone with the package's own suite re-run:
+
+- dropping `extra=` from the quarantine line reddens exactly
+  `test_the_quarantine_lines_carry_the_id_and_the_key_as_fields` (1 of 117);
+- dropping `session_id` from the inference failure reddens exactly the `_inference_failure` case of
+  `test_a_turn_that_failed_names_the_session_it_was_serving` and neither of its two siblings, which
+  is what pins the field to its own line rather than to the family (1 of 22);
+- restoring the filtered `gather` results in place of the zip reddens exactly
+  `test_both_pass_degradation_lines_name_the_item_they_are_about` (1 of 29).
+
+### Verified live
+
+The stack was brought up with scheduling on (`CORTEX_SCHEDULE_BACKEND=redis`), a corrupt record was
+planted where a corrupted writer would have left one, and the ticker's next pass quarantined it:
+
+```text
+$ docker compose --project-directory . -f docker/docker-compose.yml exec redis \
+    redis-cli SET cortex:schedule:poison-live "not json"
+$ docker compose --project-directory . -f docker/docker-compose.yml exec redis \
+    redis-cli ZADD cortex:schedules:due 1700000000 poison-live
+$ docker compose --project-directory . -f docker/docker-compose.yml logs brain
+brain-1  | ERROR:cortex_session.schedule_claims:undecodable schedule record on the claim path item_id=poison-live
+brain-1  | ERROR:cortex_session.schedule_claims:quarantining a corrupt schedule record dead_key=cortex:schedules:dead item_id=poison-live
+```
+
+`grep -o item_id=poison-live` counts one occurrence on each line, so nothing doubled. The same
+pass under `CORTEX_LOG_FORMAT=packed` is the claim the entry made, answered:
+
+```text
+brain-1  | {"fields": {"dead_key": "cortex:schedules:dead", "item_id": "poison-packed"}, "level": "ERROR", "logger": "cortex_session.schedule_claims", "message": "quarantining a corrupt schedule record"}
+```
+
+The id is under `fields` where `jq .fields.item_id` reaches it, and the message is a constant.
+
+### Consequences
+
+- **`docs/runbooks/scheduling.md` gains the grep** for the quarantine, which it could only describe
+  as "logged loudly" while the id was prose.
+- **Nine lines were left alone on purpose**, and the reasons are written above so a later sweep
+  does not read them as an oversight and attach something invented.
+- The convention this ADR has now stated twice is one rule: constant words in the message, varying
+  values as fields, and no user content in either.
+
+### Deferred by this addendum
+
+The two the decisions name:
+[R-328](../refinements/tasks/328-a-failed-turn-cannot-name-itself.md), a failed turn that can name
+its session but not itself, and
+[R-329](../refinements/tasks/329-a-failure-with-two-candidate-subjects.md), the two model-host
+failures that wrap two calls and so name neither model.

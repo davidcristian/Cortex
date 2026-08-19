@@ -138,14 +138,25 @@ class ScheduleTicker:
             results = await asyncio.gather(
                 *(fire(claim) for claim in claims), return_exceptions=True
             )
-            for failure in (r for r in results if isinstance(r, BaseException)):
-                _logger.error("schedule fire failed; the lease re-fires it", exc_info=failure)
+            # Zipped rather than filtered: gather answers in the order it was given, so the
+            # claim beside a failure is the item that failed, and a line that names it can be
+            # followed to the reminder it is about.
+            for claim, result in zip(claims, results, strict=True):
+                if isinstance(result, BaseException):
+                    _logger.error(
+                        "schedule fire failed; the lease re-fires it",
+                        exc_info=result,
+                        extra={"reminder_id": claim.item.id},
+                    )
         finally:
             for claim in pending.values():
                 try:
                     await self._store.release(claim)
                 except ScheduleStoreError:
-                    _logger.exception("release failed; the lease recovers the claim")
+                    _logger.exception(
+                        "release failed; the lease recovers the claim",
+                        extra={"reminder_id": claim.item.id},
+                    )
 
     async def _fire(self, claim: ScheduleClaim) -> None:
         """Fire one claimed item and persist its outcome under the fencing token."""

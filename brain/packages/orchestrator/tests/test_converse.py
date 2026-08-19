@@ -5,7 +5,8 @@ test_converse_grpc.py prove the same contract over the real wire.
 """
 
 import asyncio
-from collections.abc import AsyncIterator, Mapping, Sequence
+import logging
+from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 
 import pytest
 
@@ -18,6 +19,7 @@ from cortex_core import (
     InMemoryToolRegistry,
     JsonSchema,
     Message,
+    PlainFormatter,
     ReasoningChunk,
     RecordingAuditSink,
     Role,
@@ -40,6 +42,8 @@ from cortex_orchestrator import (
     converse,
 )
 from cortex_seam import Cancel, ClientEvent, ServerEvent, UserTurn
+
+_STREAM_LOGGER = "cortex_orchestrator.converse_stream"
 
 
 def _user_turn(session_id: str, text: str) -> ClientEvent:
@@ -451,6 +455,69 @@ async def test_unexpected_failure_becomes_internal_seam_error() -> None:
     (only,) = events
     assert only.error.code == ERROR_CODE_INTERNAL
     assert "a bug" in only.error.message
+
+
+def _store_failure() -> TurnEngine:
+    return TurnEngine(CountingFailingStore(), EchoInferenceBackend(), SystemClock())
+
+
+def _inference_failure() -> TurnEngine:
+    return TurnEngine(InMemorySessionStore(), MidStreamFailingBackend(), SystemClock())
+
+
+def _unexpected_failure() -> TurnEngine:
+    return TurnEngine(InMemorySessionStore(), BrokenBackend(), SystemClock())
+
+
+@pytest.mark.parametrize(
+    ("make_failing_engine", "message"),
+    [
+        (_store_failure, "session store failed mid-turn"),
+        (_inference_failure, "inference failed mid-turn"),
+        (_unexpected_failure, "unexpected failure handling a turn"),
+    ],
+)
+async def test_a_turn_that_failed_names_the_session_it_was_serving(
+    make_failing_engine: Callable[[], TurnEngine],
+    message: str,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Each mid-turn failure carries the one id the handler honestly holds, and only that.
+
+    These three lines identified nothing at all, which is the state an operator finds them in on
+    a log serving more than one session: the traceback says what broke and nothing says what it
+    broke for. The turn's `turn_id` is minted inside the engine and never reaches this handler,
+    so the session is what can be named here. The turn's text is what may NOT be named: it is
+    the user's own words, and the formatter's denylist would not stop it.
+    """
+    text = "confidential words the log may not carry"
+    with caplog.at_level(logging.ERROR, logger=_STREAM_LOGGER):
+        await _collect(converse(_make(make_failing_engine()), _events_from(_user_turn("s7", text))))
+    (record,) = caplog.records
+    rendered = PlainFormatter().format(record)
+    assert rendered.splitlines()[0] == f"ERROR:{_STREAM_LOGGER}:{message} session_id=s7"
+    assert record.__dict__["session_id"] == "s7"
+    assert "confidential" not in rendered  # traceback included: no user content on the line
+
+
+async def test_an_ignored_client_event_names_the_session_and_the_payload_it_had(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The dropped event says whose stream it arrived on and which payload it carried.
+
+    `kind` is `None` for the event this test sends, which is the shape a client that set no
+    payload produces. It is attached anyway because the other shape is the one worth catching:
+    a payload added to the proto and not to the dispatcher above prints its own field name here,
+    and a line that named nothing could not tell the two apart.
+    """
+    client = _events_from(ClientEvent(session_id="s3"))
+    with caplog.at_level(logging.DEBUG, logger=_STREAM_LOGGER):
+        assert await _collect(converse(_make(_engine()), client)) == []
+    (record,) = caplog.records
+    assert PlainFormatter().format(record) == (
+        f"DEBUG:{_STREAM_LOGGER}:ignoring client event without a known payload"
+        " kind=None session_id=s3"
+    )
 
 
 async def test_failing_client_stream_becomes_internal_seam_error() -> None:

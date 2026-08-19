@@ -189,6 +189,16 @@ Both halves landed behind the committed seam shapes; nothing brain-side changed 
 
 A record that fails to decode on the claim path is quarantined (field = item id, value = the
 raw bytes) so one corrupt record degrades the pass by one item instead of poison-pilling it.
+Two log lines say it happened, each naming the item as a field rather than in prose, so one id
+finds both the traceback and the move:
+
+```bash
+docker compose --project-directory . -f docker/docker-compose.yml logs brain \
+  | grep "quarantining a corrupt schedule record"
+# ERROR:cortex_session.schedule_claims:quarantining a corrupt schedule record \
+#   dead_key=cortex:schedules:dead item_id=<id>
+```
+
 Inspection is operator-side only, never a model tool, because the bytes are exactly the
 corrupt or hostile content the codec refused (ADR-0025 dead-letter addendum):
 
