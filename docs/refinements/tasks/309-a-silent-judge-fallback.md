@@ -1,6 +1,6 @@
 # A judge that falls back to geometry says nothing
 
-**Status:** open, actionable
+**Status:** landed 2026-08-19
 **Area:** memory
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
 
@@ -29,3 +29,22 @@ the *reason*, which is the same gap that reopened it for the fold.
 
 - 2026-08-18: Opened by the close of [R-277](277-a-cut-fold-reads-like-a-wandering-one.md), which
   gave the fold its diagnosis and found the other `drain_text` caller with a fallback has none.
+- 2026-08-19: Landed as two warnings rather than three, which is the one place this entry's own
+  count was overtaken by its argument. `rerank_judge.py` gained a module logger; the
+  `InferenceError` and the unreadable reply each log their own line, naming the pool and the `k`,
+  and the empty pool logs nothing, a no-op with nothing to judge being the same silence the
+  summarizing window keeps when its inner window dropped nothing. The refusal logs nothing either,
+  which is how the failure-against-refusal distinction survives: a refusal is the model judging and
+  declining, it is already on the recall trail as the `demur` basis, and a line for it would put a
+  second ungated per-recall stream beside the one the audit env var deliberately gates. So every
+  line from the module means the configured rank did not run. The open question about the stop
+  reason is answered the way the fold answered it, since the argument for declining it was about
+  the behaviour and the gap is about the reading: the unreadable-reply line carries `capped`, which
+  is the only thing separating a rank the bound cut from a model that ended in the wrong shape, and
+  `chars`, which separates a model that emitted no assistant text from one whose text was not the
+  envelope. It cost no signature at all, the fold having already given `drain_text` its optional
+  ledger. Both readings ride the message as well as the record, because the brain's shipped handler
+  prints the message alone. Opened
+  [R-316](316-a-rank-fallback-cannot-name-its-turn.md), the session the port cannot carry, and
+  [R-317](317-shipped-handler-drops-every-field.md), the handler that drops every field this repo
+  attaches.

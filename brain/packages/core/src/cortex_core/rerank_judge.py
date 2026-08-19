@@ -2,6 +2,7 @@
 """
 
 import json
+import logging
 from collections.abc import Sequence
 from datetime import datetime
 from typing import cast
@@ -14,6 +15,9 @@ from cortex_core.memory import ScoredMemory
 from cortex_core.ports import InferenceBackend
 from cortex_core.ranking import RankBasis, RankedMemory, Ranking
 from cortex_core.rerank import RAW_RECALL_POLICY, RecallPolicy
+from cortex_core.stops import StopLedger
+
+_logger = logging.getLogger(__name__)
 
 # The reply shape. An array of candidate numbers, best first, and nothing else: there is no
 # grammatical position for an explanation, so the parse is a list lookup rather than prose mining.
@@ -108,6 +112,7 @@ class JudgeRecallPolicy:
         """Ask the model to order the pool: fall back on a failure, keep nothing on a refusal."""
         if not hits:
             return await self._fallback.select(hits, query=query, now=now, k=k)
+        stops = StopLedger()
         try:
             raw = await drain_text(
                 self._backend,
@@ -115,11 +120,26 @@ class JudgeRecallPolicy:
                 build_rank_messages(query, hits, k=k, at=now),
                 schema=ORDER_ENVELOPE,
                 bounds=rank_bounds(k),
+                stops=stops,
             )
         except InferenceError:
+            # The backend, rather than the reply: there is no completion to describe, so the
+            # cause rides as ``exc_info`` the way every other degraded-turn warning carries it.
+            _logger.warning(
+                "the model could not be asked to rank recall; falling back to the unjudged ranking",
+                extra={"pool": len(hits), "k": k},
+                exc_info=True,
+            )
             return await self._fallback.select(hits, query=query, now=now, k=k)
         order = parse_order(raw, pool_size=len(hits), k=k)
         if order is None:
+            _logger.warning(
+                "the model returned no usable recall order; falling back to the unjudged"
+                " ranking: capped=%s chars=%d",
+                stops.capped,
+                len(raw),
+                extra={"pool": len(hits), "k": k, "capped": stops.capped, "chars": len(raw)},
+            )
             return await self._fallback.select(hits, query=query, now=now, k=k)
         if not order:
             return Ranking(hits=(), basis=RankBasis.DEMUR)

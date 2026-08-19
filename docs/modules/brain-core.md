@@ -1575,7 +1575,16 @@ Use-case:
   (`max_tokens=24 + 8k`, `thinking=False`, ADR-0038 bounded-side-calls addendum), computed from `k`
   rather than fixed because `ORDER_ENVELOPE` admits an array of numbers and nothing else, so the
   reply's length is known before it is asked for; a truncated constrained reply is not JSON, so
-  running into the cap degrades to that same fallback rather than to a shortened order. Selected at the composition root via `CORTEX_MEMORY_RECALL`
+  running into the cap degrades to that same fallback rather than to a shortened order. **A
+  fallback it takes because something broke is logged where it happens** (ADR-0038 unjudged-rank
+  addendum), the module's own `logging` warning naming the pool and the `k`: one line for a backend
+  that could not be asked (the error as `exc_info`) and one for a reply no order could be read out
+  of, that one carrying `capped` from a `StopLedger` it hands `drain_text` and `chars`, the reply's
+  length, since a rank the bound cut and a model that ended in the wrong shape arrive as the same
+  text and want opposite fixes. Both readings ride the message as well as the record, the shipped
+  handler printing no `extra`. The other two verdict-less exits are silent on purpose: an empty
+  pool is a no-op, and a refusal is a judgement that the trail already reports as `demur`, so every
+  line from the module means the configured rank did not run. Selected at the composition root via `CORTEX_MEMORY_RECALL`
   (`raw`, `reranked`, `mmr`, `recency_mmr`, `judge`, the last of them the default since the ADR-0038
   turn-cost addendum); the reported `ScoredMemory.score` stays the raw
   cosine, only order and membership change.
@@ -1627,9 +1636,10 @@ Use-case:
   same reason: why a completion ended is a fact about the machine that stopped it, not something
   the model said, so it goes to whoever asked instead of into the returned text. A caller that
   hands none drops the stop as this helper always has, which is what keeps the return a bare
-  `str` and the other two callers byte-identical; `SummarizingHistoryWindow` is the one that
-  passes one. Six arguments is ruff's `max-args` ceiling, so a seventh collaborator wants a
-  bundle rather than another keyword.
+  `str` and the callers that want only a string byte-identical; `SummarizingHistoryWindow` passes
+  one, and so does `JudgeRecallPolicy` since the ADR-0038 unjudged-rank addendum, leaving
+  `generate_title` the one caller that hands none. Six arguments is ruff's `max-args` ceiling, so a
+  seventh collaborator wants a bundle rather than another keyword.
 - `ToolDispatcher(registry, audit, clock, *, confirmer=None, policy=DEFAULT_DISPATCH_POLICY)`
   is the turn's tool gateway and
   capability gate (ADR-0009/0013). `dispatch(call, *, stamp=UNSTAMPED, gated=False,

@@ -1,6 +1,7 @@
 """Behavior of the model-based recall rank: what it asks, what it believes, and when it gives up."""
 
 import json
+import logging
 from collections.abc import AsyncIterator, Sequence
 from datetime import UTC, datetime
 
@@ -19,7 +20,13 @@ from cortex_core import (
     ToolSpec,
 )
 from cortex_core.conversation import Message
-from cortex_core.inference import GenerationBounds, InferenceEvent, JsonSchema
+from cortex_core.inference import (
+    DecodeStop,
+    GenerationBounds,
+    InferenceEvent,
+    JsonSchema,
+    StopReason,
+)
 from cortex_core.rerank_judge import (
     ORDER_ENVELOPE,
     RANK_ENVELOPE_TOKENS,
@@ -40,9 +47,14 @@ def _hit(rid: str, text: str, score: float) -> ScoredMemory:
 class _ScriptedBackend:
     """An InferenceBackend that replies with one canned string, or raises."""
 
-    def __init__(self, reply: str = "", *, error: bool = False) -> None:
+    def __init__(
+        self, reply: str = "", *, error: bool = False, stop: StopReason | None = None
+    ) -> None:
         self._reply = reply
         self._error = error
+        # What the engine said about why the completion ended, or nothing at all, which is what a
+        # build that reports no reason looks like and is what this repo shipped before it could ask.
+        self._stop = stop
         self.prompts: list[str] = []
         self.schemas: list[JsonSchema | None] = []
         self.bounds: list[GenerationBounds | None] = []
@@ -64,6 +76,8 @@ class _ScriptedBackend:
             msg = "llama-server is down"
             raise InferenceError(msg)
         yield TextChunk(self._reply)
+        if self._stop is not None:
+            yield DecodeStop(reason=self._stop)
 
 
 class _CountingFallback:
@@ -95,8 +109,10 @@ def _pool() -> list[ScoredMemory]:
     ]
 
 
-def _judge(reply: str = "", *, error: bool = False) -> tuple[JudgeRecallPolicy, _ScriptedBackend]:
-    backend = _ScriptedBackend(reply, error=error)
+def _judge(
+    reply: str = "", *, error: bool = False, stop: StopReason | None = None
+) -> tuple[JudgeRecallPolicy, _ScriptedBackend]:
+    backend = _ScriptedBackend(reply, error=error, stop=stop)
     return JudgeRecallPolicy(backend, "cortex", pool_factor=4), backend
 
 
@@ -260,3 +276,149 @@ def test_a_long_candidate_is_truncated_in_the_prompt() -> None:
     (message,) = build_rank_messages("q", [long_hit], k=1, at=_NOW)
     assert "x" * 400 in message.text
     assert "x" * 401 not in message.text  # bounded, so one long memory cannot flood the prompt
+
+
+# --- and when it does not rank, it says which way it did not ----------------------------------
+
+# The name the module logs under, so a test can read only its own lines out of the root capture.
+_JUDGE_LOGGER = "cortex_core.rerank_judge"
+
+# One unusable reply, reused below so nothing but its cause can differ between two runs. It is the
+# truncated JSON a constrained request really returns when the cap cuts it (measured against the
+# shipped cortex), which is the reply a cut rank and a mangled one both arrive as.
+_UNUSABLE = '{"order":'
+
+
+async def _fell_back(
+    caplog: pytest.LogCaptureFixture,
+    *,
+    reply: str = _UNUSABLE,
+    error: bool = False,
+    stop: StopReason | None = None,
+) -> logging.LogRecord:
+    """Drive one rank that falls back to geometry, and return the single warning it logged."""
+    caplog.clear()
+    policy, _ = _judge(reply, error=error, stop=stop)
+    ranking = await policy.select(_pool(), query="where does state live?", now=_NOW, k=2)
+    # The fallback itself, re-asserted here so a record about a rank that ranked could never
+    # satisfy the assertions below.
+    assert ranking.basis is RankBasis.ECHO
+    records = [record for record in caplog.records if "unjudged ranking" in record.getMessage()]
+    assert len(records) == 1
+    return records[0]
+
+
+def _extra(record: logging.LogRecord, field: str) -> object:
+    """One structured field off a log record, ``extra`` landing in the record's own dict."""
+    return record.__dict__[field]
+
+
+def _own_records(caplog: pytest.LogCaptureFixture) -> list[logging.LogRecord]:
+    """Only what this module logged, since the capture handler sits on the root logger."""
+    return [record for record in caplog.records if record.name == _JUDGE_LOGGER]
+
+
+async def test_an_unreachable_model_and_an_unreadable_reply_are_two_different_lines(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Both hand the turn the same geometric ranking; only the line says which repair to reach for.
+
+    Before this, neither said anything at all, so a deployment whose judge had never once answered
+    read exactly like one where it answers every turn.
+    """
+    caplog.set_level(logging.WARNING, logger=_JUDGE_LOGGER)
+    unreachable = await _fell_back(caplog, error=True)
+    unreadable = await _fell_back(caplog, stop=StopReason.FINISHED)
+
+    assert unreachable.levelno == unreadable.levelno == logging.WARNING
+    assert "could not be asked" in unreachable.getMessage()
+    assert "no usable recall order" in unreadable.getMessage()
+    # The backend's own error rides the line it caused, there being no completion to describe;
+    # the unreadable reply carries no exception because nothing raised.
+    assert unreachable.exc_info is not None
+    assert unreadable.exc_info is None
+    # Both name what was given up on: the pool that went unjudged and the width asked of it.
+    assert (_extra(unreachable, "pool"), _extra(unreachable, "k")) == (3, 2)
+    assert (_extra(unreadable, "pool"), _extra(unreadable, "k")) == (3, 2)
+
+
+async def test_a_cut_order_and_a_mangled_one_are_told_apart(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The reason the rank carries a stop ledger at all, asserted as a difference not a string."""
+    caplog.set_level(logging.WARNING, logger=_JUDGE_LOGGER)
+    cut = await _fell_back(caplog, stop=StopReason.CAPPED)
+    mangled = await _fell_back(caplog, stop=StopReason.FINISHED)
+
+    assert _extra(cut, "chars") == _extra(mangled, "chars") == len(_UNUSABLE)
+    assert _extra(cut, "pool") == _extra(mangled, "pool")
+    assert _extra(cut, "capped") is True
+    assert _extra(mangled, "capped") is False
+    # And the reading survives the handler the brain ships, which prints the message and no field.
+    assert "capped=True" in cut.getMessage()
+    assert "capped=False" in mangled.getMessage()
+
+
+async def test_a_backend_that_reports_no_reason_reads_as_uncut_rather_than_as_cut(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Silence is not a cap: a build that reports nothing must not send its reader after a token
+    budget that was never the problem."""
+    caplog.set_level(logging.WARNING, logger=_JUDGE_LOGGER)
+    assert _extra(await _fell_back(caplog, stop=None), "capped") is False
+
+
+@pytest.mark.parametrize(
+    ("reply", "expected_chars"),
+    [
+        # A model that emitted no assistant text at all, which on this path means a tier whose
+        # whole reply arrived as reasoning that `drain_text` drops unread.
+        ("", 0),
+        # Text arrived and was not the envelope, so constrained decoding did not hold.
+        ("I think note two is best, actually", 34),
+    ],
+)
+async def test_the_length_splits_a_silent_model_from_one_that_wrote_the_wrong_shape(
+    caplog: pytest.LogCaptureFixture, reply: str, expected_chars: int
+) -> None:
+    """`capped` is False for both of these, so the length is the only thing that separates them.
+
+    The number is spelled out rather than measured off the input, since an expectation computed
+    the way production computes it would agree with a broken reading as readily as a working one.
+    """
+    caplog.set_level(logging.WARNING, logger=_JUDGE_LOGGER)
+    record = await _fell_back(caplog, reply=reply, stop=StopReason.FINISHED)
+
+    assert _extra(record, "capped") is False
+    assert _extra(record, "chars") == expected_chars
+    assert f"chars={expected_chars}" in record.getMessage()
+
+
+async def test_a_refusal_is_not_reported_as_a_fallback(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The judge answering "none of these help" is a judgement, not a failure to reach one."""
+    caplog.set_level(logging.DEBUG, logger=_JUDGE_LOGGER)
+    policy, _ = _judge(json.dumps({"order": []}))
+
+    ranking = await policy.select(_pool(), query="what is the wifi password?", now=_NOW, k=3)
+
+    assert ranking.basis is RankBasis.DEMUR
+    assert _own_records(caplog) == []
+
+
+async def test_an_empty_pool_falls_back_without_a_word(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The no-op stays quiet even at the most verbose level: nothing was asked, so nothing broke.
+
+    It is the one fallback of the three that reports nothing, and deliberately: it would fire on
+    every turn a deployment recalls nothing on, diluting the two lines that mean a rank was lost.
+    """
+    caplog.set_level(logging.DEBUG, logger=_JUDGE_LOGGER)
+    policy, backend = _judge()
+
+    ranking = await policy.select([], query="q", now=_NOW, k=3)
+
+    assert (ranking.hits, backend.prompts) == ((), [])
+    assert _own_records(caplog) == []
