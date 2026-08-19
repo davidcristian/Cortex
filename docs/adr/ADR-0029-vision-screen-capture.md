@@ -3175,3 +3175,82 @@ brain and again in `docker/docker-compose.body.yml`, and `scripts/crosscheck.py`
 because its value reducer accepts a product of integers, a string, or a `frozenset` of strings, and
 refuses a decimal. Teaching it decimals is what would let these be registered
 ([R-308](../refinements/tasks/308-crosscheck-cannot-tie-a-decimal.md)).
+
+## Addendum (2026-08-19): the constant scan learns a decimal, and compares it as digits
+
+The addendum above shipped two deadlines and filed the reason neither could be tied: `values.py`
+reduced a product of integers, a double-quoted string, or a one-line `frozenset` of those strings,
+and refused everything else, a decimal included. That refusal was the right default and it left a
+whole class of value unheld, so both numbers on this seam were spelled in five places with nothing
+comparing them. This closes it.
+
+### The fourth form, and the decision inside it
+
+A decimal literal now reduces. What it reduces to is the decision: **the digits it is written with,
+not the number they name.** `5` and `5.0` are one number and two spellings, and the spelling is the
+half a coupling needs, because a mention renders the agreed value into its own template and goes
+looking for the result. A float would tie those two, and the tie would fail in the direction that
+matters: a site retyped as `5` would go on agreeing with itself while the needle
+`${CORTEX_BODY_CALL_TIMEOUT_S:-5}` found nothing in a stack still substituting `5.0`, and the gate
+would report the coupling held. So a decimal becomes `values.Digits`, a one-field named tuple that
+compares as its characters and renders as them.
+
+`Digits` is its own type rather than a bare `str` for the same reason the reducer refuses what it
+cannot read: a decimal must not tie to a string literal that happens to spell the same characters,
+which is a comparison nobody wrote down and would be true by accident. The shape it accepts is
+digits, one point, digits, with `_` grouping either run the way it groups a product of integers. A
+leading or trailing point, a sign, an exponent, and a language's own type suffix (`10.0f64`) are
+refused with everything else this reducer will not guess at, none of them being spelled by any
+coupling here. An ordering still compares integers only, and now says so: a decimal under one is a
+fault rather than a guess, since `<=` over digits would file `10.0` under `9.0`.
+
+### What got registered, and the one far side deliberately left out
+
+`DEFAULT_CAPTURE_TIMEOUT_S` (10.0) and `DEFAULT_CALL_TIMEOUT_S` (5.0) are declared once each, in
+the adapter that spends them, and each is now tied to four places that must move with it: the
+compose default in `docker/docker-compose.body.yml` that every deployment boots on, the knob table
+in [runbooks/vision.md](../runbooks/vision.md), the bounded-calls sentence in
+[runbooks/body-volume.md](../runbooks/body-volume.md), and the module contract in
+[modules/brain-body-client.md](../modules/brain-body-client.md) that a future agent reads instead of
+the tree. Each documentation template carries the variable's own name, so it pins the row or the
+sentence that names it; a bare `10.0` is a number any other row could satisfy.
+
+The addendum above is **not** a far side, and no ADR ever is. A decision record says what was
+decided on a date and has to go on saying it after the number moves; a runbook and a module
+contract describe what the tree does now and are wrong the moment it changes. Tying an ADR would
+turn a retune into a rewrite of history, which is the opposite of what the record is for.
+
+### What the close cost was a file again, and the cap asked for it again
+
+`couplings.py` stood at 259 lines and two entries of four mentions each do not fit under 300. The
+split is the one that file's own first sentence had been describing since the overlay's half moved
+out: it held the vocabulary every entry is written in **and** the entries that tie the body to the
+brain. Those entries are now `scripts/seamcouplings.py`, leaving `couplings.py` as the vocabulary
+alone, and the registry is two data files over one grammar rather than one file wearing both hats.
+`crosscheck.CONSTANTS` is still the halves read as one tuple and nothing in the scan asks which file
+an entry came from.
+
+That file's own scope grew a sentence with it. Not every entry there crosses a language boundary
+any more: a default the brain declares and the stack substitutes crosses a boundary of the same
+kind, and the drift is the same drift, so the module says so rather than leaving a reader to
+notice.
+
+### Proved able to fail, four times, and newly able every time
+
+Each drift was planted on the real tree and reverted. Retuning `DEFAULT_CALL_TIMEOUT_S` to `5.5`
+exits 1 naming all four spends of it. Retyping the same site as `5`, which is the same number,
+exits 1 in exactly the same way, which is the textual comparison earning its keep. Moving the
+compose default alone to `12.0`, and moving the vision runbook's cell alone to `30.0`, each exit 1
+naming that one place. All four are newly catchable in the strongest sense: the reducer at the
+previous commit raises on `10.0` and on `5.0`, so neither entry could be written down at all, let
+alone pass. The registry is nineteen entries and twenty-six mentions now.
+
+### Records
+
+The three records are the task file
+[R-308](../refinements/tasks/308-crosscheck-cannot-tie-a-decimal.md), which closes,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from it, and this
+addendum. One narrower task opens in its place, an ordering that cannot compare decimals, and one
+neighbouring task loses half of what blocked it, the subagent memory budget whose remaining
+obstacles are a `Field(...)` call the reducer still will not read and two spellings of one number
+that no single needle can cover.

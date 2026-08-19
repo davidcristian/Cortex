@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 import crosscheck
+import values
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -231,7 +232,14 @@ def test_an_ordering_over_strings_is_refused(tmp_path: Path) -> None:
     (tmp_path / "body.rs").write_text('const MAX_EDGE_CEILING: &str = "a";\n', encoding="utf-8")
     (tmp_path / "brain.py").write_text('MAX_IMAGE_EDGE = "b"\n', encoding="utf-8")
     (fault,) = crosscheck.check_constant(tmp_path, ORDERING)
-    assert "an ordering compares numbers" in fault.detail
+    assert "an ordering compares integers" in fault.detail
+
+
+def test_an_ordering_over_decimals_is_refused_too(tmp_path: Path) -> None:
+    """A decimal is digits here, and `<=` over digits would file `10.0` under `9.0`."""
+    _order(tmp_path, "4.0", "8.0")
+    (fault,) = crosscheck.check_constant(tmp_path, ORDERING)
+    assert "an ordering compares integers" in fault.detail
 
 
 # ── memberships, where one side's value must be one of the other's ─────────────
@@ -542,6 +550,73 @@ def test_a_spent_name_no_mention_pays_the_value_under_is_refused(tmp_path: Path)
     assert "no mention renders the value under that name" in fault.detail
 
 
+# ── decimals, where the digits ARE the value ───────────────────────────────────
+
+
+DEADLINE = crosscheck.Constant(
+    label="a shipped deadline",
+    why="the stack substitutes the default the adapter declares",
+    sites=(crosscheck.Site("gateway.py", "DEFAULT_CALL_TIMEOUT_S"),),
+    mentions=(crosscheck.Mention("stack.yml", "${CORTEX_BODY_CALL_TIMEOUT_S:-{value}}"),),
+)
+
+
+def _deadline(root: Path, declared: str, substituted: str) -> None:
+    """A deadline owned by an adapter and spelled again as a compose substitution default."""
+    (root / "gateway.py").write_text(f"DEFAULT_CALL_TIMEOUT_S = {declared}\n", encoding="utf-8")
+    (root / "stack.yml").write_text(
+        f'      CORTEX_BODY_CALL_TIMEOUT_S: "${{CORTEX_BODY_CALL_TIMEOUT_S:-{substituted}}}"\n',
+        encoding="utf-8",
+    )
+
+
+def test_a_decimal_renders_into_the_shape_a_stack_substitutes(tmp_path: Path) -> None:
+    _deadline(tmp_path, declared="5.0", substituted="5.0")
+    assert crosscheck.check_constant(tmp_path, DEADLINE) == []
+
+
+def test_retuning_the_adapter_alone_leaves_every_deployment_on_the_old_number(
+    tmp_path: Path,
+) -> None:
+    """The drift this entry is registered for, in one tree."""
+    _deadline(tmp_path, declared="7.5", substituted="5.0")
+    (fault,) = crosscheck.check_constant(tmp_path, DEADLINE)
+    assert "does not spell '${CORTEX_BODY_CALL_TIMEOUT_S:-7.5}'" in fault.detail
+
+
+def test_the_same_number_without_its_point_is_a_different_spelling(tmp_path: Path) -> None:
+    """Why the reduction stays textual: the needle is built out of the digits, not the number."""
+    _deadline(tmp_path, declared="5", substituted="5.0")
+    (fault,) = crosscheck.check_constant(tmp_path, DEADLINE)
+    assert "does not spell '${CORTEX_BODY_CALL_TIMEOUT_S:-5}'" in fault.detail
+
+
+def _both_declare(root: Path, rust: str, python: str) -> None:
+    (root / "body.rs").write_text(f"const LEASE_S: f64 = {rust};\n", encoding="utf-8")
+    (root / "brain.py").write_text(f"LEASE_S = {python}\n", encoding="utf-8")
+
+
+DECIMAL_PAIR = crosscheck.Constant(
+    label="a shared decimal",
+    why="both sides lease for the same length of time",
+    sites=(crosscheck.Site("body.rs", "LEASE_S"), crosscheck.Site("brain.py", "LEASE_S")),
+)
+
+
+def test_two_decimal_sites_tie_across_languages(tmp_path: Path) -> None:
+    _both_declare(tmp_path, rust="2.5", python="2.5")
+    assert crosscheck.check_constant(tmp_path, DECIMAL_PAIR) == []
+
+
+def test_two_decimal_sites_that_drift_are_reported_with_both_digits(tmp_path: Path) -> None:
+    """A decimal prints as itself in a fault, so the reader sees the two spellings."""
+    _both_declare(tmp_path, rust="2.5", python="2.50")
+    (fault,) = crosscheck.check_constant(tmp_path, DECIMAL_PAIR)
+    assert "not identical" in fault.detail
+    assert "body.rs: LEASE_S = 2.5," in fault.detail
+    assert "brain.py: LEASE_S = 2.50" in fault.detail
+
+
 def test_check_walks_the_whole_registry(tmp_path: Path) -> None:
     second = BYTE_CEILING._replace(label="another ceiling")
     faults = crosscheck.check(tmp_path, (BYTE_CEILING, second))
@@ -596,6 +671,16 @@ def test_the_registry_spends_at_least_one_rendered_name() -> None:
     ]
     assert named
     assert any(crosscheck.PLACEHOLDER not in mention.template for mention in named)
+
+
+def test_the_registry_reduces_at_least_one_decimal() -> None:
+    """A value form no entry spells is the same dead wire an unused comparator is."""
+    read = [
+        crosscheck.read_value(REPO_ROOT, site)
+        for constant in crosscheck.CONSTANTS
+        for site in constant.sites
+    ]
+    assert any(isinstance(value, values.Digits) for value in read)
 
 
 def test_the_registry_exercises_every_relation() -> None:

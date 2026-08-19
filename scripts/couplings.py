@@ -1,12 +1,12 @@
-"""The registry `crosscheck.py` reads: every value this repo spells in more than one place.
+"""The vocabulary the registry `crosscheck.py` reads is written in: what a coupling may say.
 
-Split out of the scan, which is all of the logic; this file and `overlaycouplings.py` beside it
-are all of the data, and they grow every time a coupling is found. This file holds the vocabulary
-every entry is written in and the entries that tie the body to the brain; the entries that tie the
-overlay's TypeScript to its own stylesheet went next door when the one file outgrew the 300-line
-cap, and `crosscheck.py` walks the two halves as one registry. Each entry carries the reason its
-places must agree, printed with any failure, because a gate that says only "these differ" leaves
-the reader to rediscover why they must not.
+Split out of the scan, which is all of the logic; the two files beside this one are all of the
+data, and they grow every time a coupling is found. `seamcouplings.py` holds the entries that tie
+the body to the brain, and the brain to the stack and the runbooks that ship its numbers;
+`overlaycouplings.py` holds the ones that tie the overlay's TypeScript to its own stylesheet. Both
+moved out as the one file outgrew the 300-line cap, and `crosscheck.py` walks them as one registry.
+Each entry carries the reason its places must agree, printed with any failure, because a gate that
+says only "these differ" leaves the reader to rediscover why they must not.
 
 **Two kinds of far side**, and the difference is what a rename has to walk past:
 
@@ -38,7 +38,7 @@ where losing one occurrence is a defect rather than a design change.
 
 **`Relation`** says how a constant's sites must stand to each other. Most couplings are
 equalities. A few are orderings, where one side's bound has to sit under another's rather than
-equal it, and an ordering compares numbers only. One is a membership, where the value one tree
+equal it, and an ordering compares integers only. One is a membership, where the value one tree
 produces has to be one of the several another tree accepts, which is neither an equality nor an
 ordering: the collection is the whole point, and the last site is the one that declares it.
 """
@@ -96,163 +96,3 @@ class Constant(NamedTuple):
     sites: tuple[Site, ...]
     relation: Relation = Relation.EQUAL
     mentions: tuple[Mention, ...] = ()
-
-
-BASE_COMPOSE = "docker/docker-compose.yml"
-
-SEAM_COUPLINGS: tuple[Constant, ...] = (
-    Constant(
-        label="the screen-capture byte ceiling",
-        why=(
-            "the brain sends its own budget as the capture request's max_bytes and re-verifies "
-            "it on receipt, so a body ceiling above the brain's would let a capture pass the "
-            "body and be refused in the brain (ADR-0029)"
-        ),
-        sites=(
-            Site("body/crates/core/src/os/screen_policy.rs", "MAX_CAPTURE_BYTES"),
-            Site("brain/packages/core/src/cortex_core/images.py", "MAX_IMAGE_BYTES"),
-        ),
-    ),
-    Constant(
-        label="the seam token's metadata key",
-        why=(
-            "each side attaches the token under this key and the other reads it back out, in "
-            "both seam directions, so a disagreement fails every authenticated call (ADR-0016)"
-        ),
-        sites=(
-            Site("body/crates/rpc/src/auth.rs", "SEAM_TOKEN_HEADER"),
-            Site("body/crates/rpc/src/client.rs", "SEAM_TOKEN_HEADER"),
-            Site("brain/packages/seam/src/cortex_seam/__init__.py", "SEAM_TOKEN_HEADER"),
-        ),
-        # The fourth copy, and the one whose drift would be silent: the brain container's own
-        # healthcheck dials Health with the token attached, from a Python one-liner inside YAML.
-        mentions=(Mention(BASE_COMPOSE, "'{value}'"),),
-    ),
-    Constant(
-        label="the session-title truncation bound",
-        why=(
-            "the brain bounds every title it lists to this, and the overlay bounds the live "
-            "title it derives for a chat the brain has not listed yet, so a disagreement shows "
-            "one chat under two names at once: the header cut at one bound while its own "
-            "switcher row carries the other (ADR-0021)"
-        ),
-        sites=(
-            Site("brain/packages/core/src/cortex_core/sessions.py", "TITLE_MAX"),
-            Site("body/app/src/overlay/sessionState.ts", "TITLE_MAX"),
-        ),
-    ),
-    Constant(
-        label="the capture edge ceiling under the brain's image bound",
-        why=(
-            "the body clamps every request to its own ceiling and the brain refuses any image "
-            "past its bound, so a body ceiling above the brain's would spend a real capture on "
-            "an image the brain then throws away (ADR-0029)"
-        ),
-        sites=(
-            Site("body/crates/core/src/os/screen_policy.rs", "MAX_EDGE_CEILING"),
-            Site("brain/packages/core/src/cortex_core/images.py", "MAX_IMAGE_EDGE"),
-        ),
-        relation=Relation.ORDERED,
-    ),
-    Constant(
-        label="the capture encoding inside the brain's allow-list",
-        why=(
-            "the body encodes every capture as this one type and the brain refuses any image "
-            "whose type its allow-list does not carry, so an encoding the list lost would spend "
-            "a real capture on an image the brain then throws away (ADR-0029)"
-        ),
-        # The value first and the collection last, which is the order this relation reads: the
-        # body produces one encoding, the brain accepts a set of them, and the tie is that the
-        # one is among the several. Neither an equality (the sets differ) nor an ordering.
-        sites=(
-            Site("body/crates/core/src/os/screen_policy.rs", "CAPTURE_MIME"),
-            Site("brain/packages/core/src/cortex_core/images.py", "ALLOWED_MIME_TYPES"),
-        ),
-        relation=Relation.MEMBER,
-    ),
-    Constant(
-        label="the body-client receive limit above the capture ceiling",
-        why=(
-            "a capture rides back to the brain as one gRPC message, so a receive limit at or "
-            "below the byte ceiling would refuse in the transport a capture both policies "
-            "allowed, and the refusal would read as a body fault (ADR-0023/0029)"
-        ),
-        sites=(
-            Site("body/crates/core/src/os/screen_policy.rs", "MAX_CAPTURE_BYTES"),
-            Site(
-                "brain/packages/body_client/src/cortex_body_client/gateway.py", "MAX_RECEIVE_BYTES"
-            ),
-        ),
-        relation=Relation.ORDERED,
-    ),
-    Constant(
-        label="the capture-screen tool's name",
-        why=(
-            "the brain names the tool and the overlay lights its capture dot by matching that "
-            "name off the wire, so a rename leaves the dot dark on every capture (ADR-0029)"
-        ),
-        sites=(
-            Site("brain/packages/core/src/cortex_core/screen_tool.py", "CAPTURE_SCREEN_TOOL_NAME"),
-            Site("body/app/src/overlay/turnState.ts", "CAPTURE_SCREEN_TOOL"),
-        ),
-    ),
-    Constant(
-        label="the reasoning trace's status state",
-        why=(
-            "the brain sends deliberation under this state and the overlay accumulates the "
-            "trace and styles its chip by comparing against the bare literal, so a rename "
-            "leaves the reasoning unaccumulated and the chip unstyled (ADR-0020)"
-        ),
-        sites=(Site("brain/packages/core/src/cortex_core/output_channels.py", "THINKING_STATE"),),
-        # The component's two comparisons are one set: the same chip's class and its accessible
-        # name, both deciding on this one state. A rename applied to one of them leaves the other
-        # dead with the file still spelling the new value, which is what the count refuses.
-        mentions=(
-            Mention("body/app/src/overlay/turnState.ts", 'event.state === "{value}"'),
-            Mention(
-                "body/app/src/components/Message.tsx",
-                'message.statusState === "{value}"',
-                occurrences=2,
-            ),
-        ),
-    ),
-    Constant(
-        label="the salience limit's shipped default",
-        why=(
-            "the compose stack spells the core's default into every container it starts, so "
-            "retuning the core constant alone would leave every deployment still running the "
-            "old number with nothing saying so (ADR-0009 salience addendum)"
-        ),
-        sites=(
-            Site(
-                "brain/packages/core/src/cortex_core/tool_salience.py", "MAX_IDENTICAL_DISPATCHES"
-            ),
-        ),
-        # The knob's compose default, which is a shell substitution rather than a declaration:
-        # there is nothing to parse on that side, so the agreed number is rendered into the
-        # shape and required to appear.
-        mentions=(Mention(BASE_COMPOSE, "${CORTEX_TOOLS_SALIENCE_LIMIT:-{value}}"),),
-    ),
-    Constant(
-        label="the brain's seam port",
-        why=(
-            "the compose stack publishes this port and dials it in its own healthcheck, and the "
-            "host body's default endpoints name it too, so a change to the server default alone "
-            "leaves every one of them pointed at a port nothing listens on (ADR-0003/0016)"
-        ),
-        sites=(
-            Site(
-                "brain/packages/orchestrator/src/cortex_orchestrator/config.py", "DEFAULT_SEAM_PORT"
-            ),
-        ),
-        # The publish is `host:container` and it is the container half that this value names, so
-        # its template spells both: `127.0.0.1:{value}` alone was satisfied by the host half and
-        # left the half that has to match the server's own default free to drift.
-        mentions=(
-            Mention(BASE_COMPOSE, '"127.0.0.1:{value}:{value}"'),
-            Mention(BASE_COMPOSE, "insecure_channel('127.0.0.1:{value}')"),
-            Mention("body/app/src-tauri/src/seam.rs", '"http://127.0.0.1:{value}"'),
-            Mention("body/app/src-tauri/src/converse.rs", '"http://127.0.0.1:{value}"'),
-        ),
-    ),
-)
