@@ -1039,3 +1039,75 @@ as [a refinement](../refinements/tasks/318-a-folder-refusal-is-untyped.md). And 
 this slice made in passing, that a search which read nothing still taints the turn and so closes
 the outbound surface behind it, is
 [filed too](../refinements/tasks/319-a-refusal-taints-the-turn.md).
+
+## Addendum (2026-08-19): a folder no mailbox has is the port's own error too, classified live
+
+The addendum above closed by naming its own sibling: `folder` is the other guess the two read
+tools invite, described just as carefully, and a name no mailbox has still came back as imap-tools'
+sentence inside a base `MailboxError`. The model read `the mailbox could not run that search:
+Response status "OK" expected, but "NO" received. Data: [b'no such mailbox']`, a command status
+reported to a caller that sent no command, and the folder it refused was not in the message at
+all. This closes it in the shape the query already has.
+
+**`FolderUnknownError`, the port's second correction.** It sits beside `SearchRefusedError` under
+`MailboxError`, and the two are drawn on one line: the mailbox answered, and what it said is
+something the caller can fix rather than something the machine has to. It carries the `folder` it
+was given, and where the query's message points at a field description because a rewrite is what
+fixes a query, this one names `list_folders`, because the correction here is a single call. That
+asymmetry is the whole reason the folder was worth typing separately: it is the cheaper guess to
+get wrong and the cheaper one to fix. `FOLDER_UNKNOWN` sits in `values.py` beside `FOLDER_HELP`,
+which is the description both tools already spend, and it names neither searching nor reading,
+because both tools take a folder and both now answer it in the same words.
+
+**What a real Bridge says, measured.** A `NO` to `SELECT` is not by itself a missing folder, so the
+question was what distinguishes one from a folder that exists and could not be opened, read off
+the response rather than inferred from the fact that a select failed. Against the live Bridge on
+this machine, every name no mailbox has is refused identically, whatever shape the wrong name
+takes (a bare name, a child of a real folder, a child of a `\Noselect` parent, a child of a
+`\Noinferiors` folder, an empty name, a quoted name, a non-ASCII name): the answer is `('NO', [b'no such mailbox'])` every time, with no RFC 5530
+response code beside it. So the words are what is read. `_FOLDER_MISSING_ANSWERS` holds that
+measured phrase plus `[NONEXISTENT]`, the standard's own machine-readable spelling of the same
+fact, which a server that sends it means exactly; anything else a `NO` carries is not proof.
+
+**The second situation could not be constructed, so the classification fails safe.** The obvious
+candidate was a `\Noselect` folder, and this Bridge lists two of them (`Folders`, `Labels`) as the
+parents of its hierarchy. Both select cleanly, which is itself worth recording: on this server a
+listed name always opens, and the live test now asserts that over the whole list, so nothing
+`list_folders` returns can come back as the refusal `FOLDER_HELP` warns about. With no way to
+produce the contrast case, the rule is presence rather than absence: a select failure is reported
+as a missing folder only when the answer says the mailbox does not exist, and every other refusal
+stays a plain `MailboxError` carrying the library's account of why. That is the safe direction.
+Telling a model to consult `list_folders` about a folder it read off `list_folders` is a loop,
+whereas "the mailbox could not answer" is true whichever of the two it was. The branch is reachable
+only from a scripted stub (RFC 5530's `[INUSE]`), which the contract and the adapter tests both
+drive, and it is the one line here a live pass cannot reach.
+
+**Both tools, checked end to end.** `read_email` takes a folder too and fails on it before it has
+looked at a uid, so answering a guessed folder with `message <uid> not found in <folder>` would
+send a model hunting through a folder that does not exist for a message that may well be there.
+Both tools now catch the correction and answer with a `CallToolResult` carrying the port's wording
+and `isError`, driven through `FastMCP.call_tool` and asserted verbatim and identically for the
+two. Onward from there nothing restates it: `McpToolRegistry` sets `is_error` from `result.isError`
+and renders the content as it stands, which its own contract already holds.
+
+**Ports before adapters, so the fake refuses too.** The `Mailbox` contract gained three checks and
+the fake gained a folder list it honours, which is the more faithful fake: a folder no mailbox has
+needs no knob, only a name `list_folders` did not return, which is exactly the mistake the tool
+descriptions warn about. The one genuinely unreachable condition, a folder that could not be
+opened for another reason, is a knob on both fixtures, the established honest widening. The
+checks are that both folder-taking calls raise the port's own type carrying the name, that the
+message names the folder and `list_folders` and carries no fragment of the library's answer, and
+that a folder which failed to open for any other reason is not reported missing.
+
+**Validation.** `just check` green. The new gates were proved able to fail, both mutations run in
+the session that landed this: dropping the measured phrase from `_FOLDER_MISSING_ANSWERS` reds the
+two unknown-folder contract checks on the `imap` arm, with the library's sentence visible in the
+failure, and classifying every select failure as missing reds the fail-safe contract check on that
+same arm plus the adapter test beside it. The fake arm cannot red on either, which is what the
+knob's honest widening means. Live against the real Bridge, the four wrong-name shapes and both
+folder-taking calls were driven for real, and every one of the nineteen folders the account lists
+opened.
+
+One narrower thing this opens rather than closes: the contrast case has never been seen on any
+server this repo can reach, so the phrase-matching rule rests on one server's wording, filed as
+[a refinement](../refinements/tasks/327-the-other-no-to-select-is-unseen.md).

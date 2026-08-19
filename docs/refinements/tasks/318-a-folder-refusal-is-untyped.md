@@ -1,6 +1,6 @@
 # A folder no mailbox has reaches the model as the IMAP library's own sentence
 
-**Status:** open, actionable
+**Status:** landed 2026-08-19
 **Area:** email-confirmer
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
 
@@ -35,3 +35,15 @@ cost here is the classification and its live pass rather than any new scaffoldin
 - 2026-08-19: Opened by the close of [312](312-search-refusal-is-untyped.md), which typed the
   refused query and deliberately left its sibling to a slice that can measure the Bridge's `NO`
   responses rather than guess at them.
+- 2026-08-19: Landed as `FolderUnknownError` beside `SearchRefusedError`, carrying the folder it
+  was given and naming `list_folders` as the correction, raised by `ImapMailbox._select` and by
+  the fake on the same trigger, and answered by both folder-taking tools in the port's own words
+  with `isError` set. Both questions were taken to a real Bridge: every shape of a name no mailbox
+  has is refused identically as `no such mailbox` with no RFC 5530 response code, and every folder
+  `list_folders` returns opens, so the contrast case could not be constructed at all. The
+  classification therefore matches on what the server said (that phrase or the standard's
+  `[NONEXISTENT]`) and everything else stays a plain `MailboxError`, which is the fail-safe
+  direction; `read_email` was checked end to end beside `search_emails`, since it fails on the
+  folder before it looks at a uid. Written up in the ADR-0022 unknown-folder addendum. That
+  unmeasurable contrast case is now
+  [327](327-the-other-no-to-select-is-unseen.md).

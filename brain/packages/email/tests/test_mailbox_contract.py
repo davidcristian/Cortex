@@ -14,7 +14,8 @@ from collections.abc import Callable
 from imaplib import IMAP4
 
 import pytest
-from imap_stub import FakeBox, Msg, config, patch_box
+from imap_stub import UNOPENABLE_FOLDER_ANSWER, FakeBox, Msg, config, patch_box
+from imap_tools import MailboxFolderSelectError
 from mailbox_contract import ALL_CHECKS, WIRE_ANSWER, Check, MailboxUnderTest
 from mailbox_fake import FakeMailbox
 
@@ -31,7 +32,12 @@ type Build = Callable[[pytest.MonkeyPatch], MailboxUnderTest]
 
 def _fake(_monkeypatch: pytest.MonkeyPatch) -> MailboxUnderTest:
     mailbox = FakeMailbox(folders=[_FOLDER], found=[RawEmail("7", _SIMPLE)])
-    return MailboxUnderTest(mailbox=mailbox, folder=_FOLDER, refuse_searches=mailbox.refuse)
+    return MailboxUnderTest(
+        mailbox=mailbox,
+        folder=_FOLDER,
+        refuse_searches=mailbox.refuse,
+        break_folder_opening=mailbox.break_folder_opening,
+    )
 
 
 def _imap(monkeypatch: pytest.MonkeyPatch) -> MailboxUnderTest:
@@ -42,8 +48,18 @@ def _imap(monkeypatch: pytest.MonkeyPatch) -> MailboxUnderTest:
         # What imaplib raises out of `UID SEARCH` when the tagged response is BAD.
         box.fetch_error = IMAP4.error(WIRE_ANSWER)
 
+    def break_folder_opening() -> None:
+        # A NO to SELECT that is not the missing-mailbox one, which is the only way to reach the
+        # fail-safe branch: no server this repo can reach refuses a select for any other reason.
+        box.folder.select_error = MailboxFolderSelectError(UNOPENABLE_FOLDER_ANSWER, "OK")
+
     patch_box(monkeypatch, box)
-    return MailboxUnderTest(mailbox=ImapMailbox(config()), folder=_FOLDER, refuse_searches=refuse)
+    return MailboxUnderTest(
+        mailbox=ImapMailbox(config()),
+        folder=_FOLDER,
+        refuse_searches=refuse,
+        break_folder_opening=break_folder_opening,
+    )
 
 
 @pytest.mark.parametrize("check", ALL_CHECKS, ids=lambda check: check.__name__)
