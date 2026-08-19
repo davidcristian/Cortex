@@ -101,6 +101,27 @@ async def test_search_emails_tool_hands_a_refusal_to_the_model_in_its_own_words(
     )
 
 
+async def test_both_folder_taking_tools_answer_an_unknown_folder_in_the_same_words() -> None:
+    expected = (
+        "The mail server has no folder by that name, so nothing was searched and no message was "
+        "read. Folder names are matched exactly and are never normalised or guessed at: call "
+        "list_folders and use a name spelled exactly as that list returns it, rather than trying "
+        "another name that looks likely. The folder name that was refused was 'Receipts'"
+    )
+    server = build_server(EmailReader(FakeMailbox(one=RawEmail("7", _SIMPLE))))
+    searched = cast(
+        "CallToolResult",
+        await server.call_tool("search_emails", {"folder": "Receipts", "query": "ALL"}),
+    )
+    read = cast(
+        "CallToolResult", await server.call_tool("read_email", {"folder": "Receipts", "uid": "7"})
+    )
+    for result in (searched, read):
+        assert result.isError is True
+        assert "".join(b.text for b in result.content if isinstance(b, TextContent)) == expected
+    assert read.meta is None
+
+
 async def test_a_mailbox_that_cannot_answer_is_still_a_tool_failure() -> None:
     class DownMailbox(FakeMailbox):
         def search(self, folder: str, query: str, limit: int) -> Sequence[RawEmail]:
@@ -137,7 +158,7 @@ async def test_read_email_declares_the_message_sender_as_a_source() -> None:
     # tool registry reads this key and, being the trust gate, admits it only as a claimed source.
     server = build_server(EmailReader(FakeMailbox(one=RawEmail("7", _SIMPLE))))
     result = cast(
-        "CallToolResult", await server.call_tool("read_email", {"folder": "x", "uid": "7"})
+        "CallToolResult", await server.call_tool("read_email", {"folder": "INBOX", "uid": "7"})
     )
     assert result.meta == {"cortex/source": {"kind": "sender", "value": "A <a@x.com>"}}
     text = "".join(b.text for b in result.content if isinstance(b, TextContent))
@@ -149,12 +170,13 @@ async def test_read_email_declares_no_source_without_a_sender_or_when_not_found(
     # empty sender: the wire carries a source only when there is one.
     no_sender = build_server(EmailReader(FakeMailbox(one=RawEmail("8", _NO_SENDER))))
     found = cast(
-        "CallToolResult", await no_sender.call_tool("read_email", {"folder": "x", "uid": "8"})
+        "CallToolResult", await no_sender.call_tool("read_email", {"folder": "INBOX", "uid": "8"})
     )
     assert found.meta is None
     missing_server = build_server(EmailReader(FakeMailbox(one=None)))
     missing = cast(
-        "CallToolResult", await missing_server.call_tool("read_email", {"folder": "x", "uid": "9"})
+        "CallToolResult",
+        await missing_server.call_tool("read_email", {"folder": "INBOX", "uid": "9"}),
     )
     assert missing.meta is None
 

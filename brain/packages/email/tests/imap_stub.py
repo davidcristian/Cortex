@@ -5,6 +5,7 @@ from collections.abc import Sequence
 from typing import Self
 
 import pytest
+from imap_tools import MailboxFolderSelectError
 from pydantic import SecretStr
 
 import cortex_email.imap as imap_module
@@ -30,6 +31,14 @@ class Msg:
         self.obj = Obj(raw)
 
 
+# What a real ProtonMail Bridge answers to a SELECT of a name no mailbox has, measured verbatim
+# and identically for every shape of wrong name (ADR-0022 unknown-folder addendum).
+MISSING_FOLDER_ANSWER = ("NO", [b"no such mailbox"])
+# A NO that is not that: RFC 5530's code for a mailbox that exists and is not available. No
+# server this repo can reach produces one, so the fail-safe branch is reached only from here.
+UNOPENABLE_FOLDER_ANSWER = ("NO", [b"[INUSE] Mailbox in use"])
+
+
 class Folder:
     """One named folder, as ``folder.list()`` returns it."""
 
@@ -43,12 +52,17 @@ class FolderManager:
     def __init__(self, names: Sequence[str], set_calls: list[tuple[str, bool]]) -> None:
         self._names = names
         self._set_calls = set_calls
+        self.select_error: BaseException | None = None
 
     def list(self) -> list[Folder]:
         return [Folder(name) for name in self._names]
 
     def set(self, folder: str, readonly: bool = False) -> None:  # noqa: FBT001, FBT002
         self._set_calls.append((folder, readonly))
+        if self.select_error is not None:
+            raise self.select_error
+        if folder not in self._names:
+            raise MailboxFolderSelectError(MISSING_FOLDER_ANSWER, "OK")
 
 
 class FakeBox:
@@ -56,7 +70,7 @@ class FakeBox:
 
     def __init__(
         self,
-        names: Sequence[str] = (),
+        names: Sequence[str] = ("INBOX",),
         messages: Sequence[Msg] = (),
         fetch_error: BaseException | None = None,
     ) -> None:

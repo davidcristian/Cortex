@@ -12,7 +12,7 @@ from mcp.types import CallToolResult, TextContent, ToolAnnotations
 from pydantic import Field
 
 from cortex_email.config import EmailConfig, SmtpConfig
-from cortex_email.errors import SearchRefusedError
+from cortex_email.errors import FolderUnknownError, SearchRefusedError
 from cortex_email.imap import ImapMailbox
 from cortex_email.reader import EmailReader
 from cortex_email.smtp import EmailSender, SmtpSender
@@ -66,8 +66,8 @@ def build_server(reader: EmailReader, sender: EmailSender | None = None) -> Fast
         """Search one folder with an IMAP query; return one summary line per match."""
         try:
             summaries = await asyncio.to_thread(reader.search, folder, query, limit)
-        except SearchRefusedError as refusal:
-            return _one_text(str(refusal), failed=True)
+        except (FolderUnknownError, SearchRefusedError) as correction:
+            return _one_text(str(correction), failed=True)
         if not summaries:
             return _one_text("(no matching messages)")
         lines = "\n".join(f"[{s.uid}] {s.date} | {s.sender} | {s.subject}" for s in summaries)
@@ -78,7 +78,10 @@ def build_server(reader: EmailReader, sender: EmailSender | None = None) -> Fast
         folder: Annotated[str, Field(description=FOLDER_HELP)], uid: str
     ) -> CallToolResult:
         """Read one message in full (headers + plain-text body) by its uid."""
-        detail = await asyncio.to_thread(reader.read, folder, uid)
+        try:
+            detail = await asyncio.to_thread(reader.read, folder, uid)
+        except FolderUnknownError as unknown:
+            return _one_text(str(unknown), failed=True)
         if detail is None:
             return _one_text(f"message {uid} not found in {folder}")
         text = (

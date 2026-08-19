@@ -20,23 +20,34 @@ denied outright.
   line breaks, entities decoded, whitespace collapsed), keeping the raw HTML only when nothing
   extracts (e.g. an image-only body), so the body is never empty when the message has one.
 - `Mailbox` is the `Protocol` the reader needs (`list_folders`, `search`, `fetch` → `RawEmail`);
-  the imap-tools adapter and a fake both satisfy it. It fails in exactly two ways and every
-  implementation owes both, the fake included, which is what the shared contract
+  the imap-tools adapter and a fake both satisfy it. It fails in exactly three ways and every
+  implementation owes all three, the fake included, which is what the shared contract
   (`tests/mailbox_contract.py`, driven over the fake and the adapter) exists to hold.
 - `MailboxError` says the mailbox could not answer: unreachable Bridge, refused TLS or login, a
-  folder that could not be examined, a connection that went away. `SearchRefusedError` is its one
-  narrower subclass, the server having read a query and refused it as malformed, and the line
-  between them is whether rewriting the query would change anything (ADR-0022 refused-search
-  addendum). It carries the `query` it refused and its message points the model at the `query`
-  field's own description rather than restating the dialect; it carries no part of the server's
-  answer, that fragment (`UID command error: BAD [b'[Error offset=38]: expected space']`) being an
-  offset into a wire command the model never saw. The cause chain keeps it for an operator.
+  folder that could not be examined, a connection that went away. Beneath it are the two narrower
+  subclasses, one per argument the read tools invite a model to guess, and the line in both cases
+  is whether writing the call differently would change anything.
+  `SearchRefusedError` is the server having read a query and refused it as malformed (ADR-0022
+  refused-search addendum). It carries the `query` it refused and its message points the model at
+  the `query` field's own description rather than restating the dialect.
+  `FolderUnknownError` is no mailbox having the folder that was named (ADR-0022 unknown-folder
+  addendum). It carries the `folder` it was given and sends the model to `list_folders`, the
+  cheaper correction of the two: one call rather than a rewrite. Neither carries any part of the
+  server's answer, those fragments (`UID command error: BAD [b'[Error offset=38]: expected
+  space']`; `Response status "OK" expected, but "NO" received. Data: [b'no such mailbox']`) being
+  a wire command and a command status the model never sent. The cause chain keeps both for an
+  operator.
 - `ImapMailbox(config)` is the `Mailbox` over imap-tools. Connects per call (the Bridge is local)
   so the server holds no IMAP state. No exception of the IMAP stack escapes it: a `BAD` answer to
-  a search becomes `SearchRefusedError`, and everything else, imaplib's `IMAP4.abort` for a
-  connection lost mid-command included, becomes `MailboxError` with the cause chained. The abort
-  is tested for by subclass rather than assumed away, since reporting a dropped connection as a
-  refused query would send a model round a rewrite loop that cannot end.
+  a search becomes `SearchRefusedError`, a `NO` to `SELECT` whose own text says the mailbox does
+  not exist becomes `FolderUnknownError`, and everything else, imaplib's `IMAP4.abort` for a
+  connection lost mid-command included, becomes `MailboxError` with the cause chained. Both
+  classifications look rather than assume, and for the same reason. The abort is tested for by
+  subclass, since reporting a dropped connection as a refused query would send a model round a
+  rewrite loop that cannot end. The select is classified from what the server said
+  (`_FOLDER_MISSING_ANSWERS`: the Bridge's measured `no such mailbox`, or RFC 5530's
+  `[NONEXISTENT]` code), because the same `NO` also covers a folder that is really there and
+  could not be opened, and a folder that cannot be proved missing is not reported missing.
 - `EmailConfig` holds env-driven settings (`CORTEX_EMAIL_IMAP_*`): host/port/user/password
   (`SecretStr`), `security` (starttls|ssl), and `ca_cert` / `tls_insecure` for the Bridge's
   self-signed cert. Defaults target a local Bridge (127.0.0.1:1143, STARTTLS).
@@ -67,17 +78,20 @@ denied outright.
   the query is written in, criterion by criterion and only where a live pass against a real
   Bridge proved the criterion works, plus the client `from:` syntax that is refused rather than
   understood; `FOLDER_HELP` (spent by `read_email` too, so the two cannot drift) says a folder
-  name comes verbatim from `list_folders`; `SEARCH_LIMIT_HELP` says the matches kept are the
+  name comes verbatim from `list_folders`, and `FOLDER_UNKNOWN` is the same fact said once the
+  server has refused a name, so it names neither searching nor reading in particular; `SEARCH_LIMIT_HELP` says the matches kept are the
   first in the folder's own uid order rather than the newest. The live test
   `test_every_advertised_search_criterion_is_one_the_bridge_accepts` is the guard on that prose:
   it runs one query per named family and fails if the description names a criterion no query
   ran, and it asserts that the client syntax comes back as `SearchRefusedError` carrying the
   query. Each tool answers with a single readable text block. Two of them build that block into
   a `CallToolResult` themselves (`_one_text`), each for something the block alone cannot carry.
-  `search_emails` marks a refused query `isError` while keeping the port's own wording, because a
-  tool that lets an exception out is restated by FastMCP as `Error executing tool <name>: ...`,
-  which is the truth for a mailbox that could not answer (deliberately left to escape) and a
-  falsehood for a search the server read and declined. `read_email` adds a
+  Both folder-taking tools mark a correction `isError` while keeping the port's own wording,
+  because a tool that lets an exception out is restated by FastMCP as `Error executing tool
+  <name>: ...`, which is the truth for a mailbox that could not answer (deliberately left to
+  escape) and a falsehood for a call the server read and declined. `search_emails` catches both
+  corrections, `read_email` the folder one, which it hits before it has looked at a uid (so a
+  guessed folder never reads "message not found"). `read_email` adds a
   result `_meta` (`_SOURCE_META_KEY`, `"cortex/source"`) declaring the message sender
   (`{"kind": "sender", "value": <From>}`, `_sender_source`, omitted when there is no `From`). The
   `_meta` rides beside the text, so the model-facing content is unchanged; the brain's tool
@@ -121,7 +135,8 @@ when deliberately enabled, and is gated + confirmed brain-side (ADR-0022).
   reader/tools (`tests/mailbox_fake.py`) and a stand-in imap-tools `MailBox` for `ImapMailbox`
   (`tests/imap_stub.py`), each shared so the same one drives every suite. Both `Mailbox`
   implementations are run through `tests/mailbox_contract.py`, which is where the port's promises
-  are written, the refusal among them. The live contract is the `integration`-marked
+  are written, both corrections among them, including that a folder which failed to open for any
+  other reason is never reported missing. The live contract is the `integration`-marked
   `tests/test_email_live.py` (run per docs/runbooks/email-imap.md).
 - Pinned to the MCP SDK v1.x (`mcp>=1.23,<2`).
 - The advertised schema is **generated, never written**, so what the model is told about an

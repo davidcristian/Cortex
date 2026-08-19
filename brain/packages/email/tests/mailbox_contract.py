@@ -5,22 +5,28 @@ from dataclasses import dataclass
 
 import pytest
 
-from cortex_email import Mailbox, SearchRefusedError
+from cortex_email import FolderUnknownError, Mailbox, MailboxError, SearchRefusedError
 
 # The client syntax a model reaches for, which is what a real Bridge answers BAD to.
 REFUSED_QUERY = "from:someone@example.com"
 # What imaplib puts in the exception a refused search raises, verbatim from a live Bridge. No
 # implementation may pass any of it on: it is an offset into a wire command the model never saw.
 WIRE_ANSWER = "UID command error: BAD [b'[Error offset=38]: expected space']"
+# A folder name a model could plausibly invent from a mailbox's shape, and one no implementation
+# under test lists. Every check that uses it asserts that first, so it cannot rot into a name a
+# fixture quietly grew.
+INVENTED_FOLDER = "Receipts"
+SELECT_ANSWER_FRAGMENTS = ("Response status", "no such mailbox", "Data:")
 
 
 @dataclass(frozen=True, slots=True)
 class MailboxUnderTest:
-    """One implementation, the folder it has messages in, and the one knob a check needs."""
+    """One implementation, the folder it has messages in, and the two knobs the checks need."""
 
     mailbox: Mailbox
     folder: str
     refuse_searches: Callable[[], None]
+    break_folder_opening: Callable[[], None]
 
 
 type Check = Callable[[MailboxUnderTest], None]
@@ -65,9 +71,44 @@ def a_refusal_says_what_to_do_and_never_what_the_wire_said(under_test: MailboxUn
         assert fragment not in message
 
 
+def a_folder_no_mailbox_has_raises_the_port_s_own_error(under_test: MailboxUnderTest) -> None:
+    """Both calls that take a folder answer an unlisted name with `FolderUnknownError`."""
+    assert INVENTED_FOLDER not in list(under_test.mailbox.list_folders())
+    with pytest.raises(FolderUnknownError) as searched:
+        under_test.mailbox.search(INVENTED_FOLDER, "ALL", 5)
+    assert searched.value.folder == INVENTED_FOLDER
+    with pytest.raises(FolderUnknownError) as read:
+        under_test.mailbox.fetch(INVENTED_FOLDER, "1")
+    assert read.value.folder == INVENTED_FOLDER
+
+
+def an_unknown_folder_says_where_the_real_names_are(under_test: MailboxUnderTest) -> None:
+    """The message a model reads names the folder and `list_folders`, never the server's answer."""
+    with pytest.raises(FolderUnknownError) as raised:
+        under_test.mailbox.search(INVENTED_FOLDER, "ALL", 5)
+    message = str(raised.value)
+    assert INVENTED_FOLDER in message
+    assert "list_folders" in message
+    for fragment in SELECT_ANSWER_FRAGMENTS:
+        assert fragment not in message
+
+
+def a_folder_that_could_not_be_opened_is_not_reported_missing(
+    under_test: MailboxUnderTest,
+) -> None:
+    """A folder that fails to open for any other reason stays the base error, never the guess."""
+    under_test.break_folder_opening()
+    with pytest.raises(MailboxError) as raised:
+        under_test.mailbox.search(under_test.folder, "ALL", 5)
+    assert not isinstance(raised.value, FolderUnknownError)
+
+
 ALL_CHECKS: Sequence[Check] = (
     folders_come_back_as_plain_names,
     a_search_answers_with_the_raw_messages_it_matched,
     a_refused_search_raises_the_port_s_own_error,
     a_refusal_says_what_to_do_and_never_what_the_wire_said,
+    a_folder_no_mailbox_has_raises_the_port_s_own_error,
+    an_unknown_folder_says_where_the_real_names_are,
+    a_folder_that_could_not_be_opened_is_not_reported_missing,
 )

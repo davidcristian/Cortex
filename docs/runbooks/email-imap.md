@@ -55,6 +55,21 @@ set -a; . ~/.cortex/email.env; set +a
 cd brain && uv run pytest -m integration --no-cov packages/email/tests/test_email_live.py -k criterion
 ```
 
+Its sibling is the guard on the other guess those tools invite, the `folder` (ADR-0022
+unknown-folder addendum). It asserts that every shape of a name no mailbox has is refused
+identically, as `FolderUnknownError` naming the folder and pointing at `list_folders`, out of both
+tools that take one; and that every name `list_folders` returns really does open, so nothing the
+description tells a model to use comes back as the refusal it warns about. Run it after any Bridge
+upgrade too: the classification reads the server's own words (`no such mailbox`, since this
+Bridge sends no RFC 5530 response code), so a Bridge that reworded its `NO` would start reporting
+a missing folder as a mailbox that could not answer, which is the safe direction but the wrong
+sentence:
+
+```
+set -a; . ~/.cortex/email.env; set +a
+cd brain && uv run pytest -m integration --no-cov packages/email/tests/test_email_live.py -k folder
+```
+
 Add `CORTEX_EMAIL_IMAP_TLS_INSECURE=true` when you are accepting the Bridge's self-signed cert on
 loopback rather than verifying it with an exported `ca_cert`.
 

@@ -69,6 +69,12 @@ FOLDER_HELP = (
     "Nothing is normalised or guessed at, and a name no folder has is an error rather than an "
     "empty result, so read the list rather than inventing a likely name."
 )
+FOLDER_UNKNOWN = (
+    "The mail server has no folder by that name, so nothing was searched and no message was "
+    "read. Folder names are matched exactly and are never normalised or guessed at: call "
+    "list_folders and use a name spelled exactly as that list returns it, rather than trying "
+    "another name that looks likely. The folder name that was refused was "
+)
 SEARCH_LIMIT_HELP = (
     "How many matches to return at most. They are the first matches in the folder's own uid "
     "order, which is not the same as the newest: narrow the search with the criteria above "
