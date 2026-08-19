@@ -3,9 +3,10 @@
 Method bodies are one-line ``...`` stubs. Protocols carry contracts, never behavior.
 Failures cross these boundaries exclusively as the typed errors in ``errors.py``.
 The six state-store ports (session, memory, task, schedule, handoff, preference) live in
-``ports_stores.py``, the three model-lifecycle ports (``ModelHost``, ``ResidencyController``,
-``ResidencyReporter``) in ``ports_models.py``, ``SubagentPlacer`` in ``ports_placement.py``, and
-``BodyGateway`` in ``ports_body.py``; all four sets are re-exported here, so
+``ports_stores.py``, the four model-lifecycle ports (``ModelHost``, ``ResidencyController``,
+``ResidencyReporter``, ``PaceSink``) in ``ports_models.py``, ``SubagentPlacer`` in
+``ports_placement.py``, and ``BodyGateway`` in ``ports_body.py``; all four sets are re-exported
+here, so
 ``from cortex_core.ports import SessionStore`` keeps resolving.
 """
 
@@ -20,7 +21,12 @@ from cortex_core.inference import GenerationBounds, InferenceEvent, JsonSchema
 from cortex_core.model import ModelLease
 from cortex_core.placement import PlacementRequest
 from cortex_core.ports_body import BodyGateway
-from cortex_core.ports_models import ModelHost, ResidencyController, ResidencyReporter
+from cortex_core.ports_models import (
+    ModelHost,
+    PaceSink,
+    ResidencyController,
+    ResidencyReporter,
+)
 from cortex_core.ports_placement import SubagentPlacer
 from cortex_core.ports_stores import (
     HandoffStore,
@@ -33,7 +39,7 @@ from cortex_core.ports_stores import (
 from cortex_core.ranking import RecallAudit
 from cortex_core.tools import ConfirmationRequest, ToolCall, ToolInvocation, ToolResult, ToolSpec
 
-# The six state-store ports live in ``ports_stores.py``, the three model-lifecycle ports in
+# The six state-store ports live in ``ports_stores.py``, the four model-lifecycle ports in
 # ``ports_models.py``, ``SubagentPlacer`` in ``ports_placement.py`` and ``BodyGateway`` in
 # ``ports_body.py`` (line-cap splits); the explicit export list re-exports them alongside the
 # ports defined here, so every existing ``from cortex_core.ports import ...`` and the
@@ -48,6 +54,7 @@ __all__ = [
     "MemoryStore",
     "ModelHost",
     "ModelManager",
+    "PaceSink",
     "PreferenceStore",
     "RecallAuditSink",
     "ResidencyController",

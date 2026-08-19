@@ -326,6 +326,26 @@ the number it peaks at.
 - No reading at all also logs at INFO and **is not a pass**: a completion under 32 decoded tokens
   is not judged, and a phase that failed before decoding anything reports nothing.
 
+**Since 2026-08-19 the verdict also reaches the overlay**, because the log is no use to an
+operator who is not tailing a container ([ADR-0030](../adr/ADR-0030-brain-handoff.md) spill-note
+addendum). A handoff that ran under the floor makes `Health` answer `ready=true` with
+`the last deep task ran far slower than this deployment measured for it, so deep tasks are taking
+much longer than they should`, which the connection tooltip shows as `Brain ready: <that line>`.
+Reading it:
+
+- **The dot stays green**, and that is correct: turns work, delegation works, and what is wrong is
+  that deep tasks are costing roughly twice what they should.
+- **The note is about the last handoff, not about now.** It clears the moment a later handoff
+  reaches the floor, and it lapses on its own after an hour if no handoff decides it either way,
+  so a brain that escalated once at breakfast is not still saying it at dinner. Restarting the
+  brain also clears it, which is worth knowing because restarting is also what applies a corrected
+  `CORTEX_SWAP_BRAIN_DECODE_TPS` or `CORTEX_SWAP_BRAIN_VRAM_MIB`.
+- **A missing peer tier and a spill are said together**, joined by a semicolon, since they have
+  different fixes: put the tier back, and give the card room.
+- **What to do about it** is the section above: read the log line for the numbers, then either
+  correct the declared figures or stop running the pair co-resident. The tooltip carries the
+  consequence, and the log carries the mechanism.
+
 It watches only the deep phase, since only a handoff changes what is on the card, and it never
 touches the turn: the reply has already streamed by the time the rate is known, so refusing would
 spend a user's answer on an operator's problem.

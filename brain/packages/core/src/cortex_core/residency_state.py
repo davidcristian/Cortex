@@ -43,6 +43,26 @@ class ResidencyReport:
     detail: str
 
 
+def with_note(report: ResidencyReport, note: str) -> ResidencyReport:
+    """A serving report that also says ``note``; a report that is not serving, handed back.
+
+    The read-time composition every annotator of a residency report shares, and the reason it is
+    one function rather than a rule each of them keeps: a report that is not serving already
+    carries the swap's own words, and adding "and by the way" to *those* would be describing one
+    handoff twice and calling half of it a fault.
+
+    A second note **joins** the first rather than replacing it, because the annotators answer
+    different questions and have different remedies: which peer of the standing residency is down
+    is a fact about now (``residency_tiers.py``), and how the last handoff ran is a fact about a
+    handoff that has ended (``residency_pace.py``). Whichever composes outermost is the sentence
+    that lands last, so the order of composition is a display decision and never a suppression.
+    """
+    if not report.serving:
+        return report
+    joined = f"{report.detail}; {note}" if report.detail else note
+    return ResidencyReport(serving=True, detail=joined)
+
+
 # How the one writer of residency is handed to the pieces that observe a change without owning
 # the state: which model the GPU serves (``None`` mid swap) and what to tell a human, published
 # together and never one without the other. ``SwappingModelManager._set_resident`` is the only

@@ -48,7 +48,7 @@ is recorded with this close.
 from enum import Enum
 
 from cortex_core.ports import SubagentPlacer
-from cortex_core.residency_state import ResidencyReport
+from cortex_core.residency_state import ResidencyReport, with_note
 
 # What ``Health`` says while the cortex is serving and a peer of it is not. It rides a **serving**
 # report, so the overlay renders it after "Brain ready" rather than after "The brain is not
@@ -166,10 +166,9 @@ class StandingTiers:
         Only a **serving** report is annotated, and that is the whole down-versus-evicted rule as
         code: mid handoff the peers are stopped on purpose and the report already says a swap is
         happening, so adding "a tier is down" there would be describing the swap twice and calling
-        it a fault.
+        it a fault. That half of the rule is ``residency_state.with_note``, shared with the other
+        annotator of a serving report (``residency_pace.py``) since neither may speak over a swap.
         """
-        if not report.serving or not self._faults:
+        if not self._faults:
             return report
-        return ResidencyReport(
-            serving=True, detail=TIERS_MISSING_DETAIL.format(models=", ".join(self.missing))
-        )
+        return with_note(report, TIERS_MISSING_DETAIL.format(models=", ".join(self.missing)))

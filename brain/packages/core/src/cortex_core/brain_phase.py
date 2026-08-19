@@ -38,12 +38,19 @@ and the card reads like a fit. The one witness is throughput, and this phase is 
 completion on the deep tier can be watched. It says so once per handoff and does nothing else to
 the turn: the reply is already streaming by the time the rate is known, so refusing would spend a
 user's answer on an operator's problem, and there is nothing left to degrade.
+
+Saying so means two things, and only one of them is the log (ADR-0030 spill-note addendum). The
+verdict also goes to the ``PaceSink`` this phase was wired with, which is how it reaches an
+operator who is not tailing a container: that sink is the residency record the seam's readiness
+report is composed from (``residency_pace.py``), so a spilled handoff shows up in the overlay's
+connection tooltip instead of only in stdout. The phase still knows nothing about residency; it
+reports what it measured to a port and is done.
 """
 
 import logging
 from collections.abc import AsyncGenerator, Sequence
 
-from cortex_core.cadence import CadenceReading, CadenceWatch
+from cortex_core.cadence import NO_CADENCE_TERMS, CadenceReading, CadenceTerms, CadenceWatch
 from cortex_core.conversation import Message, Role
 from cortex_core.errors import InferenceError
 from cortex_core.events import TextDelta, TurnEvent
@@ -106,7 +113,7 @@ class BrainPhase:
         clock: Clock,
         brain_model: str,
         capabilities: TurnCapabilities,
-        decode_floor_tps: float = 0.0,
+        cadence: CadenceTerms = NO_CADENCE_TERMS,
     ) -> None:
         self._store = store
         self._backend = backend
@@ -114,11 +121,12 @@ class BrainPhase:
         self._model = brain_model
         self._caps = capabilities
         # The deep tier's decode rate on this deployment's own card, measured by the deployment
-        # exactly as its VRAM cost was and just as unknowable from inside a container. Zero (the
-        # default, and every deployment that has not measured one) reports the rate and judges
-        # nothing, which is why the watch exists either way: the healthy number is what makes a
-        # later collapse readable, and it is the same instrument that publishes both.
-        self._decode_floor_tps = decode_floor_tps
+        # exactly as its VRAM cost was and just as unknowable from inside a container, plus the
+        # sink that verdict is published to. Zero (the default, and every deployment that has not
+        # measured one) reports the rate and judges nothing, which is why the watch exists either
+        # way: the healthy number is what makes a later collapse readable, and it is the same
+        # instrument that publishes both.
+        self._cadence = cadence
 
     async def run(self, record: HandoffRecord) -> AsyncGenerator[TurnEvent, None]:
         """Rehydrate, run the shared tool loop on the deep model, persist, and stream it out.
@@ -131,7 +139,7 @@ class BrainPhase:
         history = await self._store.history(record.session_id)
         query = _user_query(history, record)
         taint = record.taint_ledger()
-        watch = CadenceWatch(self._decode_floor_tps)
+        watch = CadenceWatch(self._cadence.floor_tps)
         # The deep tier is where a cut answer is likeliest and least visible: it ships an 8192
         # context and the measured pick spends 3847 to 4448 tokens reaching an answer, so the
         # wall is one long question away even with no cap set (ADR-0004 brain-pick table).
@@ -214,8 +222,22 @@ class BrainPhase:
         }
         if reading.collapsed:
             _logger.warning(SPILLED_LOG_MSG, extra=extra | {"shortfall": reading.shortfall})
-            return
-        _logger.info(_MEASURED_LOG_MSG, extra=extra)
+        else:
+            _logger.info(_MEASURED_LOG_MSG, extra=extra)
+        self._note_pace(reading)
+
+    def _note_pace(self, reading: CadenceReading) -> None:
+        """Publish the verdict past the log, when there is one and somewhere to publish it.
+
+        After the log rather than before it, so a sink that somehow misbehaves cannot cost the
+        line this watch has always written. Two things make this nothing at all: a
+        deployment that wired no sink, which is every one that ran before the note existed, and a
+        deployment that declared no floor, whose reading is a number and not a judgement. The
+        second is why ``verdict`` is asked rather than ``collapsed``: a "no" for want of anything
+        to compare against would clear a standing note as firmly as a real one.
+        """
+        if self._cadence.sink is not None and reading.verdict is not None:
+            self._cadence.sink.note_pace(spilled=reading.verdict)
 
     async def _persist(
         self, record: HandoffRecord, *, query: str, reply: str, taint: TaintLedger

@@ -36,7 +36,9 @@ from swap_harness import ScriptedBrainBackend, TickingClock
 from cortex_core import (
     BRAIN_FAILED_NOTE,
     BUDGET_EXHAUSTED_MSG,
+    NO_CADENCE_TERMS,
     REPLY_CAPPED_NOTE,
+    CadenceTerms,
     DecodeCadence,
     DecodeStop,
     DispatchBudget,
@@ -50,6 +52,7 @@ from cortex_core import (
     JsonSchema,
     Message,
     RecordingAuditSink,
+    RecordingPaceSink,
     Role,
     SourceKind,
     StopReason,
@@ -89,7 +92,7 @@ async def _drive(
     tail: Sequence[Message] = (),
     taint: TaintLedger | None = None,
     store: InMemorySessionStore | None = None,
-    decode_floor_tps: float = 0.0,
+    cadence: CadenceTerms = NO_CADENCE_TERMS,
 ) -> tuple[BrainPhase, ScriptedBrainBackend, InMemorySessionStore, list[str]]:
     """Run one deep phase over a seeded session, returning what it saw and what it streamed."""
     sessions = store if store is not None else InMemorySessionStore()
@@ -109,7 +112,7 @@ async def _drive(
         TickingClock(),
         "brain",
         capabilities if capabilities is not None else TurnCapabilities(),
-        decode_floor_tps,
+        cadence,
     )
     slot = harness.armed_slot(tail=tail, taint=taint)
     record = slot.snapshot(
@@ -484,7 +487,7 @@ async def test_a_deep_phase_under_the_declared_floor_warns_once_naming_both_numb
     """The measured spill, as the shipped instrument sees it: 17.29 tok/s against a 22 floor."""
     caplog.set_level(logging.INFO, logger="cortex_core.brain_phase")
     backend = ScriptedBrainBackend(cadences=[DecodeCadence(tokens_per_second=17.29, tokens=96)])
-    await _drive(backend=backend, decode_floor_tps=22.0)
+    await _drive(backend=backend, cadence=CadenceTerms(22.0))
     records = _cadence_records(caplog)
     assert len(records) == 1
     assert records[0].levelno == logging.WARNING
@@ -499,7 +502,7 @@ async def test_a_deep_phase_that_cleared_its_floor_says_so_without_warning(
     """The healthy contrast, from the same instrument: the solo rate on the same card."""
     caplog.set_level(logging.INFO, logger="cortex_core.brain_phase")
     backend = ScriptedBrainBackend(cadences=[DecodeCadence(tokens_per_second=30.4, tokens=96)])
-    await _drive(backend=backend, decode_floor_tps=22.0)
+    await _drive(backend=backend, cadence=CadenceTerms(22.0))
     records = _cadence_records(caplog)
     assert len(records) == 1
     assert records[0].levelno == logging.INFO
@@ -523,7 +526,7 @@ async def test_a_backend_that_reports_no_timings_is_not_reported_as_healthy(
 ) -> None:
     """Silence must never read as a pass, which is the whole reason the port permits silence."""
     caplog.set_level(logging.INFO, logger="cortex_core.brain_phase")
-    await _drive(backend=ScriptedBrainBackend(), decode_floor_tps=22.0)
+    await _drive(backend=ScriptedBrainBackend(), cadence=CadenceTerms(22.0))
     records = _cadence_records(caplog)
     assert len(records) == 1
     assert records[0].levelno == logging.INFO
@@ -546,7 +549,7 @@ async def test_one_slow_round_of_a_tool_loop_does_not_convict_the_tier(
     await _drive(
         capabilities=TurnCapabilities(tools=dispatcher),
         backend=backend,
-        decode_floor_tps=22.0,
+        cadence=CadenceTerms(22.0),
     )
     records = _cadence_records(caplog)
     assert len(records) == 1
@@ -562,15 +565,86 @@ async def test_a_failed_phase_still_reports_what_it_managed_to_observe(
     caplog.set_level(logging.INFO, logger="cortex_core.brain_phase")
     backend = ScriptedBrainBackend(fail_after=1)
     with pytest.raises(InferenceError):
-        await _drive(backend=backend, decode_floor_tps=22.0)
+        await _drive(backend=backend, cadence=CadenceTerms(22.0))
     assert len(_cadence_records(caplog)) == 1
 
 
 async def test_the_cadence_never_reaches_the_turns_own_stream() -> None:
     """How fast the machine decoded is not something the turn said, so no delta may carry it."""
     backend = ScriptedBrainBackend(cadences=[DecodeCadence(tokens_per_second=17.29, tokens=96)])
-    _phase, _backend, _sessions, deltas = await _drive(backend=backend, decode_floor_tps=22.0)
+    _phase, _backend, _sessions, deltas = await _drive(backend=backend, cadence=CadenceTerms(22.0))
     assert "".join(deltas) == "a deep answer"
+
+
+# --- The verdict past the log (ADR-0030 spill-note addendum) -----------------------------------
+#
+# The half of the watch that reaches somebody: what the phase hands its ``PaceSink``. Each case
+# asserts the verdict it published rather than the line it logged, because the two answer
+# different people and only one of them is read by an operator who is not tailing a container.
+#
+# Distrust-green proofs, measured the same way as the section above:
+# - logging the verdict and publishing nothing (the state before this landed) reddens 3, every
+#   case here that expects a verdict at all;
+# - publishing ``collapsed`` rather than the three-state ``verdict`` reddens 1,
+#   ``test_a_deployment_that_declared_no_floor_publishes_no_verdict``, which is what keeps a
+#   deployment with no floor from clearing a note it could never have written.
+
+
+async def test_a_spilled_handoff_is_published_and_not_only_logged() -> None:
+    """The entry's whole point: the fact leaves the log for somewhere a person will meet it."""
+    sink = RecordingPaceSink()
+    backend = ScriptedBrainBackend(cadences=[DecodeCadence(tokens_per_second=17.29, tokens=96)])
+    await _drive(backend=backend, cadence=CadenceTerms(22.0, sink))
+    assert list(sink.verdicts) == [True]
+
+
+async def test_a_handoff_that_held_its_pace_publishes_that_too() -> None:
+    """The clearing half, and why it is published rather than skipped as uninteresting.
+
+    A tier that reached its floor is the only direct evidence there is that the card has room
+    again, so a healthy handoff has to be able to take a standing note down.
+    """
+    sink = RecordingPaceSink()
+    backend = ScriptedBrainBackend(cadences=[DecodeCadence(tokens_per_second=30.4, tokens=96)])
+    await _drive(backend=backend, cadence=CadenceTerms(22.0, sink))
+    assert list(sink.verdicts) == [False]
+
+
+async def test_a_deployment_that_declared_no_floor_publishes_no_verdict() -> None:
+    """A number is not a judgement, and a "no" for want of an opinion would clear a real note."""
+    sink = RecordingPaceSink()
+    backend = ScriptedBrainBackend(cadences=[DecodeCadence(tokens_per_second=3.0, tokens=96)])
+    await _drive(backend=backend, cadence=CadenceTerms(sink=sink))
+    assert list(sink.verdicts) == []
+
+
+async def test_a_handoff_with_no_reading_publishes_nothing_at_all() -> None:
+    """Silence is not a pass at the port either, or a short completion would clear a spill."""
+    sink = RecordingPaceSink()
+    await _drive(backend=ScriptedBrainBackend(), cadence=CadenceTerms(22.0, sink))
+    assert list(sink.verdicts) == []
+
+
+async def test_a_failed_phase_still_publishes_the_verdict_it_managed_to_reach() -> None:
+    """A server that died under the deep model is exactly when the card is worth suspecting.
+
+    The reading comes off the round before the one that died, which is the only way a failed
+    phase has one at all: a stream that raises never reports its own timings.
+    """
+    sink = RecordingPaceSink()
+    dispatcher = ToolDispatcher(_registry(), RecordingAuditSink(), SystemClock())
+    backend = ScriptedBrainBackend(
+        tool_calls=(ToolCall(id="c1", name="read", arguments={}),),
+        cadences=[DecodeCadence(tokens_per_second=17.29, tokens=96)],
+        fail_after=1,
+    )
+    with pytest.raises(InferenceError):
+        await _drive(
+            capabilities=TurnCapabilities(tools=dispatcher),
+            backend=backend,
+            cadence=CadenceTerms(22.0, sink),
+        )
+    assert list(sink.verdicts) == [True]
 
 
 class StoppingDeepBackend:

@@ -910,6 +910,17 @@ unchanged):
   hang for the whole load (minutes at tier scale) at exactly the moment the honest answer
   matters. An implementation publishes residency as it changes and answers from that cache; it
   never asks a model host and never waits on a lock a swap can hold.
+- `PaceSink` (same module, ADR-0030 spill-note addendum) provides
+  `note_pace(*, spilled: bool) -> None`: where the deep phase says whether the tier it just ran
+  held the pace its deployment measured for it. A port rather than a reference to the manager for
+  the reason `SubagentPlacer` is one, the phase being built per Converse stream out of that
+  stream's own collaborators and owning no residency at all. **Synchronous and free of I/O by
+  contract**, because it is called after the reply has streamed and before it is persisted, where
+  an await would put an unrelated collaborator inside the one hard rule's own sequence. What
+  crosses is a **verdict and never a reading**, and a phase with no verdict (a completion too
+  short to judge, a deployment that declared no floor, a phase that died before decoding) calls it
+  **not at all**: no reading is not a pass, so it must neither write a note nor clear one. The
+  live implementation is `HandoffPace`; the contract twin is `RecordingPaceSink`.
 - `ResidencyReport(serving: bool, detail: str)` and the five values a swap publishes live in
   `residency_state.py`: `RESIDENCY_SERVING` (the standing residency, `detail` empty, and the
   seed a fresh manager starts from), `RESIDENCY_LOADING` (the swap in, eviction included, nothing
@@ -927,6 +938,11 @@ unchanged):
   client may make between turns. The
   **drain** is deliberately `RESIDENCY_SERVING`: the cortex is resident and answering turns
   while delegated work quiesces, so not-ready is keyed on something actually being unloaded.
+  `with_note(report, note)` is the one composition every annotator of a report shares: a serving
+  report gains `note`, **joined** to any note already there rather than replacing it, and a report
+  that is not serving is handed straight back (mid handoff the seam is already saying what the
+  swap is doing). Two annotators exist, the peers that are missing and how the last handoff ran,
+  and sharing this is what keeps their ordering a display decision rather than a race.
 - Same port, `handoff_claim() -> AbstractAsyncContextManager[None]`: the one-GPU-one-handoff
   rule taken **before** anything is drained or evicted. Entering claims the whole swap sequence
   for its block or raises `HandoffInProgressError` at once (refuse, never queue). The check and
@@ -1245,7 +1261,7 @@ Use-case:
   is started, "working on this" only once the health gate has passed and the record says
   `BRAIN_ACTIVE`, and the restore before the cortex is asked back.
   `scheduler=None` is a deployment with no subagent pool: there is nothing to quiesce.
-- `BrainPhase(store, backend, clock, brain_model, capabilities, decode_floor_tps=0.0)`
+- `BrainPhase(store, backend, clock, brain_model, capabilities, cadence=NO_CADENCE_TERMS)`
   (`brain_phase.py`) is the deep
   model's half: it rehydrates from the stores and the record alone (history from `SessionStore`,
   the working set as preamble + recalled context + history + the record's `loop_tail`, the
@@ -1259,8 +1275,12 @@ Use-case:
   re-raises, so the conductor fails the record and converges. It is also **the only caller that
   watches decode cadence** (ADR-0030 spill-watch addendum): it puts a `CadenceWatch` on the loop
   context and, after the stream and before it persists, logs the tier's rate once, at WARNING with
-  the shortfall when the tier never reached `decode_floor_tps` and at INFO otherwise, including
-  when the watch has no reading at all, which is never reported as a pass. It does nothing else to
+  the shortfall when the tier never reached `cadence.floor_tps` and at INFO otherwise, including
+  when the watch has no reading at all, which is never reported as a pass. It then hands the same
+  verdict to `cadence.sink` (ADR-0030 spill-note addendum), which is how a spill reaches an
+  operator who is not tailing a container; a reading that judged nothing, and a phase with no
+  reading at all, publish **nothing**, since a "no" for want of an opinion would clear a standing
+  note as firmly as a real one. It does nothing else to
   the turn, the reply having already streamed by the time the rate is known.
 - `CadenceWatch(floor=0.0, *, min_tokens=MIN_CADENCE_TOKENS)` (`cadence.py`, ADR-0030 spill-watch
   addendum) is the pure policy behind that: `observe(sample)` takes one completion's
@@ -1272,7 +1292,13 @@ Use-case:
   overcommit lasts, so one busy round cannot convict while a tier that never once reached its
   floor is exactly what a spill is. `reading().collapsed` is False whenever `floor` is zero, an
   undeclared floor meaning "this deployment never measured a rate" and never "any rate will do";
-  `shortfall` is how far under it ran, zero when it did not. `None` from `reading()` is a third
+  `shortfall` is how far under it ran, zero when it did not, and `reading().verdict` is the same
+  question in three states, `None` meaning this deployment declared no floor and has no opinion at
+  all, which `collapsed` is derived from and which the phase asks before it publishes anything.
+  `CadenceTerms(floor_tps=0.0, sink=None)` is the pair a phase is built with, the two halves of one
+  instrument travelling together (what the tier is held to, and who is told how it did), and
+  `NO_CADENCE_TERMS` is the shared frozen empty one, which judges nothing and tells nobody.
+  `None` from `reading()` is a third
   answer, not a pass: it is what a backend reporting no timings and a phase that failed before
   decoding anything both look like. It holds no I/O and is deliberately not persisted anywhere
   (the one hard rule): a watch is scratch for one handoff, and its conclusion is said rather than
@@ -2104,7 +2130,13 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   from a cache one setter publishes with the resident itself, under the same condition and with
   nothing awaited between the two writes, so the seam's answer and the lease's own view of the
   GPU cannot drift; a swap in and a swap back both leave nothing resident, which is why the
-  direction is published rather than inferred. `publish_boot_residency(*, serving)` is the one
+  direction is published rather than inferred. It is composed as it is read rather than returned
+  as it was stored: the published record is annotated by the peers that are missing and then by
+  how the last handoff ran, both of which outlive residency transitions and either of which the
+  background pass would erase if it were stored. That whole surface (`publish_boot_residency`,
+  `standing_tiers`, `handoff_pace`, `residency`) lives in `residency_probe.py` as
+  `ResidencyProbeMixin` and is mixed in, a line-cap split along the seam between owning the GPU
+  and being honest about it (the `SessionRpcMixin` precedent). `publish_boot_residency(*, serving)` is the one
   writer that touches the report alone: the composition root calls it once with boot recovery's
   observation, before the seam serves, and it deliberately leaves `_resident` alone, because
   recovery failing to confirm the cortex is not the same as knowing it is gone (an unreachable
@@ -2176,13 +2208,31 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   the sorted snapshot of every faulted tier, both kinds, since the placer and the seam treat them
   alike. Marking of either kind closes the placer's GPU, and only an emptied record reopens it, so
   a second tier still down keeps it shut; a deployment with no pool (`placer=None`) still keeps
-  the record, there simply being nothing to close. `note_on(report)` is what the manager's
+  the record, there simply being nothing to close. `note_on(report)` is half of what the manager's
   `residency()` returns: a **serving** report gains a detail naming what is down, and a report
   that is not serving is handed back untouched, which is the down-versus-evicted rule as code (a
   peer stopped for the length of a handoff is where the swap put it, and the window's own words
-  win). That detail names the state and not the cause (`the model host is not running <tiers>, so
+  win). That half is `residency_state.with_note`, shared with the other annotator (`HandoffPace`
+  below) so neither can speak over a swap and a second note joins rather than replaces. That
+  detail names the state and not the cause (`the model host is not running <tiers>, so
   delegated work is running on the CPU`), because a boot that recorded a tier has had no deep task
   to blame it on.
+- `HandoffPace(clock, *, dwell_s=DEFAULT_SPILL_DWELL_S)` in `residency_pace.py` is how the last
+  handoff ran, for as long as that still describes now (ADR-0030 spill-note addendum). It is the
+  live `PaceSink`: `note_pace(spilled=True)` stamps the moment, `note_pace(spilled=False)` clears
+  the note outright (a tier that reached its floor being the only direct evidence the card has room
+  again), and a second spill re-arms the dwell from itself. `note_on(report)` is the other half of
+  what `residency()` composes, outermost, so its sentence lands after a peer's:
+  `the last deep task ran far slower than this deployment measured for it, so deep tasks are taking
+  much longer than they should`, which names the consequence rather than the mechanism because a
+  tooltip's reader can act on lost time and cannot act on a decode rate. **The standing rule** is
+  the design question this answers: a spill is a fact about one handoff while the report is a fact
+  about now, so besides a later handoff deciding it either way the note lapses on its own after
+  `DEFAULT_SPILL_DWELL_S` (3600 s, exclusive at the far end), which is long enough to still be
+  there when somebody who walked away from a minutes-long deep task comes back and short enough
+  that a card left alone for an afternoon is not described by a verdict about the morning. A lapsed
+  note is answered rather than erased, a probe being a read. `dwell_s <= 0` raises `ValueError`.
+  Nothing is persisted: a process that restarts has no last handoff to describe.
 - `sweep_tiers(host, plan, tiers, fence)` in `residency_sweep.py` is one pass, and it asks about
   **every** `plan.evict_models` tier rather than only the marked ones (ADR-0030 tier-sweep
   addendum), because the four ways a peer goes down with no refusal to record it are exactly the
@@ -2307,6 +2357,10 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   (a tuple), so tests can assert the batch's scale and each subagent's tool steps a turn surfaced
   (ADR-0010 progress addendum). Records unconditionally, where the real `SeamProgressSink` drops
   on a saturated stream.
+- `RecordingPaceSink` is a `PaceSink` recording every verdict a deep phase published, in order, in
+  `.verdicts` (a tuple), so a test can assert that one handoff published exactly one and which way
+  it went (ADR-0030 spill-note addendum). The contract twin of `HandoffPace`, which keeps only the
+  answer that still stands; both run the contract cases in `test_residency_pace.py`.
 - `InMemoryScheduleStore(*, token_factory=<uuid4>)` is a dict-backed `ScheduleStore` implementing
   the full fenced protocol (fresh token per claim, stale finish/release no-op `False`,
   cancel-deletes-outright, terminal cleanup, fire-time taint OR); contract twin of

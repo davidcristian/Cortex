@@ -146,6 +146,11 @@ class BrainService(SessionRpcMixin, PreferenceRpcMixin, BrainServiceServicer):
         handoff evicts, so it can be whole enough to serve turns and still be missing one of them
         (ADR-0030 tier-outage addendum). Saying so under a green dot is the honest reading, since
         delegated work is running somewhere slower and nothing else on the seam would mention it.
+        That detail is composed rather than stored, and it may carry more than one sentence: a
+        missing peer and a handoff that ran far under this deployment's measured rate (ADR-0030
+        spill-note addendum) are both true of a brain that is serving, have different remedies,
+        and are joined rather than ranked. Nothing here chooses between them; this reply carries
+        whatever the residency composed, exactly as it does the not-serving text.
         """
         del request, context  # part of the generated servicer signature; unused here
         report = None if self._residency is None else self._residency.residency()

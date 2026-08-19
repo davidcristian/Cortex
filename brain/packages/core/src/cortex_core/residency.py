@@ -39,10 +39,13 @@ The one-handoff rule is exposed here and lives in ``residency_claim.py``: ``hand
 taken before the conductor drains anything and refuses a concurrent handoff on the spot, over
 this object's own condition so a claim and a scope never decide about the same GPU at once.
 
-This is also where the seam's honesty about residency comes from: ``residency()`` answers what
-the GPU is serving right now, synchronously and without touching the lease, which is what lets
-``Health`` say ``ready=false`` for the minutes a handoff takes (ADR-0030 decision 6), and
-``publish_boot_residency`` is what makes that first answer an observation rather than a seed.
+This is also where the seam's honesty about residency comes from, in the file beside this one
+(``residency_probe.py``, mixed in): ``residency()`` answers what the GPU is serving right now,
+synchronously and without touching the lease, which is what lets ``Health`` say ``ready=false``
+for the minutes a handoff takes (ADR-0030 decision 6), and ``publish_boot_residency`` is what
+makes that first answer an observation rather than a seed. What it answers with is composed as it
+is read, out of the published record plus the two facts that outlive a residency transition: the
+peers that are missing, and how the last handoff ran (``residency_pace.py``).
 """
 
 import asyncio
@@ -58,20 +61,16 @@ from cortex_core.residency_board import ResidencyBoard
 from cortex_core.residency_charge import charge_handoff
 from cortex_core.residency_claim import HandoffClaim
 from cortex_core.residency_moves import is_unhosted, swap_in
+from cortex_core.residency_pace import HandoffPace
+from cortex_core.residency_probe import ResidencyProbeMixin
 from cortex_core.residency_regain import heal_standing_residency
 from cortex_core.residency_restore import restore_uninterruptibly, restore_with_retries
-from cortex_core.residency_state import (
-    RESIDENCY_BOOT_FAILED,
-    RESIDENCY_DEEP,
-    RESIDENCY_LOADING,
-    RESIDENCY_SERVING,
-    ResidencyReport,
-)
+from cortex_core.residency_state import RESIDENCY_DEEP, RESIDENCY_LOADING
 from cortex_core.residency_tiers import StandingTiers
 from cortex_core.residency_watch import BootWatch
 
 
-class SwappingModelManager:
+class SwappingModelManager(ResidencyProbeMixin):
     """ModelManager v2: one resident model at a time, swapped only inside a residency scope.
 
     ``endpoints`` maps each logical model id to the base URL that serves it, composition-root
@@ -102,6 +101,11 @@ class SwappingModelManager:
         # Which peers of the cortex the standing residency is missing (``residency_tiers.py``),
         # written wherever a start was refused and read by the seam and by the retry.
         self._tiers = StandingTiers(placer)
+        # How the last handoff ran (``residency_pace.py``), written by the deep model's phase
+        # through the ``PaceSink`` port and read by the seam through the same read-time
+        # composition the peer record uses. Held here because the pass that republishes a serving
+        # cortex would erase anything a swap wrote into the record itself.
+        self._pace = HandoffPace(clock)
         # Which supervisor daemon every belief below was formed against (``residency_watch.py``).
         # It is asked once per handoff, because a daemon replaced under this process leaves all of
         # them describing a machine that no longer exists, the peer record included.
@@ -155,53 +159,6 @@ class SwappingModelManager:
         still resident and still leasable throughout the drain it covers.
         """
         return self._handoff_claim.held()
-
-    async def publish_boot_residency(self, *, serving: bool) -> None:
-        """Replace the constructor's seed with what boot recovery actually observed.
-
-        Called once by the composition root, before the seam serves, so the first probe of the
-        process answers an observation. Deliberately the one writer that touches the report
-        **alone** and leaves ``_resident`` where it is: recovery failing to confirm the cortex is
-        not the same as knowing it is gone (an unreachable host says nothing about the process it
-        supervises, and a load that outran its bound may still finish), so clearing the resident
-        would refuse every turn on a machine that may well be serving. The report is display
-        only; the lease keeps the forgiving posture boot recovery has always had.
-
-        It is also where the boot watch is seeded, because this is the moment the observation
-        being published was made: an answer about the GPU is only ever an answer about the daemon
-        that gave it, so recording which daemon that was belongs with recording what it said. A
-        later handoff compares against it and reconciles when the answer names a different one.
-        """
-        await self._boot.seed()
-        await self._board.publish_report(RESIDENCY_SERVING if serving else RESIDENCY_BOOT_FAILED)
-
-    @property
-    def standing_tiers(self) -> StandingTiers:
-        """The peers the standing residency is missing, for boot recovery to write from outside.
-
-        The one belief of this manager's that something other than a swap observes: convergence
-        runs before the seam serves and again whenever the daemon is replaced, and both times a
-        peer that would not start is a fact about the pool rather than about the cortex. Handing
-        the record out keeps the swap back and those two convergences writing one record, which is
-        what stops the placer and the seam disagreeing about which tier is down.
-        """
-        return self._tiers
-
-    def residency(self) -> ResidencyReport:
-        """What the GPU is serving right now, answered synchronously and without I/O.
-
-        Deliberately not a coroutine and deliberately lock-free, because the seam's ``Health``
-        reads it on every probe and the overlay re-probes every few seconds precisely while a
-        swap is in flight. Waiting on the lease would hang the indicator for the whole load
-        (bounded by ``plan.load_timeout_s``, minutes at tier scale), which is exactly when the
-        honest answer is the point; waiting on the residency condition would queue the probe
-        behind whatever the scope's end wakes. A plain read is a consistent snapshot: every
-        writer publishes the report and the resident together (``residency_board.py``).
-
-        The peers are folded in here rather than into the board, so the swap keeps one writer
-        of what the GPU serves: a down tier outlives residency transitions that would drop it.
-        """
-        return self._tiers.note_on(self._board.report)
 
     @asynccontextmanager
     async def swap_scope(self, model: str) -> AsyncGenerator[None, None]:
