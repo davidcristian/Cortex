@@ -552,7 +552,10 @@ stranded record `FAILED` and escalation works again.
    a GPU it could not settle, "did not come up at startup"), or from the logs below.
    Logs for either:
    `docker compose logs model-host` (the daemon and every child, interleaved, each daemon line
-   naming its tier and pid) or `docker compose logs brain`. Which tier is up, precisely:
+   naming its tier and pid) or `docker compose logs brain`. Both now print each line's own fields
+   after its message, and the daemon's lifecycle lines still spell their tier, pid and port into
+   the message as well, so those three read twice on a line until that older habit is swept
+   ([how to read either log](local-dev-wsl.md)). Which tier is up, precisely:
 
    ```
    docker compose --project-directory . -f docker/docker-compose.yml \

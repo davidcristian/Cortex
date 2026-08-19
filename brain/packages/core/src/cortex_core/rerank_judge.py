@@ -231,13 +231,10 @@ class JudgeRecallPolicy:
             # emitted no assistant text at all (a reasoning tier ignoring ``thinking=False``, whose
             # deliberation ``drain_text`` drops unread) and any other length being text that
             # arrived and was not the envelope, which is constrained decoding not holding. Both
-            # ride the message as well as the record: the shipped handler prints the message
-            # alone, the lesson ``LoggingRecallSink`` records for the same reason.
+            # ride the record alone: the entry point's formatter renders whatever a record
+            # carries, so spelling them into the message too would print each of them twice.
             _logger.warning(
-                "the model returned no usable recall order; falling back to the unjudged"
-                " ranking: capped=%s chars=%d",
-                stops.capped,
-                len(raw),
+                "the model returned no usable recall order; falling back to the unjudged ranking",
                 extra={"pool": len(hits), "k": k, "capped": stops.capped, "chars": len(raw)},
             )
             return await self._fallback.select(hits, query=query, now=now, k=k)

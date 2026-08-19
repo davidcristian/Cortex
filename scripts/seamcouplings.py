@@ -23,6 +23,8 @@ from couplings import Constant, Mention, Relation, Site, Spelling
 
 BASE_COMPOSE = "docker/docker-compose.yml"
 BODY_COMPOSE = "docker/docker-compose.body.yml"
+GPU_COMPOSE = "docker/docker-compose.gpu.yml"
+LOG_FORMAT = "brain/packages/core/src/cortex_core/log_format.py"
 SUBAGENTS_COMPOSE = "docker/docker-compose.subagents.yml"
 SUBAGENTS_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config_subagents.py"
 BODY_GATEWAY = "brain/packages/body_client/src/cortex_body_client/gateway.py"
@@ -272,6 +274,20 @@ SEAM_COUPLINGS: tuple[Constant, ...] = (
             ),
             Mention(SUBAGENTS_COMPOSE, "MEM_BUDGET_GB {value})"),
             Mention(SUBAGENTS_COMPOSE, "under the {value} GB budget", spelling=Spelling.WHOLE),
+        ),
+    ),
+    Constant(
+        label="the log rendering both brain processes ship with",
+        why=(
+            "the core declares which rendering a process entry installs when its env names "
+            "none, and each compose service spells that same name as its own substitution "
+            "default, so a renamed rendering would leave every composed deployment asking for "
+            "one this build no longer carries and failing at startup"
+        ),
+        sites=(Site(LOG_FORMAT, "PLAIN_FORMAT"),),
+        mentions=(
+            Mention(BASE_COMPOSE, "${CORTEX_LOG_FORMAT:-{value}}"),
+            Mention(GPU_COMPOSE, '"${CORTEX_MODELHOST_LOG_FORMAT:-{value}}"'),
         ),
     ),
 )

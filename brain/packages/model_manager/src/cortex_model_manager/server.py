@@ -14,7 +14,9 @@ configures uvicorn's own loggers and leaves root untouched, so without this ever
 this package logs at INFO is dropped and the one WARNING that escapes goes through logging's
 last-resort handler: measured in the image, ``docker logs model-host`` carried llama.cpp's own
 stderr and not one daemon line naming which tier was started or stopped, while
-``docs/runbooks/model-swap.md`` sends an operator to exactly that log.
+``docs/runbooks/model-swap.md`` sends an operator to exactly that log. It configures the
+**formatter** as well as the level, so each line's own fields reach that log rather than being
+attached to a record the stdlib's default format then prints nothing of.
 """
 
 import logging
@@ -23,6 +25,7 @@ import httpx
 import uvicorn
 from starlette.applications import Starlette
 
+from cortex_core import configure_logging
 from cortex_model_manager.api import build_app
 from cortex_model_manager.children import AsyncioChildProcesses
 from cortex_model_manager.config import ModelHostConfig
@@ -85,7 +88,8 @@ def main() -> None:
     config = ModelHostConfig()
     # Handler config belongs only at a process entry, and this is the sidecar's: the lifecycle
     # trail is the whole diagnosis of a swap that went wrong, so a dropped INFO record is a
-    # missing answer rather than missing noise.
-    logging.basicConfig(level=config.log_level.upper())
+    # missing answer rather than missing noise. The formatter is what makes the record's own
+    # fields (the tier, its pid, its port) reach that trail rather than being written and dropped.
+    configure_logging(config.log_level.upper(), style=config.log_format)
     app = build_model_host(config)
     uvicorn.run(app, host=config.bind_host, port=config.bind_port, log_level=config.log_level)

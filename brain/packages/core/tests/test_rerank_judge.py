@@ -20,6 +20,7 @@ from cortex_core import (
     InferenceError,
     JudgeRecallPolicy,
     MemoryRecord,
+    PlainFormatter,
     RankBasis,
     RankedMemory,
     Ranking,
@@ -379,9 +380,11 @@ async def test_a_cut_order_and_a_mangled_one_are_told_apart(
     assert _extra(cut, "pool") == _extra(mangled, "pool")
     assert _extra(cut, "capped") is True
     assert _extra(mangled, "capped") is False
-    # And the reading survives the handler the brain ships, which prints the message and no field.
-    assert "capped=True" in cut.getMessage()
-    assert "capped=False" in mangled.getMessage()
+    # And the reading survives the handler the brain ships, which renders the record's own
+    # fields onto the line: this is the exact spelling `docs/runbooks/memory-pgvector.md` sends
+    # an operator to grep for, so it is asserted against the rendered line and not the record.
+    assert f"capped=True chars={len(_UNUSABLE)}" in PlainFormatter().format(cut)
+    assert f"capped=False chars={len(_UNUSABLE)}" in PlainFormatter().format(mangled)
 
 
 async def test_a_backend_that_reports_no_reason_reads_as_uncut_rather_than_as_cut(
@@ -416,7 +419,7 @@ async def test_the_length_splits_a_silent_model_from_one_that_wrote_the_wrong_sh
 
     assert _extra(record, "capped") is False
     assert _extra(record, "chars") == expected_chars
-    assert f"chars={expected_chars}" in record.getMessage()
+    assert f"chars={expected_chars}" in PlainFormatter().format(record)
 
 
 async def test_a_refusal_is_not_reported_as_a_fallback(

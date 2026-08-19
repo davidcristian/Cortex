@@ -2015,3 +2015,148 @@ this repo actually ships.
 The two consequences above, both filed rather than built: the session a fallback happened in, which
 needs the port to carry one, and the handler that would make every `extra` field in the brain
 readable.
+
+## Rendered-fields addendum (2026-08-19): the handler prints what a record carries, and three hand-rolled renderings come out
+
+The addendum above ends by conceding a defect it could only work around: the brain configured
+logging with `logging.basicConfig(level=logging.INFO)` and nothing else, so the shipped handler
+printed `levelname:name:message` and every `extra` field this repo attaches was written onto a
+record and dropped. The rank fallback therefore spelled `capped=` and `chars=` into its own
+message, which was the third module to do so. `LoggingRecallSink` had done it first and says so in
+its docstring, `LoggingAuditSink` second. Three hand-rolled renderings of fields that were already
+on the record is two more than the problem deserves, and the fix was never a fourth.
+
+### Re-derived from the tree first, and the entry's own survey came up one short
+
+Every claim of [R-317](../refinements/tasks/317-shipped-handler-drops-every-field.md) held. Two
+process entries configure logging: `cortex_orchestrator.__main__` at a hardcoded INFO, and
+`cortex_model_manager.server.main` at a configured level. The fields named as lost are lost: a
+rejected fold's `capped` and `chars`, a stranded `handoff`, a retried `task_id`, a forgone recall's
+`session_id` and `turn_id`.
+
+The survey the entry did not do turned up a **fourth** rendering family, and it changes the shape
+of the answer rather than only its size. The model host's lifecycle lines spell `model=`, `pid=`
+and `port=` into their messages for the same stated reason, and so do about twenty other sites
+across `residency_*`, `swap_builders` and the model-host adapter. That family is left alone here
+and filed as [R-323](../refinements/tasks/323-a-field-spelled-into-its-own-message.md), on two
+grounds. Its members double a handful of short tokens rather than a whole JSON object, so the
+duplication is legible where the audit sinks' would be unreadable; and the runbook grep patterns
+that hunt a swap are written against those message texts, so sweeping them is a documentation
+change across the runbooks that read them rather than a formatter change.
+
+The third entry point is genuinely different and stays untouched: `cortex_email` configures no
+logging, imports `logging` nowhere, attaches no field anywhere, and does not depend on
+`cortex-core`. Giving it a formatter would mean giving a deliberately standalone MCP sidecar a
+dependency on the brain's core for a capability it does not exercise.
+
+### Decision 1: plain appended fields ship, JSON lines are the alternate, and the deployment picks
+
+`cortex_core/log_format.py` carries two renderings behind one `build_formatter(style)` seam:
+
+- **`plain`** appends `key=value` pairs, in name order, after the message. The half of the line
+  before the fields is byte for byte what `basicConfig` printed, since the formatter builds on
+  `logging.BASIC_FORMAT` rather than restating it.
+- **`packed`** writes one JSON object per line, with the fields under their own `fields` key so no
+  attached field can shadow `level`, `logger` or `message`.
+
+`plain` is the default, and the argument is about who reads these logs rather than about taste.
+This is a personal, local-first assistant whose operator reads `docker compose logs brain` in a
+terminal, and that stream is **mixed**: uvicorn writes its own access lines into it, llama.cpp
+writes raw stderr, and neither will ever be JSON. So a JSON default would not buy a
+machine-readable stream, nothing being able to parse the whole of it, while costing the one reader
+who exists the ability to read a line at a glance. It would also break every documented reading in
+the runbooks at once, since JSON spells `capped=True` as `"capped": true`.
+
+`packed` exists anyway, because which of those a deployment wants is a property of the deployment
+and not of this file, and because a rendering that is one `if` away from existing is not a seam
+until it does. It is chosen by env like everything else: `CORTEX_LOG_FORMAT` for the brain, and
+`CORTEX_MODELHOST_LOG_FORMAT` for the sidecar, whose own env already prefixes its level that way.
+A name neither carries raises `UnknownLogFormatError` at the entry, before anything is served,
+rather than falling back to a rendering nobody asked for.
+
+**Naming.** The pair is one family: how a record's fields are set down for whoever reads them, laid
+out plainly beside the message or packed into one carton for transport. Two alternates were weighed
+and declined. `plain`/`json` names one entry for its wire format and the other for its lack of one,
+so the family has no shared metaphor and a third rendering would have nowhere to stand.
+`loose`/`sealed` is more evocative and costs an operator reading an env file at three in the
+morning the ability to guess what they will get.
+
+### Decision 2: the three renderings the entry named come out, and the runbooks survive
+
+**This reverses the unjudged-rank addendum's "both readings ride the message as well as the
+record"**, which was right about the handler that shipped that day and wrong the moment one
+renders fields. Under `plain` the redundancy stops being harmless: `LoggingRecallSink` would print
+its whole JSON payload and then every field of it again. So all three come out. The recall trail and the tool
+audit now log a bare `memory.recall` / `tool.invocation` message with `extra` alone, and the rank
+fallback's message ends at `falling back to the unjudged ranking`.
+
+The runbooks needed less repair than expected, which is a property of `plain` rather than luck.
+`docs/runbooks/memory-pgvector.md` sends an operator to `grep "unjudged ranking"`, and that text is
+untouched. Its reading table asks for `capped=True` and for `capped=False chars=0`, and both still
+appear, adjacently, because fields render in name order and `capped` sorts before `chars`. The two
+things that did change are documented there: the trail line is now `key=value` pairs rather than
+one JSON object, and `hits` and `dropped` arrive as compact JSON inside their own field.
+
+### Decision 3: the formatter defends the secret ban itself, by name and by shape
+
+This is the one change in the repo that could turn a careless `extra=` into a leak, since the whole
+point of a formatter is that it prints fields nobody enumerated. AGENTS.md bans secrets in logs
+outright, so the defence is part of the formatter rather than an obligation on its callers, and it
+has two halves because the leak has two shapes.
+
+**By name.** A field whose name contains `token`, `password`, `passwd`, `secret`, `credential`,
+`apikey`, `api_key`, `authorization` or `cookie`, case-insensitively, prints `<redacted>` instead
+of its value. A **denylist** rather than an allowlist, deliberately: an allowlist would have to be
+edited for every new field, which is this very defect wearing a different hat, a field nobody
+registered being silently dropped instead of never printed, and a silent drop is the harder of the
+two to notice. The match is a substring, so `max_tokens` is withheld too. That is the trade this
+direction of error buys: a token count a reader can recover from the message costs less than one
+bearer token reaching a terminal. The value is replaced rather than the key removed, so a reader
+can tell a withheld field from a missing one.
+
+**By shape.** A credential inside a URL is stripped from the **whole rendered line**, message and
+traceback included, rather than field by field. That one arrives in a message and in a stack at
+least as often as in a field: `redis://:pw@redis:6379` is what a connection error prints, and both
+the session store and the mail bridge are configured as URLs. A bare email address is untouched,
+having no scheme in front of it.
+
+The three concrete secrets this deployment holds are all named for what they are, so both halves
+are asserted against them: the seam token, the mail bridge's password, and a model host credential.
+
+### Distrust green
+
+Measured in this session, each mutation applied to production code alone with
+`packages/core/tests/test_log_format.py`, `packages/memory/tests/test_recall_audit.py` and
+`packages/tools/tests/test_audit.py` re-run (34 cases):
+
+- dropping the appended fields from `PlainFormatter.formatMessage` reddens **11**, including both
+  audit trails, which is the point: the trails now depend on the formatter and their tests say so;
+- dropping the URL redaction from both formatters reddens **2**;
+- dropping the secret-name redaction from `record_fields` reddens **3**.
+
+The reserved-attribute set has its own guard, asserted as a difference in both directions, so a
+Python release that adds a `LogRecord` attribute reddens a test here rather than printing a new
+stdlib field as though a caller had attached it.
+
+### Verified live
+
+`docker compose logs brain` on the shipped stack, which is the only place an operator reads these.
+The line the seam server logs at boot carried its two fields for the first time.
+
+### Consequences
+
+- The two audit trails now **depend** on a formatter being installed. That is a real coupling and
+  the right one: handler configuration belongs at a process entry, and a library that renders its
+  own fields into its message is a library that has given up on the entry doing its job.
+- `configure_logging` is the one function in the core that changes process-wide state. It is called
+  only from a process entry, and it forces its handler on, an entry point stating what a process
+  logs like rather than asking.
+- Nothing about a turn's cost changes: the formatter runs once per emitted record, on a path that
+  was already formatting a string.
+
+### Deferred by this addendum
+
+Two, both filed rather than built: the wider family of fields spelled into their own messages
+([R-323](../refinements/tasks/323-a-field-spelled-into-its-own-message.md)), and the fact that a
+field's rendered value is unbounded, so an `extra` carrying a large or conversational value would
+print in full ([R-324](../refinements/tasks/324-a-rendered-field-has-no-bound.md)).

@@ -5,7 +5,6 @@ trail answers it from the logs instead, and the one thing it must never do is ta
 content along for the ride (ADR-0038 decision 5).
 """
 
-import json
 import logging
 from datetime import UTC, datetime
 
@@ -15,12 +14,14 @@ from cortex_core import (
     DroppedCandidate,
     DroppedCandidates,
     MemoryRecord,
+    PlainFormatter,
     RankBasis,
     RankedMemory,
     Ranking,
     RecallAudit,
     ScoredMemory,
     dropped_candidates,
+    record_fields,
 )
 from cortex_memory import LoggingRecallSink
 
@@ -52,9 +53,20 @@ def _audit(
 
 
 def _logged(caplog: pytest.LogCaptureFixture) -> dict[str, object]:
+    """The fields the line carries, read off the record exactly as the formatter reads them."""
     (record,) = caplog.records
-    payload: dict[str, object] = json.loads(record.getMessage().removeprefix("memory.recall "))
-    return payload
+    return record_fields(record)
+
+
+def _rendered(caplog: pytest.LogCaptureFixture) -> str:
+    """The whole line an operator reads, through the formatter a process entry installs.
+
+    The privacy assertions below are made against this rather than against the message, because
+    the message is no longer where the fields are: a check that conversation text stays out of
+    `getMessage()` would pass on a line that printed the text in a field.
+    """
+    (record,) = caplog.records
+    return PlainFormatter().format(record)
 
 
 async def test_the_trail_carries_the_pool_the_basis_and_each_hits_rank_key(
@@ -131,9 +143,9 @@ async def test_a_declined_rank_and_an_empty_pool_are_different_lines(
 async def test_the_trail_carries_no_conversation_text(caplog: pytest.LogCaptureFixture) -> None:
     with caplog.at_level(logging.INFO, logger="cortex.memory.recall"):
         await LoggingRecallSink().record(_audit())
-    (record,) = caplog.records
-    assert _PRIVATE not in record.getMessage()  # the recalled memory's text stays out of the logs
-    assert "what goes in the recipe?" not in record.getMessage()  # and so does the query
+    line = _rendered(caplog)
+    assert _PRIVATE not in line  # the recalled memory's text stays out of the logs
+    assert "what goes in the recipe?" not in line  # and so does the query
     assert _logged(caplog)["query_chars"] == len("what goes in the recipe?")
 
 
@@ -183,17 +195,27 @@ async def test_a_dropped_candidates_text_stays_out_of_the_line_too(
     audit = _audit(ranking=ranking, dropped=dropped_candidates(pool, ranking))
     with caplog.at_level(logging.INFO, logger="cortex.memory.recall"):
         await LoggingRecallSink().record(audit)
-    (record,) = caplog.records
-    assert _ALSO_PRIVATE not in record.getMessage()
+    assert _ALSO_PRIVATE not in _rendered(caplog)
     assert _logged(caplog)["dropped"] == [{"id": "m0", "score": 0.9}, {"id": "m1", "score": 0.4}]
 
 
-async def test_the_fields_also_ride_the_record_for_a_structured_collector(
+async def test_the_fields_reach_the_line_an_operator_actually_reads(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
+    """The trail's whole value is that it prints, and the sink no longer spells it twice.
+
+    The fields ride the record for a structured collector, and the formatter the process entry
+    installs is what puts them on the line. Both halves are asserted here: dropping either one
+    silently returns the trail to bare `memory.recall` lines, which is what it printed before a
+    formatter existed and the reason the sink used to serialize its own payload.
+    """
     with caplog.at_level(logging.INFO, logger="cortex.memory.recall"):
         await LoggingRecallSink().record(_audit())
     (record,) = caplog.records
     extras: dict[str, object] = vars(record)
     assert extras["session"] == "s1"
     assert extras["basis"] == "ember"
+    line = _rendered(caplog)
+    assert line.startswith("INFO:cortex.memory.recall:memory.recall ")
+    assert "session=s1" in line
+    assert "basis=ember" in line
