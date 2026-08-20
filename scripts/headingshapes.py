@@ -52,9 +52,11 @@ CODE_SPAN = re.compile(r"`[^`]*`")
 
 # The five inline shapes, each looked for in a heading whose code spans are already gone, except
 # the closing hashes, which are read off the raw text they trail. The bracketed span is deliberately
-# blind to what follows it: an inline link, an image and both reference forms are all found by the
-# brackets alone, and so is the shortcut form, which carries no mark of its own at all.
-BRACKETED = re.compile(r"!?\[[^\]]*\]")
+# blind to what surrounds it: an inline link, an image and both reference forms are all found by the
+# brackets alone, and so is the shortcut form, which carries no mark of its own at all. So the
+# image's leading bang is not spelled here either, a pair of brackets inside `![alt](url)` being
+# the same pair this finds anywhere else.
+BRACKETED = re.compile(r"\[[^\]]*\]")
 ANGLE_MARKUP = re.compile(r"<[A-Za-z/!?][^>]*>")
 CLOSING_HASHES = re.compile(r"\s#+$")
 UNDERSCORE_EMPHASIS = re.compile(r"(?:^|\W)_[^\s_][^_]*_(?:\W|$)")
