@@ -1259,3 +1259,19 @@ WSL projecting the device and the vendor shipping a Linux user mode driver for i
 - Nothing in the tree changes. The probe is a reading of the machine, not of the code.
 - The entry keeps its area and its origin here, for the reason it kept them when the host backlog
   was extracted: the work is code even where only one machine can judge it.
+
+## Addendum (2026-08-20, later): three projected devices against two adapters
+
+A close-out review of the probe above found two of its own measurements never put side by side. The
+guest's PCI bus carries three Microsoft vPCI devices of display class `0x030200`, `1414:008e` twice
+and `1414:008a`, all bound to `dxgkrnl`. The adapter channel reached through them enumerates two
+adapters under every capability attribute. Three devices, two adapters, and no sentence joining
+them.
+
+It costs the conclusion nothing, since a device that enumerates as no adapter at all cannot be one
+that answers to the compute accelerator type. It costs a reader something: the discrepancy shows up
+in the first two commands of a re-run, with nothing saying it was seen, which is how a loose end
+gets re-derived from scratch or read as a hidden device. The likely answer, marked as the guess it
+is, is that WSL projects one node per host adapter plus one that is not an adapter, `1414:008a`
+differing in device id from the pair rather than duplicating it. Nothing here measured that. Filed
+as [R-348](../refinements/tasks/348-three-devices-against-two-adapters.md).

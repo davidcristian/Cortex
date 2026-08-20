@@ -891,3 +891,29 @@ quiet half back, and that is the trigger, filed as
 [R-335](../refinements/tasks/335-the-relays-share-one-shell.md). The fix, if it ever fires, is the
 three lines the entry described: one non-blank validator on both relay arguments, refusing with
 argparse's own usage error.
+
+## Addendum (2026-08-20, later): a mutation table is a self report until somebody replays it
+
+This record's most valuable habit is the mutation table: a change says which edits it reddens and
+how many cases each one takes down, which is what distrusting green amounts to in practice. A
+close-out review of a fourteen change run observed the obvious thing about all of them at once.
+Not one table had been re-run by anybody other than the agent that wrote it.
+
+A mutation count is a claim that the suite would have caught something, and its evidence is a run on
+a tree that no longer exists, since the tree that survives is the unmutated one. After the fact the
+claim is unfalsifiable without redoing the work: reconstruct the edit from the sentence describing
+it, apply it, run the suite. Where the sentence names the file and the exact edit that is minutes.
+Where it says something like "reverting the way out reddens six" it is a reading exercise first. Two
+of the run's messages state that every mutation was read back off disk before its result was
+trusted, which is the discipline the tables rest on and is itself a self report; the review was
+told, and did not measure, that at least one table had first been trusted off an edit that landed
+on the wrong lines, which is recorded here as reported. The Docker-dependent measurements in the
+same run have this shape and one weakness more, having been taken against containers nobody can now
+re-enter.
+
+Nothing here argues for fewer tables. The gap is that the practice has no second reader, so an
+honest agent and a mistaken one file the same paragraph. What would close it is a table written to
+be replayed without judgement, naming the file, the edit and the expected count, plus a pass that
+replays a sample from the record; the decision the entry asks for is whether replayability is a
+requirement of the wording, which is enforceable, or a habit of whoever reviews, which is not. Filed
+as [R-349](../refinements/tasks/349-a-mutation-table-nobody-replayed.md).

@@ -3198,3 +3198,29 @@ what the suite holds.
 
 - A userinfo the pattern cannot reach at all, which predates the bound and is untouched by it:
   [R-343](../refinements/tasks/343-a-userinfo-the-pattern-cannot-reach.md).
+
+## Close-out-review addendum (2026-08-20): two claims these changes left wider than the tree
+
+A close-out review of the run this record documents found two sentences that outrun what the code
+supports. Neither is a fault in behaviour, and both are the kind that get cited rather than
+re-derived, so both are filed rather than left in the reading of whoever hits them next.
+
+**A refusal that is not the only record of itself.** The change that stopped the model host daemon
+logging a wedged child's sentence twice put the level on the line that survives, and argued for it
+with reach: a swap's eviction meets the 503 through the brain's own port, the brain makes a note of
+it without logging its text, so the daemon's line is the only record of it anywhere. True of that
+path. False of the swap back, where `restore_standing` logs both of its failures with
+`_logger.exception` and the `ModelHostError` in the traceback was built out of the daemon's own
+response body, so the daemon's sentence reaches the brain's log intact. The level stays right and
+the argument stays too wide, filed as
+[R-345](../refinements/tasks/345-a-refusal-that-is-not-the-only-record.md).
+
+**A turn nobody escalated is still completed under a foreign id.** The change that moved the turn id
+out of the engine fixed `EscalatingTurnEngine` one level in, so an escalated turn completes under
+the id the wrapper was asked to serve. Its other exit was left alone: when the cortex asked for
+nothing, the inner runner's own completion object is yielded through unchanged, so the id the client
+reads there is whatever the inner runner put on it. The two agree today because the wrapper passes
+the id down and the one engine behind the factory echoes it, which makes this an invariant resting
+on an agreement between two files, in the arm that runs on every turn that is not escalated. The
+case added with that change covers the escalating arm only. Filed as
+[R-347](../refinements/tasks/347-a-transparent-turn-keeps-the-inner-id.md).
