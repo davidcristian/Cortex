@@ -854,10 +854,14 @@ and the reason is stronger than the one it was filed under.
 entry describes what the module does.
 
 **The shield is not the standing probe.** The entry argued that reaching an empty relay needs the
-recipe's standing `rustc +nightly --version` line to succeed and the identical substitution two
+recipe's standing `rustc +nightly --version` line to succeed and the identical substitution four
 lines later to yield nothing. That line runs in `body/` in a shell of its own, so it is the weaker
-half of the argument. The load-bearing half is that both relays are filled on **one** recipe line,
-by two command substitutions in one shell with one working directory and one toolchain resolution:
+half of the argument. (**The distance is corrected here**, having been written as two lines. The
+tool probe, the instrumented run and a `uv sync` stand between the compiler probe and the relay,
+which is four lines and not two. Nothing in the argument turns on the number, and a distance
+written down wrong is still written down wrong.) The load-bearing half is that both relays are
+filled on **one** recipe line, by two command substitutions in one shell with one working directory
+and one toolchain resolution:
 
 ```
 cd scripts && uv run python coverage_gate.py ../body/coverage.json --rustc "$(rustc +nightly --version)" --llvm-cov "$(cargo +nightly llvm-cov --version)"
@@ -868,8 +872,12 @@ substituting a toolchain name that does not resolve: both substitutions come bac
 and the gate exits 1 on the producer mismatch. An empty `--rustc` arriving **alone** needs nightly
 cargo-llvm-cov to answer while nightly rustc prints nothing, in the same shell, seconds apart.
 
-**That makes the validator a third gate of a shape this record has twice declined**, the dated pin
-on its expiry cost and the compiler-in-export comparison on being unable to disagree. The suite
+**That makes the validator one more gate of a shape this record has declined at least three
+times**, the dated pin twice on its expiry cost, which is this record's own count of it in two
+places above, and the compiler-in-export comparison once on being unable to disagree. (**The count
+is corrected here.** It read as a third gate against two declines, taking the pin for one of them,
+where the two sentences above that call the pin twice declined were already in the record when this
+was written.) The suite
 would carry a case the only caller cannot produce, which is what "a gate that cannot fail is a
 defect" names. The asymmetry it would remove is real and stays: one relay is checked and the other
 is printed, because the export records a tool and no compiler, which the earlier addenda already
