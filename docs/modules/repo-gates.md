@@ -256,10 +256,15 @@ that last question to have an answer.
   exactly when every construct in the source is built from characters the rule already drops and
   carries no text away: plain prose, punctuation, code spans and `*` emphasis all qualify.
   `unsluggable(text)` returns the six shapes that do not, each as an `Unsluggable(line, heading,
-  reason)`, and `problems(name, text)` renders them for the gate. The six are a link (inline,
-  reference, or image), angle-bracket markup (an HTML tag or an autolink), a closing run of hashes,
+  reason)`, and `problems(name, text)` renders them for the gate. The six are a bracketed span,
+  angle-bracket markup (an HTML tag or an autolink), a closing run of hashes,
   underscore emphasis, an entity reference, and a setext underline, which is the one that is
-  invisible rather than misread. **They are refused, not emulated**: rendering a heading's inline
+  invisible rather than misread. **The bracketed span is refused with or without a target**
+  (ADR-0039 bracket addendum), which covers an inline link, an image and both reference forms by
+  the mark they carry and the shortcut form, which carries none: whether that one is a link
+  depends on a link reference definition elsewhere in the document, the one question a heading
+  cannot answer about itself. The price is a literal pair of brackets in a heading, and no heading
+  in this tree spends one. **They are refused, not emulated**: rendering a heading's inline
   markdown before slugging it is a transform written against shapes the tree does not contain, and
   a wrong transform yields a wrong anchor, which is a silent accept nothing here could see, where a
   refusal is loud. An underscore *inside* a word is never reported, CommonMark reading none as

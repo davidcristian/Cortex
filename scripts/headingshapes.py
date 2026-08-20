@@ -14,8 +14,12 @@ either way.
 Six shapes do not qualify, and every one of them makes the rule read a heading MORE literally
 than a renderer does:
 
-- **a link or an image**, where a renderer slugs the bracketed text alone and the rule slugs
-  the text and the target both, welding a path onto the anchor;
+- **a bracketed span**, with or without a target after it. Where a target follows, a renderer
+  slugs the bracketed text alone and the rule slugs the text and the target both, welding a path
+  onto the anchor. Where none does, the span is a link exactly when a definition elsewhere in the
+  document names its label, which is the one question a heading cannot answer about itself, so
+  the whole shape is refused rather than the half a target marks. The price is a literal pair of
+  brackets in a heading, which no heading in this tree spends;
 - **angle-bracket markup**, an HTML tag or an autolink, whose letters the rule keeps as text;
 - **a closing run of hashes**, which markdown allows and a renderer strips, where the rule
   turns the space before them into a trailing hyphen;
@@ -47,8 +51,10 @@ FENCE = re.compile(r"^\s*(?:```|~~~)")
 CODE_SPAN = re.compile(r"`[^`]*`")
 
 # The five inline shapes, each looked for in a heading whose code spans are already gone, except
-# the closing hashes, which are read off the raw text they trail.
-INLINE_LINK = re.compile(r"!?\[[^\]]*\][(\[]")
+# the closing hashes, which are read off the raw text they trail. The bracketed span is deliberately
+# blind to what follows it: an inline link, an image and both reference forms are all found by the
+# brackets alone, and so is the shortcut form, which carries no mark of its own at all.
+BRACKETED = re.compile(r"!?\[[^\]]*\]")
 ANGLE_MARKUP = re.compile(r"<[A-Za-z/!?][^>]*>")
 CLOSING_HASHES = re.compile(r"\s#+$")
 UNDERSCORE_EMPHASIS = re.compile(r"(?:^|\W)_[^\s_][^_]*_(?:\W|$)")
@@ -66,7 +72,7 @@ BLOCK_OPENER = re.compile(r"^\s*(?:[-*+]\s|\d+[.)]\s|>|\||#{1,6} )")
 
 # What each refused shape is told, and the remedy all six share. Constants so a test names the
 # sentence the gate prints rather than a paraphrase of it that could drift from the gate's own.
-LINKED = "carries a link, whose target this rule would weld onto the anchor"
+LINKED = "brackets a span, which markdown may make a link and this rule always reads literally"
 TAGGED = "carries angle-bracket markup, whose letters this rule keeps and a renderer drops"
 CLOSED = "is closed with hashes, which a renderer strips and this rule leaves as a trailing hyphen"
 STRESSED = "emphasises with underscores, a word character to this rule and a mark to a renderer"
@@ -105,7 +111,7 @@ def _inline_reason(heading: str) -> str | None:
     if CLOSING_HASHES.search(heading):
         return CLOSED
     bare = CODE_SPAN.sub("", heading)
-    if INLINE_LINK.search(bare):
+    if BRACKETED.search(bare):
         return LINKED
     if ANGLE_MARKUP.search(bare):
         return TAGGED

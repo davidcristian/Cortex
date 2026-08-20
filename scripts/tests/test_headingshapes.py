@@ -55,6 +55,15 @@ def test_headings_ignores_a_hash_inside_a_fenced_block() -> None:
         ("The mark ![its bubble](../assets/logo.svg)", headingshapes.LINKED),
         # A reference link resolves elsewhere; the label is not part of the rendered text.
         ("Read [the rules][rules]", headingshapes.LINKED),
+        # The shortcut form carries no mark at all: whether it is a link depends on a definition
+        # somewhere else in the document, which is the one question a heading cannot answer about
+        # itself, so the brackets alone are enough to refuse it.
+        ("Read [the rules]", headingshapes.LINKED),
+        # And the collapsed form between the two, whose empty pair of brackets is its whole mark.
+        ("Read [the rules][]", headingshapes.LINKED),
+        # A span nobody meant as a link is refused with them, which is the price of the rule and
+        # the reason it is worth paying: a heading that looks like a link misleads a reader first.
+        ("A note [with an aside] in it", headingshapes.LINKED),
         # A renderer drops the tags; this rule keeps kbd and the slash as letters.
         ("Press <kbd>Ctrl</kbd>+N", headingshapes.TAGGED),
         # An autolink is angle brackets too, and its URL is not the rendered text either.
