@@ -776,3 +776,34 @@ is `MemoryDataError` and fails the turn. Both were proven able to fail: the stre
 check reddens on a store scripted to call an outage a data defect, and the core's re-raise reddens
 its own test when removed, the degrading catch swallowing the subclass and no `forgoing` status
 being the only difference the user would see. Both breaks were restored.
+
+## Addendum (2026-08-20): the delete cascade's data defect gets its own seam code
+
+The data-defect addendum drew its line at the two catches a turn passes through and deliberately
+left the third call site on the same port alone. `SessionServicer.DeleteSession` caught
+`(SessionStoreError, MemoryStoreError)` and aborted `UNAVAILABLE`, which the narrower subclass
+inherits, so a cascade whose `delete_scope` met a `DELETE` command tag it could not parse told the
+body to try again later about the one condition no retry improves. `MemoryDataError` is now named
+ahead of that catch and aborts `INTERNAL`. It is the same move one layer out, it leaves every other
+failure on the method reading exactly as it did, and it puts all three call sites on the cascade in
+agreement about what the two kinds of failure mean.
+
+**It is a label, not a behaviour change**, and
+[R-104](../refinements/tasks/104-delete-cascade-seam-mapping.md) claimed twice that it was more.
+It expected the body to read the code differently, and the body does not: `is_transient` treats
+only `Rpc { code: "Unavailable" }` as retryable, and `SeamMethod::DeleteSession` is classified
+non-repeatable besides, so this call was never repeated under either code and cannot be. It
+expected the overlay to offer a retry for it, and `body/app/src` carries no per-code retry
+affordance at all. What actually changes is what the failure says about itself. An operator reading
+`UNAVAILABLE` goes looking for a Postgres that is down, and on this condition there is nothing down
+to find: the server answered, and what it answered is a row or a status this repo cannot decode,
+which is fixed by changing the data or the schema and by nothing else. That is worth one `except`
+in one place, and the honest scope is worth writing down beside it, because a close that repeated
+the entry's framing would have claimed a retry loop was removed when none existed.
+
+**Proven able to fail, twice.** Both were measured over the whole `packages` suite, 2757 tests, and
+restored. Dropping the new catch reddens exactly one,
+`test_delete_session_undecodable_memory_reply_aborts_internal`, which comes back `UNAVAILABLE`
+instead. Ordering the new catch *after* the one it narrows reddens the same one and no other, since
+Python takes the first matching arm and the base class matches, so the ordering the whole fix rests
+on is pinned rather than assumed.

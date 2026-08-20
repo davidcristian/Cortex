@@ -16,6 +16,7 @@ from cortex_core import (
     EchoInferenceBackend,
     InMemoryMemoryStore,
     InMemorySessionStore,
+    MemoryDataError,
     MemoryRecord,
     MemoryStoreError,
     Message,
@@ -257,6 +258,20 @@ class FailingMemoryStore:
         raise MemoryStoreError(msg)
 
 
+class UndecodableMemoryStore(FailingMemoryStore):
+    """A MemoryStore whose delete_scope answers with a reply this repo cannot read.
+
+    The other half of the same port: the real adapter raises this when Postgres returns a `DELETE`
+    command tag it cannot parse a count out of, which is the store answering rather than the store
+    being unreachable. Wrapped in the same real cascade, so the id it fails on is the seam's.
+    """
+
+    async def delete_scope(self, scope: str) -> int:
+        del scope
+        msg = "malformed delete status from the memory store"
+        raise MemoryDataError(msg)
+
+
 async def test_list_sessions_store_failure_aborts_unavailable() -> None:
     server, address = await _serve(FailingStore())
     try:
@@ -427,3 +442,32 @@ async def test_delete_session_memory_cascade_failure_aborts_unavailable() -> Non
         await server.stop(grace=None)
     assert excinfo.value.code() is grpc.StatusCode.UNAVAILABLE
     assert "pgvector is down" in (excinfo.value.details() or "")
+
+
+async def test_delete_session_undecodable_memory_reply_aborts_internal() -> None:
+    """The cascade's data defect is a fault of this side, so it is not reported as an outage.
+
+    The two failures reach this handler through one port and one call, and the difference is
+    whether anything about the condition ends: an unreachable Postgres comes back, while a reply
+    nothing here can decode reads the same on every later attempt. `UNAVAILABLE` is the seam's
+    word for the first, and saying it about the second sends whoever reads the code, an operator
+    included, to look for an outage that is not there.
+
+    What is deliberately NOT claimed is a change of behaviour: the body classifies this method as
+    non-repeatable and retries only `Unavailable` anyway, so nothing on either side ever repeated
+    it. This is the label, and the same distinction the turn path already draws.
+    """
+    store = await _seeded_store()
+    cascade = SessionMemoryCascade(UndecodableMemoryStore(), SessionMemoryScope())
+    server, address = await _serve(store, cascade=cascade)
+    try:
+        async with aio.insecure_channel(address) as channel:
+            with pytest.raises(aio.AioRpcError) as excinfo:
+                await _delete(BrainServiceStub(channel), "alpha")
+    finally:
+        await server.stop(grace=None)
+    assert excinfo.value.code() is grpc.StatusCode.INTERNAL
+    assert "malformed delete status" in (excinfo.value.details() or "")
+    # The chat itself is gone: the cascade runs second, so the user's primary intent stands and
+    # a retry re-runs only the forget.
+    assert [s.session_id for s in await store.list_sessions(limit=10)] == ["beta"]
