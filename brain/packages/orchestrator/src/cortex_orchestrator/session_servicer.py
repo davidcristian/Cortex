@@ -4,15 +4,17 @@ Split from ``server.py`` for the line cap: ``SessionRpcMixin`` holds the five se
 servicer methods (list, history, rename, delete, pin) that ``BrainService`` mixes in, so the
 servicer shell stays thin (the ``session_rpc.py`` / ``reminders.py`` precedent). Each method is a
 thin binding onto the session store: it delegates the mapping and the gated writes to
-``session_rpc`` and aborts ``UNAVAILABLE`` on a store failure (the read-path precedent). The mixin
-reads the same injected ``SessionStore`` (and, for delete, the optional ``SessionMemoryCascade``)
-that ``BrainService`` constructs; it holds no state of its own.
+``session_rpc`` and aborts ``UNAVAILABLE`` on a store failure (the read-path precedent), with
+``DeleteSession`` naming ``INTERNAL`` as well for the one narrower failure its cascade can meet.
+The mixin reads the same injected ``SessionStore`` (and, for delete, the optional
+``SessionMemoryCascade``) that ``BrainService`` constructs; it holds no state of its own.
 """
 
 import grpc
 from grpc import aio
 
 from cortex_core import (
+    MemoryDataError,
     MemoryStoreError,
     SessionMemoryCascade,
     SessionStore,
@@ -46,7 +48,8 @@ class SessionRpcMixin:
     Reads the ``BrainService``-injected session store (`_store`) and, for delete, the optional
     memory cascade (`_memory_cascade`); both are declared as required attributes so any host class
     must provide them. Every method delegates to ``session_rpc`` and aborts ``UNAVAILABLE`` on a
-    store failure, the session-read precedent.
+    store failure, the session-read precedent; ``DeleteSession`` additionally aborts ``INTERNAL``
+    on the memory port's narrower data defect, which is the one failure here that never heals.
     """
 
     _store: SessionStore
@@ -92,9 +95,24 @@ class SessionRpcMixin:
         request: DeleteSessionRequest,
         context: aio.ServicerContext[DeleteSessionRequest, DeleteSessionReply],
     ) -> DeleteSessionReply:
-        """Gated user-only delete + memory cascade via `session_rpc.delete_session` (ADR-0021)."""
+        """Gated user-only delete + memory cascade via `session_rpc.delete_session` (ADR-0021).
+
+        The one method here whose port declares a narrower failure, so it is the one that names
+        two codes. A cascade whose `delete_scope` met a reply this repo cannot read raises
+        `MemoryDataError`, and that is not an outage: the row or the schema is wrong, so it reads
+        the same on the next attempt and the next week, where every other `MemoryStoreError` says
+        Postgres was unreachable and heals by itself. `UNAVAILABLE` is the seam's word for the
+        second and would be a lie about the first, `INTERNAL` its word for a fault of this side.
+
+        Naming it changes what the failure says and not what either side does with it: the body
+        classifies this method as non-repeatable, so no code on it was ever retried, and the
+        overlay offers no per-code affordance. It is the same distinction the turn path already
+        draws, carried to the third call site on the cascade so all three read alike.
+        """
         try:
             return await delete_session(self._store, self._memory_cascade, request.session_id)
+        except MemoryDataError as err:
+            await context.abort(grpc.StatusCode.INTERNAL, str(err))
         except (SessionStoreError, MemoryStoreError) as err:
             await context.abort(grpc.StatusCode.UNAVAILABLE, str(err))
 
