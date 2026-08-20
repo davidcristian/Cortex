@@ -65,6 +65,14 @@ fresh ``StandingTiers`` instead of the manager's own (two records for one fact, 
 version of this that did not reach through the manager would have) reddens exactly 1,
 ``test_a_boot_whose_peer_tier_is_down_still_says_the_brain_is_ready``, on both of its last two
 lines: the seam would say nothing about the tier and the pool would go on offering the GPU.
+
+Two for the tier ids themselves, which are the one thing the case above cannot see. Keying the
+endpoint map by the module's own ``"brain"`` constant instead of the plan's id reddens exactly 1
+across the workspace's 2757, ``test_each_tier_leases_the_endpoint_its_own_deployment_named``, and
+so does keying the cortex half by ``"cortex"``. The one-lease-and-one-residency case above leases
+both tiers, asserts both endpoints, and stays green through either, because it leaves both ids at
+their shipped defaults, where the constant and the deployment's value are the same string. That is
+the whole reason the case beside it renames them.
 """
 
 import asyncio
@@ -336,6 +344,41 @@ async def test_the_enabled_runtime_is_the_one_lease_and_the_one_residency() -> N
     async with runtime.manager.acquire("cortex") as lease:
         assert lease.endpoint == "http://llama-cortex:8080"
     async with runtime.manager.swap_scope("brain"), runtime.manager.acquire("brain") as lease:
+        assert lease.endpoint == "http://llama-brain:8081"
+    await swap_closer(runtime)()
+
+
+async def test_each_tier_leases_the_endpoint_its_own_deployment_named() -> None:
+    """A deployment that renamed both tiers still leases, and the case above cannot see it.
+
+    The ids and the endpoints are declared apart (`CORTEX_MODEL_CORTEX` and `CORTEX_MODEL_BRAIN`
+    name the tiers, `CORTEX_INFERENCE_ENDPOINT` and `CORTEX_BRAIN_ENDPOINT` say where each
+    answers), the plan carries the first pair and the endpoint map is keyed by it, and the deep
+    phase asks for `plan.brain_model` by name. Nothing below the root compares the two: the
+    manager refuses an id it has no endpoint for, and no fake in the tree reads an id at all.
+
+    Both tiers are renamed here, which is the whole of the pin. Under the shipped ids a map keyed
+    by the module's own constants is indistinguishable from one keyed by the deployment's values,
+    so the case above stays green on exactly the mis-wiring that would leave a handoff unable to
+    lease the model it just swapped in.
+    """
+    runtime = build_swap_runtime(
+        _enabled(brain_model="brain-alt"),
+        BrainRuntimeConfig(cortex_model="cortex-alt"),
+        InferenceConfig(backend="llamacpp", endpoint="http://llama-cortex:8080"),
+        SystemClock(),
+        AsyncioSleeper(),
+        _fake_handoff_store,
+    )
+    assert runtime is not None
+    plan = runtime.plan
+    assert (plan.cortex_model, plan.brain_model) == ("cortex-alt", "brain-alt")
+    async with runtime.manager.acquire(plan.cortex_model) as lease:
+        assert lease.endpoint == "http://llama-cortex:8080"
+    async with (
+        runtime.manager.swap_scope(plan.brain_model),
+        runtime.manager.acquire(plan.brain_model) as lease,
+    ):
         assert lease.endpoint == "http://llama-brain:8081"
     await swap_closer(runtime)()
 
