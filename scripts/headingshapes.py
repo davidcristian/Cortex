@@ -11,9 +11,7 @@ FENCE = re.compile(r"^\s*(?:```|~~~)")
 # inline shapes below are looked for, so a heading that *quotes* a link or an entity is left be.
 CODE_SPAN = re.compile(r"`[^`]*`")
 
-# The five inline shapes, each looked for in a heading whose code spans are already gone, except
-# the closing hashes, which are read off the raw text they trail.
-INLINE_LINK = re.compile(r"!?\[[^\]]*\][(\[]")
+BRACKETED = re.compile(r"!?\[[^\]]*\]")
 ANGLE_MARKUP = re.compile(r"<[A-Za-z/!?][^>]*>")
 CLOSING_HASHES = re.compile(r"\s#+$")
 UNDERSCORE_EMPHASIS = re.compile(r"(?:^|\W)_[^\s_][^_]*_(?:\W|$)")
@@ -31,7 +29,7 @@ BLOCK_OPENER = re.compile(r"^\s*(?:[-*+]\s|\d+[.)]\s|>|\||#{1,6} )")
 
 # What each refused shape is told, and the remedy all six share. Constants so a test names the
 # sentence the gate prints rather than a paraphrase of it that could drift from the gate's own.
-LINKED = "carries a link, whose target this rule would weld onto the anchor"
+LINKED = "brackets a span, which markdown may make a link and this rule always reads literally"
 TAGGED = "carries angle-bracket markup, whose letters this rule keeps and a renderer drops"
 CLOSED = "is closed with hashes, which a renderer strips and this rule leaves as a trailing hyphen"
 STRESSED = "emphasises with underscores, a word character to this rule and a mark to a renderer"
@@ -70,7 +68,7 @@ def _inline_reason(heading: str) -> str | None:
     if CLOSING_HASHES.search(heading):
         return CLOSED
     bare = CODE_SPAN.sub("", heading)
-    if INLINE_LINK.search(bare):
+    if BRACKETED.search(bare):
         return LINKED
     if ANGLE_MARKUP.search(bare):
         return TAGGED

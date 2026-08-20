@@ -1,9 +1,8 @@
 # A shortcut reference link in a heading is the one shape the refusal cannot see
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-08-20
 **Area:** repo-gates
 **Origin:** [ADR-0039](../../adr/ADR-0039-backlog-per-task.md)
-**Trigger:** the first link reference definition written anywhere in this repo, a line whose whole content is a bracketed label, a colon and a target. Until one exists, the shape below renders as literal brackets and both readings agree.
 
 Opened 2026-08-18 by the close of [292](292-slug-rule-approximates-a-renderer.md), which made
 `scripts/headingshapes.py` refuse six heading shapes whose anchor the slug rule cannot work out.
@@ -37,3 +36,17 @@ refused were proved.
 
 - 2026-08-18: opened by the close of [292](292-slug-rule-approximates-a-renderer.md), whose
   re-derivation of the slug rule's fidelity found this residue beside the six shapes it refused.
+- 2026-08-20: landed on the wider of the two branches this entry named, which is the one it
+  called probably the better: the detector drops the opening parenthesis or bracket it required
+  after a label, so a bracketed span in a heading is refused whatever follows it. That reaches the
+  shortcut form and costs one regex instead of a pass over each document's link reference
+  definitions, which would have been the first rule in this gate needing more than the heading it
+  judges. Re-measured before changing anything and the margin held: 431 markdown files, 2149 ATX
+  headings, zero link reference definitions and zero headings carrying a bracket at all, so nothing
+  in the tree was rewritten. The refusal's sentence moved with the rule, since the old one spoke
+  only of a target welded onto the anchor, and the suite asserts the new one on the shortcut form,
+  the collapsed form and a bracketed aside nobody meant as a link. Proved able to fail against the
+  old detector, which passes two of those three, and end to end on a heading planted in a real
+  runbook. The reasoning is the ADR-0039 addendum on the bracketed span. The price the entry named,
+  a heading that means its brackets literally, opens as
+  [R-334](334-a-heading-that-means-its-brackets.md).
