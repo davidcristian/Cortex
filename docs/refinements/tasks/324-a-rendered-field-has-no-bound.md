@@ -29,6 +29,16 @@ knowledge that anything was dropped unless a count rides along the way `dropped_
 
 ## Trail
 
+- 2026-08-20: The landing below had a hole in it, found by an independent audit and fixed
+  (ADR-0038 cut-defeats-withholding addendum). The bound was applied after the value was rendered
+  but before the line's URL withholding ran, and `_USERINFO` ends its match on the `@` that closes
+  a userinfo, so a cut falling between a URL's `://` and that `@` printed the credential in full on
+  the shipped default rendering. A rendering is now withheld before it is cut. Two smaller things
+  went with it: a rendering the bound will cut is quoted rather than left bare, so the marker's
+  whitespace no longer writes a field boundary inside a field, and the eight-fields headroom
+  claimed below was corrected to the seven that is measurable. One residue opened, the shapes of
+  credential the pattern cannot match at all
+  ([R-343](343-a-userinfo-the-pattern-cannot-reach.md)).
 - 2026-08-20: Landed (ADR-0038 bounded-value addendum). A value is cut at 2,048 rendered
   characters, the measured 16 KiB a container's log driver gives one message divided by eight, with
   `<cut 900 chars>` naming what went. Measured on the shipped image: a rendered line of 16,383

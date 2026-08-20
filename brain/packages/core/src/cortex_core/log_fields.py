@@ -57,9 +57,6 @@ SECRET_NAMES = (
     "token",
 )
 
-# The userinfo half of a URL: everything between the scheme's ``://`` and an ``@``. A bare email
-# address is untouched, having no scheme in front of it, and so is a URL that carries no
-# credential, there being no ``@`` to end the match.
 _USERINFO = re.compile(r"(?<=://)[^/\s@]*@")
 
 # A value that can be printed as it stands: one token, no whitespace to run it into the next
@@ -87,8 +84,9 @@ def record_fields(record: logging.LogRecord) -> dict[str, object]:
     }
 
 
-def _bound_value(text: str) -> str:
-    """``text`` cut to ``VALUE_CHARS``, with a marker naming the characters that did not print."""
+def _bound_value(rendering: str) -> str:
+    """``rendering`` with its credentials withheld, then cut to ``VALUE_CHARS`` with a marker."""
+    text = redact_urls(rendering)
     if len(text) <= VALUE_CHARS:
         return text
     return text[:VALUE_CHARS] + CUT.format(chars=len(text) - VALUE_CHARS)
@@ -106,7 +104,10 @@ def render_value(value: object) -> str:
                 value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str
             )
         )
-    return _bound_value(text if _BARE.fullmatch(text) else json.dumps(text, ensure_ascii=False))
+    safe = redact_urls(text)
+    if _BARE.fullmatch(safe) and len(safe) <= VALUE_CHARS:
+        return safe
+    return _bound_value(json.dumps(safe, ensure_ascii=False))
 
 
 def render_fields(fields: Mapping[str, object]) -> str:

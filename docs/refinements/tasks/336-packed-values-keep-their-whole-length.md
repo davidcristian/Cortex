@@ -27,6 +27,11 @@ as unbounded on purpose, which is where it stands today and is only honest while
 
 ## Trail
 
+- 2026-08-20: The second shape below gained an argument nobody was looking for. `render_value` now
+  withholds a URL credential before the bound cuts, because a cut between a `://` and its `@`
+  defeated the whole-line pass entirely (ADR-0038 cut-defeats-withholding addendum). The packed
+  rendering never had that exposure, having no cut, so nothing here is more urgent; but a packed
+  line routed through `render_value` would inherit the ordering rather than need it written twice.
 - 2026-08-20: Opened by the close of
   [R-324](324-a-rendered-field-has-no-bound.md), which bounded the rendering an operator reads and
   deliberately left the one a collector reads alone.
