@@ -6,9 +6,11 @@ wildcard re-exports, and it is this file's contract.
 """
 
 from cortex_core.log_fields import (
+    CUT,
     REDACTED,
     RESERVED_ATTRS,
     SECRET_NAMES,
+    VALUE_CHARS,
     is_secret_name,
     record_fields,
     redact_urls,
@@ -28,6 +30,7 @@ from cortex_core.log_format import (
 )
 
 __all__ = [
+    "CUT",
     "DEFAULT_LOG_FORMAT",
     "LOG_FORMATS",
     "PACKED_FORMAT",
@@ -35,6 +38,7 @@ __all__ = [
     "REDACTED",
     "RESERVED_ATTRS",
     "SECRET_NAMES",
+    "VALUE_CHARS",
     "PackedFormatter",
     "PlainFormatter",
     "UnknownLogFormatError",

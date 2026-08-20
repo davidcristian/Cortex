@@ -2112,6 +2112,19 @@ Log rendering (ADR-0038 rendered-fields addendum; `log_fields.py` + `log_format.
 - `render_value` writes a scalar the way Python does, so `capped=True` keeps the spelling the
   runbooks read, and anything else as compact JSON, so a list of ranked hits stays parseable. A
   string is quoted exactly when whitespace or a quote of its own would run it into its neighbour.
+- **A value is bounded at `VALUE_CHARS` (2,048) rendered characters**, and `CUT`
+  (`<cut 900 chars>`) names what did not print (ADR-0038 bounded-value addendum). The number is the
+  measured 16 KiB a container's log driver gives one message divided by eight, and it clears the
+  widest value the tree attaches, the recall trail's dropped candidates at the shipped pool of
+  twenty. The bound is spent on the rendered text rather than on the value, since escaping is what
+  a line costs, and both of `render_value`'s ways out pass through it, so the two branches cannot
+  drift to two bounds. A cut structure no longer parses, deliberately: this function renders a
+  value it does not own, so it has nowhere to put a count the way `dropped_omitted` sits beside the
+  list it describes, and a truncated list that still parses is read as the whole of it. The marker
+  cannot be read as a field's own text, because a bare rendering carries no whitespace and a cut
+  one has lost its closing quote, so the marker only ever follows a rendering that stopped
+  mid-syntax. **The packed rendering does not inherit it**, handing its fields to `json.dumps` as
+  they were attached, and that gap is carried in the refinements backlog rather than closed there.
 
 Reference implementations (pure, shipped in core; the runtime wiring until Slice 4):
 
