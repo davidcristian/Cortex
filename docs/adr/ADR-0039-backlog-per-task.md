@@ -398,9 +398,13 @@ it, and the constant kept its name.
 **Measured before changing anything, and proved able to fail after.** A sweep over all 431 markdown
 files in the tree on the day of the change found **zero** link reference definitions and **zero**
 headings carrying a bracket at all, code spans included, out of 2149 ATX headings, so the stricter
-rule rewrote nothing. Four cases were added beside the six already proved: the shortcut form, the
+rule rewrote nothing. Three cases were added beside the six already proved: the shortcut form, the
 collapsed form, and a bracketed aside nobody meant as a link, each refused by name. The old detector
-was run beside the new one over the same five headings and passes the shortcut form and the aside,
-which is the hole this closes. End to end, a heading reading `## 3. Validate delegation against
+was run beside the new one over the same six bracketed headings and passes the shortcut form and the
+aside, which is the hole this closes. (**Two counts in that sentence pair are corrected here.** It
+was written as four cases added and five headings compared. Three cases were added, which is what
+the commit message and the entry both say and what the suite carries at
+`scripts/tests/test_headingshapes.py`, and the bracketed cases the old detector was run against
+number six.) End to end, a heading reading `## 3. Validate delegation against
 [the rules]` planted in a real runbook takes `backlogcheck` to exit 1 naming the file, the line, the
 heading and the remedy, and the tree returns to `backlogcheck OK` when it is removed.

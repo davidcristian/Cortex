@@ -21,7 +21,7 @@ Six things fail here:
 4. An index whose generated block is stale, missing, or hand-edited.
 5. A `tasks/` directory holding something that is not a task file.
 6. A heading written in one of the six shapes whose anchor the slug rule cannot work out, from
-   a link in the heading to a setext underline. `headingshapes.py` says which and why it
+   a bracketed span in the heading to a setext underline. `headingshapes.py` says which and why it
    refuses them rather than emulating a renderer; the document carrying one has its own
    anchors left unknown until it is rewritten, so nothing aimed at it is judged meanwhile.
 """
