@@ -361,3 +361,46 @@ six today, so nothing had to be rewritten, and the message tells an author exact
 instead. If one of the six is ever wanted badly enough, the answer is to render that one shape and
 prove the transform against the real heading that asked for it, which is a better position to
 write a transform from than this one.
+
+## Addendum (2026-08-20): a bracketed span in a heading is refused, target or no target
+
+The addendum above refused six heading shapes and left one form of the first uncaught. Its link
+detector looked for a bracketed span **followed** by an opening parenthesis or bracket, which finds
+an inline link, an image and both reference forms, and misses the shortcut form: a bracketed label
+alone, which markdown resolves against a link reference definition somewhere else in the document.
+That residue was filed as
+[R-307](../refinements/tasks/307-shortcut-reference-link-in-a-heading.md), and it is closed here by
+taking the wider of the two branches that entry named.
+
+**The detector drops its trailing mark**, so the brackets alone are the shape. The alternative was
+to collect each document's link reference definitions in one pass and refuse a heading whose label
+names one. That is the more precise rule and the worse one. It would be the first thing in this
+gate needing more than the heading it is judging, it decides a heading's fate by a line hundreds of
+lines away, and it accepts the shape whose whole problem is that a reader cannot tell what it is
+either: a heading that looks like a link and is not one misleads before it misleads this gate.
+Refusing the span outright costs one regex and no second pass.
+
+**The price is a literal pair of brackets in a heading**, and it is worth naming rather than
+burying, exactly as the six were. A heading that means its brackets literally now has to be written
+another way, and the message says so. There is no escape hatch, deliberately: the ban is a house
+style with nothing to escape from today, and inventing a per-line exemption for a shape nobody has
+written would be machinery aimed at a hypothetical. If one is ever wanted, that is when the exemption
+gets designed against the real heading that asked for it
+([R-334](../refinements/tasks/334-a-heading-that-means-its-brackets.md)).
+
+**The refusal's own sentence moved with the rule.** It used to say the heading carries a link whose
+target this rule would weld onto the anchor, which describes only the half that has a target. It now
+says the heading brackets a span, which markdown may make a link and this rule always reads
+literally, and that is true of every one of the four link forms and of a literal pair besides. The
+sentence is a named constant so the suite asserts what the gate prints rather than a paraphrase of
+it, and the constant kept its name.
+
+**Measured before changing anything, and proved able to fail after.** A sweep over all 431 markdown
+files in the tree on the day of the change found **zero** link reference definitions and **zero**
+headings carrying a bracket at all, code spans included, out of 2149 ATX headings, so the stricter
+rule rewrote nothing. Four cases were added beside the six already proved: the shortcut form, the
+collapsed form, and a bracketed aside nobody meant as a link, each refused by name. The old detector
+was run beside the new one over the same five headings and passes the shortcut form and the aside,
+which is the hole this closes. End to end, a heading reading `## 3. Validate delegation against
+[the rules]` planted in a real runbook takes `backlogcheck` to exit 1 naming the file, the line, the
+heading and the remedy, and the tree returns to `backlogcheck OK` when it is removed.
