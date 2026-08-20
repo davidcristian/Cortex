@@ -20,6 +20,16 @@ Distrust-green proofs, measured across ``packages/model_manager`` one mutation a
 - dropping ``boot_id`` from that body reddens 2 in the same shape, that case and the contract's
   supervisor leg, and again no scripted case: the twin echoes the id it was handed, while what
   the supervisor leg pins is that a real daemon publishes the one it actually minted.
+
+Three more for the refusal's own line, once the supervisor stopped printing what it raises, each
+applied to production code alone with the whole brain workspace re-run:
+
+- logging every refusal at ``WARNING`` again reddens exactly 1, the 503 case, which is the whole
+  of what the level following the status code is for;
+- logging every refusal at ``ERROR`` reddens 3, the 404 parameterization, so the rule is pinned
+  from both sides rather than only from the loud one;
+- dropping the refusal's ``error`` field reddens exactly 1, the 503 case: that field is where the
+  sentence went when the raise stopped printing it, so nothing else would notice it gone.
 """
 
 import logging
@@ -32,7 +42,7 @@ from model_host_contract import CORTEX, DEEP
 from process_fakes import FakeChildProcesses, FakeProbe
 from test_model_host_contract import contract_roster
 
-from cortex_core import DeviceMemory, ModelHostState, PlainFormatter
+from cortex_core import DeviceMemory, ModelHostState, PlainFormatter, record_fields
 from cortex_model_manager import (
     DeviceMemoryProbe,
     ModelSupervisor,
@@ -140,32 +150,61 @@ async def test_start_then_status_then_stop_answer_the_state_each_left_behind() -
 
 
 @pytest.mark.parametrize("path", ["/models/ghost", "/models/ghost/start", "/models/ghost/stop"])
-async def test_an_unknown_id_is_a_404_on_every_route(path: str) -> None:
+async def test_an_unknown_id_is_a_404_on_every_route(
+    path: str, caplog: pytest.LogCaptureFixture
+) -> None:
     """An id outside the roster is refused as absent, never as a sick host.
 
     The two must be distinguishable: "you configured no such tier" and "the sidecar is broken"
-    send an operator to different halves of the runbook.
+    send an operator to different halves of the runbook. The log level is the same distinction
+    said again to whoever is reading the container rather than the response: this is a caller
+    asking after a tier that was never configured, so it is a line and no more.
     """
     client, _, _ = _wired()
     method = client.get if path.endswith("ghost") else client.post
     try:
-        response = await method(path)
+        with caplog.at_level(logging.WARNING):
+            response = await method(path)
     finally:
         await client.aclose()
     assert response.status_code == HTTPStatus.NOT_FOUND
     assert "unknown model 'ghost'" in _body(response)["error"]
+    assert [(record.levelno, record.message) for record in caplog.records] == [
+        (logging.WARNING, "a model-host request failed")
+    ]
 
 
-async def test_a_supervisor_failure_is_a_503_carrying_its_reason() -> None:
-    """A child that survives SIGKILL is the one failure a stop can report, and it reports it."""
+async def test_a_supervisor_failure_is_a_503_logged_once_and_loudly(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A child that survives SIGKILL is the one failure a stop can report, and it reports it.
+
+    Once, which is the half that changed: the supervisor raises the sentence and does not also
+    log it, so the two records here are two events, the escalation to SIGKILL and the refusal
+    that came of it, rather than the refusal printed twice with its numbers in the prose and in
+    the fields beside them.
+
+    And the refusal is at ERROR, which is what the level following the status code buys. Nothing
+    else records this: a swap's eviction meets the same 503 through the brain's own port, which
+    turns it into a user-facing note without logging its text, so a line at the level a missing
+    model id gets would be the only trace of a card nobody can load anything onto.
+    """
     client, supervisor, _ = _wired(FakeChildProcesses(exits_on=None))
     try:
         await supervisor.start(CORTEX)
-        response = await client.post(f"/models/{CORTEX}/stop")
+        with caplog.at_level(logging.WARNING):
+            response = await client.post(f"/models/{CORTEX}/stop")
     finally:
         await client.aclose()
     assert response.status_code == HTTPStatus.SERVICE_UNAVAILABLE
     assert "survived SIGKILL" in _body(response)["error"]
+    assert [(record.levelno, record.message) for record in caplog.records] == [
+        (logging.WARNING, "a model process ignored SIGTERM; killing it"),
+        (logging.ERROR, "a model-host request failed"),
+    ]
+    # The whole sentence rides the field, which is what makes the second printing of it
+    # unnecessary rather than merely noisy: nothing about the failure is lost by dropping it.
+    assert "survived SIGKILL" in str(record_fields(caplog.records[1])["error"])
 
 
 async def test_the_lifespan_starts_the_boot_model_and_stops_everything_on_the_way_down() -> None:

@@ -2585,3 +2585,94 @@ suite. A bring-up would drive the same three branches through a slower host.
   printed on a date, and rewriting them would make them say something no run ever printed.
 - **A restore that gives up while the deep model is still on the card now says so.** That was
   always the truth of it, and nothing at any level could name it.
+
+## Raised-and-logged addendum (2026-08-20): the trace that decides one site of six
+
+The twice-printed-field sweep left six sites building one string, logging it, and raising it as a
+typed error's text, so each of them prints its numbers once in the prose and once in the fields
+beside them. The entry that recorded them named the alternative worth weighing first: leave the
+`raise` alone and drop the **log** at all six, "since the exception is already logged wherever it
+is finally caught", and said the question it turns on is whether every one of the six really is.
+
+Traced against the code, it is not. The premise holds at exactly one of the six. That trace is the
+substance of this addendum; the code change is small on purpose.
+
+### The trace
+
+| Site | What it raises | Where that is caught | Does the catch print the sentence? |
+| --- | --- | --- | --- |
+| `residency_moves`, a card that reports nothing | `SwapFailedError` | `swap_conductor`'s `_swap` | **no** |
+| `residency_moves`, a card that is short | `SwapFailedError` | the same | **no** |
+| `residency_watch`, a daemon that would not converge | `SwapFailedError` | the same | **no** |
+| `residency_watch`, a worst stop the deadline no longer clears | `SwapFailedError` | the same | **no** |
+| `swap_builders`, the deadline pairing the root refuses to serve on | `ControlDeadlineError` | **nowhere** | it never runs |
+| `supervisor`, a child that survived SIGKILL | `SupervisorError` | the API, and the shutdown sweep | **yes, both** |
+
+The four `SwapFailedError` sites share one catch, and that catch is deliberately silent: it settles
+the handoff record as failed and answers `note_for(err)`, which is a mapping from an error type to
+one of three fixed user-facing sentences and never reads `str(err)` at all. So the numbers on those
+four lines exist in the log and nowhere else; dropping the log there would not move them, it would
+delete them.
+
+The composition root's refusal is worse still. `check_control_deadline` is called unguarded, and
+the brain's entry point runs the wiring straight under `asyncio.run`, so `ControlDeadlineError` is
+never caught by anything: what an operator would get instead of a structured line naming both
+knobs is an interpreter traceback. Dropping that log downgrades a designed boot refusal into a
+crash.
+
+Only the supervisor's is a genuine double. Both callers of `stop` log what they catch: the control
+API puts the whole sentence on its refusal line's `error` field, and the shutdown sweep logs the
+exception with its traceback. The event was written twice at one end and once at each of two
+others.
+
+### Decision 1: one log call comes out, five stay
+
+The supervisor raises the survived-SIGKILL sentence and no longer prints it. The five others keep
+both, with the reason above written at the sites rather than left to be rediscovered: a value
+appearing twice on one line is the smaller harm, and the larger one is a number that reaches
+nobody.
+
+### Decision 2: the surviving line owes the level, so it takes it
+
+Dropping the supervisor's line would otherwise have cost the severity. The API's refusal line was
+`WARNING` for everything, which is right for a caller asking after a tier this daemon never had and
+wrong for a child holding GPU memory nothing can free, and with the `ERROR` line gone the two would
+have read identically. The level now follows the status code, which is already this module's
+judgement about whose fault a refusal is: 5xx at `ERROR`, 4xx at `WARNING`.
+
+That is not a tidy-up. It is the path that made the drop safe to make at all: a swap's eviction
+meets this same 503 through the brain's `ModelHost` port, the brain turns it into a user-facing
+note without logging its text, and the sidecar's own line is therefore the only record of it
+anywhere.
+
+### Distrust green
+
+Five mutations, each applied to production code alone with the whole brain workspace re-run:
+
+| Mutation | Reddens | Which |
+| --- | --- | --- |
+| every refusal back to one `WARNING` | **1** | the 503 case |
+| every refusal at `ERROR` | **3** | the 404 parameterization |
+| the refusal drops its `error` field | **1** | the 503 case |
+| the raise logs itself again | **2** | the supervisor case and the 503 case |
+| the shutdown sweep stops logging what it caught | **1** | the stop-all case |
+
+The last row is the one that keeps the argument honest rather than the code: it is the assertion
+that the sentence really does reach an operator on the path the API never touches, which is the
+half of the premise a test could otherwise leave unstated.
+
+### Consequences
+
+- **The written trace is most of what this bought**, and it is the reason the entry could not be
+  closed by applying its own proposal. Five sixths of it was refuted by reading the catches.
+- **`docs/modules/brain-model-manager.md` gains both halves**, the level rule on the API's table
+  and the raised-not-logged note on the supervisor's.
+- The `ERROR` line an operator greps for a wedged child is now the API's, not the supervisor's.
+  Its message is the constant `a model-host request failed`, which is what the log-format sweep
+  already made the greppable form of every refusal this daemon answers.
+
+### Deferred by this addendum
+
+The five that keep both spellings, carried forward with the narrower question that is left now
+that dropping their logs is refuted:
+[R-331](../refinements/tasks/331-five-raised-messages-keep-their-numbers-in-prose.md).

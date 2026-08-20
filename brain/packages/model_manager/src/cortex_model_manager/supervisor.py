@@ -227,12 +227,17 @@ class ModelSupervisor:
         child.kill()
         if await self._reaped(child, self._bounds.reap_timeout_s):
             return
+        # Raised and not also logged, which is what separates this failure from the others of its
+        # shape in this repo. Both callers of ``stop`` log what they catch, the API with this
+        # sentence on its ``error`` field and the shutdown sweep with the traceback under its own,
+        # so a line here printed the same event twice and printed its numbers twice within the one
+        # line, once in the prose an exception's text has to carry and once in the fields beside
+        # it. What the API's line owes in exchange is the level, which follows its status code.
         msg = (
             f"model {model!r} (pid {child.pid}) survived SIGKILL for "
             f"{self._bounds.reap_timeout_s}s; "
             "its GPU memory is still held, so nothing else can be loaded"
         )
-        _logger.error(msg, extra={"model": model, "pid": child.pid})
         raise SupervisorError(msg)
 
     @staticmethod
