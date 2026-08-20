@@ -29,17 +29,22 @@ generic ML one, and both answer to the GPU hardware type while neither answers t
 accelerator or NPU one. **Measured from a container:** OpenVINO's NPU plugin ships in the wheel and
 loads, and it enumerates nothing, `available_devices` reading `['CPU']` and the plugin's own
 `AVAILABLE_DEVICES` reading `[]`. **Not measured:** whether the machine has an NPU at all. The CPU
-model is the one named above and the Windows driver store carries Intel's NPU package covering the
-Arrow Lake id `8086:AD1D`, but a staged package is not a present device and this guest cannot see
-Windows device state, interop being off. One finding reaches past today's kernel: of the 1,349
-Windows driver packages WSL maps in, exactly three ship Linux user mode libraries, the Intel
-graphics package and the NVIDIA one, while the NPU package ships only Windows DLLs. So the
-condition that revives this work has two halves, WSL projecting the device and the vendor shipping
-a Linux driver for it, which is why the trigger is now the one command that needs both. Unknown (b)
-is untouched, there being nothing to measure it on.
+model is the one named above and the Windows driver store carries Intel's NPU package, in two
+staged versions both covering the Arrow Lake id `8086:AD1D`, but a staged package is not a present
+device and this guest cannot see Windows device state, interop being off. One finding reaches past
+today's kernel: of the 1,038 Windows driver packages WSL maps in, exactly three ship Linux user
+mode libraries, the Intel graphics package in its two staged versions and the NVIDIA one, while
+both NPU packages ship only Windows DLLs. So the condition that revives this work has two halves,
+WSL projecting the device and the vendor shipping a Linux driver for it, which is why the trigger
+is now the one command that needs both. Unknown (b) is untouched, there being nothing to measure
+it on.
 
 ## Trail
 
+- 2026-08-20: Three counts above corrected against the driver store as it stands. The denominator
+  is 1,038 package directories, not the 1,349 entries `ls` reports, the rest being 311 `.ini`
+  sidecars; the Intel graphics package is counted in its two staged versions, which is what makes
+  three ship a `.so` while only two vendors do; and the NPU package is staged twice as well.
 - 2026-08-20: Probed and re-triggered rather than closed. The blocker the entry named is confirmed
   at the guest and at the container both, and the trigger moves from a feasibility pass, which this
   was, to the state of the world that would make rerunning it worthwhile.

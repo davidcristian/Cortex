@@ -18,9 +18,9 @@ it and passes.
 **Why it is not fixed in the same sitting.** The recipe probes rustc twice on purpose, and the
 first probe is a standing `rustc +nightly --version` line that fails the run before the measurement
 starts. Reaching an empty relay therefore needs that line to succeed and the identical command
-substitution two lines later to produce nothing, which is not a failure mode anybody has seen. A
-gate that cannot fail for a reason that happens is the shape this ADR has now declined twice, and
-adding one here would be a third.
+substitution four lines later to produce nothing, which is not a failure mode anybody has seen. A
+gate that cannot fail for a reason that happens is a shape this ADR has already declined more than
+once, and adding one here would be one more.
 
 **What would close it if the trigger fires.** A shared validator on both relay arguments, rejecting
 a blank or whitespace string with argparse's own usage error, so the two relays are refused on the
@@ -34,8 +34,8 @@ producer mismatch naming `''` and exits 1.
 
 **What shields the quiet half is not the standing probe.** This entry argued that reaching an empty
 relay needs the recipe's standing `rustc +nightly --version` line to succeed and the identical
-substitution two lines later to yield nothing. That line runs in `body/` in a shell of its own, so it
-is the weaker half of the argument. The load-bearing half is that both relays are filled on one
+substitution four lines later to yield nothing. That line runs in `body/` in a shell of its own, so
+it is the weaker half of the argument. The load-bearing half is that both relays are filled on one
 recipe line by two command substitutions in one shell, one working directory and one toolchain
 resolution, so the quiet half is shielded by the loud one rather than by the probe above it.
 Measured against a toolchain name that does not resolve: both substitutions come back empty together
@@ -43,11 +43,11 @@ and the gate exits 1 on the producer mismatch. An empty `--rustc` arriving alone
 nightly cargo-llvm-cov to answer while nightly rustc prints nothing, in the same shell, seconds
 apart.
 
-**So the validator would be a third gate of a shape this origin has twice declined**, the dated pin
-on its expiry cost and the compiler-in-export comparison on being unable to disagree, and the gate's
-own suite would carry a case its only caller cannot produce. The asymmetry this entry names is real
-and stays: one relay is checked and the other printed, because the export records a tool and no
-compiler.
+**So the validator would be one more gate of a shape this origin has declined at least three
+times**, the dated pin twice on its expiry cost and the compiler-in-export comparison once on being
+unable to disagree, and the gate's own suite would carry a case its only caller cannot produce.
+The asymmetry this entry names is real and stays: one relay is checked and the other printed,
+because the export records a tool and no compiler.
 
 **The arrangement the decline rests on is now written where it can be broken**, in the `check-body`
 comment beside the line, and the trigger that would reopen the question moves with it to
@@ -65,3 +65,8 @@ shell. The fix, if it fires, is the three lines this entry already describes.
   unresolvable toolchain before deciding. The argument is recorded at the origin decision, the
   arrangement in the recipe's own comment, and the trigger in
   [R-335](335-the-relays-share-one-shell.md).
+- 2026-08-20: two counts in the prose above corrected. The probe and the relay are four recipe
+  lines apart rather than two, the tool probe, the instrumented run and a `uv sync` standing
+  between them; and the shape has been declined at least three times rather than twice, the origin
+  decision counting the dated pin alone as twice declined in two places. Neither number carries
+  any part of the decline.
