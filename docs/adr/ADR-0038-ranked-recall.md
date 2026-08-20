@@ -2501,3 +2501,87 @@ host and prove the same thing the sweep above proves.
 [R-330](../refinements/tasks/330-a-bool-loses-which-model-failed.md), the bool that loses which of
 the two models a restore attempt failed on, and with it the question of whether the give-up error
 should name the refused tier.
+
+## Restore-verdict addendum (2026-08-20): the swap back answers which model it failed on
+
+The addendum above narrowed the swap back's two failures into a block each, so the log line at the
+site names the model it was acting on, and recorded that the residue sat one level up:
+`restore_standing` still answered a bool, so `restore_with_retries` could not tell the two failures
+apart and every sentence it wrote named the cortex whichever tier the host had actually refused.
+This closes that, and answers the paired question the entry attached to it in the same sitting.
+
+### Decision 1: an attempt answers the model it failed on, and nothing means success
+
+`restore_standing` returns `str | None` rather than `bool`. `None` is the standing residency being
+back; anything else is the id of the model this attempt failed on, which is the swapped-in resident
+when the eviction refused and the cortex when its start refused or its gate never reported ready.
+
+The inversion is the point rather than a cost. A bool has a value that means success, so a caller
+that forgets which one reads the verdict backwards and still compiles; with `None` the only thing
+that means success is the absence of an answer, and every other value carries a fact. The name at
+the call site is `failed`, so the sentence there reads as what refused rather than as whether it
+worked.
+
+The entry priced this as "a signature change to a function three modules call". It is not:
+`restore_standing` has exactly one production caller, `residency_restore.py`, and the other two
+mentions the entry counted are prose in a test module and in the model host's shared contract
+suite. The change is a return type, one call site and the two sentences below it.
+
+### Decision 2: the give-up names the tier, in the field and in the exception's own text
+
+The retry line keeps its message, `restoring the cortex failed; retrying`, because the entry's own
+reading of it holds: the subject of that sentence is the operation, what is being retried is the
+restore, and the restore is of the cortex. What was wrong was the field beside it. Both that line
+and the give-up now carry two model fields, and they are two different facts: `model` stays what it
+has always been here and everywhere the runbook reads it, the cortex being restored, while
+`failed_model` is the tier this attempt failed on and may be the deep model the swap back could not
+take off the card.
+
+The paired question was whether `ResidencyRestoreError` should name the refused tier too, and the
+answer is yes, more strongly than for the log line. That string is what an operator carries to
+`docs/runbooks/model-swap.md`, it is read on a stream where no formatter runs, and
+`could not restore 'cortex'` on its own sends a reader to a tier whose `start` never ran at all. It
+now reads `could not restore 'cortex' after 2 attempts, the last of which failed on 'brain'; manual
+recovery is needed`. The phrasing is "failed on" rather than "refused" because one of the three
+paths is a cortex that never gated, where the host refused nothing and the model still did not come
+up.
+
+The runbook gains the paragraph that makes the second tier actionable: when `<tier>` is the deep
+model, the cortex was never asked for, what is holding the card is the tier that would not stop,
+and the recovery is the first half of its step 2 rather than the second.
+
+### Distrust green
+
+Six mutations, each applied to production code alone with the whole brain workspace re-run (2753
+tests), so the counts are what actually reddened:
+
+| Mutation | Reddens | Which |
+| --- | --- | --- |
+| the eviction answers the cortex | **2** | the eviction retry case, and the give-up that never evicts |
+| the cortex's start answers the swapped-in model | **2** | the retry case, and the give-up that never starts |
+| a stalled gate answers the swapped-in model | **1** | the gate case, the one path where nothing refused |
+| the retry line's `failed_model` pinned to the cortex | **1** | the eviction retry case |
+| the give-up line drops `failed_model` | **2** | both give-up cases |
+| the give-up message drops the tier | **3** | all three give-ups |
+
+The fourth row is the one worth reading. Only the eviction case can catch that mutation, because it
+is the only test in the workspace where the two models differ; every other restore failure is the
+cortex failing about the cortex, and a suite without that case would have let the field be pinned
+to the wrong subject and stayed green. That is the same lesson the narrowed-block sweep recorded
+one entry earlier, arriving at the caller this time.
+
+### Not verified live, deliberately, and for the same reason as before
+
+Both files are pure policy in the core over the injected `ModelHost` port, the change is a return
+type and two sentences, and the fake and the real supervisor adapter answer the same contract
+suite. A bring-up would drive the same three branches through a slower host.
+
+### Consequences
+
+- **`residency_moves.py` is at 285 lines and `residency_restore.py` at 135**, both under the cap.
+- **The give-up's text changed**, so `docs/runbooks/model-swap.md` and the tier-scale host task
+  that quotes it move with the code. The measurement records in
+  `docs/adr/ADR-0030-brain-handoff.md` are left as they were written: they record what a run
+  printed on a date, and rewriting them would make them say something no run ever printed.
+- **A restore that gives up while the deep model is still on the card now says so.** That was
+  always the truth of it, and nothing at any level could name it.

@@ -9,10 +9,10 @@ gate arrives as a callable so the manager keeps owning its own bounds.
 Two moves, with deliberately opposite failure directions, and above them the one question a
 caller asks before committing to either. Swapping in is all or nothing: any host failure, or a
 model that will not gate, becomes a ``SwapFailedError`` and the caller's ``finally`` restores.
-Restoring answers a bool instead, because its caller retries it and only gives up loudly after
-that, and because the swap back is the recovery path: it must not raise its way out of the very
-thing it is recovering. The question (``is_unhosted``) answers a bool for a third reason of its
-own: a swap that cannot possibly work should be refused before it starts rather than discovered
+Restoring answers the model it failed on instead, because its caller retries it and only gives up
+loudly after that, and because the swap back is the recovery path: it must not raise its way out
+of the very thing it is recovering. The question (``is_unhosted``) answers a bool for a reason of
+its own: a swap that cannot possibly work should be refused before it starts rather than discovered
 halfway through itself, with the cortex already unloaded and minutes owed to putting it back.
 
 The last step of the second move, ``restart_evicted``, is public because boot recovery ends the
@@ -171,12 +171,21 @@ async def _refuse_a_load_the_card_cannot_hold(
 
 async def restore_standing(
     host: ModelHost, plan: ResidencyPlan, model: str, gate: ReadinessGate, tiers: StandingTiers
-) -> bool:
+) -> str | None:
     """One attempt at the standing residency: stop ``model``, bring the cortex and its peers up.
 
-    ``True`` only when the cortex is genuinely serving again, which is what the caller retries
-    on and what the next turn needs. ``tiers`` is the record of which peers came back with it,
-    which is a different verdict from this one and is why it is written rather than returned.
+    ``None`` only when the cortex is genuinely serving again, which is what the caller retries
+    on and what the next turn needs; anything else is the id of the model this attempt failed
+    on. The sense is therefore inverted from the bool it used to be, and deliberately so: the
+    answer now reads as *what refused* rather than as *did it work*, and there is no value it
+    can take that means success other than nothing at all. ``tiers`` is the record of which
+    peers came back with it, which is a different verdict from this one and is why it is
+    written rather than returned.
+
+    Carrying the id out is what the caller cannot otherwise have. This move fails about two
+    different models and says which in its own line, so a bool left every sentence one level up
+    naming the cortex whichever of the two the host actually refused. The retry, the give-up and
+    the error an operator carries to the runbook now name the same tier this module's line does.
 
     The stop is of the model that was swapped in, and a host that does not carry that id has
     nothing to stop, so that one failure is skipped rather than retried. It is the difference
@@ -188,9 +197,9 @@ async def restore_standing(
     Two ``try`` blocks rather than one, because the two failures are about two different models
     and a field is only worth attaching when it is not a guess. The eviction is about the model
     the handoff swapped in; the start and its gate are both about the cortex, so they share a
-    block and it stays unambiguous. Either verdict is the same ``False`` the caller retries on:
-    what the split buys is a line an operator can act on without opening the traceback to find
-    out which of two tiers the host actually refused.
+    block and it stays unambiguous. A cortex that never gates answers the cortex too, for the
+    same reason: the model that did not come up is the one the attempt failed on, whether the
+    host said so or merely never finished.
     """
     try:
         await _stop_what_was_swapped_in(host, model)
@@ -199,7 +208,7 @@ async def restore_standing(
             "the model host failed while taking the swapped-in model off the card",
             extra={"model": model},
         )
-        return False
+        return model
     try:
         await host.start(plan.cortex_model)
         state = await gate(plan.cortex_model)
@@ -207,11 +216,11 @@ async def restore_standing(
         _logger.exception(
             "the model host failed while restoring the cortex", extra={"model": plan.cortex_model}
         )
-        return False
+        return plan.cortex_model
     if state is not ModelHostState.READY:
-        return False
+        return plan.cortex_model
     await restart_evicted(host, plan, tiers)
-    return True
+    return None
 
 
 async def _stop_what_was_swapped_in(host: ModelHost, model: str) -> None:
