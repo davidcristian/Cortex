@@ -408,3 +408,25 @@ the commit message and the entry both say and what the suite carries at
 number six.) End to end, a heading reading `## 3. Validate delegation against
 [the rules]` planted in a real runbook takes `backlogcheck` to exit 1 naming the file, the line, the
 heading and the remedy, and the tree returns to `backlogcheck OK` when it is removed.
+
+## Addendum (2026-08-20, later): the remedy the bracket refusal inherited does not fit it
+
+A close-out review of the change above found the sentence it prints ending in a remedy that
+describes the heading it is refusing. The six refusals share one remedy, `PLAINLY`, telling the
+author to write the heading as plain text under leading hashes. Five of the six are markup, so that
+is a real instruction. The sixth, as this addendum widened it, reaches a heading that is already
+plain text under leading hashes and carries no markup at all, and tells its author to do what they
+did.
+
+The addendum above also claims more for the message than the message says. It reads that a heading
+meaning its brackets literally now has to be written another way "and the message says so". The
+message names the shape and prints the shared remedy, and neither half names a way out. **That
+sentence is corrected here**: what says so is this record, not the gate.
+
+It is filed rather than fixed because the remedy cannot name an answer that has not been chosen.
+[R-334](../refinements/tasks/334-a-heading-that-means-its-brackets.md) is the entry holding that
+choice, between rewriting the heading, an escape the rule honours, and a per line allow marker, and
+a remedy that promises an escape before one exists is worse than one that fits badly. The two move
+together, and the smallest honest version of the fix is one remedy per shape, which is the shape the
+constants already have. Filed as
+[R-344](../refinements/tasks/344-a-remedy-that-repeats-the-heading.md).

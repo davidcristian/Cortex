@@ -752,3 +752,17 @@ interceptor is installed at all, which no unit test of the wrap can say.
 The three shapes that are a policy per RPC or per downstream port, carried forward together
 because they share the question this one did not have to answer:
 [R-341](../refinements/tasks/341-nothing-declines-work-it-cannot-finish.md).
+
+## Addendum (2026-08-20, later): the clamp the abandonment test describes is not the one it asserts
+
+A close-out review of the addendum above found its expiry case explaining itself with a fact it does
+not check. The test says grpc clamps the remaining time at zero rather than letting it go negative,
+"so it lands there", and then asserts that the reading is below half the announced window, which
+every reading in that half satisfies. The commit that landed it made the stronger claim in its body,
+that the reading arrives as an integer zero, and nothing in the suite holds that.
+
+The loose bound may still be the right assertion. The reading is a real clock, so a case demanding
+exactly zero fails on a scheduler hiccup rather than on a regression, and that is an honest argument
+the file does not make; what it makes instead is an argument for a stricter assertion than it
+carries. Either the prose comes down to what the bound checks, or the clamp is asserted beside it.
+Filed as [R-346](../refinements/tasks/346-a-clamped-reading-nothing-pins.md).
