@@ -1150,3 +1150,103 @@ For each of the three asks: the compose passthrough alone, the site alone, and, 
 records the measurement in prose, that sentence alone. Each exits 1 naming its own entry and no
 other, and the site drifts of the memory and VRAM asks each exit 1 twice, over the passthrough and
 the measured sentence together.
+
+## Addendum (2026-08-20): the NPU probe, and which of three findings it is
+
+The Intel NPU has sat in this record as a third `PlacementTarget` behind two unknowns, the first of
+them called the likely blocker: whether the NPU is reachable from the dockerized WSL2 brain at all,
+since WSL2 paravirtualizes the dGPU but not the NPU. It was probed on this machine. It is not
+reachable, the guess about why was right, and the probe is written down here because three
+different findings wear the same sentence and only one of them was measured.
+
+**Kept apart on purpose.** "This machine has no NPU" is a fact about the hardware. "The device is
+not paravirtualized into WSL2" is a fact about the guest. "The NPU is not reachable from a
+container" is a fact about the container. The middle one and the last one were measured. The first
+was not, and this addendum does not claim it.
+
+### What the guest is given
+
+Only one device node exists: `ls /dev/dxg /dev/dri /dev/accel` finds `/dev/dxg` and reports that
+the other two do not exist. `/dev/accel` is the node Linux's own NPU driver creates, so its absence
+is the shape of the answer rather than an accident of naming.
+
+The guest's PCI bus carries five devices and none of them is Intel silicon: two virtio devices, and
+three Microsoft vPCI devices of display class 0x030200 (`1414:008e` twice and `1414:008a`), every
+one of them bound to `dxgkrnl`. Whatever WSL2 projects, it projects through that one driver.
+
+The kernel settles the Linux path independently of any device. `zcat /proc/config.gz | grep
+DRM_ACCEL` answers `# CONFIG_DRM_ACCEL is not set`, and `intel_vpu`, the driver that would bind an
+Intel NPU and create `/dev/accel/accel0`, lives under `drivers/accel` and depends on that symbol.
+This kernel could not drive an NPU if one were handed to it.
+
+### What the paravirtualization actually projects
+
+`/dev/dxg` is not a GPU, it is an adapter channel, so the question is what enumerates on it. Driven
+through `/usr/lib/wsl/lib/libdxcore.so`, the adapter list holds exactly two entries under each of
+the four capability attributes, `D3D11_GRAPHICS`, `D3D12_GRAPHICS`, `D3D12_CORE_COMPUTE` and
+`D3D12_GENERIC_ML`:
+
+| adapter | hardware id | reads as |
+| --- | --- | --- |
+| NVIDIA GeForce RTX 5090 Laptop GPU | `10de:2c58` | discrete, 23.57 GiB |
+| Intel(R) Graphics | `8086:7d67` | integrated |
+
+`D3D12_GENERIC_ML` is the attribute a compute accelerator would have to carry to be worth a
+placement target, and it lists the same two GPUs. Asked instead by hardware type, both adapters
+answer to the GPU attribute and neither answers to the compute accelerator or the NPU one. That
+last reading needs its control stated: an attribute GUID this build does not recognize also returns
+an empty list, so an empty list alone proves nothing, and what makes it evidence is that the GPU
+attribute from the same family returned both adapters and each adapter reported carrying it.
+
+So the entry's parenthetical was right and is now narrower than it was: WSL2 projects display class
+adapters, and it projected the integrated GPU as well as the discrete one. What it does not project
+is anything of any other class.
+
+### What a container gets, which is the question the entry actually asked
+
+The probe that matters is not the guest's but the container's, and OpenVINO answers it from inside
+one. The wheel ships `libopenvino_intel_npu_plugin.so`, and the plugin loads: an unsupported
+property query comes back from the plugin's own property manager rather than from a missing
+library. So the plugin path is reachable. It enumerates nothing. `Core().available_devices` is
+`['CPU']` and `Core().get_property("NPU", "AVAILABLE_DEVICES")` is `[]`.
+
+One finding reaches past today's kernel. Of the 1,349 Windows driver packages WSL maps into the
+guest, exactly three ship Linux user mode libraries: the Intel graphics package in its two staged
+versions, and the NVIDIA one. Intel's NPU package ships `npu_level_zero_umd.dll` and
+`npu_d3d12_umd.dll` and no `.so` at all. A future WSL that projected the device would therefore
+still leave nothing on the Linux side to drive it, so the condition that revives this work has two
+halves and not one.
+
+### What was not measured, and why the entry's hardware line stands unrepeated
+
+`/proc/cpuinfo` names the Intel Core Ultra 9 275HX this record already records, and the Windows
+driver store carries Intel's NPU driver package (`npu.inf`, class `ComputeAccelerator`, version
+32.0.100.4778) whose hardware ids include the Arrow Lake NPU at `8086:AD1D` beside Meteor Lake's
+`7D1D` and Lunar Lake's `643E`. A staged driver package is not a present device, and this guest
+cannot see Windows device state at all: interop is off in `/etc/wsl.conf` and no Windows volume but
+the model drive is mounted. So the hardware confirmation of 2026-07-01 is neither repeated nor
+contradicted here, and nothing below rests on it.
+
+### Decision: re-triggered rather than declined
+
+Nothing measured is a fact about this repo's design. `PlacementTarget.NPU` and an OpenVINO
+`InferenceBackend` adapter would land the same way on the day the device appears, and the second
+unknown, whether NPU inference for a 2 to 4B model is fast and mature enough to be worth a target,
+could not be measured at all because there is nothing to measure it on. Declining would file a
+platform fact as a design verdict.
+
+So the entry stays open with its trigger replaced, on the precedent of the ANN index entry, which
+was measured and re-triggered rather than closed. The old trigger asked for the feasibility pass
+this addendum is. The new one is the state of the world that would make the pass worth rerunning,
+and it is one command: an NPU device enumerating from inside a container, meaning
+`Core().get_property("NPU", "AVAILABLE_DEVICES")` answers with anything, which needs both halves,
+WSL projecting the device and the vendor shipping a Linux user mode driver for it.
+
+### Consequences
+
+- **The likely blocker is confirmed as the blocker**, at the guest and at the container both, and
+  the host side runtime this record worried it would force is not merely awkward: there is no
+  Linux user mode driver to run there either.
+- Nothing in the tree changes. The probe is a reading of the machine, not of the code.
+- The entry keeps its area and its origin here, for the reason it kept them when the host backlog
+  was extracted: the work is code even where only one machine can judge it.
