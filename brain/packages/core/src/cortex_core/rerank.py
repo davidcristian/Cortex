@@ -38,12 +38,29 @@ class RecallPolicy(Protocol):
     does must fully drain and close its stream before returning, because the GPU lease is a
     non-reentrant lock held for a stream's lifetime and the turn's own reply acquires it after
     selection has completed (decision 8). Every heuristic policy simply has a synchronous body.
+
+    ``session_id`` names the recall the caller is making, and it is optional for the reason
+    ``progress`` is optional on ``HistoryWindow.select`` and ``stops`` is optional on
+    ``drain_text``: only a policy that reports something has any use for it, so a caller with no
+    identity to give passes none and the policies that never log ignore it. ``MemoryRecaller``
+    already holds one, so nothing is plumbed to reach here (ADR-0038 named-recall addendum).
+
+    **It is an id and never content.** The pool and the ``query`` a policy is handed are
+    conversation text, which no line of this repo's logs may carry, so what a policy may say about
+    where it is happening is the caller's own opaque handle and nothing else. That is the whole
+    reason this is a separate parameter rather than a widening of ``query``.
     """
 
     def candidate_k(self, k: int) -> int: ...
 
     async def select(
-        self, hits: Sequence[ScoredMemory], *, query: str, now: datetime, k: int
+        self,
+        hits: Sequence[ScoredMemory],
+        *,
+        query: str,
+        now: datetime,
+        k: int,
+        session_id: str | None = None,
     ) -> Ranking: ...
 
 
@@ -61,10 +78,18 @@ class RawRecallPolicy:
         return k
 
     async def select(
-        self, hits: Sequence[ScoredMemory], *, query: str, now: datetime, k: int
+        self,
+        hits: Sequence[ScoredMemory],
+        *,
+        query: str,
+        now: datetime,
+        k: int,
+        session_id: str | None = None,
     ) -> Ranking:
         """Keep the store's order, truncated to ``k`` (only ``k`` matters to raw recall)."""
-        del query, now  # raw recall reads neither the question nor the age
+        # Raw recall reads neither the question nor the age, and reports nothing, so it has
+        # nothing to name a session on; the parameter is the port's shape, not this policy's need.
+        del query, now, session_id
         return Ranking(
             hits=tuple(RankedMemory(hit=hit, key=hit.score) for hit in hits[:k]),
             basis=RankBasis.ECHO,

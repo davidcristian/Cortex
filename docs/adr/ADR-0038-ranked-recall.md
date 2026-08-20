@@ -2812,3 +2812,83 @@ the fields print in name order and the bound is per value rather than per line.
   [R-336](../refinements/tasks/336-packed-values-keep-their-whole-length.md).
 - The line, as opposed to the value, is still unbounded, and the eight-fields headroom is an
   argument rather than a check: [R-337](../refinements/tasks/337-a-bounded-value-leaves-the-line-unbounded.md).
+
+## Named-recall addendum (2026-08-20): the rank that fell back says which conversation it was for
+
+**Status:** Accepted. Closes "a rank fallback cannot name its turn" from
+[docs/refinements/index.md#memory](../refinements/index.md#memory), which the unjudged-rank
+addendum above opened as the one thing its two new warnings could not say.
+
+The addendum above gave `JudgeRecallPolicy` its two fallback warnings and found, in writing them,
+that neither could name where it happened. `RecallPolicy` was `candidate_k(k)` plus `select(hits,
+*, query, now, k)`, and no conversation identity crossed it. Everything beside those two lines
+names one: `SummarizingHistoryWindow` logs a session with its boundary, `_report_forgone_memory`
+logs a session and a turn, and `LoggingRecallSink` writes a session on the very trail line an
+operator would pair a fallback with. So a burst of fallbacks on a brain serving several
+conversations could not be attributed to any of them, which is the blindness the warnings existed
+to end, one level up.
+
+### Decision
+
+1. **The port grows an optional keyword-only `session_id`, and nothing else.** `select(hits, *,
+   query, now, k, session_id=None)`. This is the shape `HistoryWindow.select` took for `progress`
+   and `drain_text` took for `stops`: a collaborator only some implementations have a use for,
+   handed per call rather than per construction, defaulted so a caller that has none passes none. A
+   required positional would have been a field four of the five policies ignore, forced on every
+   caller and every fake for one policy's benefit.
+2. **It is an id and never content.** The pool and the `query` are the two other things a policy is
+   handed and both are conversation text, which no line of these logs has ever carried and none may
+   start carrying on the one path that fires when something is already wrong. That is why this is a
+   separate parameter rather than a wider `query`, and it is pinned by a test that renders both
+   warnings through the shipped formatter and asserts the question and the recalled note are on
+   neither line.
+3. **`MemoryRecaller.recall` already held one, so nothing is plumbed.** The method is called with
+   the session it is recalling for and hands that on. No store read, no new field on any value
+   type, no seam change.
+4. **The field is spelled `session`, matching the trail rather than the core's other lines.** Five
+   log sites in the brain spell a conversation `session_id` and the recall trail spells it
+   `session`; a fallback is paired with the trail line for the same recall, sitting beside it in
+   the same stream, so it takes the trail's spelling. The divergence itself is real and is filed
+   rather than settled here.
+5. **Every fallback is handed the id too.** All three exits that consult one forward it, including
+   the empty pool that is no fault, because `fallback` takes any `RecallPolicy` and a judge nested
+   under a judge would otherwise be blinded by the policy wrapping it.
+6. **A caller that named nothing logs `session=None`.** An absent field and an unnamed caller are
+   different facts, and the formatter's own rule for a withheld value is the same one: the key
+   stays so a reader can tell the two apart.
+
+**This reverses the unjudged-rank addendum's "the judge's warnings cannot name a session or a
+turn".** Half of it: they now name a session, and the turn stays out of reach, because
+`MemoryRecaller.recall` takes no turn id either and reaching one means widening that method as
+well, for a pairing target that has no turn id of its own.
+
+### What this does not do, and where that is recorded
+
+- **A fallback still cannot be tied to one recall inside a conversation.** A session with twenty
+  turns produces twenty recalls, and the trail line beside a fallback names the same session as the
+  nineteen others. Recorded as
+  [docs/refinements/tasks/338-a-named-recall-is-not-a-named-turn.md](../refinements/tasks/338-a-named-recall-is-not-a-named-turn.md).
+- **The brain's logs now spell a conversation two ways**, `session` on the recall trail and these
+  two warnings, `session_id` on the five other sites, so an operator grepping one misses the other.
+  Recorded as
+  [docs/refinements/tasks/339-two-spellings-of-one-conversation.md](../refinements/tasks/339-two-spellings-of-one-conversation.md).
+- **Nothing about the rank's cost or behaviour changes.** No call is added, no ranking moves, and
+  the four policies that ignore the parameter delete it in their first statement.
+
+### Distrust green
+
+Seven mutations, each applied to production code alone with the core suite re-run.
+
+| mutation | reddens |
+| --- | --- |
+| `MemoryRecaller.recall` stops passing the id | **1**, the recaller's own case |
+| the unreachable-model line stops naming the session | **3**, the naming, unnamed and no-content cases |
+| the unreadable-reply line stops naming the session | **2**, the naming and no-content cases |
+| the question rides either line beside the id | **1**, the no-content case, which is the point of it |
+| the fallback after an empty pool is not told the id | **1** |
+| the fallback after an unreachable model is not told the id | **1** |
+| the fallback after an unreadable reply is not told the id | **1** |
+
+The fourth row is the one worth stating: it is the leak this parameter exists to avoid being, and
+nothing about the port's shape prevents a later call site from writing it, so the refusal is a test
+rather than a type.

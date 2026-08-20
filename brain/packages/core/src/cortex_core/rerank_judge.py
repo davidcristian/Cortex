@@ -25,6 +25,14 @@ because neither is a fault. An empty pool is a no-op with nothing to judge. An e
 the model judging and declining, which the recall trail reports as the ``DEMUR`` basis beside every
 other per-recall fact. So a line from here always means the one thing, that the rank a deployment
 configured did not run, and no line means the pool was judged or there was nothing to judge.
+
+**Both warnings name the recall they happened to** (ADR-0038 named-recall addendum). ``session`` is
+the id the port now carries, spelled the way ``LoggingRecallSink`` spells it, because the trail
+line for the very same recall is what an operator pairs a fallback with; without it a burst of
+fallbacks on a brain serving several conversations could not be attributed to any of them. It is
+the caller's opaque handle and nothing else: the pool and the ``query`` are conversation content,
+and no line here has ever carried either. A caller that gave no id logs ``session=None``, which
+says the recall arrived unnamed rather than leaving a reader to wonder whether the field exists.
 """
 
 import json
@@ -193,7 +201,13 @@ class JudgeRecallPolicy:
         return k * self._pool_factor
 
     async def select(
-        self, hits: Sequence[ScoredMemory], *, query: str, now: datetime, k: int
+        self,
+        hits: Sequence[ScoredMemory],
+        *,
+        query: str,
+        now: datetime,
+        k: int,
+        session_id: str | None = None,
     ) -> Ranking:
         """Ask the model to order the pool: fall back on a failure, keep nothing on a refusal."""
         if not hits:
@@ -201,7 +215,9 @@ class JudgeRecallPolicy:
             # and none was attempted. Silent for the reason the summarizing window is silent when
             # its inner window dropped nothing: a line here would fire on every turn a deployment
             # recalls nothing on, and it would dilute the two below, which mean something broke.
-            return await self._fallback.select(hits, query=query, now=now, k=k)
+            return await self._fallback.select(
+                hits, query=query, now=now, k=k, session_id=session_id
+            )
         stops = StopLedger()
         try:
             raw = await drain_text(
@@ -217,10 +233,12 @@ class JudgeRecallPolicy:
             # cause rides as ``exc_info`` the way every other degraded-turn warning carries it.
             _logger.warning(
                 "the model could not be asked to rank recall; falling back to the unjudged ranking",
-                extra={"pool": len(hits), "k": k},
+                extra={"session": session_id, "pool": len(hits), "k": k},
                 exc_info=True,
             )
-            return await self._fallback.select(hits, query=query, now=now, k=k)
+            return await self._fallback.select(
+                hits, query=query, now=now, k=k, session_id=session_id
+            )
         order = parse_order(raw, pool_size=len(hits), k=k)
         if order is None:
             # The two readings beside the message are the whole diagnosis, and they exist because
@@ -235,9 +253,17 @@ class JudgeRecallPolicy:
             # carries, so spelling them into the message too would print each of them twice.
             _logger.warning(
                 "the model returned no usable recall order; falling back to the unjudged ranking",
-                extra={"pool": len(hits), "k": k, "capped": stops.capped, "chars": len(raw)},
+                extra={
+                    "session": session_id,
+                    "pool": len(hits),
+                    "k": k,
+                    "capped": stops.capped,
+                    "chars": len(raw),
+                },
             )
-            return await self._fallback.select(hits, query=query, now=now, k=k)
+            return await self._fallback.select(
+                hits, query=query, now=now, k=k, session_id=session_id
+            )
         if not order:
             return Ranking(hits=(), basis=RankBasis.DEMUR)
         return Ranking(hits=_keyed(hits, order), basis=RankBasis.VERDICT)

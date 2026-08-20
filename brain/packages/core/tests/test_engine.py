@@ -609,9 +609,15 @@ class _BrokenRecallPolicy:
         return k
 
     async def select(
-        self, hits: Sequence[ScoredMemory], *, query: str, now: datetime, k: int
+        self,
+        hits: Sequence[ScoredMemory],
+        *,
+        query: str,
+        now: datetime,
+        k: int,
+        session_id: str | None = None,
     ) -> Ranking:
-        del hits, query, now, k
+        del hits, query, now, k, session_id
         msg = "a DEMUR ranking declines, so it carries no hits"
         raise ValueError(msg)
 
