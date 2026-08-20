@@ -63,10 +63,16 @@ class RerankingRecallPolicy:
         return k * self._pool_factor
 
     async def select(
-        self, hits: Sequence[ScoredMemory], *, query: str, now: datetime, k: int
+        self,
+        hits: Sequence[ScoredMemory],
+        *,
+        query: str,
+        now: datetime,
+        k: int,
+        session_id: str | None = None,
     ) -> Ranking:
         """Rerank by the similarity+recency blend, drop near-duplicates, keep the top ``k``."""
-        del query  # a geometric policy never reads the question
+        del query, session_id  # a geometric policy reads neither the question nor where it is
         ranked = sorted(hits, key=lambda hit: self._relevance(hit, now), reverse=True)
         kept: list[ScoredMemory] = []
         for hit in ranked:
@@ -124,10 +130,17 @@ class MmrRecallPolicy:
         return k * self._pool_factor
 
     async def select(
-        self, hits: Sequence[ScoredMemory], *, query: str, now: datetime, k: int
+        self,
+        hits: Sequence[ScoredMemory],
+        *,
+        query: str,
+        now: datetime,
+        k: int,
+        session_id: str | None = None,
     ) -> Ranking:
         """Greedily keep the ``k`` hits of highest marginal relevance (relevance less penalty)."""
-        del query, now  # MMR weighs relevance against diversity, not the question or age
+        # MMR weighs relevance against diversity: not the question, not the age, not the caller.
+        del query, now, session_id
         return Ranking(hits=greedy_mmr(hits, k, self._marginal_relevance), basis=RankBasis.SPREAD)
 
     def _marginal_relevance(self, hit: ScoredMemory, kept: Sequence[ScoredMemory]) -> float:
@@ -183,10 +196,16 @@ class RecencyMmrRecallPolicy:
         return k * self._pool_factor
 
     async def select(
-        self, hits: Sequence[ScoredMemory], *, query: str, now: datetime, k: int
+        self,
+        hits: Sequence[ScoredMemory],
+        *,
+        query: str,
+        now: datetime,
+        k: int,
+        session_id: str | None = None,
     ) -> Ranking:
         """Greedily keep the ``k`` of highest recency-blended marginal relevance."""
-        del query  # a geometric policy never reads the question
+        del query, session_id  # a geometric policy reads neither the question nor where it is
         return Ranking(
             hits=greedy_mmr(hits, k, lambda hit, kept: self._marginal_relevance(hit, kept, now)),
             basis=RankBasis.SWEEP,

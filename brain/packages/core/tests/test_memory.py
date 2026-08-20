@@ -327,14 +327,22 @@ class _SpyRecallPolicy:
 
     def __init__(self) -> None:
         self.select_call: tuple[tuple[str, ...], str, datetime, int] | None = None
+        self.session_id: str | None = None
 
     def candidate_k(self, k: int) -> int:
         return k + 3  # ask for a wider pool than the caller's k, to observe the over-fetch
 
     async def select(
-        self, hits: Sequence[ScoredMemory], *, query: str, now: datetime, k: int
+        self,
+        hits: Sequence[ScoredMemory],
+        *,
+        query: str,
+        now: datetime,
+        k: int,
+        session_id: str | None = None,
     ) -> Ranking:
         self.select_call = (tuple(hit.record.id for hit in hits), query, now, k)
+        self.session_id = session_id
         return Ranking(
             hits=tuple(RankedMemory(hit=hit, key=hit.score) for hit in hits[:1]),
             basis=RankBasis.VERDICT,
@@ -358,6 +366,24 @@ async def test_recall_over_fetches_the_pool_and_applies_the_policy() -> None:
     assert now == _AT  # the recaller passes clock.now() as the recall time
     assert k == 2
     assert len(hits) == 1  # the recaller returns exactly what the policy selected
+
+
+async def test_the_policy_is_told_which_recall_it_is_ranking() -> None:
+    """The one identity that crosses the port, so a policy that reports can say where.
+
+    Nothing is fetched to pass it: ``recall`` is handed the session it is recalling for and hands
+    it on (ADR-0038 named-recall addendum). Asserted against a session the memory was NOT written
+    under, so a passing read cannot be the write scope arriving by another route.
+    """
+    spy = _SpyRecallPolicy()
+    recaller = MemoryRecaller(
+        InMemoryMemoryStore(), HashEmbedder(), _FixedClock(), policy=spy, id_factory=lambda: "m0"
+    )
+    await recaller.record("a fact", session_id="the-writer")
+
+    await recaller.recall("a fact", k=1, session_id="the-reader")
+
+    assert spy.session_id == "the-reader"
 
 
 async def test_recall_audits_the_ranking_when_a_sink_is_wired() -> None:
@@ -442,9 +468,15 @@ class _DecliningRecallPolicy:
         return k
 
     async def select(
-        self, hits: Sequence[ScoredMemory], *, query: str, now: datetime, k: int
+        self,
+        hits: Sequence[ScoredMemory],
+        *,
+        query: str,
+        now: datetime,
+        k: int,
+        session_id: str | None = None,
     ) -> Ranking:
-        del hits, query, now, k
+        del hits, query, now, k, session_id
         return Ranking(hits=(), basis=RankBasis.DEMUR)
 
 

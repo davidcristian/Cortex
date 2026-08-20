@@ -79,6 +79,11 @@ class MemoryRecaller:
         policy then reranks and prunes it to ``k``. The default policy fetches exactly ``k`` and
         keeps the store's similarity order, so recall is v1 top-k cosine unless reranking is on.
 
+        The policy is handed this recall's ``session_id`` as well, which is the only identity that
+        crosses the port (ADR-0038 named-recall addendum): a policy that reports a degradation can
+        then say which conversation it happened in, and the audit trail beside it is keyed the same
+        way, so the two lines pair. Nothing is fetched to pass it; this method already held it.
+
         The policy returns a ``Ranking`` (its keys and their basis, ADR-0038) and this method
         unwraps it: turn assembly wants hits, and widening this return would push a ranking through
         turn context and the seam for no consumer. The ranking instead goes to the ``audit`` sink
@@ -103,7 +108,7 @@ class MemoryRecaller:
         pool = await self._store.search(embedding, k=self._policy.candidate_k(k), scopes=scopes)
         available = await self._count_candidates(scopes)
         now = self._clock.now()
-        ranking = await self._policy.select(pool, query=query, now=now, k=k)
+        ranking = await self._policy.select(pool, query=query, now=now, k=k, session_id=session_id)
         if self._audit is not None:
             await self._audit.record(
                 RecallAudit(

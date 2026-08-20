@@ -1,6 +1,6 @@
 # A rank fallback cannot name its turn
 
-**Status:** open, a seam or port change comes first
+**Status:** landed 2026-08-20
 **Area:** memory
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
 
@@ -28,3 +28,12 @@ nothing new has to be plumbed to reach the port; only the port has to accept it.
 
 - 2026-08-19: Opened by the close of [R-309](309-a-silent-judge-fallback.md), which gave the judge
   its two fallback warnings and found they could say what happened and never to whom.
+- 2026-08-20: Landed as the shape this entry named. `select` grew a keyword-only
+  `session_id=None`, the recaller passes the id it already held, and both warnings carry it as
+  `session`, the spelling the recall trail uses so the two lines pair. Two things the entry got
+  wrong are worth recording: the four policies that never log are **not** untouched, since a
+  Protocol method's parameter list binds every structural implementation, so all four take the
+  keyword and delete it, as `CharBudgetHistoryWindow` does for `progress`; and the four test fakes
+  had to take it too, which is the cost the optional shape saves at the call sites and does not
+  save at the implementations. Recorded in the ADR-0038 named-recall addendum, which also files
+  the turn id this entry's title asked for and the two spellings the field name now leaves behind.

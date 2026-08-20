@@ -160,10 +160,14 @@ adjacently as `capped=True chars=0`. The judge used to spell them into its messa
 when the shipped handler printed no field at all; it no longer does, so a deployment reading these
 lines through some other handler sees the message alone.
 
-Both lines name `pool`, the candidates that went unjudged, and `k`, the width asked of the rank.
-Neither can name the session: `RecallPolicy` is handed the pool, the question and `k`, and no
-conversation identity crosses that seam, so on a brain serving several conversations a burst of
-these cannot be attributed to one of them.
+Both lines name `pool`, the candidates that went unjudged, and `k`, the width asked of the rank,
+and both name `session`, the conversation the recall was for (ADR-0038 named-recall addendum). That
+last one is spelled the way the recall trail below spells it, so a fallback and the trail line for
+the same recall are joined by `grep "session=<id>"` on one stream; without it a burst of these on a
+brain serving several conversations could not be attributed to any of them. It is an id and
+nothing more, the question and the notes being conversation text that these lines never carry.
+`session=None` means the port was called by something that named no conversation, which nothing in
+the shipped brain does.
 
 Silence means the rank is working. A pool the model ordered and a pool it read and declined both
 pass without a line, the second showing as the `demur` basis on the trail below, and so does an
