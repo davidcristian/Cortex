@@ -168,6 +168,18 @@ async def _answer(action: _Action, request: Request) -> Response:
 
 
 def _refused(model: str, err: SupervisorError, code: HTTPStatus) -> Response:
-    """Encode a typed refusal, logged with the id that asked for it (never a stack per request)."""
-    _logger.warning("a model-host request failed", extra={"model": model, "error": str(err)})
+    """Encode a typed refusal, logged with the id that asked for it (never a stack per request).
+
+    The level follows the status code, the code being this module's own judgement about whose
+    fault the refusal is: a 4xx is a caller asking after a tier this daemon never had, worth a
+    line and no more, while a 5xx is the daemon unable to do a thing it accepts. That distinction
+    used to be carried by a second, louder line at the raise, which said the same sentence over
+    again; the sentence rides the ``error`` field, so the level has to ride the line that is left
+    or a child holding GPU memory nothing can free reads exactly like a typo in a model id. It
+    matters most where nobody is watching this daemon: a swap's eviction meets the 503 through
+    the brain's own port, and the brain turns it into a note without logging its text, so this
+    line is the only record of it anywhere.
+    """
+    level = logging.ERROR if code >= HTTPStatus.INTERNAL_SERVER_ERROR else logging.WARNING
+    _logger.log(level, "a model-host request failed", extra={"model": model, "error": str(err)})
     return JSONResponse({"error": str(err)}, status_code=code)
