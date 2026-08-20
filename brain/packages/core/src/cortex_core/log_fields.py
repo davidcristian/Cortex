@@ -8,6 +8,12 @@ from collections.abc import Mapping
 # What stands in for a value this module will not print. Visible on purpose, per the docstring.
 REDACTED = "<redacted>"
 
+# What stands in for the rest of a value the bound below cut, naming how many characters went.
+# Sibling of REDACTED in shape, since both are the formatter speaking rather than the record.
+CUT = "<cut {chars} chars>"
+
+VALUE_CHARS = 2048
+
 RESERVED_ATTRS = frozenset(
     {
         "args",
@@ -81,6 +87,13 @@ def record_fields(record: logging.LogRecord) -> dict[str, object]:
     }
 
 
+def _bound_value(text: str) -> str:
+    """``text`` cut to ``VALUE_CHARS``, with a marker naming the characters that did not print."""
+    if len(text) <= VALUE_CHARS:
+        return text
+    return text[:VALUE_CHARS] + CUT.format(chars=len(text) - VALUE_CHARS)
+
+
 def render_value(value: object) -> str:
     """One field's value, written so the pair it sits in can still be told from the next one."""
     if isinstance(value, str):
@@ -88,10 +101,12 @@ def render_value(value: object) -> str:
     elif value is None or isinstance(value, int | float):
         text = str(value)
     else:
-        return json.dumps(
-            value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str
+        return _bound_value(
+            json.dumps(
+                value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str
+            )
         )
-    return text if _BARE.fullmatch(text) else json.dumps(text, ensure_ascii=False)
+    return _bound_value(text if _BARE.fullmatch(text) else json.dumps(text, ensure_ascii=False))
 
 
 def render_fields(fields: Mapping[str, object]) -> str:
