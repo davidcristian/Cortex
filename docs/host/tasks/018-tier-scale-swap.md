@@ -39,7 +39,8 @@ window, which lights the overlay's connection dot amber.
 not this one. The failure that matters here is a restore that does not happen:
 
 ```
-could not restore '<cortex model>' after 2 attempts; manual recovery is needed
+could not restore '<cortex model>' after 2 attempts, the last of which failed on '<tier>';
+manual recovery is needed
 ```
 
 which is `ResidencyRestoreError`, and [runbooks/model-swap.md](../../runbooks/model-swap.md) has the

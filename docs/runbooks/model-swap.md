@@ -487,11 +487,23 @@ and the next turn works. Do it once mid load as well as mid answer. Record the t
 ## The error that sends you here
 
 ```
-could not restore '<cortex model>' after 2 attempts; manual recovery is needed
+could not restore '<cortex model>' after 2 attempts, the last of which failed on '<tier>';
+manual recovery is needed
 ```
 
 That is `ResidencyRestoreError` from `residency.py`, logged just before as
-`could not restore the cortex after a model swap; the GPU serves nothing`. It means the swap
+`could not restore the cortex after a model swap; the GPU serves nothing` with
+`model=<cortex model> failed_model=<tier> attempts=2`.
+
+**Read the second tier before the first.** The swap back has two subjects, the deep model it takes
+off the card and the cortex it puts back, and either can be what refused. `<tier>` is the one the
+last attempt actually failed on, so when it names the deep model the cortex was never even asked
+for: its `start` never ran, `GET /models/<cortex model>` says `stopped` for a reason that has
+nothing to do with the cortex, and what is holding the card is a deep tier that would not stop.
+Step 2 of the manual recovery below is then the whole of it, and its first half rather than its
+second: stop that tier, and only then start the cortex.
+
+It means the swap
 back failed twice, so the brain now believes **no model is resident** and every later turn that
 needs the GPU fails until residency is fixed. Nothing in the swap will try again, which is why it
 is loud; what does try again is the background pass, which re-reads the machine every

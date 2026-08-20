@@ -36,8 +36,13 @@ async def restore_with_retries(
     """Bring the cortex back, retrying once; give up loudly rather than silently."""
     cortex = plan.cortex_model
     await publish(None, RESIDENCY_RESTORING)
+    # The floor the give-up below needs to be typed: the attempt count is a positive constant, so
+    # the loop always runs and always rebinds this, and what stands here is exactly what both
+    # sentences said before an attempt could name the tier it failed on.
+    failed = cortex
     for attempt in range(1, _RESTORE_ATTEMPTS + 1):
-        if await restore_standing(host, plan, model, gate, tiers):
+        failed = await restore_standing(host, plan, model, gate, tiers)
+        if failed is None:
             await publish(cortex, RESIDENCY_SERVING)
             # Only here, where the cortex is genuinely serving again. A restore that gave up
             # leaves the handoff's charge standing, so spawns keep overflowing to the CPU rather
@@ -46,18 +51,18 @@ async def restore_with_retries(
             return
         _logger.warning(
             "restoring the cortex failed; retrying",
-            extra={"model": cortex, "attempt": attempt},
+            extra={"model": cortex, "failed_model": failed, "attempt": attempt},
         )
     # Nothing is resident and no retry is left, so the report stops claiming a restore is under
     # way: Health goes on saying so until boot recovery converges residency again.
     await publish(None, RESIDENCY_LOST)
     _logger.error(
         "could not restore the cortex after a model swap; the GPU serves nothing",
-        extra={"model": cortex, "attempts": _RESTORE_ATTEMPTS},
+        extra={"model": cortex, "failed_model": failed, "attempts": _RESTORE_ATTEMPTS},
     )
     msg = (
-        f"could not restore {cortex!r} after {_RESTORE_ATTEMPTS} attempts; manual "
-        "recovery is needed (docs/runbooks/model-swap.md)"
+        f"could not restore {cortex!r} after {_RESTORE_ATTEMPTS} attempts, the last of which "
+        f"failed on {failed!r}; manual recovery is needed (docs/runbooks/model-swap.md)"
     )
     raise ResidencyRestoreError(msg)
 

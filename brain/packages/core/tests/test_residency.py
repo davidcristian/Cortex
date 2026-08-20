@@ -548,7 +548,7 @@ async def test_a_restore_that_fails_once_retries_and_succeeds(
         (
             "cortex_core.residency_restore",
             "restoring the cortex failed; retrying",
-            {"model": "cortex", "attempt": 1},
+            {"model": "cortex", "failed_model": "cortex", "attempt": 1},
         ),
     ]
 
@@ -573,7 +573,7 @@ async def test_a_restore_that_cannot_evict_the_deep_model_names_it_and_not_the_c
         (
             "cortex_core.residency_restore",
             "restoring the cortex failed; retrying",
-            {"model": "cortex", "attempt": 1},
+            {"model": "cortex", "failed_model": "brain", "attempt": 1},
         ),
     ]
 
@@ -586,28 +586,62 @@ async def test_a_restore_that_never_succeeds_raises_loudly_and_leaves_nothing_re
     manager = _manager(host)
     with (
         caplog.at_level(logging.WARNING, logger="cortex_core.residency_restore"),
-        pytest.raises(ResidencyRestoreError, match="manual recovery is needed"),
+        pytest.raises(
+            ResidencyRestoreError, match=r"the last of which failed on 'cortex'; manual recovery"
+        ),
     ):
         async with manager.swap_scope("brain"):
             pass
     assert host.calls.count(("start", "cortex")) == 2
-    # The give-up is the module's own verdict, so the record that carries it has to come from
-    # the module that decides it; an error from any other one is a different event.
-    assert any(
-        record.levelno == logging.ERROR and record.name == "cortex_core.residency_restore"
+    assert [
+        record_fields(record)
         for record in caplog.records
-    )
+        if record.levelno == logging.ERROR and record.name == "cortex_core.residency_restore"
+    ] == [{"model": "cortex", "failed_model": "cortex", "attempts": 2}]
     # Nothing is resident, so an acquire says so rather than leasing a dead endpoint.
     with pytest.raises(ModelUnavailableError, match="resident: None"):
         async with manager.acquire("cortex"):
             pass  # pragma: no cover - acquire raises before the body runs
 
 
+async def test_a_restore_that_can_never_evict_gives_up_naming_the_model_that_refused(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The give-up an operator carries to the runbook, on a restore that failed somewhere else."""
+    host = ScriptedModelHost(running=["cortex"], fail={("stop", "brain"): "still reaping"})
+    manager = _manager(host)
+    with (
+        caplog.at_level(logging.ERROR),
+        pytest.raises(
+            ResidencyRestoreError, match=r"the last of which failed on 'brain'; manual recovery"
+        ),
+    ):
+        async with manager.swap_scope("brain"):
+            pass
+    assert ("start", "cortex") not in host.calls  # the cortex was never asked for at all
+    assert host.running == {"brain"}  # and the deep model is what is really on the card
+    refused = (
+        "cortex_core.residency_moves",
+        "the model host failed while taking the swapped-in model off the card",
+        {"model": "brain"},
+    )
+    assert [(record.name, record.message, record_fields(record)) for record in caplog.records] == [
+        refused,
+        refused,
+        (
+            "cortex_core.residency_restore",
+            "could not restore the cortex after a model swap; the GPU serves nothing",
+            {"model": "cortex", "failed_model": "brain", "attempts": 2},
+        ),
+    ]
+    assert manager.residency() == RESIDENCY_LOST
+
+
 async def test_a_restore_whose_gate_never_reports_ready_also_gives_up() -> None:
     """The restore's failure is not only a raising host: a cortex stuck loading counts too."""
     host = ScriptedModelHost(running=["cortex"], status_override={"cortex": ModelHostState.LOADING})
     manager = _manager(host, _plan(load_timeout_s=0.0))
-    with pytest.raises(ResidencyRestoreError):
+    with pytest.raises(ResidencyRestoreError, match=r"the last of which failed on 'cortex'"):
         async with manager.swap_scope("brain"):
             pass
     assert host.calls.count(("start", "cortex")) == 2

@@ -889,7 +889,9 @@ unchanged):
   that would also heal a peer that died on its own. Entering may
   raise `SwapFailedError` (the cortex having already been restored by that same `finally`); a
   restore that fails even after its one retry raises `ResidencyRestoreError` from the exit,
-  loudly logged. While a scope is active, `acquire` of any other model **waits** rather than
+  loudly logged, naming the tier the last attempt failed on as well as the cortex it could not
+  restore, since either of the swap back's two subjects can be the one that refused. While a
+  scope is active, `acquire` of any other model **waits** rather than
   raising; at most one scope exists at a time, there being one GPU, and a second entry raises
   `HandoffInProgressError`.
 - Same port, `unhosted(model) -> bool` (ADR-0030 unrostered-refusal addendum): whether this
@@ -2189,7 +2191,14 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   asked before either of them (`is_unhosted(host, model)`, the one `status` call behind the
   manager's `unhosted`). The swap back's two host failures are logged under separate `try` blocks
   for the same reason boot recovery's are: the eviction is about the model the handoff swapped in
-  and the start is about the cortex, so each line carries the model it was acting on. Both of the
+  and the start is about the cortex, so each line carries the model it was acting on. One attempt
+  at the standing residency answers **the model it failed on**, or `None` when the cortex is
+  serving again, rather than a bool: the sense is inverted (nothing means success) precisely so no
+  value can mean success by accident, and the id is what lets the retry line, the give-up line and
+  the `ResidencyRestoreError` name the tier that really refused instead of the cortex by default.
+  On both of those lines `model` stays what it always was, the cortex being restored, and
+  `failed_model` is the tier beside it, which is the swapped-in resident whenever the eviction is
+  what the host would not do. Both of the
   swap back's own guarantees, its retry policy (`restore_with_retries`) and its uninterruptible
   wait, live in `residency_restore.py`; and the bookkeeping every one of them publishes into, in
   `ResidencyBoard` (`residency_board.py`, ADR-0030 boot-verdict addendum): which model the GPU

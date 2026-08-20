@@ -100,7 +100,7 @@ async def _refuse_a_load_the_card_cannot_hold(
 
 async def restore_standing(
     host: ModelHost, plan: ResidencyPlan, model: str, gate: ReadinessGate, tiers: StandingTiers
-) -> bool:
+) -> str | None:
     """One attempt at the standing residency: stop ``model``, bring the cortex and its peers up."""
     try:
         await _stop_what_was_swapped_in(host, model)
@@ -109,7 +109,7 @@ async def restore_standing(
             "the model host failed while taking the swapped-in model off the card",
             extra={"model": model},
         )
-        return False
+        return model
     try:
         await host.start(plan.cortex_model)
         state = await gate(plan.cortex_model)
@@ -117,11 +117,11 @@ async def restore_standing(
         _logger.exception(
             "the model host failed while restoring the cortex", extra={"model": plan.cortex_model}
         )
-        return False
+        return plan.cortex_model
     if state is not ModelHostState.READY:
-        return False
+        return plan.cortex_model
     await restart_evicted(host, plan, tiers)
-    return True
+    return None
 
 
 async def _stop_what_was_swapped_in(host: ModelHost, model: str) -> None:
