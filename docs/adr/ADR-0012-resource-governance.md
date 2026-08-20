@@ -1210,20 +1210,29 @@ property query comes back from the plugin's own property manager rather than fro
 library. So the plugin path is reachable. It enumerates nothing. `Core().available_devices` is
 `['CPU']` and `Core().get_property("NPU", "AVAILABLE_DEVICES")` is `[]`.
 
-One finding reaches past today's kernel. Of the 1,349 Windows driver packages WSL maps into the
-guest, exactly three ship Linux user mode libraries: the Intel graphics package in its two staged
-versions, and the NVIDIA one. Intel's NPU package ships `npu_level_zero_umd.dll` and
+One finding reaches past today's kernel. Of the **1,038** Windows driver packages WSL maps into
+`/usr/lib/wsl/drivers`, exactly three ship Linux user mode libraries: the Intel graphics package in
+its two staged versions, and the NVIDIA one. Intel's NPU packages ship `npu_level_zero_umd.dll` and
 `npu_d3d12_umd.dll` and no `.so` at all. A future WSL that projected the device would therefore
 still leave nothing on the Linux side to drive it, so the condition that revives this work has two
 halves and not one.
 
+**The denominator is corrected here.** It was first written as 1,349, which is what the directory
+holds rather than what it maps: 1,038 package directories plus 311 `.ini` sidecars beside some of
+them. The ratio is the whole of the finding, so counting each sidecar as a package inflates its
+denominator by 311.
+
 ### What was not measured, and why the entry's hardware line stands unrepeated
 
 `/proc/cpuinfo` names the Intel Core Ultra 9 275HX this record already records, and the Windows
-driver store carries Intel's NPU driver package (`npu.inf`, class `ComputeAccelerator`, version
-32.0.100.4778) whose hardware ids include the Arrow Lake NPU at `8086:AD1D` beside Meteor Lake's
-`7D1D` and Lunar Lake's `643E`. A staged driver package is not a present device, and this guest
-cannot see Windows device state at all: interop is off in `/etc/wsl.conf` and no Windows volume but
+driver store carries Intel's NPU driver package in **two** staged versions (`npu.inf`, class
+`ComputeAccelerator`, 32.0.100.4778 dated 2026-04-28 and 32.0.100.3104 dated 2024-10-25) plus a
+separate `npu_extension.inf` at the older of the two. The newer package's hardware ids include the
+Arrow Lake NPU at `8086:AD1D` beside Meteor Lake's `7D1D` and Lunar Lake's `643E`. (**The count is
+corrected here**, this sentence having first said the store carries the package, singular, in the
+same paragraph that is careful to say the graphics package is present in its two staged versions.)
+A staged driver package is not a present device, and this guest cannot see Windows device state at
+all: interop is off in `/etc/wsl.conf` and no Windows volume but
 the model drive is mounted. So the hardware confirmation of 2026-07-01 is neither repeated nor
 contradicted here, and nothing below rests on it.
 
