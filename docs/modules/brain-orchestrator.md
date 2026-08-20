@@ -28,7 +28,13 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
 - `BrainRuntimeConfig` holds runtime wiring knobs, read only by the composition root:
   `redis_url: str = "redis://127.0.0.1:6379/0"` (`CORTEX_REDIS_URL`);
   `cortex_model: str = "cortex"` (`CORTEX_MODEL_CORTEX`) is a LOGICAL model id (ADR-0004), never a
-  file path; and the GPU-budget facts the `SubagentPlacer` fit-tests against (ADR-0012):
+  file path, and the root reads it twice, into the turn engine's request and into the backend
+  whose manager grants the lease, which is why `test_wiring` drives one turn over a **renamed**
+  tier (ADR-0001 configured-caller addendum): under the shipped id a root reaching for
+  `DEFAULT_CORTEX_MODEL` reads identically to one reading this, and nothing below the root compares
+  the two. The deep tier's id and the subagent roster's default are pinned the same way and for the
+  same reason, in `test_swap_wiring` and `test_wiring`; and the GPU-budget facts the
+  `SubagentPlacer` fit-tests against (ADR-0012):
   `vram_soft_cap_gb: float = 14.0` (`CORTEX_VRAM_SOFT_CAP_GB`, the deliberate soft cap, ADR-0004) and
   `cortex_reservation_gb: float = 8.6` (`CORTEX_VRAM_CORTEX_GB`, the resident cortex's footprint,
   re-measured 2026-08-07 at the shipped tier shape and lowered from 11.3, which was a total-used

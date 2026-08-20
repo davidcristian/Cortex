@@ -251,6 +251,29 @@ async def test_the_enabled_runtime_is_the_one_lease_and_the_one_residency() -> N
     await swap_closer(runtime)()
 
 
+async def test_each_tier_leases_the_endpoint_its_own_deployment_named() -> None:
+    """A deployment that renamed both tiers still leases, and the case above cannot see it."""
+    runtime = build_swap_runtime(
+        _enabled(brain_model="brain-alt"),
+        BrainRuntimeConfig(cortex_model="cortex-alt"),
+        InferenceConfig(backend="llamacpp", endpoint="http://llama-cortex:8080"),
+        SystemClock(),
+        AsyncioSleeper(),
+        _fake_handoff_store,
+    )
+    assert runtime is not None
+    plan = runtime.plan
+    assert (plan.cortex_model, plan.brain_model) == ("cortex-alt", "brain-alt")
+    async with runtime.manager.acquire(plan.cortex_model) as lease:
+        assert lease.endpoint == "http://llama-cortex:8080"
+    async with (
+        runtime.manager.swap_scope(plan.brain_model),
+        runtime.manager.acquire(plan.brain_model) as lease,
+    ):
+        assert lease.endpoint == "http://llama-brain:8081"
+    await swap_closer(runtime)()
+
+
 async def test_a_boot_whose_peer_tier_is_down_still_says_the_brain_is_ready() -> None:
     """A delegation tier that will not start is not the usual assistant failing to come up."""
     placer = VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.0)
