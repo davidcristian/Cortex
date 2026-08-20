@@ -2005,12 +2005,13 @@ async def test_a_tool_call_no_limit_explains_ends_the_turn_with_its_own_note() -
 
     events = await _collect(engine.handle_turn("s", "look something up", turn_id="t-1"))
 
+    # One note and never two: this is the whole event list, so a capped note emitted beside the
+    # unreadable one would fail here rather than need a second check to look for it.
     assert events == [
         TextDelta("half an "),
         TextDelta(UNREADABLE_CALL_NOTE),
         TurnCompleted(turn_id="t-1", full_text=f"half an {UNREADABLE_CALL_NOTE}"),
     ]
-    assert REPLY_CAPPED_NOTE not in f"half an {UNREADABLE_CALL_NOTE}"  # one note, never two
     history = [message.text for message in await store.history("s")]
     assert history[-1] == f"half an {UNREADABLE_CALL_NOTE}"
 
