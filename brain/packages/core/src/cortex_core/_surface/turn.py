@@ -53,7 +53,12 @@ from cortex_core.summarizing import (
     SummarizingHistoryWindow,
 )
 from cortex_core.turn_context import FORGOING_DETAIL, FORGOING_STATE, TurnCapabilities
-from cortex_core.turn_output import REPLY_CAPPED_NOTE, record_exchange, render_exchange
+from cortex_core.turn_output import (
+    REPLY_CAPPED_NOTE,
+    UNREADABLE_CALL_NOTE,
+    record_exchange,
+    render_exchange,
+)
 from cortex_core.untrusted import (
     DENIED_MSG,
     PLAIN_SECURITY_PREAMBLE,
@@ -87,6 +92,7 @@ __all__ = [
     "SECURITY_PREAMBLE",
     "TITLE_BOUNDS",
     "TITLE_MAX_TOKENS",
+    "UNREADABLE_CALL_NOTE",
     "USER_DECLINED_MSG",
     "BrainPhase",
     "CharBudgetHistoryWindow",

@@ -1108,7 +1108,9 @@ unchanged):
 - `SessionStoreError` / `InferenceError` (+ its `MalformedToolCallError`, ADR-0005 tool-call-cut
   addendum: the stream arrived and the tool call the model wrote will not parse, which the same
   model writes again wherever it runs, so a caller holding a `StopLedger` can tell a call a token
-  limit cut from a backend that died) / `ModelManagerError` (+ its
+  limit cut from a backend that died; two callers name it, a delegated attempt reporting
+  `TRUNCATED` and the cortex turn ending with a note instead of raising, ADR-0005 cortex-cut
+  addendum, while `BrainPhase` still reads it as the wide type) / `ModelManagerError` (+ its
   `ModelUnavailableError`, `SwapFailedError`, `ResidencyRestoreError`, and
   `HandoffInProgressError`, ADR-0030: the two swap failures, plus the refusal that is not a
   failure at all, since it means the deep model IS loaded and working on another turn, which is
@@ -1145,7 +1147,14 @@ Use-case:
   Cancellation semantics: closing the event stream mid-generation (`aclose()`) keeps
   the persisted user message, does NOT persist the partial assistant text, and closes
   the abandoned backend stream. Backend failures surface as `InferenceError` after the
-  user message was persisted.
+  user message was persisted, with **one exception that ends the turn instead of failing it**
+  (ADR-0005 cortex-cut addendum): a `MalformedToolCallError`, which says the unparsable fragment
+  is the model's own tokens rather than a broken transport, so another attempt writes it again
+  and the reply already streamed. That arm flushes the guarded channels (`stream_turn_events`
+  flushes only on a clean end), streams the note the `StopLedger` picks between
+  `REPLY_CAPPED_NOTE` and `UNREADABLE_CALL_NOTE`, logs a `warning` naming the session, the turn
+  and `capped`, and falls into the one persist path, so the turn persists once and completes.
+  Every other `InferenceError` still reaches the seam as `ERROR_CODE_INFERENCE_FAILED`.
   Memory (optional, ADR-0008): when `capabilities.memory` is set, before inference the
   engine recalls the top `DEFAULT_RECALL_K` (5) memories for the user text, within the
   turn's `session_id` scope (ADR-0008 addendum; global by default), and, if any, prepends
@@ -1208,7 +1217,13 @@ Use-case:
   `TextDelta` and appended to `parts`, so what is persisted is what was shown (ADR-0005
   capped-reply addendum). Both user-facing callers pass a ledger always, so the note covers the
   server's context window as well as a cap the deployment set; `BrainPhase` suppresses it when the
-  phase itself failed, `BRAIN_FAILED_NOTE` already saying the answer is unfinished. `TurnCapabilities.bounds`
+  phase itself failed, `BRAIN_FAILED_NOTE` already saying the answer is unfinished.
+  `unreadable_call_note(stops, parts)` is its complement and reads the same ledger the other way
+  (ADR-0005 cortex-cut addendum): it appends `UNREADABLE_CALL_NOTE` only when NO completion was
+  capped, so a tool call the cap cut takes the ordinary capped sentence and one the model simply
+  wrote wrong takes its own. The two disagree on one boolean by construction, which is what lets
+  the engine call both in sequence and hand the reader exactly one explanation. Silence is still
+  not a cap, so a backend reporting no reason takes the unreadable note. `TurnCapabilities.bounds`
   carries the deployment's own cap and thinking switch to both, `None` by default and therefore
   the request this repo has always sent. `stream_turn_events` maps one tool loop's
   deltas onto `TextDelta` / `StatusUpdate` (a reasoning trace) / `ToolActivity`, accumulating

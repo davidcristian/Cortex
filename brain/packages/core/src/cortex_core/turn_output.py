@@ -40,6 +40,16 @@ REPLY_CAPPED_NOTE = (
     "finished. Ask again, or ask for a shorter answer.)"
 )
 
+# What a user is told when the model broke its own tool-call grammar and no token limit explains
+# it (ADR-0005 cortex-cut addendum). The sibling of the note above, app-authored and persisted for
+# the same reason, and worded for the one thing the reader can act on: nothing ran, so whatever
+# they asked for did not happen, and asking again is worth a try because this is the model
+# misspeaking rather than a bound they have to work around.
+UNREADABLE_CALL_NOTE = (
+    "\n\n(I tried to use a tool and wrote the request in a way I could not read back, so nothing "
+    "ran and this answer is unfinished. The text above is everything I produced. Ask again.)"
+)
+
 
 def cap_note(stops: StopLedger, parts: list[str]) -> Iterator[TurnEvent]:
     """Say so when one of this turn's completions was cut, appending the note to ``parts``.
@@ -58,6 +68,28 @@ def cap_note(stops: StopLedger, parts: list[str]) -> Iterator[TurnEvent]:
         return
     parts.append(REPLY_CAPPED_NOTE)
     yield TextDelta(text=REPLY_CAPPED_NOTE)
+
+
+def unreadable_call_note(stops: StopLedger, parts: list[str]) -> Iterator[TurnEvent]:
+    """Say so when a tool call would not parse, unless a token limit already explains it.
+
+    The user-facing half of the pairing ``MalformedToolCallError`` exists for (ADR-0005
+    tool-call-cut addendum): the error says the unparsable fragment is the **model's own** rather
+    than the transport's, and the ledger says whether a completion of this turn stopped at a
+    limit. The two facts pick between two different sentences, which is why the ledger is read
+    here and not the error alone. Capped, the truthful note is the one every capped reply gets,
+    so this yields nothing and ``cap_note`` speaks a line later; uncapped, no limit explains the
+    fragment and this is the only thing that will be said. Exactly one note either way, and never
+    both, which is what keeps a reader from being handed two explanations for one stump.
+
+    Silence is still not a cap, so a backend that reported no reason at all takes this note rather
+    than the other: an unexplained fragment is what it is, and sending a reader after a token
+    budget nothing reported would be the invention the ledger's own invariant refuses.
+    """
+    if stops.capped:
+        return
+    parts.append(UNREADABLE_CALL_NOTE)
+    yield TextDelta(text=UNREADABLE_CALL_NOTE)
 
 
 def render_exchange(user_text: str, assistant_text: str) -> str:
