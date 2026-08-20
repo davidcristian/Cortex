@@ -11,7 +11,7 @@ FENCE = re.compile(r"^\s*(?:```|~~~)")
 # inline shapes below are looked for, so a heading that *quotes* a link or an entity is left be.
 CODE_SPAN = re.compile(r"`[^`]*`")
 
-BRACKETED = re.compile(r"!?\[[^\]]*\]")
+BRACKETED = re.compile(r"\[[^\]]*\]")
 ANGLE_MARKUP = re.compile(r"<[A-Za-z/!?][^>]*>")
 CLOSING_HASHES = re.compile(r"\s#+$")
 UNDERSCORE_EMPHASIS = re.compile(r"(?:^|\W)_[^\s_][^_]*_(?:\W|$)")

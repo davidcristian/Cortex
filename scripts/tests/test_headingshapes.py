@@ -45,7 +45,9 @@ def test_headings_ignores_a_hash_inside_a_fenced_block() -> None:
     [
         # A renderer slugs the bracketed text alone, so this rule welds the target onto it.
         ("Read [the rules](../AGENTS.md)", headingshapes.LINKED),
-        # An image is the same shape with a bang, and the same disagreement.
+        # An image is the same shape with a bang, and the same disagreement. It proves nothing
+        # about the bang, which the detector no longer spells: it is here because an image is a
+        # heading shape somebody writes, and it is found by the brackets inside it like the rest.
         ("The mark ![its bubble](../assets/logo.svg)", headingshapes.LINKED),
         # A reference link resolves elsewhere; the label is not part of the rendered text.
         ("Read [the rules][rules]", headingshapes.LINKED),
@@ -157,15 +159,51 @@ def test_a_rule_that_underlines_nothing_is_not_a_setext_heading(text: str) -> No
     assert headingshapes.unsluggable(text) == []
 
 
-# ── what the gate prints ───────────────────────────────────────────────────────
-
-
-def test_problems_names_the_file_the_line_the_heading_and_the_remedy() -> None:
-    text = "## Press <kbd>Ctrl</kbd>+N\n"
-    assert headingshapes.problems("docs/x.md", text) == [
-        "docs/x.md:1: heading 'Press <kbd>Ctrl</kbd>+N' "
-        f"{headingshapes.TAGGED}{headingshapes.PLAINLY}"
-    ]
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        (
+            "## Read [the rules](../AGENTS.md)\n",
+            "docs/x.md:1: heading 'Read [the rules](../AGENTS.md)' brackets a span, which"
+            " markdown may make a link and this rule always reads literally; write it as plain"
+            " text under leading hashes, so the source is what a renderer slugs",
+        ),
+        (
+            "## Press <kbd>Ctrl</kbd>+N\n",
+            "docs/x.md:1: heading 'Press <kbd>Ctrl</kbd>+N' carries angle-bracket markup, whose"
+            " letters this rule keeps and a renderer drops; write it as plain text under leading"
+            " hashes, so the source is what a renderer slugs",
+        ),
+        (
+            "## A closed heading ##\n",
+            "docs/x.md:1: heading 'A closed heading ##' is closed with hashes, which a renderer"
+            " strips and this rule leaves as a trailing hyphen; write it as plain text under"
+            " leading hashes, so the source is what a renderer slugs",
+        ),
+        (
+            "## An _emphasised_ word\n",
+            "docs/x.md:1: heading 'An _emphasised_ word' emphasises with underscores, a word"
+            " character to this rule and a mark to a renderer; write it as plain text under"
+            " leading hashes, so the source is what a renderer slugs",
+        ),
+        (
+            "## Risks &amp; notes\n",
+            "docs/x.md:1: heading 'Risks &amp; notes' carries an entity reference, whose letters"
+            " this rule keeps and a renderer resolves; write it as plain text under leading"
+            " hashes, so the source is what a renderer slugs",
+        ),
+        (
+            "An underlined heading\n=====================\n",
+            "docs/x.md:2: heading 'An underlined heading' is written as a setext underline, a"
+            " heading shape this rule cannot see at all; write it as plain text under leading"
+            " hashes, so the source is what a renderer slugs",
+        ),
+    ],
+)
+def test_problems_names_the_file_the_line_the_heading_and_the_remedy(
+    text: str, expected: str
+) -> None:
+    assert headingshapes.problems("docs/x.md", text) == [expected]
 
 
 def test_problems_says_nothing_about_a_document_written_plainly() -> None:
