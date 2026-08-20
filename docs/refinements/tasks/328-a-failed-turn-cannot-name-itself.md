@@ -1,6 +1,6 @@
 # A failed turn can name its session but never itself
 
-**Status:** open, actionable
+**Status:** landed 2026-08-20
 **Area:** session-read-seam
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
 
@@ -30,3 +30,11 @@ id belongs on the tool-audit lines, since half the value here is joining them.
 - 2026-08-19: Opened by the close of
   [326](326-a-line-that-names-nothing-it-happened-to.md), which gave those three lines the one
   identifier the handler holds and recorded the one it does not.
+- 2026-08-20: Landed as the first of the two shapes, the stream minting the turn id and handing
+  it to `handle_turn`. Identity belongs to whoever can observe the whole of a turn, and the
+  stream is the only side that sees a turn fail; the engine's own id was unreachable exactly
+  where it was needed. `TurnEngine` lost its `turn_id_factory`, and the escalating wrapper,
+  which had the same defect one level in, no longer reads its turn's identity off the inner
+  completion. The paired question was answered yes and moved to
+  [342](342-the-audit-trail-cannot-name-the-turn.md), the naming decision it forces being the
+  audit trail's rather than this line's. Recorded in the ADR-0038 named-turn addendum.

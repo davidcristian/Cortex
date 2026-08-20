@@ -45,6 +45,10 @@ Conversation domain (Slice 3):
   string for every other role, so an image elsewhere would be dropped on the way to the model
   without a word. The invariant is on the value, not only in the stores, so it holds for a code
   path that never touches a store, and the domain cannot express a shape the adapter discards.
+- `new_turn_id() -> str` mints one (a uuid4 string). What a turn id *looks like* is the
+  domain's, so it lives beside the `Message.turn_id` it fills; **when** one is minted is the
+  caller's, and the caller is whoever schedules the turn (the orchestrator's `ConverseStream`,
+  ADR-0038 named-turn addendum). A `TurnRunner` is handed the id it is to serve.
 - `TextDelta(text)` / `StatusUpdate(state, detail)` / `ToolActivity(tool_name, summary)` /
   `ToolOutcome(tool_name, ok)` /
   `TurnCompleted(turn_id, full_text)` are frozen domain events; `TurnEvent` is their union (the
@@ -799,7 +803,9 @@ table is read by the grammar and the identity alike, so neither may own it):
 
 Ports (`typing.Protocol`; failures cross them only as the typed errors below; the five
 state-store ports `SessionStore` / `MemoryStore` / `TaskStore` / `ScheduleStore` /
-`HandoffStore` / `PreferenceStore` live in `ports_stores.py`, and `BodyGateway` in
+`HandoffStore` / `PreferenceStore` live in `ports_stores.py`, the three a tool call passes
+through (`ToolRegistry` / `Confirmer` / `ToolAuditSink`, which is the set `ToolDispatcher`
+holds, and it holds all three) in `ports_tools.py`, and `BodyGateway` in
 `ports_body.py`, all re-exported from `ports.py`, line-cap
 splits, so every `from cortex_core.ports import ...` and the `cortex_core` barrel are
 unchanged):
@@ -954,11 +960,16 @@ unchanged):
   its own `finally` while the winner's deep model is resident. The claim does not queue other
   acquires the way a scope does, because the cortex is still serving throughout the drain.
 - `TurnRunner` provides
-  `handle_turn(session_id, text) -> AsyncGenerator[TurnEvent, None]`: one user turn as a stream
-  of domain events. The seam between the orchestrator's stream plumbing and whichever engine
-  serves a turn (`TurnEngine`, or `EscalatingTurnEngine` when a turn may hand itself to the deep
-  model, ADR-0030), which is why the servicer's engine factory is typed to it rather than to the
-  concrete engine.
+  `handle_turn(session_id, text, *, turn_id) -> AsyncGenerator[TurnEvent, None]`: one user turn
+  as a stream of domain events. The seam between the orchestrator's stream plumbing and whichever
+  engine serves a turn (`TurnEngine`, or `EscalatingTurnEngine` when a turn may hand itself to the
+  deep model, ADR-0030), which is why the servicer's engine factory is typed to it rather than to
+  the concrete engine. **The runner is told which turn it is serving** (ADR-0038 named-turn
+  addendum): `turn_id` groups the user message with the reply in the store, names the handoff a
+  turn that escalates records, and is what `TurnCompleted` carries back. A runner that minted it
+  would be the only holder of it, and the one path where that matters is the one that emits no
+  completion at all, a turn that failed, which its caller has to report and name. So a runner is
+  a stateless function of the session, the text, and the id it was handed.
 - `Sleeper` provides `async sleep(seconds) -> None`: the only way core code may wait for
   wall-clock time (ADR-0030). `Clock` says what time it is, which bounds a wait but cannot
   perform one, and the core may not reach for `asyncio.sleep` itself, or every test of a poll
@@ -1136,10 +1147,10 @@ unchanged):
 Use-case:
 
 - `TurnEngine(store, backend, clock, *, cortex_model=DEFAULT_CORTEX_MODEL,
-  capabilities=TurnCapabilities(), turn_id_factory=<uuid4>)` is pure orchestration over the
-  ports. `handle_turn(session_id, text)` is an async generator: routes via
+  capabilities=TurnCapabilities())` is pure orchestration over the
+  ports. `handle_turn(session_id, text, *, turn_id)` is an async generator: routes via
   `route_turn(RoutingHints())` (always `CORTEX` in this slice; the tier keys the model
-  choice), builds the user `Message` (clock + turn-id factory), appends it to the store,
+  choice), builds the user `Message` (clock + the turn id it was handed), appends it to the store,
   runs the inference↔tool loop over ALL of the stored history, unless a
   `capabilities.window` selects the newest slice (ADR-0014; persistence untouched),
   yields `TextDelta` per streamed chunk, then persists the assistant `Message` and
@@ -1327,6 +1338,8 @@ Use-case:
   **suppresses the inner `TurnCompleted`**, and, only if the cortex actually asked to escalate,
   runs the conductor's phase on the same stream before emitting one real `TurnCompleted` whose
   text is the whole turn's. With no escalation requested it is transparent, completion included.
+  Both the handoff it claims and the completion it emits are named by the `turn_id` it was
+  handed, never by whatever id the inner runner's completion happened to carry.
 - `recover_handoffs(handoffs, host, plan, tiers, *, clock, sleeper) -> bool` and
   `converge_residency(host, plan, tiers, *, clock, sleeper) -> bool` (`swap_recovery.py`) are boot
   recovery: the composition root calls the first once at startup, and it marks any non-terminal

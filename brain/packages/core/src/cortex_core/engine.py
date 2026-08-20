@@ -1,8 +1,7 @@
 """Handle one user turn: pure orchestration over the ports, no I/O of its own."""
 
 import logging
-from collections.abc import AsyncGenerator, Callable, Mapping
-from uuid import uuid4
+from collections.abc import AsyncGenerator, Mapping
 
 from cortex_core.conversation import Message, Role
 from cortex_core.errors import InferenceError, MalformedToolCallError
@@ -32,11 +31,6 @@ _logger = logging.getLogger(__name__)
 DEFAULT_CORTEX_MODEL = "cortex"
 
 
-def _uuid4_turn_id() -> str:
-    """Default turn-id factory; injectable so tests can pin ids."""
-    return str(uuid4())
-
-
 def _arm_escalation(
     caps: TurnCapabilities, working: list[Message], context: ToolLoopContext
 ) -> None:
@@ -63,23 +57,23 @@ class TurnEngine:
         *,
         cortex_model: str = DEFAULT_CORTEX_MODEL,
         capabilities: TurnCapabilities | None = None,
-        turn_id_factory: Callable[[], str] = _uuid4_turn_id,
     ) -> None:
         self._store = store
         self._backend = backend
         self._clock = clock
         self._caps = capabilities if capabilities is not None else TurnCapabilities()
-        self._turn_id_factory = turn_id_factory
         # Model choice is keyed off the routed tier. Only the cortex tier is servable
         # in Slice 3 (route_turn with default hints always selects it); subagent and
         # brain entries join the map when the ModelManager lands (Slices 4/7).
         self._model_by_tier: Mapping[Tier, str] = {Tier.CORTEX: cortex_model}
 
-    async def handle_turn(self, session_id: str, text: str) -> AsyncGenerator[TurnEvent, None]:
+    async def handle_turn(
+        self, session_id: str, text: str, *, turn_id: str
+    ) -> AsyncGenerator[TurnEvent, None]:
         """Persist the user turn, recall memory, run the inference↔tool loop, then persist
-        the reply and record the exchange to memory on completion."""
+        the reply and record the exchange to memory on completion.
+        """
         model = self._model_by_tier[route_turn(RoutingHints())]
-        turn_id = self._turn_id_factory()
         user = Message(role=Role.USER, text=text, at=self._clock.now(), turn_id=turn_id)
         await self._store.append(session_id, user)
         history = await self._store.history(session_id)

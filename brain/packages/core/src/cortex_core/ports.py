@@ -26,8 +26,13 @@ from cortex_core.ports_stores import (
     SessionStore,
     TaskStore,
 )
+from cortex_core.ports_tools import (
+    Confirmer,
+    ToolAuditSink,
+    ToolRegistry,
+)
 from cortex_core.ranking import RecallAudit
-from cortex_core.tools import ConfirmationRequest, ToolCall, ToolInvocation, ToolResult, ToolSpec
+from cortex_core.tools import ToolSpec
 
 __all__ = [
     "BodyGateway",
@@ -101,35 +106,15 @@ class Sleeper(Protocol):
 class TurnRunner(Protocol):
     """Runs one user turn as a stream of domain events: what a ``Converse`` stream drives."""
 
-    def handle_turn(self, session_id: str, text: str) -> AsyncGenerator[TurnEvent, None]: ...
-
-
-class ToolRegistry(Protocol):
-    """The tools the cortex can call, and the one gateway that runs a call (ADR-0009)."""
-
-    async def describe_tools(self) -> Sequence[ToolSpec]: ...
-
-    async def invoke(self, call: ToolCall) -> ToolResult: ...
-
-
-class ToolAuditSink(Protocol):
-    """The audit trail where every dispatched tool call is recorded (AGENTS.md, ADR-0009)."""
-
-    async def record(self, invocation: ToolInvocation) -> None: ...
+    def handle_turn(
+        self, session_id: str, text: str, *, turn_id: str
+    ) -> AsyncGenerator[TurnEvent, None]: ...
 
 
 class RecallAuditSink(Protocol):
     """The trail that answers "why did recall return these?" (ADR-0038 decision 5)."""
 
     async def record(self, audit: RecallAudit) -> None: ...
-
-
-class Confirmer(Protocol):
-    """Answers a request to confirm a gated tool call. Out of band, the human's call (ADR-0013,
-    gate table revised by ADR-0022).
-    """
-
-    async def confirm(self, request: ConfirmationRequest) -> bool: ...
 
 
 class SubagentScheduler(Protocol):

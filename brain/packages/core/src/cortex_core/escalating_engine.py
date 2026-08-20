@@ -17,12 +17,14 @@ class EscalatingTurnEngine:
         self._make_inner = make_inner
         self._conductor = conductor
 
-    async def handle_turn(self, session_id: str, text: str) -> AsyncGenerator[TurnEvent, None]:
+    async def handle_turn(
+        self, session_id: str, text: str, *, turn_id: str
+    ) -> AsyncGenerator[TurnEvent, None]:
         """Run the cortex phase, then the handoff it asked for, as one turn on one stream."""
         slot = EscalationSlot()
         parts: list[str] = []
         completed: TurnCompleted | None = None
-        events = self._make_inner(slot).handle_turn(session_id, text)
+        events = self._make_inner(slot).handle_turn(session_id, text, turn_id=turn_id)
         try:
             async for event in events:
                 if isinstance(event, TurnCompleted):
@@ -43,9 +45,7 @@ class EscalatingTurnEngine:
         if slot.brief is None:
             yield completed
             return
-        handoff = self._conductor.run_handoff(
-            slot, session_id=session_id, turn_id=completed.turn_id
-        )
+        handoff = self._conductor.run_handoff(slot, session_id=session_id, turn_id=turn_id)
         try:
             async for event in handoff:
                 if isinstance(event, TextDelta):
@@ -55,4 +55,4 @@ class EscalatingTurnEngine:
             await handoff.aclose()
         # The one completion, at the true end. Its text is the whole turn's, cortex wrap-up and
         # deep answer alike; each phase already persisted its own message under this turn id.
-        yield TurnCompleted(turn_id=completed.turn_id, full_text="".join(parts))
+        yield TurnCompleted(turn_id=turn_id, full_text="".join(parts))

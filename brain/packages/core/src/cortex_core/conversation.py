@@ -3,15 +3,19 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+from uuid import uuid4
 
 from cortex_core.images import ImagePart
 from cortex_core.tools import ToolCall
 
 
+def new_turn_id() -> str:
+    """A fresh id for one turn of a conversation."""
+    return str(uuid4())
+
+
 class Role(Enum):
-    """Who authored a message: USER/ASSISTANT dialogue, SYSTEM for engine-injected context such as
-    recalled memories (ADR-0008), or TOOL for a tool result fed back to the model (ADR-0009).
-    """
+    """Who wrote a message: the user, the assistant, the engine (SYSTEM), or a tool result."""
 
     USER = "user"
     ASSISTANT = "assistant"
@@ -19,6 +23,8 @@ class Role(Enum):
     TOOL = "tool"
 
 
+# Only a tool message may have images: the inference adapter sends content parts for a tool
+# message and a plain string for every other role, so an image elsewhere is dropped silently.
 _IMAGE_BEARING_ROLE = Role.TOOL
 
 
