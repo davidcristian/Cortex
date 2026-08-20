@@ -93,6 +93,22 @@ sharing a ``try``, each applied to production code alone with the whole brain wo
   case's assertions buy: on the message alone it stayed green;
 - putting the eviction, the start and the gate back under one ``try`` reddens **1**, the eviction
   case, which is the only one whose failure the collapsed arm would name wrongly.
+
+Six more for carrying that model out of the attempt rather than a bool, measured the same way
+(each applied to production code alone, the whole brain workspace re-run at 2753 tests):
+
+- the eviction answering the cortex reddens **2**, the eviction retry case and the give-up that
+  never evicts;
+- the cortex's own start answering the swapped-in model reddens **2**, the retry case and the
+  give-up that never starts;
+- a stalled gate answering the swapped-in model reddens **1**,
+  ``test_a_restore_whose_gate_never_reports_ready_also_gives_up``, which is the one path where
+  nothing refused anything and the model still did not come up;
+- the retry line's ``failed_model`` pinned to the cortex reddens **1**, the eviction retry case,
+  which is the only one where the two models differ and therefore the only one that can catch it;
+- the give-up line dropping ``failed_model`` reddens **2**, both give-up cases;
+- the give-up message dropping the tier it failed on reddens **3**, all three give-ups, which is
+  the sentence an operator carries to the runbook.
 """
 
 import asyncio
@@ -683,7 +699,9 @@ async def test_a_restore_that_fails_once_retries_and_succeeds(
     # message that drifts to another module stops satisfying this test.
     # The fields ride along, because the message alone no longer says which model the host
     # refused: this failure is the cortex's start, and a line naming the other one would send an
-    # operator after a tier that is already off the card.
+    # operator after a tier that is already off the card. ``failed_model`` is the retry line's
+    # half of that, and here it agrees with the line above it because the cortex really is what
+    # refused; the eviction case below is where the two would part.
     assert [(record.name, record.message, record_fields(record)) for record in caplog.records] == [
         (
             "cortex_core.residency_moves",
@@ -693,7 +711,7 @@ async def test_a_restore_that_fails_once_retries_and_succeeds(
         (
             "cortex_core.residency_restore",
             "restoring the cortex failed; retrying",
-            {"model": "cortex", "attempt": 1},
+            {"model": "cortex", "failed_model": "cortex", "attempt": 1},
         ),
     ]
 
@@ -708,6 +726,12 @@ async def test_a_restore_that_cannot_evict_the_deep_model_names_it_and_not_the_c
     all, so the line names the deep model. The retry then succeeds, which is what makes this the
     ordinary case rather than an outage: a stop that loses one race must not be reported as the
     usual assistant having failed to come back.
+
+    The retry line one module up is the case for carrying the id out of the attempt at all: it is
+    about restoring the cortex, which is what ``model`` says, and the tier that actually refused
+    is the deep model, which is what ``failed_model`` says. While the attempt answered a bool,
+    that second half could only ever be the cortex, so the pair asserted here is the whole
+    difference.
     """
     host = ScriptedModelHost(running=["cortex"], fail_once={("stop", "brain"): "still reaping"})
     manager = _manager(host)
@@ -725,7 +749,7 @@ async def test_a_restore_that_cannot_evict_the_deep_model_names_it_and_not_the_c
         (
             "cortex_core.residency_restore",
             "restoring the cortex failed; retrying",
-            {"model": "cortex", "attempt": 1},
+            {"model": "cortex", "failed_model": "brain", "attempt": 1},
         ),
     ]
 
@@ -738,28 +762,79 @@ async def test_a_restore_that_never_succeeds_raises_loudly_and_leaves_nothing_re
     manager = _manager(host)
     with (
         caplog.at_level(logging.WARNING, logger="cortex_core.residency_restore"),
-        pytest.raises(ResidencyRestoreError, match="manual recovery is needed"),
+        pytest.raises(
+            ResidencyRestoreError, match=r"the last of which failed on 'cortex'; manual recovery"
+        ),
     ):
         async with manager.swap_scope("brain"):
             pass
     assert host.calls.count(("start", "cortex")) == 2
     # The give-up is the module's own verdict, so the record that carries it has to come from
-    # the module that decides it; an error from any other one is a different event.
-    assert any(
-        record.levelno == logging.ERROR and record.name == "cortex_core.residency_restore"
+    # the module that decides it; an error from any other one is a different event. It carries
+    # the tier the last attempt failed on beside the cortex it could not restore, which are one
+    # model here and two in the case below.
+    assert [
+        record_fields(record)
         for record in caplog.records
-    )
+        if record.levelno == logging.ERROR and record.name == "cortex_core.residency_restore"
+    ] == [{"model": "cortex", "failed_model": "cortex", "attempts": 2}]
     # Nothing is resident, so an acquire says so rather than leasing a dead endpoint.
     with pytest.raises(ModelUnavailableError, match="resident: None"):
         async with manager.acquire("cortex"):
             pass  # pragma: no cover - acquire raises before the body runs
 
 
+async def test_a_restore_that_can_never_evict_gives_up_naming_the_model_that_refused(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The give-up an operator carries to the runbook, on a restore that failed somewhere else.
+
+    Both attempts fail at the stop of the model the handoff swapped in, so the cortex is never
+    asked for at all and the deep model is still the one holding the card. "Could not restore
+    the cortex" is true and, on its own, sends a reader after a tier nothing has touched: the
+    ``start`` this failure is blamed on never ran. The sentence therefore names what the last
+    attempt failed on, in the field and in the exception's own text, which is the whole of what
+    a verdict richer than a bool buys one level up.
+    """
+    host = ScriptedModelHost(running=["cortex"], fail={("stop", "brain"): "still reaping"})
+    manager = _manager(host)
+    with (
+        caplog.at_level(logging.ERROR),
+        pytest.raises(
+            ResidencyRestoreError, match=r"the last of which failed on 'brain'; manual recovery"
+        ),
+    ):
+        async with manager.swap_scope("brain"):
+            pass
+    assert ("start", "cortex") not in host.calls  # the cortex was never asked for at all
+    assert host.running == {"brain"}  # and the deep model is what is really on the card
+    refused = (
+        "cortex_core.residency_moves",
+        "the model host failed while taking the swapped-in model off the card",
+        {"model": "brain"},
+    )
+    assert [(record.name, record.message, record_fields(record)) for record in caplog.records] == [
+        refused,
+        refused,
+        (
+            "cortex_core.residency_restore",
+            "could not restore the cortex after a model swap; the GPU serves nothing",
+            {"model": "cortex", "failed_model": "brain", "attempts": 2},
+        ),
+    ]
+    assert manager.residency() == RESIDENCY_LOST
+
+
 async def test_a_restore_whose_gate_never_reports_ready_also_gives_up() -> None:
-    """The restore's failure is not only a raising host: a cortex stuck loading counts too."""
+    """The restore's failure is not only a raising host: a cortex stuck loading counts too.
+
+    And it is the cortex the give-up names, on the one path where nothing refused anything: the
+    host took every call and the model simply never came up, which is still the model the attempt
+    failed on.
+    """
     host = ScriptedModelHost(running=["cortex"], status_override={"cortex": ModelHostState.LOADING})
     manager = _manager(host, _plan(load_timeout_s=0.0))
-    with pytest.raises(ResidencyRestoreError):
+    with pytest.raises(ResidencyRestoreError, match=r"the last of which failed on 'cortex'"):
         async with manager.swap_scope("brain"):
             pass
     assert host.calls.count(("start", "cortex")) == 2

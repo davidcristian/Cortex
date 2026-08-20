@@ -50,31 +50,50 @@ async def restore_with_retries(
     the same shape of argument for the peers: the record of which of them came back, written
     where the attempt is made rather than inferred afterwards from a machine nobody re-reads. It
     carries the placer too, which is the one collaborator the standing charge below needs.
+
+    Each attempt answers the model it failed on rather than a bool, and that id is the whole
+    reason this loop can be honest. The swap back has two subjects, the resident it is taking off
+    the card and the cortex it is putting back, so a verdict that only said "no" left every
+    sentence here naming the cortex whichever of them the host refused, the give-up an operator
+    reads out of the runbook included.
     """
     cortex = plan.cortex_model
     await publish(None, RESIDENCY_RESTORING)
+    # The floor the give-up below needs to be typed: the attempt count is a positive constant, so
+    # the loop always runs and always rebinds this, and what stands here is exactly what both
+    # sentences said before an attempt could name the tier it failed on.
+    failed = cortex
     for attempt in range(1, _RESTORE_ATTEMPTS + 1):
-        if await restore_standing(host, plan, model, gate, tiers):
+        failed = await restore_standing(host, plan, model, gate, tiers)
+        if failed is None:
             await publish(cortex, RESIDENCY_SERVING)
             # Only here, where the cortex is genuinely serving again. A restore that gave up
             # leaves the handoff's charge standing, so spawns keep overflowing to the CPU rather
             # than being admitted onto a card nobody can describe.
             charge_standing(tiers.placer)
             return
+        # Two model fields, because they are two facts and either can be the one to act on: the
+        # sentence is about restoring the cortex, which is what ``model`` has always named here,
+        # while ``failed_model`` is the tier this attempt actually failed on and may be the
+        # handoff's own resident, which the swap back stops before it starts anything.
         _logger.warning(
             "restoring the cortex failed; retrying",
-            extra={"model": cortex, "attempt": attempt},
+            extra={"model": cortex, "failed_model": failed, "attempt": attempt},
         )
     # Nothing is resident and no retry is left, so the report stops claiming a restore is under
     # way: Health goes on saying so until boot recovery converges residency again.
     await publish(None, RESIDENCY_LOST)
     _logger.error(
         "could not restore the cortex after a model swap; the GPU serves nothing",
-        extra={"model": cortex, "attempts": _RESTORE_ATTEMPTS},
+        extra={"model": cortex, "failed_model": failed, "attempts": _RESTORE_ATTEMPTS},
     )
+    # The one sentence an operator carries to the runbook, so the tier goes in the prose as well
+    # as in the field beside it: this string is also the exception's text, read on a stream where
+    # no formatter runs, and "could not restore the cortex" sent a reader after the wrong model
+    # every time the swap back was the eviction that refused.
     msg = (
-        f"could not restore {cortex!r} after {_RESTORE_ATTEMPTS} attempts; manual "
-        "recovery is needed (docs/runbooks/model-swap.md)"
+        f"could not restore {cortex!r} after {_RESTORE_ATTEMPTS} attempts, the last of which "
+        f"failed on {failed!r}; manual recovery is needed (docs/runbooks/model-swap.md)"
     )
     raise ResidencyRestoreError(msg)
 
