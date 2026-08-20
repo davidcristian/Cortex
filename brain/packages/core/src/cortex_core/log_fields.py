@@ -27,6 +27,30 @@ and a silent drop is the harder of the two to notice. A denylist errs the other 
 printing a name it does not recognize, and it is deliberately blunt about matching: ``token``
 withholds a field called ``max_tokens`` too. Withholding a token count costs a reader one number
 they can recover from the message; printing a bearer token costs the deployment its seam.
+
+**A bound on how much of a value reaches the line** sits here for the same reason the redaction
+does: the size of a field nobody enumerated is not something its call site was asked about, and
+the tool audit already attaches one the model writes (``arguments`` carries a spawn's whole
+instruction verbatim). The bound is spent on the *rendered* text rather than on the value, because
+the rendered text is what the line costs: a string of quotes escapes to twice its length and an
+emoji to six times its own, so a bound on the input would not bound the output. Both renderings a
+value can take are cut on the way out of ``render_value``, so neither branch has a bound of its
+own to drift from the other.
+
+**A cut structure stops parsing, and that is the choice.** The alternative, dropping whole elements
+and carrying a count the way the recall trail's ``dropped_omitted`` does, needs somewhere to put
+the count, and that sink has one because it owns the whole line: the count is a sibling field
+beside the list it describes. This function renders a value it does not own, so a count would have
+to go *inside* the caller's own structure, under a key the caller may already use, and the shape
+most at risk is a long string, which has no elements to drop at all. So the rendering is cut where
+the bound falls and the marker says how much went: a truncated line that no longer parses fails
+loudly at whatever reads it, where a truncated list that still parses is read as the whole of it.
+
+**The marker cannot be read as the value's own text.** A rendering printed bare carries no
+whitespace, by the rule that lets it go unquoted, and the marker carries two spaces; a rendering
+that was cut has lost its closing quote or bracket, so the marker only ever follows text that has
+already stopped mid-syntax. A field whose own text happens to spell it lands inside a quote that
+closes, which is where a value's text always lives and where this module never writes.
 """
 
 import json
@@ -36,6 +60,20 @@ from collections.abc import Mapping
 
 # What stands in for a value this module will not print. Visible on purpose, per the docstring.
 REDACTED = "<redacted>"
+
+# What stands in for the rest of a value the bound below cut, naming how many characters went.
+# Sibling of REDACTED in shape, since both are the formatter speaking rather than the record.
+CUT = "<cut {chars} chars>"
+
+# The most characters one rendered value may spend on a line. Measured rather than picked, against
+# what the stream an operator reads really does (ADR-0038 bounded-value addendum): a container's
+# log driver ends a message at 16 KiB, so a rendered line of 16,383 characters plus its newline is
+# the longest that stays one entry, and past that ``docker compose logs -t`` stamps every 16 KiB
+# piece as its own line and ``--tail`` counts the pieces rather than the lines. This bound is that
+# cliff divided by eight, so eight fields at the bound still leave one line whole, and it clears
+# the widest value the tree attaches today (the recall trail's dropped candidates at the shipped
+# pool of twenty, 1,458 to 1,475 characters over 200 draws) by enough that nothing shipped is cut.
+VALUE_CHARS = 2048
 
 # The attributes ``logging`` puts on every record itself, plus the two a ``Formatter`` adds while
 # it runs. Anything else on a record was attached by a caller and is what a reader came for.
@@ -115,6 +153,13 @@ def record_fields(record: logging.LogRecord) -> dict[str, object]:
     }
 
 
+def _bound_value(text: str) -> str:
+    """``text`` cut to ``VALUE_CHARS``, with a marker naming the characters that did not print."""
+    if len(text) <= VALUE_CHARS:
+        return text
+    return text[:VALUE_CHARS] + CUT.format(chars=len(text) - VALUE_CHARS)
+
+
 def render_value(value: object) -> str:
     """One field's value, written so the pair it sits in can still be told from the next one.
 
@@ -124,16 +169,22 @@ def render_value(value: object) -> str:
     as the object it is rather than as a Python repr no tool can parse, and arrives without the
     spaces that would scatter it across what look like several fields. A string is quoted exactly
     when it would otherwise run into its neighbour, by carrying whitespace or a quote of its own.
+
+    Every way out passes the bound, so a field is as long as it is allowed to be however it was
+    written: the cut is the last thing done to a rendering rather than the first thing done to a
+    value, since escaping is what a line actually spends.
     """
     if isinstance(value, str):
         text = value
     elif value is None or isinstance(value, int | float):
         text = str(value)
     else:
-        return json.dumps(
-            value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str
+        return _bound_value(
+            json.dumps(
+                value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str
+            )
         )
-    return text if _BARE.fullmatch(text) else json.dumps(text, ensure_ascii=False)
+    return _bound_value(text if _BARE.fullmatch(text) else json.dumps(text, ensure_ascii=False))
 
 
 def render_fields(fields: Mapping[str, object]) -> str:

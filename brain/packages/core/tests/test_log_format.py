@@ -15,12 +15,14 @@ from collections.abc import Iterator
 import pytest
 
 from cortex_core import (
+    CUT,
     DEFAULT_LOG_FORMAT,
     LOG_FORMATS,
     PACKED_FORMAT,
     PLAIN_FORMAT,
     REDACTED,
     RESERVED_ATTRS,
+    VALUE_CHARS,
     PackedFormatter,
     PlainFormatter,
     UnknownLogFormatError,
@@ -127,6 +129,88 @@ def test_a_structure_prints_as_compact_json_and_a_scalar_as_itself() -> None:
     assert render_value([{"id": "m1", "score": 0.9}]) == '[{"id":"m1","score":0.9}]'
     assert render_value(None) == "None"
     assert render_value(7) == "7"
+
+
+def test_a_value_longer_than_the_bound_is_cut_and_the_line_says_how_much_went() -> None:
+    """The scalar branch of the bound: what prints is the bound, then the formatter's own marker.
+
+    A count of the characters that did not print, rather than a bare ellipsis, because the reader
+    who needs it is the one deciding whether to go and find the whole value somewhere else.
+    """
+    rendered = render_value("x" * (VALUE_CHARS + 500))
+    assert rendered == "x" * VALUE_CHARS + "<cut 500 chars>"
+    assert rendered == "x" * VALUE_CHARS + CUT.format(chars=500)
+
+
+def test_a_structure_is_cut_on_its_rendered_json_and_stops_parsing() -> None:
+    """The other branch, and the deliberate cost: a cut structure fails loudly at whatever reads it.
+
+    The shape is the live one. Every dispatch audits its `arguments` verbatim, and a
+    `spawn_subagents` call's arguments are written by the model, so this is the field that can
+    arrive at any size at all.
+    """
+    rendered = render_value({"instruction": "summarise the inbox " * 500})
+    assert rendered.startswith('{"instruction":"summarise the inbox ')
+    assert rendered.endswith(CUT.format(chars=7970))  # of the 10,018 the object renders to
+    with pytest.raises(json.JSONDecodeError):
+        json.loads(rendered)  # the cut left it unterminated, and that is the point
+
+
+def test_a_rendering_exactly_at_the_bound_prints_whole() -> None:
+    """The bound is inclusive, so the edge is the last value that reaches a line as it stands."""
+    edge = "x" * VALUE_CHARS
+    assert render_value(edge) == edge
+    assert render_value(edge + "x") == edge + CUT.format(chars=1)
+
+
+def test_the_bound_is_spent_on_the_rendered_text_rather_than_on_the_value() -> None:
+    """Escaping is what a line pays for, so a value under the bound can still render past it.
+
+    A string of quotes renders at twice its length plus the pair this module adds, which is why
+    the cut is the last thing done to a rendering rather than the first thing done to a value.
+    """
+    value = '"' * (VALUE_CHARS - 100)
+    rendered = render_value(value)
+    assert len(value) < VALUE_CHARS
+    assert len(rendered) == VALUE_CHARS + len(CUT.format(chars=1850))
+    assert rendered.endswith(CUT.format(chars=1850))
+
+
+def test_a_field_that_spells_the_marker_itself_is_still_told_from_a_cut_one() -> None:
+    """The marker is unambiguous by where it sits: a value's own text lives inside a closing quote.
+
+    A rendering that was cut has lost that quote (or its closing bracket), so a marker outside one
+    is the formatter speaking. A bare rendering cannot carry it at all, having no whitespace.
+    """
+    said = CUT.format(chars=7)
+    assert render_value(said) == f'"{said}"'
+    assert render_value("x" * (VALUE_CHARS + 7)) == "x" * VALUE_CHARS + said
+
+
+def test_an_enormous_field_leaves_a_line_the_log_driver_still_keeps_whole() -> None:
+    """Why the bound is the number it is (ADR-0038 bounded-value addendum).
+
+    A container's log driver ends a message at 16 KiB, and past that `docker compose logs -t`
+    stamps every piece as its own line while `--tail` counts pieces rather than lines. Measured
+    on the shipped image: a rendered line of 16,383 characters plus its newline is the last one
+    that stays a single entry.
+    """
+    one_docker_message = 16383
+    line = PlainFormatter().format(_record(reply="y" * 100_000, session="s1"))
+    assert len(line) < one_docker_message
+    assert line.count(CUT.format(chars=97952)) == 1
+
+
+def test_the_packed_rendering_carries_a_value_the_plain_one_would_cut() -> None:
+    """The asymmetry is real and deliberate: only the plain rendering passes through `render_value`.
+
+    `PackedFormatter` hands the fields to `json.dumps` as they were attached, because the whole
+    value of a rendering meant to be collected is that the object parses, and a bound inside it
+    either corrupts the object or lies about its shape. The exposure is recorded rather than
+    fixed here; this test is what makes closing it a decision rather than an accident.
+    """
+    payload = json.loads(PackedFormatter().format(_record(reply="y" * 100_000)))
+    assert payload["fields"]["reply"] == "y" * 100_000
 
 
 def test_a_value_no_json_encoder_knows_falls_back_to_its_text() -> None:

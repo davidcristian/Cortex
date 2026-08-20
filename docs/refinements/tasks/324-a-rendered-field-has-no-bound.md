@@ -1,9 +1,7 @@
 # A rendered field has no bound on its length
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-08-20
 **Area:** cross-cutting
-**Trigger:** a line in `docker compose logs brain` that scrolls past a screen, or any adapter that
-attaches a value it did not build itself
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
 
 `cortex_core/log_fields.py` decides what a field's value looks like and never how much of it there
@@ -12,9 +10,12 @@ JSON, however deep. So an `extra` carrying a model's reply, a tool result, or a 
 would print all of it, and the recall trail's care to log a query's *length* rather than its text
 would be undone by the first adapter that attaches the text under some other name.
 
-Nothing does that today, which is why this is filed rather than fixed: every field the tree
-attaches is an id, a count, a flag, an endpoint or a short error detail, and the two per-line
-trails were designed against exactly this risk. The defence that exists is about secrecy rather
+Something does that today, which the close of this entry found and this paragraph originally
+denied: the tool audit attaches `arguments` verbatim, and `spawn_subagents` takes its `instruction`
+and `context` from the model, so the unbounded field is on a trail this repo already writes rather
+than in a future adapter. The rest of the reading held: every other field the tree attaches is an
+id, a count, a flag, an endpoint or a short error detail, and the two per-line trails were designed
+against exactly this risk. The defence that exists is about secrecy rather
 than size, a denylist of names plus a URL's credential stripped from the line, and neither notices
 a field that is merely enormous.
 
@@ -28,6 +29,17 @@ knowledge that anything was dropped unless a count rides along the way `dropped_
 
 ## Trail
 
+- 2026-08-20: Landed (ADR-0038 bounded-value addendum). A value is cut at 2,048 rendered
+  characters, the measured 16 KiB a container's log driver gives one message divided by eight, with
+  `<cut 900 chars>` naming what went. Measured on the shipped image: a rendered line of 16,383
+  characters plus its newline is the last that stays one entry, and past that a timestamped
+  `docker compose logs` stamps every piece, while `--tail 3` returned one fragment of a value
+  34,517 characters long. The
+  awkward half was decided against dropping elements, because a count would have to go inside a
+  structure this function does not own, and the risk's commonest shape is a string with no elements
+  to drop. Two residues opened: the packed rendering
+  ([R-336](336-packed-values-keep-their-whole-length.md)) and the line as opposed to the value
+  ([R-337](337-a-bounded-value-leaves-the-line-unbounded.md)).
 - 2026-08-19: Opened by the close of
   [R-317](317-shipped-handler-drops-every-field.md), which put the secret defence in the formatter
   and left the volume question beside it deliberately untouched.

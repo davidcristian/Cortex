@@ -2676,3 +2676,139 @@ half of the premise a test could otherwise leave unstated.
 The five that keep both spellings, carried forward with the narrower question that is left now
 that dropping their logs is refuted:
 [R-331](../refinements/tasks/331-five-raised-messages-keep-their-numbers-in-prose.md).
+
+## Bounded-value addendum (2026-08-20): a field says how much of itself it spent
+
+The rendered-fields work put the two per-line defences in the formatter, one for a field named for
+a secret and one for a credential inside a URL, and left the third question beside them on purpose:
+neither notices a field that is merely enormous. The entry recording that gap named the shape a fix
+would take, a per-value character bound applied in `render_value`, and asked for two things this
+addendum owes: a number measured against what `docker compose logs` really does rather than picked,
+and a deliberate answer to the awkward half, since cutting a structure's JSON leaves text that no
+longer parses.
+
+### Re-derived from the tree first, and the entry's premise is false
+
+The entry filed rather than fixed this on the reading that no field carries anything large today:
+"every field the tree attaches is an id, a count, a flag, an endpoint or a short error detail".
+`LoggingAuditSink` refutes it. It attaches `arguments`, the whole argument object of every tool
+call, verbatim, and one shipped tool takes its arguments from the model: `spawn_subagents` carries
+an `instruction` and a `context` per subtask, both written by the cortex, both bounded by nothing
+but the model's own output cap. So the unbounded field is not a future adapter's mistake. It is on
+the audit trail this repo already writes, and it is the one field on it whose size no call site
+chose.
+
+### The measurement, on the shipped image
+
+Run against `cortex-brain` under the base compose stack, one record per line through the real
+`configure_logging`, read back with `docker compose logs`. A container's log driver ends a message
+at 16 KiB and starts another, so what the reader gets depends on which reading they take:
+
+| rendered line | `docker compose logs` | `docker compose logs -t` |
+| --- | --- | --- |
+| 16,382 characters | one line | one entry, one timestamp |
+| 16,383 characters | one line | one entry, one timestamp |
+| 16,384 characters | one line | **two entries, a timestamp spliced into the value** |
+| 16,385 characters | one line | two entries |
+| a 65 KB line | one line of 65,573 | five entries |
+| a 100 KB line | one line of 100,120 | seven entries |
+
+So the cliff is exact and it is the newline that decides it: a rendered line of 16,383 characters
+plus its terminator fills one 16 KiB message, and one character more is split. The plainest
+reading hides this, because `docker compose logs` concatenates the pieces back, and a packed line
+of 16,442 characters still parses as one JSON object after arriving in two. The two readings a
+runbook actually sends an operator to are the ones that break. `-t` stamps every piece, so an
+RFC3339 timestamp lands in the middle of the value. `--tail` counts entries rather than lines: over
+a log whose last record was a 100 KB line, `--tail 3` returned **one fragment of 34,517 characters
+of the value itself**, with no message, no fields and nothing naming what it belonged to.
+
+### Decision 1: the bound is 2,048 rendered characters, and the number comes from the cliff
+
+`VALUE_CHARS` is the measured 16 KiB message divided by eight, so eight fields at the bound still
+leave one line whole, which is more fields than any line in the tree spends on a large value. It
+has to clear the widest value that ships, and that is the recall trail's own `dropped` list at the
+shipped pool of twenty: 1,458 to 1,475 characters over 200 draws of `uuid4` ids and cosine scores.
+A bound of 1,024 would have cut the trail this ADR built two addenda ago, which is the check that
+turns a plausible power of two into the wrong one.
+
+### Decision 2: the bound is spent on the rendered text, not on the value
+
+The cut is the last thing done to a rendering rather than the first thing done to a value, because
+escaping is what a line pays for: a string of quotes renders at twice its length, an emoji at six
+times its own, so a bound on the input bounds nothing. Both of `render_value`'s ways out pass
+through `_bound_value` on the way out, so the scalar branch and the compact-JSON branch cannot
+drift to two different bounds.
+
+### Decision 3: a cut structure stops parsing, and the marker sits outside the value's syntax
+
+The entry framed the awkward half as a trade between cutting the rendered string, which costs
+pasteability, and dropping whole elements with a count riding along the way `dropped_omitted` does.
+The second is not available here, and the reason is structural rather than a matter of taste.
+`dropped_omitted` works because `LoggingRecallSink` owns the whole line: the count is a sibling
+field beside the list it describes. `render_value` renders a value it does not own, so a count
+would have to go inside the caller's own structure, under a key the caller may already use. And the
+shape most at risk is a long string, which has no elements to drop at all, so element dropping
+would need the string bound anyway and the module would carry two rules where one will do.
+
+So a cut rendering is left unterminated and `CUT` (`<cut 900 chars>`) says how much went. A
+truncated line that no longer parses fails loudly at whatever reads it; a truncated list that still
+parses is read as the whole of it, which is the quieter and worse failure. The marker cannot be
+read as the field's own text, and that holds by the rendering's own grammar rather than by hoping:
+a value printed bare carries no whitespace, by the very rule that lets it go unquoted, and the
+marker carries two spaces, so a bare rendering can never contain one. A quoted or JSON rendering
+that was cut has lost its closing quote or bracket, so the marker only ever follows text that has
+already stopped mid-syntax, while a field whose own text spells `<cut 7 chars>` lands inside a
+quote that closes. The suite asserts that shape directly rather than the sentence.
+
+### Decision 4: the packed rendering keeps its values whole, and that asymmetry is recorded
+
+Only the plain rendering passes through `render_value`. `PackedFormatter` hands the fields to
+`json.dumps` as they were attached, so the bound does not reach it, and the secrets defence stays
+the only rule both renderings share. That is not an oversight left unnamed: the whole value of a
+rendering meant to be collected is that the object parses, and a bound inside it either corrupts
+the object or lies about its shape, which is the same argument as above running the other way. The
+exposure is real, since a collector reading entries meets the same 16 KiB split, and it is carried
+as its own entry rather than settled here.
+
+### Distrust green
+
+Six mutations, each applied to `log_fields.py` alone with the suite re-run:
+
+| Mutation | Reddens | Which |
+| --- | --- | --- |
+| the scalar way out stops passing the bound | **5** | including the whole-line and rendered-text cases |
+| the compact-JSON way out stops passing the bound | **5** | the same five, since both ways out feed them |
+| the bound becomes exclusive | **1** | the value exactly at the bound |
+| the cut lands on the value rather than on its rendering | **4** | led by the escaped-quotes case |
+| the marker stops naming how many characters went | **2** | both counting cases |
+| the marker loses its whitespace | **2** | the case that tells a cut marker from a field spelling one |
+
+### Verified live
+
+The same two records, one carrying a 100,000-character reply and one carrying a
+`spawn_subagents`-shaped `arguments` object, through the real image under `docker compose`, before
+and after:
+
+| | rendered line | entries under `-t` | what `--tail 3` returns |
+| --- | --- | --- | --- |
+| before | 100,120 and 100,060 characters | seven each | one 34,517-character fragment of the value |
+| after | 2,161 and 2,119 characters | one each | the three lines that were logged |
+
+Both bounded lines end in the marker naming what went, `<cut 97970 chars>` on the audit line and
+`<cut 97952 chars>` on the other, and both still carry every field that follows the cut one, since
+the fields print in name order and the bound is per value rather than per line.
+
+### Consequences
+
+- **A line stays one entry, so `--tail` and `-t` stay usable.** That is the whole point: those two
+  readings are what the runbooks send an operator to, and they were the two the split broke.
+- **`docs/modules/brain-core.md` gains the bound**, the marker, and the packed asymmetry.
+- A deployment that wants the whole value has the same answer it always had for a secret: the
+  record is not the store. An id in the trail pairs with the thing itself.
+
+### Deferred by this addendum
+
+- The packed rendering's own volume question, which cannot be answered by this bound:
+  [R-336](../refinements/tasks/336-packed-values-keep-their-whole-length.md).
+- The line, as opposed to the value, is still unbounded, and the eight-fields headroom is an
+  argument rather than a check: [R-337](../refinements/tasks/337-a-bounded-value-leaves-the-line-unbounded.md).
