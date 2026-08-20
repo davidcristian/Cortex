@@ -75,7 +75,13 @@ answers that this daemon has none. Four routes and no more:
 
 An id outside the roster is **404**; a supervisor failure is **503**. Both are `ModelHostError` on
 the brain's side, the 404 as the narrower `ModelNotHostedError`, and the runbook sends them to
-different halves of itself.
+different halves of itself. **The log level follows the code**, so both refusals share the one
+greppable sentence `a model-host request failed` and the 5xx arrives at `ERROR` while the 4xx
+arrives at `WARNING`. The refusal's own words ride the `error` field, which is why the supervisor
+raises them and does not also print them: the API's line and the shutdown sweep's traceback are
+both the whole sentence, and a line at the raise printed one event twice. It is also the only
+record on the path that matters most, a swap's eviction meeting the 503 through the brain's port,
+which turns it into a user-facing note without logging its text.
 
 **The device seam.** `DeviceMemoryProbe` is `read() -> DeviceMemory | None`, with two
 implementations: `NoDeviceMemory` (always `None`, the default and what a CPU-only stack truthfully
@@ -161,7 +167,9 @@ root, and `main()` serves it (`python -m cortex_model_manager`).
   starts the deep model with nothing in between, so a still-dying cortex holding ~11 GB would
   CUDA-OOM the load. SIGTERM, then SIGKILL after `stop_grace_s`, then a bounded wait for the reap;
   a child that survives even SIGKILL raises `SupervisorError` and **keeps its slot**, because a
-  process still holding VRAM must not be reported as gone.
+  process still holding VRAM must not be reported as gone. That failure is raised and not also
+  logged: both callers of `stop` log what they catch, so the only line this module writes on the
+  way there is the escalation to SIGKILL, which is a different event.
 - **`status` reads the process before it trusts the probe.** Measured: a child that fails to bind
   dies in ~0.24 s with exit code 1 while the *previous* model keeps answering 200 on that port, so
   a status that proxied `/health` alone would call the dead model READY and leave the old weights

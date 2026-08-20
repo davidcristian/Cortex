@@ -174,31 +174,37 @@ async def test_a_wedged_child_is_killed_after_the_grace() -> None:
     )
 
 
-async def test_a_child_that_survives_sigkill_keeps_being_reported() -> None:
-    """The one stop that can fail: a process still holding VRAM must not vanish into STOPPED.
-
-    The caller retries (``restore_standing`` does, once), and a slot reported STOPPED would have
-    told the swap the GPU was free when it is not.
-    """
+async def test_a_child_that_survives_sigkill_keeps_being_reported(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The one stop that can fail: a process still holding VRAM must not vanish into STOPPED."""
     supervisor, processes, probe = _supervisor(FakeChildProcesses(exits_on=None))
     roster = contract_roster()
     probe.set(roster[CORTEX].health_url, serving=True)
     await supervisor.start(CORTEX)
-    with pytest.raises(SupervisorError, match="survived SIGKILL"):
+    with caplog.at_level(logging.WARNING), pytest.raises(SupervisorError, match="survived SIGKILL"):
         await supervisor.stop(CORTEX)
+    assert [record.message for record in caplog.records] == [
+        "a model process ignored SIGTERM; killing it"
+    ]
     assert processes.spawned[0].signals == ["terminate", "kill"]
     # Still reported as the running process it is, on the probe's own answer: the slot was NOT
     # released, which is the point. A deleted slot would read STOPPED here.
     assert (await supervisor.status(CORTEX)).state is ModelHostState.READY
 
 
-async def test_stop_all_stops_every_model_and_survives_one_that_will_not_die() -> None:
+async def test_stop_all_stops_every_model_and_survives_one_that_will_not_die(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     """A shutdown that raised on the first wedged child would leave the rest holding the GPU."""
     supervisor, processes, _ = _supervisor(FakeChildProcesses(exits_on=None))
     await supervisor.start(CORTEX)
     await supervisor.start(DEEP)
     processes.spawned[1].exit(0)  # the deep model dies politely; the cortex is wedged
-    await supervisor.stop_all()
+    with caplog.at_level(logging.ERROR):
+        await supervisor.stop_all()
+    assert "a model process could not be stopped at shutdown" in caplog.text
+    assert "survived SIGKILL" in caplog.text
     assert [child.signals for child in processes.spawned] == [["terminate", "kill"], []]
     assert (await supervisor.status(DEEP)).state is ModelHostState.STOPPED
     assert (await supervisor.status(CORTEX)).state is ModelHostState.LOADING

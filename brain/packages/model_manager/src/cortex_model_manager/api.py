@@ -139,5 +139,6 @@ async def _answer(action: _Action, request: Request) -> Response:
 
 def _refused(model: str, err: SupervisorError, code: HTTPStatus) -> Response:
     """Encode a typed refusal, logged with the id that asked for it (never a stack per request)."""
-    _logger.warning("a model-host request failed", extra={"model": model, "error": str(err)})
+    level = logging.ERROR if code >= HTTPStatus.INTERNAL_SERVER_ERROR else logging.WARNING
+    _logger.log(level, "a model-host request failed", extra={"model": model, "error": str(err)})
     return JSONResponse({"error": str(err)}, status_code=code)

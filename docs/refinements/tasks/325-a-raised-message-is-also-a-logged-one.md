@@ -1,9 +1,7 @@
 # A message that is raised and logged keeps its values in prose
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-08-20
 **Area:** cross-cutting
-**Trigger:** a seventh site of this shape arriving, or one where the prose value and the field
-beside it disagree
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
 
 Six sites build one string, log it, and raise it as a typed error's text:
@@ -34,3 +32,20 @@ caught and logged upstream.
 - 2026-08-19: Opened by the close of
   [R-323](323-a-field-spelled-into-its-own-message.md), which took every field out of the message
   that carried it and left exactly these six standing, each for the reason above.
+- 2026-08-20: Landed as the ADR-0038 raised-and-logged addendum, and the answer to the question
+  this entry turned on is **one of six, not six**. The trace is the substance: the four
+  `SwapFailedError` sites share a single catch in the swap conductor, which settles the record and
+  answers `note_for(err)`, a mapping from error type to one of three fixed sentences that never
+  reads `str(err)`, so dropping those logs would delete the numbers rather than move them;
+  `swap_builders` raises `ControlDeadlineError` into a composition root nothing guards, the brain's
+  entry running the wiring straight under `asyncio.run`, so dropping that one turns a designed boot
+  refusal into an interpreter traceback. Only `supervisor._end` is a real double, both callers of
+  `stop` logging what they catch, and it is the one that changed: the survived-SIGKILL sentence is
+  raised and no longer printed. What the drop owed in exchange is the level, so the API's refusal
+  line now follows its status code, 5xx at `ERROR` and 4xx at `WARNING`. That is load bearing
+  rather than tidy: a swap's eviction meets the same 503 through the brain's port and the brain
+  turns it into a user-facing note without logging its text, so the sidecar's line is the only
+  record of it anywhere. Five mutations measured over the whole brain workspace. The five sites
+  that keep both spellings are carried forward as
+  [331](331-five-raised-messages-keep-their-numbers-in-prose.md), with the cheap option now ruled
+  out rather than merely unweighed.

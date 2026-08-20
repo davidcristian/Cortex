@@ -10,7 +10,7 @@ from model_host_contract import CORTEX, DEEP
 from process_fakes import FakeChildProcesses, FakeProbe
 from test_model_host_contract import contract_roster
 
-from cortex_core import DeviceMemory, ModelHostState, PlainFormatter
+from cortex_core import DeviceMemory, ModelHostState, PlainFormatter, record_fields
 from cortex_model_manager import (
     DeviceMemoryProbe,
     ModelSupervisor,
@@ -106,32 +106,44 @@ async def test_start_then_status_then_stop_answer_the_state_each_left_behind() -
 
 
 @pytest.mark.parametrize("path", ["/models/ghost", "/models/ghost/start", "/models/ghost/stop"])
-async def test_an_unknown_id_is_a_404_on_every_route(path: str) -> None:
-    """An id outside the roster is refused as absent, never as a sick host.
-
-    The two must be distinguishable: "you configured no such tier" and "the sidecar is broken"
-    send an operator to different halves of the runbook.
-    """
+async def test_an_unknown_id_is_a_404_on_every_route(
+    path: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    """An id outside the roster is refused as absent, never as a sick host."""
     client, _, _ = _wired()
     method = client.get if path.endswith("ghost") else client.post
     try:
-        response = await method(path)
+        with caplog.at_level(logging.WARNING):
+            response = await method(path)
     finally:
         await client.aclose()
     assert response.status_code == HTTPStatus.NOT_FOUND
     assert "unknown model 'ghost'" in _body(response)["error"]
+    assert [(record.levelno, record.message) for record in caplog.records] == [
+        (logging.WARNING, "a model-host request failed")
+    ]
 
 
-async def test_a_supervisor_failure_is_a_503_carrying_its_reason() -> None:
+async def test_a_supervisor_failure_is_a_503_logged_once_and_loudly(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     """A child that survives SIGKILL is the one failure a stop can report, and it reports it."""
     client, supervisor, _ = _wired(FakeChildProcesses(exits_on=None))
     try:
         await supervisor.start(CORTEX)
-        response = await client.post(f"/models/{CORTEX}/stop")
+        with caplog.at_level(logging.WARNING):
+            response = await client.post(f"/models/{CORTEX}/stop")
     finally:
         await client.aclose()
     assert response.status_code == HTTPStatus.SERVICE_UNAVAILABLE
     assert "survived SIGKILL" in _body(response)["error"]
+    assert [(record.levelno, record.message) for record in caplog.records] == [
+        (logging.WARNING, "a model process ignored SIGTERM; killing it"),
+        (logging.ERROR, "a model-host request failed"),
+    ]
+    # The whole sentence rides the field, which is what makes the second printing of it
+    # unnecessary rather than merely noisy: nothing about the failure is lost by dropping it.
+    assert "survived SIGKILL" in str(record_fields(caplog.records[1])["error"])
 
 
 async def test_the_lifespan_starts_the_boot_model_and_stops_everything_on_the_way_down() -> None:

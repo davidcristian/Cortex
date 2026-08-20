@@ -172,7 +172,6 @@ class ModelSupervisor:
             f"{self._bounds.reap_timeout_s}s; "
             "its GPU memory is still held, so nothing else can be loaded"
         )
-        _logger.error(msg, extra={"model": model, "pid": child.pid})
         raise SupervisorError(msg)
 
     @staticmethod
