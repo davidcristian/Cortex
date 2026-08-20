@@ -121,7 +121,12 @@ check-scripts:
 # missing nightly fails before the measurement and once here, which costs milliseconds and
 # spares the recipe a temp file to carry a string between two shells.
 # BOTH RELAYS ARE REQUIRED ARGUMENTS OF THE GATE (ADR-0002 mandatory-relay addendum), so dropping
-# either from the line below is a usage error, exit 2, and not a quieter gate. While they were
+# either from the line below is a usage error, exit 2, and not a quieter gate. Required is not
+# non-empty, and what covers the difference is this line's own shape: both substitutions run in ONE
+# shell, so the toolchain that empties one empties the other, and an empty `--llvm-cov` fails loudly
+# as a producer mismatch where an empty `--rustc` would print `measured by` and pass. Filling either
+# from anywhere else (a second shell, an env var, a file, a CI step's output) brings that quiet half
+# back and is what the empty-relay addendum declined a validator against. While they were
 # optional, deleting `--llvm-cov` deleted the producer cross-check with no complaint: the run
 # printed the same five green lines a real pass prints and exited 0.
 # THE SHUFFLE RIDES THE COVERAGE STEP, not the `cargo test` above it (ADR-0002 rust-shuffle

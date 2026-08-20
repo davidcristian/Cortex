@@ -839,3 +839,47 @@ The rustc half is the quiet one, and it is close to unreachable from the recipe,
 as [R-313](../refinements/tasks/313-a-relay-can-be-required-and-empty.md) rather than fixed on the
 same argument the pin keeps losing on: a check worth having has to be able to fail for a reason that
 happens.
+
+## Addendum (2026-08-20): the empty relay is declined, and what shields it is not the standing line
+
+The addendum above made both relays required and filed what that does not reach: required is not
+non-empty, `--llvm-cov ""` fails loudly as a producer mismatch, and `--rustc ""` prints `measured by`
+with nothing after it and passes
+([R-313](../refinements/tasks/313-a-relay-can-be-required-and-empty.md)). Re-deriving that entry
+found its symptom exact and its reachability argument aimed at the wrong line. **It is declined**,
+and the reason is stronger than the one it was filed under.
+
+**Both halves reproduced first, on a synthetic export.** `--rustc ""` prints `measured by ` and three
+`PASS` lines and exits 0. `--llvm-cov ""` prints the producer mismatch naming `''` and exits 1. The
+entry describes what the module does.
+
+**The shield is not the standing probe.** The entry argued that reaching an empty relay needs the
+recipe's standing `rustc +nightly --version` line to succeed and the identical substitution two
+lines later to yield nothing. That line runs in `body/` in a shell of its own, so it is the weaker
+half of the argument. The load-bearing half is that both relays are filled on **one** recipe line,
+by two command substitutions in one shell with one working directory and one toolchain resolution:
+
+```
+cd scripts && uv run python coverage_gate.py ../body/coverage.json --rustc "$(rustc +nightly --version)" --llvm-cov "$(cargo +nightly llvm-cov --version)"
+```
+
+So the quiet half is shielded by the loud half rather than by the probe above it. Measured by
+substituting a toolchain name that does not resolve: both substitutions come back empty together,
+and the gate exits 1 on the producer mismatch. An empty `--rustc` arriving **alone** needs nightly
+cargo-llvm-cov to answer while nightly rustc prints nothing, in the same shell, seconds apart.
+
+**That makes the validator a third gate of a shape this record has twice declined**, the dated pin
+on its expiry cost and the compiler-in-export comparison on being unable to disagree. The suite
+would carry a case the only caller cannot produce, which is what "a gate that cannot fail is a
+defect" names. The asymmetry it would remove is real and stays: one relay is checked and the other
+is printed, because the export records a tool and no compiler, which the earlier addenda already
+settled.
+
+**What the decline rests on is an arrangement, so the arrangement is written where it can be
+broken.** The `check-body` comment now says that both relays come from two substitutions in one
+shell and that this is what keeps an empty compiler relay from arriving alone. Filling either from
+somewhere else, a second shell, an environment variable, a file, or a CI step's output, brings the
+quiet half back, and that is the trigger, filed as
+[R-335](../refinements/tasks/335-the-relays-share-one-shell.md). The fix, if it ever fires, is the
+three lines the entry described: one non-blank validator on both relay arguments, refusing with
+argparse's own usage error.
