@@ -135,11 +135,12 @@ def test_a_value_longer_than_the_bound_is_cut_and_the_line_says_how_much_went() 
     """The scalar branch of the bound: what prints is the bound, then the formatter's own marker.
 
     A count of the characters that did not print, rather than a bare ellipsis, because the reader
-    who needs it is the one deciding whether to go and find the whole value somewhere else.
+    who needs it is the one deciding whether to go and find the whole value somewhere else. The
+    count is of the rendering, quotes included, since the rendering is what the bound is spent on.
     """
     rendered = render_value("x" * (VALUE_CHARS + 500))
-    assert rendered == "x" * VALUE_CHARS + "<cut 500 chars>"
-    assert rendered == "x" * VALUE_CHARS + CUT.format(chars=500)
+    assert rendered == '"' + "x" * (VALUE_CHARS - 1) + "<cut 502 chars>"
+    assert rendered == '"' + "x" * (VALUE_CHARS - 1) + CUT.format(chars=502)
 
 
 def test_a_structure_is_cut_on_its_rendered_json_and_stops_parsing() -> None:
@@ -160,7 +161,7 @@ def test_a_rendering_exactly_at_the_bound_prints_whole() -> None:
     """The bound is inclusive, so the edge is the last value that reaches a line as it stands."""
     edge = "x" * VALUE_CHARS
     assert render_value(edge) == edge
-    assert render_value(edge + "x") == edge + CUT.format(chars=1)
+    assert render_value(edge + "x") == '"' + "x" * (VALUE_CHARS - 1) + CUT.format(chars=3)
 
 
 def test_the_bound_is_spent_on_the_rendered_text_rather_than_on_the_value() -> None:
@@ -179,12 +180,31 @@ def test_the_bound_is_spent_on_the_rendered_text_rather_than_on_the_value() -> N
 def test_a_field_that_spells_the_marker_itself_is_still_told_from_a_cut_one() -> None:
     """The marker is unambiguous by where it sits: a value's own text lives inside a closing quote.
 
-    A rendering that was cut has lost that quote (or its closing bracket), so a marker outside one
-    is the formatter speaking. A bare rendering cannot carry it at all, having no whitespace.
+    Every cut rendering stops mid-syntax, having lost its closing quote or bracket, so a marker
+    outside a closing delimiter is the formatter speaking. A field whose own text spells the
+    marker carries the marker's whitespace, which is what forces it into a quote that closes.
     """
     said = CUT.format(chars=7)
     assert render_value(said) == f'"{said}"'
-    assert render_value("x" * (VALUE_CHARS + 7)) == "x" * VALUE_CHARS + said
+    assert render_value("x" * (VALUE_CHARS + 7)) == '"' + "x" * (VALUE_CHARS - 1) + CUT.format(
+        chars=9
+    )
+
+
+def test_a_cut_bare_value_is_quoted_rather_than_run_into_the_pair_beside_it() -> None:
+    """A bare rendering is bare because it prints whole, and a cut one no longer does.
+
+    `_BARE` exists so an unquoted value carries no whitespace and cannot be read into its
+    neighbour. The marker carries two spaces, so appending it to a bare rendering would put a
+    field boundary inside a field: `endpoint=http://aaa<cut 9 chars> next=1` reads as three
+    tokens, the first of them a plausible whole endpoint, and the failure is silent. A rendering
+    that will be cut is therefore quoted, which is the same thing a cut structure already does:
+    it stops mid-syntax, so a reader meets a fault rather than a value they cannot see is short.
+    """
+    line = render_fields({"endpoint": "http://" + "a" * VALUE_CHARS, "next": 1})
+    assert line.startswith('endpoint="http://aaa')
+    assert line.endswith(f"{CUT.format(chars=9)} next=1")
+    assert render_value("http://model-host:9300/health") == "http://model-host:9300/health"
 
 
 def test_an_enormous_field_leaves_a_line_the_log_driver_still_keeps_whole() -> None:
@@ -198,7 +218,7 @@ def test_an_enormous_field_leaves_a_line_the_log_driver_still_keeps_whole() -> N
     one_docker_message = 16383
     line = PlainFormatter().format(_record(reply="y" * 100_000, session="s1"))
     assert len(line) < one_docker_message
-    assert line.count(CUT.format(chars=97952)) == 1
+    assert line.count(CUT.format(chars=97954)) == 1
 
 
 def test_the_packed_rendering_carries_a_value_the_plain_one_would_cut() -> None:
@@ -262,6 +282,53 @@ def test_a_credential_inside_a_url_never_survives_the_line() -> None:
     assert redact_urls("imap://u:pw@127.0.0.1:1143") == f"imap://{REDACTED}@127.0.0.1:1143"
     assert redact_urls("mail to me@example.com") == "mail to me@example.com"  # no scheme, no match
     assert redact_urls("http://model-host:9300/health") == "http://model-host:9300/health"
+
+
+def test_a_credential_the_bound_cuts_across_is_still_withheld() -> None:
+    """The interaction of the two defences the module carries, and the one that had a hole.
+
+    `_USERINFO` is anchored on the `@` that ends a URL's userinfo, and the bound cuts a rendering
+    before the whole-line pass ever runs. So a cut landing between a URL's `://` and its `@` used
+    to leave the pattern nothing to match and print the credential in full. The padding here puts
+    that `@` at exactly the first character the cut removes, which is the sharpest form of it.
+
+    The carrier is the live one rather than a hypothetical: `LoggingAuditSink` attaches every tool
+    call's `arguments` verbatim, and one shipped tool takes its arguments from the model.
+    """
+    url = f"postgres://cortex:{_LEAK}@db:5432/cortex"
+    padding = "x" * (VALUE_CHARS - len('{"a":"') - url.index("@"))
+    line = PlainFormatter().format(_record("tool.invocation", arguments={"a": padding + url}))
+    assert _LEAK not in line
+    assert f"postgres://{REDACTED}@" in line
+    assert line.endswith(CUT.format(chars=13))  # and the case really is a cut one
+
+
+def test_a_value_that_grows_under_withholding_is_still_bounded() -> None:
+    """Withholding can lengthen a rendering, and the bound is spent on what actually prints.
+
+    `<redacted>` is longer than the userinfo it stands in for whenever that userinfo is short, so
+    a value sitting exactly at the bound crosses it on the way to the line. The length that
+    decides whether a rendering may print as it stands is therefore the withheld one.
+    """
+    value = "http://a@h" + "x" * (VALUE_CHARS - 10)
+    assert len(value) == VALUE_CHARS
+    rendered = render_value(value)
+    assert rendered.startswith(f'"http://{REDACTED}@hxxx')
+    assert len(rendered) == VALUE_CHARS + len(CUT.format(chars=11))
+    assert rendered.endswith(CUT.format(chars=11))
+
+
+def test_a_secret_named_field_is_withheld_before_the_bound_can_reach_it() -> None:
+    """The other defence's interaction with the bound, which is that it has none.
+
+    A field named for a secret loses its value before anything renders it, and what stands in its
+    place is one short constant, so no cut can ever land inside it. The arrangement that would
+    break this is a bound spent on the way to the substitution rather than after it, which is
+    what the cut did to the URL defence beside it.
+    """
+    line = PlainFormatter().format(_record(api_key="k" * 100_000))
+    assert line == f"INFO:cortex.test:hello api_key={REDACTED}"
+    assert len(REDACTED) < VALUE_CHARS  # what makes the sentence above true rather than lucky
 
 
 def test_the_url_defence_reaches_the_message_the_field_and_the_traceback() -> None:
