@@ -1,10 +1,11 @@
 """Handle one user turn: pure orchestration over the ports, no I/O of its own."""
 
+import logging
 from collections.abc import AsyncGenerator, Callable, Mapping
 from uuid import uuid4
 
 from cortex_core.conversation import Message, Role
-from cortex_core.errors import InferenceError
+from cortex_core.errors import InferenceError, MalformedToolCallError
 from cortex_core.events import TurnCompleted, TurnEvent
 from cortex_core.handoff import EscalationRefs
 from cortex_core.output_channels import open_output_channels
@@ -14,8 +15,16 @@ from cortex_core.session_title import build_title_messages, generate_title
 from cortex_core.stops import StopLedger
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
 from cortex_core.turn_context import TurnCapabilities, assemble_inference_messages
-from cortex_core.turn_output import cap_note, record_exchange, stream_turn_events
+from cortex_core.turn_output import (
+    cap_note,
+    flush_channels,
+    record_exchange,
+    stream_turn_events,
+    unreadable_call_note,
+)
 from cortex_core.untrusted import TaintLedger, new_nonce
+
+_logger = logging.getLogger(__name__)
 
 # The logical id of the resident cortex model (ADR-0004: logical ids, never paths).
 # Deployments override it via CORTEX_MODEL_CORTEX, which is read by the composition root
@@ -114,11 +123,18 @@ class TurnEngine:
         try:
             async for event in events:
                 yield event
+        except MalformedToolCallError:
+            _logger.warning(
+                "a tool call the model wrote could not be read; ending this turn where it broke",
+                extra={"session_id": session_id, "turn_id": turn_id, "capped": stops.capped},
+                exc_info=True,
+            )
+            for held in flush_channels(channels, parts):
+                yield held
+            for event in unreadable_call_note(stops, parts):
+                yield event
         finally:
             await events.aclose()
-        # After the channels have flushed, so the note lands under the whole reply rather than
-        # ahead of a guardrail's held tail, and before the text is joined, so what is persisted is
-        # what was shown.
         for event in cap_note(stops, parts):
             yield event
         full_text = "".join(parts)

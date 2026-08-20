@@ -23,6 +23,11 @@ REPLY_CAPPED_NOTE = (
     "finished. Ask again, or ask for a shorter answer.)"
 )
 
+UNREADABLE_CALL_NOTE = (
+    "\n\n(I tried to use a tool and wrote the request in a way I could not read back, so nothing "
+    "ran and this answer is unfinished. The text above is everything I produced. Ask again.)"
+)
+
 
 def cap_note(stops: StopLedger, parts: list[str]) -> Iterator[TurnEvent]:
     """Say so when one of this turn's completions was cut, appending the note to ``parts``."""
@@ -30,6 +35,14 @@ def cap_note(stops: StopLedger, parts: list[str]) -> Iterator[TurnEvent]:
         return
     parts.append(REPLY_CAPPED_NOTE)
     yield TextDelta(text=REPLY_CAPPED_NOTE)
+
+
+def unreadable_call_note(stops: StopLedger, parts: list[str]) -> Iterator[TurnEvent]:
+    """Say so when a tool call would not parse, unless a token limit already explains it."""
+    if stops.capped:
+        return
+    parts.append(UNREADABLE_CALL_NOTE)
+    yield TextDelta(text=UNREADABLE_CALL_NOTE)
 
 
 def render_exchange(user_text: str, assistant_text: str) -> str:

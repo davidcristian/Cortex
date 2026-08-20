@@ -11,6 +11,8 @@ from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 import pytest
 
 from cortex_core import (
+    REPLY_CAPPED_NOTE,
+    DecodeStop,
     EchoInferenceBackend,
     GenerationBounds,
     InferenceError,
@@ -18,6 +20,7 @@ from cortex_core import (
     InMemorySessionStore,
     InMemoryToolRegistry,
     JsonSchema,
+    MalformedToolCallError,
     Message,
     PlainFormatter,
     ReasoningChunk,
@@ -25,6 +28,7 @@ from cortex_core import (
     Role,
     SessionStoreError,
     SessionSummary,
+    StopReason,
     SystemClock,
     TextChunk,
     ToolCall,
@@ -613,3 +617,41 @@ async def test_closing_the_stream_during_cancel_teardown_does_not_hang() -> None
     async with asyncio.timeout(5):
         await asyncio.shield(closer)
     assert [(m.role, m.text) for m in await store.history("s")] == [(Role.USER, "hi")]
+
+
+class CutCallBackend:
+    """Backend that streams a delta and a reported cap, then fails to assemble a tool call."""
+
+    async def stream(
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
+    ) -> AsyncIterator[InferenceEvent]:
+        del model, messages, tools, schema, bounds
+        yield TextChunk("partial ")
+        yield DecodeStop(StopReason.CAPPED)
+        msg = 'malformed tool-call arguments from llama-server: \'{"body":"Distributed sys'
+        raise MalformedToolCallError(msg)
+
+
+async def test_a_cut_tool_call_completes_the_turn_instead_of_failing_the_stream() -> None:
+    """The surface this arm exists for: the user was told inference failed and shown JSON."""
+    store = InMemorySessionStore()
+    engine = TurnEngine(store, CutCallBackend(), SystemClock())
+
+    events = await _collect(converse(_make(engine), _events_from(_user_turn("s", "hi"))))
+
+    assert [e.WhichOneof("event") for e in events] == [
+        "text_delta",
+        "text_delta",
+        "turn_complete",
+    ]
+    assert events[1].text_delta.text == REPLY_CAPPED_NOTE
+    assert [(m.role, m.text) for m in await store.history("s")] == [
+        (Role.USER, "hi"),
+        (Role.ASSISTANT, f"partial {REPLY_CAPPED_NOTE}"),
+    ]
