@@ -26,6 +26,7 @@ from cortex_core import (
     SessionStoreError,
     TurnEvent,
     TurnRunner,
+    new_turn_id,
 )
 from cortex_core import StatusUpdate as DomainStatusUpdate
 from cortex_core import TextDelta as DomainTextDelta
@@ -60,6 +61,12 @@ DEFAULT_MAX_BUFFERED_EVENTS = 256
 # Default wait for the user's answer to a ConfirmRequest before the gated call is denied
 # (fail-closed, ADR-0022). Env override: CORTEX_SEAM_CONFIRM_TIMEOUT_S.
 DEFAULT_CONFIRM_TIMEOUT_S = 120.0
+
+# How a turn is named (ADR-0038 named-turn addendum). The stream mints it because the stream is
+# what schedules, runs, cancels and reports a turn, where the engine sees only the middle of a
+# successful one. What the id looks like stays the core's (`new_turn_id`); when one is minted is
+# this side's. Injectable so a test can pin what its assertions read.
+TurnIdFactory = Callable[[], str]
 
 _logger = logging.getLogger(__name__)
 
@@ -109,6 +116,7 @@ class ConverseStream:
         *,
         max_buffered_events: int = DEFAULT_MAX_BUFFERED_EVENTS,
         confirm_timeout_s: float = DEFAULT_CONFIRM_TIMEOUT_S,
+        turn_id_factory: TurnIdFactory = new_turn_id,
     ) -> None:
         if max_buffered_events < 1:
             msg = "max_buffered_events must be at least 1"
@@ -126,6 +134,7 @@ class ConverseStream:
             self._out.put_nowait, self._credits, to_wire=to_server_event
         )
         self._engine = make_engine(self._confirmer, self._progress)
+        self._new_turn_id = turn_id_factory
         self._pending: deque[tuple[str, str]] = deque()
         self._turn: asyncio.Task[None] | None = None
         self._failed = False
@@ -215,19 +224,27 @@ class ConverseStream:
         await asyncio.wait([turn])
 
     async def _turn_task(self, session_id: str, text: str) -> None:
-        """One turn task: typed failures become SeamError; completion chains the queue."""
+        """One turn task: typed failures become SeamError; completion chains the queue.
+
+        The turn is named here, before it starts, so all three failures below can say which
+        turn died (ADR-0038 named-turn addendum). Naming it at the start rather than at the
+        enqueue keeps the id a fact about a turn that ran: a queued turn a `Cancel` drops
+        never began and has nothing to be named for. The user's own text is never attached
+        to any of these lines, and must not be: the formatter prints fields nobody
+        enumerated, and its denylist cannot recognize a conversation.
+        """
+        turn_id = self._new_turn_id()
+        fields = {"session_id": session_id, "turn_id": turn_id}
         try:
-            await self._run_turn(session_id, text)
+            await self._run_turn(session_id, text, turn_id)
         except SessionStoreError as err:
-            _logger.exception("session store failed mid-turn", extra={"session_id": session_id})
+            _logger.exception("session store failed mid-turn", extra=fields)
             self._fail(ERROR_CODE_SESSION_STORE_UNAVAILABLE, str(err))
         except InferenceError as err:
-            _logger.exception("inference failed mid-turn", extra={"session_id": session_id})
+            _logger.exception("inference failed mid-turn", extra=fields)
             self._fail(ERROR_CODE_INFERENCE_FAILED, str(err))
         except Exception as err:  # deliberately broad: nothing may escape the seam unhandled
-            _logger.exception(
-                "unexpected failure handling a turn", extra={"session_id": session_id}
-            )
+            _logger.exception("unexpected failure handling a turn", extra=fields)
             self._fail(ERROR_CODE_INTERNAL, str(err))
         finally:
             # Synchronous, so it runs even under cancellation and completes before
@@ -237,9 +254,9 @@ class ConverseStream:
             self._turn = None
             self._start_next_turn()
 
-    async def _run_turn(self, session_id: str, text: str) -> None:
+    async def _run_turn(self, session_id: str, text: str, turn_id: str) -> None:
         """One stateless turn over the store, streamed onto the output queue."""
-        events = self._engine.handle_turn(session_id, text)
+        events = self._engine.handle_turn(session_id, text, turn_id=turn_id)
         try:
             async for event in events:
                 # Backpressure: block here (suspending generation) until the consumer

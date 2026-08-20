@@ -2892,3 +2892,150 @@ Seven mutations, each applied to production code alone with the core suite re-ru
 The fourth row is the one worth stating: it is the leak this parameter exists to avoid being, and
 nothing about the port's shape prevents a later call site from writing it, so the refusal is a test
 rather than a type.
+
+## Named-turn addendum (2026-08-20): a turn is named by whoever schedules it
+
+The line-fields sweep gave the three mid-turn failures in `converse_stream` a `session_id` and
+recorded honestly that this was the whole of what that handler held: the `turn_id` was minted
+inside `TurnEngine` and left it only on the `TurnCompleted` a failed turn never emits. The entry
+that recorded it declined to pick between two ways of closing that, and picking is the substance
+here.
+
+### The cost, restated from the reading rather than from the code
+
+A session that failed three turns prints three lines under one `session_id`, and on a brain
+serving one user that field never varies, so the three lines are indistinguishable. Nothing on
+them says whether that is one repeating fault or three unrelated ones, and nothing ties any of
+them to the tool-invocation lines the same turn wrote. It is exactly the reading the fields were
+printed to end.
+
+### Re-derived first, because two things had moved
+
+The cortex-cut arm added since then logs a warning **from inside the engine** carrying
+`session_id`, `turn_id` and `capped`. That is not a counter-example, and it is the clearest
+statement of the problem: the engine can name a turn on every path it survives, and the only
+paths it cannot name are the ones where it does not survive, which are precisely the three the
+stream reports. An id whose sole holder is the code that dies with the turn is unreachable
+exactly when it is needed.
+
+Reading the escalating wrapper turned up the same defect one level in, which the entry did not
+mention. `EscalatingTurnEngine` could not name its own turn either: it accumulated the inner
+runner's events, waited for the inner `TurnCompleted`, and read `completed.turn_id` off it to
+claim the handoff and to emit the real completion. So the identity of an escalating turn was
+derived from an event, and a torn-down inner turn left the wrapper with nothing.
+
+### Decision 1: the stream mints the turn id and hands it to `handle_turn`
+
+`TurnRunner.handle_turn(session_id, text, *, turn_id)`. `TurnEngine` loses `turn_id_factory`
+entirely and answers under the id it was given; `EscalatingTurnEngine` holds the id from its
+first statement and uses it for both the handoff claim and the completion; `ConverseStream` mints
+one per turn through an injectable `TurnIdFactory` defaulting to the core's new `new_turn_id`.
+
+The argument is not that this is tidier. **Identity belongs to whoever can observe the whole of
+the thing.** The stream accepts the `UserTurn`, queues it, starts it, cancels it, reports its
+completion and reports its failure. A runner sees only the middle of a *successful* turn. An id
+born in the runner is therefore born too late and dies too early, and the failure path is not an
+edge case of that arrangement, it is the whole of what the arrangement excludes.
+
+Two consequences follow that are worth stating as facts rather than as tidiness. The turn id is
+now single-sourced: `TurnCompleted.turn_id` is an echo of what the caller already knew, so the
+line an operator reads and the id the client is told agree by construction rather than by both
+calling the same factory. And what a turn id *looks like* stayed in the core (`new_turn_id`,
+beside the `Message.turn_id` it fills) while **when** one is minted moved out, which is the split
+the port's docstring now carries.
+
+### Why not the cheaper shape
+
+The alternative was for the engine to surface the id early, as a first event or a started-turn
+record in the session store, keeping the port's shape. Three things are wrong with it, in
+ascending order of seriousness.
+
+It adds a domain event with no wire counterpart. Every `TurnEvent` today maps onto exactly one
+`ServerEvent` through `to_server_event`, whose last branch is an unguarded
+`return ServerEvent(turn_complete=TurnComplete(turn_id=event.turn_id))`. A second event carrying
+a `turn_id` narrows to that same branch and **typechecks**, so a started event that ever reached
+the mapper would be sent to the client as a completion. The fence would have to be a filter in
+the stream, and nothing about the types would hold it there.
+
+It makes the id optional in the one place optionality is invisible. The stream would hold
+`turn_id: str | None`, `None` until the event arrived, and every implementation of the port would
+have to remember to emit it. A runner that forgot would leave the field missing on the failure
+lines and nowhere else, which is the one path nobody exercises by hand.
+
+And it does not fix the wrapper. `EscalatingTurnEngine` would still be reading its own turn's
+identity out of its inner runner's event stream.
+
+### What the larger shape actually cost, measured
+
+86 `handle_turn` call sites and 61 `turn_id_factory` keyword arguments across six test files. The
+churn is mechanical and the tests came out better: `handle_turn("s", "hello", turn_id="t-1")`
+says which turn is running at the place the turn runs, where
+`TurnEngine(..., turn_id_factory=lambda: "t-1")` said it once per engine and left the call sites
+mute. The three orchestrator suites that pinned ids now pin them where they are minted, through
+`converse(..., turn_id_factory=...)`, which is the same fact in the right place.
+
+### Decision 2: minted when the turn starts, not when it is queued
+
+`ConverseStream` names the turn in `_turn_task`, not in `_enqueue_turn`. A `UserTurn` that
+arrives mid-turn waits in `_pending`, and a `Cancel` drops the queue outright; a turn dropped
+there never ran, never persisted a user message, and has nothing to be named for. The id is
+therefore a fact about a turn that happened, which is what makes its absence from a log
+meaningful rather than ambiguous.
+
+### Decision 3: the paired question is answered yes, and it is its own change
+
+The entry was right that neither shape should be picked without asking whether the turn id
+belongs on the tool-audit lines, since half the value here is joining them. Traced: it does not
+today. `LoggingAuditSink` prints `tool`, `ok`, `arguments`, `trust`, `at` and either
+`result_chars` or `error`, and `ToolInvocation` carries no conversation identity at all, neither
+turn nor session. So the join this addendum buys is between the three failure lines and the
+history the store grouped, and **not** yet between a failure and the tool calls that preceded it.
+
+The answer is yes, and the shape is cheap: `TurnStamp` already carries `session_id` and is the
+value built per dispatch from the `ToolLoopContext`, which holds `turn_id`; it was designed to
+take a field without touching call sites. What makes it a separate change rather than a second
+half of this one is the decision it forces and this one does not: the audit trail records the
+dispatches of subagent runs and of the schedule ticker as well as of conversation turns, and
+neither of those is a turn. Naming that field is a naming decision about the trail, taken with
+the trail's own tests, and it is filed as
+[R-342](../refinements/tasks/342-the-audit-trail-cannot-name-the-turn.md).
+
+### What did not change, deliberately
+
+The user's turn text is still attached to no log line and must not be. The formatter prints
+fields nobody enumerated and withholds by field *name*, which cannot recognize a conversation, so
+the standing rule is a rule about call sites. The three cases that assert its absence assert it
+against the rendered line with the traceback included, and they were re-run against the new
+fields rather than left alone.
+
+### Distrust green
+
+Five mutations, each applied to production code alone with the core and orchestrator suites
+re-run, then restored:
+
+| Mutation | Reddens |
+| --- | --- |
+| the failure lines mint a fresh id instead of reporting the turn's | 5 |
+| the failure lines drop the `turn_id` field | 5 |
+| the user's own text is attached beside it | 3 |
+| the engine names its own turn again, ignoring the id it was handed | 27 |
+| the escalating wrapper completes under whatever id its inner runner claimed | 1 |
+
+The first row is the one that keeps the field honest rather than merely present: a line carrying
+an id that names no turn would satisfy every assertion that only checks the field exists. It is
+caught by asserting the logged id against the `turn_id` the store grouped the dead turn's user
+message under, which is the join an operator actually makes.
+
+### Consequences
+
+- Three failures in one session are three lines an operator can tell apart, and each joins to
+  the history rows the turn wrote.
+- `TurnEngine` no longer has a `turn_id_factory`, so there is exactly one place a turn is named.
+- `EscalatingTurnEngine` no longer derives its own turn's identity from an event.
+- `docs/modules/brain-core.md` and `docs/modules/brain-orchestrator.md` both carry the split
+  between what a turn id looks like and when one is minted.
+
+### Deferred by this addendum
+
+The other half of the join, the tool-audit lines:
+[R-342](../refinements/tasks/342-the-audit-trail-cannot-name-the-turn.md).

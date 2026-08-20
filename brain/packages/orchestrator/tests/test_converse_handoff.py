@@ -12,7 +12,7 @@ stream honestly and leaves the next turn working.
 """
 
 import asyncio
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Callable, Sequence
 
 from cortex_core import (
     ESCALATE_TOOL_NAME,
@@ -96,12 +96,16 @@ class _ScriptedModel:
             yield event
 
 
+def _turn_ids() -> Callable[[], str]:
+    """Names this stream's turns, so the ids the store groups a handoff under can be asserted."""
+    ids = iter(f"t-esc-{n}" for n in range(1, 10))
+    return lambda: next(ids)
+
+
 def _escalating_factory(
     store: InMemorySessionStore,
     host: ScriptedModelHost,
     backend: _ScriptedModel,
-    *,
-    turn_id: str = "t-esc",
 ) -> EngineFactory:
     """The composition root's escalating wiring, in miniature: wrapper + conductor + phase."""
     manager = SwappingModelManager(host, _ENDPOINTS, _PLAN, SystemClock(), RecordingSleeper())
@@ -130,7 +134,6 @@ def _escalating_factory(
                 backend,
                 SystemClock(),
                 capabilities=TurnCapabilities(tools=caps.tools, escalation=slot),
-                turn_id_factory=lambda: turn_id,
             )
 
         return EscalatingTurnEngine(inner, conductor)
@@ -193,7 +196,9 @@ async def test_one_turn_carries_the_swap_from_the_cortex_to_the_deep_model() -> 
     store = InMemorySessionStore()
     host = ScriptedModelHost(running=["cortex"])
     client = _LiveClient()
-    stream = converse(_escalating_factory(store, host, _script()), client)
+    stream = converse(
+        _escalating_factory(store, host, _script()), client, turn_id_factory=_turn_ids()
+    )
     client.send(_user_turn("prove this properly"))
     request = (await _next_of(stream, "confirm_request")).confirm_request
     assert request.tool_name == ESCALATE_TOOL_NAME
@@ -212,9 +217,9 @@ async def test_one_turn_carries_the_swap_from_the_cortex_to_the_deep_model() -> 
     # Both models answered under one turn id, and the machine is back on the cortex.
     history = [(m.role.value, m.text, m.turn_id) for m in await store.history("s")]
     assert history == [
-        ("user", "prove this properly", "t-esc"),
-        ("assistant", "handing this over. ", "t-esc"),
-        ("assistant", "the deep answer", "t-esc"),
+        ("user", "prove this properly", "t-esc-1"),
+        ("assistant", "handing this over. ", "t-esc-1"),
+        ("assistant", "the deep answer", "t-esc-1"),
     ]
     assert host.running == {"cortex"}
 
@@ -234,7 +239,9 @@ async def test_a_second_turn_sent_during_the_swap_runs_after_it() -> None:
         }
     )
     client = _LiveClient()
-    stream = converse(_escalating_factory(store, host, backend), client)
+    stream = converse(
+        _escalating_factory(store, host, backend), client, turn_id_factory=_turn_ids()
+    )
     client.send(_user_turn("prove this properly"))
     request = (await _next_of(stream, "confirm_request")).confirm_request
     client.send(_answer(request.confirm_id, approved=True))
@@ -262,7 +269,9 @@ async def test_a_handoff_killed_mid_swap_ends_the_stream_honestly_and_the_next_t
         }
     )
     client = _LiveClient()
-    stream = converse(_escalating_factory(store, host, backend), client)
+    stream = converse(
+        _escalating_factory(store, host, backend), client, turn_id_factory=_turn_ids()
+    )
     client.send(_user_turn("prove this properly"))
     request = (await _next_of(stream, "confirm_request")).confirm_request
     client.send(_answer(request.confirm_id, approved=True))
@@ -284,7 +293,9 @@ async def test_a_denied_escalation_leaves_the_turn_exactly_as_it_was() -> None:
     store = InMemorySessionStore()
     host = ScriptedModelHost(running=["cortex"])
     client = _LiveClient()
-    stream = converse(_escalating_factory(store, host, _script()), client)
+    stream = converse(
+        _escalating_factory(store, host, _script()), client, turn_id_factory=_turn_ids()
+    )
     client.send(_user_turn("prove this properly"))
     request = (await _next_of(stream, "confirm_request")).confirm_request
     client.send(_answer(request.confirm_id, approved=False))

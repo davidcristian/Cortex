@@ -3,9 +3,22 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+from uuid import uuid4
 
 from cortex_core.images import ImagePart
 from cortex_core.tools import ToolCall
+
+
+def new_turn_id() -> str:
+    """A fresh id for one turn of a conversation.
+
+    What a turn id *looks like* is the domain's, so it lives beside the ``Message.turn_id`` it
+    fills; **when** one is minted is the caller's, and the caller is whoever schedules the turn
+    (ADR-0038 named-turn addendum). A ``TurnRunner`` is handed the id it is to serve rather than
+    inventing one, so a turn that never reaches its own completion event can still be named by
+    the code reporting that it failed.
+    """
+    return str(uuid4())
 
 
 class Role(Enum):

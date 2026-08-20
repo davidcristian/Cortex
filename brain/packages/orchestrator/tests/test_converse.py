@@ -2,11 +2,20 @@
 
 These tests drive the conversation loop directly (no gRPC); the loopback tests in
 test_converse_grpc.py prove the same contract over the real wire.
+
+Distrust-green proofs for the turn a failure names (ADR-0038 named-turn addendum), each
+mutation applied to production code alone with the core and orchestrator suites re-run, then
+restored: the failure lines minting a fresh id rather than reporting the turn's reddens 5;
+dropping the ``turn_id`` field reddens 5; attaching the user's own text beside it reddens 3;
+the engine naming its own turn again instead of answering under the id it was handed reddens
+27; and the escalating wrapper completing under whatever id its inner runner claimed reddens
+1, in test_escalating_engine.py.
 """
 
 import asyncio
 import logging
 from collections.abc import AsyncIterator, Callable, Mapping, Sequence
+from uuid import UUID
 
 import pytest
 
@@ -77,13 +86,21 @@ def _make(engine: TurnEngine) -> EngineFactory:
     return lambda _confirmer, _progress: engine
 
 
-def _engine(store: InMemorySessionStore | None = None) -> TurnEngine:
+def _turn_ids() -> Callable[[], str]:
+    """Names one stream's turns t-1, t-2, ... so a test can read back what the client was told.
+
+    The stream mints turn ids now, so pinning them is done where they are minted rather than by
+    building an engine that answers with a fixed one.
+    """
     ids = iter(f"t-{n}" for n in range(1, 10))
+    return lambda: next(ids)
+
+
+def _engine(store: InMemorySessionStore | None = None) -> TurnEngine:
     return TurnEngine(
         store if store is not None else InMemorySessionStore(),
         EchoInferenceBackend(),
         SystemClock(),
-        turn_id_factory=lambda: next(ids),
     )
 
 
@@ -304,7 +321,13 @@ class SignalingClientEvents:
 
 
 async def test_turn_maps_deltas_then_turn_complete() -> None:
-    events = await _collect(converse(_make(_engine()), _events_from(_user_turn("s", "hello"))))
+    events = await _collect(
+        converse(
+            _make(_engine()),
+            _events_from(_user_turn("s", "hello")),
+            turn_id_factory=_turn_ids(),
+        )
+    )
     kinds = [e.WhichOneof("event") for e in events]
     assert kinds == ["text_delta", "text_delta", "text_delta", "turn_complete"]
     assert "".join(_delta_texts(events)) == "reply 1: hello"
@@ -331,9 +354,7 @@ class ReasoningBackend:
 async def test_reasoning_maps_to_a_thinking_status_update() -> None:
     """A domain StatusUpdate becomes a wire ServerEvent(status=...) (ADR-0020); the reasoning
     delta is surfaced as status and the reply delta follows as text."""
-    engine = TurnEngine(
-        InMemorySessionStore(), ReasoningBackend(), SystemClock(), turn_id_factory=lambda: "t-1"
-    )
+    engine = TurnEngine(InMemorySessionStore(), ReasoningBackend(), SystemClock())
     events = await _collect(converse(_make(engine), _events_from(_user_turn("s", "hey"))))
     assert [e.WhichOneof("event") for e in events] == ["status", "text_delta", "turn_complete"]
     assert (events[0].status.state, events[0].status.detail) == ("thinking", "pondering")
@@ -383,7 +404,6 @@ async def test_tool_activity_and_its_outcome_map_to_the_wire_events() -> None:
         capabilities=TurnCapabilities(
             tools=ToolDispatcher(registry, RecordingAuditSink(), SystemClock())
         ),
-        turn_id_factory=lambda: "t-1",
     )
     events = await _collect(converse(_make(engine), _events_from(_user_turn("s", "go"))))
     kinds = [e.WhichOneof("event") for e in events]
@@ -396,8 +416,9 @@ async def test_tool_activity_and_its_outcome_map_to_the_wire_events() -> None:
 
 async def test_second_turn_on_the_same_stream_keeps_counting() -> None:
     client = _events_from(_user_turn("s", "one"), _user_turn("s", "two"))
-    events = await _collect(converse(_make(_engine()), client))
+    events = await _collect(converse(_make(_engine()), client, turn_id_factory=_turn_ids()))
     completions = [e for e in events if e.WhichOneof("event") == "turn_complete"]
+    # Two turns on one stream are two turns, each named as it started.
     assert [c.turn_complete.turn_id for c in completions] == ["t-1", "t-2"]
     assert "".join(_delta_texts(events[4:])) == "reply 2: two"
 
@@ -481,27 +502,76 @@ def _unexpected_failure() -> TurnEngine:
         (_unexpected_failure, "unexpected failure handling a turn"),
     ],
 )
-async def test_a_turn_that_failed_names_the_session_it_was_serving(
+async def test_a_turn_that_failed_names_the_session_and_the_turn_it_was_serving(
     make_failing_engine: Callable[[], TurnEngine],
     message: str,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Each mid-turn failure carries the one id the handler honestly holds, and only that.
+    """Each mid-turn failure names both ids, and still names no part of what the user wrote.
 
-    These three lines identified nothing at all, which is the state an operator finds them in on
-    a log serving more than one session: the traceback says what broke and nothing says what it
-    broke for. The turn's `turn_id` is minted inside the engine and never reaches this handler,
-    so the session is what can be named here. The turn's text is what may NOT be named: it is
-    the user's own words, and the formatter's denylist would not stop it.
+    These three lines identified nothing at all, then named the session alone, which on a log
+    serving one user is a field that never varies. The turn is what an operator actually has to
+    pick out, and it can be named here now because the stream names the turn before it starts
+    it rather than reading an id off a completion event a failed turn never emits. The turn's
+    text is what may NOT be named: it is the user's own words, and the formatter's denylist,
+    which withholds by name, could not recognize a conversation.
     """
     text = "confidential words the log may not carry"
     with caplog.at_level(logging.ERROR, logger=_STREAM_LOGGER):
-        await _collect(converse(_make(make_failing_engine()), _events_from(_user_turn("s7", text))))
+        await _collect(
+            converse(
+                _make(make_failing_engine()),
+                _events_from(_user_turn("s7", text)),
+                turn_id_factory=_turn_ids(),
+            )
+        )
     (record,) = caplog.records
     rendered = PlainFormatter().format(record)
-    assert rendered.splitlines()[0] == f"ERROR:{_STREAM_LOGGER}:{message} session_id=s7"
+    assert rendered.splitlines()[0] == (
+        f"ERROR:{_STREAM_LOGGER}:{message} session_id=s7 turn_id=t-1"
+    )
     assert record.__dict__["session_id"] == "s7"
+    assert record.__dict__["turn_id"] == "t-1"
     assert "confidential" not in rendered  # traceback included: no user content on the line
+
+
+async def test_a_failure_is_named_for_the_same_turn_the_store_grouped_it_under(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The join, asserted against the store rather than against a string this test arranged.
+
+    The id on the failure line is worth nothing unless it is the id the dead turn actually ran
+    under. A turn that dies mid-inference has already persisted its user message, so the store
+    holds that turn's own grouping key, and the two must be the same value.
+    """
+    store = InMemorySessionStore()
+    engine = TurnEngine(store, MidStreamFailingBackend(), SystemClock())
+    with caplog.at_level(logging.ERROR, logger=_STREAM_LOGGER):
+        await _collect(converse(_make(engine), _events_from(_user_turn("s7", "go"))))
+    (record,) = caplog.records
+    (persisted,) = await store.history("s7")
+    assert record.__dict__["turn_id"] == persisted.turn_id
+
+
+async def test_two_failed_turns_in_one_session_are_told_apart_by_their_own_ids(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The reading this was opened over: one repeating fault, or two unrelated ones.
+
+    A failed stream starts no further turn, so a session that failed twice is two streams, and
+    both lines used to say `session_id=s7` and nothing else. Nothing is pinned here, which is
+    the point: the default naming is what a deployment runs, so this case is also what holds
+    `new_turn_id` to being unique per turn rather than merely present.
+    """
+    with caplog.at_level(logging.ERROR, logger=_STREAM_LOGGER):
+        for _ in range(2):
+            await _collect(
+                converse(_make(_inference_failure()), _events_from(_user_turn("s7", "again")))
+            )
+    first, second = caplog.records
+    assert first.__dict__["session_id"] == second.__dict__["session_id"] == "s7"
+    assert UUID(first.__dict__["turn_id"]).version == 4
+    assert first.__dict__["turn_id"] != second.__dict__["turn_id"]
 
 
 async def test_an_ignored_client_event_names_the_session_and_the_payload_it_had(

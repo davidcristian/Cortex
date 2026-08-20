@@ -60,8 +60,10 @@ class _ScriptedTurn:
         self._block = block
         self.closed = False
 
-    async def handle_turn(self, session_id: str, text: str) -> AsyncGenerator[TurnEvent, None]:
-        del session_id, text
+    async def handle_turn(
+        self, session_id: str, text: str, *, turn_id: str
+    ) -> AsyncGenerator[TurnEvent, None]:
+        del session_id, text, turn_id
         # Arm the slot exactly as the real engine does at turn start, so the wrapper's slot is
         # the one that ends up snapshotted.
         self._slot.refs = EscalationRefs(
@@ -106,7 +108,7 @@ def _wrapper(
 
 async def _drain(engine: EscalatingTurnEngine) -> list[TurnEvent]:
     events: list[TurnEvent] = []
-    stream = engine.handle_turn(harness.SESSION, harness.USER_TEXT)
+    stream = engine.handle_turn(harness.SESSION, harness.USER_TEXT, turn_id=harness.TURN)
     try:
         async for event in stream:
             events.append(event)  # noqa: PERF401 - a live stream, read one event at a time
@@ -127,6 +129,28 @@ async def test_a_turn_that_does_not_escalate_is_passed_through_unchanged() -> No
     # Everything the inner turn emitted rides through untouched, in order, completion included.
     assert events == [thinking, TextDelta(text="just this"), completed]
     assert live.host.calls == []  # nothing was swapped, because nothing was asked for
+
+
+async def test_the_escalated_turn_answers_under_the_id_it_was_asked_to_serve() -> None:
+    """The wrapper's id is the caller's, never whatever the inner runner claimed.
+
+    An inner runner that completes under some other id is the shape this guards against: the
+    handoff is recorded under the turn the caller named, and so is the completion the client
+    reads, because the caller is the only side that can name a turn that fails.
+    """
+    live = build_harness()
+    await live.seed_session()
+    engine, _built = _wrapper(
+        live.conductor,
+        events=(TextDelta(text=harness.CORTEX_TEXT), TurnCompleted("an-id-of-its-own", "cortex")),
+        brief=harness.BRIEF,
+    )
+    events = await _drain(engine)
+    completions = [event for event in events if isinstance(event, TurnCompleted)]
+    assert [completion.turn_id for completion in completions] == [harness.TURN]
+    # And the handoff ran under that same name, not the inner runner's: the record a clean
+    # handoff deletes at the end is keyed by the id the conductor was asked to claim.
+    assert live.handoffs.deleted == [harness.TURN]
 
 
 async def test_an_escalating_turn_completes_once_at_the_true_end() -> None:
@@ -169,7 +193,7 @@ async def test_closing_the_stream_mid_cortex_phase_tears_the_inner_turn_down() -
     engine, built = _wrapper(
         live.conductor, events=(TextDelta(text="thinking"),), block=asyncio.Event()
     )
-    stream = engine.handle_turn(harness.SESSION, harness.USER_TEXT)
+    stream = engine.handle_turn(harness.SESSION, harness.USER_TEXT, turn_id=harness.TURN)
     assert await anext(stream) == TextDelta(text="thinking")
     await stream.aclose()
     assert built[0].closed is True
@@ -190,7 +214,7 @@ async def test_closing_the_stream_mid_handoff_unwinds_the_swap_at_the_wrapper_to
         events=(TextDelta(text=harness.CORTEX_TEXT), TurnCompleted(harness.TURN, "cortex text")),
         brief=harness.BRIEF,
     )
-    stream = engine.handle_turn(harness.SESSION, harness.USER_TEXT)
+    stream = engine.handle_turn(harness.SESSION, harness.USER_TEXT, turn_id=harness.TURN)
     async for event in stream:
         if isinstance(event, StatusUpdate) and event.detail == WORKING_DETAIL:
             break
