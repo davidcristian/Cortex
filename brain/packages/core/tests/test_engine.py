@@ -4,7 +4,6 @@ import json
 import logging
 from collections.abc import AsyncIterator, Mapping, Sequence
 from datetime import UTC, datetime, timedelta
-from uuid import UUID
 
 import pytest
 
@@ -175,21 +174,14 @@ class MidStreamFailingBackend:
         raise InferenceError(msg)
 
 
-def _sequential_turn_ids() -> "list[str]":
-    return [f"t-{n}" for n in range(1, 10)]
-
-
 async def _collect(events: AsyncIterator[TurnEvent]) -> list[TurnEvent]:
     return [event async for event in events]
 
 
 async def test_turn_streams_deltas_then_completion() -> None:
     store = InMemorySessionStore()
-    ids = _sequential_turn_ids()
-    engine = TurnEngine(
-        store, EchoInferenceBackend(), TickingClock(), turn_id_factory=lambda: ids.pop(0)
-    )
-    events = await _collect(engine.handle_turn("s", "hello"))
+    engine = TurnEngine(store, EchoInferenceBackend(), TickingClock())
+    events = await _collect(engine.handle_turn("s", "hello", turn_id="t-1"))
     assert events == [
         TextDelta("reply "),
         TextDelta("1:"),
@@ -201,9 +193,8 @@ async def test_turn_streams_deltas_then_completion() -> None:
 async def test_turn_persists_user_then_assistant_with_shared_turn_id() -> None:
     store = InMemorySessionStore()
     clock = TickingClock()
-    ids = _sequential_turn_ids()
-    engine = TurnEngine(store, EchoInferenceBackend(), clock, turn_id_factory=lambda: ids.pop(0))
-    await _collect(engine.handle_turn("s", "hello"))
+    engine = TurnEngine(store, EchoInferenceBackend(), clock)
+    await _collect(engine.handle_turn("s", "hello", turn_id="t-1"))
     history = list(await store.history("s"))
     assert history == [
         Message(role=Role.USER, text="hello", at=_START, turn_id="t-1"),
@@ -221,10 +212,10 @@ async def test_turn_persists_user_then_assistant_with_shared_turn_id() -> None:
 async def test_reply_counter_comes_from_the_store_not_the_engine() -> None:
     store = InMemorySessionStore()
     first_engine = TurnEngine(store, EchoInferenceBackend(), SystemClock())
-    await _collect(first_engine.handle_turn("s", "one"))
+    await _collect(first_engine.handle_turn("s", "one", turn_id="t-1"))
     # A brand-new engine over the same store keeps counting: no state in the engine.
     replacement = TurnEngine(store, EchoInferenceBackend(), SystemClock())
-    events = await _collect(replacement.handle_turn("s", "two"))
+    events = await _collect(replacement.handle_turn("s", "two", turn_id="t-1"))
     completed = events[-1]
     assert isinstance(completed, TurnCompleted)
     assert completed.full_text == "reply 2: two"
@@ -243,7 +234,7 @@ async def test_history_is_read_from_the_store_not_hidden_engine_state() -> None:
         "s", Message(role=Role.ASSISTANT, text="reply 1: one", at=_START, turn_id="t-0")
     )
     engine = TurnEngine(store, EchoInferenceBackend(), TickingClock())
-    events = await _collect(engine.handle_turn("s", "two"))
+    events = await _collect(engine.handle_turn("s", "two", turn_id="t-1"))
     completed = events[-1]
     assert isinstance(completed, TurnCompleted)
     assert completed.full_text == "reply 2: two"
@@ -253,7 +244,7 @@ async def test_history_is_read_from_the_store_not_hidden_engine_state() -> None:
     await store.append(
         "s", Message(role=Role.ASSISTANT, text="reply 3: three", at=_START, turn_id="t-9")
     )
-    events = await _collect(engine.handle_turn("s", "four"))
+    events = await _collect(engine.handle_turn("s", "four", turn_id="t-1"))
     completed = events[-1]
     assert isinstance(completed, TurnCompleted)
     assert completed.full_text == "reply 4: four"
@@ -263,8 +254,8 @@ async def test_backend_receives_model_id_and_full_history() -> None:
     store = InMemorySessionStore()
     backend = RecordingBackend(("a", "b", "c"))
     engine = TurnEngine(store, backend, TickingClock(), cortex_model="cortex-q4")
-    await _collect(engine.handle_turn("s", "first"))
-    await _collect(engine.handle_turn("s", "second"))
+    await _collect(engine.handle_turn("s", "first", turn_id="t-1"))
+    await _collect(engine.handle_turn("s", "second", turn_id="t-1"))
     assert [model for model, _ in backend.calls] == ["cortex-q4", "cortex-q4"]
     first_history, second_history = (messages for _, messages in backend.calls)
     # Every turn opens with a standing rule, the plain one here; the history follows it whole.
@@ -281,17 +272,15 @@ async def test_windowed_history_bounds_the_backend_not_the_store() -> None:
     """With a window capability the backend sees a tail; the store keeps everything."""
     store = InMemorySessionStore()
     backend = RecordingBackend(("a", "b", "c"))
-    ids = _sequential_turn_ids()
     engine = TurnEngine(
         store,
         backend,
         TickingClock(),
         capabilities=TurnCapabilities(window=CharBudgetHistoryWindow(15)),
-        turn_id_factory=lambda: ids.pop(0),
     )
-    await _collect(engine.handle_turn("s", "one"))
-    await _collect(engine.handle_turn("s", "two"))
-    await _collect(engine.handle_turn("s", "three"))
+    await _collect(engine.handle_turn("s", "one", turn_id="t-1"))
+    await _collect(engine.handle_turn("s", "two", turn_id="t-2"))
+    await _collect(engine.handle_turn("s", "three", turn_id="t-3"))
     histories = [
         [m.text for m in messages if m.role is not Role.SYSTEM] for _, messages in backend.calls
     ]
@@ -302,21 +291,29 @@ async def test_windowed_history_bounds_the_backend_not_the_store() -> None:
     assert stored == ["one", "abc", "two", "abc", "three", "abc"]
 
 
-async def test_default_model_and_turn_ids_are_uuid4_cortex() -> None:
+async def test_the_default_model_is_the_cortex_and_the_completion_echoes_the_id_it_was_given() -> (
+    None
+):
+    """The engine names no turn: it answers under the id its caller handed it.
+
+    The uuid half of this case moved to the two places that own it now, `new_turn_id` in the
+    core and the stream that spends it, since a runner that minted its own id is exactly what
+    left a failed turn unnameable.
+    """
     backend = RecordingBackend(("a", "b", "c"))
     engine = TurnEngine(InMemorySessionStore(), backend, SystemClock())
-    events = await _collect(engine.handle_turn("s", "hi"))
+    events = await _collect(engine.handle_turn("s", "hi", turn_id="a-caller-chose-this"))
     completed = events[-1]
     assert isinstance(completed, TurnCompleted)
-    assert UUID(completed.turn_id).version == 4
+    assert completed.turn_id == "a-caller-chose-this"
     assert backend.calls[0][0] == DEFAULT_CORTEX_MODEL
 
 
 async def test_aclose_mid_generation_keeps_user_and_drops_partial_reply() -> None:
     store = InMemorySessionStore()
     backend = RecordingBackend(("a", "b", "c"))
-    engine = TurnEngine(store, backend, TickingClock(), turn_id_factory=lambda: "t-1")
-    events = engine.handle_turn("s", "hi")
+    engine = TurnEngine(store, backend, TickingClock())
+    events = engine.handle_turn("s", "hi", turn_id="t-1")
     assert await anext(events) == TextDelta("a")
     await events.aclose()
     assert backend.closed is True  # the abandoned backend stream was closed too
@@ -327,7 +324,7 @@ async def test_aclose_mid_generation_keeps_user_and_drops_partial_reply() -> Non
 async def test_backend_failure_surfaces_typed_after_user_was_persisted() -> None:
     store = InMemorySessionStore()
     engine = TurnEngine(store, MidStreamFailingBackend(), TickingClock())
-    events = engine.handle_turn("s", "hi")
+    events = engine.handle_turn("s", "hi", turn_id="t-1")
     assert await anext(events) == TextDelta("partial ")
     with pytest.raises(InferenceError, match="mid-stream"):
         await anext(events)
@@ -337,10 +334,8 @@ async def test_backend_failure_surfaces_typed_after_user_was_persisted() -> None
 
 async def test_plain_async_iterator_backend_completes_normally() -> None:
     store = InMemorySessionStore()
-    engine = TurnEngine(
-        store, PlainIteratorBackend(("x", "y", "z")), TickingClock(), turn_id_factory=lambda: "t-1"
-    )
-    events = await _collect(engine.handle_turn("s", "hi"))
+    engine = TurnEngine(store, PlainIteratorBackend(("x", "y", "z")), TickingClock())
+    events = await _collect(engine.handle_turn("s", "hi", turn_id="t-1"))
     assert events[-1] == TurnCompleted(turn_id="t-1", full_text="xyz")
     assert [m.text for m in await store.history("s")] == ["hi", "xyz"]
 
@@ -364,9 +359,8 @@ async def test_recalled_memory_is_injected_as_ephemeral_system_context() -> None
         backend,
         TickingClock(),
         capabilities=TurnCapabilities(memory=recaller),
-        turn_id_factory=lambda: "t-1",
     )
-    await _collect(engine.handle_turn("s", "pizza"))
+    await _collect(engine.handle_turn("s", "pizza", turn_id="t-1"))
     _, messages = backend.calls[0]
     # The standing rule leads (the plain one: no tools, no taint), the recalled context follows.
     assert messages[0].text == PLAIN_SECURITY_PREAMBLE
@@ -386,9 +380,8 @@ async def test_empty_memory_adds_no_context_and_records_the_exchange() -> None:
         backend,
         TickingClock(),
         capabilities=TurnCapabilities(memory=recaller),
-        turn_id_factory=lambda: "t-1",
     )
-    await _collect(engine.handle_turn("s", "hello"))
+    await _collect(engine.handle_turn("s", "hello", turn_id="t-1"))
     # Nothing to recall on the first turn -> no memory context, just the standing rule and the
     # user turn.
     _, messages = backend.calls[0]
@@ -426,10 +419,9 @@ async def test_a_recall_policy_that_declines_leaves_the_turn_without_a_memory_bl
         backend,
         TickingClock(),
         capabilities=TurnCapabilities(memory=recaller),
-        turn_id_factory=lambda: "t-1",
     )
 
-    await _collect(engine.handle_turn("s", "pizza"))
+    await _collect(engine.handle_turn("s", "pizza", turn_id="t-1"))
 
     _, messages = backend.calls[0]
     assert [m.text for m in messages] == [PLAIN_SECURITY_PREAMBLE, "pizza"]
@@ -447,18 +439,16 @@ async def test_session_scope_keeps_one_conversations_memory_out_of_another() -> 
         RecordingBackend(("ok",)),
         TickingClock(),
         capabilities=TurnCapabilities(memory=recaller),
-        turn_id_factory=lambda: "t-1",
     )
-    await _collect(engine.handle_turn("conv-a", "hello"))
+    await _collect(engine.handle_turn("conv-a", "hello", turn_id="t-1"))
     backend_b = RecordingBackend(("ok",))
     engine_b = TurnEngine(
         InMemorySessionStore(),
         backend_b,
         TickingClock(),
         capabilities=TurnCapabilities(memory=recaller),
-        turn_id_factory=lambda: "t-2",
     )
-    await _collect(engine_b.handle_turn("conv-b", "hello"))
+    await _collect(engine_b.handle_turn("conv-b", "hello", turn_id="t-1"))
     _, messages = backend_b.calls[0]
     # Only the standing rule and B's own turn: no recalled-memory system message from A.
     assert [m.text for m in messages] == [PLAIN_SECURITY_PREAMBLE, "hello"]
@@ -493,10 +483,9 @@ async def test_a_dead_embedder_costs_the_turn_its_memories_and_not_the_turn() ->
         backend,
         TickingClock(),
         capabilities=TurnCapabilities(memory=recaller),
-        turn_id_factory=lambda: "t-1",
     )
 
-    events = await _collect(engine.handle_turn("s", "pizza"))
+    events = await _collect(engine.handle_turn("s", "pizza", turn_id="t-1"))
 
     assert events[-1] == TurnCompleted(turn_id="t-1", full_text="ok")
     _, messages = backend.calls[0]
@@ -525,10 +514,9 @@ async def test_an_unreachable_memory_store_costs_the_turn_its_memories_and_not_t
         backend,
         TickingClock(),
         capabilities=TurnCapabilities(memory=recaller),
-        turn_id_factory=lambda: "t-1",
     )
 
-    events = await _collect(engine.handle_turn("s", "pizza"))
+    events = await _collect(engine.handle_turn("s", "pizza", turn_id="t-1"))
 
     assert events[-1] == TurnCompleted(turn_id="t-1", full_text="ok")
     _, messages = backend.calls[0]
@@ -557,11 +545,10 @@ async def test_a_memory_row_that_will_not_decode_fails_the_turn_instead_of_thinn
         capabilities=TurnCapabilities(
             memory=MemoryRecaller(mem_store, HashEmbedder(), SystemClock()), progress=progress
         ),
-        turn_id_factory=lambda: "t-1",
     )
 
     with pytest.raises(MemoryDataError, match="malformed memory row"):
-        await _collect(engine.handle_turn("s", "pizza"))
+        await _collect(engine.handle_turn("s", "pizza", turn_id="t-1"))
 
     assert list(progress.events) == []  # no "forgoing": this turn is not being answered thinly
 
@@ -583,10 +570,9 @@ async def test_a_turn_answered_without_its_memory_says_so_on_the_stream() -> Non
         RecordingBackend(("ok",)),
         TickingClock(),
         capabilities=TurnCapabilities(memory=recaller, progress=progress),
-        turn_id_factory=lambda: "t-1",
     )
 
-    await _collect(engine.handle_turn("s", "pizza"))
+    await _collect(engine.handle_turn("s", "pizza", turn_id="t-1"))
 
     assert list(progress.events) == [StatusUpdate(state=FORGOING_STATE, detail=FORGOING_DETAIL)]
 
@@ -600,10 +586,9 @@ async def test_a_recall_that_worked_says_nothing_on_the_stream() -> None:
         RecordingBackend(("ok",)),
         TickingClock(),
         capabilities=TurnCapabilities(memory=recaller, progress=progress),
-        turn_id_factory=lambda: "t-1",
     )
 
-    await _collect(engine.handle_turn("s", "pizza"))
+    await _collect(engine.handle_turn("s", "pizza", turn_id="t-1"))
 
     assert list(progress.events) == []
 
@@ -643,11 +628,10 @@ async def test_a_programming_error_in_the_recall_path_still_fails_the_turn() -> 
         RecordingBackend(("ok",)),
         TickingClock(),
         capabilities=TurnCapabilities(memory=recaller),
-        turn_id_factory=lambda: "t-1",
     )
 
     with pytest.raises(ValueError, match="DEMUR"):
-        await _collect(engine.handle_turn("s", "pizza"))
+        await _collect(engine.handle_turn("s", "pizza", turn_id="t-1"))
 
 
 class _UnwritableMemoryStore(InMemoryMemoryStore):
@@ -675,10 +659,9 @@ async def test_a_memory_write_that_fails_leaves_the_turn_and_the_conversation_wh
         RecordingBackend(("ok",)),
         TickingClock(),
         capabilities=TurnCapabilities(memory=recaller, progress=progress),
-        turn_id_factory=lambda: "t-1",
     )
 
-    events = await _collect(engine.handle_turn("s", "remember this"))
+    events = await _collect(engine.handle_turn("s", "remember this", turn_id="t-1"))
 
     assert events[-1] == TurnCompleted(turn_id="t-1", full_text="ok")
     assert [m.text for m in await store.history("s")] == ["remember this", "ok"]
@@ -703,11 +686,10 @@ async def test_a_programming_error_on_the_write_path_still_fails_the_turn() -> N
         RecordingBackend(("ok",)),
         TickingClock(),
         capabilities=TurnCapabilities(memory=recaller),
-        turn_id_factory=lambda: "t-1",
     )
 
     with pytest.raises(ValueError, match="id factory"):
-        await _collect(engine.handle_turn("s", "remember this"))
+        await _collect(engine.handle_turn("s", "remember this", turn_id="t-1"))
 
 
 def _read_tool() -> ToolSpec:
@@ -792,9 +774,8 @@ async def test_tool_call_is_dispatched_audited_and_fed_back() -> None:
         backend,
         TickingClock(),
         capabilities=TurnCapabilities(tools=_read_dispatcher(sink)),
-        turn_id_factory=lambda: "t-1",
     )
-    events = await _collect(engine.handle_turn("s", "show hosts"))
+    events = await _collect(engine.handle_turn("s", "show hosts", turn_id="t-1"))
     # The audited dispatch surfaces as an ephemeral ToolActivity between the two steps' reply
     # deltas (ADR-0009 addendum); its summary is the advertised description, never arguments.
     assert events == [
@@ -856,7 +837,7 @@ async def test_the_turns_session_reaches_a_schedule_created_by_a_tool_call() -> 
         TickingClock(),
         capabilities=TurnCapabilities(tools=dispatcher),
     )
-    await _collect(engine.handle_turn("chat-42", "remind me to stretch"))
+    await _collect(engine.handle_turn("chat-42", "remind me to stretch", turn_id="t-1"))
     item = await schedule_store.get("item-1")
     assert item is not None
     assert item.session_id == "chat-42"
@@ -870,9 +851,8 @@ async def test_no_tool_call_ends_the_turn_in_one_step() -> None:
         backend,
         TickingClock(),
         capabilities=TurnCapabilities(tools=_read_dispatcher(sink)),
-        turn_id_factory=lambda: "t-1",
     )
-    events = await _collect(engine.handle_turn("s", "hi"))
+    events = await _collect(engine.handle_turn("s", "hi", turn_id="t-1"))
     assert events[-1] == TurnCompleted(turn_id="t-1", full_text="just an answer")
     assert len(backend.seen) == 1  # a single inference step, no re-inference
     assert sink.records == ()  # nothing dispatched
@@ -889,9 +869,8 @@ async def test_tool_loop_stops_at_the_step_bound() -> None:
         backend,
         TickingClock(),
         capabilities=TurnCapabilities(tools=ToolDispatcher(registry, sink, TickingClock())),
-        turn_id_factory=lambda: "t-1",
     )
-    events = await _collect(engine.handle_turn("s", "go"))
+    events = await _collect(engine.handle_turn("s", "go", turn_id="t-1"))
     completed = events[-1]
     assert isinstance(completed, TurnCompleted)
     assert completed.full_text == ""  # the model only ever called tools, never answered
@@ -932,9 +911,8 @@ async def test_tool_step_summary_derives_from_the_spec_never_the_model() -> None
         backend,
         TickingClock(),
         capabilities=TurnCapabilities(tools=ToolDispatcher(registry, sink, TickingClock())),
-        turn_id_factory=lambda: "t-1",
     )
-    events = await _collect(engine.handle_turn("s", "go"))
+    events = await _collect(engine.handle_turn("s", "go", turn_id="t-1"))
     activities = [e for e in events if isinstance(e, ToolActivity)]
     # Only the two advertised calls surface chips; the model-named ghost call surfaces none,
     # so its attacker-controlled name never reaches the overlay.
@@ -977,9 +955,8 @@ async def test_tool_activity_is_emitted_before_its_dispatch() -> None:
         capabilities=TurnCapabilities(
             tools=ToolDispatcher(registry, RecordingAuditSink(), TickingClock())
         ),
-        turn_id_factory=lambda: "t-1",
     )
-    async for event in engine.handle_turn("s", "go"):
+    async for event in engine.handle_turn("s", "go", turn_id="t-1"):
         # Interleaved with the handler's own append (not a transform): a comprehension would
         # collect activities separately and lose the ordering against `dispatched`.
         if isinstance(event, ToolActivity):
@@ -994,8 +971,8 @@ async def test_reasoning_deltas_surface_as_thinking_status_and_never_reach_the_r
         [[ReasoningChunk("let me "), ReasoningChunk("think"), TextChunk("hi")]]
     )
     store = InMemorySessionStore()
-    engine = TurnEngine(store, backend, TickingClock(), turn_id_factory=lambda: "t-1")
-    events = await _collect(engine.handle_turn("s", "hey"))
+    engine = TurnEngine(store, backend, TickingClock())
+    events = await _collect(engine.handle_turn("s", "hey", turn_id="t-1"))
     assert events == [
         StatusUpdate(state="thinking", detail="let me "),
         StatusUpdate(state="thinking", detail="think"),
@@ -1016,9 +993,8 @@ async def test_security_preamble_precedes_a_tool_enabled_turn() -> None:
         backend,
         TickingClock(),
         capabilities=TurnCapabilities(tools=_read_dispatcher(sink)),
-        turn_id_factory=lambda: "t-1",
     )
-    await _collect(engine.handle_turn("s", "hello"))
+    await _collect(engine.handle_turn("s", "hello", turn_id="t-1"))
     (messages,) = backend.seen
     assert messages[0].role is Role.SYSTEM
     assert messages[0].text == SECURITY_PREAMBLE
@@ -1039,9 +1015,8 @@ async def test_the_plain_standing_rule_precedes_a_turn_with_no_tools() -> None:
         InMemorySessionStore(),
         backend,
         TickingClock(),
-        turn_id_factory=lambda: "t-1",
     )
-    await _collect(engine.handle_turn("s", "hello"))
+    await _collect(engine.handle_turn("s", "hello", turn_id="t-1"))
     _, messages = backend.calls[0]
     assert messages[0].role is Role.SYSTEM
     assert messages[0].text == PLAIN_SECURITY_PREAMBLE
@@ -1067,9 +1042,8 @@ async def test_tainted_turn_is_not_recorded_to_memory() -> None:
         capabilities=TurnCapabilities(
             memory=recaller, tools=_read_dispatcher(RecordingAuditSink())
         ),
-        turn_id_factory=lambda: "t-1",
     )
-    await _collect(engine.handle_turn("s", "summarize /x"))
+    await _collect(engine.handle_turn("s", "summarize /x", turn_id="t-1"))
     assert await recaller.recall("summarize", k=1, session_id="s") == ()  # nothing recorded
 
 
@@ -1103,9 +1077,8 @@ async def test_gated_tool_is_blocked_after_an_untrusted_read() -> None:
         backend,
         TickingClock(),
         capabilities=TurnCapabilities(tools=ToolDispatcher(registry, sink, TickingClock())),
-        turn_id_factory=lambda: "t-1",
     )
-    await _collect(engine.handle_turn("s", "read then send"))
+    await _collect(engine.handle_turn("s", "read then send", turn_id="t-1"))
     # The read succeeded (and tainted the turn); the send was blocked, never invoked.
     assert [(r.name, r.ok) for r in sink.records] == [("read", True), ("send", False)]
     assert sink.records[1].detail == DENIED_MSG
@@ -1129,7 +1102,6 @@ def _guarded_engine(backend: ScriptedToolBackend, store: InMemorySessionStore) -
         backend,
         TickingClock(),
         capabilities=TurnCapabilities(tools=dispatcher, guardrail=UrlRedactingGuardrail()),
-        turn_id_factory=lambda: "t-1",
     )
 
 
@@ -1144,7 +1116,9 @@ async def test_laundered_url_is_redacted_before_the_user_and_the_store() -> None
         ]
     )
     store = InMemorySessionStore()
-    events = await _collect(_guarded_engine(backend, store).handle_turn("s", "summarize /x"))
+    events = await _collect(
+        _guarded_engine(backend, store).handle_turn("s", "summarize /x", turn_id="t-1")
+    )
     completed = events[-1]
     assert isinstance(completed, TurnCompleted)
     assert completed.full_text == f"Summary done. Full report at {REDACTED_LINK}"
@@ -1165,7 +1139,9 @@ async def test_laundered_url_split_across_deltas_is_redacted_and_never_leaks() -
         ]
     )
     events = await _collect(
-        _guarded_engine(backend, InMemorySessionStore()).handle_turn("s", "summarize /x")
+        _guarded_engine(backend, InMemorySessionStore()).handle_turn(
+            "s", "summarize /x", turn_id="t-1"
+        )
     )
     deltas = [e.text for e in events[:-1] if isinstance(e, TextDelta)]
     assert "" not in deltas
@@ -1183,7 +1159,9 @@ async def test_user_sent_url_survives_the_guardrail() -> None:
         ]
     )
     events = await _collect(
-        _guarded_engine(backend, InMemorySessionStore()).handle_turn("s", f"what is {_EVIL_URL}?")
+        _guarded_engine(backend, InMemorySessionStore()).handle_turn(
+            "s", f"what is {_EVIL_URL}?", turn_id="t-1"
+        )
     )
     completed = events[-1]
     assert isinstance(completed, TurnCompleted)
@@ -1194,7 +1172,9 @@ async def test_guardrail_leaves_a_clean_turn_untouched() -> None:
     # No untrusted content entered the turn: URLs in the reply are the model's own.
     backend = ScriptedToolBackend([[TextChunk("docs live at https://docs.example/x")]])
     events = await _collect(
-        _guarded_engine(backend, InMemorySessionStore()).handle_turn("s", "where are the docs?")
+        _guarded_engine(backend, InMemorySessionStore()).handle_turn(
+            "s", "where are the docs?", turn_id="t-1"
+        )
     )
     completed = events[-1]
     assert isinstance(completed, TurnCompleted)
@@ -1219,7 +1199,9 @@ async def test_redact_mode_passes_a_non_collected_url_on_a_tainted_turn() -> Non
     # The default is deliberately narrow: redact mode scrubs only verbatim-collected links, so a
     # tainted turn's non-collected URL survives (ADR-0015). Contrast this with strict mode below.
     events = await _collect(
-        _guarded_engine(_uncollected_url_turn(), InMemorySessionStore()).handle_turn("s", "go")
+        _guarded_engine(_uncollected_url_turn(), InMemorySessionStore()).handle_turn(
+            "s", "go", turn_id="t-1"
+        )
     )
     completed = events[-1]
     assert isinstance(completed, TurnCompleted)
@@ -1233,7 +1215,6 @@ def _strict_guarded_engine(backend: ScriptedToolBackend, store: InMemorySessionS
         backend,
         TickingClock(),
         capabilities=TurnCapabilities(tools=dispatcher, guardrail=StrictUrlRedactingGuardrail()),
-        turn_id_factory=lambda: "t-1",
     )
 
 
@@ -1242,7 +1223,7 @@ async def test_strict_mode_redacts_a_non_collected_url_on_a_tainted_turn() -> No
     # the same non-collected URL redact mode passed above is scrubbed from stream, reply, and store.
     store = InMemorySessionStore()
     events = await _collect(
-        _strict_guarded_engine(_uncollected_url_turn(), store).handle_turn("s", "go")
+        _strict_guarded_engine(_uncollected_url_turn(), store).handle_turn("s", "go", turn_id="t-1")
     )
     completed = events[-1]
     assert isinstance(completed, TurnCompleted)
@@ -1269,7 +1250,9 @@ async def test_laundered_url_in_reasoning_is_redacted_from_the_thinking_status()
         ]
     )
     store = InMemorySessionStore()
-    events = await _collect(_guarded_engine(backend, store).handle_turn("s", "summarize /x"))
+    events = await _collect(
+        _guarded_engine(backend, store).handle_turn("s", "summarize /x", turn_id="t-1")
+    )
     joined = "".join(_thinking_details(events))
     assert _EVIL_URL not in joined
     assert joined == f"I should cite {REDACTED_LINK} as demanded. "
@@ -1296,7 +1279,9 @@ async def test_reasoning_url_split_across_deltas_is_redacted_and_never_leaks() -
         ]
     )
     events = await _collect(
-        _guarded_engine(backend, InMemorySessionStore()).handle_turn("s", "summarize /x")
+        _guarded_engine(backend, InMemorySessionStore()).handle_turn(
+            "s", "summarize /x", turn_id="t-1"
+        )
     )
     details = _thinking_details(events)
     assert "" not in details
@@ -1323,7 +1308,9 @@ async def test_url_split_across_thinking_bursts_around_a_tool_call_is_redacted()
         ]
     )
     events = await _collect(
-        _guarded_engine(backend, InMemorySessionStore()).handle_turn("s", "summarize /x")
+        _guarded_engine(backend, InMemorySessionStore()).handle_turn(
+            "s", "summarize /x", turn_id="t-1"
+        )
     )
     assert events == [
         StatusUpdate(state="thinking", detail="see "),
@@ -1343,13 +1330,12 @@ async def test_empty_reasoning_delta_emits_no_status_on_either_path() -> None:
             InMemorySessionStore(),
             ScriptedToolBackend([[ReasoningChunk(""), TextChunk("hi")]]),
             TickingClock(),
-            turn_id_factory=lambda: "t-1",
         ),
         _guarded_engine(
             ScriptedToolBackend([[ReasoningChunk(""), TextChunk("hi")]]), InMemorySessionStore()
         ),
     ):
-        events = await _collect(engine.handle_turn("s", "hey"))
+        events = await _collect(engine.handle_turn("s", "hey", turn_id="t-1"))
         assert _thinking_details(events) == []
 
 
@@ -1363,7 +1349,9 @@ async def test_thinking_carry_is_flushed_when_the_stream_ends_in_reasoning() -> 
         ]
     )
     events = await _collect(
-        _guarded_engine(backend, InMemorySessionStore()).handle_turn("s", "summarize /x")
+        _guarded_engine(backend, InMemorySessionStore()).handle_turn(
+            "s", "summarize /x", turn_id="t-1"
+        )
     )
     assert events == [
         ToolActivity(tool_name="read", summary="read a file"),
@@ -1386,7 +1374,9 @@ async def test_strict_mode_redacts_a_non_collected_url_in_reasoning() -> None:
         ]
     )
     events = await _collect(
-        _strict_guarded_engine(backend, InMemorySessionStore()).handle_turn("s", "go")
+        _strict_guarded_engine(backend, InMemorySessionStore()).handle_turn(
+            "s", "go", turn_id="t-1"
+        )
     )
     assert "".join(_thinking_details(events)) == f"See {REDACTED_LINK} then. "
 
@@ -1402,7 +1392,7 @@ async def test_user_sent_url_survives_in_the_thinking_status() -> None:
     )
     events = await _collect(
         _strict_guarded_engine(backend, InMemorySessionStore()).handle_turn(
-            "s", f"what is {_EVIL_URL}?"
+            "s", f"what is {_EVIL_URL}?", turn_id="t-1"
         )
     )
     assert "".join(_thinking_details(events)) == f"the user asked about {_EVIL_URL} here. "
@@ -1415,7 +1405,9 @@ async def test_guardrail_leaves_a_clean_turns_reasoning_untouched() -> None:
         [[ReasoningChunk("check https://docs.example/x first. "), TextChunk("see the docs")]]
     )
     events = await _collect(
-        _guarded_engine(backend, InMemorySessionStore()).handle_turn("s", "where are the docs?")
+        _guarded_engine(backend, InMemorySessionStore()).handle_turn(
+            "s", "where are the docs?", turn_id="t-1"
+        )
     )
     assert _thinking_details(events) == ["check https://docs.example/x first. "]
 
@@ -1440,9 +1432,8 @@ async def test_tainted_turn_is_recorded_with_provenance_when_enabled() -> None:
             tools=_read_dispatcher(RecordingAuditSink()),
             record_tainted_memory=True,
         ),
-        turn_id_factory=lambda: "t-1",
     )
-    await _collect(engine.handle_turn("s", "summarize /x"))
+    await _collect(engine.handle_turn("s", "summarize /x", turn_id="t-1"))
     (hit,) = await recaller.recall("summarize /x", k=1, session_id="s")
     assert hit.record.tainted is True  # stored with the untrusted-provenance marker
     assert hit.record.text == "User: summarize /x\nAssistant: here is the summary"
@@ -1484,9 +1475,8 @@ async def test_recalled_tainted_memory_is_fenced_and_re_taints_the_turn() -> Non
         capabilities=TurnCapabilities(
             memory=recaller, tools=ToolDispatcher(registry, sink, TickingClock())
         ),
-        turn_id_factory=lambda: "t-1",
     )
-    await _collect(engine.handle_turn("s", "wire"))
+    await _collect(engine.handle_turn("s", "wire", turn_id="t-1"))
     # The recalled tainted memory is fenced in the context the model first sees, after the preamble.
     first_step = backend.seen[0]
     assert first_step[0].text == SECURITY_PREAMBLE
@@ -1539,9 +1529,8 @@ async def test_a_recalled_tainted_memory_names_itself_as_the_turns_source() -> N
             memory=MemoryRecaller(mem_store, embedder, SystemClock()),
             tools=ToolDispatcher(registry, RecordingAuditSink(), TickingClock()),
         ),
-        turn_id_factory=lambda: "t-1",
     )
-    await _collect(engine.handle_turn("s", "wire"))
+    await _collect(engine.handle_turn("s", "wire", turn_id="t-1"))
     assert registry.stamps  # the tool was reached, so the assertions below are not vacuous
     assert registry.stamps[0].tainted is True
     assert registry.stamps[0].sources == (Provenance(SourceKind.MEMORY, "tainted-mem"),)
@@ -1567,9 +1556,8 @@ async def test_recalled_tainted_memory_url_is_redacted_by_the_guardrail() -> Non
         backend,
         TickingClock(),
         capabilities=TurnCapabilities(memory=recaller, guardrail=UrlRedactingGuardrail()),
-        turn_id_factory=lambda: "t-1",
     )
-    events = await _collect(engine.handle_turn("s", "invoice"))
+    events = await _collect(engine.handle_turn("s", "invoice", turn_id="t-1"))
     completed = events[-1]
     assert isinstance(completed, TurnCompleted)
     assert completed.full_text == f"As before, pay at {REDACTED_LINK}"
@@ -1593,9 +1581,8 @@ async def test_recall_renders_trusted_and_tainted_memories_in_separate_sections(
         backend,
         TickingClock(),
         capabilities=TurnCapabilities(memory=recaller),
-        turn_id_factory=lambda: "t-1",
     )
-    await _collect(engine.handle_turn("s", "topic"))
+    await _collect(engine.handle_turn("s", "topic", turn_id="t-1"))
     _, messages = backend.calls[0]
     assert messages[0].text == SECURITY_PREAMBLE  # a tainted memory was recalled → preamble present
     memory_msg = messages[1]
@@ -1648,9 +1635,8 @@ async def test_first_turn_generates_and_persists_a_switcher_title() -> None:
         backend,
         TickingClock(),
         capabilities=TurnCapabilities(generate_titles=True),
-        turn_id_factory=lambda: "t-1",
     )
-    await _collect(engine.handle_turn("s", "the opening question"))
+    await _collect(engine.handle_turn("s", "the opening question", turn_id="t-1"))
     assert backend.calls == 2  # one for the reply, one for the title
     assert await _title_of(store, "s") == "A Nice Title"  # cleaned, overriding the first message
 
@@ -1658,8 +1644,8 @@ async def test_first_turn_generates_and_persists_a_switcher_title() -> None:
 async def test_titles_are_off_by_default() -> None:
     store = InMemorySessionStore()
     backend = ScriptedTurnBackend(["hello reply", "unused title"])
-    engine = TurnEngine(store, backend, TickingClock(), turn_id_factory=lambda: "t-1")
-    await _collect(engine.handle_turn("s", "the opening question"))
+    engine = TurnEngine(store, backend, TickingClock())
+    await _collect(engine.handle_turn("s", "the opening question", turn_id="t-1"))
     assert backend.calls == 1  # no title call
     assert await _title_of(store, "s") == "the opening question"  # first-message derivation
 
@@ -1667,16 +1653,14 @@ async def test_titles_are_off_by_default() -> None:
 async def test_later_turns_do_not_regenerate_the_title() -> None:
     store = InMemorySessionStore()
     backend = ScriptedTurnBackend(["reply one", "First Title", "reply two", "Second Title"])
-    ids = _sequential_turn_ids()
     engine = TurnEngine(
         store,
         backend,
         TickingClock(),
         capabilities=TurnCapabilities(generate_titles=True),
-        turn_id_factory=lambda: ids.pop(0),
     )
-    await _collect(engine.handle_turn("s", "first message"))
-    await _collect(engine.handle_turn("s", "second message"))
+    await _collect(engine.handle_turn("s", "first message", turn_id="t-1"))
+    await _collect(engine.handle_turn("s", "second message", turn_id="t-2"))
     # Turn 1: reply + title (2 calls). Turn 2: reply only, history is no longer length 1 (3rd call).
     assert backend.calls == 3
     assert await _title_of(store, "s") == "First Title"  # unchanged by the second turn
@@ -1691,8 +1675,7 @@ async def test_a_failed_title_generation_falls_back_to_the_first_message() -> No
             backend,
             TickingClock(),
             capabilities=TurnCapabilities(generate_titles=True),
-            turn_id_factory=lambda: "t-1",
-        ).handle_turn("s", "the opening question")
+        ).handle_turn("s", "the opening question", turn_id="t-1")
     )
     # The turn still completes; only the title write is skipped.
     assert isinstance(events[-1], TurnCompleted)
@@ -1707,9 +1690,8 @@ async def test_an_empty_generated_title_is_not_persisted() -> None:
         backend,
         TickingClock(),
         capabilities=TurnCapabilities(generate_titles=True),
-        turn_id_factory=lambda: "t-1",
     )
-    await _collect(engine.handle_turn("s", "the opening question"))
+    await _collect(engine.handle_turn("s", "the opening question", turn_id="t-1"))
     assert await _title_of(store, "s") == "the opening question"  # empty title rejected
 
 
@@ -1731,9 +1713,8 @@ async def test_an_armed_escalation_slot_captures_exactly_the_turns_loop_tail() -
         capabilities=TurnCapabilities(
             tools=_read_dispatcher(RecordingAuditSink()), escalation=slot
         ),
-        turn_id_factory=lambda: "t-1",
     )
-    await _collect(engine.handle_turn("s", "show hosts"))
+    await _collect(engine.handle_turn("s", "show hosts", turn_id="t-1"))
     refs = slot.refs
     assert refs is not None
     assert refs.base_len == 2  # the security preamble + the user message, nothing of the tail
@@ -1766,9 +1747,8 @@ async def test_an_approved_escalation_snapshots_to_a_ready_record_in_the_store()
         backend,
         TickingClock(),
         capabilities=TurnCapabilities(tools=dispatcher, escalation=slot),
-        turn_id_factory=lambda: "t-1",
     )
-    await _collect(engine.handle_turn("s", "solve this properly"))
+    await _collect(engine.handle_turn("s", "solve this properly", turn_id="t-1"))
     assert slot.brief == "audit it deeply"
     store = InMemoryHandoffStore()
     record = slot.snapshot(turn_id="t-1", session_id="s", requested_at=_START)
@@ -1822,9 +1802,8 @@ async def test_a_turn_that_looked_at_the_screen_is_never_recorded_to_memory() ->
             tools=_capture_dispatcher(RecordingAuditSink()),
             record_tainted_memory=True,
         ),
-        turn_id_factory=lambda: "t-1",
     )
-    await _collect(engine.handle_turn("s", "what is on my screen?"))
+    await _collect(engine.handle_turn("s", "what is on my screen?", turn_id="t-1"))
     assert list(await recaller.recall("invoice", k=1, session_id="s")) == []
 
 
@@ -1847,9 +1826,8 @@ async def test_a_turn_that_read_untrusted_text_is_still_recorded_with_the_flag_o
             tools=_read_dispatcher(RecordingAuditSink()),
             record_tainted_memory=True,
         ),
-        turn_id_factory=lambda: "t-1",
     )
-    await _collect(engine.handle_turn("s", "summarize /x"))
+    await _collect(engine.handle_turn("s", "summarize /x", turn_id="t-1"))
     assert len(await recaller.recall("summarize /x", k=1, session_id="s")) == 1
 
 
@@ -1888,14 +1866,12 @@ async def test_a_reply_a_token_limit_cut_says_so_under_the_text_and_in_the_store
     text the user can still scroll back to, and it lands after the reply rather than inside it.
     """
     store = InMemorySessionStore()
-    ids = _sequential_turn_ids()
     engine = TurnEngine(
         store,
         StoppingBackend(StopReason.CAPPED),
         TickingClock(),
-        turn_id_factory=lambda: ids.pop(0),
     )
-    events = await _collect(engine.handle_turn("s", "explain everything"))
+    events = await _collect(engine.handle_turn("s", "explain everything", turn_id="t-1"))
     assert events == [
         TextDelta("half an "),
         TextDelta("answer"),
@@ -1909,14 +1885,12 @@ async def test_a_reply_a_token_limit_cut_says_so_under_the_text_and_in_the_store
 async def test_a_reply_the_model_ended_itself_gets_no_note() -> None:
     """The control arm: the note is about the limit, not about every turn that stops."""
     store = InMemorySessionStore()
-    ids = _sequential_turn_ids()
     engine = TurnEngine(
         store,
         StoppingBackend(StopReason.FINISHED),
         TickingClock(),
-        turn_id_factory=lambda: ids.pop(0),
     )
-    events = await _collect(engine.handle_turn("s", "hello"))
+    events = await _collect(engine.handle_turn("s", "hello", turn_id="t-1"))
     assert events == [
         TextDelta("half an "),
         TextDelta("answer"),
@@ -1927,11 +1901,8 @@ async def test_a_reply_the_model_ended_itself_gets_no_note() -> None:
 async def test_a_backend_that_reports_no_stop_at_all_is_never_read_as_capped() -> None:
     """Silence is not a cap: every turn written before this arm still ends without a note."""
     store = InMemorySessionStore()
-    ids = _sequential_turn_ids()
-    engine = TurnEngine(
-        store, RecordingBackend(["quiet"]), TickingClock(), turn_id_factory=lambda: ids.pop(0)
-    )
-    events = await _collect(engine.handle_turn("s", "hello"))
+    engine = TurnEngine(store, RecordingBackend(["quiet"]), TickingClock())
+    events = await _collect(engine.handle_turn("s", "hello", turn_id="t-1"))
     assert events == [TextDelta("quiet"), TurnCompleted(turn_id="t-1", full_text="quiet")]
 
 
@@ -1945,12 +1916,14 @@ async def test_the_deployments_reply_bounds_ride_every_completion_of_a_users_tur
             bounded,
             TickingClock(),
             capabilities=TurnCapabilities(bounds=asked),
-        ).handle_turn("s", "hello")
+        ).handle_turn("s", "hello", turn_id="t-1")
     )
     assert bounded.bounds == [asked]
     unbounded = StoppingBackend(StopReason.FINISHED)
     await _collect(
-        TurnEngine(InMemorySessionStore(), unbounded, TickingClock()).handle_turn("s", "hello")
+        TurnEngine(InMemorySessionStore(), unbounded, TickingClock()).handle_turn(
+            "s", "hello", turn_id="t-1"
+        )
     )
     assert unbounded.bounds == [None]
 
@@ -1992,8 +1965,7 @@ class CutCallBackend:
 
 
 def _cut_call_engine(store: InMemorySessionStore, backend: CutCallBackend) -> TurnEngine:
-    ids = _sequential_turn_ids()
-    return TurnEngine(store, backend, TickingClock(), turn_id_factory=lambda: ids.pop(0))
+    return TurnEngine(store, backend, TickingClock())
 
 
 async def test_a_tool_call_a_token_limit_cut_ends_the_turn_with_the_capped_note() -> None:
@@ -2006,7 +1978,7 @@ async def test_a_tool_call_a_token_limit_cut_ends_the_turn_with_the_capped_note(
     store = InMemorySessionStore()
     engine = _cut_call_engine(store, CutCallBackend(StopReason.CAPPED))
 
-    events = await _collect(engine.handle_turn("s", "explain everything"))
+    events = await _collect(engine.handle_turn("s", "explain everything", turn_id="t-1"))
 
     assert events == [
         TextDelta("half an "),
@@ -2031,7 +2003,7 @@ async def test_a_tool_call_no_limit_explains_ends_the_turn_with_its_own_note() -
     store = InMemorySessionStore()
     engine = _cut_call_engine(store, CutCallBackend(StopReason.FINISHED))
 
-    events = await _collect(engine.handle_turn("s", "look something up"))
+    events = await _collect(engine.handle_turn("s", "look something up", turn_id="t-1"))
 
     assert events == [
         TextDelta("half an "),
@@ -2048,7 +2020,7 @@ async def test_a_backend_reporting_no_stop_takes_the_unreadable_note_not_the_cap
     store = InMemorySessionStore()
     engine = _cut_call_engine(store, CutCallBackend(None))
 
-    events = await _collect(engine.handle_turn("s", "hello"))
+    events = await _collect(engine.handle_turn("s", "hello", turn_id="t-1"))
 
     assert events[-2:] == [
         TextDelta(UNREADABLE_CALL_NOTE),
@@ -2063,16 +2035,14 @@ async def test_a_guardrails_held_tail_is_released_before_the_note_and_persisted_
     claims is everything the model produced.
     """
     store = InMemorySessionStore()
-    ids = _sequential_turn_ids()
     engine = TurnEngine(
         store,
         CutCallBackend(StopReason.FINISHED, deltas=("see http://exa",)),
         TickingClock(),
         capabilities=TurnCapabilities(guardrail=UrlRedactingGuardrail()),
-        turn_id_factory=lambda: ids.pop(0),
     )
 
-    events = await _collect(engine.handle_turn("s", "where is it"))
+    events = await _collect(engine.handle_turn("s", "where is it", turn_id="t-1"))
 
     assert events == [
         TextDelta("see "),  # what the filter had already released when the call failed
@@ -2087,16 +2057,14 @@ async def test_a_guardrails_held_tail_is_released_before_the_note_and_persisted_
 async def test_a_cut_tool_call_still_records_the_exchange_to_memory() -> None:
     """The whole persist path runs, not just the session append: the turn ended, it did not fail."""
     recaller = MemoryRecaller(InMemoryMemoryStore(), HashEmbedder(), SystemClock())
-    ids = _sequential_turn_ids()
     engine = TurnEngine(
         InMemorySessionStore(),
         CutCallBackend(StopReason.CAPPED),
         TickingClock(),
         capabilities=TurnCapabilities(memory=recaller),
-        turn_id_factory=lambda: ids.pop(0),
     )
 
-    await _collect(engine.handle_turn("s", "remember this"))
+    await _collect(engine.handle_turn("s", "remember this", turn_id="t-1"))
 
     (recalled,) = await recaller.recall("remember this", k=1, session_id="s")
     assert "half an " in recalled.record.text
@@ -2112,15 +2080,13 @@ async def test_the_operator_is_told_which_turn_broke_and_whether_a_limit_cut_it(
     cannot keep its own grammar.
     """
     caplog.set_level(logging.WARNING, logger=_ENGINE_LOGGER)
-    ids = _sequential_turn_ids()
     engine = TurnEngine(
         InMemorySessionStore(),
         CutCallBackend(StopReason.FINISHED),
         TickingClock(),
-        turn_id_factory=lambda: ids.pop(0),
     )
 
-    await _collect(engine.handle_turn("s", "hello"))
+    await _collect(engine.handle_turn("s", "hello", turn_id="t-1"))
 
     (record,) = [line for line in caplog.records if line.name == _ENGINE_LOGGER]
     assert record.levelno == logging.WARNING

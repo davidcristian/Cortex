@@ -152,9 +152,8 @@ async def test_cortex_turn_delegates_and_consumes_the_results() -> None:
         backend,
         FixedClock(),
         capabilities=TurnCapabilities(tools=cortex_tools),
-        turn_id_factory=lambda: "t-1",
     )
-    events = await _collect(engine.handle_turn("s", "do two things"))
+    events = await _collect(engine.handle_turn("s", "do two things", turn_id="t-1"))
     assert events[-1] == TurnCompleted(turn_id="t-1", full_text="delegating... both done")
     # The spawn tool ran once and was audited as a success.
     (audit,) = sink.records
@@ -228,9 +227,8 @@ async def test_delegation_surfaces_progress_to_the_stream_sink() -> None:
         cortex_backend,
         FixedClock(),
         capabilities=TurnCapabilities(tools=cortex_tools, progress=progress),
-        turn_id_factory=lambda: "t-1",
     )
-    events = await _collect(engine.handle_turn("s", "do two things"))
+    events = await _collect(engine.handle_turn("s", "do two things", turn_id="t-1"))
     assert events[-1] == TurnCompleted(turn_id="t-1", full_text="both done")
     # The engine's OWN stream carries the cortex's spawn_subagents chip, never the subagents':
     engine_activities = [event for event in events if isinstance(event, ToolActivity)]
@@ -275,9 +273,8 @@ async def test_a_subagent_reading_untrusted_content_taints_the_delegation_result
         cortex_backend,
         FixedClock(),
         capabilities=TurnCapabilities(tools=cortex_tools),
-        turn_id_factory=lambda: "t-1",
     )
-    await _collect(engine.handle_turn("s", "delegate"))
+    await _collect(engine.handle_turn("s", "delegate", turn_id="t-1"))
     # The subagent read untrusted content, so the aggregated spawn result feeds back to the
     # cortex fenced as untrusted data. The taint propagated up (ADR-0013).
     _, second_step = cortex_backend.seen
@@ -327,9 +324,8 @@ async def test_a_tainted_turns_spawn_is_forced_onto_the_robust_model_end_to_end(
         cortex_backend,
         FixedClock(),
         capabilities=TurnCapabilities(tools=cortex_tools),
-        turn_id_factory=lambda: "t-1",
     )
-    await _collect(engine.handle_turn("s", "read then delegate"))
+    await _collect(engine.handle_turn("s", "read then delegate", turn_id="t-1"))
     task = await task_store.get_task("st-1")
     assert task is not None
     assert (task.model, task.tainted) == ("fast", True)  # the stamp rode the store

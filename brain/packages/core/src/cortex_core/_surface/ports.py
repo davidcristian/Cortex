@@ -13,7 +13,7 @@ from cortex_core.body import (
     hold_to_the_bounds_asked_for,
 )
 from cortex_core.body_failure import body_failure_message
-from cortex_core.conversation import Message, Role
+from cortex_core.conversation import Message, Role, new_turn_id
 from cortex_core.errors import (
     BodyFailure,
     BodyGatewayError,
@@ -181,4 +181,5 @@ __all__ = [
     "claimed_source",
     "data_uri",
     "hold_to_the_bounds_asked_for",
+    "new_turn_id",
 ]

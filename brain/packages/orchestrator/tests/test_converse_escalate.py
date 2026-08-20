@@ -110,7 +110,6 @@ def _escalating_factory(slot: EscalationSlot) -> EngineFactory:
             backend,
             SystemClock(),
             capabilities=TurnCapabilities(tools=dispatcher, escalation=slot),
-            turn_id_factory=lambda: "t-esc",
         )
 
     return make

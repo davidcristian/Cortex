@@ -420,7 +420,8 @@ The service:
   All three, the wire mapping (including `SessionSummary.pinned`), and the rename/delete/pin writes
   live in `session_rpc.py` (ADR-0021).
 - `converse(make_engine, client_events, *, max_buffered_events=DEFAULT_MAX_BUFFERED_EVENTS,
-  confirm_timeout_s=DEFAULT_CONFIRM_TIMEOUT_S) -> AsyncGenerator[ServerEvent, None]` is the loop
+  confirm_timeout_s=DEFAULT_CONFIRM_TIMEOUT_S, turn_id_factory=new_turn_id)
+  -> AsyncGenerator[ServerEvent, None]` is the loop
   itself, servicer-independent (what `BrainService.Converse` delegates to). `make_engine` is an
   `EngineFactory` (`Callable[[Confirmer, ProgressSink], TurnRunner]`, ADR-0022/0010, widened to
   the `TurnRunner` port by ADR-0030 so a deployment with escalation enabled can serve turns
@@ -436,6 +437,16 @@ The service:
   `to_server_event` and the knobs and error codes below) lives in `converse_stream.py`, a line-cap
   split that `converse.py` re-exports from, so every `from cortex_orchestrator.converse import ...`
   and the `cortex_orchestrator` barrel keep resolving unchanged.
+- **The stream names each turn before it starts it** (`TurnIdFactory`, defaulting to the core's
+  `new_turn_id`; ADR-0038 named-turn addendum). The stream is what schedules, runs, cancels and
+  reports a turn, where a runner sees only the middle of a successful one, so the id is minted
+  here and handed to `handle_turn`. It is minted when the turn starts rather than when the
+  `UserTurn` is queued, so the id is a fact about a turn that ran: a queued turn a `Cancel` drops
+  never began. The three mid-turn failures (`SessionStoreError`, `InferenceError`, and the broad
+  catch) therefore log `session_id` **and** `turn_id`, which is the id the store grouped that
+  turn's user message under, so a failure line joins to the work that preceded it. What they
+  still must not log is the turn's text: those are the user's own words, and the formatter's
+  denylist withholds by field name and could not recognize a conversation.
 - `SeamProgressSink(emit, credit_sem, *, to_wire)` (`progress.py`, ADR-0010 progress addendum) is
   the real `ProgressSink` adapter: a spawned subagent surfaces the batch's scale (a `StatusUpdate`)
   and its audited tool steps (a `ToolActivity`) onto the same output queue while the turn is

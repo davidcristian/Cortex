@@ -16,7 +16,8 @@ Stream contract (proto/body.proto `BrainService.Converse`):
   `TextDelta` per streamed reply delta, a `StatusUpdate` per reasoning delta
   (ADR-0020, `state="thinking"`), a `ToolActivity` per audited tool dispatch
   (ADR-0009 addendum) and the `ToolOutcome` settling it once that dispatch resolves
-  (ADR-0029 outcome addendum), then `TurnComplete{turn_id}`. `UserTurn.images`
+  (ADR-0029 outcome addendum), then `TurnComplete{turn_id}`, carrying the id this
+  stream minted for the turn before it started it. `UserTurn.images`
   are still ignored: vision arrived as a model-initiated capture (ADR-0029), and the
   user-attached image path is a recorded deferral rather than a coming slice.
   A turn that spawns subagents also surfaces their progress on the same stream,
@@ -47,6 +48,7 @@ Stream contract (proto/body.proto `BrainService.Converse`):
 
 from collections.abc import AsyncGenerator, AsyncIterator
 
+from cortex_core import new_turn_id
 from cortex_orchestrator.converse_stream import (
     DEFAULT_CONFIRM_TIMEOUT_S,
     DEFAULT_MAX_BUFFERED_EVENTS,
@@ -55,6 +57,7 @@ from cortex_orchestrator.converse_stream import (
     ERROR_CODE_SESSION_STORE_UNAVAILABLE,
     ConverseStream,
     EngineFactory,
+    TurnIdFactory,
 )
 from cortex_seam import ClientEvent, ServerEvent
 
@@ -65,6 +68,7 @@ __all__ = [
     "ERROR_CODE_INTERNAL",
     "ERROR_CODE_SESSION_STORE_UNAVAILABLE",
     "EngineFactory",
+    "TurnIdFactory",
     "converse",
 ]
 
@@ -75,6 +79,7 @@ def converse(
     *,
     max_buffered_events: int = DEFAULT_MAX_BUFFERED_EVENTS,
     confirm_timeout_s: float = DEFAULT_CONFIRM_TIMEOUT_S,
+    turn_id_factory: TurnIdFactory = new_turn_id,
 ) -> AsyncGenerator[ServerEvent, None]:
     """The Converse conversation loop as a server-event stream (see module docstring).
 
@@ -83,7 +88,9 @@ def converse(
     gated calls fail-closed and delegated work unsurfaced).
     `max_buffered_events` bounds how many events may sit unread before generation
     stalls (must be positive); `confirm_timeout_s` bounds how long a gated call awaits
-    the user before denial. Close the returned generator to tear everything down
+    the user before denial; `turn_id_factory` names each turn this stream runs, which is
+    what its failures are reported under (ADR-0038 named-turn addendum) and what the client
+    is told on `TurnComplete`. Close the returned generator to tear everything down
     (in-flight turn included). That is what the servicer does when the RPC ends or
     the client disconnects.
     """
@@ -91,5 +98,6 @@ def converse(
         make_engine,
         max_buffered_events=max_buffered_events,
         confirm_timeout_s=confirm_timeout_s,
+        turn_id_factory=turn_id_factory,
     )
     return stream.events(client_events)

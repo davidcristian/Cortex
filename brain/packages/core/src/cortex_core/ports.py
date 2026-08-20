@@ -4,8 +4,9 @@ Method bodies are one-line ``...`` stubs. Protocols carry contracts, never behav
 Failures cross these boundaries exclusively as the typed errors in ``errors.py``.
 The six state-store ports (session, memory, task, schedule, handoff, preference) live in
 ``ports_stores.py``, the four model-lifecycle ports (``ModelHost``, ``ResidencyController``,
-``ResidencyReporter``, ``PaceSink``) in ``ports_models.py``, ``SubagentPlacer`` in
-``ports_placement.py``, and ``BodyGateway`` in ``ports_body.py``; all four sets are re-exported
+``ResidencyReporter``, ``PaceSink``) in ``ports_models.py``, the three a tool call passes through
+(``ToolRegistry``, ``Confirmer``, ``ToolAuditSink``) in ``ports_tools.py``, ``SubagentPlacer`` in
+``ports_placement.py``, and ``BodyGateway`` in ``ports_body.py``; all five sets are re-exported
 here, so
 ``from cortex_core.ports import SessionStore`` keeps resolving.
 """
@@ -36,11 +37,17 @@ from cortex_core.ports_stores import (
     SessionStore,
     TaskStore,
 )
+from cortex_core.ports_tools import (
+    Confirmer,
+    ToolAuditSink,
+    ToolRegistry,
+)
 from cortex_core.ranking import RecallAudit
-from cortex_core.tools import ConfirmationRequest, ToolCall, ToolInvocation, ToolResult, ToolSpec
+from cortex_core.tools import ToolSpec
 
 # The six state-store ports live in ``ports_stores.py``, the four model-lifecycle ports in
-# ``ports_models.py``, ``SubagentPlacer`` in ``ports_placement.py`` and ``BodyGateway`` in
+# ``ports_models.py``, the three a tool call passes through in ``ports_tools.py``,
+# ``SubagentPlacer`` in ``ports_placement.py`` and ``BodyGateway`` in
 # ``ports_body.py`` (line-cap splits); the explicit export list re-exports them alongside the
 # ports defined here, so every existing ``from cortex_core.ports import ...`` and the
 # ``cortex_core`` barrel keep resolving unchanged.
@@ -176,48 +183,20 @@ class TurnRunner(Protocol):
     contract is the engine's: zero or more ``TextDelta``/``StatusUpdate``/``ToolActivity``,
     then exactly one ``TurnCompleted``, and closing the returned generator tears the turn down
     (the user message stays persisted, a partial reply is dropped).
+
+    **A runner is told which turn it is serving** (ADR-0038 named-turn addendum). ``turn_id``
+    identifies this turn everywhere it is written down: it groups the user message with the
+    reply in the store, names the handoff a turn that escalates records, and is what
+    ``TurnCompleted`` carries back to the client. A runner that minted it instead would be the
+    only holder of it, and the one path where that matters is the one where no completion event
+    is ever emitted: a turn that fails is reported by its caller, which would have nothing to
+    name. So identity belongs to whoever schedules the turn, and a runner is a stateless
+    function of the session, the text, and the id it was handed.
     """
 
-    def handle_turn(self, session_id: str, text: str) -> AsyncGenerator[TurnEvent, None]: ...
-
-
-class ToolRegistry(Protocol):
-    """The tools the cortex can call, and the one gateway that runs a call (ADR-0009).
-
-    ``describe_tools`` lists what is available (name + JSON-Schema parameters) to advertise
-    to the model; ``invoke`` runs one call and returns a ``ToolResult`` whose ``is_error``
-    reflects whether the *tool* failed. A dispatch failure (unknown tool, transport) surfaces
-    as ``ToolError`` (``ToolNotFoundError`` for an unknown name); the dispatcher, not the
-    registry, turns that into an error result the model can read.
-
-    **A listing is read at the call, never remembered.** ``AggregateToolRegistry`` and
-    ``UngatedToolRegistry`` resolve ownership and gating by walking ``describe_tools`` on every
-    invoke, so an implementation answering from a set it cached at construction would route to a
-    tool its server has since dropped, and would advertise a gated one as ungated.
-
-    **What an unknown name looks like depends on who is asked, and only the safety half is
-    common.** The core's own registries know their whole set and raise ``ToolNotFoundError``. A
-    remote one can only report what its server says, and an MCP server answers an unknown tool
-    with an error *result*, so ``McpToolRegistry`` returns ``is_error`` there rather than raising.
-    What every implementation owes is that a name it does not serve never comes back as a
-    successful result; a caller that needs the distinction resolves ownership by a live walk
-    first, which is exactly what the aggregate does before it routes.
-    """
-
-    async def describe_tools(self) -> Sequence[ToolSpec]: ...
-
-    async def invoke(self, call: ToolCall) -> ToolResult: ...
-
-
-class ToolAuditSink(Protocol):
-    """The audit trail where every dispatched tool call is recorded (AGENTS.md, ADR-0009).
-
-    ``record`` persists one ``ToolInvocation``; it is awaited on every dispatch, success or
-    failure, so no tool call is ever unaudited. Adapters log structured lines; the fake keeps
-    them in memory for assertions.
-    """
-
-    async def record(self, invocation: ToolInvocation) -> None: ...
+    def handle_turn(
+        self, session_id: str, text: str, *, turn_id: str
+    ) -> AsyncGenerator[TurnEvent, None]: ...
 
 
 class RecallAuditSink(Protocol):
@@ -238,21 +217,6 @@ class RecallAuditSink(Protocol):
     """
 
     async def record(self, audit: RecallAudit) -> None: ...
-
-
-class Confirmer(Protocol):
-    """Answers a request to confirm a gated tool call. Out of band, the human's call (ADR-0013,
-    gate table revised by ADR-0022).
-
-    ``confirm`` returns ``True`` to allow an irreversible/outbound action, ``False`` to block it.
-    The dispatcher consults it for a gated call on an **untainted** turn (a tainted turn's gated
-    call is denied outright, the confirmer never asked). The decision is the user's, reached out
-    of band (the overlay), never the model's. A jailbroken model cannot forge it. The real
-    adapter is the orchestrator's ``SeamConfirmer``, round-tripping the overlay's approval card
-    over the ``Converse`` stream; a missing confirmer denies (fail-closed).
-    """
-
-    async def confirm(self, request: ConfirmationRequest) -> bool: ...
 
 
 class SubagentScheduler(Protocol):
