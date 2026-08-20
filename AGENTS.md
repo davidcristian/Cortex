@@ -229,8 +229,10 @@ scripts/          repo gates, plus the one module here that gates nothing, contr
                   interval a live measurement reports, ADR-0038): linecap.py (300-line cap), dashcheck.py (no dash as
                   punctuation), crosscheck.py (one value, spelled in several places, still
                   agreeing) + couplings.py (the vocabulary its registry is written in) +
-                  seamcouplings.py and overlaycouplings.py (the registry itself, in the two
-                  halves the line cap split it into) + values.py (what a value reduces to, how a
+                  seamcouplings.py, shippedcouplings.py and overlaycouplings.py (the registry
+                  itself, in the three parts the line cap split it into: another tree's code, a
+                  restated number, the overlay's own stylesheet) + values.py (what a value
+                  reduces to, how a
                   constant's readings must stand, and the spelling a mention writes one in),
                   bindcheck.py (no compose bind
                   default lands unignored in the tree) + composemounts.py (its compose

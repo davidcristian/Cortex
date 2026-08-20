@@ -1,6 +1,6 @@
 # The subagent CPU budget, and the sibling asks beside it
 
-**Status:** open, actionable
+**Status:** landed 2026-08-20
 **Area:** repo-gates
 **Origin:** [ADR-0012](../../adr/ADR-0012-resource-governance.md)
 
@@ -44,3 +44,20 @@ one file the closed entry already touched.
 
 - 2026-08-19: opened by the close of [R-306](306-subagent-memory-budget-spelled-twice.md), which
   built the second spelling these knobs mostly do not need and tied the one that did.
+- 2026-08-20: landed as four registry entries, and the half that needed a decision got one. The CPU
+  budget went in as this entry framed it, a module constant plus three spends in the one compose
+  file, and it needed no second spelling: docker's `cpus` takes a float, so all three write the
+  digits the field declares, and the passthrough and the cgroup cap are pinned as a counted pair
+  because they are the twinning the comment beside them claims. Of the three asks, `cpus` and
+  `vram_gb` were tied as they stood, and `memory_gb` moved: the field takes the measured `3.0` the
+  stack has shipped all along, since a default of `2.0` under-charges every spawn by half a
+  gigabyte and admits onto room the container's own cap would refuse, which is the same unsafe
+  direction the VRAM ask was corrected for and the reason that pair is one number today. Nothing
+  moves for a deployment running the shipped compose file. The registry outgrew its file in the
+  process and split a third time, into `scripts/shippedcouplings.py`, along the line
+  `seamcouplings.py` had been describing in its own second paragraph. Twelve drifts were planted on
+  the real tree and reverted, each reddening its own entry and no other. The reasoning is the
+  ADR-0012 addendum on these four knobs; the split is recorded at ADR-0029 beside the two before it.
+  The wider survey this entry declined to ask, and the memory budget's close declined before it,
+  finally has a file of its own
+  ([R-333](333-compose-defaults-that-restate-a-declaration.md)).

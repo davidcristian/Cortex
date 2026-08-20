@@ -24,15 +24,21 @@ DEFAULT_SUBAGENT_DESCRIPTION = "the injection-robust default; safe for any subta
 
 DEFAULT_MEM_BUDGET_GB = 8.0
 
+DEFAULT_CPU_BUDGET = 4.0
+
+DEFAULT_VRAM_GB = 3.5
+DEFAULT_CPUS = 2.0
+DEFAULT_MEMORY_GB = 3.0
+
 
 class SubagentRosterEntry(BaseModel):
     """One alternate subagent model: a ``CORTEX_SUBAGENTS_ROSTER__<name>`` JSON value (ADR-0018)."""
 
     endpoint: str = Field(min_length=1)
     gpu_endpoint: str = ""
-    vram_gb: float = Field(default=3.5, gt=0)
-    cpus: float = Field(default=2.0, gt=0)
-    memory_gb: float = Field(default=2.0, gt=0)
+    vram_gb: float = Field(default=DEFAULT_VRAM_GB, gt=0)
+    cpus: float = Field(default=DEFAULT_CPUS, gt=0)
+    memory_gb: float = Field(default=DEFAULT_MEMORY_GB, gt=0)
     description: str = ""
 
 
@@ -46,10 +52,10 @@ class SubagentsConfig(BaseSettings):
     gpu_endpoint: str = ""
     model: str = DEFAULT_SUBAGENT_MODEL
     model_description: str = DEFAULT_SUBAGENT_DESCRIPTION
-    vram_gb: float = Field(default=3.5, gt=0)
-    cpus: float = Field(default=2.0, gt=0)
-    memory_gb: float = Field(default=2.0, gt=0)
-    cpu_budget: float = Field(default=4.0, gt=0)
+    vram_gb: float = Field(default=DEFAULT_VRAM_GB, gt=0)
+    cpus: float = Field(default=DEFAULT_CPUS, gt=0)
+    memory_gb: float = Field(default=DEFAULT_MEMORY_GB, gt=0)
+    cpu_budget: float = Field(default=DEFAULT_CPU_BUDGET, gt=0)
     mem_budget_gb: float = Field(default=DEFAULT_MEM_BUDGET_GB, gt=0)
     roster: dict[str, SubagentRosterEntry] = {}
     stall_timeout_s: float = Field(default=600.0, gt=0)
