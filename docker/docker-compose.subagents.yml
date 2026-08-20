@@ -76,11 +76,12 @@ services:
       # (-ngl 99, the ctx size and --parallel of this file), so 3.5 GiB sits about 174 MiB over
       # its peak and fits the 5.4 GiB headroom the 14 GB soft cap leaves beside the cortex. One
       # spawn is therefore GPU-placed and the next overflows to the CPU server, which is what one
-      # tier process can serve. Keep this equal to the SubagentsConfig default (config_subagents.py)
-      # when retuning: nothing in the gates ties those two declarations together. The memory
-      # budget on the last line below is the one exception, its default being the brain's
-      # DEFAULT_MEM_BUDGET_GB and every spelling of it in this file held to that one by the
-      # constant scan (scripts/crosscheck.py), the sentence above included.
+      # tier process can serve. Every default on the five lines below is one of the brain's own
+      # module constants (DEFAULT_VRAM_GB, DEFAULT_CPUS, DEFAULT_MEMORY_GB, DEFAULT_CPU_BUDGET and
+      # DEFAULT_MEM_BUDGET_GB in config_subagents.py), and the constant scan
+      # (scripts/crosscheck.py) holds every spelling of each in this file to its declaration, the
+      # sentences above and the cgroup comment below included. So retuning one of them there and
+      # not here fails a gate instead of leaving a deployment charging a number the brain does not.
       CORTEX_SUBAGENTS_CPUS: "${CORTEX_SUBAGENTS_CPUS:-2.0}"
       CORTEX_SUBAGENTS_MEMORY_GB: "${CORTEX_SUBAGENTS_MEMORY_GB:-3.0}"
       CORTEX_SUBAGENTS_VRAM_GB: "${CORTEX_SUBAGENTS_VRAM_GB:-3.5}"
@@ -154,10 +155,11 @@ services:
     # container now, ADR-0030 decision 3, where one cap set covers all three of its tiers). The defaults are the hard twin of the brain's SOFT
     # admission budgets above (CPU_BUDGET 4.0, MEM_BUDGET_GB 8.0), which is what makes those
     # budgets more than an honour system: the scheduler stops admitting at the soft sum, and the
-    # cgroup is what happens if anything ever admits past it. Keep the CPU pair equal by hand when
-    # retuning either; the memory pair is the constant scan's, which reads the brain's own
-    # DEFAULT_MEM_BUDGET_GB and holds all four spellings of it in this file to that number, the two
-    # limits below taking it without its point because docker parses 8g as a size and refuses
+    # cgroup is what happens if anything ever admits past it. Both pairs are the constant scan's,
+    # which reads the brain's own DEFAULT_CPU_BUDGET and DEFAULT_MEM_BUDGET_GB and holds every
+    # spelling of each in this file to that number. The cpus limit takes its budget as the brain
+    # writes it, docker's cpus field being a float; the two memory
+    # limits below take theirs without its point because docker parses 8g as a size and refuses
     # 8.0g. memswap == memory disables swap for the container, the "--memory-swap" half of that
     # deferral: a subagent that swapped would take minutes per token and look like a hang.
     cpus: "${CORTEX_SUBAGENTS_CPU_BUDGET:-4.0}"

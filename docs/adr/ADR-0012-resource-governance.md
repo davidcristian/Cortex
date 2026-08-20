@@ -1078,3 +1078,75 @@ admission sentence alone at `9 GB` each exit 1 naming that one place. The site r
 same number in the other spelling, exits 1 on both written mentions and is the proof that the
 re-spelling did not undo the textual comparison. The site at `8.5` exits 1 twice more, reporting a
 number the size suffix cannot carry at all.
+
+## Addendum (2026-08-20): the four knobs beside that budget, and the ask that disagreed on purpose
+
+The addendum above tied the memory budget and named the four knobs in the same compose file it left
+untied ([R-315](../refinements/tasks/315-subagent-cpu-budget-and-its-siblings.md)). They are tied
+now, and one of them moved to get there. Every number this file ships for the subagent tier is a
+module constant in `config_subagents.py` and every spelling of it in
+`docker/docker-compose.subagents.yml` is held to that declaration by `scripts/crosscheck.py`.
+
+### The CPU budget is the memory budget's twin, and cheaper by one spelling
+
+`cpu_budget` had the same shape as `mem_budget_gb` and the same failure: the soft sum the admission
+scheduler runs against, spelled again as the hard `cpus` cap on the container that runs what it
+admits, and a third time in the comment claiming those two are twins. Retuning the field alone hands
+that container fewer cores than the spawns it is serving were charged against, which nothing at
+runtime reports; it reads as a tier that got slow.
+
+What it does not need is the second spelling its neighbour required. Docker's `cpus` takes a float
+where its size suffix will not, so all three places write the digits the field declares and the
+entry is three `Mention`s at `Spelling.WRITTEN`. The passthrough and the cgroup limit render the
+same needle and are pinned with `occurrences=2`, because they are one set: they are precisely the
+twinning the comment beside them claims, so one moving without the other is the whole of what this
+entry exists to report.
+
+### The three asks, and the pair that had drifted
+
+`vram_gb` and `cpus` already agreed between the field and the stack, so tying them cost a registry
+entry each and changed no number. `memory_gb` did not: the stack shipped `3.0` and the field
+defaulted to `2.0`, and the disagreement had been recorded twice as deliberate without a reason
+being written for it.
+
+**The field moves to the measured number.** The measurement is the same one the compose comment has
+carried since the pick revision: about 2.5 GiB of RSS for the shipped CPU entry, rounded up so two
+are admitted under the memory budget, which is what `--parallel` serves. Against that, a field
+default of `2.0` under-charges every spawn by half a gigabyte, and the direction is the unsafe one:
+the scheduler admits onto room the container's own `mem_limit` will then refuse, and a subagent that
+swaps takes minutes per token. That is exactly the error the VRAM ask was corrected for in the
+measured-ask addendum above, where a code default of 2.0 under a 3.5 GiB tier "admitted a spawn onto
+room the tier would then overrun", and the fix there was the fix here: one number, declared once per
+tree, with the two declarations tied rather than commented at each other.
+
+**What changes for a deployment.** Only one that wires subagents without this compose file, which is
+where the field default is what gets charged. It now charges what the shipped stack charges. Under
+the shipped file nothing moves at all, the environment value having been `3.0` throughout, and under
+either the CPU budget binds first anyway: two spawns at `cpus 2.0` exhaust `cpu_budget 4.0` before
+`3.0` of memory each reaches `8.0`. `SubagentRosterEntry` defaults off the same three constants, so
+an alternate that names no ask is charged the shipped entry's, which over-charges anything smaller
+and therefore errs toward the CPU, as it did before.
+
+### What is deliberately not registered
+
+The runbook's worked examples are not far sides. `docs/runbooks/subagents-cpu.md` spells
+`CPU_BUDGET=4.0` and `CPUS=2.0` inside a paragraph that reasons about how long a full batch queues,
+and a number inside an argument is not the same as a number a document states as the shipped
+default: the deadline entries pin table rows that say "default", and this rule keeps that line where
+it is. The prose inside the compose file itself is pinned, because that file is where a retune
+happens and its own sentences must move with it.
+
+This record is not a far side either, and no decision record ever is. The wider survey stays unasked
+here for the third time and is now filed rather than re-punted
+([R-333](../refinements/tasks/333-compose-defaults-that-restate-a-declaration.md)).
+
+### Proved able to fail, twelve times
+
+Every drift was planted on the real tree, run through `crosscheck.py`, and reverted. For the CPU
+budget: the environment passthrough alone and the cgroup `cpus` cap alone each exit 1 reporting
+`found 1, pinned 2` over the counted pair; the twinning comment alone exits 1 naming that sentence;
+the site alone exits 1 twice, reporting `found 0, pinned 2` and the comment it no longer matches.
+For each of the three asks: the compose passthrough alone, the site alone, and, where the file
+records the measurement in prose, that sentence alone. Each exits 1 naming its own entry and no
+other, and the site drifts of the memory and VRAM asks each exit 1 twice, over the passthrough and
+the measured sentence together.

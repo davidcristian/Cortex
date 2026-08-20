@@ -522,9 +522,12 @@ def test_subagents_default_to_disabled() -> None:
     assert config.endpoint == ""
     assert config.gpu_endpoint == ""
     assert config.model == "subagent"  # a LOGICAL id (ADR-0004), never a path
-    # The VRAM ask is the measured one and equals what docker-compose.subagents.yml sets; the CPU
-    # and memory asks stay GPU-less-safe placeholders the maintainer measures (ADR-0012).
-    assert (config.vram_gb, config.cpus, config.memory_gb) == (3.5, 2.0, 2.0)
+    # Against the literals rather than the module constants these fields are declared from, so the
+    # assertion says what a deployment gets rather than restating the declaration. Every one of the
+    # five equals what docker-compose.subagents.yml sets, which is the constant scan's business and
+    # not this suite's: the VRAM and memory asks are measured, the CPU ask is a placeholder, and
+    # both budgets have a hard cgroup twin in that file (ADR-0012).
+    assert (config.vram_gb, config.cpus, config.memory_gb) == (3.5, 2.0, 3.0)
     assert (config.cpu_budget, config.mem_budget_gb) == (4.0, 8.0)
     # Against the literal rather than the constant it was assigned from. Ten minutes is twice the
     # longest whole subtask measured on the shipped CPU entry, which is what a queued peer can

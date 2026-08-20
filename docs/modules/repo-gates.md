@@ -13,10 +13,10 @@ belongs to neither the brain nor the body and is gated exactly like both. A stan
 `bindcheck.py`, `backlogcheck.py` and `coverage_gate.py` invoked by `just` recipes, `ci_paths.py`
 by the CI
 workflow, `commitlint.py` by the commit-msg pre-commit stage, `contrast.py` by `just turn-cost`;
-each also exposes a pure, unit-tested core function). Nine modules here have no CLI of their own,
+each also exposes a pure, unit-tested core function). Ten modules here have no CLI of their own,
 each split out under the line cap and each named for what it holds: `couplings.py` is the
-vocabulary `crosscheck.py`'s registry is written in and `seamcouplings.py` and
-`overlaycouplings.py` are the two halves of the registry itself, `values.py` is the value
+vocabulary `crosscheck.py`'s registry is written in and `seamcouplings.py`, `shippedcouplings.py`
+and `overlaycouplings.py` are the three parts of the registry itself, `values.py` is the value
 forms that scan compares on and the spellings a mention writes one in, `composemounts.py` is `bindcheck.py`'s compose reader, and
 `backlog.py`, `backlogindex.py`, `backloganchors.py` and `headingshapes.py` are the four
 `backlogcheck.py` reads a backlog through: the task-file grammar, the index renderer, the anchors a
@@ -54,14 +54,17 @@ that last question to have an answer.
 - `crosscheck.py [--root DIR]` ties the values this repo spells in more than one place, because
   both sides of a seam must hold the same one and neither toolchain can import the other's
   (ADR-0029 cross-language-constant addendum and its 2026-08-08 widening). The scan is all of the
-  logic; `seamcouplings.py` and `overlaycouplings.py` are all of the data, one entry per value: a
+  logic; `seamcouplings.py`, `shippedcouplings.py` and `overlaycouplings.py` are all of the data,
+  one entry per value: a
   label, the reason its places must agree (printed with any failure), its `Site`s, an optional
-  `relation`, and optional `mentions`. The registry is written in two files and read as one,
-  `crosscheck.CONSTANTS` being `SEAM_COUPLINGS` followed by `OVERLAY_COUPLINGS`: the first holds
-  the couplings that tie the body to the brain, and the brain to the stack and the runbooks that
-  ship its numbers, the second the ones that tie the overlay's TypeScript to its own stylesheet.
-  `couplings.py` is the vocabulary both are written in, left behind when each half moved out under
-  the cap. Nothing in the scan depends on which half an entry sits in. `values.py` is the third piece and the one neither of the others
+  `relation`, and optional `mentions`. The registry is written in three files and read as one,
+  `crosscheck.CONSTANTS` being `SEAM_COUPLINGS`, then `SHIPPED_COUPLINGS`, then
+  `OVERLAY_COUPLINGS`: the first holds the couplings whose far side is another tree's code across
+  the language boundary, the second the ones whose far side restates a number the code declares (a
+  compose default and the cgroup limit that is its hard twin, a runbook row, a module contract),
+  the third the ones that tie the overlay's TypeScript to its own stylesheet.
+  `couplings.py` is the vocabulary all three are written in, left behind when each part moved out
+  under the cap. Nothing in the scan depends on which file an entry sits in. `values.py` is the third piece and the one neither of the others
   is: it reduces a right-hand side to a comparable value and says whether a constant's readings
   hold together, so the scan finds declarations and that module judges them.
   **A `Site` declares the value** (a repo-relative path plus the identifier declared in it) and is
