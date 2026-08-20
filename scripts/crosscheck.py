@@ -4,9 +4,9 @@ A few constants exist twice, once per language, because both sides of the seam m
 same number or the same string and neither toolchain can import the other's. Each side already
 pins its own literal in its own suite, which catches an edit to the constant alone. What nothing
 caught is an edit to a constant **and** its own pin: both suites stay green while the two trees
-disagree. That is the drift this gate closes. The registry it reads is `seamcouplings.py` and
-`overlaycouplings.py`, which are all of the data the way this file is all of the logic, written in
-the vocabulary `couplings.py` holds.
+disagree. That is the drift this gate closes. The registry it reads is `seamcouplings.py`,
+`shippedcouplings.py` and `overlaycouplings.py`, which are all of the data the way this file is all
+of the logic, written in the vocabulary `couplings.py` holds.
 
 **No master.** proto/body.proto is the source of truth for the seam's *shape*, but protobuf has
 no constant, so a value could only live there as a comment, and a comment is one more uncoupled
@@ -70,6 +70,7 @@ from couplings import (
 )
 from overlaycouplings import OVERLAY_COUPLINGS
 from seamcouplings import SEAM_COUPLINGS
+from shippedcouplings import SHIPPED_COUPLINGS
 from values import (
     CrossCheckError,
     Reading,
@@ -80,11 +81,12 @@ from values import (
     spelling_fault,
 )
 
-# The registry, in the two files it is written in and in one order: the values the body and the
-# brain both spell, then the ones the overlay's TypeScript and its own stylesheet both spell. The
-# split is the line cap's doing and the seam it fell on was already there; nothing here depends on
-# which half an entry is in, so a coupling moves house without the scan noticing.
-CONSTANTS: tuple[Constant, ...] = (*SEAM_COUPLINGS, *OVERLAY_COUPLINGS)
+# The registry, in the three files it is written in and in one order: the values two trees' code
+# must both hold, then the ones a tree declares and a compose default or a document restates, then
+# the ones the overlay's TypeScript and its own stylesheet both spell. Every split is the line cap's
+# doing and each seam it fell on was already there; nothing here depends on which file an entry is
+# in, so a coupling moves house without the scan noticing.
+CONSTANTS: tuple[Constant, ...] = (*SEAM_COUPLINGS, *SHIPPED_COUPLINGS, *OVERLAY_COUPLINGS)
 
 # What counts as a continuation of a rendered needle's own token, at whichever of its two edges is
 # itself made of one. A needle edged by punctuation (`var(--ceiling,`) needs no such guard.

@@ -1,10 +1,11 @@
 """The vocabulary the registry `crosscheck.py` reads is written in: what a coupling may say.
 
-Split out of the scan, which is all of the logic; the two files beside this one are all of the
+Split out of the scan, which is all of the logic; the three files beside this one are all of the
 data, and they grow every time a coupling is found. `seamcouplings.py` holds the entries that tie
-the body to the brain, and the brain to the stack and the runbooks that ship its numbers;
-`overlaycouplings.py` holds the ones that tie the overlay's TypeScript to its own stylesheet. Both
-moved out as the one file outgrew the 300-line cap, and `crosscheck.py` walks them as one registry.
+one tree's code to another's across the language boundary; `shippedcouplings.py` the ones that tie a
+declared number to the compose default, the runbook or the module contract that restates it;
+`overlaycouplings.py` the ones that tie the overlay's TypeScript to its own stylesheet. Each moved
+out as the file it was in outgrew the 300-line cap, and `crosscheck.py` walks them as one registry.
 Each entry carries the reason its places must agree, printed with any failure, because a gate that
 says only "these differ" leaves the reader to rediscover why they must not.
 

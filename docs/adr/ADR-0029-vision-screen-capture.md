@@ -3280,3 +3280,34 @@ count below one) and fails the entry rather than passing it quietly.
 The first entry using it is the subagent memory budget, whose four spends live in one compose file
 in both spellings; the reasoning and the proof-of-failure runs are recorded at
 [ADR-0012](ADR-0012-resource-governance.md).
+
+## Addendum (2026-08-20): the registry splits a third time, on the line it had already drawn
+
+Four subagent knobs joined the registry and `seamcouplings.py` stood at 293 lines, so the cap asked
+for a file again, as it did when the overlay's entries moved out and again when the vocabulary was
+left behind. The seam it fell on was written in that file's own second paragraph: some entries there
+tie two trees whose code must hold the same value where neither toolchain can import the other's,
+and the rest cross a boundary of the same kind that is not a language, where one tree declares a
+number and a compose default, a runbook row or a module contract restates it.
+
+Those entries are now `scripts/shippedcouplings.py`, and the name is the one the labels had already
+chosen: three of the six that moved call themselves a shipped default or a shipped deadline. The
+file that keeps the seam's name keeps the couplings that are one, `crosscheck.CONSTANTS` is the
+three parts read as one tuple in a fixed order, and nothing in the scan asks which file an entry
+came from, so a coupling still moves house without the gate noticing.
+
+**The question that files an entry is written down**, because two of them could have gone either
+way. The brain's seam port is declared in Python, published by compose and dialled by two Tauri
+modules, and the seam token's metadata key is declared three times across two trees and spelled once
+inside a compose healthcheck. Both stay with the seam, on the rule that what decides is whether the
+far side's own code has to hold the value for the two trees to work together. A port the body dials
+does; a default a runbook quotes does not.
+
+**Two paths are now spelled in both files**, the base compose file and the body client, each
+registered on either side of that line for different values. That duplication is safe rather than
+tolerated, and for the reason this scan is built on: a path that drifts in one file names something
+the scan cannot read, and an unreadable place is a fault here and never a skip.
+
+The registry is twenty-six entries now, and the four that arrived are recorded where their
+reasoning is, at [ADR-0012](ADR-0012-resource-governance.md), with the twelve drifts that prove
+them able to fail.
