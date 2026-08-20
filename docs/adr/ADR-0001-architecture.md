@@ -656,3 +656,57 @@ only from the shared list, since nothing else in the tree hands the twin an id i
 while the adapter's comes from a collaborator two other tests already pin. What is left over is
 that `serves` is opt-in, so the core's own hand-rolled backends still answer for anything, which is
 recorded as its own entry rather than settled here.
+
+## Addendum (2026-08-20): each configured caller's model id, pinned against its own deployment
+
+The served-model answer closed the port's silence and left the exposure the other way round. The
+obligation is on the implementation, and no test in the tree was in a position to notice a caller
+asking for the wrong id in the first place. `serves` is opt-in and exactly one fixture passes it,
+the shared list's own builder in `test_stream_contract.py`; everywhere else the id is discarded
+outright, `del model` appearing 53 times across 18 hand-rolled backends under `core/tests` and
+`orchestrator/tests`. So a composition root that handed the turn engine one tier and the lease
+another would have passed the whole suite and refused the first real turn.
+
+[R-298](../refinements/tasks/298-served-ids-are-opt-in-everywhere.md) weighed three shapes for that
+and this is the cheapest of them, one test per configured caller pinning that the id it asks for is
+the id its deployment hosts. Nothing in production changed and `serves` stays `None` by default,
+for the reason it was kept: a twin told nothing about a deployment has made no claim to violate.
+
+**The three callers, and why each pin is more than a restatement of a constructor argument.** The
+resident tier a turn asks for is `CORTEX_MODEL_CORTEX` read twice by `run_from_env`, once into
+`TurnEngine(cortex_model=...)` and once into the backend whose manager grants the lease, and those
+two reads meet nowhere below the root. That pin is driven over the llama.cpp backend, because the
+echo one takes no lease at all, and against a refused loopback port, because what is under test
+finishes before the wire: the assertion is on which failure comes back, the transport's, naming the
+tier, or the manager's refusal to lease it. The deep tier a handoff swaps in is the plan's
+`brain_model`, which `build_swap_runtime` uses as a key of its endpoint map while the deep phase
+asks for it by name, so a map keyed by anything else leaves a swap unable to lease the model it
+just started. The subagent entry every untrusted spawn is forced onto is `config.model`, declared
+apart from the entries `named_roster` keys, meeting only in the builder, and `SubagentRoster`
+refuses to be constructed when the two disagree.
+
+**Every one of the three renames its tiers, and that is the whole method.** Under the shipped ids
+the deployment's value and the module's own constant are the same string, so a builder reaching for
+the constant is indistinguishable from one reading the config, and every case that existed here
+left the defaults in place. `test_the_enabled_runtime_is_the_one_lease_and_the_one_residency`
+already leased both tiers and asserted both endpoints, and it stays green under a map keyed by
+literals; the renamed twin beside it does not. The renaming is the difference between a test that
+watches the wiring and one that watches the literals.
+
+**Proven able to fail.** Each mis-wiring was applied to production code alone and measured over the
+whole `packages` suite, then restored. Each is the same realistic slip: a root reaching for the
+module constant instead of the deployment's own value.
+
+| Mis-wiring | Reddened |
+| --- | --- |
+| `TurnEngine`'s `cortex_model` becomes the literal `"cortex"` | the resident-tier pin, failing as "model manager could not lease" |
+| the inference backend is built for the literal `"cortex"` | the same one, failing on the other id |
+| the endpoint map's deep key becomes the literal `"brain"` | the renamed-tiers pin alone, out of the 29 cases in its file |
+| the roster's default becomes the literal `"subagent"` | the untrusted-spawn pin alone; the roster case beside it, which leaves the id at its default, stays green |
+
+**What is left over** is the fourth configured caller, the recall judge, which asks the resident
+model to rank a pool and falls back to the unjudged ranking on any `InferenceError`. A lease
+refused for a wrong id is exactly that error, so a mis-wiring there is not a failed turn but every
+recalling turn quietly ranked the way `CORTEX_MEMORY_RECALL=raw` ranks, recorded once per recall in
+a warning nobody is watching. That is its own entry rather than settled here, since pinning it
+costs the memory wiring a fixture the other three did not need.

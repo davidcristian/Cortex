@@ -99,6 +99,7 @@ from cortex_orchestrator import (
     recall_policy_from_config,
     run_from_env,
 )
+from cortex_orchestrator.config_subagents import DEFAULT_SUBAGENT_MODEL
 from cortex_orchestrator.window_builders import build_history_window
 from cortex_seam import (
     BrainServiceStub,
@@ -193,6 +194,48 @@ async def test_run_from_env_default_store_surfaces_redis_outage_as_seam_error(
     (only,) = events
     assert only.WhichOneof("event") == "error"
     assert only.error.code == "session_store_unavailable"
+
+
+async def test_the_model_a_turn_asks_for_is_the_one_its_deployment_hosts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The turn's id and the id the backend was built for are two reads of one config value.
+
+    Nothing else in the tree compares them. Every hand-rolled backend under `core/tests` and
+    `orchestrator/tests` discards the id it is asked for, and the shipped twin answers for any id
+    unless a fixture says otherwise, so a composition root that handed the engine one tier and the
+    lease another would pass the whole suite and refuse the first real turn.
+
+    Driven over the llama.cpp backend because the echo one takes no lease at all, and against a
+    refused loopback port because what is under test ends before the wire: the round has to reach
+    the transport to prove the residency check let it through. Hence the assertion on which
+    failure comes back rather than on a reply. The id is deliberately not the shipped default,
+    which is the whole of the pin: a root reaching for `DEFAULT_CORTEX_MODEL` instead of the
+    deployment's own value is exactly the mis-wiring this catches, and it is invisible to any test
+    whose config leaves the default in place.
+    """
+    port = _free_loopback_port()
+    monkeypatch.setenv("CORTEX_SEAM_HOST", "127.0.0.1")
+    monkeypatch.setenv("CORTEX_SEAM_PORT", str(port))
+    monkeypatch.setenv("CORTEX_REDIS_URL", "redis://redis.test.invalid:6379/5")
+    monkeypatch.setenv("CORTEX_MODEL_CORTEX", "cortex-alt")
+    monkeypatch.setenv("CORTEX_INFERENCE_BACKEND", "llamacpp")
+    # TEST-NET port 1 on loopback: connection refused immediately, no retry loop.
+    monkeypatch.setenv("CORTEX_INFERENCE_ENDPOINT", "http://127.0.0.1:1")
+    store = RecordingStore()
+    task = asyncio.create_task(run_from_env(store_factory=lambda _url: store))
+    try:
+        events = await _run_one_turn(f"127.0.0.1:{port}", "wired", "hello")
+        os.kill(os.getpid(), signal.SIGTERM)
+        await asyncio.wait_for(task, timeout=10)
+    finally:
+        task.cancel()
+    (only,) = events
+    assert only.WhichOneof("event") == "error"
+    assert only.error.code == "inference_failed"
+    # The transport's refusal, naming the configured tier: the manager leased it. A tier the
+    # deployment does not host never reaches a socket, failing as "could not lease" instead.
+    assert only.error.message == "llama-server request failed for model 'cortex-alt'"
 
 
 async def test_build_inference_backend_defaults_to_echo() -> None:
@@ -560,11 +603,12 @@ def _spec_model_property(spawn: SpawnSubagentsTool) -> dict[str, object] | None:
     return properties.get("model")
 
 
-def _roster_config() -> SubagentsConfig:
+def _roster_config(model: str = DEFAULT_SUBAGENT_MODEL) -> SubagentsConfig:
     return SubagentsConfig(
         backend="llamacpp",
         endpoint="http://llama-subagent-cpu:8082",
         gpu_endpoint="http://llama-subagent-gpu:8083",
+        model=model,
         roster={
             "qwen": SubagentRosterEntry(
                 endpoint="http://llama-subagent-qwen:8084", description="small and fast"
@@ -729,6 +773,36 @@ async def test_build_subagents_builds_the_config_roster_and_advertises_it() -> N
     description = str(model["description"])
     assert "default 'subagent'" in description  # the flat-env default entry
     assert "small and fast" in description  # the alternate's configured trade-off text
+    await close()
+
+
+async def test_the_entry_every_untrusted_spawn_is_pinned_to_is_one_the_roster_hosts() -> None:
+    """A deployment that renamed its default tier still resolves, and to its own tier.
+
+    The roster's default is the id every tainted or tool-carrying spawn is forced onto, so a
+    default naming an entry the roster does not hold is a delegation that can only ever refuse.
+    The two halves are declared apart (`CORTEX_SUBAGENTS_MODEL` names it, `named_roster` keys the
+    entries), and the composition root is the one place they meet.
+
+    Renamed on purpose, because the shipped id makes the constant and the config indistinguishable:
+    with `CORTEX_SUBAGENTS_MODEL` left alone, a builder reaching for `DEFAULT_SUBAGENT_MODEL`
+    instead of the deployment's value is a mis-wiring no assertion in the tree can see.
+    """
+    spawn, _scheduler, close = await build_subagents(
+        _roster_config(model="subagent-alt"),
+        None,  # tool-less subagents -> the model knob is advertised
+        "redis://sub:6379/0",
+        SystemClock(),
+        placer=VramBudgetPlacer(soft_cap_gb=14.0, cortex_reservation_gb=11.3),
+        task_store_factory=_fake_task_store,
+    )
+    assert spawn is not None
+    model = _spec_model_property(spawn)
+    assert model is not None
+    # The renamed tier is both an entry and the advertised default, which is what the roster's
+    # own constructor refuses to build when the two disagree.
+    assert model["enum"] == ["qwen", "subagent-alt"]
+    assert "default 'subagent-alt'" in str(model["description"])
     await close()
 
 
