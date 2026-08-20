@@ -1,6 +1,7 @@
 """Behavior tests for TurnEngine: event contract, persistence, cancellation, failure."""
 
 import json
+import logging
 from collections.abc import AsyncIterator, Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
@@ -16,6 +17,7 @@ from cortex_core import (
     REDACTED_LINK,
     REPLY_CAPPED_NOTE,
     SECURITY_PREAMBLE,
+    UNREADABLE_CALL_NOTE,
     CharBudgetHistoryWindow,
     CompositeToolRegistry,
     DecodeStop,
@@ -36,6 +38,7 @@ from cortex_core import (
     InMemoryToolRegistry,
     JsonSchema,
     JudgeRecallPolicy,
+    MalformedToolCallError,
     MemoryDataError,
     MemoryRecaller,
     MemoryRecord,
@@ -77,6 +80,9 @@ from cortex_core.tool_loop import MAX_TOOL_STEPS
 from cortex_core.untrusted import PLAIN_SECURITY_PREAMBLE
 
 _START = datetime(2026, 7, 3, 12, 0, 0, tzinfo=UTC)
+
+# The name the engine logs under, so a test can read only its own lines out of the root capture.
+_ENGINE_LOGGER = "cortex_core.engine"
 
 
 class TickingClock:
@@ -1947,3 +1953,178 @@ async def test_the_deployments_reply_bounds_ride_every_completion_of_a_users_tur
         TurnEngine(InMemorySessionStore(), unbounded, TickingClock()).handle_turn("s", "hello")
     )
     assert unbounded.bounds == [None]
+
+
+# --- a tool call the model wrote and this repo cannot read ------------------------------------
+
+
+class CutCallBackend:
+    """Backend that streams text, reports a stop, then fails to assemble the model's tool call.
+
+    The real adapter's ordering: llama-server's chunks are yielded as they arrive, the finish
+    reason rides the last of them, and the calls are assembled only once the stream is over, so
+    the ledger is already answering by the time the raise crosses it. ``reason=None`` is a build
+    that reports no finish reason at all.
+    """
+
+    def __init__(
+        self, reason: StopReason | None = StopReason.CAPPED, deltas: Sequence[str] = ("half an ",)
+    ) -> None:
+        self._reason = reason
+        self._deltas = deltas
+
+    async def stream(
+        self,
+        model: str,
+        messages: Sequence[Message],
+        *,
+        tools: Sequence[ToolSpec] = (),
+        schema: JsonSchema | None = None,
+        bounds: GenerationBounds | None = None,
+    ) -> AsyncIterator[InferenceEvent]:
+        del model, messages, tools, schema, bounds
+        for delta in self._deltas:
+            yield TextChunk(delta)
+        if self._reason is not None:
+            yield DecodeStop(self._reason)
+        msg = 'malformed tool-call arguments from llama-server: \'{"body":"Distributed sys'
+        raise MalformedToolCallError(msg)
+
+
+def _cut_call_engine(store: InMemorySessionStore, backend: CutCallBackend) -> TurnEngine:
+    ids = _sequential_turn_ids()
+    return TurnEngine(store, backend, TickingClock(), turn_id_factory=lambda: ids.pop(0))
+
+
+async def test_a_tool_call_a_token_limit_cut_ends_the_turn_with_the_capped_note() -> None:
+    """The turn says what it says for any capped reply, rather than failing as a dead backend.
+
+    Two facts make that verdict and neither does it alone: the error says the unparsable fragment
+    is the model's own, and the ledger says a completion of this turn stopped at a limit. The
+    reply the user already watched arrive is kept, and history keeps the note with it.
+    """
+    store = InMemorySessionStore()
+    engine = _cut_call_engine(store, CutCallBackend(StopReason.CAPPED))
+
+    events = await _collect(engine.handle_turn("s", "explain everything"))
+
+    assert events == [
+        TextDelta("half an "),
+        TextDelta(REPLY_CAPPED_NOTE),
+        TurnCompleted(turn_id="t-1", full_text=f"half an {REPLY_CAPPED_NOTE}"),
+    ]
+    history = [(message.role, message.text) for message in await store.history("s")]
+    # Persisted exactly once, and only the reply: the arm runs before the one persist path rather
+    # than beside it, so it can neither write twice nor skip the write.
+    assert history == [
+        (Role.USER, "explain everything"),
+        (Role.ASSISTANT, f"half an {REPLY_CAPPED_NOTE}"),
+    ]
+
+
+async def test_a_tool_call_no_limit_explains_ends_the_turn_with_its_own_note() -> None:
+    """The other half of the pairing: the model broke its own grammar and nothing cut it.
+
+    Reporting a length limit here would send the user to shorten a question that was never too
+    long, so the note names what actually happened and says nothing about a bound.
+    """
+    store = InMemorySessionStore()
+    engine = _cut_call_engine(store, CutCallBackend(StopReason.FINISHED))
+
+    events = await _collect(engine.handle_turn("s", "look something up"))
+
+    assert events == [
+        TextDelta("half an "),
+        TextDelta(UNREADABLE_CALL_NOTE),
+        TurnCompleted(turn_id="t-1", full_text=f"half an {UNREADABLE_CALL_NOTE}"),
+    ]
+    assert REPLY_CAPPED_NOTE not in f"half an {UNREADABLE_CALL_NOTE}"  # one note, never two
+    history = [message.text for message in await store.history("s")]
+    assert history[-1] == f"half an {UNREADABLE_CALL_NOTE}"
+
+
+async def test_a_backend_reporting_no_stop_takes_the_unreadable_note_not_the_capped_one() -> None:
+    """Silence is not a cap here either: an unexplained fragment is reported as unexplained."""
+    store = InMemorySessionStore()
+    engine = _cut_call_engine(store, CutCallBackend(None))
+
+    events = await _collect(engine.handle_turn("s", "hello"))
+
+    assert events[-2:] == [
+        TextDelta(UNREADABLE_CALL_NOTE),
+        TurnCompleted(turn_id="t-1", full_text=f"half an {UNREADABLE_CALL_NOTE}"),
+    ]
+
+
+async def test_a_guardrails_held_tail_is_released_before_the_note_and_persisted_with_it() -> None:
+    """``stream_turn_events`` flushes only on a clean end, so the arm has to flush for itself.
+
+    Without it the URL the filter was still holding would be dropped from a reply the note
+    claims is everything the model produced.
+    """
+    store = InMemorySessionStore()
+    ids = _sequential_turn_ids()
+    engine = TurnEngine(
+        store,
+        CutCallBackend(StopReason.FINISHED, deltas=("see http://exa",)),
+        TickingClock(),
+        capabilities=TurnCapabilities(guardrail=UrlRedactingGuardrail()),
+        turn_id_factory=lambda: ids.pop(0),
+    )
+
+    events = await _collect(engine.handle_turn("s", "where is it"))
+
+    assert events == [
+        TextDelta("see "),  # what the filter had already released when the call failed
+        TextDelta("http://exa"),  # the growing URL it was still holding, released by the arm
+        TextDelta(UNREADABLE_CALL_NOTE),
+        TurnCompleted(turn_id="t-1", full_text=f"see http://exa{UNREADABLE_CALL_NOTE}"),
+    ]
+    history = [message.text for message in await store.history("s")]
+    assert history[-1] == f"see http://exa{UNREADABLE_CALL_NOTE}"
+
+
+async def test_a_cut_tool_call_still_records_the_exchange_to_memory() -> None:
+    """The whole persist path runs, not just the session append: the turn ended, it did not fail."""
+    recaller = MemoryRecaller(InMemoryMemoryStore(), HashEmbedder(), SystemClock())
+    ids = _sequential_turn_ids()
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        CutCallBackend(StopReason.CAPPED),
+        TickingClock(),
+        capabilities=TurnCapabilities(memory=recaller),
+        turn_id_factory=lambda: ids.pop(0),
+    )
+
+    await _collect(engine.handle_turn("s", "remember this"))
+
+    (recalled,) = await recaller.recall("remember this", k=1, session_id="s")
+    assert "half an " in recalled.record.text
+
+
+async def test_the_operator_is_told_which_turn_broke_and_whether_a_limit_cut_it(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The turn no longer raises, so this line is the only trace the fault leaves.
+
+    ``capped`` is the same reading the note is picked by, so an operator reading the log knows
+    which sentence the user saw and which repair to reach for: a wider bound, or a model that
+    cannot keep its own grammar.
+    """
+    caplog.set_level(logging.WARNING, logger=_ENGINE_LOGGER)
+    ids = _sequential_turn_ids()
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        CutCallBackend(StopReason.FINISHED),
+        TickingClock(),
+        turn_id_factory=lambda: ids.pop(0),
+    )
+
+    await _collect(engine.handle_turn("s", "hello"))
+
+    (record,) = [line for line in caplog.records if line.name == _ENGINE_LOGGER]
+    assert record.levelno == logging.WARNING
+    assert "could not be read" in record.getMessage()
+    assert (record.__dict__["session_id"], record.__dict__["turn_id"]) == ("s", "t-1")
+    assert record.__dict__["capped"] is False
+    assert record.exc_info is not None  # the fragment rides the traceback, never the message

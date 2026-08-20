@@ -12,11 +12,12 @@ persists the assistant reply on completion, and arms the turn's ``EscalationSlot
 when one is handed in, so the escalate tool and a later snapshot see exactly this turn's state.
 """
 
+import logging
 from collections.abc import AsyncGenerator, Callable, Mapping
 from uuid import uuid4
 
 from cortex_core.conversation import Message, Role
-from cortex_core.errors import InferenceError
+from cortex_core.errors import InferenceError, MalformedToolCallError
 from cortex_core.events import TurnCompleted, TurnEvent
 from cortex_core.handoff import EscalationRefs
 from cortex_core.output_channels import open_output_channels
@@ -26,8 +27,16 @@ from cortex_core.session_title import build_title_messages, generate_title
 from cortex_core.stops import StopLedger
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
 from cortex_core.turn_context import TurnCapabilities, assemble_inference_messages
-from cortex_core.turn_output import cap_note, record_exchange, stream_turn_events
+from cortex_core.turn_output import (
+    cap_note,
+    flush_channels,
+    record_exchange,
+    stream_turn_events,
+    unreadable_call_note,
+)
 from cortex_core.untrusted import TaintLedger, new_nonce
+
+_logger = logging.getLogger(__name__)
 
 # The logical id of the resident cortex model (ADR-0004: logical ids, never paths).
 # Deployments override it via CORTEX_MODEL_CORTEX, which is read by the composition root
@@ -73,6 +82,13 @@ class TurnEngine:
     fields stay registry-authored by construction. The user message is persisted
     before inference starts; the assistant message is persisted only on completion. A consumer
     that closes the event stream mid-generation keeps the user message and drops the partial reply.
+
+    **One inference failure ends the turn instead of failing it** (ADR-0005 cortex-cut addendum):
+    a tool call the model wrote and this repo cannot parse. That one says the fragment is the
+    model's own rather than the transport's, so it is not worth another attempt, and the reply
+    before it has already been streamed. The turn therefore keeps that text, adds the note the
+    ledger picks, persists once, and completes. Every other ``InferenceError`` still propagates
+    and reaches the user as a seam error.
     """
 
     def __init__(
@@ -153,11 +169,32 @@ class TurnEngine:
         try:
             async for event in events:
                 yield event
+        except MalformedToolCallError:
+            # The model was writing a tool call and what it wrote will not parse (ADR-0005
+            # cortex-cut addendum). Ending the turn here rather than raising is what the narrower
+            # error is for: the fragment is the model's own, so the retry a seam error invites
+            # produces it again, and the partial reply has already been shown, which makes losing
+            # it the second falsehood. So the reply is kept, a note says what happened, and the
+            # persist path below runs exactly once, the way it does for a turn that ended itself.
+            # The channels are flushed here because ``stream_turn_events`` flushes only on a clean
+            # end, which is the brain phase's discipline for the same reason.
+            _logger.warning(
+                "a tool call the model wrote could not be read; ending this turn where it broke",
+                extra={"session_id": session_id, "turn_id": turn_id, "capped": stops.capped},
+                exc_info=True,
+            )
+            for held in flush_channels(channels, parts):
+                yield held
+            for event in unreadable_call_note(stops, parts):
+                yield event
         finally:
             await events.aclose()
         # After the channels have flushed, so the note lands under the whole reply rather than
         # ahead of a guardrail's held tail, and before the text is joined, so what is persisted is
-        # what was shown.
+        # what was shown. It runs on the arm above too, and is the whole of what that arm says
+        # when a limit is what cut the call: one situation, the sentence the ordinary capped reply
+        # already uses, and never two notes, since the two helpers read the same ledger and
+        # disagree on it by construction.
         for event in cap_note(stops, parts):
             yield event
         full_text = "".join(parts)

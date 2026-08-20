@@ -958,3 +958,96 @@ Four mutations, each applied to production code alone with the whole `packages` 
 
 The last row is the one worth stating: it is the fix that looks right, it passes every test that
 existed before this arm, and the case it breaks is the case the entry named as the reason to wait.
+
+## Addendum (2026-08-20): the same cut on the cortex's own turn
+
+**Status:** Accepted. Closes "a cut tool call fails the cortex turn as an inference error" from
+[docs/refinements/index.md#inference-model-manager](../refinements/index.md#inference-model-manager),
+which the tool-call-cut addendum above opened under its own "What this does not do" heading as the
+consumer it did not reach.
+
+The addendum above fixed the delegated half of one shape and named the other. A completion cut
+while the cortex was writing a tool call's `arguments` raises out of `stream_tool_loop` exactly as
+a delegated one does, and on the cortex path nothing caught it: `handle_turn` had a bare
+`try/finally` around its event stream, so the error travelled to the turn task in
+`converse_stream.py`, which turns any `InferenceError` into a seam error carrying
+`ERROR_CODE_INFERENCE_FAILED` and the exception's own text. The user was told inference had failed
+and shown a fragment of JSON, the partial reply they had just watched arrive was dropped from
+history, and nothing was recorded to memory.
+
+### What the control flow actually was, since the arm turns on it
+
+Re-derived before writing anything, because the hazard here is not the catch but where the catch
+leaves the function.
+
+- `stream_turn_events` flushes the guarded channels only after its `async for` completes
+  normally. On an exception it closes the loop in its `finally` and flushes nothing, deliberately,
+  so the caller decides whether a partial reply is worth keeping.
+- `handle_turn` ran `cap_note`, joined the text, appended the assistant message, recorded the
+  exchange and yielded `TurnCompleted` **after** that `try/finally`, all of it reachable only on
+  the non-raising branch. So the persist path was not a step that could be skipped; it was code
+  the raise jumped over entirely.
+
+That is why the arm is an `except` that falls through rather than one that returns or re-raises.
+Everything after the block runs once, for a cut turn exactly as for a turn that ended itself, and
+there is no second write to leave out of step with the first.
+
+### Decision
+
+1. **The engine catches `MalformedToolCallError` and ends the turn.** Not `InferenceError`: a
+   transport failure says nothing about whose tokens they were and stays a seam error, which is
+   the same narrowness the delegated arm was built with and the reason the type exists at all.
+2. **The arm flushes the channels itself**, since the mapper flushes only on a clean end. Without
+   it a guardrail's held tail, a URL it was still matching, would be dropped from a reply the note
+   is about to call everything the model produced. This is `BrainPhase`'s discipline, reached by
+   the same reasoning about the same helper.
+3. **The ledger picks between two sentences, and there are exactly two.** Capped, the truthful
+   thing is what any capped reply already says, so `cap_note` speaks and the arm adds nothing;
+   uncapped, no limit explains the fragment and `UNREADABLE_CALL_NOTE` says what happened without
+   naming a bound that was never reached. `unreadable_call_note` reads the same boolean as
+   `cap_note` and disagrees with it by construction, so the two can be called in sequence and the
+   reader is never handed two explanations for one stump. Silence is still not a cap: a build
+   reporting no finish reason takes the unreadable note, because sending a reader after a token
+   budget nothing reported is the invention the ledger's invariant exists to refuse.
+4. **It reports `TRUNCATED` in the words the ordinary capped path uses**, which is the delegated
+   arm's decision restated for a different surface. There the words are `cap_detail` in an
+   outcome; here they are `REPLY_CAPPED_NOTE` under the text, because a user is already watching
+   the reply arrive and what is owed is a sentence rather than a refusal.
+5. **The fault still reaches the operator, because the turn no longer does.** The arm logs a
+   `warning` naming the session, the turn and `capped`, with the error as `exc_info`, which is
+   where the fragment goes now that no seam error carries it. `capped` is the same reading the
+   note is picked by, so the log says which sentence the user saw.
+
+### What this does not do, and where that is recorded
+
+- **The deep model's phase still reads this as a dead server.** `BrainPhase` catches the wide
+  `InferenceError`, streams `BRAIN_FAILED_NOTE`, persists, and re-raises so the conductor marks
+  the handoff failed, and the deep tier is where a cut is likeliest: it ships an 8192 context and
+  the measured pick spends 3847 to 4448 tokens reaching an answer. Recorded as
+  [docs/refinements/tasks/340-the-deep-phase-cannot-see-a-cut-call.md](../refinements/tasks/340-the-deep-phase-cannot-see-a-cut-call.md).
+- **The ledger is per turn, not per completion.** A turn whose first round was capped and whose
+  third round produced an unparsable call for its own reason takes the capped note. That is the
+  identical residual the delegated arm accepted when it read a per-attempt ledger, and it is
+  accepted here for the same reason: the alternative is a per-completion ledger, and a turn that
+  lost material to a cap in any round did lose it.
+- **Nothing is done about the cut itself.** A turn cut inside a tool call is still a turn whose
+  tool did not run; what changed is that it says so and keeps what it wrote.
+
+### Distrust green
+
+Five mutations, each applied to production code alone with the core and orchestrator suites
+re-run, 2,007 tests.
+
+| mutation | reddens |
+| --- | --- |
+| the arm deleted, so a cut call raises to the seam again | **7** |
+| the arm catches the wide `InferenceError` instead | **5**, every case that pins a dead backend still failing its turn |
+| the arm re-raises after noting, the shape that persists nothing | **7** |
+| `unreadable_call_note` stops reading the ledger, so both notes are emitted | **2** |
+| the channel flush dropped from the arm | **1**, the guardrail's held tail |
+
+The second and fourth rows are the ones worth stating. Widening the catch is the
+simpler-looking arm and it swallows the failure the seam exists to report, which is why the
+control arms for it are the tests that were already there. Dropping the ledger read is the arm
+that looks harmless and hands a user two explanations, one of them about a limit that was never
+reached.
