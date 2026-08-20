@@ -2724,8 +2724,11 @@ of the value itself**, with no message, no fields and nothing naming what it bel
 
 ### Decision 1: the bound is 2,048 rendered characters, and the number comes from the cliff
 
-`VALUE_CHARS` is the measured 16 KiB message divided by eight, so eight fields at the bound still
-leave one line whole, which is more fields than any line in the tree spends on a large value. It
+`VALUE_CHARS` is the measured 16 KiB message divided by eight, which leaves room for **seven**
+fields at the bound rather than eight. (This paragraph first claimed eight, and that was
+arithmetically false: eight come to 16,384 characters against a cliff of 16,383, one over before a
+single `key=`, separator, marker or word of the message is counted. Corrected, with the
+measurement, in the cut-defeats-withholding addendum below.) It
 has to clear the widest value that ships, and that is the recall trail's own `dropped` list at the
 shipped pool of twenty: 1,458 to 1,475 characters over 200 draws of `uuid4` ids and cosine scores.
 A bound of 1,024 would have cut the trail this ADR built two addenda ago, which is the check that
@@ -3039,3 +3042,159 @@ message under, which is the join an operator actually makes.
 
 The other half of the join, the tool-audit lines:
 [R-342](../refinements/tasks/342-the-audit-trail-cannot-name-the-turn.md).
+
+## Cut-defeats-withholding addendum (2026-08-20): the order of the two is the defence
+
+The bounded-value addendum above added a third rule to a formatter that already had two, and put
+it in the wrong place with respect to one of them. An independent audit of that change found the
+result: on the shipped `plain` rendering, the bound defeats the URL withholding for any field the
+bound cuts. The reproduction is one line of the live audit trail.
+
+### The defect
+
+`_USERINFO` is `(?<=://)[^/\s@]*@`, and the `@` is not incidental to it. The pattern *ends* on the
+character that closes a URL's userinfo, which is what lets it leave a bare email address and a
+credential-free URL alone. `redact_urls` was spent once, over the whole formatted line, in
+`PlainFormatter.format`, which runs after `formatMessage` has already rendered and cut every
+field. So a cut landing anywhere between a URL's `://` and its `@` deletes the one character the
+pattern is anchored on, and the pass that follows finds nothing to match:
+
+```
+$ python -c "..."   # a field of {'a': 'x'*(VALUE_CHARS-30) + 'postgres://admin:hunter2@db/x'}
+INFO:cortex.tools.audit:tool.invocation arguments={"a":"xxx...xpostgres://admin:hunter2<cut 7 chars>
+```
+
+The credential prints in full, in a terminal, on the default rendering. The carrier is not
+hypothetical and it is the same one that motivated the bound: `LoggingAuditSink` attaches every
+tool call's `arguments` verbatim, and `spawn_subagents` takes its `instruction` and `context` from
+the model, so a field of arbitrary size and arbitrary content is on a trail this repo writes today.
+A connection URL reaching such a field is exactly the shape the withholding exists for.
+
+`PackedFormatter` is unaffected, having no cut to defeat the pattern with. The exposure is the
+default rendering's alone, which is the one an operator reads.
+
+### Decision 1: a rendering is withheld before it is cut, and the whole-line pass stays
+
+`_bound_value` now takes a rendering, withholds every URL credential in it, and cuts what is left.
+Both of `render_value`'s ways out already passed through that one function, so both inherit the
+order and neither branch has an ordering of its own to drift from the other.
+
+The whole-line pass in `PlainFormatter.format` is kept, and keeping it is not belt and braces. It
+covers what `render_value` never sees: the message text and a traceback, which is where
+`redis://:pw@redis:6379` arrives at least as often as in a field. The two passes overlap on a
+field's value, and the overlap is free because the substitution is idempotent: `://<redacted>@`
+re-matches and re-substitutes to itself.
+
+Withholding first also makes the marker's count honest. The bound is spent on what will actually
+print rather than partly on a credential that will not, so `<cut 13 chars>` names 13 characters the
+reader could have seen.
+
+### Decision 2: the other defence was checked and needs no such ordering
+
+The addendum above named both defences and then tested the bound against neither, which is how the
+interaction was missed. So the name rule was re-derived rather than assumed safe. It is immune,
+and immune structurally rather than by luck: `record_fields` replaces a secret-named field's value
+with `REDACTED` *before* anything renders it, and what the bound then meets is a ten-character
+constant it can never reach inside. A cut cannot shorten `<redacted>` into something that leaks,
+because there is nothing left of the value to leak.
+
+The arrangement that would break it is the mirror of the defect just fixed, a bound spent on the
+way to the substitution rather than after it, so the suite now pins the order with a 100,000
+character `api_key` that renders as `api_key=<redacted>` and nothing else.
+
+### Decision 3: a rendering the bound will cut is quoted rather than left bare
+
+The same audit found a second, quieter fault in the same function, latent today because no bare
+value in the tree exceeds the bound. `_BARE` exists so that an unquoted value carries no
+whitespace and cannot be read into the pair beside it. The marker carries two spaces. Appending it
+to a bare rendering therefore writes a field boundary inside a field:
+
+```
+endpoint=http://aaa...aaa<cut 9 chars> next=1
+```
+
+which reads as a plausible whole endpoint followed by two stray tokens. `render_value`'s own
+docstring promised the opposite ("written so the pair it sits in can still be told from the next
+one"), and a test docstring asserted the opposite of what its own assertion showed.
+
+Two fixes were available. A marker with no whitespace, `<cut:9:chars>`, was rejected: the
+whitespace is precisely what makes the marker unspellable by a bare value, so removing it trades a
+separation fault for an attribution one, and it would change every rendering to repair one.
+
+What landed instead: bare is the reward a value earns for printing whole, and a rendering the
+bound will cut has not earned it, so it is quoted. This makes one rule of what were two. **Every
+cut rendering now ends mid-syntax**, its closing quote or bracket among the characters that did
+not print, which is what a cut structure already did and what the addendum above argued for on the
+grounds that a truncated line failing loudly beats a truncated one read as whole. The marker's
+attribution follows from the same single rule rather than from two arguments that met at a shape
+neither covered: it only ever follows a rendering that stopped, while a field whose own text
+spells it carries the marker's whitespace and so lands inside a quote that closes.
+
+The visible cost is that a cut field now spends two more characters on its quotes and says so in
+its count.
+
+### Decision 4: the bound is spent on the withheld rendering, which can be the longer one
+
+`REDACTED` is ten characters and a userinfo can be shorter, so withholding can *lengthen* a
+rendering: `http://a@h` becomes `http://<redacted>@h`, nine characters more. The length that
+decides whether a rendering prints as it stands is therefore the withheld one, or a value sitting
+at the bound would cross it on the way to the line. Pinned by a case that grows from exactly
+`VALUE_CHARS` to `VALUE_CHARS + 9` and is cut accordingly.
+
+### Correction: seven fields at the bound, not eight
+
+Decision 1 of the addendum above justified `VALUE_CHARS` with a claim that is arithmetically
+false, and it is corrected in place there and here. Eight fields at the bound come to
+8 x 2,048 = 16,384 characters against a measured cliff of 16,383: one over, before a single
+`key=` prefix, separator, `<cut N chars>` marker, word of the message or `INFO:logger:` prefix is
+counted. Measured through the shipped `PlainFormatter`, with six-character keys and a cut on every
+field:
+
+| fields at the bound | rendered line | against the 16,383 cliff |
+| --- | --- | --- |
+| 5 | 10,394 | under by 5,989 |
+| 6 | 12,465 | under by 3,918 |
+| 7 | **14,536** | **under by 1,847** |
+| 8 | 16,607 | over by 224 |
+| 9 | 18,678 | over by 2,295 |
+
+So the headroom is seven, and the bound itself is unchanged: nothing measured argues for moving
+it, the division by eight still lands on the power of two that clears the widest value the tree
+attaches, and moving a bound to rescue a sentence would be the wrong repair. What is withdrawn is
+the sentence. That seven is enough remains an argument rather than a check, because nothing
+measures the widest line the tree can build, which is the open entry on the line as opposed to the
+value and not this constant's to answer.
+
+### Distrust green
+
+The audit's reproduction was re-run against the shipped code first, and the security case was
+written before the fix and confirmed red on it, failing on `'hunter2' is contained here:
+://cortex:hunter2<cut 17 chars>`. Six cases redden in total on the unfixed source. Five mutations
+were then applied to `log_fields.py` alone, each read back from disk before the suite was trusted:
+
+| Mutation | Reddens | Which |
+| --- | --- | --- |
+| the bound stops withholding before it cuts | **1** | the credential the cut falls across |
+| the withholding runs after the cut instead of before it | **1** | the same one, which is the point: the order is the defence, not the call |
+| a rendering the bound will cut stays bare | **6** | every cutting case |
+| the bare decision is made on the value as attached | **1** | the value that grows under withholding |
+| the way out reverts to what shipped | **6** | every cutting case |
+
+The second row is the one worth keeping. A mutation that merely deletes the call proves the call
+is reachable; a mutation that keeps the call and moves it after the cut proves the ordering is
+what the suite holds.
+
+### Consequences
+
+- **A credential in a field survives no cut.** The default rendering is the one an operator reads,
+  and it was the only one exposed.
+- **One rule where there were two.** A cut rendering ends mid-syntax whatever it renders from, so
+  the marker's attribution has a single argument behind it.
+- `docs/modules/brain-core.md` carries the ordering, the quoting and the corrected headroom.
+- A field cut at the bound is two characters shorter in content than before, spending them on the
+  quotes that make it legible, and its count says so.
+
+### Deferred by this addendum
+
+- A userinfo the pattern cannot reach at all, which predates the bound and is untouched by it:
+  [R-343](../refinements/tasks/343-a-userinfo-the-pattern-cannot-reach.md).
