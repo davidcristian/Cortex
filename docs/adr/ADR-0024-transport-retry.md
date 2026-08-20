@@ -647,3 +647,108 @@ abandonment as such, passing the remaining time down into the model host and the
 calls. That is a decision per handler about what "not enough time left" means, in a different
 tree with its own tests, and it is filed as
 [R-322](../refinements/tasks/322-brain-reads-the-remaining-time.md) rather than carried here.
+
+## Abandonment addendum (2026-08-20): the brain says a call was dropped, and prints what it had left
+
+The courtesy header put a real deadline on the wire and the entry it left behind listed four
+things a handler could do with the time it can now read. Three of them are a policy per RPC about
+what "not enough time left" means: a listing that answers `DEADLINE_EXCEEDED` rather than spending
+a store round trip nobody will read, a session read that returns the transcript without the memory
+cascade it cannot fit, and the remaining time travelling onward into the model host and the MCP
+tools where the seconds actually go. Each of those is a decision about one RPC or one downstream
+port, and each changes what a caller gets back.
+
+The fourth changes nothing a caller sees and needs no per-RPC judgement at all, which is why it is
+the one that lands here: **a handler that was cancelled says so.**
+
+### What the silence cost
+
+`grpc.aio` turns the client's stream reset into an `asyncio` cancellation of the servicer
+coroutine, measured at 800 ms against an announced 1.05 s in the addendum above. That cancellation
+unwinds the handler's own `finally` blocks and then disappears. Nothing is logged, by grpc or by
+this repo, so a call the body dropped is indistinguishable from a call that was never made: an
+operator watching a slow brain sees the body's timeouts in one process and nothing at all in the
+other. The work is already being cut, correctly and by the transport; what was missing is any
+record that it happened.
+
+### Decision 1: one interceptor, for the reason the token check is one
+
+A `try` block per RPC body would be ten of them today and eleven the next time a method lands, and
+the eleventh would be added by remembering. `AbandonedCallInterceptor`
+(`brain/packages/orchestrator/src/cortex_orchestrator/abandon.py`) wraps each unary-unary behavior
+in an arm that logs on `asyncio.CancelledError` and re-raises, exactly the structural argument
+`auth.py` was built on. It is registered by `create_server` unconditionally, unlike the token
+interceptor beside it: there is no posture to configure, only a line that is written or lost. It
+goes **second**, so an unauthenticated call is refused rather than watched, work never started
+being different from work abandoned.
+
+The cancellation is re-raised on every path. A cancelled coroutine that swallows its cancellation
+is a task that outlives its request, and this arm exists to make an abandonment visible, never to
+change what it does.
+
+### Decision 2: the reading is printed, and nothing branches on it
+
+The line carries the RPC's wire `method` and `context.time_remaining()`, and interprets neither.
+The reading answers three different facts and an operator can tell them apart by the number:
+
+| Reading | What ended the call |
+| --- | --- |
+| `0` | the announced deadline expired; grpc clamps the reading there rather than letting it run negative |
+| a positive value | the caller stopped waiting early, which is the shipped body on **every** call, since it enforces a bound strictly shorter than the one it announces (the grace margin above) |
+| `None` | the caller announced no deadline at all, so what arrived was a disconnect |
+
+A branch here would be the per-RPC policy this addendum is deliberately not landing, wearing the
+formatter's hat. The clamp at zero is worth writing down because it is the difference between the
+line an operator reads and the line the design predicted: the addendum above expected a negative
+remainder and the measurement returns exactly `0`, as an `int`.
+
+### Decision 3: the fence is the method's shape, not a list of names
+
+`Converse` announces no deadline and must keep announcing none: a turn is long by design, and a
+stream reporting an abandonment against a deadline would be the first half of enforcing a bound
+this seam deliberately does not have. It is also the service's only streaming method, so a handler
+carrying no unary-unary behavior is passed through untouched, and that single condition *is* the
+fence. The alternative, ten method names in a set, would be a list somebody has to keep current
+and would fence nothing on the day it went stale.
+
+An unserviced method (the continuation resolving to `None`) is passed through for the same reason
+the token interceptor passes it through: there is nothing there to watch.
+
+### Distrust green
+
+Five mutations, each applied to `abandon.py` alone with the orchestrator suite re-run, then
+restored:
+
+| Mutation | Reddens |
+| --- | --- |
+| the `except` arm deleted, so a cancelled handler prints nothing | 4 |
+| the cancellation swallowed instead of re-raised | 3 |
+| every handler watched, not only the unary-unary ones | the stream passthrough, and then **hangs** the wire `Converse` suite, a stream rebuilt as a unary handler having no behavior at all |
+| the `method` field dropped | 4 |
+| the `time_remaining` field dropped | 4 |
+
+The third row is the fence proving itself: the shape check is not a tidy way of skipping one
+method, it is the only thing keeping `Converse` a stream.
+
+### Verified over the wire
+
+The end-to-end case is not a fake context. A real loopback `grpc.aio` `BrainService` built by
+`create_server`, whose `ListSessions` never answers, is driven by a real stub announcing a 200 ms
+deadline; the client is told `DEADLINE_EXCEEDED`, the server cancels the handler, and the line
+arrives naming the RPC's own wire path with `time_remaining=0`. That case is what proves the
+interceptor is installed at all, which no unit test of the wrap can say.
+
+### Consequences
+
+- A slow brain is now visible from the brain's own logs, not only from the body's. The abandoned
+  call names which RPC was dropped and how much of the announced window was left when it was.
+- The level is `WARNING` rather than `INFO`: an abandoned call is work spent on a reply nobody
+  read, and on a healthy deployment it should be rare. If it turns out to be routine on this
+  machine, that is a fact about the timeouts worth being told loudly.
+- `docs/modules/brain-orchestrator.md` gains the interceptor beside the token one.
+
+### Deferred by this addendum
+
+The three shapes that are a policy per RPC or per downstream port, carried forward together
+because they share the question this one did not have to answer:
+[R-341](../refinements/tasks/341-nothing-declines-work-it-cannot-finish.md).
