@@ -14,7 +14,13 @@ class RecallPolicy(Protocol):
     def candidate_k(self, k: int) -> int: ...
 
     async def select(
-        self, hits: Sequence[ScoredMemory], *, query: str, now: datetime, k: int
+        self,
+        hits: Sequence[ScoredMemory],
+        *,
+        query: str,
+        now: datetime,
+        k: int,
+        session_id: str | None = None,
     ) -> Ranking: ...
 
 
@@ -26,10 +32,18 @@ class RawRecallPolicy:
         return k
 
     async def select(
-        self, hits: Sequence[ScoredMemory], *, query: str, now: datetime, k: int
+        self,
+        hits: Sequence[ScoredMemory],
+        *,
+        query: str,
+        now: datetime,
+        k: int,
+        session_id: str | None = None,
     ) -> Ranking:
         """Keep the store's order, truncated to ``k`` (only ``k`` matters to raw recall)."""
-        del query, now  # raw recall reads neither the question nor the age
+        # Raw recall reads neither the question nor the age, and reports nothing, so it has
+        # nothing to name a session on; the parameter is the port's shape, not this policy's need.
+        del query, now, session_id
         return Ranking(
             hits=tuple(RankedMemory(hit=hit, key=hit.score) for hit in hits[:k]),
             basis=RankBasis.ECHO,

@@ -58,7 +58,7 @@ class MemoryRecaller:
         pool = await self._store.search(embedding, k=self._policy.candidate_k(k), scopes=scopes)
         available = await self._count_candidates(scopes)
         now = self._clock.now()
-        ranking = await self._policy.select(pool, query=query, now=now, k=k)
+        ranking = await self._policy.select(pool, query=query, now=now, k=k, session_id=session_id)
         if self._audit is not None:
             await self._audit.record(
                 RecallAudit(

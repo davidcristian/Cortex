@@ -82,19 +82,27 @@ class _ScriptedBackend:
 
 
 class _CountingFallback:
-    """A RecallPolicy that counts how often it was asked, so a test can pin that it was not."""
+    """A RecallPolicy that counts how often it was asked, and under which recall's name."""
 
     def __init__(self) -> None:
         self.calls = 0
+        self.sessions: list[str | None] = []
 
     def candidate_k(self, k: int) -> int:
         return k
 
     async def select(
-        self, hits: Sequence[ScoredMemory], *, query: str, now: datetime, k: int
+        self,
+        hits: Sequence[ScoredMemory],
+        *,
+        query: str,
+        now: datetime,
+        k: int,
+        session_id: str | None = None,
     ) -> Ranking:
         del query, now
         self.calls += 1
+        self.sessions.append(session_id)
         return Ranking(
             hits=tuple(RankedMemory(hit=hit, key=hit.score) for hit in hits[:k]),
             basis=RankBasis.ECHO,
@@ -206,6 +214,23 @@ async def test_the_fallback_policy_is_swappable() -> None:
     assert [ranked.hit.record.id for ranked in ranking.hits] == ["noise"]
 
 
+async def test_every_fallback_hands_on_the_recall_it_was_given() -> None:
+    """A fallback that reports would otherwise be blinded by the policy wrapping it."""
+    fallback = _CountingFallback()
+    unreachable = JudgeRecallPolicy(
+        _ScriptedBackend(error=True), "cortex", pool_factor=4, fallback=fallback
+    )
+    unreadable = JudgeRecallPolicy(
+        _ScriptedBackend("not the envelope"), "cortex", pool_factor=4, fallback=fallback
+    )
+
+    await unreachable.select(_pool(), query="q", now=_NOW, k=2, session_id="conv-9")
+    await unreachable.select([], query="q", now=_NOW, k=2, session_id="conv-9")
+    await unreadable.select(_pool(), query="q", now=_NOW, k=2, session_id="conv-9")
+
+    assert fallback.sessions == ["conv-9", "conv-9", "conv-9"]
+
+
 def test_a_pool_factor_below_one_is_refused() -> None:
     with pytest.raises(ValueError, match="pool_factor"):
         JudgeRecallPolicy(_ScriptedBackend(), "cortex", pool_factor=0)
@@ -296,11 +321,14 @@ async def _fell_back(
     reply: str = _UNUSABLE,
     error: bool = False,
     stop: StopReason | None = None,
+    session_id: str | None = None,
 ) -> logging.LogRecord:
     """Drive one rank that falls back to geometry, and return the single warning it logged."""
     caplog.clear()
     policy, _ = _judge(reply, error=error, stop=stop)
-    ranking = await policy.select(_pool(), query="where does state live?", now=_NOW, k=2)
+    ranking = await policy.select(
+        _pool(), query="where does state live?", now=_NOW, k=2, session_id=session_id
+    )
     # The fallback itself, re-asserted here so a record about a rank that ranked could never
     # satisfy the assertions below.
     assert ranking.basis is RankBasis.ECHO
@@ -341,6 +369,51 @@ async def test_an_unreachable_model_and_an_unreadable_reply_are_two_different_li
     # Both name what was given up on: the pool that went unjudged and the width asked of it.
     assert (_extra(unreachable, "pool"), _extra(unreachable, "k")) == (3, 2)
     assert (_extra(unreadable, "pool"), _extra(unreadable, "k")) == (3, 2)
+
+
+async def test_both_lines_name_the_recall_they_happened_to(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A burst of fallbacks is attributable to a conversation (ADR-0038 named-recall addendum)."""
+    caplog.set_level(logging.WARNING, logger=_JUDGE_LOGGER)
+    unreachable = await _fell_back(caplog, error=True, session_id="conv-7")
+    unreadable = await _fell_back(caplog, stop=StopReason.FINISHED, session_id="conv-7")
+
+    assert _extra(unreachable, "session") == _extra(unreadable, "session") == "conv-7"
+    assert "session=conv-7" in PlainFormatter().format(unreachable)
+    assert "session=conv-7" in PlainFormatter().format(unreadable)
+
+
+async def test_a_recall_that_named_no_session_says_so_rather_than_leaving_the_field_out(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """An absent field and an unnamed caller are different facts, so the line prints the second.
+
+    Every caller the brain ships gives an id, so this is the direct caller of the port: a reader
+    who saw no ``session`` at all would go looking for the deployment that dropped it.
+    """
+    caplog.set_level(logging.WARNING, logger=_JUDGE_LOGGER)
+    record = await _fell_back(caplog, error=True)
+
+    assert _extra(record, "session") is None
+    assert "session=None" in PlainFormatter().format(record)
+
+
+async def test_neither_line_carries_the_question_or_what_memory_said_about_it(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The identity is an id, and the two things beside it in ``select`` are conversation content.
+    """
+    caplog.set_level(logging.WARNING, logger=_JUDGE_LOGGER)
+    unreachable = PlainFormatter().format(await _fell_back(caplog, error=True, session_id="conv-7"))
+    unreadable = PlainFormatter().format(
+        await _fell_back(caplog, stop=StopReason.FINISHED, session_id="conv-7")
+    )
+
+    for line in (unreachable, unreadable):
+        assert "where does state live?" not in line  # the question the turn asked
+        assert "keep session state in Redis" not in line  # and what memory had to say about it
+        assert "session=conv-7" in line  # what a line may carry: the caller's own handle
 
 
 async def test_a_cut_order_and_a_mangled_one_are_told_apart(

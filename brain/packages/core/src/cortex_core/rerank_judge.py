@@ -107,11 +107,19 @@ class JudgeRecallPolicy:
         return k * self._pool_factor
 
     async def select(
-        self, hits: Sequence[ScoredMemory], *, query: str, now: datetime, k: int
+        self,
+        hits: Sequence[ScoredMemory],
+        *,
+        query: str,
+        now: datetime,
+        k: int,
+        session_id: str | None = None,
     ) -> Ranking:
         """Ask the model to order the pool: fall back on a failure, keep nothing on a refusal."""
         if not hits:
-            return await self._fallback.select(hits, query=query, now=now, k=k)
+            return await self._fallback.select(
+                hits, query=query, now=now, k=k, session_id=session_id
+            )
         stops = StopLedger()
         try:
             raw = await drain_text(
@@ -127,17 +135,27 @@ class JudgeRecallPolicy:
             # cause rides as ``exc_info`` the way every other degraded-turn warning carries it.
             _logger.warning(
                 "the model could not be asked to rank recall; falling back to the unjudged ranking",
-                extra={"pool": len(hits), "k": k},
+                extra={"session": session_id, "pool": len(hits), "k": k},
                 exc_info=True,
             )
-            return await self._fallback.select(hits, query=query, now=now, k=k)
+            return await self._fallback.select(
+                hits, query=query, now=now, k=k, session_id=session_id
+            )
         order = parse_order(raw, pool_size=len(hits), k=k)
         if order is None:
             _logger.warning(
                 "the model returned no usable recall order; falling back to the unjudged ranking",
-                extra={"pool": len(hits), "k": k, "capped": stops.capped, "chars": len(raw)},
+                extra={
+                    "session": session_id,
+                    "pool": len(hits),
+                    "k": k,
+                    "capped": stops.capped,
+                    "chars": len(raw),
+                },
             )
-            return await self._fallback.select(hits, query=query, now=now, k=k)
+            return await self._fallback.select(
+                hits, query=query, now=now, k=k, session_id=session_id
+            )
         if not order:
             return Ranking(hits=(), basis=RankBasis.DEMUR)
         return Ranking(hits=_keyed(hits, order), basis=RankBasis.VERDICT)

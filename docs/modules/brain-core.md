@@ -1541,7 +1541,8 @@ Use-case:
   embedding from the embedder, `scope` from the policy's `write_scope(session_id)`, `tainted` from
   the caller per ADR-0019), and returns it; `recall(query, *, k, session_id)` embeds `query`, fetches
   the store's `policy.candidate_k(k)` `ScoredMemory` within the policy's `read_scopes(session_id)`,
-  and awaits `policy.select(...)`, returning that `Ranking`'s memories reranked and pruned to `k`.
+  and awaits `policy.select(...)` with that same `session_id`, returning that `Ranking`'s memories
+  reranked and pruned to `k`.
   An empty ranking is returned as no hits and never re-fetched or filled from the pool, so a policy
   that declines (the `DEMUR` basis) leaves the turn without a memory block at all.
   An optional `audit: RecallAuditSink` receives one `RecallAudit` per recall (the query, the pool
@@ -1576,11 +1577,18 @@ Use-case:
   never into an engine.
 - `RecallPolicy` (port, `rerank.py`) turns an over-fetched candidate pool into the final `k` hits
   (the `MemoryScope` / `HistoryWindow` pattern): `candidate_k(k)` sizes the pool the recaller fetches,
-  `async select(hits, *, query, now, k) -> Ranking` reranks and prunes it. It is `async` so a policy
+  `async select(hits, *, query, now, k, session_id=None) -> Ranking` reranks and prunes it. It is
+  `async` so a policy
   may call the model, and it carries the `query` because a policy that ranks by what a memory says
   needs the question (ADR-0038); a policy that runs inference must leave its acquire block before
   returning, which `drain_text` does (it also forwards a caller's `bounds`, which every in-turn
-  side call wants since the line above it throws the model's thinking away). The port and `RawRecallPolicy` (its
+  side call wants since the line above it throws the model's thinking away). `session_id` names the
+  recall being ranked and is optional for the reason `progress` is optional on
+  `HistoryWindow.select` and `stops` on `drain_text`: only a policy that reports anything has a use
+  for it, the four that never log take it and drop it, and `MemoryRecaller` already held one so
+  nothing is plumbed to reach the port (ADR-0038 named-recall addendum). It is an **id and never
+  content**: the pool and the `query` are conversation text that no line may carry, which is why it
+  is a separate parameter rather than a wider `query`. The port and `RawRecallPolicy` (its
   `RAW_RECALL_POLICY` singleton keeps v1 top-`k` cosine exactly, and is this port's own default
   argument; the composition root's default is `judge` since the ADR-0038 turn-cost addendum, so the
   two words mean different things here) live in `rerank.py`; the three
@@ -1607,13 +1615,17 @@ Use-case:
   reply's length is known before it is asked for; a truncated constrained reply is not JSON, so
   running into the cap degrades to that same fallback rather than to a shortened order. **A
   fallback it takes because something broke is logged where it happens** (ADR-0038 unjudged-rank
-  addendum), the module's own `logging` warning naming the pool and the `k`: one line for a backend
+  addendum), the module's own `logging` warning naming the `session` the recall was for, the pool
+  and the `k`: one line for a backend
   that could not be asked (the error as `exc_info`) and one for a reply no order could be read out
   of, that one carrying `capped` from a `StopLedger` it hands `drain_text` and `chars`, the reply's
   length, since a rank the bound cut and a model that ended in the wrong shape arrive as the same
   text and want opposite fixes. Both ride the record alone, the process entry's formatter being
   what renders them onto the line (ADR-0038 rendered-fields addendum); they used to be spelled
-  into the message too, back when the shipped handler printed no `extra`. The other two
+  into the message too, back when the shipped handler printed no `extra`. `session` is spelled the
+  way `LoggingRecallSink` spells it, because the trail line for the same recall is what a fallback
+  is paired with (ADR-0038 named-recall addendum), and a caller that named none logs
+  `session=None`. The other two
   verdict-less exits are silent on purpose: an empty
   pool is a no-op, and a refusal is a judgement that the trail already reports as `demur`, so every
   line from the module means the configured rank did not run. Selected at the composition root via `CORTEX_MEMORY_RECALL`
