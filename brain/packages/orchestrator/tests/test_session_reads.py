@@ -16,6 +16,7 @@ from cortex_core import (
     EchoInferenceBackend,
     InMemoryMemoryStore,
     InMemorySessionStore,
+    MemoryDataError,
     MemoryRecord,
     MemoryStoreError,
     Message,
@@ -257,6 +258,15 @@ class FailingMemoryStore:
         raise MemoryStoreError(msg)
 
 
+class UndecodableMemoryStore(FailingMemoryStore):
+    """A MemoryStore whose delete_scope answers with a reply this repo cannot read."""
+
+    async def delete_scope(self, scope: str) -> int:
+        del scope
+        msg = "malformed delete status from the memory store"
+        raise MemoryDataError(msg)
+
+
 async def test_list_sessions_store_failure_aborts_unavailable() -> None:
     server, address = await _serve(FailingStore())
     try:
@@ -423,3 +433,21 @@ async def test_delete_session_memory_cascade_failure_aborts_unavailable() -> Non
         await server.stop(grace=None)
     assert excinfo.value.code() is grpc.StatusCode.UNAVAILABLE
     assert "pgvector is down" in (excinfo.value.details() or "")
+
+
+async def test_delete_session_undecodable_memory_reply_aborts_internal() -> None:
+    """The cascade's data defect is a fault of this side, so it is not reported as an outage."""
+    store = await _seeded_store()
+    cascade = SessionMemoryCascade(UndecodableMemoryStore(), SessionMemoryScope())
+    server, address = await _serve(store, cascade=cascade)
+    try:
+        async with aio.insecure_channel(address) as channel:
+            with pytest.raises(aio.AioRpcError) as excinfo:
+                await _delete(BrainServiceStub(channel), "alpha")
+    finally:
+        await server.stop(grace=None)
+    assert excinfo.value.code() is grpc.StatusCode.INTERNAL
+    assert "malformed delete status" in (excinfo.value.details() or "")
+    # The chat itself is gone: the cascade runs second, so the user's primary intent stands and
+    # a retry re-runs only the forget.
+    assert [s.session_id for s in await store.list_sessions(limit=10)] == ["beta"]

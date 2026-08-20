@@ -251,7 +251,9 @@ pub struct RenameSessionReply {}
 /// hard-deletes the transcript and catalog entry and cascades to the session's private memories.
 /// The reply is a bare acknowledgement (the overlay drops the row and re-lists); a store or memory
 /// failure surfaces as an `UNAVAILABLE` RPC status, the session-read precedent, and the operation
-/// is idempotent, so a retry after such a failure heals cleanly.
+/// is idempotent, so a retry after such a failure heals cleanly. The one exception is a memory
+/// reply the brain could not decode, which surfaces as `INTERNAL`: the store answered, so nothing
+/// is unavailable and no later attempt reads it differently.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct DeleteSessionRequest {
     #[prost(string, tag = "1")]

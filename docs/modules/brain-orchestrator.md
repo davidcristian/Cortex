@@ -374,6 +374,12 @@ The service:
     structural user-only gate as `RenameSession` (no model/tool/tainted turn reaches it); the
     user's intent is secured by an overlay-local confirm, not the Confirmer. A `SessionStoreError`
     **or** `MemoryStoreError` aborts `UNAVAILABLE`, and both steps are idempotent, so a retry heals.
+    The memory port's narrower `MemoryDataError` is named ahead of that catch and aborts
+    `INTERNAL` instead (ADR-0008 delete-cascade-code addendum): a reply the store answered and this
+    repo cannot decode is a fault of this side that reads the same on every later attempt, so it is
+    the one failure here that `UNAVAILABLE` would misdescribe. The distinction is the same one
+    `_recalled_context` draws on the read path, and it is a label rather than a behaviour change:
+    the body classifies this method non-repeatable and retries only `Unavailable` anyway.
   - `SetSessionPinned` → `SetSessionPinnedReply` (ADR-0021 pinning addendum): a gated, **user-only**
     catalog write via `session_rpc.set_session_pinned`, forwarding `request.pinned` to
     `store.set_pinned`. `list_sessions` unions the pinned set into every listing, so pinning lifts a

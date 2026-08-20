@@ -1,9 +1,10 @@
-"""Session-catalog servicer methods (ADR-0021): the wire-binding half of the session RPCs."""
+"""Session-catalog servicer methods: the wire-binding half of the session RPCs."""
 
 import grpc
 from grpc import aio
 
 from cortex_core import (
+    MemoryDataError,
     MemoryStoreError,
     SessionMemoryCascade,
     SessionStore,
@@ -32,7 +33,7 @@ from cortex_seam import (
 
 
 class SessionRpcMixin:
-    """The session-catalog RPCs, mixed into ``BrainService`` (ADR-0021)."""
+    """The session-catalog RPCs, mixed into ``BrainService``."""
 
     _store: SessionStore
     _memory_cascade: SessionMemoryCascade | None
@@ -42,7 +43,7 @@ class SessionRpcMixin:
         request: ListSessionsRequest,
         context: aio.ServicerContext[ListSessionsRequest, ListSessionsReply],
     ) -> ListSessionsReply:
-        """Recent chats newest-first, pinned unioned in (ADR-0021); store error aborts."""
+        """Recent chats newest first, with the `pinned` ones unioned in; a store error aborts."""
         try:
             summaries = await self._store.list_sessions(limit=clamp_limit(request.limit))
         except SessionStoreError as err:
@@ -54,7 +55,7 @@ class SessionRpcMixin:
         request: GetSessionMessagesRequest,
         context: aio.ServicerContext[GetSessionMessagesRequest, GetSessionMessagesReply],
     ) -> GetSessionMessagesReply:
-        """One session's history in append order (ADR-0021); unknown is empty, error aborts."""
+        """One session's history in append order; unknown is empty, error aborts."""
         try:
             messages = await self._store.history(request.session_id)
         except SessionStoreError as err:
@@ -66,7 +67,7 @@ class SessionRpcMixin:
         request: RenameSessionRequest,
         context: aio.ServicerContext[RenameSessionRequest, RenameSessionReply],
     ) -> RenameSessionReply:
-        """Gated user-only rename via `session_rpc.rename_session` (ADR-0021); error aborts."""
+        """User-only rename via `session_rpc.rename_session`; a store error aborts."""
         try:
             return await rename_session(self._store, request.session_id, request.title)
         except SessionStoreError as err:
@@ -77,9 +78,11 @@ class SessionRpcMixin:
         request: DeleteSessionRequest,
         context: aio.ServicerContext[DeleteSessionRequest, DeleteSessionReply],
     ) -> DeleteSessionReply:
-        """Gated user-only delete + memory cascade via `session_rpc.delete_session` (ADR-0021)."""
+        """User-only delete plus memory cascade via `session_rpc.delete_session`."""
         try:
             return await delete_session(self._store, self._memory_cascade, request.session_id)
+        except MemoryDataError as err:
+            await context.abort(grpc.StatusCode.INTERNAL, str(err))
         except (SessionStoreError, MemoryStoreError) as err:
             await context.abort(grpc.StatusCode.UNAVAILABLE, str(err))
 
@@ -88,7 +91,7 @@ class SessionRpcMixin:
         request: SetSessionPinnedRequest,
         context: aio.ServicerContext[SetSessionPinnedRequest, SetSessionPinnedReply],
     ) -> SetSessionPinnedReply:
-        """Gated user-only pin toggle via `session_rpc.set_session_pinned` (ADR-0021 pinning)."""
+        """User-only `pinned` toggle via `session_rpc.set_session_pinned`."""
         try:
             return await set_session_pinned(self._store, request.session_id, pinned=request.pinned)
         except SessionStoreError as err:
