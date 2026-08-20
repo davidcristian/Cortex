@@ -23,6 +23,7 @@ from cortex_core import (
     SessionMemoryCascade,
     SessionStore,
 )
+from cortex_orchestrator.abandon import AbandonedCallInterceptor
 from cortex_orchestrator.auth import SeamTokenInterceptor
 from cortex_orchestrator.config import SeamServerConfig
 from cortex_orchestrator.converse import (
@@ -234,10 +235,16 @@ def create_server(
     the dependency ceiling is a design rule (ruff.toml). With `config.token`
     set, a
     `SeamTokenInterceptor` fronts every RPC (ADR-0016), the shared-secret half of assumption 5's
-    posture; empty disables it. Returns the server plus the actually-bound port (config.port 0).
+    posture; empty disables it. The `AbandonedCallInterceptor` is installed either way (ADR-0024
+    abandonment addendum): it configures nothing and only makes a unary call the caller gave up on
+    say so. It goes second, so an unauthenticated call is refused rather than watched: work never
+    started is not work abandoned. Returns the server plus the actually-bound port (config.port 0).
     """
-    interceptors = (SeamTokenInterceptor(config.token),) if config.token else ()
-    server = aio.server(interceptors=interceptors)
+    guards: list[aio.ServerInterceptor] = []
+    if config.token:
+        guards.append(SeamTokenInterceptor(config.token))
+    guards.append(AbandonedCallInterceptor())
+    server = aio.server(interceptors=guards)
     service = BrainService(
         make_engine,
         store,
