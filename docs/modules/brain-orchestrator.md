@@ -490,6 +490,19 @@ The service:
   and future, must carry the matching `x-cortex-seam-token` metadata (`SEAM_TOKEN_HEADER`)
   or is aborted `UNAUTHENTICATED` before the servicer runs (constant-time compare, rejection
   shaped to the method). Empty token = no interceptor, the previous server byte for byte.
+  It also registers the `AbandonedCallInterceptor` (below), always, and second, so an
+  unauthenticated call is refused rather than watched.
+- `AbandonedCallInterceptor()` (`abandon.py`, ADR-0024 abandonment addendum) writes one
+  `WARNING` per **unary** call the caller gave up on: `ABANDONED_MESSAGE`, with the RPC's wire
+  `method` and the `time_remaining()` the announced deadline had left. It is the brain's one
+  use of the deadline the body announces on every unary call, and it judges nothing: zero is
+  that deadline expiring (grpc clamps the reading there), a positive value a caller that stopped
+  early (which the shipped body is on every call, enforcing a bound shorter than it announces),
+  `None` a caller that announced no deadline and simply disconnected. The cancellation is always
+  re-raised. A handler with no unary-unary behavior is passed through untouched, which is how
+  `Converse` stays unwatched: a turn is long by design and announces no deadline, so a stream
+  reporting an abandonment against one would be the first half of a bound this seam does not
+  have. Unconditional because there is no posture to configure, only a line written or lost.
 - `serve(config: SeamServerConfig, make_engine: EngineFactory, store: SessionStore,
   ports: SeamPorts = SeamPorts()) -> None` (async), the composition root's one call: it
   starts the server and blocks until SIGTERM/SIGINT or task cancellation; handlers for both signals

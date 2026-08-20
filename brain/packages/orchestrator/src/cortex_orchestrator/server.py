@@ -17,6 +17,7 @@ from cortex_core import (
     SessionMemoryCascade,
     SessionStore,
 )
+from cortex_orchestrator.abandon import AbandonedCallInterceptor
 from cortex_orchestrator.auth import SeamTokenInterceptor
 from cortex_orchestrator.config import SeamServerConfig
 from cortex_orchestrator.converse import (
@@ -169,8 +170,11 @@ def create_server(
     ports: SeamPorts = _NO_SEAM_PORTS,
 ) -> tuple[aio.Server, int]:
     """Build the aio server over `make_engine`/`store` and bind it (not started)."""
-    interceptors = (SeamTokenInterceptor(config.token),) if config.token else ()
-    server = aio.server(interceptors=interceptors)
+    guards: list[aio.ServerInterceptor] = []
+    if config.token:
+        guards.append(SeamTokenInterceptor(config.token))
+    guards.append(AbandonedCallInterceptor())
+    server = aio.server(interceptors=guards)
     service = BrainService(
         make_engine,
         store,

@@ -1,5 +1,6 @@
 """Cortex orchestrator: the thin gRPC shell hosting BrainService (logic lives in cortex_core)."""
 
+from cortex_orchestrator.abandon import ABANDONED_MESSAGE, AbandonedCallInterceptor
 from cortex_orchestrator.auth import SeamTokenInterceptor
 from cortex_orchestrator.builders import (
     build_body_gateway,
@@ -75,6 +76,7 @@ from cortex_orchestrator.wiring import run_from_env
 from cortex_seam import SEAM_TOKEN_HEADER
 
 __all__ = [
+    "ABANDONED_MESSAGE",
     "DEFAULT_BRAIN_MODEL",
     "DEFAULT_CONFIRM_TIMEOUT_S",
     "DEFAULT_MAX_BUFFERED_EVENTS",
@@ -88,6 +90,7 @@ __all__ = [
     "SEAM_TOKEN_HEADER",
     "TASK_TITLE",
     "TICKER_STOP_GRACE_S",
+    "AbandonedCallInterceptor",
     "BodyConfig",
     "BrainRuntimeConfig",
     "BrainService",

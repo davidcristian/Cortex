@@ -1,6 +1,6 @@
 # The brain is told how long it has and does nothing with it
 
-**Status:** open, actionable
+**Status:** landed 2026-08-20
 **Area:** seam-transport
 **Origin:** [ADR-0024](../../adr/ADR-0024-transport-retry.md)
 
@@ -41,3 +41,10 @@ not have.
   ([302](302-brain-learns-the-deadline.md)), which measured what the brain does with an announced
   deadline today (it enforces it, through grpc.aio, and reads nothing) and left the reading half
   here rather than shipping a per-handler policy inside a transport slice.
+- 2026-08-20: Landed as the abandonment line, the one of its four shapes needing no per-RPC
+  judgement: `AbandonedCallInterceptor` writes a `WARNING` naming the RPC and the
+  `time_remaining()` a dropped unary call had left, judging none of the three facts that reading
+  can carry. `Converse` is passed through by shape rather than by name, so the fence is code. The
+  three shapes that *are* a policy per RPC or per port moved to
+  [341](341-nothing-declines-work-it-cannot-finish.md). Recorded in the ADR-0024 abandonment
+  addendum.
