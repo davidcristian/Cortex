@@ -3684,3 +3684,64 @@ are already proven, so it is recorded as not run rather than dressed up.
   green, because turns work.
 - **It does not reach the overlay as anything new.** No proto change, no overlay change: the
   sentence rides the detail the connection indicator already renders.
+
+## Refusal-reach addendum (2026-08-21): the daemon's line is the only record on one caller of seven
+
+The change that stopped the supervisor printing a wedged child's sentence twice moved the severity
+onto the control API's surviving refusal line, and argued for the move with reach: a swap's
+eviction meets that same 503 through the brain's `ModelHost` port, the brain turns it into a
+user-facing note without logging its text, "so this line is the only record of it anywhere". The
+level is right. The last clause is wider than this tree has ever supported, and it is the kind of
+claim that gets cited by whoever next asks whether a line can be dropped or quietened, which is
+the exact question the change it documents was answering.
+
+### Re-derived from the tree first, by tracing every caller rather than the one the claim names
+
+`_refused` in `brain/packages/model_manager/src/cortex_model_manager/api.py` answers the three
+per-model routes, so the population is every brain-side caller of `status`, `start` and `stop`. The
+adapter builds one message for all of them, in `HttpModelHost._request`: the method, the path, the
+subject, the status code, and the leading characters of the daemon's own response body, which is
+where the `error` field this line logs ends up. What differs is what each caller then does with the
+`ModelHostError` carrying it.
+
+| Caller | What it does with the daemon's sentence |
+| --- | --- |
+| `swap_in` (`residency_moves`), the eviction, the load and its gate | **nothing**: the text goes into a `SwapFailedError`, `swap_conductor._swap` catches it and answers `note_for(err)`, which maps the error's *type* to one of three fixed sentences and never reads `str(err)` |
+| the unrostered preflight, `is_unhosted` (`residency_moves`) | `WARNING` with the message in an `error` field |
+| the swap back, `restore_standing` (`residency_moves`) | `_logger.exception` at both of its failures, so the text lands in the brain's log inside a traceback |
+| the peer restart, `restart_evicted` (`residency_moves`) | `_logger.exception`, per tier |
+| the peer sweep (`residency_sweep`) | `WARNING` with an `error` field, or `ERROR` for a tier the roster never had |
+| the regain pass (`residency_regain`) | `DEBUG` with an `error` field, on both of its questions |
+| boot recovery (`swap_recovery`) | `_logger.exception` for a peer it could not clear and for an unreachable host, and one `ERROR` with an `error` field for a deep tier no roster carries |
+
+So one caller of seven keeps nothing, and it is the one the claim generalized from. On every other
+path the daemon's sentence reaches the brain's own log intact, and the sidecar's line is a second
+copy of it rather than the only one.
+
+### Decision: the sentence is narrowed where it is written, and the level rule does not move
+
+The level still follows the status code, unchanged, and it now rests on what the two codes mean
+rather than on a uniqueness that holds for one caller: a 4xx is a caller asking after a tier this
+daemon never had, and a 5xx is the daemon unable to do a thing it accepts, whoever else is reading.
+`_refused`'s docstring says that, names the swap in as the path that keeps nothing, and names the
+others as paths that do carry the text onward. `docs/modules/brain-model-manager.md` says the same
+in the sentence it already scoped correctly to "the path that matters most", which is now explicit
+about the paths it is not about.
+
+The ranked-recall record's raised-and-logged addendum keeps its wording, as this repo's corrections
+always do, with a dated pointer at the sentence this narrows.
+
+### Distrust green, and why there is nothing to mutate
+
+This changes prose and no behaviour, so there is no assertion to prove able to fail. What stands in
+for it is the trace above, taken by reading every catch rather than the one the claim named, in the
+same shape as the trace that produced the claim being corrected. The evidence is the table: seven
+callers, six of which log the message, one of which does not.
+
+### What this opens
+
+The one caller that keeps nothing keeps nothing **anywhere on the brain's side**: a handoff that
+fails during the eviction or the load settles its record as failed, streams a fixed note, and
+writes no line naming what the model host said, so the reason exists only in the sidecar's
+container log. That is a real gap rather than a wording one, and it is filed as
+[R-350](../refinements/tasks/350-a-failed-swap-in-says-nothing-brain-side.md).
