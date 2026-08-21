@@ -1,3 +1,4 @@
+from importlib import import_module
 from pathlib import Path
 
 import pytest
@@ -713,6 +714,28 @@ def test_check_walks_the_whole_registry(tmp_path: Path) -> None:
 def test_the_repo_itself_is_tied() -> None:
     """The gate's own assertion, run as a test so `check-scripts` catches drift too."""
     assert crosscheck.check(REPO_ROOT) == []
+
+
+def test_every_registry_part_on_disk_is_read() -> None:
+    """A data file nobody added to `registry.py` is a set of couplings that gate nothing.
+
+    The registry lives in several files because the line cap keeps splitting it, and the only
+    thing joining them is one import list. Forgetting a line there empties a whole subject in
+    silence, which is the failure mode this scan exists to refuse, so the parts are discovered
+    from disk rather than from the same list that would be wrong.
+    """
+    parts = sorted(
+        path.stem
+        for path in (REPO_ROOT / "scripts").glob("*couplings.py")
+        if path.stem != "couplings"
+    )
+    assert parts, "the registry has no data files, which cannot be right"
+    read = set(crosscheck.CONSTANTS)
+    for part in parts:
+        name = part.removesuffix("couplings").upper() + "_COUPLINGS"
+        entries: tuple[couplings.Constant, ...] = getattr(import_module(part), name)
+        assert entries, f"{part} holds no entries"
+        assert set(entries) <= read, f"{part} is not read by registry.py"
 
 
 def test_every_registered_site_is_in_a_language_the_scan_knows() -> None:

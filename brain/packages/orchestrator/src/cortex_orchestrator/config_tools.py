@@ -28,6 +28,14 @@ from cortex_core import (
 ToolsBackendName = Literal["none", "mcp"]
 ToolsSalienceName = Literal["repeat", "off"]
 
+# Which salience rule a loop runs under when nothing overrides it. Named rather than spelled
+# inside the field below, because the base compose file ships the same answer as a substitution
+# default and `scripts/crosscheck.py` can only hold that to a declaration it can read. It stays
+# distinct from the ``"repeat"`` the policy builder compares against: that comparison asks which
+# rule was picked, not which one ships, and folding the two would make retuning the default
+# silently retarget the branch.
+DEFAULT_SALIENCE: ToolsSalienceName = "repeat"
+
 # What one `spawn_subagents` dispatch spends of a loop's dispatch budget (ADR-0009 cost
 # addendum). A quarter of `MAX_TOOL_DISPATCHES`, so a turn may delegate four times: the tool
 # takes a *batch* of instructions, so four dispatches is ample fan-out, while the flat price
@@ -90,7 +98,7 @@ class ToolsConfig(BaseSettings):
     gated: tuple[str, ...] = (ESCALATE_TOOL_NAME, "send_email")
     gate_reasons: dict[str, str] = {}
     costs: dict[str, int] = {}
-    salience: ToolsSalienceName = "repeat"
+    salience: ToolsSalienceName = DEFAULT_SALIENCE
     salience_limit: int = MAX_IDENTICAL_DISPATCHES
 
     @model_validator(mode="after")

@@ -76,7 +76,8 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   `endpoint: str = ""` (`CORTEX_INFERENCE_ENDPOINT`, the resident `llama-server` base
   URL). Validates that `llamacpp` has a non-empty `endpoint`. Echo is the GPU-less
   default (CI + no-GPU dev); `llamacpp` is opt-in, set by `docker/docker-compose.gpu.yml`.
-  `vision: "auto" | "on" | "off" = "auto"` (`CORTEX_VISION`, note the bare name rather than the
+  `vision: VisionMode = DEFAULT_VISION_MODE` (`"auto"`; `CORTEX_VISION`, note the bare name rather
+  than the
   prefix, ADR-0029) decides whether `capture_screen` is advertised: `auto` probes the running
   server, `on`/`off` fix the answer for CI, for a deterministic test, and for a user who
   wants capture off without editing compose. `stall_timeout_s: float = 120.0`
@@ -136,7 +137,8 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   the one with no confirmation gate ahead of it, whereas `send_email` is deliberately unpriced
   since its ADR-0022 confirmation is the tighter bound. A price outside `1..MAX_TOOL_DISPATCHES`
   fails at boot (free stops bounding the tool; unaffordable means it can never run).
-  `salience: "repeat" | "off" = "repeat"` (`CORTEX_TOOLS_SALIENCE`, ADR-0009 salience addendum)
+  `salience: ToolsSalienceName = DEFAULT_SALIENCE` (`"repeat"`; `CORTEX_TOOLS_SALIENCE`, ADR-0009
+  salience addendum)
   picks which calls a tool loop bothers dispatching: `repeat` refuses a call the loop has already
   made (once per round, twice per loop), `off` is the unfiltered loop. `salience_policy` maps the
   string to the core policy object (the `record_tainted_memory` precedent).
@@ -280,7 +282,8 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   direction, the brain as gRPC client of the host body's `BodyService`): `backend: "none" |
   "grpc" = "none"` (`CORTEX_BODY_BACKEND`), `endpoint: str = ""` (`CORTEX_BODY_ENDPOINT`, the
   host body's bind, `host.docker.internal:50151` from the dockerized brain), plus two
-  screen-capture knobs (ADR-0029): `capture_max_edge: int = 2048` and `max_image_bytes: int =
+  screen-capture knobs (ADR-0029): `capture_max_edge: int = DEFAULT_CAPTURE_MAX_EDGE` (2048) and
+  `max_image_bytes: int =
   MAX_IMAGE_BYTES` (6 MiB) are what the brain asks the body for **and** holds the reply to,
   since the body clamps both and an older body ignores both. The edge defaults above the body's
   own 1600 because the pixels are only worth sending when the model host's
@@ -288,6 +291,13 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   knows and the body does not; `0` still means "the body's own default".
   It lives in **`config_body.py`**, split off at `config.py`'s line cap the way `config_tools`,
   `config_subagents`, `config_reply` and `config_schedule` were.
+  **Four defaults across these settings modules are module constants rather than literals inside
+  their `Field(...)` or annotation** (`DEFAULT_CAPTURE_MAX_EDGE`, `DEFAULT_VISION_MODE`,
+  `DEFAULT_SALIENCE`, `DEFAULT_SCHEDULE_BACKEND`), because a compose file ships each one again as
+  a substitution default and `scripts/crosscheck.py` can only hold a restatement to a declaration
+  it can read (ADR-0029's compose-default survey addendum). Retune both or neither. The
+  `"repeat"` that `salience_policy` compares against is deliberately not that constant: the
+  comparison asks which rule was picked, not which one ships.
   `capture_timeout_s: float = DEFAULT_CAPTURE_TIMEOUT_S` (10.0) and `call_timeout_s: float =
   DEFAULT_CALL_TIMEOUT_S` (5.0) are the seam's two deadlines, **imported from
   `cortex_body_client`** rather than restated, since that package owns the calls. The first
@@ -305,7 +315,8 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   the shared `CORTEX_SEAM_TOKEN` (SeamServerConfig, not a `CORTEX_BODY_` var) authenticates the
   dial.
 - `ScheduleConfig` uses env prefix `CORTEX_SCHEDULE_` (`config_schedule.py`, ADR-0025): `backend:
-  "none" | "redis" = "none"` (off by default, with no store, no built-ins, no ticker, and the
+  ScheduleBackendName = DEFAULT_SCHEDULE_BACKEND` (`"none"`, off by default, with no store, no
+  built-ins, no ticker, and the
   reminder pull RPCs answer benignly empty), `poll_s: float = 5.0` (the ticker's pass
   interval), `lease_s: float = 300.0` (how long a claimed fire may run before it is
   re-claimable, so keep it above the slowest expected task), `claim_limit: int = 8` (one pass's

@@ -116,6 +116,15 @@ of the same name.
 
 **The roster.** `ModelHostConfig` (env-only) builds `TierArgs` values, `tier_spec` turns each into
 a `ModelSpec(model, port, argv)` via `llama_server_argv`, and `build_roster` indexes them.
+**Its defaults are module constants rather than literals inside the `Field(...)` calls**
+(`DEFAULT_NGL`, `DEFAULT_CORTEX_CTX_SIZE`, `DEFAULT_BRAIN_CTX_SIZE`, `DEFAULT_SUBAGENT_CTX_SIZE`,
+`DEFAULT_SUBAGENT_PARALLEL`, `DEFAULT_IMAGE_MAX_TOKENS`, `DEFAULT_NVIDIA_SMI`, beside the
+`DEFAULT_CORTEX_FILE` and the two tier ids that already were), because the GPU override spells
+every one of them again as a substitution default and always sets the variable: the substitution
+is what a composed deployment runs and the Python default is what it merely appears to run.
+`scripts/crosscheck.py` holds the two together, so retune both or neither. The two 8192s are
+separate constants on purpose, the deep tier's context and a subagent's being sized on different
+arguments.
 `CORTEX_MMPROJ_FILE_CORTEX` (ADR-0029) adds llama.cpp's `--mmproj` pair to the **cortex** tier's
 argv, which is the whole of the vision wiring on this side: the projector loads beside the model,
 and the brain then discovers the capability from the running server's `/props` rather than from a

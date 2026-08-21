@@ -1,13 +1,11 @@
 """The vocabulary the registry `crosscheck.py` reads is written in: what a coupling may say.
 
-Split out of the scan, which is all of the logic; the three files beside this one are all of the
-data, and they grow every time a coupling is found. `seamcouplings.py` holds the entries that tie
-one tree's code to another's across the language boundary; `shippedcouplings.py` the ones that tie a
-declared number to the compose default, the runbook or the module contract that restates it;
-`overlaycouplings.py` the ones that tie the overlay's TypeScript to its own stylesheet. Each moved
-out as the file it was in outgrew the 300-line cap, and `crosscheck.py` walks them as one registry.
-Each entry carries the reason its places must agree, printed with any failure, because a gate that
-says only "these differ" leaves the reader to rediscover why they must not.
+Split out of the scan, which is all of the logic; the `*couplings.py` files beside this one are all
+of the data, and they grow every time a coupling is found. Each moved out as the file it was in
+outgrew the 300-line cap, on a seam its own docstring had already drawn, and `registry.py` names
+them so `crosscheck.py` can walk them as one registry without knowing they are several. Each entry
+carries the reason its places must agree, printed with any failure, because a gate that says only
+"these differ" leaves the reader to rediscover why they must not.
 
 **Two kinds of far side**, and the difference is what a rename has to walk past:
 
