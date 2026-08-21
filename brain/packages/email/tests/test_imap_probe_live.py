@@ -31,6 +31,8 @@ import pytest
 from mailbox_contract import (
     MailboxUnderTest,
     a_folder_that_could_not_be_opened_is_not_reported_missing,
+    a_hierarchy_node_is_still_refused_when_a_caller_names_it,
+    a_listed_name_is_never_one_the_port_calls_unknown,
 )
 from pydantic import SecretStr
 
@@ -42,6 +44,9 @@ GUARDED_FOLDER = "Guarded"
 # A hierarchy node with a child and no mailbox of its own, which this server lists and then
 # refuses as missing. The Bridge's own \Noselect parents open instead.
 NOSELECT_PARENT = "Parent"
+# That node's child, which is a real mailbox and opens. It is what makes dropping the parent
+# lossless: the prefix is still on the list, spelled as part of a name that works.
+NODE_CHILD = "Parent/Child"
 # A name no mailbox has, and the shape of guess `FOLDER_HELP` warns a model against.
 INVENTED_FOLDER = "Nonexistent"
 # The one folder the probe leaves openable, so a run proves the login and the read path before
@@ -90,6 +95,7 @@ def test_a_mailbox_that_exists_and_will_not_open_is_never_reported_missing() -> 
             folder=GUARDED_FOLDER,
             refuse_searches=_nothing,
             break_folder_opening=_nothing,
+            hierarchy_node=NOSELECT_PARENT,
         )
     )
     with pytest.raises(MailboxError) as searched:
@@ -143,20 +149,30 @@ def test_the_folder_the_probe_leaves_open_still_opens() -> None:
 
 
 @pytest.mark.integration
-def test_a_listed_node_that_is_not_a_mailbox_is_refused_as_missing_here() -> None:
-    """Measured, and the one place the two servers disagree about a fact rather than a wording.
+def test_a_listed_node_that_is_not_a_mailbox_is_never_offered_as_a_folder() -> None:
+    """The fix, against the server that made it necessary, and the fact underneath it.
 
-    This server lists a Noselect parent and then answers a SELECT of it exactly as it answers a
-    name no mailbox has, so the port types it `FolderUnknownError` and sends the model to the
-    list that the name is on. The Bridge's own Noselect parents open instead, so the loop cannot
-    happen there. It is recorded rather than worked around because the refusal carries nothing
-    that could tell it apart: the fix is for `list_folders` to stop offering a name that is not
-    a mailbox, which is a change to another call.
+    This server's LIST answers with a Noselect parent and then refuses a SELECT of it exactly as
+    it refuses a name no mailbox has, so nothing in the refusal could tell them apart and the
+    filtering has to happen on the call that offers the names. `list_folders` drops it; naming it
+    anyway is still refused, because the name really is not a mailbox; and its child is offered
+    in its own right, so the tree stays reachable and only the unusable name is gone. The
+    Bridge's own Noselect parents open instead, which is why this is measured here.
+
+    The port's own two checks run over the live server rather than being restated, with the
+    fixture's knobs doing nothing: this server needs no arranging for any of it.
     """
     mailbox = probe_mailbox()
-    assert NOSELECT_PARENT in list(mailbox.list_folders())
-    with pytest.raises(FolderUnknownError):
-        mailbox.search(NOSELECT_PARENT, "ALL", 1)
+    under_test = MailboxUnderTest(
+        mailbox=mailbox,
+        folder=REAL_FOLDER,
+        refuse_searches=_nothing,
+        break_folder_opening=_nothing,
+        hierarchy_node=NOSELECT_PARENT,
+    )
+    a_listed_name_is_never_one_the_port_calls_unknown(under_test)
+    a_hierarchy_node_is_still_refused_when_a_caller_names_it(under_test)
+    assert NODE_CHILD in list(mailbox.list_folders())
 
 
 @pytest.mark.integration

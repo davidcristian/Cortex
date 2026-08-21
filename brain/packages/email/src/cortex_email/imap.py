@@ -6,6 +6,10 @@ server never marks the folder touched) and fetches never set the Seen flag
 connection (the Bridge is local) so the server holds no IMAP state. Real network I/O means the
 live test hits a real Bridge; CI covers the mapping over a fake imap-tools ``MailBox``.
 
+`list_folders` answers with names that are mailboxes and not with every name the server lists:
+a server may list a name that is only a node in the hierarchy, and a caller given one would be
+refused in the words that prove a folder missing (ADR-0022 hierarchy-node addendum).
+
 No exception of the IMAP stack crosses the port (ADR-0022 refused-search addendum): whatever
 imap-tools, imaplib or the socket raises is wrapped as `MailboxError`, and the two failures a
 model can act on get their own types, a search the server answered ``BAD`` as
@@ -63,6 +67,16 @@ def _translated(action: str) -> Generator[None, None, None]:
 # is shut with ``[NOPERM] Permission denied``, which is none of these.
 _FOLDER_MISSING_ANSWERS = ("no such mailbox", "mailbox doesn't exist", "[nonexistent]")
 
+# The LIST attributes by which a server says the name it just listed is not a mailbox: RFC 3501's
+# ``\Noselect`` for a name that exists only as a point in the hierarchy, and RFC 5258's
+# ``\NonExistent`` for the same fact in the newer spelling that LIST-EXTENDED introduced. A name
+# so flagged is dropped from `list_folders` (ADR-0022 hierarchy-node addendum), because a
+# SELECT of one is refused in the same words that prove a folder missing: Dovecot 2.3.21 lists a
+# ``\Noselect`` parent and then answers ``Mailbox doesn't exist: Parent``, so offering the name
+# would send a model to `list_folders` over a name it read off `list_folders`. Its children are
+# listed in their own right, so the tree is still reachable and only the unusable name is gone.
+_NOT_A_MAILBOX = frozenset({"\\noselect", "\\nonexistent"})
+
 
 def _select(box: BaseMailBox, folder: str) -> None:
     """Open ``folder`` read-only (EXAMINE), saying which of the two things a refusal means.
@@ -83,6 +97,16 @@ def _select(box: BaseMailBox, folder: str) -> None:
         if any(said in answer for said in _FOLDER_MISSING_ANSWERS):
             raise FolderUnknownError(folder) from err
         raise
+
+
+def _is_hierarchy_node(flags: Sequence[str]) -> bool:
+    """Whether the LIST attributes a server sent with a name say that name is not a mailbox.
+
+    Case-folded because the attribute is an IMAP atom and no server's casing is promised, and
+    read off the `FolderInfo` imap-tools already builds, which carries the server's own flags
+    beside the name.
+    """
+    return any(flag.lower() in _NOT_A_MAILBOX for flag in flags)
 
 
 def _search_failure(query: str, err: IMAP4.error) -> MailboxError:
@@ -123,9 +147,15 @@ class ImapMailbox:
         return box.login(self._config.user, self._config.password.get_secret_value())
 
     def list_folders(self) -> Sequence[str]:
-        """List the mailbox folder names."""
+        """List the names that really are mailboxes, dropping the hierarchy's bare nodes.
+
+        Every name here is one `search` and `fetch` may be given, which is what `FOLDER_HELP`
+        promises a model outright; a name the server flagged unselectable is not one of those
+        and never reaches a caller.
+        """
         with _translated("list the folders"), self._open() as box:
-            return [folder.name for folder in box.folder.list()]
+            listed = box.folder.list()
+            return [folder.name for folder in listed if not _is_hierarchy_node(folder.flags)]
 
     def search(self, folder: str, query: str, limit: int) -> Sequence[RawEmail]:
         """Fetch message headers for the folder's messages matching ``query`` (read-only).

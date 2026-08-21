@@ -1181,3 +1181,71 @@ suite; classifying every select failure as missing reds two of that unit suite (
 contract check on the `imap` arm) and one live test, at the contract's own assertion; and granting
 the guarded mailbox full rights in the fixture, which is the measurement's own premise rather than
 the code's, reds exactly the live test that says a listed mailbox refused to open.
+
+## Addendum (2026-08-21): `list_folders` offers mailboxes, not every name a server lists
+
+The addendum above measured a thing it did not fix: this server's LIST answers with `Parent`, a
+node that exists only because `Parent/Child` does, and then refuses a SELECT of it with `Mailbox
+doesn't exist: Parent`, word for word what it answers for a name no mailbox ever had. The refusal
+carries nothing that tells the two apart, so the classification cannot be the place this is fixed;
+a model handed the name is told the folder does not exist and told to read `list_folders`, which
+is exactly where it got the name. That is the loop the fail-safe direction exists to prevent,
+arriving from the list rather than from the refusal.
+
+**The flags survive.** imap-tools does not throw the LIST attributes away: `folder.list()` returns
+a `FolderInfo` per name with `name`, `delim` and `flags`, and the adapter was reading `.name`
+alone. Measured against the running probe, verbatim:
+
+    FolderInfo(name='Guarded', delim='/', flags=('\\HasNoChildren',))
+    FolderInfo(name='Parent', delim='/', flags=('\\Noselect', '\\HasChildren'))
+    FolderInfo(name='Parent/Child', delim='/', flags=('\\HasNoChildren',))
+    FolderInfo(name='INBOX', delim='/', flags=('\\HasNoChildren',))
+
+So the fact is available at the one place it is needed, and the decision is only what to do with
+it.
+
+**Decision: omit, rather than mark.** Two shapes were weighed. Carrying selectability across the
+port would let a caller see the tree as the server sees it, and it is the wider change: the port
+returns `Sequence[str]` today, so marking means a folder value crossing it, a new field for every
+implementation to fill, and a rendering decision in the MCP tool. Omitting keeps the port's shape
+and makes it say something stronger, which is what its only consumer actually needs. That consumer
+is a model choosing a folder to read, `FOLDER_HELP` already promises it "one folder name spelled
+exactly as `list_folders` returned it", and a name that cannot be opened is not one of those. The
+usual argument for keeping the node, that its name is a useful prefix, does not survive contact
+with the measurement: `Parent/Child` is listed in its own right and carries the prefix inside a
+name that works, so nothing about the tree becomes unreachable. `ImapMailbox.list_folders` drops
+any name whose flags include `\Noselect` or `\NonExistent`, read case-folded, the second being RFC
+5258's spelling of the same fact for a server that speaks LIST-EXTENDED.
+
+**What omitting costs, said plainly.** The Bridge lists two `\Noselect` parents, `Folders` and
+`Labels`, and both of them open there, so this filter withholds from a model two names that would
+have worked on that one server. Their children are listed under them exactly as `Parent/Child` is,
+so nothing is unreachable; what is lost is the ability to search a container whose only content is
+its children. That is worth less than the loop, and the alternative, selecting each listed name to
+find out, is a round trip per folder on every listing. It is measured nowhere yet, so it is filed
+as its own task rather than asserted to be harmless.
+
+**It is a port change even so, and the contract carries it.** What changed is the port's promise
+rather than its signature: every name `list_folders` answers with is a name the other two calls
+may be given. `mailbox_contract.py` states it in two checks the fake, the adapter over its
+stand-in, and the live probe all run. The first walks the offered list and fails if any name comes
+back `FolderUnknownError`. The second says the honest other half: naming the node anyway is still
+refused, because it still is not a mailbox, which is what keeps this a correction to the list
+rather than to the classification. A hierarchy node is the third condition of a real server that
+no method can arrange, so it joins the two refusal knobs as a field of `MailboxUnderTest` that
+each fixture is built over rather than as something a check switches on.
+
+**The fail-safe classification does not move.** A refusal that cannot be proved to name a missing
+folder is still the base `MailboxError`; the guarded mailbox is still listed and still refused
+without being called missing. Nothing in `_select` changed.
+
+**Validation.** `just check` green, its output captured to a file. The live probe suite is five
+integration-marked tests against the running Dovecot 2.3.21, run through `just up-imap-probe`,
+`just email-folder-probe` and `just down-imap-probe`; the node test now asserts the fix, running
+both new contract checks over the live server and then asserting the child is still offered. Two
+mutations were run over the email package's unit suite (103 tests) and the probe's live suite (5),
+each reverted and re-read off disk: making `list_folders` keep every listed name reds two of the
+unit suite (the newer-spelling test and the contract check on the `imap` arm) and one live test,
+and making the fake stop filtering reds one, the same contract check on the `fake` arm, which is
+what proves the check is a statement about each implementation rather than about the adapter
+alone.
