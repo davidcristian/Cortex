@@ -976,3 +976,149 @@ decide it: a limit of 1 refuses, the shipped 2 admits.
 
 **What this does not settle.** Nothing has measured 2 as wrong. The knob exists so a deployment
 that measures it can act without a code change, and the number in the tree is unchanged.
+
+## Addendum (2026-08-21): the audit trail names the work each call was made for
+
+Every dispatched call has written one line since this ADR landed, and until now none of them said
+whose work it was. `LoggingAuditSink` printed `tool`, `ok`, `arguments`, `trust`, `at` and either
+`result_chars` or `error`, so the durable record of what this machine did on a user's behalf could
+be read tool by tool and never turn by turn. The named-turn addendum in
+[ADR-0038](ADR-0038-ranked-recall.md) gave a failed turn a line that names itself and recorded, in
+its decision 3, that half the value of doing so is the join to these lines, which did not exist.
+This is that join, filed as
+[R-342](../refinements/tasks/342-the-audit-trail-cannot-name-the-turn.md).
+
+### Re-derived first, and the entry's cheapest claim is the one that was wrong
+
+The entry said `ToolDispatcher._audited` "already holds everything it needs", so the change was a
+field on `ToolInvocation` and a line in the sink. Half of that is true. The dispatcher overwrites
+every call's stamp before any branch can return, so `_audited` really does hold the calling turn's
+`TurnStamp` on the refusal, gate-denial and served paths alike. But that stamp carried
+`session_id`, `tainted`, `sources` and three live handles, and **no turn id at all**: the turn id
+lives on `ToolLoopContext`, which builds the stamp, and the stamp never took it. So the identity
+the trail was missing was missing from the value the trail would have read it off, and the change
+is a stamp field before it is an audit field.
+
+The delegation half was further away still. A subagent's own tool loop dispatches through the same
+dispatcher with `turn_id=task.id`, and the spawning turn's id reached neither the runner nor the
+attempt: `SpawnSubagentsTool` reads `tainted`, `budget` and `progress` off the stamp and passes the
+last two down as parameters, and nothing carried a turn.
+
+### Decision 1: a field per kind, and the names are the ones the log stream already spells
+
+The line gains three identities, not one: `session_id`, `turn_id`, `task_id`. `turn_id` is the
+conversation turn the dispatch was made for; `task_id` is the subagent task it was made inside;
+each is empty when the dispatch had none, so a turn's own call names no task and the schedule
+ticker's fire names no turn.
+
+The alternative was one field named for the unit of work, empty for an unattributed caller, which
+is cheaper and makes the trail greppable by one key. It was rejected on three counts, in ascending
+order of weight.
+
+The value it prints is a turn id for two of the three dispatch callers and a task id for the
+third, so the key would need a name meaning "turn or task" and every reader would have to look at
+another field to learn which they were holding. The trail is the record read when something has
+already gone wrong, and a field whose meaning varies by row is the wrong thing to hand that
+reader.
+
+The name would also be new. `turn_id` already means a conversation turn on every line in the brain
+that prints one: the three mid-turn failure lines in `converse_stream`, the engine's own
+cortex-cut warning, and the forgone-recall warning. Under `CORTEX_LOG_FORMAT=packed` a field name
+is a path (`jq .fields.turn_id`), so spelling the same fact under a different key on the one trail
+meant to join to those lines is a real cost rather than a cosmetic one.
+
+And the decisive one: a single field would make a subagent's dispatches name an identifier that
+resolves against nothing a reader can reach. A task id is minted by `uuid4` inside the spawn tool
+and printed on no other log line in the tree (the GPU-to-CPU re-place warning carries one, and only
+when a re-place happens), so the reading "what did this turn's subagents do?" would need the
+`TaskStore`, whose records expire in an hour. Two fields put the answer on the line itself, which
+is the whole claim the trail makes: it outlives the process, and every id it prints resolves
+against another line or against a store that keeps one.
+
+### Decision 2: the line takes the stamp's identities, not the stamp
+
+[R-233](../refinements/tasks/233-toolinvocation-audit-stamp.md) recorded this as "the audit line
+gains the stamp", and it does not. `TurnStamp` carries the
+turn's dispatch pool, its progress channel and its handoff slot, all live handles excluded from
+equality precisely because they are not values. A `ToolInvocation` is a value that outlives the
+process that wrote it, so a record holding a live pool is a record no durable sink could ever write
+down. It takes the three strings and leaves the handles behind.
+
+### Decision 3: the spawning turn reaches a subagent through its stored task
+
+`SubagentTask` gains `session_id` and `turn_id`, written by `SpawnSubagentsTool` off the dispatch
+stamp and read back by the attempt when it builds its loop context. The alternative was to thread
+the turn id down `SubagentRunner.run` and `PlacedAttempt.run` as a third keyword beside `budget`
+and `progress`.
+
+Those two are threaded rather than stored because they are live handles a store cannot hold. A turn
+id is a value, and a subagent is a stateless function over the `TaskStore` (the one hard rule): the
+runner loads its task by id and every other thing it must know to run safely, the requested model
+and the spawning turn's taint, already rides that record for exactly this reason. An attribution
+that lived only in a parameter would be the one fact about the work that a re-read could not
+recover. The trigger on
+[R-232](../refinements/tasks/232-subagenttask-session-attribution.md) was "a subagent-reachable
+consumer of the attribution exists", and the audit trail is that consumer.
+
+This widens what a subagent's dispatch stamp carries: its calls now name the spawning chat where
+they used to name none. Nothing but the audit sink reads it today, because a subagent holds only
+the MCP subset and none of the built-ins that read a stamp's session, and the widening is in the
+honest direction for the day one of them does.
+
+### Decision 4: an id the dispatch does not have is left off the line
+
+The sink prints each identity only when it has one. An empty `turn_id=` reads as a value that went
+missing, where absence reads as what it is: a call nothing conversational was waiting on. This
+matches how the stamp has always spelled an unattributed caller, and how the sink already prints
+`result_chars` or `error` and never both.
+
+### What did not change, deliberately
+
+The message stays a bare `tool.invocation`, the arguments stay the audit's subject, a success
+still logs its result size rather than its content, and no user text joins any line. A subagent's
+own working messages are still grouped under its task rather than under the turn that spawned it,
+which the loop context now says outright: the two identities it is audited under are fields, and
+what its messages are stamped with is `unit_id`, the work they belong to.
+
+### Distrust green
+
+Eight mutations, each applied to production code alone with the whole brain suite re-run, then
+restored and read back off disk:
+
+| Mutation | Reddens |
+| --- | --- |
+| the loop's stamp drops the turn id | 3 |
+| the loop's stamp drops the task id | 2 |
+| the dispatcher stops copying the three identities onto the record | 8 |
+| the sink stops printing them | 2 |
+| the sink prints them empty rather than leaving them off | 3 |
+| the spawn tool stops writing the attribution onto the task | 2 |
+| the Redis task record forgets the attribution it was handed | 1 |
+| a subagent's messages regroup under the spawning turn | 1 |
+
+The fourth row reddens two of the sink's three cases and not the third, which is the point of the
+third: it asserts the ids are **absent** from an unattributed line, so a sink that prints nothing
+satisfies it truthfully, and the fifth row is what that case is there to catch. The seventh is the
+narrowest and the one worth having: it reddens only the Redis arm of the task-store contract, the
+fake having nothing to serialize, which is exactly the asymmetry a contract test exists to catch.
+
+### Consequences
+
+- A turn's tool calls, its subagents' tool calls, and its own failure line all carry the same
+  `turn_id`, so the trail reads turn by turn and the join the named-turn addendum half-built is
+  whole.
+- A delegated call names both its task and the turn that spawned it, so delegation is readable
+  without the task store.
+- A scheduled fire's dispatches name the chat that scheduled the item, which the ticker had been
+  stamping honestly and nothing had been reading.
+- The audit line grows from six fields to at most nine, all three additions being short ids.
+- The two attribution deferrals that were waiting on a consumer are closed by this change rather
+  than by a separate one.
+
+### Deferred by this addendum
+
+The dispatched call's own id still reaches no line, which is also the only place a fired schedule
+item's identity appears:
+[R-352](../refinements/tasks/352-a-dispatch-names-no-call.md). And the trail is now worth querying
+and has nowhere to be queried, `ToolAuditSink` having exactly one adapter:
+[R-353](../refinements/tasks/353-a-trail-worth-querying-has-no-store.md).

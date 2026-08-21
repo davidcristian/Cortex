@@ -378,7 +378,7 @@ async def test_the_dispatch_stamp_carries_the_sources_the_turn_has_read() -> Non
     registry = _StampRecordingRegistry(trust=Trust.UNTRUSTED)
     await _run(_MultiCallBackend(per_round=1), _stamp_context(registry))
     assert len(registry.stamps) == MAX_TOOL_STEPS
-    assert registry.stamps[0] == TurnStamp(session_id="s", tainted=False, sources=())
+    assert registry.stamps[0] == TurnStamp(session_id="s", turn_id="t-1", tainted=False, sources=())
     via_noop = (Provenance(SourceKind.TOOL, "noop"),)
     assert all(stamp.sources == via_noop for stamp in registry.stamps[1:])
 

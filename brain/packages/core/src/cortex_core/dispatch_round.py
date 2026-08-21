@@ -40,7 +40,13 @@ class ToolLoopContext:
     argument ceiling. ``dispatcher`` is the audited tool gateway (``None`` = a no-tools turn);
     ``taint`` is the turn-local ledger the loop marks on each untrusted result; ``nonce`` fences
     those results; ``session_id`` is the originating chat the loop stamps onto each dispatch
-    (ADR-0027; ``""`` for a session-less caller, e.g. a subagent); ``schema`` (ADR-0028), when
+    (ADR-0027; ``""`` for a caller with no chat behind it); ``turn_id`` is the conversation turn
+    this loop serves and ``task_id`` the subagent task it is running, the pair the audit trail
+    names each dispatch's work by (ADR-0009 named-work addendum). A turn's loop sets the first
+    and leaves the second empty; a subagent's sets the second and takes the first off its stored
+    task, so a delegated call names both its task and the turn that spawned it, and a
+    ticker-rooted run honestly names no turn. What this loop's own messages are grouped under is
+    neither field but ``unit_id`` below, the work they belong to; ``schema`` (ADR-0028), when
     set, constrains the model's output to that JSON Schema (a constrained tool-less subagent
     envelope; ``None`` for the cortex and every tool-enabled path); ``bounds`` (ADR-0005
     total-cap addendum), when set, caps how far **each** of the loop's completions may decode,
@@ -81,6 +87,7 @@ class ToolLoopContext:
     taint: TaintLedger
     nonce: str
     session_id: str
+    task_id: str = ""
     schema: JsonSchema | None = None
     bounds: GenerationBounds | None = None
     budget: DispatchBudget = field(default_factory=DispatchBudget)
@@ -88,6 +95,18 @@ class ToolLoopContext:
     escalation: EscalationSlot | None = None
     cadence: CadenceWatch | None = None
     stops: StopLedger | None = None
+
+    @property
+    def unit_id(self) -> str:
+        """The id this loop's own messages are grouped under: its task, else the turn it serves.
+
+        ``Message.turn_id`` groups a user message with the reply it produced, and for a subagent
+        the group is its task rather than the conversation turn that spawned it (its messages are
+        its own working list and never join a chat's history). Derived rather than a field of its
+        own, so the two identities a dispatch is audited under stay the plain facts they are and
+        no call site has to restate one of them under a third name.
+        """
+        return self.task_id or self.turn_id
 
 
 def _refused_by(
@@ -130,7 +149,10 @@ def _stamp(context: ToolLoopContext) -> TurnStamp:
     """What the dispatching turn hands one call, built fresh per dispatch (ADR-0027).
 
     Fresh rather than hoisted because the taint bit is live and can flip mid-round as untrusted
-    results arrive, and the sources behind it grow with it. The budget, the progress channel and
+    results arrive, and the sources behind it grow with it. The identities beside it are fixed
+    for the whole loop and ride the same value, so the audit line and the tool that spawns
+    further work read the work this call was made for from one place (ADR-0009 named-work
+    addendum). The budget, the progress channel and
     the escalation slot are live shared handles that travel to whatever the call spawns: a
     subagent draws from the turn's remaining allowance instead of a fresh one, surfaces its own
     steps onto this turn's overlay while the loop is suspended inside the dispatch, and the
@@ -138,6 +160,8 @@ def _stamp(context: ToolLoopContext) -> TurnStamp:
     """
     return TurnStamp(
         session_id=context.session_id,
+        turn_id=context.turn_id,
+        task_id=context.task_id,
         tainted=context.taint.tainted,
         sources=context.taint.sources,
         budget=context.budget,
@@ -219,5 +243,5 @@ async def run_round(
             result, source=as_source(SourceKind.TOOL, None if spec is None else spec.name)
         )
         working.append(
-            result_message(result, context.clock.now(), context.turn_id, nonce=context.nonce)
+            result_message(result, context.clock.now(), context.unit_id, nonce=context.nonce)
         )

@@ -238,11 +238,13 @@ class ScheduleTicker:
 
         The dispatch stamp carries the item's stored provenance (ADR-0018/0027): its taint,
         so a tainted item's subagent is pinned to the injection-robust model by the roster
-        (ADR-0017), and its origin ``session_id`` (honest provenance on the dispatch; no
-        stamp reader consumes it on this path until the ADR-0027 SubagentTask-attribution
-        deferral lands). The result's trust is the fire-time taint the store ORs onto the
-        item. A clean-created task whose subagent read untrusted content cannot launder it
-        into a trusted listing.
+        (ADR-0017), and its origin ``session_id``, which the spawn tool now writes onto each
+        task and the audit trail prints, so a fired item's delegated tool calls name the chat
+        that scheduled them (ADR-0009 named-work addendum). The stamp names no turn, because a
+        fire is not one: nothing conversational is waiting on it, so the trail says so by
+        leaving the field off rather than by borrowing an id. The result's trust is the
+        fire-time taint the store ORs onto the item. A clean-created task whose subagent read
+        untrusted content cannot launder it into a trusted listing.
         """
         if self._spawn is None:
             return _NO_RUNNER_OUTCOME, False

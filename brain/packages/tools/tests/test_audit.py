@@ -77,3 +77,79 @@ async def test_trusted_invocation_logs_its_trust_stamp(
     (record,) = caplog.records
     assert record.__dict__["trust"] == "trusted"
     assert "trust=trusted" in _line(record)
+
+
+async def test_the_line_names_the_work_the_call_was_made_for(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The join an operator makes (ADR-0009 named-work addendum), under the names it is made by.
+
+    The three ids are printed under exactly the field names the rest of this repo's log lines
+    spell them with, so grepping a failed turn's `turn_id` reaches the tool calls that preceded
+    it and a delegated call names both its task and the turn that spawned it.
+    """
+    caplog.set_level(logging.INFO, logger="cortex.tools.audit")
+    await LoggingAuditSink().record(
+        ToolInvocation(
+            name="read",
+            arguments={},
+            ok=True,
+            detail="hi",
+            at=_AT,
+            session_id="s-1",
+            turn_id="t-1",
+            task_id="st-1",
+        )
+    )
+    (record,) = caplog.records
+    assert _line(record) == (
+        "INFO:cortex.tools.audit:tool.invocation "
+        "arguments={} at=2026-07-03T12:00:00+00:00 ok=True result_chars=2 session_id=s-1 "
+        "task_id=st-1 tool=read trust=untrusted turn_id=t-1"
+    )
+
+
+async def test_an_unattributed_call_leaves_the_ids_off_the_line(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Absence, not an empty value: the ticker's own dispatch has no chat, turn or task, and
+    a printed `turn_id=` would read as a value that went missing rather than as no such thing.
+    """
+    caplog.set_level(logging.INFO, logger="cortex.tools.audit")
+    await LoggingAuditSink().record(
+        ToolInvocation(name="read", arguments={}, ok=True, detail="hi", at=_AT)
+    )
+    (record,) = caplog.records
+    fields = record.__dict__
+    assert "session_id" not in fields
+    assert "turn_id" not in fields
+    assert "task_id" not in fields
+    assert _line(record) == (
+        "INFO:cortex.tools.audit:tool.invocation "
+        "arguments={} at=2026-07-03T12:00:00+00:00 ok=True result_chars=2 tool=read "
+        "trust=untrusted"
+    )
+
+
+async def test_a_turnless_caller_still_names_the_chat_it_fired_for(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The schedule ticker's shape: a fired item has the chat that scheduled it and no turn,
+    so the line carries the one it has and stays silent about the one it does not.
+    """
+    caplog.set_level(logging.INFO, logger="cortex.tools.audit")
+    await LoggingAuditSink().record(
+        ToolInvocation(
+            name="spawn_subagents",
+            arguments={},
+            ok=True,
+            detail="done",
+            at=_AT,
+            session_id="chat-1",
+        )
+    )
+    (record,) = caplog.records
+    line = _line(record)
+    assert "session_id=chat-1" in line
+    assert "turn_id" not in line
+    assert "task_id" not in line

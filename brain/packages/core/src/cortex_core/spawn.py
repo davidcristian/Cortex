@@ -172,11 +172,14 @@ class SpawnSubagentsTool:
     async def invoke(self, call: ToolCall) -> ToolResult:
         """Persist each subtask, run the subagents concurrently, and aggregate their results.
 
-        Each task carries the requested model and the spawning turn's taint (the dispatcher's
-        stamp on ``call``) so the runner resolves it safely from the store alone (ADR-0018);
-        the same stamp carries the turn's dispatch budget, which every spawned run shares, and
-        the stream's ``progress`` sink (``None`` off an overlay-less caller, e.g. the ticker),
-        which the batch's scale and each subagent's tool steps surface onto (ADR-0010 progress
+        Each task carries the requested model, the spawning turn's taint, and that turn's own
+        attribution (its chat and its turn id, both ``""`` off a turn-less caller like the
+        ticker), all four read from the dispatcher's stamp on ``call``, so the runner resolves it
+        safely and audits it honestly from the store alone (ADR-0018, ADR-0009 named-work
+        addendum). The same stamp carries the turn's dispatch budget, which every spawned run
+        shares, and the stream's ``progress`` sink (``None`` off an overlay-less caller, e.g. the
+        ticker), which the batch's scale and each subagent's tool steps surface onto (ADR-0010
+        progress
         addendum). The sink rides the stamp per call rather than an instance field, so this one
         shared tool serves every stream without a per-stream slot to leak across turns.
         The aggregate is UNTRUSTED iff any subagent consumed untrusted content, so a subagent
@@ -194,6 +197,8 @@ class SpawnSubagentsTool:
                 at=self._clock.now(),
                 model=item.model,
                 tainted=call.stamp.tainted,
+                session_id=call.stamp.session_id,
+                turn_id=call.stamp.turn_id,
             )
             for item in parsed
         ]

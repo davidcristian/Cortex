@@ -53,6 +53,13 @@ def test_tool_spec_defaults_to_ungated() -> None:
     assert _spec("read").gated is False
 
 
+def test_tool_invocation_names_no_work_by_default() -> None:
+    # The unattributed line (ADR-0009 named-work addendum): a record built without the
+    # dispatcher's stamp says which tool ran and claims nothing about whose work it was.
+    record = ToolInvocation(name="read", arguments={}, ok=True, detail="x", at=_AT)
+    assert (record.session_id, record.turn_id, record.task_id) == ("", "", "")
+
+
 def test_tool_invocation_defaults_to_untrusted_provenance() -> None:
     assert ToolInvocation(name="read", arguments={}, ok=True, detail="x", at=_AT).trust is (
         Trust.UNTRUSTED
@@ -125,3 +132,17 @@ def test_a_stamps_sources_are_part_of_its_value() -> None:
     source = Provenance(SourceKind.TOOL, "read_email")
     assert TurnStamp(tainted=True, sources=(source,)) != TurnStamp(tainted=True)
     assert TurnStamp(tainted=True, sources=(source,)) == TurnStamp(tainted=True, sources=(source,))
+
+
+def test_a_stamp_names_neither_turn_nor_task_by_default() -> None:
+    # `UNSTAMPED` is the unattributed dispatch (ADR-0009 named-work addendum): no chat, no
+    # turn, no task, so a caller that has none records absence rather than a borrowed id.
+    assert (TurnStamp().session_id, TurnStamp().turn_id, TurnStamp().task_id) == ("", "", "")
+
+
+def test_a_stamps_identities_are_part_of_its_value() -> None:
+    # Facts about the work, not live handles, so they are compared like `sources` and unlike
+    # the pool: two dispatches of different turns are not one another's stamp.
+    assert TurnStamp(turn_id="t-1") != TurnStamp(turn_id="t-2")
+    assert TurnStamp(task_id="st-1") != TurnStamp()
+    assert TurnStamp(turn_id="t-1", task_id="st-1") == TurnStamp(turn_id="t-1", task_id="st-1")

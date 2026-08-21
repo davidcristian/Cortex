@@ -261,7 +261,13 @@ class ToolDispatcher:
         return await self._confirmer.confirm(request)
 
     async def _audited(self, call: ToolCall, result: ToolResult) -> ToolResult:
-        """Record one audit line (with the result's provenance) and return the result."""
+        """Record one audit line (its provenance and the work it was for) and return the result.
+
+        The three identities come off the call's own stamp, which ``dispatch`` overwrote with
+        the caller's before any branch above could return, so a refusal, a gate denial and a
+        served call all name their work the same way (ADR-0009 named-work addendum). A model
+        can no more forge them than it can forge the taint bit, for the same reason.
+        """
         await self._audit.record(
             ToolInvocation(
                 name=call.name,
@@ -270,6 +276,9 @@ class ToolDispatcher:
                 detail=result.content,
                 at=self._clock.now(),
                 trust=result.trust,
+                session_id=call.stamp.session_id,
+                turn_id=call.stamp.turn_id,
+                task_id=call.stamp.task_id,
             )
         )
         return result

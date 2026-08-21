@@ -501,3 +501,70 @@ def test_the_policy_freezes_the_gate_reasons_it_was_handed() -> None:
     policy = DispatchPolicy(gate_reasons=reasons)
     reasons["send"] = "after"
     assert policy.gate_reasons["send"] == "before"
+
+
+async def test_the_audit_line_names_the_work_the_call_was_made_for() -> None:
+    # The trail's own reading (ADR-0009 named-work addendum): a line says which chat, which
+    # turn and which subagent task the call was dispatched for, all three off the stamp the
+    # dispatcher put on the call, so the record outlives the process holding any of them.
+    sink = RecordingAuditSink()
+    registry = InMemoryToolRegistry({"read": (_spec("read"), _ran)})
+    await _dispatcher(registry, sink).dispatch(
+        ToolCall(id="c", name="read", arguments={"path": "/p"}),
+        stamp=TurnStamp(session_id="s-1", turn_id="t-1", task_id="st-1"),
+    )
+    (record,) = sink.records
+    assert (record.session_id, record.turn_id, record.task_id) == ("s-1", "t-1", "st-1")
+
+
+async def test_an_unattributed_dispatch_records_no_work() -> None:
+    # The ticker's own dispatch and any direct caller: the line says nothing rather than
+    # borrowing an id, exactly as `TurnStamp.session_id` has always left the chat empty.
+    sink = RecordingAuditSink()
+    registry = InMemoryToolRegistry({"read": (_spec("read"), _ran)})
+    await _dispatcher(registry, sink).dispatch(
+        ToolCall(id="c", name="read", arguments={"path": "/p"})
+    )
+    (record,) = sink.records
+    assert (record.session_id, record.turn_id, record.task_id) == ("", "", "")
+
+
+async def test_a_refused_call_is_named_like_every_other_dispatch() -> None:
+    # The refusal returns before the gate and before the registry, so it is the path that
+    # would lose the attribution if the stamp were applied any later than it is. A refused
+    # call is exactly the one an operator reconstructs a runaway turn from.
+    sink = RecordingAuditSink()
+    await _outbound(sink, None).dispatch(
+        ToolCall(id="c", name="send", arguments={"path": "/p"}),
+        stamp=TurnStamp(session_id="s-2", turn_id="t-2"),
+        refusal=DispatchRefusal.BUDGET,
+    )
+    (record,) = sink.records
+    assert (record.ok, record.session_id, record.turn_id) == (False, "s-2", "t-2")
+
+
+async def test_a_gate_denial_is_named_too() -> None:
+    # And the other early return: a gated call on a tainted turn never reaches the tool, so
+    # its line is the only trace that the turn asked for the action at all.
+    sink = RecordingAuditSink()
+    await _outbound(sink, None).dispatch(
+        ToolCall(id="c", name="send", arguments={"path": "/p"}),
+        stamp=TurnStamp(session_id="s-3", turn_id="t-3", tainted=True),
+        gated=True,
+    )
+    (record,) = sink.records
+    assert (record.detail, record.session_id, record.turn_id) == (DENIED_MSG, "s-3", "t-3")
+
+
+async def test_a_model_cannot_forge_the_work_its_call_is_audited_under() -> None:
+    # The stamp on the call is overwritten at dispatch (ADR-0018/0027), so a model that wrote
+    # a stamp of its own cannot attribute its call to another turn or launder it into none.
+    sink = RecordingAuditSink()
+    registry = InMemoryToolRegistry({"read": (_spec("read"), _ran)})
+    forged = TurnStamp(session_id="victim", turn_id="t-elsewhere", task_id="st-elsewhere")
+    await _dispatcher(registry, sink).dispatch(
+        ToolCall(id="c", name="read", arguments={"path": "/p"}, stamp=forged),
+        stamp=TurnStamp(session_id="s-4", turn_id="t-4"),
+    )
+    (record,) = sink.records
+    assert (record.session_id, record.turn_id, record.task_id) == ("s-4", "t-4", "")

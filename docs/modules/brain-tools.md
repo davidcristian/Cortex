@@ -54,7 +54,12 @@ source of audited, model-callable tools.
   large or sensitive); a failure logs the short error detail; both log the tool name,
   arguments, the result's `trust` provenance (so "did this turn read untrusted content?"
   is answerable from the durable trail alone, per ADR-0013 decision 2), and timestamp (the
-  AGENTS.md audit gate). All of it rides the record as `extra` and reaches the line through the
+  AGENTS.md audit gate). A line also names the work it was for, `session_id`, `turn_id` and
+  `task_id` off the dispatch's stamp, under the field names the rest of the brain's log lines
+  spell them with, so the trail reads turn by turn and a delegated call names both its task and
+  the turn that spawned it (ADR-0009 named-work addendum). An id the dispatch did not have is
+  left off the line rather than printed empty, absence being the honest rendering of a caller
+  with no chat, turn or task behind it. All of it rides the record as `extra` and reaches the line through the
   process entry's formatter (ADR-0038 rendered-fields addendum); the sink used to serialize its
   own JSON copy into the message because the shipped handler printed no `extra`, and no longer
   does, so the trail now depends on that formatter being installed.

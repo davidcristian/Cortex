@@ -227,6 +227,20 @@ async def test_task_fires_as_a_spawn_dispatch_and_records_the_outcome() -> None:
     assert loaded.due_at == _NOW + timedelta(hours=1)
 
 
+async def test_a_fires_audit_line_names_the_chat_and_no_turn() -> None:
+    # The ticker is the dispatch caller with no turn behind it (ADR-0009 named-work addendum).
+    # Its line carries the chat that scheduled the item, because that is a real attribution the
+    # store kept, and stays silent about a turn, because nothing conversational is waiting.
+    store = InMemoryScheduleStore()
+    sink = RecordingAuditSink()
+    spawn = FakeSpawnTool()
+    dispatcher = ToolDispatcher(CompositeToolRegistry([spawn]), sink, FixedClock())
+    await store.add(_item("t1", kind=ScheduleKind.TASK, every=timedelta(hours=1)))
+    await _ticker(store, spawn=dispatcher).run_once()
+    (record,) = sink.records
+    assert (record.session_id, record.turn_id, record.task_id) == ("chat-1", "", "")
+
+
 async def test_tainted_task_rides_the_dispatcher_stamp() -> None:
     store = InMemoryScheduleStore()
     spawn = FakeSpawnTool()

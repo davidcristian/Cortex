@@ -43,6 +43,7 @@ from cortex_core import (
     TurnCompleted,
     TurnEngine,
     TurnEvent,
+    TurnStamp,
     VramBudgetPlacer,
 )
 
@@ -331,3 +332,86 @@ async def test_a_tainted_turns_spawn_is_forced_onto_the_robust_model_end_to_end(
     assert (task.model, task.tainted) == ("fast", True)  # the stamp rode the store
     assert robust.seen  # the robust default answered...
     assert not fast.seen  # ...and the requested cheap model never saw the hostile material
+
+
+async def test_a_delegated_call_is_audited_under_the_turn_that_spawned_it() -> None:
+    # The whole chain the audit trail is read along (ADR-0009 named-work addendum): the cortex
+    # turn stamps its spawn dispatch, the spawn tool writes that attribution onto the task, the
+    # runner reads it back off the store, and the subagent's own read is audited naming its
+    # task AND the turn it came from. Without the second, a delegated call in the trail names
+    # a uuid that appears on no other line and resolves against nothing an operator can read.
+    task_store = InMemoryTaskStore()
+    sub_backend = ScriptedCortexBackend(
+        [
+            [ToolCall(id="s1", name="read", arguments={"path": "/notes"})],
+            [TextChunk("summarized")],
+        ]
+    )
+    sub_sink = RecordingAuditSink()
+    sub_tools = ToolDispatcher(
+        InMemoryToolRegistry({"read": (_READ_SPEC, _read_handler)}), sub_sink, FixedClock()
+    )
+    runner = SubagentRunner(task_store, _single_roster(sub_backend), FixedClock(), tools=sub_tools)
+    spawn = SpawnSubagentsTool(runner, task_store, FixedClock(), task_id_factory=_counter())
+    cortex_sink = RecordingAuditSink()
+    cortex_tools = ToolDispatcher(CompositeToolRegistry([spawn]), cortex_sink, FixedClock())
+    cortex_backend = ScriptedCortexBackend(
+        [
+            [ToolCall(id="c1", name="spawn_subagents", arguments={"instructions": ["summarize"]})],
+            [TextChunk("relayed")],
+        ]
+    )
+    engine = TurnEngine(
+        InMemorySessionStore(),
+        cortex_backend,
+        FixedClock(),
+        capabilities=TurnCapabilities(tools=cortex_tools),
+    )
+    await _collect(engine.handle_turn("s-9", "delegate", turn_id="t-9"))
+    # The turn's own dispatch: its chat and its turn, and no task, because a turn is not one.
+    (spawn_line,) = cortex_sink.records
+    assert (spawn_line.name, spawn_line.session_id, spawn_line.turn_id, spawn_line.task_id) == (
+        "spawn_subagents",
+        "s-9",
+        "t-9",
+        "",
+    )
+    # The attribution went through the store, which is where a stateless runner reads it.
+    task = await task_store.get_task("st-1")
+    assert task is not None
+    assert (task.session_id, task.turn_id) == ("s-9", "t-9")
+    # And the delegated call names both, so "what did this turn's subagents do?" is one grep.
+    (read_line,) = sub_sink.records
+    assert (read_line.name, read_line.session_id, read_line.turn_id, read_line.task_id) == (
+        "read",
+        "s-9",
+        "t-9",
+        "st-1",
+    )
+    # What the subagent's own messages are grouped under is still its task, not that turn: a
+    # working list nobody persists is the task's, and only the trail is read across both.
+    _, second_step = sub_backend.seen
+    assert second_step[-1].turn_id == "st-1"
+
+
+async def test_a_ticker_rooted_subagent_names_its_chat_and_no_turn() -> None:
+    # The third dispatch caller (the schedule ticker) reaches this same path through the spawn
+    # tool with a stamp that has a chat and no turn. The subagent's line must carry the one and
+    # leave the other empty rather than invent a turn for work no turn is waiting on.
+    task_store = InMemoryTaskStore()
+    sub_backend = ScriptedCortexBackend(
+        [[ToolCall(id="s1", name="read", arguments={"path": "/notes"})], [TextChunk("done")]]
+    )
+    sub_sink = RecordingAuditSink()
+    sub_tools = ToolDispatcher(
+        InMemoryToolRegistry({"read": (_READ_SPEC, _read_handler)}), sub_sink, FixedClock()
+    )
+    runner = SubagentRunner(task_store, _single_roster(sub_backend), FixedClock(), tools=sub_tools)
+    spawn = SpawnSubagentsTool(runner, task_store, FixedClock(), task_id_factory=_counter())
+    dispatcher = ToolDispatcher(CompositeToolRegistry([spawn]), RecordingAuditSink(), FixedClock())
+    await dispatcher.dispatch(
+        ToolCall(id="schedule-r1", name="spawn_subagents", arguments={"instructions": ["do it"]}),
+        stamp=TurnStamp(session_id="chat-1"),
+    )
+    (read_line,) = sub_sink.records
+    assert (read_line.session_id, read_line.turn_id, read_line.task_id) == ("chat-1", "", "st-1")
