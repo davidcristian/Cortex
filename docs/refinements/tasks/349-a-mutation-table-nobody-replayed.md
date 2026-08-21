@@ -1,6 +1,6 @@
 # Every mutation table in the record is the hand that wrote it reporting on itself
 
-**Status:** open, actionable
+**Status:** landed 2026-08-21
 **Area:** cross-cutting
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
 
@@ -45,3 +45,31 @@ practice of whoever reviews, because the first is enforceable and the second is 
 - 2026-08-20: opened by a close-out review of a fourteen commit run, which found every mutation
   count and every container measurement in it resting on a single unrepeated observation by the
   agent that authored the change.
+- 2026-08-21: **replayed, then decided.** Five tables were replayed out of the record, thirty two
+  stated rows over forty nine runs, each mutation applied in a scratch worktree and reverted with a
+  byte for byte comparison against the pre-mutation file. **Every row reproduced.** The deadline
+  clamp table (three constants over seven cases, claiming 4, 4, 4) gave 4, 4, 4, and its paired
+  claim that all three passed the case as it stood before holds. The credential withholding table
+  (five rows claiming one, the same one, six, one, six) gave 1, 1, 6, 1, 6, each named case being
+  the one named. The named turn table (5, 5, 3, 27, 1) gave 5, 5, 3, 27, 1 over the whole brain
+  suite at 2,786 cases. The heading gate table (fourteen mutations against both the suite it
+  replaced and the suite it landed) gave 41 passed on all fourteen before and, after, twelve
+  reddening one case and the two on the shared remedy reddening six. The compose default survey's
+  twenty six planted drifts and its suite guard were sampled five ways, and all five behaved
+  exactly as written, `found 1, pinned 2` included.
+  What varied was cost rather than correctness: four minutes where the table names the file, the
+  edit and the suite, fifteen where it names none of the three. The file and the edit came off the
+  commit's own diff in every case, because a mutation is always a perturbation of a line the change
+  itself touched; **the suite is the one fact the diff does not carry**, so that is what AGENTS.md
+  now requires a table to name, as a rule no machine checks. The enforceable form was refused on a
+  measurement: over 561 commits, 100 bodies carry the vocabulary and 88 name no tracked path, only
+  54 use `reddens` at all, and one of the 100 is a change whose body correctly says it carries no
+  table. The script over the messages was refused with it, the census being thirty lines against
+  forty minutes of replay. Both doubted measurements were re-taken: the log driver's cliff holds
+  exactly on Docker 29.1.3 with `json-file`, and the recall trail's 1,458 to 1,475 came back 1,458
+  to 1,476 on a fresh 200 draws. **This entry was wrong about the second one's shape**: it needs no
+  container, being a synthesis over drawn ids and scores, which is why it cost two minutes.
+  Recorded in the ADR-0002 replay addendum. Opened by this close:
+  [R-357](357-a-replay-pass-has-no-cadence.md),
+  [R-358](358-the-widest-value-was-never-a-real-line.md) and
+  [R-359](359-the-table-detector-is-refused-not-impossible.md).

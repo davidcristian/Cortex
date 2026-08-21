@@ -79,9 +79,12 @@ CUT = "<cut {chars} chars>"
 # The most characters one rendered value may spend on a line. Measured rather than picked, against
 # what the stream an operator reads really does (ADR-0038 bounded-value addendum): a container's
 # log driver ends a message at 16 KiB, so a rendered line of 16,383 characters plus its newline is
-# the longest that stays one entry, and past that ``docker compose logs -t`` stamps every 16 KiB
-# piece as its own line and ``--tail`` counts the pieces rather than the lines. This bound is that
-# cliff divided by eight, and what that buys is room for *seven* fields at it rather than eight:
+# the longest that stays one entry, and past that ``--tail`` counts the pieces rather than the
+# lines and ``docker compose logs -t`` stamps every 16 KiB piece. The stamps land mid line rather
+# than each opening one of their own, a piece boundary carrying no newline: re-measured on the
+# ``json-file`` driver, a split message reads back as one line of 16,446 bytes with two timestamps
+# in it, while ``--tail 1`` returns only the last piece. This bound is that cliff divided by
+# eight, and what that buys is room for *seven* fields at it rather than eight:
 # eight come to 16,384 characters, one past the cliff before a single ``key=``, separator, marker
 # or word of the message is counted. Measured through the shipped formatter, with the level and
 # logger prefix and a marker on every field, seven cut fields make a line of 14,536 characters and
@@ -89,7 +92,7 @@ CUT = "<cut {chars} chars>"
 # rather than a check: nothing here measures the widest line the tree can build, which is a
 # separate open question and not this constant's to answer. The bound does clear the widest value
 # the tree attaches today (the recall trail's dropped candidates at the shipped pool of twenty,
-# 1,458 to 1,475 characters over 200 draws) by enough that nothing shipped is cut.
+# 1,458 to 1,476 characters over 200 draws) by enough that nothing shipped is cut.
 VALUE_CHARS = 2048
 
 # The attributes ``logging`` puts on every record itself, plus the two a ``Formatter`` adds while
