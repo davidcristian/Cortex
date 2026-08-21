@@ -50,9 +50,18 @@ def _select(box: BaseMailBox, folder: str) -> None:
         raise
 
 
-def _is_hierarchy_node(flags: Sequence[str]) -> bool:
-    """Whether the LIST attributes a server sent with a name say that name is not a mailbox."""
+def _flagged_unselectable(flags: Sequence[str]) -> bool:
+    """Whether the LIST attributes a server sent with a name claim that name is not a mailbox."""
     return any(flag.lower() in _NOT_A_MAILBOX for flag in flags)
+
+
+def _opens(box: BaseMailBox, folder: str) -> bool:
+    """Whether this server will really open ``folder``, asked only of a name it flagged."""
+    try:
+        box.folder.set(folder, readonly=True)  # pyright: ignore[reportUnknownMemberType]
+    except MailboxFolderSelectError:
+        return False
+    return True
 
 
 def _search_failure(query: str, err: IMAP4.error) -> MailboxError:
@@ -89,7 +98,11 @@ class ImapMailbox:
         """List the names that really are mailboxes, dropping the hierarchy's bare nodes."""
         with _translated("list the folders"), self._open() as box:
             listed = box.folder.list()
-            return [folder.name for folder in listed if not _is_hierarchy_node(folder.flags)]
+            return [
+                folder.name
+                for folder in listed
+                if not _flagged_unselectable(folder.flags) or _opens(box, folder.name)
+            ]
 
     def search(self, folder: str, query: str, limit: int) -> Sequence[RawEmail]:
         """Fetch message headers for the folder's messages matching ``query`` (read-only)."""

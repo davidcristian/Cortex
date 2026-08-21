@@ -26,7 +26,10 @@ denied outright.
   one promise about success: every name `list_folders` answers with is a name the other two calls
   may be given, so a server's bare hierarchy nodes are filtered out by the implementation rather
   than handed on (ADR-0022 hierarchy-node addendum). Two contract checks hold it, one walking the
-  offered list and one saying that naming a node anyway is still refused.
+  offered list and one saying that naming a node anyway is still refused. The other direction, that
+  every name the server opens is offered, is not a contract check: it can only be seen beside the
+  server's own LIST, so the adapter's tests and the live Bridge test carry it (ADR-0022
+  flagged-and-refused addendum).
 - `MailboxError` says the mailbox could not answer: unreachable Bridge, refused TLS or login, a
   folder that could not be examined, a connection that went away. Beneath it are the two narrower
   subclasses, one per argument the read tools invite a model to guess, and the line in both cases
@@ -43,10 +46,12 @@ denied outright.
   operator.
 - `ImapMailbox(config)` is the `Mailbox` over imap-tools. Connects per call (the Bridge is local)
   so the server holds no IMAP state. `list_folders` reads the LIST attributes `folder.list()`
-  carries beside each name and drops any name flagged `\Noselect` (RFC 3501) or `\NonExistent`
-  (RFC 5258), case-folded: Dovecot lists such a node and then refuses a SELECT of it in the very
-  words that prove a folder missing, so offering the name would send a model back to the list it
-  came from. No exception of the IMAP stack escapes it: a `BAD` answer to
+  carries beside each name and treats a name flagged `\Noselect` (RFC 3501) or `\NonExistent`
+  (RFC 5258), case-folded, as a question rather than an answer: it opens that name once with
+  EXAMINE and drops it only if the server refuses it too. The two servers disagree about the flag,
+  Dovecot refusing such a node in the very words that prove a folder missing and the Bridge opening
+  the two parents of its own hierarchy, so asking is what is correct on both (ADR-0022
+  flagged-and-refused addendum). No exception of the IMAP stack escapes it: a `BAD` answer to
   a search becomes `SearchRefusedError`, a `NO` to `SELECT` whose own text says the mailbox does
   not exist becomes `FolderUnknownError`, and everything else, imaplib's `IMAP4.abort` for a
   connection lost mid-command included, becomes `MailboxError` with the cause chained. Both

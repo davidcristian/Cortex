@@ -58,8 +58,9 @@ cd brain && uv run pytest -m integration --no-cov packages/email/tests/test_emai
 Its sibling is the guard on the other guess those tools invite, the `folder` (ADR-0022
 unknown-folder addendum). It asserts that every shape of a name no mailbox has is refused
 identically, as `FolderUnknownError` naming the folder and pointing at `list_folders`, out of both
-tools that take one; and that every name `list_folders` returns really does open, so nothing the
-description tells a model to use comes back as the refusal it warns about. Run it after any Bridge
+tools that take one; and that the offered list is exactly the names this server opens, walking its
+own LIST to check both directions, so nothing the description tells a model to use comes back as
+the refusal it warns about and no name that works is withheld. Run it after any Bridge
 upgrade too: the classification reads the server's own words (`no such mailbox`, since this
 Bridge sends no RFC 5530 response code), so a Bridge that reworded its `NO` would start reporting
 a missing folder as a mailbox that could not answer, which is the safe direction but the wrong
@@ -109,10 +110,10 @@ on and was until now only assumed. The refusal for a **missing** mailbox shares 
 Bridge's, so both phrases are read and neither server sends a response code to read instead. And
 this server refuses a listed `\Noselect` node exactly as it refuses a name no mailbox has, where
 the Bridge's own `\Noselect` parents open. Since the refusal carries nothing that could tell the
-two apart, `list_folders` no longer offers such a name at all: it reads the LIST attributes
-imap-tools already carries beside each name and drops anything flagged `\Noselect` or
-`\NonExistent` (ADR-0022 hierarchy-node addendum). `Parent/Child` is listed in its own right, so
-only the unusable name is gone.
+two apart, `list_folders` reads the LIST attributes imap-tools already carries beside each name and
+opens anything flagged `\Noselect` or `\NonExistent` before deciding, dropping it only when this
+server refuses it as well (ADR-0022 flagged-and-refused addendum). `Parent` goes, `Parent/Child` is
+listed in its own right, and on the Bridge the two flagged parents that open are kept.
 
 Rerun the probe after any change to the folder classification, and after a Dovecot bump if the
 pinned image ever moves: the wordings above are the evidence the rule is built on, and a server

@@ -9,6 +9,7 @@ from email.message import EmailMessage
 from typing import cast
 
 import pytest
+from imap_tools import MailboxFolderSelectError
 
 from cortex_email import (
     EmailAttachment,
@@ -116,6 +117,27 @@ def test_a_folder_no_mailbox_has_is_refused_by_name_and_by_the_folder_list() -> 
 
     for folder in mailbox.list_folders():
         mailbox.search(folder, "ALL", 1)  # a listed name that would not open raises out of here
+
+    _assert_no_name_this_server_opens_is_withheld(mailbox)
+
+
+def _assert_no_name_this_server_opens_is_withheld(mailbox: ImapMailbox) -> None:
+    """The other direction of the same promise, which only the server's own LIST can settle."""
+    offered = set(mailbox.list_folders())
+    # Reaching past the port is deliberate, hence both suppressions: what this asks about is
+    # precisely the names the port did not return, which nothing on the port can show.
+    connection = mailbox._open()  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
+    with connection as box:
+        listed = [folder.name for folder in box.folder.list()]
+        opens: set[str] = set()
+        for name in listed:
+            try:
+                box.folder.set(name, readonly=True)  # pyright: ignore[reportUnknownMemberType]
+            except MailboxFolderSelectError:
+                continue
+            opens.add(name)
+    assert opens, "the account listed nothing that opens, so this proves nothing"
+    assert offered == opens, f"withheld: {sorted(opens - offered)}; offered shut: {offered - opens}"
 
 
 @pytest.mark.integration
