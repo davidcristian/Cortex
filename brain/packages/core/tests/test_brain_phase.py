@@ -296,6 +296,22 @@ async def test_the_carried_budget_bounds_the_deep_phase_too() -> None:
     assert invocation.detail == BUDGET_EXHAUSTED_MSG
 
 
+async def test_the_deep_phases_dispatches_are_audited_under_the_turn_that_escalated() -> None:
+    """A handoff is one turn continued, and the trail has to read as one turn (ADR-0009
+    named-work addendum). The deep phase runs under a fresh model, a fresh loop and a fresh
+    ledger, so the only thing tying its tool calls to the cortex's is the id it answers under.
+    """
+    audit = RecordingAuditSink()
+    dispatcher = ToolDispatcher(_registry(), audit, SystemClock())
+    backend = ScriptedBrainBackend(
+        chunks=("done",), tool_calls=(ToolCall(id="c1", name="read", arguments={}),)
+    )
+    await _drive(capabilities=TurnCapabilities(tools=dispatcher), backend=backend)
+    (invocation,) = audit.records
+    assert (invocation.session_id, invocation.turn_id) == (harness.SESSION, harness.TURN)
+    assert invocation.task_id == ""  # a handoff is a turn's own work, not a delegate's
+
+
 async def test_the_query_is_recovered_from_the_store_for_recall_and_memory() -> None:
     """The record carries no user text, so the query comes back out of the session store."""
     memory = _recaller()

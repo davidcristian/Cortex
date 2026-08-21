@@ -3050,6 +3050,15 @@ message under, which is the join an operator actually makes.
 The other half of the join, the tool-audit lines:
 [R-342](../refinements/tasks/342-the-audit-trail-cannot-name-the-turn.md).
 
+**2026-08-21:** landed, and the decision it forced was taken where the trail lives, in the
+[ADR-0009](ADR-0009-tools-mcp.md) named-work addendum: a field per kind rather than one field for
+the unit of work, so the line carries `session_id`, `turn_id` and `task_id` and a delegated call
+names both its task and the turn that spawned it. Decision 3 above traced correctly that
+`ToolInvocation` carried no conversation identity; what it read too cheaply is that the stamp
+carried no turn id either, the turn id living on the loop context that builds the stamp. So the
+join cost a field on `TurnStamp` and an attribution on the stored `SubagentTask` before it cost
+anything on the audit line.
+
 ## Cut-defeats-withholding addendum (2026-08-20): the order of the two is the defence
 
 The bounded-value addendum above added a third rule to a formatter that already had two, and put

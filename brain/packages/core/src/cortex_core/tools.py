@@ -62,8 +62,12 @@ class ToolSpec:
 class TurnStamp:
     """What the dispatching turn hands the call, stamped on at dispatch time (ADR-0027).
 
-    ``session_id`` is the originating chat (``""`` when the dispatch has none: a subagent
-    run, or an unattributed caller); ``tainted`` whether the turn had read untrusted content
+    ``session_id`` is the originating chat (``""`` when the dispatch has none: an
+    unattributed caller); ``turn_id`` the conversation turn the dispatch was made for and
+    ``task_id`` the subagent task it was made inside, the two identities the audit trail
+    names the work by (ADR-0009 named-work addendum; each ``""`` when there is none, so a
+    turn's own dispatch carries no task and a ticker-rooted subagent's carries no turn);
+    ``tainted`` whether the turn had read untrusted content
     at dispatch time; ``sources`` which sources that content came from (ADR-0027 addendum),
     the structured provenance behind the bit; ``budget`` the turn's shared dispatch allowance
     (``None`` when the caller runs no tool loop, e.g. the schedule ticker); ``progress`` the
@@ -86,6 +90,8 @@ class TurnStamp:
     """
 
     session_id: str = ""
+    turn_id: str = ""
+    task_id: str = ""
     tainted: bool = False
     sources: tuple[Provenance, ...] = ()
     budget: DispatchBudget | None = field(default=None, compare=False)
@@ -157,6 +163,15 @@ class ToolInvocation:
     ``ok`` is the negation of the result's ``is_error``; ``detail`` is the result content or
     the error message; ``trust`` records whether the call returned untrusted content (the
     provenance trail, ADR-0013); ``at`` must be timezone-aware (the audit outlives the process).
+
+    ``session_id``, ``turn_id`` and ``task_id`` are what the line names the work by (ADR-0009
+    named-work addendum), copied off the dispatch's ``TurnStamp``: the originating chat, the
+    conversation turn, and the subagent task the call was made inside. Each is ``""`` when the
+    dispatch had none, so an unattributed caller records absence rather than a borrowed id.
+    They are the stamp's *identities* and not the stamp itself, because the stamp also carries
+    live handles (the turn's pool, its progress channel, its handoff slot) and this record is a
+    value that outlives the process that wrote it: a durable line holding a live pool is a line
+    no sink could ever write down.
     """
 
     name: str
@@ -165,6 +180,9 @@ class ToolInvocation:
     detail: str
     at: datetime
     trust: Trust = Trust.UNTRUSTED
+    session_id: str = ""
+    turn_id: str = ""
+    task_id: str = ""
 
     def __post_init__(self) -> None:
         if self.at.tzinfo is None or self.at.tzinfo.utcoffset(self.at) is None:

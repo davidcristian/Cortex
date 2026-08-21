@@ -6,7 +6,8 @@ bulk data out of the logs, a successful call logs only its result *size*, not it
 what an operator actually needs. The arguments (paths, queries) are logged as the audit's
 subject. The read-only v1 tools carry no payloads there. Every line carries the result's
 ``trust`` provenance so "did this turn read untrusted content?" is answerable from the durable
-trail alone (ADR-0013 decision 2).
+trail alone (ADR-0013 decision 2), and the identities of the work it was for so the same trail
+answers "what did this turn do?" and "what did its subagents do?" (ADR-0009 named-work addendum).
 """
 
 import logging
@@ -27,7 +28,15 @@ class LoggingAuditSink:
     """
 
     async def record(self, invocation: ToolInvocation) -> None:
-        """Log the invocation: name, ok, arguments, trust, timestamp; detail only on failure."""
+        """Log the invocation: name, ok, arguments, trust, timestamp; detail only on failure.
+
+        Then what the call was made for (ADR-0009 named-work addendum), under the same field
+        names the rest of this repo's log lines spell those ids with, so an operator reading a
+        failed turn's line can grep its `turn_id` and get the tool calls that preceded it. An
+        id the dispatch did not have is left off the line rather than printed empty: absence is
+        the honest rendering of an unattributed caller, and an empty field would read as a
+        missing value rather than as no such thing.
+        """
         fields: dict[str, object] = {
             "tool": invocation.name,
             "ok": invocation.ok,
@@ -35,6 +44,17 @@ class LoggingAuditSink:
             "trust": invocation.trust.value,
             "at": invocation.at.isoformat(),
         }
+        fields.update(
+            {
+                name: identity
+                for name, identity in (
+                    ("session_id", invocation.session_id),
+                    ("turn_id", invocation.turn_id),
+                    ("task_id", invocation.task_id),
+                )
+                if identity
+            }
+        )
         if invocation.ok:
             fields["result_chars"] = len(invocation.detail)
         else:

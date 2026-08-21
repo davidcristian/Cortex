@@ -4,6 +4,7 @@ Driven by the parametrized contract test (in-memory fake + fakeredis-backed Redi
 The two must be observably interchangeable behind the port (ports-before-adapters, ADR-0010).
 """
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta, timezone
 from uuid import uuid4
 
@@ -37,13 +38,23 @@ async def check_missing_task_and_result_are_none(store: TaskStore) -> None:
 
 
 async def check_task_round_trips(store: TaskStore) -> None:
-    """A stored task reads back field-for-field, the resolution inputs included (ADR-0018)."""
-    task = make_task(
-        _task_id(),
-        instruction="summarize the notes",
-        context="notes: ...",
-        model="fast",
-        tainted=True,
+    """A stored task reads back field-for-field, the resolution inputs included (ADR-0018).
+
+    The spawning turn's attribution is on that record too (ADR-0009 named-work addendum), and
+    it must survive the round trip for the same reason the taint must: the runner reads the
+    task back to know whose work it is doing, so an attribution lost in the store would put a
+    delegated call in the audit trail under nobody at all.
+    """
+    task = replace(
+        make_task(
+            _task_id(),
+            instruction="summarize the notes",
+            context="notes: ...",
+            model="fast",
+            tainted=True,
+        ),
+        session_id="chat-7",
+        turn_id="t-7",
     )
     await store.put_task(task)
     assert await store.get_task(task.id) == task

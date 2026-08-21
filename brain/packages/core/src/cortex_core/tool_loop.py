@@ -155,7 +155,7 @@ async def stream_tool_loop(
         # much as the calls it refused.
         plan = plan_round(calls)
         working.append(
-            call_message("".join(step_text), plan.calls, context.clock.now(), context.turn_id)
+            call_message("".join(step_text), plan.calls, context.clock.now(), context.unit_id)
         )
         round_events = run_round(plan, dispatcher, spec_by_name, dispatched, context, working)
         try:

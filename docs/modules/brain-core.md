@@ -257,11 +257,15 @@ Tool domain (Slice 6, ADR-0009; untrusted-content fields Slice 6.5, ADR-0013):
   never interpreted by the core), `gated: bool = False` (an irreversible/outbound action that
   needs confirmation once the turn read untrusted content, but no tool sets it today). What a tool
   advertises.
-- `TurnStamp` is a frozen dataclass: `session_id: str = ""`, `tainted: bool = False`,
+- `TurnStamp` is a frozen dataclass: `session_id: str = ""`, `turn_id: str = ""`,
+  `task_id: str = ""`, `tainted: bool = False`,
   `sources: tuple[Provenance, ...] = ()`, `budget: DispatchBudget | None = None` (`compare=False`),
   `progress: ProgressSink | None = None` (`compare=False`).
-  What the dispatching turn hands the call (ADR-0027): its origin chat (`""` for a session-less
-  caller), whether it had read untrusted content at dispatch time, which sources that content
+  What the dispatching turn hands the call (ADR-0027): its origin chat (`""` for an unattributed
+  caller), the conversation turn it was made for and the subagent task it was made inside (the two
+  identities the audit trail names the work by, ADR-0009 named-work addendum; each `""` when there
+  is none, so a turn's own dispatch names no task and a ticker-rooted subagent's names no turn),
+  whether it had read untrusted content at dispatch time, which sources that content
   came from (ADR-0027 addendum), the turn's shared dispatch pool (`None` for a caller
   that runs no tool loop, e.g. the schedule ticker), the stream's progress side channel
   (`None` for a caller with no overlay stream, ADR-0010 progress addendum), and the turn's
@@ -297,20 +301,29 @@ Tool domain (Slice 6, ADR-0009; untrusted-content fields Slice 6.5, ADR-0013):
   relaxing taint.
 - `ToolInvocation` is a frozen dataclass: `name`, `arguments`, `ok: bool`, `detail: str`,
   `at: datetime` (tz-aware, rejects naive), `trust: Trust = Trust.UNTRUSTED` (the provenance
-  audit trail). One audit-trail line.
+  audit trail), `session_id: str = ""`, `turn_id: str = ""`, `task_id: str = ""`. One audit-trail
+  line. The three ids are the work the call was made for (ADR-0009 named-work addendum), copied
+  off the dispatch's `TurnStamp` by `ToolDispatcher._audited` and `""` when the dispatch had none.
+  They are the stamp's *identities* rather than the stamp itself, because a record that outlives
+  its process must not hold the stamp's live handles.
 - `ConfirmationRequest` is a frozen dataclass: `tool_name: str`, `arguments: Mapping[str, Any]`,
   `reason: str`. What the dispatcher hands the `Confirmer` to approve a gated call out of band.
 
 Subagent domain (Slice 7, ADR-0010):
 
 - `SubagentTask` is a frozen dataclass: `id: str`, `instruction: str`, `context: str`,
-  `at: datetime` (tz-aware, rejects naive), `model: str = ""`, `tainted: bool = False`. One
+  `at: datetime` (tz-aware, rejects naive), `model: str = ""`, `tainted: bool = False`,
+  `session_id: str = ""`, `turn_id: str = ""`. One
   narrow task delegated to a subagent, persisted before it runs; `context` is the material the
   subagent works from (the cortex conversation is never shared, as the subagent is stateless over
   the task). `model` is the roster entry the cortex requested (`""` = the default) and `tainted`
   the spawning turn's taint at spawn time. They are the two `SubagentRoster.resolve` inputs only the
   spawn site knows, riding the record so the runner resolves safely from the store alone
-  (ADR-0017/0018).
+  (ADR-0017/0018). `session_id`/`turn_id` are the spawning turn's attribution, written off the
+  spawn dispatch's stamp and read back by the attempt, so a delegated call is audited under the
+  chat and the turn that asked for it (ADR-0009 named-work addendum; both `""` for a run nothing
+  conversational spawned, which is the ticker's fire). They ride the record rather than a
+  parameter because a subagent is a stateless function over the store.
 - `SubagentResult` is a frozen dataclass: `task_id: str`, `output: str`, `ok: bool = True`,
   `detail: str = ""`, `tainted: bool = False`. A subagent's outcome; `ok=False` (with `detail`)
   marks a failure the cortex consumes as a value, mirroring `ToolResult.is_error`; `tainted` is
@@ -575,12 +588,17 @@ Untrusted-content boundary (Slice 6.5, ADR-0013; the pure primitives in `untrust
   Reconstructed each turn, never persisted. Structurally satisfies `TaintView` (below), so the
   engine passes the live ledger straight to `OutputGuardrail.open`.
 - `ToolLoopContext` is a frozen bundle of a tool loop's per-invocation collaborators (`dispatcher`,
-  `clock`, `turn_id`, `taint`, `nonce`, `session_id`, `schema=None`, `bounds=None`,
+  `clock`, `turn_id`, `taint`, `nonce`, `session_id`, `task_id=""`, `schema=None`, `bounds=None`,
   `budget=DispatchBudget()` by default factory, `progress=None`, `escalation=None`,
   `cadence=None`, `stops=None`), keeping
   `stream_tool_loop`
   under its argument ceiling. `session_id` is the originating chat the loop stamps onto each
-  dispatch (ADR-0027; `""` for a session-less caller, e.g. a subagent); `schema` (ADR-0028), when
+  dispatch (ADR-0027; `""` for a caller with no chat behind it); `turn_id`/`task_id` are the
+  conversation turn this loop serves and the subagent task it is running, stamped onto each
+  dispatch as the work it was made for (ADR-0009 named-work addendum): a turn's loop sets the
+  first, a subagent's sets the second and takes the first off its stored task. The `unit_id`
+  property is neither, and is what the loop's own messages are grouped under: the task when there
+  is one, else the turn. `schema` (ADR-0028), when
   set, constrains the model's output to that JSON Schema (a constrained tool-less subagent
   envelope; `None` for the cortex and every tool-enabled path); `bounds` (a `GenerationBounds`,
   ADR-0005 total-cap addendum), when set, rides **every** completion the loop asks for, so no one

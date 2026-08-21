@@ -203,3 +203,24 @@ true, and it is the clean channel the addendum was looking for.
 **Still deferred (recorded in `docs/refinements/`):** provenance across the stores, per-provenance
 eviction, confirm-with-provenance (unchanged decision), and a `URI` producer (a fetch tool, feature
 breadth).
+
+## Addendum (2026-08-21): both attribution deferrals close, in the audit trail
+
+The two entries this ADR left waiting on a consumer, `SubagentTask` session attribution and the
+audit line gaining the stamp, are both closed by one change, argued in the
+[ADR-0009](ADR-0009-tools-mcp.md) named-work addendum. The consumer they were waiting for is the
+tool audit trail, which now names the work each dispatch was made for.
+
+Three things about this ADR's own framing are worth setting straight here.
+
+- **The stamp does not go on the line.** `ToolInvocation` takes three strings off the stamp
+  (`session_id`, `turn_id`, `task_id`) and leaves its live handles behind, an audit record being a
+  value that outlives the process the pool, sink and slot live in.
+- **The stamp gained an identity it never carried.** `turn_id` and `task_id` join `session_id` on
+  `TurnStamp`, which is the shape this ADR predicted for `sources`: a field lands on the one object
+  and no call site changes.
+- **`""` still conflates "no session" with "unattributed", and now says so out loud.** The risk
+  above accepted the conflation while one consumer treated both as absent. The trail is the second
+  consumer and treats them the same way, by leaving an absent id off the line entirely rather than
+  printing it empty. A structured origin is still what a reader needing the distinction would
+  want, and still nothing needs it.

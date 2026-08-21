@@ -22,6 +22,14 @@ class SubagentTask:
     requested (``""`` = the default) and ``tainted`` whether the spawning turn had read untrusted
     content at spawn time (the two resolution inputs only the spawn site knows), riding on the
     record so the runner resolves safely from the store alone (ADR-0017/0018).
+
+    ``session_id`` and ``turn_id`` are the spawning turn's attribution, written from the spawn
+    dispatch's ``TurnStamp`` and read back by the runner, so this task's own tool calls are
+    audited under the chat and the turn that asked for them (ADR-0009 named-work addendum;
+    both ``""`` when nothing conversational spawned it, which is the schedule ticker's fire).
+    They ride the record rather than the call for the reason everything else here does: a
+    subagent is a stateless function over the store, so an attribution that lived only in a
+    parameter would be lost by the first re-read (the one hard rule).
     """
 
     id: str
@@ -30,6 +38,8 @@ class SubagentTask:
     at: datetime
     model: str = ""
     tainted: bool = False
+    session_id: str = ""
+    turn_id: str = ""
 
     def __post_init__(self) -> None:
         if self.at.tzinfo is None or self.at.tzinfo.utcoffset(self.at) is None:

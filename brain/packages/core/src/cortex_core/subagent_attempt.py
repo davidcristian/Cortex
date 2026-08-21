@@ -161,13 +161,16 @@ class PlacedAttempt:
         context = ToolLoopContext(
             dispatcher=self._tools,
             clock=self._clock,
-            turn_id=task.id,
+            turn_id=task.turn_id,
             taint=taint,
             nonce=new_nonce(),
-            # A subagent run has no originating chat of its own: SubagentTask carries no
-            # session, and the only session_id consumer is cortex-only by construction
-            # (ADR-0027). The field grows onto the task when a consumer exists.
-            session_id="",
+            # A subagent run has no chat or turn of its own, so both come off the stored task:
+            # the spawning turn wrote them there through the dispatch stamp, and the audit
+            # trail is the consumer the attribution waited for (ADR-0027, ADR-0009 named-work
+            # addendum). Both are "" for a run nothing conversational spawned, which is the
+            # schedule ticker's fire.
+            session_id=task.session_id,
+            task_id=task.id,
             schema=REPLY_ENVELOPE if constrain else None,
             # How far each of this loop's completions may decode. The rounds cap and this one
             # multiply, so what they bound together is the attempt's decoding rather than one
