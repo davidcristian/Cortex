@@ -13,9 +13,9 @@ releases it, so the root's shutdown path is uniform whatever was picked:
   the no-GPU dev loop stay DB-free.
 - Tools -> the MCP `ToolRegistry` when CORTEX_TOOLS_BACKEND is `mcp` (ADR-0009), else None:
   one lazy `ReconnectingMcpToolRegistry` per configured endpoint (dialed on first use, not at
-  startup, hence boot-tolerant), allowlist-filtered, optionally skip-unavailable (degraded-mode +
-  boot-tolerance addenda), and aggregated as configured. Shared by the cortex (via the
-  composite) and its subagents.
+  startup, hence boot-tolerant), bounded (bound addendum), allowlist-filtered, optionally
+  skip-unavailable (degraded-mode + boot-tolerance addenda), and aggregated as configured.
+  Shared by the cortex (via the composite) and its subagents.
 - Subagents -> `subagent_builders.py` (split for the 300-line cap when the ADR-0018 roster
   arrived): the `spawn_subagents` tool over a roster-resolving `SubagentRunner`.
 - History window -> `window_builders.py` (split for the 300-line cap when the summarizing
@@ -44,6 +44,7 @@ from cortex_body_client import GrpcBodyGateway
 from cortex_core import (
     AggregateToolRegistry,
     BodyGateway,
+    BoundedToolRegistry,
     EchoInferenceBackend,
     FilteredToolRegistry,
     GatedToolRegistry,
@@ -150,9 +151,15 @@ def build_tool_registry(
     builds one lazy `ReconnectingMcpToolRegistry` per configured endpoint (refinements +
     boot-tolerance addenda): no dial happens here, so a sidecar **down at startup no longer
     fails the build**. It is dialed on first use, per call, and a recovered one rejoins without
-    a brain restart. An endpoint with an allowlist is wrapped in `FilteredToolRegistry`, and
-    several endpoints merge behind one `AggregateToolRegistry` (first-wins by the config's
-    sorted-name order). With `CORTEX_TOOLS_ON_UNAVAILABLE=skip` each endpoint is additionally
+    a brain restart. Each is wrapped innermost in a `BoundedToolRegistry` (ADR-0009 bound
+    addendum), which is what makes a sidecar that hangs behave like one that refuses: the bound
+    (`CORTEX_TOOLS_CALL_TIMEOUT_S`) turns a wedged call into the `ToolError` every layer above
+    already knows how to handle, including the skip below. It goes innermost so the bound covers
+    the dial and the call and nothing else; the built-in tools, which are deliberately slow, are
+    composed elsewhere and never see it. An endpoint with an allowlist is wrapped in
+    `FilteredToolRegistry`, and several endpoints merge behind one `AggregateToolRegistry`
+    (first-wins by the config's sorted-name order). With `CORTEX_TOOLS_ON_UNAVAILABLE=skip`
+    each endpoint is additionally
     wrapped in `SkipUnavailableToolRegistry` (degraded-mode addendum): an unavailable sidecar
     (dead at listing time *or* down at boot) is logged and served around instead of failing the
     whole tool set. `CORTEX_TOOLS_GATED` names stamp the shared root via `GatedToolRegistry`
@@ -165,7 +172,8 @@ def build_tool_registry(
         return None, noop_aclose
     registries: list[ToolRegistry] = []
     for name, url in config.named_endpoints.items():
-        registry: ToolRegistry = ReconnectingMcpToolRegistry(partial(streamable_http_session, url))
+        dialing = ReconnectingMcpToolRegistry(partial(streamable_http_session, url))
+        registry: ToolRegistry = BoundedToolRegistry(dialing, timeout_s=config.call_timeout_s)
         allow = config.allow.get(name)
         if allow:
             registry = FilteredToolRegistry(registry, allow=allow)

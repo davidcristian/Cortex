@@ -523,6 +523,73 @@ async def test_build_tool_registry_skip_mode_serves_around_an_unavailable_sideca
     await close()
 
 
+# How much later than the configured bound the wedged session answers. Answering late rather
+# than never is what makes deleting the bound a red instead of a hung suite: the listing comes
+# back empty with nothing logged, and the record this case unpacks below is simply not there.
+# Both waits are timers on the one event loop, so the bound's deadline is popped first however
+# loaded the box is, and nothing here compares a wall-clock reading to anything.
+_WEDGED_BOUND_S = 0.02
+_WEDGED_ANSWER_S = _WEDGED_BOUND_S * 3
+
+
+class _WedgedMcpSession:
+    """An McpSession that opens and then answers each verb far past any bound: a wedged sidecar.
+
+    The condition the registry stack had no answer for. A sidecar that is *down* refuses the
+    dial, which raises, and skip mode has caught that since it landed; one that accepts the
+    session and replies too late to be of use raises nothing, so every layer above simply waited.
+    """
+
+    async def list_tools(self) -> ListToolsResult:
+        await asyncio.sleep(_WEDGED_ANSWER_S)
+        return ListToolsResult(tools=[])
+
+    async def call_tool(
+        self, name: str, arguments: dict[str, object] | None = None
+    ) -> CallToolResult:
+        del name, arguments
+        await asyncio.sleep(_WEDGED_ANSWER_S)
+        return CallToolResult(content=[])
+
+
+async def test_build_tool_registry_bounds_a_sidecar_that_hangs(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A wedged sidecar is served around exactly as a refused one is (ADR-0009 bound addendum).
+
+    The wrapping order is what this asserts as much as the bound: the `BoundedToolRegistry` sits
+    **inside** the skip, so the overrun it raises is a `ToolError` the skip already knows how to
+    report, and the bound it spends is the one the config carried rather than the shipped default.
+    """
+    opens: list[str] = []
+
+    @asynccontextmanager
+    async def wedged(url: str) -> AsyncGenerator[_WedgedMcpSession, None]:
+        opens.append(url)
+        yield _WedgedMcpSession()
+
+    monkeypatch.setattr(builders_module, "streamable_http_session", wedged)
+    registry, close = build_tool_registry(
+        ToolsConfig(
+            backend="mcp",
+            endpoint="http://wedged:9000/mcp",
+            on_unavailable="skip",
+            call_timeout_s=_WEDGED_BOUND_S,
+        )
+    )
+    assert registry is not None
+    with caplog.at_level(logging.WARNING, logger="cortex_orchestrator.builders"):
+        assert list(await asyncio.wait_for(registry.describe_tools(), 10)) == []
+    assert opens == ["http://wedged:9000/mcp"]
+    # The empty listing above is what a *skipped* sidecar and a sidecar that answered nothing
+    # both look like, so the warning is what tells them apart: without the bound this session
+    # answers an empty tool set of its own and nothing is reported at all.
+    (record,) = caplog.records
+    assert getattr(record, "sidecar", "") == "default"
+    assert "took longer than 0.02s" in str(getattr(record, "error", ""))
+    await close()
+
+
 def test_build_tool_registry_tolerates_a_sidecar_down_at_build_time(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

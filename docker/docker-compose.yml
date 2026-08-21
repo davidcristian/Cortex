@@ -40,6 +40,13 @@ services:
       # and this number does not move it; a value below 1 fails the brain at boot, and the
       # knob is inert under 'off'. Listed here for the same reason the switch above is.
       CORTEX_TOOLS_SALIENCE_LIMIT: ${CORTEX_TOOLS_SALIENCE_LIMIT:-2}
+      # How long one call on a tool sidecar may take, a listing and an invoke alike, before
+      # the brain stops waiting and hands the model an error it can act on. A sidecar that
+      # hangs is otherwise unbounded, the MCP session's own wait being none at all, and it
+      # holds a turn open where a sidecar that is merely down is served around. Listed here
+      # for the same reason the two knobs above are: it must work whichever sidecar set is
+      # layered on. A value at or below zero fails the brain at boot.
+      CORTEX_TOOLS_CALL_TIMEOUT_S: ${CORTEX_TOOLS_CALL_TIMEOUT_S:-60.0}
       # How a log line is written for whoever reads `docker compose logs brain`. The shipped
       # 'plain' appends each record's own fields after the message it already printed, which is
       # what makes a rejected fold's readings, a stranded handoff's id and the two audit trails
