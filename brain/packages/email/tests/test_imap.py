@@ -4,7 +4,14 @@ import ssl
 from imaplib import IMAP4
 
 import pytest
-from imap_stub import UNOPENABLE_FOLDER_ANSWER, FakeBox, Msg, config, patch_box
+from imap_stub import (
+    OTHER_MISSING_FOLDER_ANSWER,
+    UNOPENABLE_FOLDER_ANSWER,
+    FakeBox,
+    Msg,
+    config,
+    patch_box,
+)
 from imap_tools import MailboxFolderSelectError
 
 from cortex_email import (
@@ -98,7 +105,18 @@ def test_a_select_refused_for_another_reason_keeps_the_library_s_account_of_why(
         ImapMailbox(config()).search("INBOX", "ALL", 5)
     assert not isinstance(raised.value, FolderUnknownError)
     assert "could not run that search" in str(raised.value)
-    assert "INUSE" in str(raised.value)
+    assert "NOPERM" in str(raised.value)
+
+
+def test_the_second_server_s_own_words_for_a_missing_mailbox_are_read_too(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    box = FakeBox(names=["INBOX"])
+    box.folder.select_error = MailboxFolderSelectError(OTHER_MISSING_FOLDER_ANSWER, "OK")
+    patch_box(monkeypatch, box)
+    with pytest.raises(FolderUnknownError) as raised:
+        ImapMailbox(config()).search("Receipts", "ALL", 5)
+    assert raised.value.folder == "Receipts"
 
 
 def test_the_standard_s_own_word_for_a_missing_mailbox_is_read_too(

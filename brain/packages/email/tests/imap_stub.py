@@ -34,9 +34,11 @@ class Msg:
 # What a real ProtonMail Bridge answers to a SELECT of a name no mailbox has, measured verbatim
 # and identically for every shape of wrong name (ADR-0022 unknown-folder addendum).
 MISSING_FOLDER_ANSWER = ("NO", [b"no such mailbox"])
-# A NO that is not that: RFC 5530's code for a mailbox that exists and is not available. No
-# server this repo can reach produces one, so the fail-safe branch is reached only from here.
-UNOPENABLE_FOLDER_ANSWER = ("NO", [b"[INUSE] Mailbox in use"])
+# The same fact in another server's words: Dovecot 2.3.21 names the folder it refused and shares
+# not one word with the Bridge, which is why the classification holds two measured phrases rather
+# than one (ADR-0022 two-server addendum).
+OTHER_MISSING_FOLDER_ANSWER = ("NO", [b"Mailbox doesn't exist: Receipts (0.001 + 0.000 secs)."])
+UNOPENABLE_FOLDER_ANSWER = ("NO", [b"[NOPERM] Permission denied (0.001 + 0.000 secs)."])
 
 
 class Folder:

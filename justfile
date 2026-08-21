@@ -145,6 +145,35 @@ down-gpu:
 seam-health:
     cd body && cargo test -p body-rpc --test live -- --ignored --nocapture
 
+up-imap-probe:
+    docker compose --project-directory . -f docker/docker-compose.imap-probe.yml up -d --wait
+
+down-imap-probe:
+    docker compose --project-directory . -f docker/docker-compose.imap-probe.yml down
+
+email-folder-probe:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    compose=(docker compose --project-directory . -f docker/docker-compose.imap-probe.yml)
+    served=143
+    published="$("${compose[@]}" port imap-probe "$served")"
+    host="${published%:*}"
+    port="${published##*:}"
+    answers() { timeout 3 bash -c "exec 3<>/dev/tcp/$1/$2" 2>/dev/null; }
+    if ! answers "$host" "$port"; then
+        # The doubled braces are just's own escape for a literal one, so what docker is handed
+        # is the plain Go template that prints the address of whatever single network it is on.
+        host="$(docker inspect -f '{{{{range .NetworkSettings.Networks}}{{{{.IPAddress}}{{{{end}}' \
+            "$("${compose[@]}" ps -q imap-probe)")"
+        port="$served"
+        answers "$host" "$port" || {
+            echo "the probe answers at neither $published nor $host:$port; run \`just up-imap-probe\`" >&2
+            exit 1
+        }
+    fi
+    cd brain && CORTEX_EMAIL_PROBE_HOST="$host" CORTEX_EMAIL_PROBE_PORT="$port" \
+        uv run pytest -m integration --no-cov packages/email/tests/test_imap_probe_live.py
+
 # Live inference check: streams a real completion through LlamaCppBackend. Needs the gpu
 # stack up (`just up-gpu`); integration-marked, never in CI/coverage (ADR-0007).
 brain-inference-live:

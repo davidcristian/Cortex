@@ -73,6 +73,48 @@ cd brain && uv run pytest -m integration --no-cov packages/email/tests/test_emai
 Add `CORTEX_EMAIL_IMAP_TLS_INSECURE=true` when you are accepting the Bridge's self-signed cert on
 loopback rather than verifying it with an exported `ca_cert`.
 
+## The IMAP probe: the other thing a refused SELECT can mean
+
+A `NO` to `SELECT` covers two facts, a mailbox that does not exist and a mailbox that does and
+cannot be opened, and this Bridge produces only the first: every wrong name is refused in the
+same words and all nineteen folders it lists open. So the second is measured against a second
+server, a Dovecot run locally for the purpose, whose ACL plugin can leave a mailbox listed, real,
+and shut ([ADR-0022](../adr/ADR-0022-email-write-confirmer.md) two-server addendum). It holds no
+mail, checks no password, publishes on loopback only, and is nothing to do with the brain stack:
+
+```
+just up-imap-probe
+just email-folder-probe
+just down-imap-probe
+```
+
+Its LIST returns four names, three of them mailboxes (`INBOX` and `Parent/Child`, which open, and
+`Guarded`, which does not) and one of them a `\Noselect` node that is not a mailbox at all
+(`Parent`). What each is for is written in `docker/dovecot/probe-mailboxes.sh`, which builds them.
+The recipe reaches the server at the published port when that answers and at the container's own
+address when it does not, which is what a Docker Desktop engine beside a WSL distro gives; a probe
+that answers at neither is reported rather than waited on. The answers, measured through
+`ImapMailbox` against `dovecot/dovecot:2.3.21` (build `47349e2482`) and verbatim, are:
+
+| SELECT of | what the server answered |
+| --- | --- |
+| `Nonexistent`, and every other shape of wrong name | `NO Mailbox doesn't exist: Nonexistent (0.001 + 0.000 secs).` |
+| `Guarded`, listed and ACL-shut | `NO [NOPERM] Permission denied (0.001 + 0.000 secs).` |
+| `Parent`, a `\Noselect` node with a child | `NO Mailbox doesn't exist: Parent (0.001 + 0.000 secs).` |
+| `""`, the empty name | `NO [CANNOT] Invalid mailbox name: Name is empty (0.001 + 0.000 secs).` |
+
+Three things to read off that. The refusal for a mailbox that is **there and shut** carries none
+of the words that prove a folder missing, which is the assumption the whole classification rests
+on and was until now only assumed. The refusal for a **missing** mailbox shares no word with the
+Bridge's, so both phrases are read and neither server sends a response code to read instead. And
+this server refuses a listed `\Noselect` node exactly as it refuses a name no mailbox has, where
+the Bridge's own `\Noselect` parents open; the probe suite records that rather than working
+around it, since the refusal carries nothing that could tell the two apart.
+
+Rerun the probe after any change to the folder classification, and after a Dovecot bump if the
+pinned image ever moves: the wordings above are the evidence the rule is built on, and a server
+that reworded its `NO` is exactly what this measures.
+
 ## Bring up the sidecar + end-to-end
 
 ```

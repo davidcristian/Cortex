@@ -34,7 +34,7 @@ def _translated(action: str) -> Generator[None, None, None]:
         raise MailboxError(msg) from err
 
 
-_FOLDER_MISSING_ANSWERS = ("no such mailbox", "[nonexistent]")
+_FOLDER_MISSING_ANSWERS = ("no such mailbox", "mailbox doesn't exist", "[nonexistent]")
 
 
 def _select(box: BaseMailBox, folder: str) -> None:
