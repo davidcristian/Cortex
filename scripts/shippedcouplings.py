@@ -27,7 +27,7 @@ rather than merely tolerated: a path that drifts in one file names something the
 and an unreadable place is a fault here and never a skip.
 """
 
-from couplings import Constant, Mention, Site
+from couplings import Constant, Mention, Site, Spelling
 
 BASE_COMPOSE = "docker/docker-compose.yml"
 BODY_COMPOSE = "docker/docker-compose.body.yml"
@@ -47,6 +47,7 @@ RETRY_PLAN = "body/crates/core/src/retry/plan.rs"
 GPU_RUNBOOK = "docs/runbooks/llamacpp-gpu.md"
 SCHEDULING_RUNBOOK = "docs/runbooks/scheduling.md"
 TOOLS_RUNBOOK = "docs/runbooks/tools-mcp.md"
+SUBAGENTS_RUNBOOK = "docs/runbooks/subagents-cpu.md"
 TOOLS_CORE_DOC = "docs/modules/brain-core.md"
 VISION_RUNBOOK = "docs/runbooks/vision.md"
 VOLUME_RUNBOOK = "docs/runbooks/body-volume.md"
@@ -88,10 +89,11 @@ SHIPPED_COUPLINGS: tuple[Constant, ...] = (
         why=(
             "the deadline one call on a tool sidecar runs under is declared in the core module "
             "that spends it, substituted into every container the base compose file starts, "
-            "quoted to an operator by the runbook as the number a wedged sidecar fails at, and "
-            "restated in the module contract a future agent reads instead of the tree, so "
-            "retuning the declaration alone would leave every deployment on the old bound with "
-            "two documents claiming the new one (ADR-0009 bound addendum)"
+            "quoted to an operator by two runbooks, as the number a wedged sidecar fails at and "
+            "as the bound one call inside a delegated run has to fit under, and restated in the "
+            "module contract a future agent reads instead of the tree, so retuning the "
+            "declaration alone would leave every deployment on the old bound with three "
+            "documents claiming the new one (ADR-0009 bound addendum)"
         ),
         sites=(
             Site(
@@ -99,9 +101,18 @@ SHIPPED_COUPLINGS: tuple[Constant, ...] = (
                 "DEFAULT_TOOL_CALL_TIMEOUT_S",
             ),
         ),
+        # The delegation runbook writes it the way an operator says a duration out loud, a whole
+        # count of seconds, where the tool runbook quotes the field's own default; both are the
+        # same number and neither can be rendered from the other's text (ADR-0009 ordering
+        # addendum, which put the bound in front of a reader tuning the run that contains it).
         mentions=(
             Mention(BASE_COMPOSE, "${CORTEX_TOOLS_CALL_TIMEOUT_S:-{value}}"),
             Mention(TOOLS_RUNBOOK, "`CORTEX_TOOLS_CALL_TIMEOUT_S` (default `{value}`"),
+            Mention(
+                SUBAGENTS_RUNBOOK,
+                "`CORTEX_TOOLS_CALL_TIMEOUT_S` (default {value} s)",
+                spelling=Spelling.WHOLE,
+            ),
             Mention(TOOLS_CORE_DOC, "`DEFAULT_TOOL_CALL_TIMEOUT_S = {value}`"),
         ),
     ),

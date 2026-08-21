@@ -1333,3 +1333,224 @@ kept its own file: the early decline on a read that will not fit
 ([R-360](../refinements/tasks/360-a-read-that-will-not-fit-declines-early.md)) and the partial
 answer whose cascade does not exist in any read path
 ([R-361](../refinements/tasks/361-a-read-rpc-recalls-nothing-to-omit.md)).
+
+## Ordering addendum (2026-08-21): the innermost bound is ordered against the run that holds it
+
+The bound addendum above gave a tool call its first ceiling and related it to nothing. A subagent's
+whole run is bounded too, by `CORTEX_SUBAGENTS_RUN_TIMEOUT_S`, and that deadline explicitly covers
+the tool dispatches its loop makes, so the new bound sits **inside** it and the two numbers had no
+ordering between them. Filed as
+[R-363](../refinements/tasks/363-the-call-bound-and-the-run-bound-are-unordered.md).
+
+### Re-derived first, and the entry understated its own failure
+
+The entry was written the same night the bound landed and it holds: both numbers exist as it
+describes, the shipped pair (60 s under 2400 s) is ordered correctly by a wide margin, and nothing
+enforces that. What it did not say is what a misordered pair actually produces, and the answer is
+worse than a truncation reported late. Driven through the shipped `PlacedAttempt` against a sidecar
+that accepts a call and never answers:
+
+| the pair | what comes back |
+| --- | --- |
+| call 0.05 s under run 1.0 s | the call is cut at its bound, the `ToolError` becomes the `is_error` result the loop recovers from, and the subtask **answers** |
+| call 5.0 s over run 0.3 s | the run's deadline fires first, `AttemptFailure.TRUNCATED`, and **no text at all** |
+
+So the inversion does not merely delay the failure. It deletes the recovery the bound was built
+for: the whole point of decision 3 above is that a wedged sidecar now looks like a refused one, and
+a delegated run whose call bound sits above its own deadline never reaches that path. The detail
+the cortex then reads says the subtask "was still generating" and should be narrowed before it is
+delegated again, which sends the reader to the model and the instruction when the cause was a
+sidecar and a knob two settings away. And `TRUNCATED` is deliberately never re-placed, so the CPU
+re-run a transport failure earns is skipped as well.
+
+The entry's reading of where the fix belongs also holds. The two numbers are read by two settings
+classes, `ToolsConfig` and `SubagentsConfig`, and neither can see the other, so the comparison
+belongs at the composition root that holds both. That is where the model-host pairing ended up for
+the same reason.
+
+### Decision 1: a boot-time refusal, the shape both neighbouring checks already have
+
+`check_tool_call_deadline` refuses a deployment whose delegated dispatch does not fit inside its
+run bound, and it is the third such check rather than a new idea. `SubagentsConfig` already refuses a run
+deadline that does not outlast its own stall ceiling, and `check_control_deadline` already refuses
+a control deadline the model host's worst stop can outlast. The call bound is a fourth bound on the
+same delegated run, and it was related to none of the others. The three `SubagentsConfig` declares
+nest by the scope each bounds, one silent gap inside one whole run inside the queue for a run; this
+one is the innermost's sibling rather than its child, bounding one tool dispatch where the stall
+ceiling bounds one silent read, and both of them sit inside the run.
+
+**A clamp was rejected.** It would retune a number the operator typed, and it would have to pick
+which one. Lowering the call bound to meet the run bound leaves the two equal, which is the race
+decision 2 exists to avoid. Raising the run bound spends more of the user's wall clock and holds a
+model lease longer than the deployment asked for. Both are silent, and this repo refuses silent
+holes at every comparable point: a non-positive bound, a price outside the dispatch budget, a
+blank gate reason and an ask no admission could ever fit all fail at boot rather than quietly
+becoming something else.
+
+**A logged warning was rejected.** It leaves the misordering running, so the failure still arrives,
+still wearing a diagnosis that names the wrong cause. The reason to check at boot in the first
+place is that the reason is a knob two settings away that nobody would look at, and a warning line
+in a container log at boot is exactly as invisible as the knob it describes. The one place a
+warning **is** right is where `check_control_deadline` puts one, a far side that cannot be *asked*;
+both numbers here are this process's own env and are always readable, so that arm has no analogue.
+
+### Decision 2: what is compared is a whole dispatch, strictly under, where both capabilities are on
+
+**The bound is spent per walk, not per dispatch**, and comparing the two numbers as they are typed
+under-protects the very path this check exists for. Measured through the real composition root with
+one wedged sidecar at a 0.25 s bound, counting how many times a single dispatch reaches
+`BoundedToolRegistry`:
+
+| dispatch | sidecars | `on_unavailable` | bounds spent |
+| --- | --- | --- | --- |
+| cortex | 1 | `skip` | 1 |
+| cortex | 2 | `skip` | 2 |
+| **subagent** | **1** | `skip` | **2** |
+| **subagent** | **2** | `skip` | **4** |
+| either | either | `fail` | 1, the walk aborting at the first overrun |
+
+A delegated dispatch costs twice a cortex one because `UngatedToolRegistry.invoke` re-lists the
+registry to strip gated names before it delegates, a live walk it keeps deliberately uncached so a
+re-flagged tool fails closed. `AggregateToolRegistry.invoke` re-lists to route, which is the second
+doubling, and it is absent at one endpoint, a lone registry being composed as itself. The run's own
+advertisement, one more walk, is spent before any of it.
+
+So `CORTEX_TOOLS_CALL_TIMEOUT_S=700` under `CORTEX_SUBAGENTS_RUN_TIMEOUT_S=900` passes a bare
+comparison and then spends 1400 s inside a run allowed 900, which is exactly the failure at the
+head of this addendum. What the check compares is therefore `delegated_call_bounds(tools)` times
+the call bound, strictly under the run bound: one advertisement walk, one gated strip, one routing
+walk and the call, each walk costing one bound per configured sidecar, which is 3 at one sidecar
+and 7 at two.
+
+**A fixed factor was rejected.** Any single number is either wrong above one sidecar or absurd at
+one, and the endpoint count is sitting in the very config object the check is already handed, so
+guessing at it would be a decision to know less than the process does.
+
+**Widening it to a whole run was rejected too.** A run makes many dispatches over many rounds, so
+the honest ceiling on what one wedged sidecar can cost a run multiplies this again by
+`MAX_TOOL_DISPATCHES`. The shipped 60 s under 2400 s does not clear that, so the check would refuse
+the stack this repo ships. It would also be protecting the wrong thing: the failure here is a run
+cut *mid call* and reported as a subtask that would not stop talking, and avoiding that needs the
+model to reach the tool error at all, not the run to survive every possible wedge. What a passing
+check promises is written in its own docstring, in those words, so the next reader does not have to
+infer the promise from the arithmetic.
+
+Strictly, the `ControlBounds.clears` rule for the reason that rule gives: a dispatch allowed the
+whole of the run leaves which bound fires a race, and the expensive side of that race is the one
+that reports a wedge as a runaway. Checked only when `CORTEX_TOOLS_BACKEND=mcp` and
+`CORTEX_SUBAGENTS_BACKEND=llamacpp`, the shape of `check_control_deadline` returning early for a
+deployment that never escalates: without `mcp` no `BoundedToolRegistry` is built, and without a
+delegation backend there is no run for a call to sit inside. The cortex's own loop stays out of the
+series deliberately, a `Converse` turn announcing no deadline for its calls to be ordered against
+([ADR-0024](ADR-0024-transport-retry.md)), and so does the schedule ticker, which has none either.
+
+### Decision 3: gated at the env read, in a module that builds nothing
+
+The check runs on `SubagentsConfig` on its way out of the environment and into everything that
+spends it, before a single adapter is built, so a refusal releases nothing at all. That is one
+better than the control deadline's own check, which has a runtime to close before it raises because
+asking the far side is what tells it there is a fault.
+
+It lives in `cortex_orchestrator/bounds.py`, a new module for the orderings no single settings
+class can check for itself, rather than in `builders.py` beside the builder whose registry spends
+the bound. The line cap forced the question, the check taking that file to 319 lines, and the
+answer it forced is the right one: a builder returns an adapter plus the coroutine that releases
+it, and this returns a config and opens nothing, so it was never that kind of function. The module
+also has a second tenant waiting, since a per-sidecar bound would make this check compare the
+largest of several rather than one.
+
+### What did not change, deliberately
+
+The `ToolRegistry` port, `BoundedToolRegistry`, the two config classes and both defaults are
+untouched: this addendum adds a relation between numbers, not a number. Neither knob gained a
+ceiling of its own, because neither is wrong alone. And the shipped stack is unaffected: a
+delegated dispatch on it costs 180 s of a run allowed 2400, a factor of thirteen, or 420 s with
+both shipped sidecars layered on, which is what the two passing cases below pin.
+
+### Distrust green
+
+Eleven mutations, each applied to production code alone and run over the whole `brain/packages`
+suite of 2836 cases (80 integration cases deselected), then restored and both files compared by
+checksum against the copy taken before the first mutation:
+
+| Mutation | Reddens |
+| --- | --- |
+| the comparison reads the two fields the other way round | 5 |
+| the comparison accepts equality | 1 |
+| **the dispatch is compared as one bare call bound** | **5** |
+| the multiple stops counting the aggregate's routing walk | 3 |
+| the multiple stops counting the endpoints a walk lists | 3 |
+| the multiple stops counting the call itself | 8 |
+| the misordering is logged and the deployment served anyway | 4 |
+| the guard drops its `mcp` half | 1 |
+| the guard drops its `llamacpp` half | 2 |
+| the refusal renders the run bound where it names the call bound | 2 |
+| the composition root stops calling the check | 1 |
+
+**The third row is the one the table exists for now.** It is the check as it was first written,
+comparing the two bounds as typed, and the five cases it reddens are what the first version had no
+way to notice: nothing in that suite drove a pair that was ordered and still lost a run. The case
+that pins it is named for what it is, a pair the bare comparison admits, and it carries the
+reviewer's own numbers, 700 s under 900 s.
+
+The tenth row is the one the table has always existed for. This repo has now been bitten three
+times by a test that pins a number by interpolating that same number into the string it asserts on,
+most recently in the bound addendum above, where an object naming one value and spending another
+satisfied every assertion in the suite. So the refusal's values are asserted as literals a reader
+typed, at knobs a reader typed, and the set on the record is read through the shipped formatter
+rather than out of `caplog.text`, which carries the message alone and would have passed for as long
+as the numbers happened to be printed twice.
+
+The first row is worth its own sentence too, because it reddens the direction cases and not the
+equality one: reversed, the comparison still refuses an equal dispatch, so the case that pins
+strictness cannot tell a swapped comparison from the shipped one. Two mutations, two different
+cases, and neither case is spare.
+
+One row is reported rather than tidied. The whole sweep was run twice, and on the second run the
+equality arm reddened a second case, `test_abandon.py`'s reading of the time a dropped call had
+left, which no comparison in this module can reach. The arm was run a third time on its own and
+reddened only its own case, as it had the first time, so that reading is load-sensitive rather than
+caused by anything here, three processes having shared the machine on the run that saw it. It is
+filed as
+[R-370](../refinements/tasks/370-an-expiry-reading-is-asserted-exactly.md) rather than left as a
+number somebody else has to explain.
+
+### Consequences
+
+- A deployment whose delegated dispatch does not fit inside its run bound is refused at boot with
+  both knobs, both values, the multiple between them and the product, instead of serving until the
+  first wedged sidecar and then blaming the model. The multiple is what makes the refusal readable:
+  700 s under 900 s looks ordered and is not, and a sentence naming only the two bounds would have
+  had to leave the operator to work out why.
+- Both bounds that sit inside a delegated run, the stall ceiling on one silent read and the call
+  bound on one dispatch, are now checked against the run that contains them, where before only the
+  first of them was, and the relation is written where the numbers are read rather than in a
+  runbook. The run's own place under the queue for it is the one relation in this series still
+  written only in prose.
+- The headroom a deployment has is a property of the **deployment** and not of the pair of numbers
+  in it: adding a second sidecar more than doubles what a wedged dispatch costs without touching
+  either knob. That is now on the boot line as `call_bounds_per_dispatch`, so an operator reading
+  the log sees the term that would otherwise be invisible.
+- `DEFAULT_SUBAGENT_RUN_TIMEOUT_S` joins `scripts/crosscheck.py` as an ordinary equality, tied to
+  the delegation runbook, the tool runbook and the module contract that spell it out. Its
+  declaration and its two restatements were untied before this, and the pairing's own sentence in
+  the tool runbook would have made a third restatement of a number nothing held together.
+- A brain with tools or delegation switched off is untouched, which is CI and the no-GPU dev loop.
+
+### Deferred by this addendum
+
+The ordering is enforced against a **deployment's** numbers and not against the repo's own: the
+constant scan already has a `Relation.ORDERED` for bounds that must sit under one another, but it
+compares integers and every one of these bounds is a float, so a retune of a shipped default that
+inverted the pair would ship and wait for a deployment to turn both capabilities on:
+[R-367](../refinements/tasks/367-the-shipped-ordering-of-two-bounds-is-ungated.md). Note that a
+registry row could only hold the weakest form of this relation, the shipped call bound under the
+shipped run bound: the multiple depends on how many sidecars a deployment configures, and the repo
+ships no such count. And the
+composition root is now exactly at the 300-line cap, so the next capability wired there has to
+split the file before it can add a line:
+[R-368](../refinements/tasks/368-the-composition-root-has-no-headroom.md). Reading the series also
+turned up the one relation in it that is documented and enforced nowhere, a run deadline that has
+to sit under the wait a queued peer will spend, which is two fields of one settings class and so
+the cheapest of the four to check:
+[R-369](../refinements/tasks/369-the-run-deadline-under-the-queue-is-prose-only.md).

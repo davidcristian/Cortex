@@ -1,4 +1,5 @@
-"""The couplings around the subagent tier: what a spawn is charged, and what its container gets.
+"""The couplings around the subagent tier: what a spawn is charged, what its container gets, and
+how long one may run.
 
 One of the data files `crosscheck.py` reads as a single registry, split off `shippedcouplings.py`
 when the compose survey pushed that file past the 300-line cap. The seam it fell on is the one its
@@ -16,8 +17,41 @@ from couplings import Constant, Mention, Site, Spelling
 
 SUBAGENTS_COMPOSE = "docker/docker-compose.subagents.yml"
 SUBAGENTS_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config_subagents.py"
+SUBAGENTS_CORE = "brain/packages/core/src/cortex_core/subagents.py"
+SUBAGENTS_RUNBOOK = "docs/runbooks/subagents-cpu.md"
+TOOLS_RUNBOOK = "docs/runbooks/tools-mcp.md"
+ORCHESTRATOR_DOC = "docs/modules/brain-orchestrator.md"
 
 SUBAGENT_COUPLINGS: tuple[Constant, ...] = (
+    Constant(
+        label="the delegated run's shipped deadline",
+        why=(
+            "the deadline on a whole delegated run is declared in the core module the runner "
+            "spends it from, quoted to an operator by the delegation runbook as the number a "
+            "run is stopped at, quoted again by the tool runbook as the bound one tool call has "
+            "to fit inside, and restated in the module contract a future agent reads instead of "
+            "the tree, so retuning the declaration alone would leave three documents claiming a "
+            "number no run is given (ADR-0005 total-cap addendum, ADR-0009 ordering addendum)"
+        ),
+        sites=(Site(SUBAGENTS_CORE, "DEFAULT_SUBAGENT_RUN_TIMEOUT_S"),),
+        # Two runbooks write the number the way an operator says it out loud, a whole count of
+        # seconds, and the module contract writes the field's own declaration, which carries the
+        # point the float is declared with. So the entry re-spells twice and holds the written
+        # form once, which is what keeps a re-spelling from quietly agreeing with another number.
+        mentions=(
+            Mention(
+                SUBAGENTS_RUNBOOK,
+                "`CORTEX_SUBAGENTS_RUN_TIMEOUT_S` (default {value} s)",
+                spelling=Spelling.WHOLE,
+            ),
+            Mention(
+                TOOLS_RUNBOOK,
+                "`CORTEX_SUBAGENTS_RUN_TIMEOUT_S` (default {value} s)",
+                spelling=Spelling.WHOLE,
+            ),
+            Mention(ORCHESTRATOR_DOC, "`run_timeout_s: float = {value}`"),
+        ),
+    ),
     Constant(
         label="the subagent memory budget's shipped default",
         why=(

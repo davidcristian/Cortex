@@ -3,15 +3,15 @@
 The one place that reads config and picks adapters (DI at the edge, AGENTS.md).
 The per-capability builders live in `builders.py` (and `subagent_builders.py` for
 delegation, `memory_builders.py` for recall), one per port, each returning the dependency
-plus its closer; this module only reads the env configs, calls them, hands the `TurnEngine`
+plus its closer, and `bounds.py` holds the boot checks no one config class can make itself;
+this module reads the env configs, gates them, calls the builders, hands the `TurnEngine`
 its ports, and releases everything on the way out:
 
 - PreferenceStore -> `RedisPreferenceStore` over the same CORTEX_REDIS_URL, holding the user's
   settings record so a choice survives a restart of either side.
 - SessionStore  -> `RedisSessionStore` over CORTEX_REDIS_URL, holding the state that
   survives restarts and model swaps (the one hard rule).
-- Clock -> `SystemClock`, shared by the turn engine, memory recaller, and
-  tool/subagent audit.
+- Clock -> `SystemClock`, shared by the turn engine, memory recaller, and tool/subagent audit.
 - InferenceBackend / Memory / Tools / Subagents / History window / Output guardrail
   -> the builders (ADR-0007/0008/0009/0010/0012/0014/0015); every capability needing an
   external service is off by default so CI and the no-GPU dev loop run free of them
@@ -37,6 +37,7 @@ from cortex_core import (
     TurnRunner,
     VramBudgetPlacer,
 )
+from cortex_orchestrator.bounds import check_tool_call_deadline
 from cortex_orchestrator.builders import (
     build_body_gateway,
     build_builtin_tools,
@@ -96,7 +97,7 @@ async def run_from_env(
     memory_config = MemoryConfig()
     tools_config = ToolsConfig()
     body_config = BodyConfig()
-    subagents_config = SubagentsConfig()
+    subagents_config = check_tool_call_deadline(SubagentsConfig(), tools_config)
     schedule_config = ScheduleConfig()
     swap_config = SwapConfig()
     reply_bounds = ReplyBoundsConfig().bounds()

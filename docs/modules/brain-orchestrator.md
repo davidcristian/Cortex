@@ -2,8 +2,8 @@
 
 **Purpose.** The thin grpc.aio service hosting `BrainService` (the brain's end of the
 seam), plus the composition root that wires the core's ports to real adapters (the
-per-capability `build_*` factories in `builders.py`, the root `run_from_env` in
-`wiring.py`). A shell only: turn logic lives in `cortex_core.TurnEngine`; no
+per-capability `build_*` factories in `builders.py`, the boot orderings no single settings
+class can check for itself in `bounds.py`, and the root `run_from_env` in `wiring.py`). A shell only: turn logic lives in `cortex_core.TurnEngine`; no
 conversation/task state may live in this process beyond the in-flight turn (AGENTS.md
 hard rule).
 
@@ -156,7 +156,10 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   before the brain stops waiting for it. It is spent by the `BoundedToolRegistry` each endpoint is
   wrapped innermost in, so a wedged sidecar fails one call rather than holding a turn open, and it
   is the one declaration here that is inert under `backend="none"`. A value at or below zero fails
-  at boot (`gt=0`), zero refusing every call before it starts.
+  at boot (`gt=0`), zero refusing every call before it starts. A whole delegated dispatch, which is
+  this bound times `delegated_call_bounds`, must also sit **strictly under**
+  `CORTEX_SUBAGENTS_RUN_TIMEOUT_S` whenever both capabilities are on, which no field here can see
+  and `check_tool_call_deadline` enforces at boot (ADR-0009 ordering addendum).
   `gated: tuple[str, ...]` (`CORTEX_TOOLS_GATED`, ADR-0022) defaults to
   `(ESCALATE_TOOL_NAME, "send_email")`: the email fail-closed pairing, plus the escalate
   built-in as the dispatcher-side backstop behind that tool's own always-gated advertised flag
@@ -276,7 +279,12 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   than restated here. `run_timeout_s` must be **strictly greater** than `stall_timeout_s`, else
   construction fails: a deadline that does not outlast the ceiling on one silent gap would report
   every wedged stream as a run that would not stop and silently delete the CPU re-run scheduled
-  for exactly that failure. `attempt_bounds` (property) is the two as the core's `AttemptBounds`,
+  for exactly that failure. It must also stay **strictly above** a whole delegated dispatch, which
+  is `CORTEX_TOOLS_CALL_TIMEOUT_S` times `delegated_call_bounds`: a fourth bound on the same run
+  that sits beside the stall ceiling rather than under it, and one a dispatch spends several times
+  over, which `check_tool_call_deadline` enforces at boot because the numbers are declared in two
+  settings classes (ADR-0009 ordering addendum).
+  `attempt_bounds` (property) is the two as the core's `AttemptBounds`,
   which is what reaches the `SubagentRunner`.
   `named_roster` (property) synthesizes the ready-to-dial mapping, with the flat-field default
   first, alternates sorted, fallbacks applied; empty unless `backend="llamacpp"`. Every entry in
@@ -621,7 +629,36 @@ The service:
   paces on an `asyncio.Event` (`stop()` wakes it, so the graceful path completes in-flight fires
   and strands no claims); unfinished claims are `release`d best-effort, the lease covering the
   rest. Every fire failure is logged, never fatal.
-- `run_from_env() -> None` (async) is the composition root: reads the env configs and serves
+- `delegated_call_bounds(tools) -> int` (`bounds.py`, ADR-0009 ordering addendum) is how many whole
+  `CORTEX_TOOLS_CALL_TIMEOUT_S` bounds one delegated dispatch can spend, the run's own
+  advertisement included: `walks * sidecars + 1`, where `sidecars` is the configured endpoint
+  count and `walks` is 2 at one endpoint and 3 above it. The walks are the run's advertisement,
+  the live gated strip `UngatedToolRegistry.invoke` makes, and, once an `AggregateToolRegistry`
+  exists, its routing re-list; the `+ 1` is the call. Each walk costs one bound per wedged sidecar
+  it lists, `SkipUnavailableToolRegistry` catching an overrun and carrying on, so this is an
+  **upper bound** and says so: `fail` aborts a walk at the first overrun and one wedged sidecar
+  among healthy ones costs one bound a walk. Measured against the real composition: a delegated
+  dispatch spends the bound twice at one endpoint and four times at two.
+- `check_tool_call_deadline(subagents, tools) -> SubagentsConfig` (`bounds.py`, ADR-0009 ordering
+  addendum) refuses a deployment whose whole delegated dispatch,
+  `delegated_call_bounds(tools) * tools.call_timeout_s`, does not sit strictly under its
+  `CORTEX_SUBAGENTS_RUN_TIMEOUT_S`, raising `ToolCallDeadlineError` with both knobs, both values,
+  the multiple and the product in one sentence, and logging the passing set at info with the same
+  four on the record. Comparing the two **bounds** rather than the dispatch under-protects the path
+  by at least twice, `CORTEX_TOOLS_CALL_TIMEOUT_S=700` under a 900 s run passing while a wedged
+  sidecar spends 1400 s. The relation spans two settings classes, so neither can express it and the
+  composition root is where it can be checked, the `check_control_deadline` argument for a pairing
+  that spans two containers instead. Compared only when tools are `mcp` **and** delegation is
+  `llamacpp`: without the first no `BoundedToolRegistry` exists to spend the bound, and without the
+  second there is no delegated run for a call to sit inside (a `Converse` turn announces no
+  deadline at all, so the cortex's own calls have nothing to be ordered against). Strictly under,
+  the `ControlBounds.clears` rule, equality leaving which bound fires a race. A pass promises that
+  the **first** wedged dispatch reaches the loop as a `ToolError` instead of being cut mid call and
+  reported as a runaway subtask; it promises nothing about the run finishing, a run making many
+  dispatches. The config is handed straight back, so the root gates on the way through, and it is
+  gated at the env read before any adapter is built, so a refusal releases nothing.
+- `run_from_env() -> None` (async) is the composition root: reads the env configs, gates the
+  delegation config through `check_tool_call_deadline` as it reads it, and serves
   with `RedisSessionStore.from_url(redis_url)`, `build_inference_backend(...)`, `SystemClock`,
   the default-on history window (`build_history_window`, ADR-0014, recapping what it drops since
   ADR-0038's cheap-fold addendum) and output guardrail (`build_output_guardrail`, ADR-0015),
