@@ -157,6 +157,31 @@ The number is deliberately far past a healthy call (the table above measures a f
 Only the sidecars are bounded, never the built-in tools beside them: a delegated batch and a
 confirm card waiting on a human are supposed to take a while.
 
+**A whole delegated dispatch has to fit inside the run that contains it.** A subagent's whole run
+is bounded by `CORTEX_SUBAGENTS_RUN_TIMEOUT_S` (default 2400 s) and that deadline covers the tool
+dispatches its loop makes, so with the knobs set the wrong way round the run's deadline is what
+fires: the whole delegated run is lost rather than the one call, it comes back with no text at all,
+and the refusal the cortex reads says the subtask would not stop talking, which points at the model
+instead of at the sidecar.
+
+What has to fit is the **dispatch** and not the bound, because a dispatch spends the bound more
+than once. The run lists its tools before its rounds, `UngatedToolRegistry` lists them again on
+every delegated dispatch to strip gated names, an aggregate over several sidecars lists them a
+third time to route, and then the call itself runs, and each of those reaches the bound
+separately. So one wedged sidecar costs a delegated dispatch **three** bounds with one sidecar
+configured and **seven** with two, and `CORTEX_TOOLS_CALL_TIMEOUT_S=700` under a 900 s run reads
+as ordered and is not.
+
+The brain therefore **refuses to start** when that product is not strictly under
+`CORTEX_SUBAGENTS_RUN_TIMEOUT_S` and both capabilities are on, naming both knobs, both values, the
+multiple and the product (ADR-0009 ordering addendum). Lower the call bound or raise the run bound;
+the shipped pair already clears by a factor of thirteen with one sidecar and five with two. With
+either capability off there is nothing to order, so nothing is checked: without `mcp` no bound is
+spent, and a cortex turn announces no deadline for its own calls to sit under. What a passing check
+buys is that the first wedged dispatch reaches the model as an error it can act on; a run that
+dispatches many times can still spend its whole deadline on a broken sidecar, which is a slow turn
+rather than a mis-diagnosed one.
+
 A turn that repeats one call has it dispatched at most twice, and at most once per inference
 round (`CORTEX_TOOLS_SALIENCE`, default `repeat`, ADR-0009 salience addendum). The refusal is
 audited like any other dispatch, so the brain's logs show the repeat as a `tool.invoke` line
