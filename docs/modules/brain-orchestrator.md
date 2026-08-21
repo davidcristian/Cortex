@@ -531,9 +531,12 @@ The service:
 - `AbandonedCallInterceptor()` (`abandon.py`, ADR-0024 abandonment addendum) writes one
   `WARNING` per **unary** call the caller gave up on: `ABANDONED_MESSAGE`, with the RPC's wire
   `method` and the `time_remaining()` the announced deadline had left. It is the brain's one
-  use of the deadline the body announces on every unary call, and it judges nothing: zero is
-  that deadline expiring (grpc clamps the reading there, which the wire case asserts as an
-  integer `0` rather than describing), a positive value a caller that stopped
+  use of the deadline the body announces on every unary call, and it judges nothing: nothing left
+  is that deadline expiring, reading as an integer `0` when the cancellation lands after the
+  deadline passed and as an unspent sliver of the window when a loaded machine lands it a hair
+  early, grpc flooring the reading at zero either way (the wire case asserts that floor and a
+  bound under half the announced window, both on a real reading, rather than an exact `0` a real
+  clock does not always produce); a value well above zero is a caller that stopped
   early (which the shipped body is on every call, enforcing a bound shorter than it announces),
   `None` a caller that announced no deadline and simply disconnected. The cancellation is always
   re-raised. A handler with no unary-unary behavior is passed through untouched, which is how
