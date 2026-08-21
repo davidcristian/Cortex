@@ -108,8 +108,11 @@ of the words that prove a folder missing, which is the assumption the whole clas
 on and was until now only assumed. The refusal for a **missing** mailbox shares no word with the
 Bridge's, so both phrases are read and neither server sends a response code to read instead. And
 this server refuses a listed `\Noselect` node exactly as it refuses a name no mailbox has, where
-the Bridge's own `\Noselect` parents open; the probe suite records that rather than working
-around it, since the refusal carries nothing that could tell the two apart.
+the Bridge's own `\Noselect` parents open. Since the refusal carries nothing that could tell the
+two apart, `list_folders` no longer offers such a name at all: it reads the LIST attributes
+imap-tools already carries beside each name and drops anything flagged `\Noselect` or
+`\NonExistent` (ADR-0022 hierarchy-node addendum). `Parent/Child` is listed in its own right, so
+only the unusable name is gone.
 
 Rerun the probe after any change to the folder classification, and after a Dovecot bump if the
 pinned image ever moves: the wordings above are the evidence the rule is built on, and a server

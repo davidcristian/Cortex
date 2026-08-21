@@ -21,12 +21,16 @@ SELECT_ANSWER_FRAGMENTS = ("Response status", "no such mailbox", "Data:")
 
 @dataclass(frozen=True, slots=True)
 class MailboxUnderTest:
-    """One implementation, the folder it has messages in, and the two knobs the checks need."""
+    """One implementation, the folder it has messages in, and what the checks need arranged."""
 
     mailbox: Mailbox
     folder: str
     refuse_searches: Callable[[], None]
     break_folder_opening: Callable[[], None]
+    # A name this implementation's server lists and no mailbox has: a node in the hierarchy.
+    # It is not a knob, because no method can make a server grow one; each fixture is built
+    # over a server that already has it, the live one included.
+    hierarchy_node: str
 
 
 type Check = Callable[[MailboxUnderTest], None]
@@ -38,6 +42,26 @@ def folders_come_back_as_plain_names(under_test: MailboxUnderTest) -> None:
     assert folders
     assert all(type(name) is str for name in folders)
     assert under_test.folder in folders
+
+
+def a_listed_name_is_never_one_the_port_calls_unknown(under_test: MailboxUnderTest) -> None:
+    """`list_folders` offers no name that a later call would refuse as a folder no mailbox has."""
+    folders = list(under_test.mailbox.list_folders())
+    assert under_test.hierarchy_node not in folders
+    for name in folders:
+        try:
+            under_test.mailbox.search(name, "ALL", 1)
+        except FolderUnknownError as unknown:
+            pytest.fail(f"list_folders offered {unknown.folder}, which the port calls unknown")
+        except MailboxError:
+            pass  # A mailbox that is really there and will not open is not this check's subject.
+
+
+def a_hierarchy_node_is_still_refused_when_a_caller_names_it(under_test: MailboxUnderTest) -> None:
+    """Dropping the node from the list does not make the name work, and must not pretend it does."""
+    with pytest.raises(FolderUnknownError) as raised:
+        under_test.mailbox.search(under_test.hierarchy_node, "ALL", 5)
+    assert raised.value.folder == under_test.hierarchy_node
 
 
 def a_search_answers_with_the_raw_messages_it_matched(under_test: MailboxUnderTest) -> None:
@@ -105,6 +129,8 @@ def a_folder_that_could_not_be_opened_is_not_reported_missing(
 
 ALL_CHECKS: Sequence[Check] = (
     folders_come_back_as_plain_names,
+    a_listed_name_is_never_one_the_port_calls_unknown,
+    a_hierarchy_node_is_still_refused_when_a_caller_names_it,
     a_search_answers_with_the_raw_messages_it_matched,
     a_refused_search_raises_the_port_s_own_error,
     a_refusal_says_what_to_do_and_never_what_the_wire_said,

@@ -1,6 +1,6 @@
 # `list_folders` offers a name that is not a mailbox, and a refusal sends the model to it
 
-**Status:** open, actionable
+**Status:** landed 2026-08-21
 **Area:** email-confirmer
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
 
@@ -36,3 +36,13 @@ that really lists one.
   second IMAP server to settle what a refused SELECT means and measured this beside it: that
   server lists a `\Noselect` node and refuses it in the words that prove a folder missing.
   Recorded in the ADR-0022 two-server addendum.
+- 2026-08-21: Landed as the first of the two shapes it weighed. imap-tools keeps the server's LIST
+  attributes on the `FolderInfo` it builds, so the fact was available at the one call that needed
+  it, and `ImapMailbox.list_folders` now drops any name flagged `\Noselect` or `\NonExistent`.
+  The port's shape is unchanged and its promise is wider: every name it answers with is one the
+  other two calls may be given, held by two contract checks the fake, the adapter and the live
+  probe all run. Written up in the ADR-0022 hierarchy-node addendum, which also says what omitting
+  costs. Opened [373](373-a-flag-read-from-a-standard-not-a-server.md), on the second flag being
+  read from a standard rather than from a server, and
+  [374](374-two-names-the-bridge-lists-are-now-withheld.md), on the two Bridge names this filter
+  now withholds.

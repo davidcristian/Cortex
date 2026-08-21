@@ -12,10 +12,13 @@ class FakeMailbox:
         self,
         *,
         folders: Sequence[str] = ("INBOX",),
+        nodes: Sequence[str] = (),
         found: Sequence[RawEmail] = (),
         one: RawEmail | None = None,
     ) -> None:
         self._folders = folders
+        self._listed = (*folders, *nodes)
+        self._nodes = nodes
         self._found = found
         self._one = one
         self._refusing = False
@@ -42,7 +45,8 @@ class FakeMailbox:
             raise FolderUnknownError(folder)
 
     def list_folders(self) -> Sequence[str]:
-        return self._folders
+        """Everything the server lists, less the nodes: the filtering the port owes a caller."""
+        return [name for name in self._listed if name not in self._nodes]
 
     def search(self, folder: str, query: str, limit: int) -> Sequence[RawEmail]:
         self._open(folder)

@@ -22,7 +22,11 @@ denied outright.
 - `Mailbox` is the `Protocol` the reader needs (`list_folders`, `search`, `fetch` → `RawEmail`);
   the imap-tools adapter and a fake both satisfy it. It fails in exactly three ways and every
   implementation owes all three, the fake included, which is what the shared contract
-  (`tests/mailbox_contract.py`, driven over the fake and the adapter) exists to hold.
+  (`tests/mailbox_contract.py`, driven over the fake and the adapter) exists to hold. It also owes
+  one promise about success: every name `list_folders` answers with is a name the other two calls
+  may be given, so a server's bare hierarchy nodes are filtered out by the implementation rather
+  than handed on (ADR-0022 hierarchy-node addendum). Two contract checks hold it, one walking the
+  offered list and one saying that naming a node anyway is still refused.
 - `MailboxError` says the mailbox could not answer: unreachable Bridge, refused TLS or login, a
   folder that could not be examined, a connection that went away. Beneath it are the two narrower
   subclasses, one per argument the read tools invite a model to guess, and the line in both cases
@@ -38,7 +42,11 @@ denied outright.
   a wire command and a command status the model never sent. The cause chain keeps both for an
   operator.
 - `ImapMailbox(config)` is the `Mailbox` over imap-tools. Connects per call (the Bridge is local)
-  so the server holds no IMAP state. No exception of the IMAP stack escapes it: a `BAD` answer to
+  so the server holds no IMAP state. `list_folders` reads the LIST attributes `folder.list()`
+  carries beside each name and drops any name flagged `\Noselect` (RFC 3501) or `\NonExistent`
+  (RFC 5258), case-folded: Dovecot lists such a node and then refuses a SELECT of it in the very
+  words that prove a folder missing, so offering the name would send a model back to the list it
+  came from. No exception of the IMAP stack escapes it: a `BAD` answer to
   a search becomes `SearchRefusedError`, a `NO` to `SELECT` whose own text says the mailbox does
   not exist becomes `FolderUnknownError`, and everything else, imaplib's `IMAP4.abort` for a
   connection lost mid-command included, becomes `MailboxError` with the cause chained. Both

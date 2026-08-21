@@ -31,6 +31,14 @@ def test_list_folders_logs_in_and_lists(monkeypatch: pytest.MonkeyPatch) -> None
     assert (captured["host"], captured["port"]) == ("mail.local", 1143)
 
 
+def test_the_newer_spelling_of_unselectable_is_dropped_too(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    box = FakeBox(names=["INBOX"], nodes=["Archive"], node_flags=("\\nonexistent",))
+    patch_box(monkeypatch, box)
+    assert list(ImapMailbox(config()).list_folders()) == ["INBOX"]
+
+
 def test_search_is_headers_only_read_only_and_unseen(monkeypatch: pytest.MonkeyPatch) -> None:
     box = FakeBox(messages=[Msg("7", b"raw7"), Msg("8", b"raw8")])
     patch_box(monkeypatch, box)
