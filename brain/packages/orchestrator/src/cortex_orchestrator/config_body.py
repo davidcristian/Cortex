@@ -10,16 +10,26 @@ from cortex_core import MAX_IMAGE_BYTES, MAX_IMAGE_EDGE
 
 BodyBackendName = Literal["none", "grpc"]
 
+# The edge the brain asks the body for. It asks for 2048 rather than the body's own 1600, the
+# brain half of a measured pair: with the model host's image token budget at 1024, a 4K desktop
+# goes from 6 to 8 of 47 ground-truth strings read to 36 to 38.
+DEFAULT_CAPTURE_MAX_EDGE = 2048
+
 
 class BodyConfig(BaseSettings):
-    """Whether the cortex can call the host body over ``BodyService`` (ADR-0023)."""
+    """Whether the cortex can call the host body over ``BodyService``."""
 
     model_config = SettingsConfigDict(env_prefix="CORTEX_BODY_")
 
     backend: BodyBackendName = "none"
     endpoint: str = ""
-    capture_max_edge: int = Field(default=2048, ge=0, le=MAX_IMAGE_EDGE)
+    # 0 asks for nothing, and the body then answers at its own conservative 1600, where even an
+    # incompressible screen encodes inside the byte ceiling.
+    capture_max_edge: int = Field(default=DEFAULT_CAPTURE_MAX_EDGE, ge=0, le=MAX_IMAGE_EDGE)
     max_image_bytes: int = Field(default=MAX_IMAGE_BYTES, gt=0, le=MAX_IMAGE_BYTES)
+    # Two deadlines because the calls differ: a capture is legitimately slow, while every other
+    # call is fast when it works and unbounded when it is not, the body running each handler on
+    # a blocking thread that a COM call can park for as long as the host takes.
     capture_timeout_s: float = Field(default=DEFAULT_CAPTURE_TIMEOUT_S, gt=0)
     call_timeout_s: float = Field(default=DEFAULT_CALL_TIMEOUT_S, gt=0)
 

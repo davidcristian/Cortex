@@ -14,9 +14,7 @@ from couplings import (
     Relation,
     Site,
 )
-from overlaycouplings import OVERLAY_COUPLINGS
-from seamcouplings import SEAM_COUPLINGS
-from shippedcouplings import SHIPPED_COUPLINGS
+from registry import CONSTANTS
 from values import (
     CrossCheckError,
     Reading,
@@ -26,8 +24,6 @@ from values import (
     spell,
     spelling_fault,
 )
-
-CONSTANTS: tuple[Constant, ...] = (*SEAM_COUPLINGS, *SHIPPED_COUPLINGS, *OVERLAY_COUPLINGS)
 
 # What counts as a continuation of a rendered needle's own token, at whichever of its two edges is
 # itself made of one. A needle edged by punctuation (`var(--ceiling,`) needs no such guard.

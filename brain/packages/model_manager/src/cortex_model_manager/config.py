@@ -22,6 +22,14 @@ DEFAULT_BRAIN_MODEL = "brain"
 # while the deep model is resident it is alone on the GPU (ADR-0030 decision 8).
 DEFAULT_SUBAGENT_GPU_MODEL = "subagent-gpu"
 
+DEFAULT_NGL = 99
+DEFAULT_CORTEX_CTX_SIZE = 16384
+DEFAULT_BRAIN_CTX_SIZE = 8192
+DEFAULT_SUBAGENT_CTX_SIZE = 8192
+DEFAULT_SUBAGENT_PARALLEL = 2
+DEFAULT_IMAGE_MAX_TOKENS = 1024
+DEFAULT_NVIDIA_SMI = "nvidia-smi"
+
 # Both subagent-tier families are reasoning models and unbounded thinking is minutes per call
 # (ADR-0010), so the hosted subagent tier carries the same server-side reasoning-off pair the CPU
 # subagent service does.
@@ -44,7 +52,7 @@ class ModelHostConfig(BaseSettings):
     stop_grace_s: float = Field(default=DEFAULT_STOP_GRACE_S, ge=0)
     reap_timeout_s: float = Field(default=DEFAULT_REAP_TIMEOUT_S, ge=0)
     probe_timeout_s: float = Field(default=DEFAULT_PROBE_TIMEOUT_S, gt=0)
-    nvidia_smi: str = "nvidia-smi"
+    nvidia_smi: str = DEFAULT_NVIDIA_SMI
     log_level: str = "info"
     # How a line is rendered, the sidecar's own half of the brain's CORTEX_LOG_FORMAT. Under this
     # prefix because it sits beside the level it pairs with and because this container's env is
@@ -59,10 +67,12 @@ class ModelHostConfig(BaseSettings):
     )
     cortex_mmproj_file: str = Field(default="", validation_alias="CORTEX_MMPROJ_FILE_CORTEX")
     cortex_image_max_tokens: int = Field(
-        default=1024, ge=0, validation_alias="CORTEX_IMAGE_MAX_TOKENS"
+        default=DEFAULT_IMAGE_MAX_TOKENS, ge=0, validation_alias="CORTEX_IMAGE_MAX_TOKENS"
     )
-    cortex_ngl: int = Field(default=99, validation_alias="CORTEX_NGL")
-    cortex_ctx_size: int = Field(default=16384, gt=0, validation_alias="CORTEX_CTX_SIZE")
+    cortex_ngl: int = Field(default=DEFAULT_NGL, validation_alias="CORTEX_NGL")
+    cortex_ctx_size: int = Field(
+        default=DEFAULT_CORTEX_CTX_SIZE, gt=0, validation_alias="CORTEX_CTX_SIZE"
+    )
     cortex_port: int = Field(default=8080, gt=0, le=65535)
     cortex_reasoning_budget: int = Field(
         default=_UNRESTRICTED_REASONING,
@@ -72,8 +82,10 @@ class ModelHostConfig(BaseSettings):
 
     brain_model: str = Field(default=DEFAULT_BRAIN_MODEL, validation_alias="CORTEX_MODEL_BRAIN")
     brain_file: str = Field(default="", validation_alias="CORTEX_MODEL_FILE_BRAIN")
-    brain_ngl: int = Field(default=99, validation_alias="CORTEX_NGL_BRAIN")
-    brain_ctx_size: int = Field(default=8192, gt=0, validation_alias="CORTEX_CTX_SIZE_BRAIN")
+    brain_ngl: int = Field(default=DEFAULT_NGL, validation_alias="CORTEX_NGL_BRAIN")
+    brain_ctx_size: int = Field(
+        default=DEFAULT_BRAIN_CTX_SIZE, gt=0, validation_alias="CORTEX_CTX_SIZE_BRAIN"
+    )
     brain_port: int = Field(default=8081, gt=0, le=65535)
     brain_reasoning_budget: int = Field(
         default=_UNRESTRICTED_REASONING,
@@ -85,12 +97,12 @@ class ModelHostConfig(BaseSettings):
         default=DEFAULT_SUBAGENT_GPU_MODEL, validation_alias="CORTEX_MODEL_SUBAGENT_GPU"
     )
     subagent_gpu_file: str = Field(default="", validation_alias="CORTEX_MODEL_FILE_SUBAGENT_GPU")
-    subagent_gpu_ngl: int = Field(default=99, validation_alias="CORTEX_NGL_SUBAGENT_GPU")
+    subagent_gpu_ngl: int = Field(default=DEFAULT_NGL, validation_alias="CORTEX_NGL_SUBAGENT_GPU")
     subagent_gpu_ctx_size: int = Field(
-        default=8192, gt=0, validation_alias="CORTEX_SUBAGENT_CTX_SIZE"
+        default=DEFAULT_SUBAGENT_CTX_SIZE, gt=0, validation_alias="CORTEX_SUBAGENT_CTX_SIZE"
     )
     subagent_gpu_parallel: int = Field(
-        default=2, gt=0, validation_alias="CORTEX_SUBAGENTS_PARALLEL"
+        default=DEFAULT_SUBAGENT_PARALLEL, gt=0, validation_alias="CORTEX_SUBAGENTS_PARALLEL"
     )
     subagent_gpu_port: int = Field(default=8083, gt=0, le=65535)
 

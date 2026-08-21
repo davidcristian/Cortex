@@ -1,18 +1,25 @@
 """The couplings around a shipped number: one tree declares it, and other files restate it."""
 
-from couplings import Constant, Mention, Site, Spelling
+from couplings import Constant, Mention, Site
 
 BASE_COMPOSE = "docker/docker-compose.yml"
 BODY_COMPOSE = "docker/docker-compose.body.yml"
 GPU_COMPOSE = "docker/docker-compose.gpu.yml"
+IMAGES = "brain/packages/core/src/cortex_core/images.py"
 LOG_FORMAT = "brain/packages/core/src/cortex_core/log_format.py"
-SUBAGENTS_COMPOSE = "docker/docker-compose.subagents.yml"
-SUBAGENTS_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config_subagents.py"
+BODY_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config_body.py"
+INFERENCE_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config.py"
+SCHEDULE_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config_schedule.py"
+SCHEDULE_TIME = "brain/packages/core/src/cortex_core/schedule_time.py"
+TOOLS_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config_tools.py"
 BODY_GATEWAY = "brain/packages/body_client/src/cortex_body_client/gateway.py"
 BODY_CLIENT_DOC = "docs/modules/brain-body-client.md"
 BODY_CORE_DOC = "docs/modules/body-core.md"
 BODY_RPC_DOC = "docs/modules/body-rpc.md"
 RETRY_PLAN = "body/crates/core/src/retry/plan.rs"
+GPU_RUNBOOK = "docs/runbooks/llamacpp-gpu.md"
+SCHEDULING_RUNBOOK = "docs/runbooks/scheduling.md"
+TOOLS_RUNBOOK = "docs/runbooks/tools-mcp.md"
 VISION_RUNBOOK = "docs/runbooks/vision.md"
 VOLUME_RUNBOOK = "docs/runbooks/body-volume.md"
 
@@ -33,6 +40,20 @@ SHIPPED_COUPLINGS: tuple[Constant, ...] = (
         # there is nothing to parse on that side, so the agreed number is rendered into the
         # shape and required to appear.
         mentions=(Mention(BASE_COMPOSE, "${CORTEX_TOOLS_SALIENCE_LIMIT:-{value}}"),),
+    ),
+    Constant(
+        label="the salience rule the stack ships",
+        why=(
+            "the same knob's other half: the base compose file names which rule a loop runs "
+            "under and the runbook tells an operator which one is running, so a retuned default "
+            "with the substitution left alone would ship the old rule to every deployment while "
+            "the field claimed the new one (ADR-0009 salience addendum)"
+        ),
+        sites=(Site(TOOLS_CONFIG, "DEFAULT_SALIENCE"),),
+        mentions=(
+            Mention(BASE_COMPOSE, "${CORTEX_TOOLS_SALIENCE:-{value}}"),
+            Mention(TOOLS_RUNBOOK, "`CORTEX_TOOLS_SALIENCE`, default `{value}`"),
+        ),
     ),
     Constant(
         label="the capture call's shipped deadline",
@@ -64,6 +85,51 @@ SHIPPED_COUPLINGS: tuple[Constant, ...] = (
             Mention(BODY_CLIENT_DOC, "`DEFAULT_CALL_TIMEOUT_S = {value}`"),
         ),
     ),
+    # The two capture bounds that ride with a request. The byte budget is the brain's half of a
+    # ceiling the body enforces too, so it is a site in `seamcouplings.py` as well; here it is the
+    # shipped number three deployment surfaces restate. The edge is the brain's alone.
+    Constant(
+        label="the capture edge's shipped default",
+        why=(
+            "the compose stack ships this edge into every container and two runbooks quote it as "
+            "the brain half of the measured legibility pair, so retuning the field alone would "
+            "leave every deployment asking for the old edge while the encoder was sized for the "
+            "new one (ADR-0029 legibility addendum)"
+        ),
+        sites=(Site(BODY_CONFIG, "DEFAULT_CAPTURE_MAX_EDGE"),),
+        mentions=(
+            Mention(BODY_COMPOSE, "${CORTEX_BODY_CAPTURE_MAX_EDGE:-{value}}"),
+            Mention(VISION_RUNBOOK, "| `CORTEX_BODY_CAPTURE_MAX_EDGE` | brain | `{value}` |"),
+            Mention(GPU_RUNBOOK, "CORTEX_BODY_CAPTURE_MAX_EDGE={value}"),
+        ),
+    ),
+    Constant(
+        label="the capture byte budget's shipped default",
+        why=(
+            "the brain's budget defaults to the body's own ceiling, and the stack spells that "
+            "number again while the vision runbook quotes it as the shipped budget, so a "
+            "tightened ceiling with the substitution left alone would ask every deployment for "
+            "more bytes than either end now allows (ADR-0029)"
+        ),
+        sites=(Site(IMAGES, "MAX_IMAGE_BYTES"),),
+        mentions=(
+            Mention(BODY_COMPOSE, "${CORTEX_BODY_MAX_IMAGE_BYTES:-{value}}"),
+            Mention(VISION_RUNBOOK, "| `CORTEX_BODY_MAX_IMAGE_BYTES` | brain | `{value}` |"),
+        ),
+    ),
+    Constant(
+        label="whether capture is advertised, as shipped",
+        why=(
+            "the body override names the probe policy every deployment boots on and the vision "
+            "runbook states it as the shipped answer, so a retuned field with the substitution "
+            "left alone would keep probing where the brain had decided not to (ADR-0029)"
+        ),
+        sites=(Site(INFERENCE_CONFIG, "DEFAULT_VISION_MODE"),),
+        mentions=(
+            Mention(BODY_COMPOSE, '"${CORTEX_VISION:-{value}}"'),
+            Mention(VISION_RUNBOOK, "| `CORTEX_VISION` | brain | `{value}` |"),
+        ),
+    ),
     Constant(
         label="the grace between the announced deadline and the enforced one",
         why=(
@@ -78,83 +144,33 @@ SHIPPED_COUPLINGS: tuple[Constant, ...] = (
             Mention(BODY_RPC_DOC, "`ANNOUNCED_DEADLINE_GRACE_MS` ({value} ms)"),
         ),
     ),
+    # The two schedule knobs the base compose file restates, one a policy and one a zone. The zone
+    # needs no hoisted constant: the core already names it, the settings field importing that name
+    # rather than spelling a second `"UTC"`.
     Constant(
-        label="the subagent memory budget's shipped default",
+        label="whether a deployment ships a durable schedule store",
         why=(
-            "one compose file spells this number four times, once as the soft budget the "
-            "admission scheduler is given and twice as the hard cgroup cap on the container "
-            "running what it admits, so retuning the brain's field alone would cap that "
-            "container at the old number while the scheduler admitted against the new one, "
-            "which is the failure the resource governance exists to prevent (ADR-0012)"
+            "the base compose file names the backend every deployment boots on and the "
+            "scheduling runbook opens by stating it, so turning the shipped answer on in the "
+            "field alone would leave every composed stack still running without a store while "
+            "both the field and the reader believed otherwise (ADR-0025)"
         ),
-        sites=(Site(SUBAGENTS_CONFIG, "DEFAULT_MEM_BUDGET_GB"),),
+        sites=(Site(SCHEDULE_CONFIG, "DEFAULT_SCHEDULE_BACKEND"),),
         mentions=(
-            Mention(SUBAGENTS_COMPOSE, '"${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-{value}}"'),
-            Mention(
-                SUBAGENTS_COMPOSE,
-                '"${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-{value}}g"',
-                occurrences=2,
-                spelling=Spelling.WHOLE,
-            ),
-            Mention(SUBAGENTS_COMPOSE, "MEM_BUDGET_GB {value})"),
-            Mention(SUBAGENTS_COMPOSE, "under the {value} GB budget", spelling=Spelling.WHOLE),
+            Mention(BASE_COMPOSE, "${CORTEX_SCHEDULE_BACKEND:-{value}}"),
+            Mention(SCHEDULING_RUNBOOK, "(`CORTEX_SCHEDULE_BACKEND={value}`)"),
         ),
     ),
     Constant(
-        label="the subagent CPU budget's shipped default",
+        label="the display zone every deployment renders in",
         why=(
-            "the same file spells this number three times, once as the soft budget the admission "
-            "scheduler is given and once as the hard `cpus` cap on the container running what it "
-            "admits, so retuning the brain's field alone would hand that container fewer cores "
-            "than the spawns it is serving were charged against, which is the memory budget's "
-            "failure in the other dimension and reads as a tier that got slow (ADR-0012)"
+            "the core names the zone a schedule datetime renders in when the deployment names "
+            "none, and the base compose file spells that same key as its own substitution "
+            "default, so a renamed key would leave every composed deployment asking for a zone "
+            "the brain refuses at startup (ADR-0025 display addendum)"
         ),
-        sites=(Site(SUBAGENTS_CONFIG, "DEFAULT_CPU_BUDGET"),),
-        mentions=(
-            Mention(SUBAGENTS_COMPOSE, '"${CORTEX_SUBAGENTS_CPU_BUDGET:-{value}}"', occurrences=2),
-            Mention(SUBAGENTS_COMPOSE, "CPU_BUDGET {value},"),
-        ),
-    ),
-    Constant(
-        label="the subagent VRAM ask's shipped default",
-        why=(
-            "the placer fit-tests this ask against the headroom left beside the resident cortex "
-            "and the compose stack spells the measured number into every container it starts, so "
-            "a field above the stack's refuses placements the card has room for and one below it "
-            "admits a spawn onto room the tier then overruns (ADR-0012 measured-ask addendum)"
-        ),
-        sites=(Site(SUBAGENTS_CONFIG, "DEFAULT_VRAM_GB"),),
-        # The passthrough, and the sentence that records what was measured: an ask retuned without
-        # that sentence leaves the file claiming a margin over a peak it no longer has.
-        mentions=(
-            Mention(SUBAGENTS_COMPOSE, '"${CORTEX_SUBAGENTS_VRAM_GB:-{value}}"'),
-            Mention(SUBAGENTS_COMPOSE, "{value} GiB sits"),
-        ),
-    ),
-    Constant(
-        label="the subagent CPU ask's shipped default",
-        why=(
-            "the scheduler charges this per spawn against the CPU budget above, so the two "
-            "declarations decide together how many subagents run at once, and a stack that ships "
-            "one number while the brain defaults to another admits a different count than the "
-            "server's slots were sized for (ADR-0012)"
-        ),
-        sites=(Site(SUBAGENTS_CONFIG, "DEFAULT_CPUS"),),
-        mentions=(Mention(SUBAGENTS_COMPOSE, '"${CORTEX_SUBAGENTS_CPUS:-{value}}"'),),
-    ),
-    Constant(
-        label="the subagent memory ask's shipped default",
-        why=(
-            "the same charge in the other dimension, measured on the shipped entry and spelled "
-            "both in the stack that ships it and in the sentence recording the measurement, so a "
-            "field under the stack's admits more spawns than the container's own memory cap can "
-            "hold, which is the unsafe direction (ADR-0012)"
-        ),
-        sites=(Site(SUBAGENTS_CONFIG, "DEFAULT_MEMORY_GB"),),
-        mentions=(
-            Mention(SUBAGENTS_COMPOSE, '"${CORTEX_SUBAGENTS_MEMORY_GB:-{value}}"'),
-            Mention(SUBAGENTS_COMPOSE, "-> {value} memory ask"),
-        ),
+        sites=(Site(SCHEDULE_TIME, "UTC_ZONE_NAME"),),
+        mentions=(Mention(BASE_COMPOSE, "${CORTEX_SCHEDULE_TZ:-{value}}"),),
     ),
     Constant(
         label="the log rendering both brain processes ship with",

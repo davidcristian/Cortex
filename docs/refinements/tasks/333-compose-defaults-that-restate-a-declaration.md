@@ -1,6 +1,6 @@
 # Which compose defaults restate a declaration has never been surveyed
 
-**Status:** open, actionable
+**Status:** landed 2026-08-21
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -36,3 +36,25 @@ agrees with itself.
 - 2026-08-20: opened by the close of [R-315](315-subagent-cpu-budget-and-its-siblings.md), which
   tied the four knobs it had measured and left the fifty it had not, exactly as the close of
   [R-306](306-subagent-memory-budget-spelled-twice.md) and the salience limit's close before it.
+- 2026-08-21: landed as the survey itself. **The number is 70 substitutions spelling 56 distinct
+  variables**, not "around fifty"; one variable carries two defaults on purpose, the subagent
+  memory budget's `8.0` and `8`. They sort into 43 that restate a value some tree declares and 13
+  that name a path, a model file, an endpoint, a container limit or a password nothing else
+  declares. Of the 43, ten were already tied, **twenty are tied now** (nineteen registry entries
+  covering twenty six spends, with eleven numbers hoisted out of `Field(...)` calls into module
+  constants and three compose defaults re-spelled to match the decimals their constants declare),
+  and thirteen are declarations the reducer cannot compare: eight empty sentinels that state no
+  value at all, three booleans and two signed integers. Every registration was proved able to
+  redden, twenty six planted drifts, each reverted and compared byte for byte. Both rules the
+  survey needed are settled in the ADR-0029 compose-default survey addendum: a restatement outside
+  `docker/` is a far side when the value moving makes it **wrong** and not when it makes it
+  **history**, and a default that appears only in compose files is **not** a coupling, since a
+  scan over it would assert that a file agrees with itself. The registry split twice more under
+  the line cap, into `scripts/subagentcouplings.py` and `scripts/modelhostcouplings.py`, and
+  `scripts/registry.py` now names the parts so the next split never touches the scan. Four
+  narrower tasks open: [R-354](354-two-declared-defaults-the-reducer-refuses.md),
+  [R-355](355-one-variable-several-defaults-no-declaration.md),
+  [R-356](356-the-body-port-is-a-bare-literal.md) and
+  [R-377](377-a-comment-restates-a-registered-value.md), the last for the comments above the
+  substitutions, which this pass did not read and two of which quote a number it went on to
+  register.

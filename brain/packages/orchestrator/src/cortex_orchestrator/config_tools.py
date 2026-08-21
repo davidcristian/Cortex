@@ -21,6 +21,8 @@ from cortex_core import (
 ToolsBackendName = Literal["none", "mcp"]
 ToolsSalienceName = Literal["repeat", "off"]
 
+DEFAULT_SALIENCE: ToolsSalienceName = "repeat"
+
 DEFAULT_SPAWN_COST = MAX_TOOL_DISPATCHES // 4
 
 
@@ -37,7 +39,7 @@ class ToolsConfig(BaseSettings):
     gated: tuple[str, ...] = (ESCALATE_TOOL_NAME, "send_email")
     gate_reasons: dict[str, str] = {}
     costs: dict[str, int] = {}
-    salience: ToolsSalienceName = "repeat"
+    salience: ToolsSalienceName = DEFAULT_SALIENCE
     salience_limit: int = MAX_IDENTICAL_DISPATCHES
 
     @model_validator(mode="after")
