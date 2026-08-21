@@ -492,6 +492,58 @@ async def test_build_tool_registry_skip_mode_serves_around_an_unavailable_sideca
     await close()
 
 
+_WEDGED_BOUND_S = 0.02
+_WEDGED_ANSWER_S = _WEDGED_BOUND_S * 3
+
+
+class _WedgedMcpSession:
+    """An McpSession that opens and then answers each verb far past any bound: a wedged sidecar."""
+
+    async def list_tools(self) -> ListToolsResult:
+        await asyncio.sleep(_WEDGED_ANSWER_S)
+        return ListToolsResult(tools=[])
+
+    async def call_tool(
+        self, name: str, arguments: dict[str, object] | None = None
+    ) -> CallToolResult:
+        del name, arguments
+        await asyncio.sleep(_WEDGED_ANSWER_S)
+        return CallToolResult(content=[])
+
+
+async def test_build_tool_registry_bounds_a_sidecar_that_hangs(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A wedged sidecar is served around exactly as a refused one is (ADR-0009 bound addendum)."""
+    opens: list[str] = []
+
+    @asynccontextmanager
+    async def wedged(url: str) -> AsyncGenerator[_WedgedMcpSession, None]:
+        opens.append(url)
+        yield _WedgedMcpSession()
+
+    monkeypatch.setattr(builders_module, "streamable_http_session", wedged)
+    registry, close = build_tool_registry(
+        ToolsConfig(
+            backend="mcp",
+            endpoint="http://wedged:9000/mcp",
+            on_unavailable="skip",
+            call_timeout_s=_WEDGED_BOUND_S,
+        )
+    )
+    assert registry is not None
+    with caplog.at_level(logging.WARNING, logger="cortex_orchestrator.builders"):
+        assert list(await asyncio.wait_for(registry.describe_tools(), 10)) == []
+    assert opens == ["http://wedged:9000/mcp"]
+    # The empty listing above is what a *skipped* sidecar and a sidecar that answered nothing
+    # both look like, so the warning is what tells them apart: without the bound this session
+    # answers an empty tool set of its own and nothing is reported at all.
+    (record,) = caplog.records
+    assert getattr(record, "sidecar", "") == "default"
+    assert "took longer than 0.02s" in str(getattr(record, "error", ""))
+    await close()
+
+
 def test_build_tool_registry_tolerates_a_sidecar_down_at_build_time(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

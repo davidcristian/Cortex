@@ -10,6 +10,7 @@ from cortex_body_client import GrpcBodyGateway
 from cortex_core import (
     AggregateToolRegistry,
     BodyGateway,
+    BoundedToolRegistry,
     EchoInferenceBackend,
     FilteredToolRegistry,
     GatedToolRegistry,
@@ -94,7 +95,8 @@ def build_tool_registry(
         return None, noop_aclose
     registries: list[ToolRegistry] = []
     for name, url in config.named_endpoints.items():
-        registry: ToolRegistry = ReconnectingMcpToolRegistry(partial(streamable_http_session, url))
+        dialing = ReconnectingMcpToolRegistry(partial(streamable_http_session, url))
+        registry: ToolRegistry = BoundedToolRegistry(dialing, timeout_s=config.call_timeout_s)
         allow = config.allow.get(name)
         if allow:
             registry = FilteredToolRegistry(registry, allow=allow)

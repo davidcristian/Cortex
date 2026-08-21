@@ -2,11 +2,12 @@
 
 from typing import Literal
 
-from pydantic import model_validator
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from cortex_core import (
     ALWAYS_SALIENT,
+    DEFAULT_TOOL_CALL_TIMEOUT_S,
     ESCALATE_GATE_REASON,
     ESCALATE_TOOL_NAME,
     MAX_IDENTICAL_DISPATCHES,
@@ -41,6 +42,7 @@ class ToolsConfig(BaseSettings):
     costs: dict[str, int] = {}
     salience: ToolsSalienceName = DEFAULT_SALIENCE
     salience_limit: int = MAX_IDENTICAL_DISPATCHES
+    call_timeout_s: float = Field(default=DEFAULT_TOOL_CALL_TIMEOUT_S, gt=0)
 
     @model_validator(mode="after")
     def _mcp_needs_unambiguous_endpoints(self) -> "ToolsConfig":

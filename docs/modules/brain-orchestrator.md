@@ -151,6 +151,12 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   `AlwaysSalient` counting nothing. `salience_policy` constructs a fresh `RepeatSalience` rather
   than returning the shared `REPEAT_SALIENCE`, the policy being a frozen dataclass that compares
   equal either way.
+  `call_timeout_s: float = DEFAULT_TOOL_CALL_TIMEOUT_S` (`CORTEX_TOOLS_CALL_TIMEOUT_S`, ADR-0009
+  bound addendum) is how long one call on a sidecar may take, a listing and an invoke alike,
+  before the brain stops waiting for it. It is spent by the `BoundedToolRegistry` each endpoint is
+  wrapped innermost in, so a wedged sidecar fails one call rather than holding a turn open, and it
+  is the one declaration here that is inert under `backend="none"`. A value at or below zero fails
+  at boot (`gt=0`), zero refusing every call before it starts.
   `gated: tuple[str, ...]` (`CORTEX_TOOLS_GATED`, ADR-0022) defaults to
   `(ESCALATE_TOOL_NAME, "send_email")`: the email fail-closed pairing, plus the escalate
   built-in as the dispatcher-side backstop behind that tool's own always-gated advertised flag
@@ -626,7 +632,9 @@ The service:
   **tools** (`build_tool_registry`
   builds the MCP `ToolRegistry` shared by cortex and subagents, ADR-0009: one lazy
   `ReconnectingMcpToolRegistry` per configured endpoint (dialed on first use, not at startup, so
-  boot-tolerant, ADR-0009 boot-tolerance addendum), wrapped in a `FilteredToolRegistry` where an
+  boot-tolerant, ADR-0009 boot-tolerance addendum), wrapped **innermost** in a
+  `BoundedToolRegistry` carrying `config.call_timeout_s` (ADR-0009 bound addendum, so the bound
+  covers the dial and the call and reaches no built-in), then in a `FilteredToolRegistry` where an
   allowlist is set, in a `SkipUnavailableToolRegistry` reporting through a structured warning when
   `on_unavailable="skip"`, and merged behind one `AggregateToolRegistry` when several. No session
   is held between calls, so `build_tool_registry` is synchronous and its closer is a no-op),

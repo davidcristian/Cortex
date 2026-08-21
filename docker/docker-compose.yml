@@ -22,6 +22,7 @@ services:
       CORTEX_SCHEDULE_TZ: ${CORTEX_SCHEDULE_TZ:-UTC}
       CORTEX_TOOLS_SALIENCE: ${CORTEX_TOOLS_SALIENCE:-repeat}
       CORTEX_TOOLS_SALIENCE_LIMIT: ${CORTEX_TOOLS_SALIENCE_LIMIT:-2}
+      CORTEX_TOOLS_CALL_TIMEOUT_S: ${CORTEX_TOOLS_CALL_TIMEOUT_S:-60.0}
       CORTEX_LOG_FORMAT: ${CORTEX_LOG_FORMAT:-plain}
     ports:
       # Loopback-only publish for the single-user security posture (ROADMAP assumption 5):

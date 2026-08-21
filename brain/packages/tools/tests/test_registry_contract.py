@@ -2,6 +2,7 @@
 
 from collections.abc import AsyncGenerator, Callable, Mapping, Sequence
 from contextlib import asynccontextmanager
+from dataclasses import replace
 from functools import partial
 from typing import Any
 
@@ -10,7 +11,14 @@ from mcp.shared.exceptions import McpError
 from mcp.types import CallToolResult, ErrorData, ListToolsResult, TextContent, Tool
 from registry_contract import ALL_CHECKS, Check, RegistryUnderTest, ServedTool
 
-from cortex_core import InMemoryToolRegistry, ToolCall, ToolError, ToolResult, ToolSpec
+from cortex_core import (
+    BoundedToolRegistry,
+    InMemoryToolRegistry,
+    ToolCall,
+    ToolError,
+    ToolResult,
+    ToolSpec,
+)
 from cortex_tools import McpSession, McpToolRegistry, ReconnectingMcpToolRegistry
 
 type Build = Callable[[], RegistryUnderTest]
@@ -101,10 +109,17 @@ def _over_session(*, reconnecting: bool) -> RegistryUnderTest:
     )
 
 
+def _bounded() -> RegistryUnderTest:
+    """The stack production wires: the per-call opener under the bound the root gives it."""
+    under_test = _over_session(reconnecting=True)
+    return replace(under_test, registry=BoundedToolRegistry(under_test.registry))
+
+
 _BUILDS: Sequence[tuple[str, Build]] = (
     ("in-memory", _in_memory),
     ("mcp", partial(_over_session, reconnecting=False)),
     ("reconnecting", partial(_over_session, reconnecting=True)),
+    ("bounded", _bounded),
 )
 
 

@@ -74,10 +74,22 @@ is told; an outer `SkipUnavailableToolRegistry` instead serves around an unavail
 A tool that *ran* but reported an error (`CallToolResult.isError`) is a normal `is_error`
 result, not an exception.
 
+**Nothing here bounds a call, and that is deliberate.** The MCP session's own wait for a response
+is unbounded by construction (`ClientSession.call_tool`'s `read_timeout_seconds` defaults to
+`None`, which is `anyio.fail_after(None)`), so a sidecar that accepts a call and never answers
+would hold a turn open for as long as the process lives. What bounds it is the core's
+`BoundedToolRegistry`, which the composition root wraps each endpoint in **innermost** (ADR-0009
+bound addendum): an overrun cancels the call and crosses the port as `ToolError`, which is
+precisely the shape `SkipUnavailableToolRegistry` above it already serves around, so a hung
+sidecar finally behaves like a refused one. It sits above rather than inside this adapter because
+the bound must cover the dial as well as the call, and because a bound belongs to the deployment
+rather than to one transport.
+
 **Shared contract.** `tests/registry_contract.py` holds the six checks every `ToolRegistry`
-implementation owes and `tests/test_registry_contract.py` drives them over three: the core's
-`InMemoryToolRegistry`, `McpToolRegistry`, and the `ReconnectingMcpToolRegistry` production
-wires, the last two over a serving `McpSession` that answers real `mcp` result types. The six are
+implementation owes and `tests/test_registry_contract.py` drives them over four: the core's
+`InMemoryToolRegistry`, `McpToolRegistry`, the `ReconnectingMcpToolRegistry` production
+wires, and that one under the `BoundedToolRegistry` the root wraps it in, the last three over a
+serving `McpSession` that answers real `mcp` result types. The six are
 that every served tool is advertised with its name, purpose and schema in order; that the listing
 is read again on every walk; that a call comes back stamped with its own id and the tool's text;
 that a tool which ran and failed is an `is_error` result rather than an exception; that a name the
