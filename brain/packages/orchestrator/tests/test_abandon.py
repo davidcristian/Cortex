@@ -15,12 +15,12 @@ re-run, then restored:
   here and then **hangs** the wire ``Converse`` suite outright, a stream rebuilt as a unary
   handler having no behavior at all, which is the fence this module is built around;
 - dropping the ``method`` field reddens 4, and dropping ``time_remaining`` reddens 4;
-- and three that stand in for a grpc which stopped clamping, each replacing the reading with a
-  constant: a positive sliver (``0.05``) reddens 4 and takes the wire case out on
-  ``remaining == 0``, a negative (``-0.05``) reddens 4 on ``remaining >= 0``, and a float zero
-  (``0.0``) reddens 4 on the rendered tail. All three left the wire case **green** as it was
-  written before, which is why that case now asserts the clamp and spells the reading out
-  instead of printing back whatever it read.
+- and four that stand in for a grpc whose reading stopped meaning what it means, each replacing
+  it with a constant: a negative (``-0.05``) reddens 4, the wire case on ``remaining >= 0``; a
+  reading that has not run down (``0.15``) reddens 4, the wire case on the half-window bound; a
+  positive sliver (``0.05``) reddens 3 and a float zero (``0.0``) reddens 3, both of them the
+  three parameterized renderings, the wire case passing each **by design** since a real expiry
+  reads as either of those under load.
 """
 
 import asyncio
@@ -119,8 +119,9 @@ async def test_an_abandoned_unary_call_says_so_and_prints_the_time_it_had_left(
     """The whole point, end to end: the handler the caller dropped leaves a line behind.
 
     Before this, a call the body gave up on unwound in silence and read exactly like one that was
-    never made. The remaining time is the reading the brain was handed and never took: here it has
-    run down to nothing, the deadline the caller announced being what ended the call.
+    never made. The remaining time is the reading the brain was handed and never took: here the
+    deadline the caller announced is what ended the call, so the window has run down and what is
+    left of it is nothing an operator would spend.
     """
     latch = _Latch()
     logger = logging.getLogger(_ABANDON_LOGGER)
@@ -141,25 +142,21 @@ async def test_an_abandoned_unary_call_says_so_and_prints_the_time_it_had_left(
     assert method.endswith(".BrainService/ListSessions")
     remaining = record.__dict__["time_remaining"]
     assert isinstance(remaining, float | int)
-    # Three claims about one real reading, each asserted rather than described. It is never
+    # Two claims about one real reading, each asserted rather than described. It is never
     # negative, because grpc floors what it answers here and documents the answer as a nonnegative
     # float, so an expiry can never read as a caller who walked away with time to spare.
     assert remaining >= 0
-    # The announced window really has run down, rather than reading small because something else
-    # ended the call. The loose half of the pair, and the half that cannot fail on a slow machine.
+    # And the announced window really has run down, rather than reading small because something
+    # else ended the call. A bound and not the floor itself, because the floor is not what an
+    # expiry always reads: `max(deadline - now, 0)` answers with its own second argument only when
+    # the cancellation reaches this handler after the deadline passed, and a loaded machine can
+    # deliver it while a sliver of the window is still unspent. Measured rather than reasoned.
+    # Idle, 20 replays of this scenario read an integer `0` every time; with 48 busy loops on 24
+    # cores and a second full run of this suite beside them, 32 of 200 read a positive float
+    # instead, the largest of them 0.0073 s, under 4% of the announced window and a thirteenth of
+    # this bound. The rendering of an expiry is pinned below, on the `0` this file hands the wrap,
+    # because that is where it is the same reading twice rather than whatever the clock said.
     assert remaining < _ANNOUNCED_S / 2
-    # And it lands on the floor itself, which is what the clamp makes an expiry read as: the
-    # cancellation reaches this handler strictly after the deadline passed, so the subtraction is
-    # already negative when the clamp takes it, and `max(negative, 0)` answers with its own second
-    # argument. Measured before it was asserted, 120 runs of this scenario, every one of them
-    # exactly `0` and an `int`, 100 of those with the whole repo gate running beside it.
-    assert remaining == 0
-    # The rendered tail spells the reading out rather than interpolating it: an assertion that
-    # prints back whatever it read cannot say a real expiry renders as `0`, which is what the
-    # module contract tells an operator to expect and what a `0.0` would quietly stop being. The
-    # method stays interpolated, its own assertion being above and the package name being the
-    # proto's to spell.
-    assert PlainFormatter().format(record).endswith(f"method={method} time_remaining=0")
 
 
 @dataclass(frozen=True)
@@ -279,9 +276,11 @@ async def test_the_line_prints_the_reading_without_judging_it(
 ) -> None:
     """Three different facts, one line, no branch: the operator reads the number.
 
-    An expired deadline reads as exactly no time left, grpc clamping the reading at zero rather
-    than letting it run negative, which is asserted over the wire above rather than here: these
-    three readings are values this file hands the wrap, so what they pin is the rendering. A
+    An expired deadline reads as no time left worth spending, grpc flooring the reading at zero
+    rather than letting it run negative; that floor and the bound around it are asserted over the
+    wire above, on the reading a real clock produced. These three are values this file hands the
+    wrap, so what they pin is the rendering, and the `0` among them is the rendering an expiry
+    prints whenever the cancellation lands after the deadline passed. A
     caller that stopped early is the shipped body on every call, since it enforces a bound
     strictly shorter than the one it announces; ``None`` is a caller that announced nothing and
     simply disconnected. The wrap tells the three apart by printing the reading, never by
