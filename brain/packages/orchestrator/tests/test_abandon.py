@@ -14,7 +14,13 @@ re-run, then restored:
 - watching every handler rather than only the unary-unary ones reddens the stream passthrough
   here and then **hangs** the wire ``Converse`` suite outright, a stream rebuilt as a unary
   handler having no behavior at all, which is the fence this module is built around;
-- dropping the ``method`` field reddens 4, and dropping ``time_remaining`` reddens 4.
+- dropping the ``method`` field reddens 4, and dropping ``time_remaining`` reddens 4;
+- and three that stand in for a grpc which stopped clamping, each replacing the reading with a
+  constant: a positive sliver (``0.05``) reddens 4 and takes the wire case out on
+  ``remaining == 0``, a negative (``-0.05``) reddens 4 on ``remaining >= 0``, and a float zero
+  (``0.0``) reddens 4 on the rendered tail. All three left the wire case **green** as it was
+  written before, which is why that case now asserts the clamp and spells the reading out
+  instead of printing back whatever it read.
 """
 
 import asyncio
@@ -135,11 +141,25 @@ async def test_an_abandoned_unary_call_says_so_and_prints_the_time_it_had_left(
     assert method.endswith(".BrainService/ListSessions")
     remaining = record.__dict__["time_remaining"]
     assert isinstance(remaining, float | int)
-    # The announced window has run down to nothing, which is a deadline expiring rather than a
-    # caller leaving early, and it is a real reading rather than the number this test announced.
-    # grpc clamps the reading at zero rather than letting it go negative, so it lands there.
+    # Three claims about one real reading, each asserted rather than described. It is never
+    # negative, because grpc floors what it answers here and documents the answer as a nonnegative
+    # float, so an expiry can never read as a caller who walked away with time to spare.
+    assert remaining >= 0
+    # The announced window really has run down, rather than reading small because something else
+    # ended the call. The loose half of the pair, and the half that cannot fail on a slow machine.
     assert remaining < _ANNOUNCED_S / 2
-    assert PlainFormatter().format(record).endswith(f"method={method} time_remaining={remaining}")
+    # And it lands on the floor itself, which is what the clamp makes an expiry read as: the
+    # cancellation reaches this handler strictly after the deadline passed, so the subtraction is
+    # already negative when the clamp takes it, and `max(negative, 0)` answers with its own second
+    # argument. Measured before it was asserted, 120 runs of this scenario, every one of them
+    # exactly `0` and an `int`, 100 of those with the whole repo gate running beside it.
+    assert remaining == 0
+    # The rendered tail spells the reading out rather than interpolating it: an assertion that
+    # prints back whatever it read cannot say a real expiry renders as `0`, which is what the
+    # module contract tells an operator to expect and what a `0.0` would quietly stop being. The
+    # method stays interpolated, its own assertion being above and the package name being the
+    # proto's to spell.
+    assert PlainFormatter().format(record).endswith(f"method={method} time_remaining=0")
 
 
 @dataclass(frozen=True)
@@ -260,10 +280,12 @@ async def test_the_line_prints_the_reading_without_judging_it(
     """Three different facts, one line, no branch: the operator reads the number.
 
     An expired deadline reads as exactly no time left, grpc clamping the reading at zero rather
-    than letting it run negative. A caller that stopped early is the shipped body on every call,
-    since it enforces a bound strictly shorter than the one it announces; ``None`` is a caller
-    that announced nothing and simply disconnected. The wrap tells the three apart by printing
-    the reading, never by deciding what it means.
+    than letting it run negative, which is asserted over the wire above rather than here: these
+    three readings are values this file hands the wrap, so what they pin is the rendering. A
+    caller that stopped early is the shipped body on every call, since it enforces a bound
+    strictly shorter than the one it announces; ``None`` is a caller that announced nothing and
+    simply disconnected. The wrap tells the three apart by printing the reading, never by
+    deciding what it means.
     """
 
     async def behavior(request: object, context: object) -> object:

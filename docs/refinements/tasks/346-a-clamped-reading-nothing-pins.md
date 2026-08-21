@@ -1,6 +1,6 @@
 # A clamped deadline reading is described in prose and pinned nowhere
 
-**Status:** open, actionable
+**Status:** landed 2026-08-21
 **Area:** seam-transport
 **Origin:** [ADR-0024](../../adr/ADR-0024-transport-retry.md)
 
@@ -31,3 +31,16 @@ real, which is what the commit body already reports observing.
 
 - 2026-08-20: opened by a review of the abandonment line, which found the test's docstring naming a
   clamp that the assertion beneath it does not require.
+- 2026-08-21: Landed as the first of the two closes this entry offered, the clamp asserted rather
+  than the prose relaxed, which the entry made conditional on the clamp being real. It is: the wire
+  scenario was run 120 times before anything was asserted, in batches of 20 and 100, the second with
+  all four trees of `just check` running beside it, and every reading was exactly `0` and an `int`.
+  grpc documents the answer as a nonnegative float besides. The case now asserts `remaining >= 0`,
+  keeps `remaining < _ANNOUNCED_S / 2` as the loose half of the pair, and adds `remaining == 0`. A
+  second half the entry did not name came out with it: the last assertion interpolated the reading
+  into the line it checked, so it could not say what a real expiry renders as, and it now spells
+  `time_remaining=0` out. Three mutations of `abandon.py` proved all four able to fail, and all
+  three of them passed the case as it stood before. Recorded in the ADR-0024 addendum dated the
+  same day, which also files what it opened:
+  [R-351](351-two-readings-only-a-fake-ever-produced.md), the two rows of the reading table that
+  only a fake has ever produced.
