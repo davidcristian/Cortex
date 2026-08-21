@@ -917,3 +917,87 @@ be replayed without judgement, naming the file, the edit and the expected count,
 replays a sample from the record; the decision the entry asks for is whether replayability is a
 requirement of the wording, which is enforceable, or a habit of whoever reviews, which is not. Filed
 as [R-349](../refinements/tasks/349-a-mutation-table-nobody-replayed.md).
+
+## Addendum (2026-08-21): a sample of the record was replayed, and the missing fact is the suite
+
+The addendum above filed the practice's one gap and named the decision it wanted: is replayability
+a requirement of the table's wording, which is enforceable, or a habit of whoever reviews, which is
+not. That decision was taken by replaying first, because a decision about how tables should be
+written that is made without replaying one is the same self report the entry is about.
+
+**Five tables were replayed out of the record, thirty two stated rows over forty nine runs. Every
+row reproduced.** Each mutation was applied in a scratch worktree, run, reverted with `git checkout`
+and compared byte for byte against the pre-mutation file before the next one was planted.
+
+| The change, by what it did | Rows | Claimed | Observed | Cost |
+| --- | --- | --- | --- | --- |
+| asserting the deadline clamp the abandonment case describes | 3 | 4, 4, 4 over the file's seven cases | 4, 4, 4, the named wire case among them each time | 4 min |
+| withholding a credential before the bound cuts it away | 5 | the credential case, the same one, six, the value that grows under withholding, six | 1, 1, 6, 1, 6, each named case the one named | 10 min |
+| letting a failed turn name itself | 5 | 5, 5, 3, 27, 1 | 5, 5, 3, 27, 1 over the whole brain suite | 15 min |
+| holding the heading gate to the sentences it prints | 14 | all fourteen green before at 41 passed, all fourteen red after, the two on the shared remedy reddening six at once | exactly that, twelve reddening one and two reddening six | 4 min |
+| tying every compose default that restates a declaration | 5 of 27 | each of twenty six planted drifts exits 1 naming its entry, and a suite guard names its case | all five, including `found 1, pinned 2` on the override row and the named case on the suite guard | 6 min |
+
+The paired claim on the first row was replayed too: all three constants were run against the wire
+case exactly as it stood before the change, and all three passed it, which is what the change
+bought. The fourth table was replayed against both suites, its own and the one it replaced, which
+is the only row in the record that states a before and an after and therefore the only one where
+half the claim is about code that no longer exists.
+
+**What varied was not correctness but cost, and the cost is one missing fact.** The three cheap
+tables each identify all of the file, the edit and the suite without asking for judgement: the
+deadline clamp table names the three outright, the compose survey names a constant with its old
+value and its new one on every row, and the heading gate table names its constants by their role
+and its suite by its size, at 41 passed. Replaying any of them is mechanical. The two expensive
+ones name none of the three, and the file and the edit were recovered from the commit's own diff in
+both cases, because a mutation is always a perturbation of a line the change itself touched. The
+suite is the one fact the diff does not carry. `reddens 27` was reproduced over the whole brain
+suite at 2,786 cases; a reader who guessed the package, or the file, would have got a different
+number and concluded the table was wrong. So the requirement worth writing down is narrower than
+the entry proposed and is now in AGENTS.md beside imperative mood, as a rule no machine checks: a
+mutation table names the suite its counts are over.
+
+**The enforceable version is refused, and on a measurement rather than on taste.** The obvious home
+was `commitlint.py`, keyed off a table being present: a body that states a mutation result must
+name a path this repository tracks. Measured over all 561 commit bodies, 100 carry the vocabulary
+(`redden`, `prove able to fail`, `mutation`) and **88 of the 100 name no tracked path**. A rule the
+established register violates 88 times out of 100 does not catch a defect; it declares the practice
+a violation and buys a rewrite of every honest message. The detector is no better: only 54 of the
+100 use `reddens` at all, so it takes three patterns and is still not closed, and one of the 100 is
+a change whose body says there is no assertion to prove able to fail, meaning the gate's first true
+output would be a false accusation against a message that correctly declares it carries no table.
+A gate that can be satisfied by naming any file at all, while refusing most honest messages and
+accusing one that told the truth, is the shape this record has declined before.
+
+**The script over the messages is declined with it.** Extracting the tables from `git log` is
+thirty lines and was written ad hoc for the census above; the replay itself was forty minutes.
+A tool aimed at the two minute half of a forty two minute job is aimed at the wrong half, and it
+would be a second module under `scripts/` that gates nothing while carrying the full gate weight.
+What a future pass needs is the commit's diff, which is already there.
+
+**Both Docker-dependent measurements the entry doubted were re-measured, and one of them was not
+Docker-dependent.** The log driver's cliff holds on Docker 29.1.3 with the `json-file` driver: a
+newline terminated line of 16,383 characters comes back from `docker logs --tail 1` whole at 16,384
+bytes, and at 16,384 characters `--tail 1` returns 1 byte while `--tail 2` returns 16,385, so
+`--tail` counts pieces exactly as written. This was taken with a plain `docker run` over `alpine`
+rather than through the shipped image, so it is an independent path to the same cliff. One word
+does not hold, and it is the comment's rather than the original measurement's: `docker logs -t` on
+the split message prints a single output line of 16,446 bytes carrying two timestamps, so every
+piece is stamped and no piece becomes a line of its own, the piece boundary carrying no newline.
+The ranked-recall record's own table says exactly that, a timestamp spliced into the value; the
+comment on `VALUE_CHARS` had rounded it to "its own line", and that comment and the case under it
+are corrected in place. The recall trail's width, meanwhile, needs no
+container at all: it is 200 draws of twenty `uuid4` ids and cosine scores through the
+shipped `render_value`, and a fresh 200 draws give 1,458 to 1,476 characters against the recorded
+1,458 to 1,475, the floor to the character and the ceiling within one, which is what two samples of
+a maximum do. The comment on `VALUE_CHARS` moves to the fresher ceiling and the ranked-recall
+record does not, on the rule the compose survey settled: the comment states what the tree attaches
+today, so a wider reading makes it wrong, while the record states what was measured on a date, so a
+wider reading makes it history and the sentence above needs it to stay put.
+That it was filed as container-bound is corrected at the entry. What has never been
+measured is the width of a recall line a real store produced, which is now its own task.
+
+Filed by this close: the replay has no cadence
+([R-357](../refinements/tasks/357-a-replay-pass-has-no-cadence.md)), the widest shipped value is a
+synthesis ([R-358](../refinements/tasks/358-the-widest-value-was-never-a-real-line.md)), and the
+refused gate keeps its trigger
+([R-359](../refinements/tasks/359-the-table-detector-is-refused-not-impossible.md)).

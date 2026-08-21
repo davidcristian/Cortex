@@ -210,10 +210,11 @@ def test_a_cut_bare_value_is_quoted_rather_than_run_into_the_pair_beside_it() ->
 def test_an_enormous_field_leaves_a_line_the_log_driver_still_keeps_whole() -> None:
     """Why the bound is the number it is (ADR-0038 bounded-value addendum).
 
-    A container's log driver ends a message at 16 KiB, and past that `docker compose logs -t`
-    stamps every piece as its own line while `--tail` counts pieces rather than lines. Measured
-    on the shipped image: a rendered line of 16,383 characters plus its newline is the last one
-    that stays a single entry.
+    A container's log driver ends a message at 16 KiB, and past that `--tail` counts pieces
+    rather than lines while `docker compose logs -t` stamps every piece, the stamps landing mid
+    line because a piece boundary carries no newline of its own. Measured on the shipped image
+    and re-measured against the `json-file` driver: a rendered line of 16,383 characters plus its
+    newline is the last one that stays a single entry.
     """
     one_docker_message = 16383
     line = PlainFormatter().format(_record(reply="y" * 100_000, session="s1"))
