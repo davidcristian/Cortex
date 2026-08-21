@@ -693,14 +693,16 @@ The reading answers three different facts and an operator can tell them apart by
 
 | Reading | What ended the call |
 | --- | --- |
-| `0` | the announced deadline expired; grpc clamps the reading there rather than letting it run negative |
-| a positive value | the caller stopped waiting early, which is the shipped body on **every** call, since it enforces a bound strictly shorter than the one it announces (the grace margin above) |
+| `0`, or a sliver of the window | the announced deadline expired; grpc floors the reading at zero rather than letting it run negative, and a loaded machine can deliver the cancellation with microseconds of the window still unspent (the later addendum below measured that) |
+| a value well above zero | the caller stopped waiting early, which is the shipped body on **every** call, since it enforces a bound strictly shorter than the one it announces (the grace margin above) |
 | `None` | the caller announced no deadline at all, so what arrived was a disconnect |
 
 A branch here would be the per-RPC policy this addendum is deliberately not landing, wearing the
-formatter's hat. The clamp at zero is worth writing down because it is the difference between the
+formatter's hat. The floor at zero is worth writing down because it is the difference between the
 line an operator reads and the line the design predicted: the addendum above expected a negative
-remainder and the measurement returns exactly `0`, as an `int`.
+remainder and the measurement on an unloaded machine returns exactly `0`, as an `int`. Under load
+it returns the sliver instead, which the later addendum below measures and which is why the suite
+bounds this reading rather than pinning it.
 
 ### Decision 3: the fence is the method's shape, not a list of names
 
@@ -735,8 +737,9 @@ method, it is the only thing keeping `Converse` a stream.
 The end-to-end case is not a fake context. A real loopback `grpc.aio` `BrainService` built by
 `create_server`, whose `ListSessions` never answers, is driven by a real stub announcing a 200 ms
 deadline; the client is told `DEADLINE_EXCEEDED`, the server cancels the handler, and the line
-arrives naming the RPC's own wire path with `time_remaining=0`. That case is what proves the
-interceptor is installed at all, which no unit test of the wrap can say.
+arrives naming the RPC's own wire path with a `time_remaining` that has run down to nothing worth
+spending. That case is what proves the interceptor is installed at all, which no unit test of the
+wrap can say.
 
 ### Consequences
 
@@ -768,6 +771,13 @@ carries. Either the prose comes down to what the bound checks, or the clamp is a
 Filed as [R-346](../refinements/tasks/346-a-clamped-reading-nothing-pins.md).
 
 ## Addendum (2026-08-21): the clamp is asserted, and the reading is spelled out rather than echoed
+
+**Two of this addendum's assertions came back out the same day, and the last addendum below is why:
+`remaining == 0` and the literal `time_remaining=0` tail both hold on an idle machine and both fail
+under load.** What survives is the floor, `remaining >= 0`, and the half-window bound beside it.
+The rest of this section stands as the record of what was measured and decided at the time, and its
+120 readings are all still true of the machine that produced them; read it with the correction
+below, which measured the same scenario with the machine saturated.
 
 The addendum above left its expiry case explaining itself with a fact it did not check, and the one
 below it filed that. This closes it by asserting the fact, which is the close that entry preferred
@@ -880,3 +890,86 @@ brain answering a deadline that has not expired
 ([R-360](../refinements/tasks/360-a-read-that-will-not-fit-declines-early.md)), and the partial
 session read describes a memory cascade no read path on this seam has
 ([R-361](../refinements/tasks/361-a-read-rpc-recalls-nothing-to-omit.md)).
+
+## Addendum (2026-08-21, later): the expiry reading is a clock, so the case bounds it
+
+The addendum two above asserted `remaining == 0` on the wire case, on 120 readings that were all
+exactly `0` and all `int`. Hours later the same case reddened inside a mutation sweep over the
+whole brain suite, on an arm that changed a comparison no part of this path reaches. That was
+filed as a suspected load-sensitive flake rather than diagnosed, and this addendum is the
+diagnosis: it is one, it is easy to reproduce deliberately, and the exact assertion is what comes
+out.
+
+### Measured under load, on the same scenario, four ways
+
+The load was 48 busy shell loops on a 24 core machine, twice oversubscribed, with a second full
+`pytest` run of the brain suite beside them, which is the shape of the run that first reddened it.
+
+| Run | What was driven | Result |
+| --- | --- | --- |
+| idle baseline | 20 replays of the wire scenario | 20 readings of `0`, every one an `int` |
+| under load | 200 replays of the wire scenario | 32 positive floats, 168 integer zeros |
+| under load | 30 runs of the case itself, one `pytest` process each | 5 reddened, all on `remaining == 0` |
+| under load | one full brain suite of 2831 cases | this case reddened, alone, on `remaining == 0` |
+
+The positive readings ran from 0.000017 s to 0.0073 s, median 0.0018 s. The largest is under 4% of
+the announced 0.2 s window and a thirteenth of the half-window bound that was standing beside the
+equality the whole time. The last row is the original observation reproduced with no mutation in
+the tree at all, which is what settles the question the flake was filed with.
+
+`max(deadline - now, 0)` answers with its own second argument, an `int`, only when the subtraction
+has already gone negative, which needs the cancellation to reach the handler after the deadline
+passed. That is the normal ordering and it is not the guaranteed one: a loaded machine can run the
+handler's cancellation while microseconds of the window are still unspent, and then the reading is
+the sliver. grpc's own contract is the floor, "a nonnegative float", and the floor is all it is.
+
+### Decision: assert the floor and the bound, and pin the rendering where it is deterministic
+
+`remaining >= 0` stays, being the floor and grpc's stated contract. `remaining < _ANNOUNCED_S / 2`
+stays and is now the whole of the second claim: the window really ran down, rather than the call
+ending some other way with most of it left. `remaining == 0` comes out, and so does the rendered
+tail beside it, which pinned the same reading in the same way and would have reddened on the same
+runs had it been reached first.
+
+The bound is kept at half the window rather than tightened to the measured maximum. A threshold
+just above 0.0073 s would be this machine's worst case under one synthetic load promoted to a
+suite-wide invariant, which is the flake again at a different number; half the window carries the
+claim the case is actually making, and carries it with a thirteenfold margin over anything
+measured.
+
+What the rendering of an expiry looks like is still pinned, in the parameterized case that hands
+the wrap a `0` of its own. That is the honest place for it: there the value is the same value
+twice, so the assertion says what `0` prints as, where over the wire it could only print back
+whatever the clock had said.
+
+### Distrust green
+
+Four constants replacing `context.time_remaining()` in the `extra` of the abandonment line in
+`brain/packages/orchestrator/src/cortex_orchestrator/abandon.py`, each run over the whole
+orchestrator suite (`packages/orchestrator/tests`, 450 cases, 19 of them deselected as
+integration), then reverted and the file read back off disk:
+
+| Mutation | Reddens | The wire case fails on |
+| --- | --- | --- |
+| `-0.05`, a grpc reporting the negative remainder | 4 | `remaining >= 0` |
+| `0.15`, a reading that has not run down | 4 | `remaining < _ANNOUNCED_S / 2` |
+| `0.05`, a grpc that stopped flooring and reports the sliver | 3 | nothing; a real expiry reads like this under load |
+| `0.0`, one that floors to a float | 3 | nothing; the renderings carry it |
+
+The bottom two rows are the price, stated rather than hidden. Both mutants still die, in the three
+parameterized renderings, which redden on any constant because a constant is what they vary; what
+they no longer die to is the wire case, because the wire case can no longer tell them from the
+truth. The top two are new: nothing held the half-window bound to being able to fail before, and
+the `0.15` row is that proof.
+
+The corrected case was then re-run 40 times under the same load that reddened 5 of 30 before it,
+and reddened none.
+
+### What this opens
+
+Two things, both narrower than the entry that closed here. The wire case can no longer distinguish
+a grpc that floors the reading from one that reports the sliver, since a real expiry now produces
+both: [R-371](../refinements/tasks/371-a-floor-and-a-sliver-are-indistinguishable.md). And the
+half-window bound's margin is a judgement over one machine under one synthetic load, with nothing
+sampling how wide the sliver grows on a busier one:
+[R-372](../refinements/tasks/372-the-sliver-is-unsampled-over-time.md).

@@ -9,12 +9,14 @@ judgement about what "not enough time left" means, and says the call was abandon
 remaining time it can finally read printed beside it.
 
 **The reading is printed, never judged.** `time_remaining()` answers three different facts and
-this module decides between none of them: zero is the announced deadline expiring, arriving
-exactly as designed (grpc clamps the reading there rather than letting it run negative); a value
-above zero is a caller that stopped waiting early, which is the shipped body on every call, since
-it enforces a bound strictly shorter than the one it announces (ADR-0024's grace margin); `None`
-is a caller that announced no deadline at all, so what ended the call was a disconnect. An
-operator reads the number; nothing here branches on it.
+this module decides between none of them: nothing left is the announced deadline expiring, which
+reads as `0` when the cancellation reaches the handler after the deadline passed and as the
+unspent sliver of the window when a loaded machine delivers it a hair early, grpc flooring the
+reading at zero either way rather than letting it run negative; a value well above zero is a
+caller that stopped waiting early, which is the shipped body on every call, since it enforces a
+bound strictly shorter than the one it announces (ADR-0024's grace margin); `None` is a caller
+that announced no deadline at all, so what ended the call was a disconnect. An operator reads the
+number; nothing here branches on it.
 
 **Only the unary methods are watched, which is the fence rather than an oversight.** `Converse`
 announces no deadline and must keep announcing none: a turn is long by design, and a stream that
