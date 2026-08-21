@@ -1225,6 +1225,12 @@ its children. That is worth less than the loop, and the alternative, selecting e
 find out, is a round trip per folder on every listing. It is measured nowhere yet, so it is filed
 as its own task rather than asserted to be harmless.
 
+**This paragraph was overtaken the same day it was written.** The measurement it asked for was
+taken against the live Bridge, it found exactly the two names named here, and the filter was
+narrowed to drop a name only when the server refuses it as well as flags it. The two sentences
+above about what `list_folders` drops are the shipped behaviour no longer; read the
+flagged-and-refused addendum at the end of this document instead.
+
 **It is a port change even so, and the contract carries it.** What changed is the port's promise
 rather than its signature: every name `list_folders` answers with is a name the other two calls
 may be given. `mailbox_contract.py` states it in two checks the fake, the adapter over its
@@ -1249,3 +1255,74 @@ unit suite (the newer-spelling test and the contract check on the `imap` arm) an
 and making the fake stop filtering reds one, the same contract check on the `fake` arm, which is
 what proves the check is a statement about each implementation rather than about the adapter
 alone.
+
+## Addendum (2026-08-21): the flag is asked, not believed, because the two servers disagree
+
+The addendum above landed a filter measured against one of the two servers this repo talks to, and
+said so: the Bridge lists two `\Noselect` parents that open, and dropping them was recorded as a
+cost worth paying and filed as its own task because it had been reasoned about rather than seen.
+It has now been seen. Every name the account lists, with its LIST attributes verbatim and the
+result of an EXAMINE of each, measured through `ImapMailbox` against a live ProtonMail Bridge:
+
+| listed name | flags the server sent | SELECT |
+| --- | --- | --- |
+| `INBOX` | `\Noinferiors`, `\Unmarked` | opened |
+| `Folders` | `\Noselect`, `\Unmarked` | opened |
+| `Labels` | `\Noselect`, `\Unmarked` | opened |
+| `All Mail` | `\All`, `\Marked`, `\Noinferiors` | opened |
+| `Archive` | `\Archive`, `\Noinferiors`, `\Unmarked` | opened |
+| `Drafts` | `\Drafts`, `\Noinferiors`, `\Unmarked` | opened |
+| `Sent` | `\Noinferiors`, `\Sent`, `\Unmarked` | opened |
+| `Spam` | `\Junk`, `\Marked`, `\Noinferiors` | opened |
+| `Starred` | `\Flagged`, `\Noinferiors`, `\Unmarked` | opened |
+| `Trash` | `\Marked`, `\Noinferiors`, `\Trash` | opened |
+| the nine `Folders/...` children | `\Marked` or `\Unmarked` | opened |
+
+Nineteen names, two of them flagged, and all nineteen open. So the filter as it shipped withheld
+`Folders` and `Labels` from a model on the server the assistant actually talks to, and the earlier
+claim that it did was right.
+
+**Decision: keep the flag as the question and let the server answer it.** `list_folders` now drops
+a name only when it is both flagged and refused: a name carrying `\Noselect` or `\NonExistent` is
+opened once with EXAMINE on the connection the listing already holds, kept if it opens and dropped
+if it does not. That is correct on both servers at once, which no reading of the flag alone can be:
+the probe's Dovecot means "not a mailbox" by it and this Bridge means "a parent, and also a
+mailbox", and no third signal tells the two apart. The promise the port makes is unchanged and now
+holds in both directions: every name offered opens, and every name that opens is offered.
+
+**Cost, which is the reason the last addendum did not do this.** The option weighed and rejected
+there was a SELECT per listed name, nineteen extra round trips on this account for a listing that
+otherwise costs one. Asking only the flagged names is a different profile entirely: two round trips
+here, one on the probe, none at all on a server that flags nothing, and none ever on an ordinary
+mailbox. The connection is already open and EXAMINE is read-only, so nothing is marked and no state
+is left behind. That is small enough that the loop stays closed without paying for it in the common
+case.
+
+**What still gets dropped, and one edge worth naming.** A flagged name that is refused is dropped
+whatever the refusal said, because the promise is about names that work rather than names that
+exist. So a flagged mailbox that is real and merely shut right now, which no server this repo can
+reach has ever produced, would be dropped where an unflagged shut mailbox (the probe's `Guarded`)
+is still offered. The asymmetry is deliberate and untested against any server, so it is filed
+rather than asserted:
+[a flagged name that is refused for a reason that is not its name](../refinements/tasks/375-a-flagged-name-shut-is-dropped-as-if-missing.md).
+The other thing this leaves open is that the kept half is proved only against the Bridge, on one
+account, because the probe has no flagged name that opens and was not asked to grow one:
+[the kept half has no fixture](../refinements/tasks/376-the-bridge-flag-reading-is-one-account.md).
+
+**Where the check lives.** Not in `mailbox_contract.py`. The port cannot see this: the contract is
+written over what `list_folders` returns, and the failure here is a name it did not return, which
+is only visible beside the server's own LIST. The probe's Dovecot has no flagged name that opens
+and cannot grow one, so a contract check would have to be optional at exactly the fixture that
+matters. So the adapter's own tests carry the two halves over the stand-in, with the Bridge's
+measured flags as a named constant, and `test_email_live.py` carries the live half: it walks the
+server's LIST, selects every name itself, and asserts that the offered list is exactly the set that
+opened. That assertion is the one that would have caught this the day the filter landed.
+
+**Validation.** `just check` green, its output captured to a file. The live folder test was run
+against the real Bridge before and after, green after and red on the mutation below. Three
+mutations over the email package's unit suite (105 tests, integration deselected) and the live
+folder test (1 of the 4 in `test_email_live.py`), each reverted from a saved copy and the file
+re-read off disk: believing the flag again reds two of the unit suite and the live test; keeping a
+flagged name that the server refused reds three of the unit suite, one of them the port contract's
+own check on the `imap` arm; and asking every listed name rather than the flagged ones reds two,
+at the assertion that says which names were opened.
