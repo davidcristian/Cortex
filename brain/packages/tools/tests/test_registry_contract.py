@@ -1,8 +1,9 @@
 """Every `ToolRegistry` implementation against the same checks (`registry_contract.py`).
 
-Three arms: the core's `InMemoryToolRegistry`, the `McpToolRegistry` that does the translating,
-and the `ReconnectingMcpToolRegistry` production actually wires, which opens a fresh session per
-call. The two MCP arms run over a serving `McpSession` that answers real ``mcp`` result types, so
+Four arms: the core's `InMemoryToolRegistry`, the `McpToolRegistry` that does the translating,
+the `ReconnectingMcpToolRegistry` production actually wires, which opens a fresh session per
+call, and that one under the `BoundedToolRegistry` the composition root wraps it in. The three MCP
+arms run over a serving `McpSession` that answers real ``mcp`` result types, so
 only the socket is missing: the adapter's spec mapping, argument passing, text rendering,
 ``is_error`` reading and failure wrapping are all exercised by the same six checks the fake
 passes. A stand-in server is the honest stand-in here rather than a measured fake, because the
@@ -14,6 +15,7 @@ per AGENTS.md gate 3.
 
 from collections.abc import AsyncGenerator, Callable, Mapping, Sequence
 from contextlib import asynccontextmanager
+from dataclasses import replace
 from functools import partial
 from typing import Any
 
@@ -22,7 +24,14 @@ from mcp.shared.exceptions import McpError
 from mcp.types import CallToolResult, ErrorData, ListToolsResult, TextContent, Tool
 from registry_contract import ALL_CHECKS, Check, RegistryUnderTest, ServedTool
 
-from cortex_core import InMemoryToolRegistry, ToolCall, ToolError, ToolResult, ToolSpec
+from cortex_core import (
+    BoundedToolRegistry,
+    InMemoryToolRegistry,
+    ToolCall,
+    ToolError,
+    ToolResult,
+    ToolSpec,
+)
 from cortex_tools import McpSession, McpToolRegistry, ReconnectingMcpToolRegistry
 
 type Build = Callable[[], RegistryUnderTest]
@@ -119,10 +128,23 @@ def _over_session(*, reconnecting: bool) -> RegistryUnderTest:
     )
 
 
+def _bounded() -> RegistryUnderTest:
+    """The stack production wires: the per-call opener under the bound the root gives it.
+
+    The bound is generous rather than short, because what this arm asserts is that every one of
+    the six checks still holds *through* it: a wrapper that swallowed an unknown name, dropped a
+    spec's schema or relabelled a failed tool would be invisible in the bound's own tests, which
+    never let a call succeed. The overrun the bound exists for has its own suite in the core.
+    """
+    under_test = _over_session(reconnecting=True)
+    return replace(under_test, registry=BoundedToolRegistry(under_test.registry))
+
+
 _BUILDS: Sequence[tuple[str, Build]] = (
     ("in-memory", _in_memory),
     ("mcp", partial(_over_session, reconnecting=False)),
     ("reconnecting", partial(_over_session, reconnecting=True)),
+    ("bounded", _bounded),
 )
 
 

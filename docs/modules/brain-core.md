@@ -2130,6 +2130,21 @@ Use-case:
   outbound/irreversible in brain-side code/config (`CORTEX_TOOLS_GATED`), never trusting sidecar
   metadata. `describe_tools` stamps; `invoke` delegates untouched (the dispatcher enforces).
   An empty name set is rejected; a name that never appears is harmless (fail-closed default).
+- `BoundedToolRegistry(inner, *, timeout_s=DEFAULT_TOOL_CALL_TIMEOUT_S)` (`tool_deadline.py`,
+  ADR-0009 bound addendum) is a `ToolRegistry` whose every call gives up after `timeout_s`. Both
+  verbs are bounded by the one number, and an overrun raises `ToolError` naming the tool (or the
+  listing) and the bound, which is the port's word for a call that did not happen: the dispatcher
+  turns it into the `is_error` result the model reads and audits it like any other dispatch, and
+  `SkipUnavailableToolRegistry` above it catches a bounded listing exactly as it catches a refused
+  one, so a sidecar that hangs finally behaves like one that is down. The bound is
+  `asyncio.timeout`, so an overrun **cancels** the inner call rather than abandoning it, and only
+  this object's own expiry is reported as this bound: a `TimeoutError` from beneath (a socket that
+  gave up) propagates untouched, the distinction `PlacedAttempt` draws. A non-positive bound
+  raises `ValueError` at construction. `DEFAULT_TOOL_CALL_TIMEOUT_S = 60.0`
+  (`CORTEX_TOOLS_CALL_TIMEOUT_S`), some four hundred times the slowest healthy call this
+  deployment has timed. The composition root wraps the **remote** registries only: the built-ins
+  beside them are deliberately slow (a delegated batch, an escalate card waiting on a human) and a
+  bound over them would cut exactly the calls meant to take a while.
 - `UngatedToolRegistry(inner)` is a `ToolRegistry` stripped of gated tools (ADR-0013
   subagent-exclusion addendum): `describe_tools` drops every `gated` spec; `invoke` refuses a
   name the inner registry currently advertises as gated (live walk, no cached view) as

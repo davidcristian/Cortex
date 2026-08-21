@@ -71,7 +71,11 @@ cd brain && CORTEX_TOOLS_ENDPOINT=http://127.0.0.1:9000/mcp \
 
 `--no-cov` matters. The 100% gate in the workspace addopts would otherwise fail the run. This
 opens a real streamable-http MCP session, lists the server's tools, and reads a file through
-`McpToolRegistry`. CI's fake session cannot prove that behavior. Adjust `CORTEX_TOOLS_READ_TOOL`
+`McpToolRegistry`. CI's fake session cannot prove that behavior. The same file's second case needs
+no sidecar at all: it stands up a listener that accepts the connection and answers nothing, and
+asserts that `BoundedToolRegistry` cuts the call at its bound, that what comes out is a `ToolError`
+rather than the `ExceptionGroup` or bare `CancelledError` an unclean unwind through anyio's task
+group would raise, and that no client task survives the cut. Adjust `CORTEX_TOOLS_READ_TOOL`
 if the pinned server names its read tool differently (older builds used `read_file`).
 
 The harness behind the table above is a second integration test. It asserts how many session
@@ -138,6 +142,20 @@ are now opened **per call** (`ReconnectingMcpToolRegistry`, ADR-0009 boot-tolera
 so skip mode covers a sidecar down at *any* time, including one down when the brain **boots**
 (startup no longer fails). A recovered sidecar rejoins on its next call, **no brain
 restart needed**.
+
+A sidecar that is **down** is refused at the dial, which is what `skip` above serves around. A
+sidecar that is **hung**, accepting the call and never answering, raises nothing at all: the MCP
+session's own wait for a response is unbounded, so before this it held the turn open indefinitely
+and nothing above it could tell. Every endpoint is now wrapped innermost in a
+`BoundedToolRegistry` (ADR-0009 bound addendum), so a call that outruns
+`CORTEX_TOOLS_CALL_TIMEOUT_S` (default `60.0`, seconds, covering a listing and an invoke alike) is
+cancelled and reported as the same `ToolError` a refused sidecar raises: the model is handed an
+`is_error` result naming the tool and the bound, the dispatch is audited like any other, and under
+`skip` a bounded *listing* drops that sidecar out of the advertisement exactly as a dead one does.
+The number is deliberately far past a healthy call (the table above measures a fresh-session
+`invoke` at 154 ms) and far short of forever; a value at or below zero fails the brain at boot.
+Only the sidecars are bounded, never the built-in tools beside them: a delegated batch and a
+confirm card waiting on a human are supposed to take a while.
 
 A turn that repeats one call has it dispatched at most twice, and at most once per inference
 round (`CORTEX_TOOLS_SALIENCE`, default `repeat`, ADR-0009 salience addendum). The refusal is

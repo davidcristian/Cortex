@@ -3322,16 +3322,20 @@ records the survey, the two rules it had to settle before it could be applied do
 what the reading turned out to be worth.
 
 **The number, first, because it was a guess.** The estimate on record was "around fifty". Under
-`docker/` there are **70 substitutions with a default**, spelling **56 distinct variables**;
+`docker/` there are **71 substitutions with a default**, spelling **57 distinct variables**;
 one variable is spelled with two different defaults on purpose, the subagent memory budget's `8.0`
 and `8`, which is the pair that bought `Spelling.WHOLE`. Every one of them is `CORTEX_`-prefixed
-and every one carries a default, so there is no third shape to account for.
+and every one carries a default, so there is no third shape to account for. The survey itself read
+70 over 56: `CORTEX_TOOLS_CALL_TIMEOUT_S` is the seventy first, published by the bound on one tool
+call, and this count is re-derived rather than carried forward, because a census that is only ever
+copied is a number nobody is measuring.
 
 ### The sort, which is what the reading buys
 
-**43 of the 56 restate a value some tree declares.** Ten were already tied. Twenty are tied by this
-change. Thirteen are declarations the scan cannot compare, in three kinds, and the kinds are worth
-naming because each is a different answer:
+**44 of the 57 restate a value some tree declares.** Ten were already tied. Twenty are tied by the
+survey and the newest one by the bound that published it, so thirty are held. Thirteen are
+declarations the scan cannot compare, in three kinds, and the kinds are worth naming because each
+is a different answer:
 
 - **Eight are empty** (`${CORTEX_SEAM_TOKEN:-}`, the two SMTP credentials, the two CA certs, the
   three unnamed tier artifacts). An empty default states no value: it is the "not configured"

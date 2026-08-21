@@ -1122,3 +1122,214 @@ item's identity appears:
 [R-352](../refinements/tasks/352-a-dispatch-names-no-call.md). And the trail is now worth querying
 and has nowhere to be queried, `ToolAuditSink` having exactly one adapter:
 [R-353](../refinements/tasks/353-a-trail-worth-querying-has-no-store.md).
+
+## Bound addendum (2026-08-21): one call on a sidecar is bounded, because nothing bounded it
+
+A dispatch has always waited as long as the sidecar took. That was never written down as a
+decision, and it turns out not to have been one: the wait is unbounded by construction, and every
+layer above it was built as if a failing sidecar always raises. Filed as
+[R-341](../refinements/tasks/341-nothing-declines-work-it-cannot-finish.md), whose third shape
+asked for the remaining time to travel down to the model host and the MCP client.
+
+### Re-derived first, and two of the entry's three claims were wrong
+
+The entry said both downstream seams "run on their own bound with no relation to the caller's, so
+a call that inherits none of its caller's deadline can outlive the request that made it by an
+unbounded margin". Three separate readings of the tree, and only one of them survived.
+
+**The model host is already bounded, and by a number this repo argues about at length.** Every one
+of `HttpModelHost`'s six verbs goes through one injected `httpx.AsyncClient` built by
+`build_control_client` with `httpx.Timeout(CORTEX_MODELHOST_TIMEOUT_S)`, a whole minute by default,
+covering every phase of the call because a control call streams nothing. That bound is also
+*compared* at wiring time against the three the sidecar reports it was given, and a deployment
+whose worst legitimate stop does not fit under it is refused at boot. So there is nothing unbounded
+there and nothing to add.
+
+**The caller's remaining time cannot travel to either seam, and must not.** No unary handler on
+`BrainService` touches a model host or a tool registry: the ten of them read the session store, the
+schedule store, the preference store, the residency report and (for a delete's cascade) the memory
+store, and that is all. Every model-host
+call and every tool call in this brain is made from a `Converse` turn, from boot recovery, or from
+a background loop. `Converse` announces no deadline at all and must keep announcing none, which is
+the fence the abandonment work in [ADR-0024](ADR-0024-transport-retry.md) drew and expressed as
+code. So the deadline these calls could inherit does not exist, and building the plumbing to
+inherit it would be the first half of enforcing a bound that seam deliberately does not have.
+
+**The tool seam really is unbounded, and worse than the entry guessed.** It is not that a tool call
+runs on a bound unrelated to its caller's; it is that this repo states no bound for it whatsoever.
+`ClientSession.call_tool` takes `read_timeout_seconds`, `McpToolRegistry` passes none, and the
+session's wait is then `anyio.fail_after(None)`. The transport underneath carries the MCP SDK's own
+default client timeouts, which this repo neither sets nor documents and which do not bound a
+response the server never sends. So a sidecar that accepts a call and never answers holds the turn
+open for as long as the process lives.
+
+The consequence reaches further than one slow call, and this is what makes the shape worth
+building. The degraded-mode addendum above is built entirely on `ToolError`:
+`SkipUnavailableToolRegistry` serves around a sidecar by catching one, and a dial that fails raises
+one. A sidecar that is merely wedged raises nothing, so the whole skip-and-report design has a hole
+in exactly the shape of the failure it cannot see.
+
+### Decision 1: the bound is a combinator over the port, not a feature of one adapter
+
+`BoundedToolRegistry` (`cortex_core/tool_deadline.py`) joins the port-preserving family in
+`aggregate.py`: it takes a `ToolRegistry`, bounds both verbs with `asyncio.timeout`, and raises
+`ToolError` on an overrun. The module sits beside `tool_loop.py` (how many rounds) and
+`tool_budget.py` (how much they may spend) as the third bound and the only one that is time.
+
+The alternative was to pass `read_timeout_seconds` down from `McpToolRegistry`, which the SDK
+offers and which would be two lines. It was rejected on three counts. It bounds the *response* and
+not the *session open*, and `initialize` is a `send_request` with no timeout either, so a sidecar
+that accepts the TCP connection and never completes the handshake would still hang. It puts a
+deployment's policy inside one transport's adapter, so a second remote `ToolRegistry` later starts
+unbounded again. And it cannot express the one thing the bound has to be selective about, which is
+decision 2.
+
+### Decision 2: the remote registries are wrapped, and the built-ins beside them are not
+
+The composition root wraps each configured endpoint and nothing else. This is not a convenience:
+several built-in tools are *deliberately* slow. `spawn_subagents` fans out into a batch of model
+runs bounded at 2400 s apiece, and `escalate_to_brain` puts a card in front of a human and waits.
+A bound over the merged tool set would cut exactly the calls that are supposed to take a while,
+and it would cut them with a number chosen for a filesystem read.
+
+Making the bound a wrapper rather than a policy inside the dispatcher is what makes that
+selectivity expressible at all: the root already composes the remote half separately from the
+built-in half, so the bound simply goes on the half that reaches outside the process.
+
+### Decision 3: it goes innermost, so a wedged sidecar looks like a refused one
+
+The wrapping order carries as much of the value as the bound. `BoundedToolRegistry` sits directly
+around the `ReconnectingMcpToolRegistry`, under the allowlist filter and under the skip. Two things
+follow. The bound covers the dial and the call together, which is the whole exchange and the only
+part of it that reaches outside this process. And the `ToolError` an overrun raises is caught by
+`SkipUnavailableToolRegistry` exactly as a refused dial is, so under
+`CORTEX_TOOLS_ON_UNAVAILABLE=skip` a hung sidecar now drops out of the advertisement with a warning
+naming it, which is the behaviour that design always claimed and never had.
+
+Wrapped the other way round, an overrun would escape the skip and fail the whole tool set, which is
+the mutation table's ninth row.
+
+### Decision 4: one number for both verbs, and it belongs to the deployment
+
+`CORTEX_TOOLS_CALL_TIMEOUT_S`, `DEFAULT_TOOL_CALL_TIMEOUT_S = 60.0`, bounding a listing and an
+invoke alike. Both reach the same sidecar over the same session, and a listing that hangs strands a
+turn before any call is made, so a second knob would be two numbers for one failure. The default is
+far past a healthy call and far short of forever: the runbook's own table measures a fresh-session
+`invoke` at 154 ms and a listing at 146 ms against the shipped filesystem sidecar, so 60 s is some
+four hundred times the slowest call this deployment has ever timed, leaving room for a mailbox
+search nobody here has measured. A value at or below zero fails at boot rather than refusing every
+call in silence.
+
+**It bounds a call and not a turn**, which is the one thing about this number worth reading twice.
+A loop lists its tools once before its rounds and dispatches inside them, and every one of those
+reaches the bound on its own, so a single wedged sidecar costs a cortex loop's first dispatch two
+spends (the advertisement walk, then the call) and a subagent's three, the extra one being the live
+walk `UngatedToolRegistry` makes to strip gated names before it delegates. Two spends of 60 s land
+**exactly on** the confirm card's own 120 s wait rather than under it, and a subagent's three land
+half again past it, so the pairing of the two numbers says nothing about what a wedge can cost a
+turn and is not offered as an argument here. What the bound buys is that a wedge ends in a
+`ToolError` the model reads, rather than in a turn nobody can end, and that every layer already
+built for a sidecar that refuses now covers one that hangs.
+
+### What did not change, deliberately
+
+`Converse` still announces nothing, `ModelHost` grows no per-call deadline, the `ToolRegistry` port
+signature is untouched, and no handler reads `time_remaining()`. An overrun is a `ToolError`, so
+the dispatcher turns it into the `is_error` result the model already knows how to recover from and
+audits it like any other dispatch; nothing here logs a second line about it.
+
+### Distrust green
+
+Thirteen mutations, each applied to production code alone and run over one suite of 196 cases
+(`packages/core/tests/test_tool_deadline.py`, `packages/tools/tests/test_registry_contract.py`,
+`packages/orchestrator/tests/test_wiring.py`, `packages/orchestrator/tests/test_config.py`), then
+restored and each file compared by checksum against the copy taken before the first mutation:
+
+| Mutation | Reddens |
+| --- | --- |
+| a call spends a hundred times the bound it was given | 2 |
+| a call spends ten times the bound it was given | 2 |
+| a listing spends a hundred times the bound it was given | 2 |
+| a listing spends ten times the bound it was given | 2 |
+| the call is not bounded at all | 2 |
+| the listing is not bounded at all | 2 |
+| `invoke` drops the `expired()` guard | 1 |
+| the listing drops the `expired()` guard | 1 |
+| the listing's overrun message is reworded | 1 |
+| a non-positive bound is accepted at construction | 2 |
+| an overrun stops cancelling the call it gave up on | 2 |
+| the wiring bounds an endpoint with a number the config did not carry | 1 |
+| the bound is wrapped outside the skip rather than inside it | 1 |
+
+The hundred times rows were **green** when they were first run, and finding that out is the reason
+the table exists. The overrun message renders `self._timeout_s`, and the bound is a separate
+expression over the same field, so an object that named one number and spent another satisfied
+every assertion in the suite: the message read back a value it held rather than the one it had
+waited.
+
+**The first repair of that was itself a gate that could barely fail**, and this is the second. It
+timed the raise and required it inside twenty five times the bound, which is a window rather than a
+bracket: measured on the recorded pair, a bound multiplied by **ten** left all eight cases green,
+because ten times 20 ms still lands inside a 500 ms window. Worse, the stub it timed waited on an
+event nothing sets, so the production bound was the only way out of the case, and with the bound
+deleted the recorded cases returned **no verdict at all**: they were still running after 90 s, and
+there is no `pytest-timeout` here to end them.
+
+Both are fixed by the same change, and it removes the clock rather than tightening it. The stub now
+answers three bounds late instead of never. A bound that fires cuts it, and a bound that is widened
+or deleted lets it through with a result where a `ToolError` was required, so each of those
+mutations is a red in under a second: the four widening rows and the two deletion rows above are
+that, measured. Both waits are timers on the one event loop and are popped in deadline order
+whatever the machine is doing, so this brackets the bound without comparing any wall-clock reading
+to anything, which is what the previous window did and what made it load-sensitive as well as
+loose. The clock is still read for the **floor** (an overrun must not land before the bound), which
+no load can push the wrong way. An `asyncio.wait_for` sits over each case besides, the shape the
+composition-root bound check uses, for the mutation the stub cannot catch: a production path that
+stops returning at all.
+
+The cancellation row is the other assertion no message could make: `asyncio.shield` around the
+inner call leaves the overrun raising exactly the same `ToolError` while the sidecar call runs on,
+which would leak a session per dispatch. It reddens two cases rather than one now, the overrun
+case having gained the same `cancelled` assertion.
+
+The registry in `scripts/` was proved the same way and separately, its own gate being a different
+one: retyping the runbook's `60.0` as `61.0` reports one untied constant naming the runbook, and
+restoring it clears.
+
+### Verified against a real socket
+
+The claim the fakes cannot make is that cancelling through the real MCP client unwinds cleanly:
+beneath `BoundedToolRegistry` sit an anyio task group, a cancel scope and an `except*`, and an
+`asyncio.timeout` that cut through them badly would surface an `ExceptionGroup` or a bare
+`CancelledError` rather than the `ToolError` every layer above expects. So the integration-marked
+suite gained a case that stands up a listener which accepts the connection and answers nothing,
+points the shipped registry stack at it, and measures what comes out. Both verbs raise `ToolError`
+at the bound (1.50 s and 1.51 s against a 1.5 s bound), and the only task alive afterwards is the
+fake server's own handler: no client task, and no socket, survives the cut.
+
+### Consequences
+
+- A wedged tool sidecar fails one call instead of holding a turn open indefinitely, and the model
+  is handed a sentence naming the tool and the bound that it can act on.
+- The skip-and-report degraded mode covers the failure it could not previously see, so
+  "unavailable" finally means down *or* wedged.
+- Every remote tool call in this brain now runs under a number this repo states, rather than under
+  a default buried in a dependency.
+- The built-in tools are untouched, so delegation and the confirm card keep the long waits they are
+  designed to have.
+- One more knob in the base compose file, tied by `scripts/crosscheck.py` to the runbook and the
+  module contract that quote it.
+
+### Deferred by this addendum
+
+One bound covers every sidecar, so a mailbox search and a file read run under the same ceiling:
+[R-362](../refinements/tasks/362-one-bound-for-every-sidecar.md). And the new bound and the
+subagent run deadline are independent numbers with no ordering between them, where the neighbouring
+bounds on that tier are ordered and checked at boot:
+[R-363](../refinements/tasks/363-the-call-bound-and-the-run-bound-are-unordered.md).
+
+The other two shapes of the entry this addendum closes were decided rather than built, and each
+kept its own file: the early decline on a read that will not fit
+([R-360](../refinements/tasks/360-a-read-that-will-not-fit-declines-early.md)) and the partial
+answer whose cascade does not exist in any read path
+([R-361](../refinements/tasks/361-a-read-rpc-recalls-nothing-to-omit.md)).

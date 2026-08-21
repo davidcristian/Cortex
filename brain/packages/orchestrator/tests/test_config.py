@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from cortex_core import (
     ALWAYS_SALIENT,
+    DEFAULT_TOOL_CALL_TIMEOUT_S,
     ESCALATE_GATE_REASON,
     ESCALATE_TOOL_NAME,
     MAX_IDENTICAL_DISPATCHES,
@@ -921,6 +922,26 @@ def test_the_salience_limit_is_inert_when_salience_is_off() -> None:
     # AlwaysSalient counts nothing, so a number set beside `off` bounds nothing at all. Pinned
     # here so the inertness is documented behavior rather than something found in production.
     assert ToolsConfig(salience="off", salience_limit=5).salience_policy is ALWAYS_SALIENT
+
+
+@pytest.mark.parametrize("timeout_s", [0.0, -1.0])
+def test_a_call_timeout_that_is_not_a_duration_fails_at_boot(timeout_s: float) -> None:
+    # Zero refuses every dispatch before it starts, which the loop reports as failures the model
+    # cannot act on rather than as a broken tool set, and a negative one is not a duration. The
+    # core rejects both at construction; the brain refuses to start, where the operator who typed
+    # the number is still watching.
+    with pytest.raises(ValidationError):
+        ToolsConfig(call_timeout_s=timeout_s)
+
+
+def test_the_shipped_call_timeout_is_the_cores_own_bound() -> None:
+    # What this pins is the *wiring*: the field defaults to the core's constant rather than to a
+    # copy of the number, so retyping the `Field(...)` default as a literal reddens here even when
+    # the literal is today's value. It deliberately claims no more than that. Both sides read the
+    # one imported symbol, so a retune of the constant itself moves them together and leaves this
+    # green, which is right: what catches a retune is `scripts/crosscheck.py`, holding the compose
+    # substitution, the runbook and the module contract to the declaration.
+    assert ToolsConfig().call_timeout_s == DEFAULT_TOOL_CALL_TIMEOUT_S
 
 
 def test_an_unknown_salience_name_fails_at_boot() -> None:

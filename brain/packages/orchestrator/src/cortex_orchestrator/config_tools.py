@@ -9,11 +9,12 @@ each tool costs, and which calls are worth dispatching at all.
 
 from typing import Literal
 
-from pydantic import model_validator
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from cortex_core import (
     ALWAYS_SALIENT,
+    DEFAULT_TOOL_CALL_TIMEOUT_S,
     ESCALATE_GATE_REASON,
     ESCALATE_TOOL_NAME,
     MAX_IDENTICAL_DISPATCHES,
@@ -86,6 +87,11 @@ class ToolsConfig(BaseSettings):
     clause is absolute and no number moves it, a value below 1 fails at boot, and the knob is
     inert under ``off``. ``dispatch_policy`` bundles all three declarations, which is the one
     value the dispatcher and its builders take.
+    ``CORTEX_TOOLS_CALL_TIMEOUT_S`` (ADR-0009 bound addendum) is how long one call on a sidecar
+    may take before the brain stops waiting for it, a listing and an invoke alike. It is spent by
+    the ``BoundedToolRegistry`` each endpoint is wrapped in, so a wedged sidecar fails one call
+    instead of holding a turn open, and it is the one declaration here that is inert under
+    ``none``, there being no sidecar to bound.
     """
 
     model_config = SettingsConfigDict(env_prefix="CORTEX_TOOLS_", env_nested_delimiter="__")
@@ -100,6 +106,7 @@ class ToolsConfig(BaseSettings):
     costs: dict[str, int] = {}
     salience: ToolsSalienceName = DEFAULT_SALIENCE
     salience_limit: int = MAX_IDENTICAL_DISPATCHES
+    call_timeout_s: float = Field(default=DEFAULT_TOOL_CALL_TIMEOUT_S, gt=0)
 
     @model_validator(mode="after")
     def _mcp_needs_unambiguous_endpoints(self) -> "ToolsConfig":

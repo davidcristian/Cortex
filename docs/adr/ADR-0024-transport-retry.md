@@ -851,3 +851,32 @@ line distinguishes. The other two, a caller that stopped early and a caller that
 deadline, are only ever values this file hands the wrap, so the table in the abandonment addendum
 above is pinned in one row of three. Filed as
 [R-351](../refinements/tasks/351-two-readings-only-a-fake-ever-produced.md).
+
+## Addendum (2026-08-21): what the announced deadline is worth downstream, decided elsewhere
+
+The abandonment addendum above left three shapes, each a policy about one RPC or one downstream
+port, and all three are now decided. None of them landed here, and the reason is one finding that
+belongs on this record rather than on the one that carries the work.
+
+**No unary handler on this seam reaches a model host or a tool sidecar.** The ten of them read the
+session store, the schedule store, the preference store, the residency report and, for a delete's
+cascade, the memory store. Every model-host
+call and every tool call in this brain is made from a `Converse` turn, from boot recovery, or from
+a background loop, and `Converse` announces no deadline at all. So "the remaining time travels"
+had no route to travel by: the deadline a downstream call could inherit does not exist, and
+building the plumbing to inherit it would be the first half of enforcing on `Converse` the bound
+this seam deliberately does not have. The fence held by being looked at.
+
+What that shape reduced to, once the announced deadline was out of it, is that a downstream call
+should have a bound at all. One of the two already did: every `ModelHost` verb spends
+`CORTEX_MODELHOST_TIMEOUT_S`, which is also compared at boot against the worst stop the host
+reports. The tool seam had none, in the strong sense that the MCP session's own wait for a response
+is `anyio.fail_after(None)`. That is where the work went, and it is recorded in the ADR-0009 bound
+addendum rather than here, because it is a property of the tool client and not of this transport.
+
+The two per-RPC shapes were declined on their merits and kept their own files: an early
+`DEADLINE_EXCEEDED` from `ListSessions` turns on a floor nobody has measured and would have the
+brain answering a deadline that has not expired
+([R-360](../refinements/tasks/360-a-read-that-will-not-fit-declines-early.md)), and the partial
+session read describes a memory cascade no read path on this seam has
+([R-361](../refinements/tasks/361-a-read-rpc-recalls-nothing-to-omit.md)).

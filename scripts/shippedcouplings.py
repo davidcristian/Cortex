@@ -47,6 +47,7 @@ RETRY_PLAN = "body/crates/core/src/retry/plan.rs"
 GPU_RUNBOOK = "docs/runbooks/llamacpp-gpu.md"
 SCHEDULING_RUNBOOK = "docs/runbooks/scheduling.md"
 TOOLS_RUNBOOK = "docs/runbooks/tools-mcp.md"
+TOOLS_CORE_DOC = "docs/modules/brain-core.md"
 VISION_RUNBOOK = "docs/runbooks/vision.md"
 VOLUME_RUNBOOK = "docs/runbooks/body-volume.md"
 
@@ -80,6 +81,28 @@ SHIPPED_COUPLINGS: tuple[Constant, ...] = (
         mentions=(
             Mention(BASE_COMPOSE, "${CORTEX_TOOLS_SALIENCE:-{value}}"),
             Mention(TOOLS_RUNBOOK, "`CORTEX_TOOLS_SALIENCE`, default `{value}`"),
+        ),
+    ),
+    Constant(
+        label="the tool call's shipped bound",
+        why=(
+            "the deadline one call on a tool sidecar runs under is declared in the core module "
+            "that spends it, substituted into every container the base compose file starts, "
+            "quoted to an operator by the runbook as the number a wedged sidecar fails at, and "
+            "restated in the module contract a future agent reads instead of the tree, so "
+            "retuning the declaration alone would leave every deployment on the old bound with "
+            "two documents claiming the new one (ADR-0009 bound addendum)"
+        ),
+        sites=(
+            Site(
+                "brain/packages/core/src/cortex_core/tool_deadline.py",
+                "DEFAULT_TOOL_CALL_TIMEOUT_S",
+            ),
+        ),
+        mentions=(
+            Mention(BASE_COMPOSE, "${CORTEX_TOOLS_CALL_TIMEOUT_S:-{value}}"),
+            Mention(TOOLS_RUNBOOK, "`CORTEX_TOOLS_CALL_TIMEOUT_S` (default `{value}`"),
+            Mention(TOOLS_CORE_DOC, "`DEFAULT_TOOL_CALL_TIMEOUT_S = {value}`"),
         ),
     ),
     # The two deadlines on the brain->body seam, and the first decimals the registry held. Each is
