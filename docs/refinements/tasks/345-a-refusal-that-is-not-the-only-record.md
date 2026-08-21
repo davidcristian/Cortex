@@ -1,6 +1,6 @@
 # A model host refusal claims to be the only record of itself
 
-**Status:** open, actionable
+**Status:** landed 2026-08-21
 **Area:** inference-model-manager
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
 
@@ -34,3 +34,15 @@ the reach of the two differs and the level still has to stand on its own. One pa
 - 2026-08-20: opened by a review of the change that removed the second, louder line at the raise,
   which found the surviving docstring's uniqueness claim true of the eviction and false of the
   restore.
+- 2026-08-21: Landed as the ADR-0030 refusal-reach addendum, wider than the entry asked for. The
+  entry's claim was re-derived first and held exactly: the docstring still said "the only record of
+  it anywhere", `restore_standing` still logs both failures with `_logger.exception`, and the
+  message in that traceback is still the one `HttpModelHost._request` builds out of the daemon's
+  own response body. What the entry named two paths, the close traced as seven callers of the
+  per-model routes, of which six log the daemon's sentence themselves (the unrostered preflight,
+  the swap back, the peer restart, the peer sweep, the regain pass and boot recovery) and one keeps
+  nothing (the swap in, whose conductor answers a fixed note without reading the error). The
+  docstring, `docs/modules/brain-model-manager.md` and the ranked-recall record's raised-and-logged
+  addendum all now say that; the level rule is unchanged and rests on what a 5xx means. The one
+  caller that keeps nothing keeps nothing brain-side at all, filed as
+  [R-350](350-a-failed-swap-in-says-nothing-brain-side.md).

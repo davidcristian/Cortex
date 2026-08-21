@@ -81,7 +81,11 @@ arrives at `WARNING`. The refusal's own words ride the `error` field, which is w
 raises them and does not also print them: the API's line and the shutdown sweep's traceback are
 both the whole sentence, and a line at the raise printed one event twice. It is also the only
 record on the path that matters most, a swap's eviction meeting the 503 through the brain's port,
-which turns it into a user-facing note without logging its text.
+which turns it into one of three fixed user-facing notes without reading its text. **Only that
+path**, and the level does not rest on it: the swap back, the peer restart and boot recovery log
+what they caught with a traceback, and the unrostered preflight, the peer sweep and the regain
+pass log the message in an `error` field, so on six of the seven brain-side callers of these
+routes the sentence is in the brain's log too (ADR-0030's refusal-reach addendum).
 
 **The device seam.** `DeviceMemoryProbe` is `read() -> DeviceMemory | None`, with two
 implementations: `NoDeviceMemory` (always `None`, the default and what a CPU-only stack truthfully
