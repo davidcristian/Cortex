@@ -51,14 +51,17 @@ def _translated(action: str) -> Generator[None, None, None]:
         raise MailboxError(msg) from err
 
 
-# What a refused SELECT must itself say for the folder to be *known* missing. Measured against a
-# real Bridge (ADR-0022 unknown-folder addendum): every name no mailbox has comes back as
-# ``('NO', [b'no such mailbox'])``, and nothing else this machine can make it refuse comes back
-# at all. The RFC 5530 response code is listed beside it because it is the standard's own
-# machine-readable spelling of the same fact, so a server that sends it is saying exactly this.
-# Anything else a ``NO`` can carry is not proof, and what cannot be proved missing is not
-# reported missing.
-_FOLDER_MISSING_ANSWERS = ("no such mailbox", "[nonexistent]")
+# What a refused SELECT must itself say for the folder to be *known* missing. Measured against
+# two real servers, which agree on the fact and share no word of how they say it (ADR-0022
+# two-server addendum): a ProtonMail Bridge answers every name no mailbox has with
+# ``('NO', [b'no such mailbox'])``, and Dovecot 2.3.21 answers the same names with
+# ``('NO', [b"Mailbox doesn't exist: <name>"])``. Neither sends a response code with it, so
+# there is no machine-readable signal to read instead of the words; the RFC 5530 code is listed
+# beside them because it is the standard's own spelling of the same fact, so a server that does
+# send it is saying exactly this. Anything else a ``NO`` can carry is not proof, and what cannot
+# be proved missing is not reported missing: the same Dovecot refuses a mailbox that exists and
+# is shut with ``[NOPERM] Permission denied``, which is none of these.
+_FOLDER_MISSING_ANSWERS = ("no such mailbox", "mailbox doesn't exist", "[nonexistent]")
 
 
 def _select(box: BaseMailBox, folder: str) -> None:

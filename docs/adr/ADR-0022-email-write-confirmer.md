@@ -1111,3 +1111,73 @@ opened.
 One narrower thing this opens rather than closes: the contrast case has never been seen on any
 server this repo can reach, so the phrase-matching rule rests on one server's wording, filed as
 [a refinement](../refinements/tasks/327-the-other-no-to-select-is-unseen.md).
+
+## Addendum (2026-08-21): both refusals, measured against a second server
+
+The addendum above closed by naming what it could not do: a `NO` to `SELECT` covers two facts and
+only one of them had ever been produced, so the rule that types a missing folder was built on one
+server's English and the assumption behind it, that a real "there but shut" refusal says none of
+the things a missing one says, had never been tested against a server saying it. This settles both
+halves by running a second IMAP server, which is what the refinement asked for.
+
+**The second server.** `docker/docker-compose.imap-probe.yml` starts `dovecot/dovecot:2.3.21`
+(build `47349e2482`) with its ACL plugin on, no mail, no password checked and a loopback publish.
+`docker/dovecot/probe-mailboxes.sh` builds the tree and says what each part of it is for: the LIST
+returns **four names**, three of them mailboxes (`INBOX` and `Parent/Child` open, `Guarded` does
+not) and one of them a `\Noselect` node that is no mailbox at all (`Parent`). `Guarded` is listed
+and its ACL leaves the account lookup rights only, so it exists, is advertised, and will not open:
+the case that could not be constructed. It is a fixture rather than a service, taken up and down
+around a measurement (`just up-imap-probe`, `just email-folder-probe`, `just down-imap-probe`), and
+nothing in the brain stack knows it exists. The measuring recipe asks the published port first and
+falls back to the container's own address, because a Docker Desktop engine publishes onto the
+Windows host and the WSL distro this repo is developed in reaches the bridge instead; on the first
+run here the publish did not answer, and a recipe that knew only the publish waited rather than
+saying so.
+
+**What it said, measured through `ImapMailbox`, verbatim.**
+
+| SELECT of | the answer |
+| --- | --- |
+| `Nonexistent`, and every other shape of wrong name | `NO Mailbox doesn't exist: Nonexistent (0.001 + 0.000 secs).` |
+| `Guarded`, listed and ACL-shut | `NO [NOPERM] Permission denied (0.001 + 0.000 secs).` |
+| `Parent`, a `\Noselect` node with a child | `NO Mailbox doesn't exist: Parent (0.001 + 0.000 secs).` |
+| `""`, the empty name | `NO [CANNOT] Invalid mailbox name: Name is empty (0.001 + 0.000 secs).` |
+
+**The assumption holds, and is now a measurement.** The refusal for a mailbox that is there and
+shut carries neither measured phrase nor `[NONEXISTENT]`, so the fail-safe branch is taken on a
+sentence a real server really sent rather than on one this repo wrote about a server it had never
+met. The scripted answer the unit and contract suites drive that branch with is now that sentence
+(`UNOPENABLE_FOLDER_ANSWER`), replacing an invented `[INUSE]`.
+
+**The classification stands, and gains a phrase.** The two servers agree on the fact and share no
+word of how they say it: where the Bridge says `no such mailbox`, this one names the folder and
+says it doesn't exist. Neither sends a response code with it, so the alternative the refinement
+offered, moving to a machine-readable signal both servers share, is not available: there is no such
+signal, and the words really are all there is. `_FOLDER_MISSING_ANSWERS` therefore holds both
+measured phrases beside `[NONEXISTENT]`, and a model that invents a folder name is corrected on
+either server instead of only on the one the rule was first written from.
+
+**Two things this measured that nobody had asked about.** A `\Noselect` node is refused here
+exactly as a name no mailbox has is, and this server lists it, so a model told to spell folders as
+`list_folders` returned them can be sent back to a list the refused name is on. That loop is the
+one the fail-safe direction exists to avoid, and it arrives from the other side: not a misread
+refusal but a `list_folders` that offers a name which is not a mailbox. The Bridge's own
+`\Noselect` parents open, which is why it never showed up before. And an empty name is refused as
+neither missing nor shut but as no name at all, `[CANNOT]`, a third fact the same `NO` carries.
+Both are recorded in the live probe suite and filed as refinements rather than fixed here, since
+each is a change to a different call than the one this addendum is about: the listed node that is
+not a mailbox is
+[one](../refinements/tasks/364-list-folders-offers-a-name-no-mailbox-has.md) and the name the
+server will not read is [the other](../refinements/tasks/365-a-refused-name-is-neither-missing-nor-shut.md).
+The probe's own mailbox names are spelled in its script and in its test with nothing tying them,
+which is [a third](../refinements/tasks/366-the-probe-fixture-and-its-test-are-untied.md).
+
+**Validation.** `just check` green. The live probe suite is five integration-marked tests
+against the running Dovecot, driven through the whole `just` path, and the fail-safe half of it
+runs the port contract's own check over the real refusal rather than restating it. Three mutations
+were run in the session that landed this and each was reverted and re-read off disk: dropping the
+new measured phrase reds one test of the email package's unit suite and two of the probe's live
+suite; classifying every select failure as missing reds two of that unit suite (one of them the
+contract check on the `imap` arm) and one live test, at the contract's own assertion; and granting
+the guarded mailbox full rights in the fixture, which is the measurement's own premise rather than
+the code's, reds exactly the live test that says a listed mailbox refused to open.

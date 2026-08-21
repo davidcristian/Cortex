@@ -1,0 +1,60 @@
+# The IMAP probe: a second IMAP server, run locally so that both of the things a refused
+# SELECT can mean have a real server saying them. Start it with `just up-imap-probe` and
+# measure with `just email-folder-probe`; procedure and the measured answers are in
+# docs/runbooks/email-imap.md.
+#
+# Why it exists. `ImapMailbox` types a refused SELECT as a folder no mailbox has only when the
+# server's own answer says so, because the same NO also covers a mailbox that is really there
+# and cannot be opened. Against the ProtonMail Bridge this repo talks to, the second case
+# cannot be produced at all: every wrong name is refused in the same words and every listed
+# folder opens. Dovecot with its ACL plugin says both, so the rule is measured against two
+# servers that disagree about wording rather than inferred from one that only ever says one
+# thing (ADR-0022 two-server addendum).
+#
+# It is NOT part of the brain stack: its own project name, its own network, no `depends_on`
+# anywhere, and nothing in the compose stack points at it. It holds no mail (the store is a
+# tmpfs, so every start is empty), it checks no password (docker/dovecot/probe.conf), and it
+# publishes on loopback only. Take it down with `just down-imap-probe` when the measurement is
+# over; it is a fixture, not a service, so it does not restart itself.
+
+name: cortex-imap-probe
+
+services:
+  imap-probe:
+    # Pinned: the whole value of this stack is that the wording it produces was recorded
+    # against a named server build, so the version is part of the measurement.
+    image: "dovecot/dovecot:2.3.21"
+    # The mailbox tree has to exist before anything connects, and this image's own entrypoint
+    # goes straight to the server, so the bootstrap script is the entrypoint and becomes the
+    # server itself. `init` restores the reaping the image's tini was doing.
+    entrypoint: ["/bin/sh", "/probe-mailboxes.sh"]
+    init: true
+    volumes:
+      # The whole configuration, replacing the image's own (which has no ACL plugin and so
+      # cannot produce the refusal this exists for). Only the file is mounted, so the
+      # self-signed cert and key beside it in the image stay where they are.
+      - type: bind
+        source: ./docker/dovecot/probe.conf
+        target: /etc/dovecot/dovecot.conf
+        read_only: true
+      - type: bind
+        source: ./docker/dovecot/probe-mailboxes.sh
+        target: /probe-mailboxes.sh
+        read_only: true
+    tmpfs:
+      # The mail store, deliberately not a volume: a fixture that starts empty every time
+      # cannot drift from the script that builds it, and `down` leaves nothing behind.
+      - /srv/mail
+    ports:
+      # Loopback-only publish so a host-side measurement can reach it. Nothing else may. Whose
+      # loopback it lands on is the engine's business rather than this file's: a Docker Desktop
+      # engine publishes onto the Windows host, so the WSL distro beside it reaches this container
+      # on the bridge and never here, which is why `just email-folder-probe` asks docker where the
+      # server answers instead of assuming this line.
+      - "127.0.0.1:11143:143"
+    healthcheck:
+      test: ["CMD", "doveadm", "service", "status"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
