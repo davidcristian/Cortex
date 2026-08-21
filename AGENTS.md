@@ -186,7 +186,11 @@ the subject style). Imperative mood is the one convention no machine checks:
 - **Claims carry evidence.** Never report a gate green without having run it in this
   session; show the command and result. Unverified statements are labeled assumptions.
 - **Distrust green.** A gate that cannot fail is a defect: after wiring or changing one,
-  prove it fails on a violation before trusting it.
+  prove it fails on a violation before trusting it. A mutation table is that proof written
+  down, so **it names the suite its counts are over**: a commit's own diff hands the next
+  reader the file and the edit, and says nothing about the collection a number counts. No
+  machine checks this, for the reason none checks imperative mood, and the replay of the
+  record that measured both halves is the ADR-0002 replay addendum.
 - **Read before you write.** Open the file and its call sites before editing; never edit
   from memory of its contents or invent an API. Check the signature.
 - **Report faithfully.** Failing tests are reported with their output; skipped steps are
