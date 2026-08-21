@@ -2,6 +2,11 @@
 
 from cortex_orchestrator.abandon import ABANDONED_MESSAGE, AbandonedCallInterceptor
 from cortex_orchestrator.auth import SeamTokenInterceptor
+from cortex_orchestrator.bounds import (
+    ToolCallDeadlineError,
+    check_tool_call_deadline,
+    delegated_call_bounds,
+)
 from cortex_orchestrator.builders import (
     build_body_gateway,
     build_builtin_tools,
@@ -111,6 +116,7 @@ __all__ = [
     "SwapConfig",
     "SwapRuntime",
     "TickerSettings",
+    "ToolCallDeadlineError",
     "ToolsConfig",
     "TurnIdFactory",
     "build_body_gateway",
@@ -129,8 +135,10 @@ __all__ = [
     "build_ticker",
     "build_tool_registry",
     "check_control_deadline",
+    "check_tool_call_deadline",
     "converse",
     "create_server",
+    "delegated_call_bounds",
     "memory_scope_from_name",
     "recall_audit_from_config",
     "recall_policy_from_config",

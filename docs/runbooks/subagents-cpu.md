@@ -70,6 +70,14 @@ delegation time (ADR-0012 admission-wall addendum).
 > run whose loop spends on several rounds what that measurement spent on one completion. The
 > deadline also lands between the two bounds either side of it, above the stall ceiling and below
 > the admission wait, so a run can never hold its admission longer than a peer will queue for it.
+> One more bound sits inside it, beside the stall ceiling rather than under it:
+> `CORTEX_TOOLS_CALL_TIMEOUT_S` (default 60 s) bounds one tool dispatch, and a delegated loop
+> dispatches tools between its completions. A dispatch spends that bound several times over, once
+> listing the tools the run advertises, once more stripping the gated ones, once more routing
+> across an aggregate, and once in the call, so the brain refuses a deployment where a whole
+> dispatch is allowed to outlast the run that made it (ADR-0009 ordering addendum), that costing
+> the whole run instead of the one call and reporting a wedged sidecar as a subtask that would not
+> stop talking.
 > What they cut is a model that is talking rather than one that is slow: the sixth shape, an
 > open-ended essay no narrow subtask should ask for, was cut at 577 tokens and 1958 s still writing.
 

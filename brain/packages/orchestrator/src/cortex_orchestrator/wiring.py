@@ -17,6 +17,7 @@ from cortex_core import (
     TurnRunner,
     VramBudgetPlacer,
 )
+from cortex_orchestrator.bounds import check_tool_call_deadline
 from cortex_orchestrator.builders import (
     build_body_gateway,
     build_builtin_tools,
@@ -71,7 +72,7 @@ async def run_from_env(
     memory_config = MemoryConfig()
     tools_config = ToolsConfig()
     body_config = BodyConfig()
-    subagents_config = SubagentsConfig()
+    subagents_config = check_tool_call_deadline(SubagentsConfig(), tools_config)
     schedule_config = ScheduleConfig()
     swap_config = SwapConfig()
     reply_bounds = ReplyBoundsConfig().bounds()
