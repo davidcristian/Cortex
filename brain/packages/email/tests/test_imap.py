@@ -10,7 +10,14 @@ import ssl
 from imaplib import IMAP4
 
 import pytest
-from imap_stub import UNOPENABLE_FOLDER_ANSWER, FakeBox, Msg, config, patch_box
+from imap_stub import (
+    OTHER_MISSING_FOLDER_ANSWER,
+    UNOPENABLE_FOLDER_ANSWER,
+    FakeBox,
+    Msg,
+    config,
+    patch_box,
+)
 from imap_tools import MailboxFolderSelectError
 
 from cortex_email import (
@@ -97,11 +104,12 @@ def test_a_connection_lost_mid_search_is_not_reported_as_a_refusal(
 def test_a_select_refused_for_another_reason_keeps_the_library_s_account_of_why(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # The fail-safe branch, and the one a live pass cannot reach: a real Bridge refuses a SELECT
-    # only for a name no mailbox has, so every other NO is scripted here. The port promise (it is
-    # not reported missing) is a contract check; what this adds is the other half, that the base
-    # error still carries what the server did say, since for a mailbox that could not answer that
-    # text is the only account of why there is.
+    # The fail-safe branch: a Bridge refuses a SELECT only for a name no mailbox has, so the
+    # other NO is scripted here from what a Dovecot with an ACL-shut mailbox really answers
+    # (the live half is `test_imap_probe_live.py`). The port promise (it is not reported
+    # missing) is a contract check; what this adds is the other half, that the base error still
+    # carries what the server did say, since for a mailbox that could not answer that text is
+    # the only account of why there is.
     box = FakeBox(names=["INBOX"])
     box.folder.select_error = MailboxFolderSelectError(UNOPENABLE_FOLDER_ANSWER, "OK")
     patch_box(monkeypatch, box)
@@ -109,7 +117,23 @@ def test_a_select_refused_for_another_reason_keeps_the_library_s_account_of_why(
         ImapMailbox(config()).search("INBOX", "ALL", 5)
     assert not isinstance(raised.value, FolderUnknownError)
     assert "could not run that search" in str(raised.value)
-    assert "INUSE" in str(raised.value)
+    assert "NOPERM" in str(raised.value)
+
+
+def test_the_second_server_s_own_words_for_a_missing_mailbox_are_read_too(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Two servers say the same fact in no shared word: where the Bridge says `no such mailbox`,
+    # Dovecot names the folder it refused and says it doesn't exist. Neither sends a response
+    # code, so both phrases are read (ADR-0022 two-server addendum), and a rule that held only
+    # the first would leave a model on that server with an untyped refusal for a name it
+    # invented.
+    box = FakeBox(names=["INBOX"])
+    box.folder.select_error = MailboxFolderSelectError(OTHER_MISSING_FOLDER_ANSWER, "OK")
+    patch_box(monkeypatch, box)
+    with pytest.raises(FolderUnknownError) as raised:
+        ImapMailbox(config()).search("Receipts", "ALL", 5)
+    assert raised.value.folder == "Receipts"
 
 
 def test_the_standard_s_own_word_for_a_missing_mailbox_is_read_too(

@@ -232,6 +232,48 @@ down-gpu:
 seam-health:
     cd body && cargo test -p body-rpc --test live -- --ignored --nocapture
 
+# The IMAP probe: a second, local IMAP server that can refuse a SELECT for the other reason,
+# a mailbox that exists and will not open, which the Bridge cannot be made to produce. It is a
+# measurement fixture and not part of the brain stack: its own project, no mail, no password,
+# loopback only. Procedure and the answers it gave: docs/runbooks/email-imap.md.
+up-imap-probe:
+    docker compose --project-directory . -f docker/docker-compose.imap-probe.yml up -d --wait
+
+down-imap-probe:
+    docker compose --project-directory . -f docker/docker-compose.imap-probe.yml down
+
+# Live folder-classification check against that probe. Where the server answers is read back off
+# docker rather than written here a second time, so an overridden publish still reaches the right
+# server, and it is read in two steps because one is not enough everywhere. The publish is asked
+# first, being what the compose file requests and what a Linux engine gives. It is not what every
+# dev box gets: a Docker Desktop engine publishes onto the Windows host, so a WSL distro beside it
+# reaches the container's own address on the bridge and never the published port, and a recipe that
+# only knew the publish sat there until somebody killed it. So the publish is probed, the
+# container's address is the fallback, and a probe that answers at neither says so and stops.
+# Integration-marked, never in CI.
+email-folder-probe:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    compose=(docker compose --project-directory . -f docker/docker-compose.imap-probe.yml)
+    served=143
+    published="$("${compose[@]}" port imap-probe "$served")"
+    host="${published%:*}"
+    port="${published##*:}"
+    answers() { timeout 3 bash -c "exec 3<>/dev/tcp/$1/$2" 2>/dev/null; }
+    if ! answers "$host" "$port"; then
+        # The doubled braces are just's own escape for a literal one, so what docker is handed
+        # is the plain Go template that prints the address of whatever single network it is on.
+        host="$(docker inspect -f '{{{{range .NetworkSettings.Networks}}{{{{.IPAddress}}{{{{end}}' \
+            "$("${compose[@]}" ps -q imap-probe)")"
+        port="$served"
+        answers "$host" "$port" || {
+            echo "the probe answers at neither $published nor $host:$port; run \`just up-imap-probe\`" >&2
+            exit 1
+        }
+    fi
+    cd brain && CORTEX_EMAIL_PROBE_HOST="$host" CORTEX_EMAIL_PROBE_PORT="$port" \
+        uv run pytest -m integration --no-cov packages/email/tests/test_imap_probe_live.py
+
 # Live inference check: streams a real completion through LlamaCppBackend. Needs the gpu
 # stack up (`just up-gpu`); integration-marked, never in CI/coverage (ADR-0007).
 brain-inference-live:

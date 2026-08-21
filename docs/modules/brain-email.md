@@ -45,9 +45,13 @@ denied outright.
   classifications look rather than assume, and for the same reason. The abort is tested for by
   subclass, since reporting a dropped connection as a refused query would send a model round a
   rewrite loop that cannot end. The select is classified from what the server said
-  (`_FOLDER_MISSING_ANSWERS`: the Bridge's measured `no such mailbox`, or RFC 5530's
-  `[NONEXISTENT]` code), because the same `NO` also covers a folder that is really there and
-  could not be opened, and a folder that cannot be proved missing is not reported missing.
+  (`_FOLDER_MISSING_ANSWERS`: the Bridge's measured `no such mailbox`, Dovecot's measured
+  `Mailbox doesn't exist`, or RFC 5530's `[NONEXISTENT]` code), because the same `NO` also covers
+  a folder that is really there and could not be opened, and a folder that cannot be proved
+  missing is not reported missing. Two servers, one fact, no shared word and no response code
+  from either, which is why the words are read at all and why there are two of them; the other
+  refusal is `[NOPERM] Permission denied`, measured on a mailbox that is listed and shut (ADR-0022
+  two-server addendum, `tests/test_imap_probe_live.py` over `docker/docker-compose.imap-probe.yml`).
 - `EmailConfig` holds env-driven settings (`CORTEX_EMAIL_IMAP_*`): host/port/user/password
   (`SecretStr`), `security` (starttls|ssl), and `ca_cert` / `tls_insecure` for the Bridge's
   self-signed cert. Defaults target a local Bridge (127.0.0.1:1143, STARTTLS).

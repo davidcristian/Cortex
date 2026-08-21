@@ -43,9 +43,15 @@ class Msg:
 # What a real ProtonMail Bridge answers to a SELECT of a name no mailbox has, measured verbatim
 # and identically for every shape of wrong name (ADR-0022 unknown-folder addendum).
 MISSING_FOLDER_ANSWER = ("NO", [b"no such mailbox"])
-# A NO that is not that: RFC 5530's code for a mailbox that exists and is not available. No
-# server this repo can reach produces one, so the fail-safe branch is reached only from here.
-UNOPENABLE_FOLDER_ANSWER = ("NO", [b"[INUSE] Mailbox in use"])
+# The same fact in another server's words: Dovecot 2.3.21 names the folder it refused and shares
+# not one word with the Bridge, which is why the classification holds two measured phrases rather
+# than one (ADR-0022 two-server addendum).
+OTHER_MISSING_FOLDER_ANSWER = ("NO", [b"Mailbox doesn't exist: Receipts (0.001 + 0.000 secs)."])
+# A NO that is not either of those: the mailbox is there, is listed, and will not open. Measured
+# on the same Dovecot against a mailbox whose ACL leaves the account lookup rights only
+# (docker/docker-compose.imap-probe.yml), so the fail-safe branch is scripted here from a
+# sentence a real server really sent.
+UNOPENABLE_FOLDER_ANSWER = ("NO", [b"[NOPERM] Permission denied (0.001 + 0.000 secs)."])
 
 
 class Folder:
@@ -61,8 +67,8 @@ class FolderManager:
     A name it does not list is refused the way a real Bridge refuses one, verbatim from a live
     measurement (`MISSING_FOLDER_ANSWER`), so the adapter's classification is driven over the
     answer it will really meet. ``select_error``, when set, replaces that with whatever a test
-    wants a refused SELECT to say instead, which is the only way to reach the other kind of
-    ``NO``.
+    wants a refused SELECT to say instead, which is how this suite reaches the other kind of
+    ``NO``; the live one is a server run for the purpose (`test_imap_probe_live.py`).
     """
 
     def __init__(self, names: Sequence[str], set_calls: list[tuple[str, bool]]) -> None:
