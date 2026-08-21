@@ -766,3 +766,88 @@ exactly zero fails on a scheduler hiccup rather than on a regression, and that i
 the file does not make; what it makes instead is an argument for a stricter assertion than it
 carries. Either the prose comes down to what the bound checks, or the clamp is asserted beside it.
 Filed as [R-346](../refinements/tasks/346-a-clamped-reading-nothing-pins.md).
+
+## Addendum (2026-08-21): the clamp is asserted, and the reading is spelled out rather than echoed
+
+The addendum above left its expiry case explaining itself with a fact it did not check, and the one
+below it filed that. This closes it by asserting the fact, which is the close that entry preferred
+and made conditional on the clamp being real. It is.
+
+### Re-derived from the tree first, and the entry's claim held exactly
+
+`test_an_abandoned_unary_call_says_so_and_prints_the_time_it_had_left` still said that grpc clamps
+the reading at zero rather than letting it go negative, "so it lands there", and still asserted only
+`remaining < _ANNOUNCED_S / 2`, which every reading in the lower half of the announced window
+satisfies. Nothing else in the suite held the clamp either: the parameterized case that prints
+`time_remaining=0` is handed that `0` by the file itself, so what it pins is the rendering of a
+value nobody observed.
+
+### Measured before anything was asserted
+
+The scenario the wire case drives was run 120 times against a real loopback `grpc.aio` server, in
+two batches of 20 and 100, the second with all four trees of `just check` running beside it so the
+machine was loaded rather than idle. Every one of the 120 readings was exactly `0`, and every one
+was an `int` rather than a float, which is `max(deadline - now, 0)` answering with its own second
+argument because the subtraction was already negative. That is the same result the abandonment
+addendum recorded when it landed, now taken deliberately and at a size that can carry an assertion.
+
+The clamp is also grpc's own stated contract rather than an accident of this machine: the
+`ServicerContext.time_remaining` it inherits documents its answer as "a nonnegative float".
+
+### Decision 1: three assertions, one per claim the prose makes
+
+The case now asserts that the reading is not negative, that the announced window really has run
+down, and that it lands on the floor:
+
+| Assertion | What it is worth |
+| --- | --- |
+| `remaining >= 0` | the clamp itself, and the one that can never fail on a slow machine |
+| `remaining < _ANNOUNCED_S / 2` | the window ran down, rather than the call ending some other way |
+| `remaining == 0` | the landing the prose claims, measured 120 times before being demanded |
+
+The half-window bound is kept although the equality implies it, and deliberately: it is the loose
+half of the pair, so a reader who ever does see a scheduler hiccup redden the equality can see what
+the case is really about without re-deriving it, and relax to the pair above rather than to nothing.
+
+### Decision 2: the rendered tail spells the number out
+
+The case's last assertion read `time_remaining={remaining}`, interpolating the value it had just
+read into the string it checked the line against. An assertion that prints back whatever it read
+cannot say what a real expiry renders as, and the rendering is the half of the original claim the
+commit body actually made: an **integer** zero. It is now a literal `time_remaining=0`, which a
+`0.0` fails. The method stays interpolated, because it carries its own assertion two lines up and
+because the proto's package name is spelled in the proto and nowhere else.
+
+### Distrust green
+
+Three mutations, each applied to `brain/packages/orchestrator/src/cortex_orchestrator/abandon.py`
+alone, replacing `context.time_remaining()` in the `extra` of the abandonment line with a constant,
+each run over `packages/orchestrator/tests/test_abandon.py`, then reverted and the file diffed
+against its pre-mutation copy:
+
+| Mutation | Reddens | The wire case fails on | Before this change |
+| --- | --- | --- | --- |
+| `0.05`, a grpc that stopped clamping and reports the sliver | 4 | `remaining == 0` | **green** |
+| `-0.05`, one that reports the negative remainder instead | 4 | `remaining >= 0` | **green** |
+| `0.0`, one that clamps to a float | 4 | the rendered tail | **green** |
+
+The last column is the point. Each mutation was also run against the case exactly as it stood
+before this addendum, and all three passed it: `0.05` and `0.0` are both below half the announced
+window, and `-0.05` is below it too. The three that redden besides the wire case are the
+parameterized renderings, which redden on any constant because a constant is what they vary.
+
+### Consequences
+
+- The suite now holds every sentence the file, `abandon.py`'s module docstring and
+  `docs/modules/brain-orchestrator.md` say about the expiry reading. None of them is a claim a
+  reader has to take on trust any more.
+- A grpc release that changed this behaviour fails here loudly, naming which of the three claims
+  moved, rather than passing under a bound that never described it.
+
+### What this opens
+
+The wire case is the only place the reading is real, and it exercises one of the three facts the
+line distinguishes. The other two, a caller that stopped early and a caller that announced no
+deadline, are only ever values this file hands the wrap, so the table in the abandonment addendum
+above is pinned in one row of three. Filed as
+[R-351](../refinements/tasks/351-two-readings-only-a-fake-ever-produced.md).
