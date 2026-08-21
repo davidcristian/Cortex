@@ -14,6 +14,7 @@ from email.message import EmailMessage
 from typing import cast
 
 import pytest
+from imap_tools import MailboxFolderSelectError
 
 from cortex_email import (
     EmailAttachment,
@@ -125,8 +126,9 @@ def test_a_folder_no_mailbox_has_is_refused_by_name_and_by_the_folder_list() -> 
 
     Two facts only a real server can settle. Every name no mailbox has is refused the same way,
     whatever shape the wrong name takes, so the classification is not reading one accident of one
-    spelling; and every name `list_folders` returns really does open, so nothing the tool tells a
-    model to use comes back as the refusal it warns about. The `NO` the Bridge sends carries no
+    spelling; and the offered list is exactly the names that open, so nothing the tool tells a
+    model to use comes back as the refusal it warns about, and no name that would have worked is
+    kept from it either. The `NO` the Bridge sends carries no
     RFC 5530 response code, only the words, which is why the words are what is read
     (ADR-0022 unknown-folder addendum).
     """
@@ -145,6 +147,34 @@ def test_a_folder_no_mailbox_has_is_refused_by_name_and_by_the_folder_list() -> 
 
     for folder in mailbox.list_folders():
         mailbox.search(folder, "ALL", 1)  # a listed name that would not open raises out of here
+
+    _assert_no_name_this_server_opens_is_withheld(mailbox)
+
+
+def _assert_no_name_this_server_opens_is_withheld(mailbox: ImapMailbox) -> None:
+    """The other direction of the same promise, which only the server's own LIST can settle.
+
+    `list_folders` drops a name the server flags unselectable and then refuses, and this Bridge
+    flags the two parents of its hierarchy and opens them both. So the offered list has to be
+    exactly the names that open, and a filter that believed the flag would withhold two working
+    names without any call on the port being able to see it (ADR-0022 flagged-and-refused
+    addendum).
+    """
+    offered = set(mailbox.list_folders())
+    # Reaching past the port is deliberate, hence both suppressions: what this asks about is
+    # precisely the names the port did not return, which nothing on the port can show.
+    connection = mailbox._open()  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
+    with connection as box:
+        listed = [folder.name for folder in box.folder.list()]
+        opens: set[str] = set()
+        for name in listed:
+            try:
+                box.folder.set(name, readonly=True)  # pyright: ignore[reportUnknownMemberType]
+            except MailboxFolderSelectError:
+                continue
+            opens.add(name)
+    assert opens, "the account listed nothing that opens, so this proves nothing"
+    assert offered == opens, f"withheld: {sorted(opens - offered)}; offered shut: {offered - opens}"
 
 
 @pytest.mark.integration

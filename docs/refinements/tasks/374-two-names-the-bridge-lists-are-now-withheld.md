@@ -1,6 +1,6 @@
 # Two names the Bridge lists and opens are now withheld, and nobody has looked
 
-**Status:** open, actionable
+**Status:** landed 2026-08-21
 **Area:** email-confirmer
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
 
@@ -32,3 +32,14 @@ cost rather than on principle. The sibling entry
 - 2026-08-21: Filed by the close of [364](364-list-folders-offers-a-name-no-mailbox-has.md), whose
   measurement was against one of the two servers this repo talks to. Recorded in the ADR-0022
   hierarchy-node addendum.
+- 2026-08-21: Measured against the live Bridge, and the entry's claim held: nineteen names listed,
+  two of them flagged `\Noselect` (`Folders` and `Labels`), and all nineteen open under EXAMINE.
+  The flags and the per-name SELECT results are in the ADR-0022 flagged-and-refused addendum.
+  Landed the fourth ending rather than the three this entry weighed: `list_folders` now opens a
+  flagged name once on the connection it already holds and drops it only when the server refuses
+  it too, which is correct on both servers and costs two round trips on this account and none on a
+  server that flags nothing. `test_email_live.py` now walks the server's own LIST and asserts the
+  offered list is exactly the names that open, which is the assertion that would have caught this
+  the day the filter landed. Opened
+  [375](375-a-flagged-name-shut-is-dropped-as-if-missing.md), on the one asymmetry this leaves, and
+  [376](376-the-bridge-flag-reading-is-one-account.md), on the reading being one account's.

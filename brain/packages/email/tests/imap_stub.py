@@ -61,6 +61,10 @@ NODE_FLAGS = ("\\Noselect", "\\HasChildren")
 # What the same server sends with an ordinary leaf mailbox, so the adapter's filter is driven
 # over both answers rather than over one and an empty tuple.
 MAILBOX_FLAGS = ("\\HasNoChildren",)
+# The same claim on the other server, measured verbatim on a live ProtonMail Bridge, which
+# flags the two parents of its own hierarchy and then opens both:
+# `FolderInfo(name='Folders', delim='/', flags=('\\Noselect', '\\Unmarked'))`.
+OPEN_NODE_FLAGS = ("\\Noselect", "\\Unmarked")
 
 
 class Folder:
@@ -83,6 +87,8 @@ class FolderManager:
     ``nodes`` are listed and are not mailboxes, the way a real server lists a `\\Noselect`
     parent: they come back from `list` carrying `NODE_FLAGS` and are refused by `set` exactly
     as a name no mailbox has is, because that is what the probe measured Dovecot doing.
+    ``open_nodes`` are the Bridge's answer to the same question: listed with the same flags and
+    opening anyway, which is why the adapter asks rather than believes.
     """
 
     def __init__(
@@ -91,22 +97,25 @@ class FolderManager:
         set_calls: list[tuple[str, bool]],
         nodes: Sequence[str] = (),
         node_flags: Sequence[str] = NODE_FLAGS,
+        open_nodes: Sequence[str] = (),
     ) -> None:
         self._names = names
         self._nodes = nodes
         self._node_flags = node_flags
+        self._open_nodes = open_nodes
         self._set_calls = set_calls
         self.select_error: BaseException | None = None
 
     def list(self) -> list[Folder]:
         listed = [Folder(name) for name in self._names]
-        return listed + [Folder(name, self._node_flags) for name in self._nodes]
+        flagged = [*self._nodes, *self._open_nodes]
+        return listed + [Folder(name, self._node_flags) for name in flagged]
 
     def set(self, folder: str, readonly: bool = False) -> None:  # noqa: FBT001, FBT002
         self._set_calls.append((folder, readonly))
         if self.select_error is not None:
             raise self.select_error
-        if folder not in self._names:
+        if folder not in self._names and folder not in self._open_nodes:
             raise MailboxFolderSelectError(MISSING_FOLDER_ANSWER, "OK")
 
 
@@ -125,11 +134,12 @@ class FakeBox:
         fetch_error: BaseException | None = None,
         nodes: Sequence[str] = (),
         node_flags: Sequence[str] = NODE_FLAGS,
+        open_nodes: Sequence[str] = (),
     ) -> None:
         self.set_calls: list[tuple[str, bool]] = []
         self.login_calls: list[tuple[str, str]] = []
         self.fetch_calls: list[tuple[object, int | None, bool, bool]] = []
-        self.folder = FolderManager(names, self.set_calls, nodes, node_flags)
+        self.folder = FolderManager(names, self.set_calls, nodes, node_flags, open_nodes)
         self.fetch_error = fetch_error
         self._messages = list(messages)
 

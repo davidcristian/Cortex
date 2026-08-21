@@ -11,6 +11,7 @@ from imaplib import IMAP4
 
 import pytest
 from imap_stub import (
+    OPEN_NODE_FLAGS,
     OTHER_MISSING_FOLDER_ANSWER,
     UNOPENABLE_FOLDER_ANSWER,
     FakeBox,
@@ -47,6 +48,26 @@ def test_the_newer_spelling_of_unselectable_is_dropped_too(
     box = FakeBox(names=["INBOX"], nodes=["Archive"], node_flags=("\\nonexistent",))
     patch_box(monkeypatch, box)
     assert list(ImapMailbox(config()).list_folders()) == ["INBOX"]
+
+
+def test_a_flagged_name_the_server_opens_is_still_offered(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The Bridge flags the parents of its own hierarchy and opens them, so believing the flag
+    # withholds names that work. The flag decides who gets asked; the server decides the rest.
+    box = FakeBox(names=["INBOX"], open_nodes=["Folders"], node_flags=OPEN_NODE_FLAGS)
+    patch_box(monkeypatch, box)
+    assert list(ImapMailbox(config()).list_folders()) == ["INBOX", "Folders"]
+    assert box.set_calls == [("Folders", True)]  # asked once, and only about the flagged name
+
+
+def test_a_flagged_name_the_server_refuses_is_dropped(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The other server's answer to the same question, and the loop the drop exists to close:
+    # Dovecot lists a node and then refuses it in the words that prove a folder missing.
+    box = FakeBox(names=["INBOX"], nodes=["Parent"])
+    patch_box(monkeypatch, box)
+    assert list(ImapMailbox(config()).list_folders()) == ["INBOX"]
+    assert box.set_calls == [("Parent", True)]
 
 
 def test_search_is_headers_only_read_only_and_unseen(monkeypatch: pytest.MonkeyPatch) -> None:
