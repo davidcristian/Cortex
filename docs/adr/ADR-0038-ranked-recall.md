@@ -2645,6 +2645,13 @@ meets this same 503 through the brain's `ModelHost` port, the brain turns it int
 note without logging its text, and the sidecar's own line is therefore the only record of it
 anywhere.
 
+**Narrowed 2026-08-21.** The last clause is true of the swap in and of no other caller of those
+routes. The unrostered preflight, the swap back, the peer restart, the peer sweep, the regain pass
+and boot recovery all write the daemon's own sentence into the brain's log themselves, so the
+sidecar's line is the only record on one caller of seven rather than everywhere. The level rule
+this paragraph argues for is unaffected, and the survey behind the correction is in
+[ADR-0030](ADR-0030-brain-handoff.md)'s refusal-reach addendum.
+
 ### Distrust green
 
 Five mutations, each applied to production code alone with the whole brain workspace re-run:

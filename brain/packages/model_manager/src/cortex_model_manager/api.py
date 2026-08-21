@@ -175,10 +175,16 @@ def _refused(model: str, err: SupervisorError, code: HTTPStatus) -> Response:
     line and no more, while a 5xx is the daemon unable to do a thing it accepts. That distinction
     used to be carried by a second, louder line at the raise, which said the same sentence over
     again; the sentence rides the ``error`` field, so the level has to ride the line that is left
-    or a child holding GPU memory nothing can free reads exactly like a typo in a model id. It
-    matters most where nobody is watching this daemon: a swap's eviction meets the 503 through
-    the brain's own port, and the brain turns it into a note without logging its text, so this
-    line is the only record of it anywhere.
+    or a child holding GPU memory nothing can free reads exactly like a typo in a model id.
+
+    It matters most on the one caller that keeps nothing: a swap's eviction meets the 503 through
+    the brain's own port, and the conductor answers one of three fixed user-facing notes without
+    ever reading the error's text, so on that path this line is the whole record. It is not the
+    only record everywhere, and the level is not resting on that. Every other caller of these
+    routes writes the sentence into the brain's log as well, the swap back and boot recovery
+    inside a traceback and the peer sweep in a field, because the message they carry was built
+    out of this body. So the level stands on what a 5xx means rather than on being unique
+    (ADR-0030's refusal-reach addendum, which surveys all seven callers).
     """
     level = logging.ERROR if code >= HTTPStatus.INTERNAL_SERVER_ERROR else logging.WARNING
     _logger.log(level, "a model-host request failed", extra={"model": model, "error": str(err)})
