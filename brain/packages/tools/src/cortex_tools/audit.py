@@ -19,6 +19,17 @@ class LoggingAuditSink:
             "trust": invocation.trust.value,
             "at": invocation.at.isoformat(),
         }
+        fields.update(
+            {
+                name: identity
+                for name, identity in (
+                    ("session_id", invocation.session_id),
+                    ("turn_id", invocation.turn_id),
+                    ("task_id", invocation.task_id),
+                )
+                if identity
+            }
+        )
         if invocation.ok:
             fields["result_chars"] = len(invocation.detail)
         else:

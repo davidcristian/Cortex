@@ -31,6 +31,7 @@ class ToolLoopContext:
     taint: TaintLedger
     nonce: str
     session_id: str
+    task_id: str = ""
     schema: JsonSchema | None = None
     bounds: GenerationBounds | None = None
     budget: DispatchBudget = field(default_factory=DispatchBudget)
@@ -38,6 +39,11 @@ class ToolLoopContext:
     escalation: EscalationSlot | None = None
     cadence: CadenceWatch | None = None
     stops: StopLedger | None = None
+
+    @property
+    def unit_id(self) -> str:
+        """The id this loop's own messages are grouped under: its task, else the turn it serves."""
+        return self.task_id or self.turn_id
 
 
 def _refused_by(
@@ -62,6 +68,8 @@ def _stamp(context: ToolLoopContext) -> TurnStamp:
     """What the dispatching turn hands one call, built fresh per dispatch (ADR-0027)."""
     return TurnStamp(
         session_id=context.session_id,
+        turn_id=context.turn_id,
+        task_id=context.task_id,
         tainted=context.taint.tainted,
         sources=context.taint.sources,
         budget=context.budget,
@@ -108,5 +116,5 @@ async def run_round(
             result, source=as_source(SourceKind.TOOL, None if spec is None else spec.name)
         )
         working.append(
-            result_message(result, context.clock.now(), context.turn_id, nonce=context.nonce)
+            result_message(result, context.clock.now(), context.unit_id, nonce=context.nonce)
         )

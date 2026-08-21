@@ -174,7 +174,7 @@ class ToolDispatcher:
         return await self._confirmer.confirm(request)
 
     async def _audited(self, call: ToolCall, result: ToolResult) -> ToolResult:
-        """Record one audit line (with the result's provenance) and return the result."""
+        """Record one audit line (its provenance and the work it was for) and return the result."""
         await self._audit.record(
             ToolInvocation(
                 name=call.name,
@@ -183,6 +183,9 @@ class ToolDispatcher:
                 detail=result.content,
                 at=self._clock.now(),
                 trust=result.trust,
+                session_id=call.stamp.session_id,
+                turn_id=call.stamp.turn_id,
+                task_id=call.stamp.task_id,
             )
         )
         return result

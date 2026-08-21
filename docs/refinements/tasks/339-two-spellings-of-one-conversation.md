@@ -36,3 +36,9 @@ a new kind of entry rather than another row.
 - 2026-08-20: Opened by the close of
   [R-316](316-a-rank-fallback-cannot-name-its-turn.md), which added the seventh site and the second
   one under the trail's spelling. Recorded in the ADR-0038 named-recall addendum.
+- 2026-08-21: An eighth site landed under `session_id`, the tool audit line (ADR-0009 named-work
+  addendum), chosen deliberately rather than by default: the trail's whole purpose is to be
+  greppable beside the turn failure lines in `converse_stream`, which spell it that way. So the
+  split is now six sites to two, and the argument for moving the trail and the judge to `session_id`
+  is one site stronger, while the cost named above (a field a runbook tells an operator to grep) is
+  unchanged.

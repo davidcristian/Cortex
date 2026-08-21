@@ -38,3 +38,9 @@ day it is written rather than the day it is read.
 - 2026-08-20: Opened by the close of
   [R-324](324-a-rendered-field-has-no-bound.md), which bounded a value against a measurement of the
   whole line and left the whole line unmeasured.
+- 2026-08-21: The tool audit line grew by three keys (the chat, turn and subagent task a dispatch
+  was made for, ADR-0009 named-work addendum), which makes it nine keys on a line carrying all
+  three. All three are short ids and none of them approaches the per-value bound, so the headroom
+  argument is unchanged in substance; what is worth noting is that this entry's count of the audit
+  trail's keys was already a claim nobody re-measured, and the line an operator reads is still
+  unmeasured at its widest.

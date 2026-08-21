@@ -1,4 +1,4 @@
-"""The bounded infer↔tool loop, shared by the cortex turn and each subagent (ADR-0010/0013)."""
+"""The bounded infer↔tool loop, shared by the cortex turn and each subagent."""
 
 from collections.abc import AsyncGenerator
 
@@ -10,19 +10,15 @@ from cortex_core.ports import InferenceBackend
 from cortex_core.tool_round import call_message, plan_round
 from cortex_core.tools import ToolCall
 
-# Re-exported so every existing `from cortex_core.tool_loop import ToolLoopContext` keeps
-# resolving after the round split; the context itself now lives beside the round that reads it.
 __all__ = ["MAX_TOOL_STEPS", "ToolLoopContext", "stream_tool_loop"]
 
-# Upper bound on inference↔tool rounds in one loop (ADR-0009): a safety net against a model
-# that never stops calling tools. On exhaustion the loop ends with the text produced so far.
 MAX_TOOL_STEPS = 8
 
 
 def _reply_text(
     event: TextChunk | DecodeCadence | DecodeStop, context: ToolLoopContext
 ) -> str | None:
-    """The reply text an event carries, or ``None`` once it has been absorbed as a machine fact."""
+    """The reply text in an event, or ``None`` once it has been absorbed as a machine fact."""
     if isinstance(event, DecodeCadence):
         if context.cadence is not None:
             context.cadence.observe(event)
@@ -40,13 +36,13 @@ async def stream_tool_loop(
     working: list[Message],
     context: ToolLoopContext,
 ) -> AsyncGenerator[str | ReasoningDelta | ToolStep | StepOutcome, None]:
-    """Run the bounded infer↔tool loop over ``working``, yielding reply-text deltas (``str``),
-    reasoning deltas (``ReasoningDelta``, ADR-0020), a ``ToolStep`` per audited dispatch
-    (ADR-0009 addendum), and the ``StepOutcome`` that settles it (ADR-0029 outcome addendum).
-    """
+    """Run the bounded infer↔tool loop over ``working``, yielding each delta, step and outcome."""
     dispatcher = context.dispatcher
     specs = await dispatcher.describe_tools() if dispatcher is not None else ()
     spec_by_name = {spec.name: spec for spec in specs}
+    # Every call this loop has dispatched, grouped by the round that emitted it, which is what
+    # the salience policy reads. Per loop rather than per turn: a repeat is redundant only
+    # against the ``working`` messages that already hold its answer.
     dispatched: list[list[ToolCall]] = []
     for _step in range(MAX_TOOL_STEPS):
         calls: list[ToolCall] = []
@@ -66,22 +62,19 @@ async def stream_tool_loop(
                         step_text.append(text)
                         yield text
         finally:
-            # Runs on normal exhaustion, backend failure, and consumer aclose() alike: an
-            # abandoned backend generator must not linger half-suspended.
+            # Runs on exhaustion, on a backend failure and when a consumer closes this loop, so
+            # an abandoned backend stream is never left half-suspended.
             if isinstance(deltas, AsyncGenerator):
                 await deltas.aclose()
         if not calls or dispatcher is None:
             break
         plan = plan_round(calls)
         working.append(
-            call_message("".join(step_text), plan.calls, context.clock.now(), context.turn_id)
+            call_message("".join(step_text), plan.calls, context.clock.now(), context.unit_id)
         )
         round_events = run_round(plan, dispatcher, spec_by_name, dispatched, context, working)
         try:
             async for event in round_events:
                 yield event
         finally:
-            # Closed deterministically for the same reason the backend stream above is: a
-            # consumer that closes this loop mid-round must not leave the round suspended
-            # inside a dispatch.
             await round_events.aclose()

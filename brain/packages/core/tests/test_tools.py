@@ -1,5 +1,3 @@
-"""Behavior tests for the tool value types and the in-memory ToolRegistry fake."""
-
 from collections.abc import Mapping
 from datetime import UTC, datetime
 
@@ -37,13 +35,10 @@ def test_tool_result_defaults_to_success() -> None:
 
 
 def test_tool_result_defaults_to_untrusted() -> None:
-    # Fail-closed (ADR-0013): a result reaching the loop without a trust stamp is untrusted.
     assert ToolResult(call_id="c-1", content="hi").trust is Trust.UNTRUSTED
 
 
 def test_tool_result_declares_no_source_by_default() -> None:
-    # Most results declare no source (ADR-0027 addendum); a sidecar-declared claimed sender/locator
-    # is the exception the email reader produces, carried beside content, never inside it.
     assert ToolResult(call_id="c-1", content="hi").source is None
     declared = Provenance(SourceKind.SENDER, "a@b.example")
     assert ToolResult(call_id="c-1", content="hi", source=declared).source == declared
@@ -51,6 +46,11 @@ def test_tool_result_declares_no_source_by_default() -> None:
 
 def test_tool_spec_defaults_to_ungated() -> None:
     assert _spec("read").gated is False
+
+
+def test_tool_invocation_names_no_work_by_default() -> None:
+    record = ToolInvocation(name="read", arguments={}, ok=True, detail="x", at=_AT)
+    assert (record.session_id, record.turn_id, record.task_id) == ("", "", "")
 
 
 def test_tool_invocation_defaults_to_untrusted_provenance() -> None:
@@ -116,8 +116,16 @@ def test_a_stamps_budget_is_carried_but_is_not_part_of_its_value() -> None:
 
 
 def test_a_stamps_sources_are_part_of_its_value() -> None:
-    # Provenance is a fact about the turn, not a live handle, so unlike the pool it is compared:
-    # a stamp that has read a source is not the same stamp as one that has read none.
     source = Provenance(SourceKind.TOOL, "read_email")
     assert TurnStamp(tainted=True, sources=(source,)) != TurnStamp(tainted=True)
     assert TurnStamp(tainted=True, sources=(source,)) == TurnStamp(tainted=True, sources=(source,))
+
+
+def test_a_stamp_names_neither_turn_nor_task_by_default() -> None:
+    assert (TurnStamp().session_id, TurnStamp().turn_id, TurnStamp().task_id) == ("", "", "")
+
+
+def test_a_stamps_identities_are_part_of_its_value() -> None:
+    assert TurnStamp(turn_id="t-1") != TurnStamp(turn_id="t-2")
+    assert TurnStamp(task_id="st-1") != TurnStamp()
+    assert TurnStamp(turn_id="t-1", task_id="st-1") == TurnStamp(turn_id="t-1", task_id="st-1")

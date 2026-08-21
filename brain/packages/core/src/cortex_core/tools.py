@@ -37,6 +37,8 @@ class TurnStamp:
     """What the dispatching turn hands the call, stamped on at dispatch time (ADR-0027)."""
 
     session_id: str = ""
+    turn_id: str = ""
+    task_id: str = ""
     tainted: bool = False
     sources: tuple[Provenance, ...] = ()
     budget: DispatchBudget | None = field(default=None, compare=False)
@@ -83,6 +85,9 @@ class ToolInvocation:
     detail: str
     at: datetime
     trust: Trust = Trust.UNTRUSTED
+    session_id: str = ""
+    turn_id: str = ""
+    task_id: str = ""
 
     def __post_init__(self) -> None:
         if self.at.tzinfo is None or self.at.tzinfo.utcoffset(self.at) is None:

@@ -14,6 +14,8 @@ class SubagentTask:
     at: datetime
     model: str = ""
     tainted: bool = False
+    session_id: str = ""
+    turn_id: str = ""
 
     def __post_init__(self) -> None:
         if self.at.tzinfo is None or self.at.tzinfo.utcoffset(self.at) is None:

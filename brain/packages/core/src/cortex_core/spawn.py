@@ -153,6 +153,8 @@ class SpawnSubagentsTool:
                 at=self._clock.now(),
                 model=item.model,
                 tainted=call.stamp.tainted,
+                session_id=call.stamp.session_id,
+                turn_id=call.stamp.turn_id,
             )
             for item in parsed
         ]

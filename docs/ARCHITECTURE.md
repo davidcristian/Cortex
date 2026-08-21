@@ -80,7 +80,7 @@ have no `Protocol` in the core yet, and the shipped inventory lives in
 | `MemoryStore` | Long-term retrieval memory: upsert, top-k semantic search, delete. Never backed by a model. |
 | `Embedder` | Text → fixed-dimension vector, stable for a given model version. |
 | `ToolRegistry` | Enumerate typed tool schemas; invoke by name with validated args; every invocation is audit-logged. |
-| `ToolAuditSink` | Write exactly one durable audit record per dispatched tool call (`ToolInvocation`, incl. the ADR-0013 `trust` provenance). |
+| `ToolAuditSink` | Write exactly one durable audit record per dispatched tool call (`ToolInvocation`, incl. the ADR-0013 `trust` provenance and the chat, turn and subagent task it was made for). |
 | `Confirmer` | Out-of-band human confirmation of every gated tool call (ADR-0013, table revised by ADR-0022: untainted confirms via the overlay card over the Converse stream (`SeamConfirmer`); tainted is denied outright); fail-closed. No confirmer, timeout, or stream death means denied. |
 | `TaskStore` | Durable subagent task/result records (`put`/`get` task and result); every subagent is a stateless function over it (ADR-0010). |
 | `SubagentPlacer` | Fit-test one spawn against the VRAM budget and place the whole model on GPU or CPU (`place`/`release`), never a straddle (ADR-0012). |

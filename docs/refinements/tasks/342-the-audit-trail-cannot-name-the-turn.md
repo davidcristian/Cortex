@@ -1,6 +1,6 @@
 # The audit trail cannot name the turn a call belonged to
 
-**Status:** open, actionable
+**Status:** landed 2026-08-21
 **Area:** tools-mcp
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
 
@@ -41,3 +41,17 @@ audit trail is the one record that outlives the process.
   [328](328-a-failed-turn-cannot-name-itself.md), which asked this question in the same sitting
   and answered it yes, then found the naming decision it forces is the trail's rather than the
   failure line's. Recorded in the ADR-0038 named-turn addendum.
+- 2026-08-21: Landed as a field per kind, argued in the ADR-0009 named-work addendum: the line
+  carries `session_id`, `turn_id` and `task_id`, each left off when the dispatch had none. The one
+  generic field was rejected because a subagent's task id is printed on no other line in the tree
+  and expires from its store in an hour, so it would name work that resolves against nothing a
+  reader can reach; the two fields put the delegation answer on the line itself. This entry's
+  "already holds everything it needs" was half right: the dispatcher does hold the stamp on every
+  path, and the stamp held no turn id, that living on the `ToolLoopContext` which builds it. So it
+  cost a field on `TurnStamp`, an attribution on the stored `SubagentTask` (which closed
+  [232](232-subagenttask-session-attribution.md) and
+  [233](233-toolinvocation-audit-stamp.md), both of which were waiting for exactly this consumer),
+  and a derived `unit_id` on the loop context so a subagent's own messages stay grouped under its
+  task. Opened [352](352-a-dispatch-names-no-call.md), the call id that reaches no line, and
+  [353](353-a-trail-worth-querying-has-no-store.md), the trail that is now worth querying and has
+  nowhere to be queried.
