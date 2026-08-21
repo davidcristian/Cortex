@@ -6,6 +6,11 @@ when it cannot answer the call as asked. It holds a folder list and honours it, 
 server does, so a folder no mailbox has needs no knob at all; `refuse` and `break_folder_opening`
 are the two conditions of the world no method can create, and each raises exactly what
 `ImapMailbox` raises when a real server produces it.
+
+`nodes` is the third condition of a real server, and not a knob either: the names its LIST
+answers with that are only points in the hierarchy. A real server offers them and refuses to
+open them, so this fake holds them without listing them, which is what the port requires of
+every implementation.
 """
 
 from collections.abc import Sequence
@@ -20,10 +25,13 @@ class FakeMailbox:
         self,
         *,
         folders: Sequence[str] = ("INBOX",),
+        nodes: Sequence[str] = (),
         found: Sequence[RawEmail] = (),
         one: RawEmail | None = None,
     ) -> None:
         self._folders = folders
+        self._listed = (*folders, *nodes)
+        self._nodes = nodes
         self._found = found
         self._one = one
         self._refusing = False
@@ -50,7 +58,8 @@ class FakeMailbox:
             raise FolderUnknownError(folder)
 
     def list_folders(self) -> Sequence[str]:
-        return self._folders
+        """Everything the server lists, less the nodes: the filtering the port owes a caller."""
+        return [name for name in self._listed if name not in self._nodes]
 
     def search(self, folder: str, query: str, limit: int) -> Sequence[RawEmail]:
         self._open(folder)

@@ -35,6 +35,11 @@ class Mailbox(Protocol):
     all, and it is what a refusal that cannot be proved to be either of the first two stays. No
     implementation may let its own library's exception out, which is why the fake raises these
     too and the contract test drives the same checks over both.
+
+    Every name `list_folders` answers with is a name the other two calls may be given. A server
+    can list a name that is only a node in its folder hierarchy, and an implementation owes the
+    caller the filtering: a node handed on would come back `FolderUnknownError`, sending a model
+    to the list for a name that list had just given it.
     """
 
     def list_folders(self) -> Sequence[str]: ...

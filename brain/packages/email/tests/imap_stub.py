@@ -54,11 +54,21 @@ OTHER_MISSING_FOLDER_ANSWER = ("NO", [b"Mailbox doesn't exist: Receipts (0.001 +
 UNOPENABLE_FOLDER_ANSWER = ("NO", [b"[NOPERM] Permission denied (0.001 + 0.000 secs)."])
 
 
-class Folder:
-    """One named folder, as ``folder.list()`` returns it."""
+# The LIST attributes a real server sends with a name that is only a point in the hierarchy,
+# measured verbatim against the probe's `Parent`, which has a child and is not a mailbox:
+# `FolderInfo(name='Parent', delim='/', flags=('\\Noselect', '\\HasChildren'))`.
+NODE_FLAGS = ("\\Noselect", "\\HasChildren")
+# What the same server sends with an ordinary leaf mailbox, so the adapter's filter is driven
+# over both answers rather than over one and an empty tuple.
+MAILBOX_FLAGS = ("\\HasNoChildren",)
 
-    def __init__(self, name: str) -> None:
+
+class Folder:
+    """One name as ``folder.list()`` returns it: the name and the server's own LIST flags."""
+
+    def __init__(self, name: str, flags: Sequence[str] = MAILBOX_FLAGS) -> None:
         self.name = name
+        self.flags = tuple(flags)
 
 
 class FolderManager:
@@ -69,15 +79,28 @@ class FolderManager:
     answer it will really meet. ``select_error``, when set, replaces that with whatever a test
     wants a refused SELECT to say instead, which is how this suite reaches the other kind of
     ``NO``; the live one is a server run for the purpose (`test_imap_probe_live.py`).
+
+    ``nodes`` are listed and are not mailboxes, the way a real server lists a `\\Noselect`
+    parent: they come back from `list` carrying `NODE_FLAGS` and are refused by `set` exactly
+    as a name no mailbox has is, because that is what the probe measured Dovecot doing.
     """
 
-    def __init__(self, names: Sequence[str], set_calls: list[tuple[str, bool]]) -> None:
+    def __init__(
+        self,
+        names: Sequence[str],
+        set_calls: list[tuple[str, bool]],
+        nodes: Sequence[str] = (),
+        node_flags: Sequence[str] = NODE_FLAGS,
+    ) -> None:
         self._names = names
+        self._nodes = nodes
+        self._node_flags = node_flags
         self._set_calls = set_calls
         self.select_error: BaseException | None = None
 
     def list(self) -> list[Folder]:
-        return [Folder(name) for name in self._names]
+        listed = [Folder(name) for name in self._names]
+        return listed + [Folder(name, self._node_flags) for name in self._nodes]
 
     def set(self, folder: str, readonly: bool = False) -> None:  # noqa: FBT001, FBT002
         self._set_calls.append((folder, readonly))
@@ -100,11 +123,13 @@ class FakeBox:
         names: Sequence[str] = ("INBOX",),
         messages: Sequence[Msg] = (),
         fetch_error: BaseException | None = None,
+        nodes: Sequence[str] = (),
+        node_flags: Sequence[str] = NODE_FLAGS,
     ) -> None:
         self.set_calls: list[tuple[str, bool]] = []
         self.login_calls: list[tuple[str, str]] = []
         self.fetch_calls: list[tuple[object, int | None, bool, bool]] = []
-        self.folder = FolderManager(names, self.set_calls)
+        self.folder = FolderManager(names, self.set_calls, nodes, node_flags)
         self.fetch_error = fetch_error
         self._messages = list(messages)
 

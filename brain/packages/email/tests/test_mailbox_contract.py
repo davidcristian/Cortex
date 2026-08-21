@@ -22,6 +22,9 @@ from mailbox_fake import FakeMailbox
 from cortex_email import ImapMailbox, RawEmail
 
 _FOLDER = "INBOX"
+# The name each fixture's server lists and no mailbox has, spelled as a parent so it reads as
+# what it is; the live probe's own is a real one a real Dovecot builds.
+_NODE = "Parent"
 _SIMPLE = (
     b"From: Alice <alice@example.com>\r\nSubject: Lunch\r\n"
     b"Date: Fri, 03 Jul 2026 12:00:00 +0000\r\n\r\nLet's do lunch.\r\n"
@@ -31,18 +34,19 @@ type Build = Callable[[pytest.MonkeyPatch], MailboxUnderTest]
 
 
 def _fake(_monkeypatch: pytest.MonkeyPatch) -> MailboxUnderTest:
-    mailbox = FakeMailbox(folders=[_FOLDER], found=[RawEmail("7", _SIMPLE)])
+    mailbox = FakeMailbox(folders=[_FOLDER], nodes=[_NODE], found=[RawEmail("7", _SIMPLE)])
     return MailboxUnderTest(
         mailbox=mailbox,
         folder=_FOLDER,
         refuse_searches=mailbox.refuse,
         break_folder_opening=mailbox.break_folder_opening,
+        hierarchy_node=_NODE,
     )
 
 
 def _imap(monkeypatch: pytest.MonkeyPatch) -> MailboxUnderTest:
     """The real adapter over a stand-in box whose server can be made to refuse."""
-    box = FakeBox(names=[_FOLDER], messages=[Msg("7", _SIMPLE)])
+    box = FakeBox(names=[_FOLDER], messages=[Msg("7", _SIMPLE)], nodes=[_NODE])
 
     def refuse() -> None:
         # What imaplib raises out of `UID SEARCH` when the tagged response is BAD.
@@ -59,6 +63,7 @@ def _imap(monkeypatch: pytest.MonkeyPatch) -> MailboxUnderTest:
         folder=_FOLDER,
         refuse_searches=refuse,
         break_folder_opening=break_folder_opening,
+        hierarchy_node=_NODE,
     )
 
 
