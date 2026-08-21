@@ -3311,3 +3311,152 @@ the scan cannot read, and an unreadable place is a fault here and never a skip.
 The registry is twenty-six entries now, and the four that arrived are recorded where their
 reasoning is, at [ADR-0012](ADR-0012-resource-governance.md), with the twelve drifts that prove
 them able to fail.
+
+## Addendum (2026-08-21): every compose default read once, and the two rules the reading needed
+
+Nine registry entries reached a compose default before today, covering ten of its variables, and
+every one of them was found by reading the file somebody happened to be editing. That is not a
+survey, and the entry that asked for one said so. It also counted those entries as eight, which is
+the standing warning about a task file's own account of the code, met in miniature. This addendum
+records the survey, the two rules it had to settle before it could be applied dozens of times, and
+what the reading turned out to be worth.
+
+**The number, first, because it was a guess.** The estimate on record was "around fifty". Under
+`docker/` there are **70 substitutions with a default**, spelling **56 distinct variables**;
+one variable is spelled with two different defaults on purpose, the subagent memory budget's `8.0`
+and `8`, which is the pair that bought `Spelling.WHOLE`. Every one of them is `CORTEX_`-prefixed
+and every one carries a default, so there is no third shape to account for.
+
+### The sort, which is what the reading buys
+
+**43 of the 56 restate a value some tree declares.** Ten were already tied. Twenty are tied by this
+change. Thirteen are declarations the scan cannot compare, in three kinds, and the kinds are worth
+naming because each is a different answer:
+
+- **Eight are empty** (`${CORTEX_SEAM_TOKEN:-}`, the two SMTP credentials, the two CA certs, the
+  three unnamed tier artifacts). An empty default states no value: it is the "not configured"
+  sentinel, and the substitution exists to keep the variable present rather than to carry an
+  answer. There is nothing on either side to disagree about, so these are not couplings and are
+  not a gap.
+- **Three are booleans**, the two `TLS_INSECURE` escape hatches and the send switch. Python
+  declares `False` and YAML spells `false`, which are the same answer in two casings, and the
+  reducer refuses both: it reads strings, integers, decimals and one-line frozensets, and a bare
+  `False` is none of those.
+- **Two are signed**, the two reasoning budgets, whose `-1` is declared in a module constant the
+  scan would happily find and a value it will not reduce, a leading sign being refused with
+  everything else the reducer will not guess at.
+
+The last two kinds are a real gap in the reducer rather than a decision, and they leave with their
+own task rather than a fourth deferral of the whole question.
+
+**The remaining 13 name something nothing else declares**: the three model artifacts nobody hard
+codes, the three bind sources (`./models`, `./pgdata`, `./sandbox`), the dev Postgres password, the
+backup interval, the subagent server's URL, the host endpoint the brain dials, and the model host's
+three container limits, which the file beside them says outright are placeholders a measurement
+will replace. These are the second rule's subject.
+
+### Rule one: a far side is a sentence that becomes wrong, not one that becomes history
+
+The line drawn on two examples was that a runbook row stating a shipped default is a far side while
+a paragraph reasoning about the number with it is not. The survey needed that line as a test rather
+than as a pair of precedents, and the test is the **tense of the claim**: a restatement is a far
+side when the value moving makes it **wrong**, and it is not one when the value moving makes it
+**history**.
+
+That subsumes the rule about ADRs instead of sitting beside it. A decision record says what was
+decided on a date; a measurement says what a run cost on a date; a runbook's env row and a module
+contract's stated default both say what the tree does now. Tying the first two would turn a retune
+into a rewrite of history, which is what a record is for and what a gate must not touch.
+
+The rule survives the document that does both, and cheaply, because a mention is a presence check.
+`docs/runbooks/model-swap.md` states `CORTEX_MODELHOST_STOP_GRACE_S` (10 s) as the pairing an
+operator must keep, and forty lines below it records a measured eviction that paid the same 10 s.
+The first is registered and the second is not, and if the grace moves, the needle goes unfound
+until the statement is corrected, while the measurement keeps its old number and is left alone.
+Nothing had to be said about which line the needle matched.
+
+The rule decides what is **eligible**, and the survey registered the statement forms: an env
+table's `Default` cell, a "`X` is the default" clause, a module contract's named constant. Prose
+that argues with a number is eligible and mostly unregistered, because a needle over a clause
+inside an argument pins the argument's phrasing as much as the number. That is a review question
+and not a gate one, and it costs nothing the gate was holding: the statement is the sentence a
+retune must edit, so the drift still reddens.
+
+### Rule two: a default no tree declares is not a coupling, and this is not an oversight
+
+Most compose defaults appear in a compose file and nowhere else. **They are deliberately not
+registered, and the question is closed.** The scan compares a **declaration** against the places
+that restate it; a value nothing declares has no declaration to read, so registering one would mean
+typing the number into the registry beside the file, which is one more uncoupled copy wearing a
+gate's clothes. And a value several compose files spell with nothing behind it could only be
+compared with itself, which is a gate asserting that a file agrees with itself.
+
+There is one honest residue and it is not this gate's shape. `${CORTEX_PG_PASSWORD:-cortex}` is
+spelled three times in one file, once for the server and twice for its clients, and
+`${CORTEX_MODELS_DIR:-./models}` four times across four files that mount one host directory. One
+spend drifting from the others is a real defect: the database refuses its own clients, or one
+service mounts a directory the others do not. What would catch it is a scan that holds every spend
+of a variable to one default text, which needs no declaration anywhere and is a different question
+from the one this registry answers. It leaves as its own task.
+
+### What got registered, and what the registration cost
+
+**Nineteen entries, covering twenty variables and twenty six of the seventy spends.** The
+model-host sidecar's whole env surface (the two tier ids, the cortex artifact, the layer count, the
+three context windows, the subagent slot count, the per-image token budget, the card reader, and
+the three eviction deadlines), the brain's two capture bounds and its vision policy, the salience
+rule beside the salience limit that was already tied, and the two schedule knobs.
+
+**Eleven numbers and names were hoisted out of `Field(...)` calls into module constants** beside
+the fields they default, seven in `ModelHostConfig` and four across the orchestrator's settings
+modules. That is the price the entry predicted and it is paid once per value. It also fixes
+something real on its own: a `Field(default=99)` whose compose override always sets the variable is
+a default that a composed deployment never runs, and there was nothing anywhere saying which of the
+two numbers a reader was looking at.
+
+**Three compose defaults were re-spelled rather than re-registered.** The supervisor's deadlines
+are declared `10.0`, `30.0` and `5.0` and the override spelled them `10`, `30` and `5`. Docker takes
+either, so the fix is the compose file spelling what the constant declares, not a second
+`Spelling.WHOLE` mention: that spelling exists for a syntax that **refuses** the site's text
+(`mem_limit` and `8.0g`), and using it where the syntax would have accepted the text would blind
+the entry to a site that dropped its point for no reason. The two documents that write "10 s" the
+way prose does take `WHOLE`, and the compose mention carries the written form that
+`values.spelling_fault` requires beside them.
+
+### What the close cost was two more files, and a module that ends the pattern
+
+`shippedcouplings.py` could not hold nineteen more entries, so the registry split twice: the
+subagent tier's budgets to `subagentcouplings.py` and the model host's env to
+`modelhostcouplings.py`, each on a seam that was already a comment in the file it left. That is the
+fourth and fifth split, and every previous one edited `crosscheck.py` to add an import and a name.
+
+That stops here. `registry.py` is the only module that names the parts, and the scan imports one
+tuple from it, so a sixth part is a data file plus one line and the logic never learns the registry
+has parts. The risk the indirection adds is a part nobody adds to that list, gating nothing in
+silence, so `test_every_registry_part_on_disk_is_read` globs the `*couplings.py` files off disk
+rather than reading the list that would be wrong, and it was proved able to fail by dropping the
+model host's line and watching it name the entries that fell out.
+
+### Proved able to fail, twenty six times
+
+Every registration was proved on the real tree, one planted drift at a time, each reverted and the
+file compared byte for byte against what it held before. Nineteen mutations moved the declaring
+site and the scan named the entry and every far side that stopped matching; seven moved a far side
+alone (a compose default, three runbook sentences, a runbook env row, a roster file's substitution,
+and one of the two counted spends of a tier id, which reported "found 1, pinned 2"). All twenty six
+exited 1. The full table is in the commit that landed this.
+
+### Records
+
+The three records are the task file
+[R-333](../refinements/tasks/333-compose-defaults-that-restate-a-declaration.md), which closes,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from it, and this
+addendum. Four narrower tasks open in its place: the two value forms the reducer refuses
+([R-354](../refinements/tasks/354-two-declared-defaults-the-reducer-refuses.md)), a substitution
+whose several spends must agree with each other and with no declaration
+([R-355](../refinements/tasks/355-one-variable-several-defaults-no-declaration.md)), the body's
+own listen port, which the compose endpoint restates and no tree declares
+([R-356](../refinements/tasks/356-the-body-port-is-a-bare-literal.md)), and the comments this
+survey read past: what it sorted was the substitutions, and the prose above two of them quotes the
+value the other file sets, in a shape the scan is not built to find
+([R-377](../refinements/tasks/377-a-comment-restates-a-registered-value.md)).

@@ -161,9 +161,11 @@ services:
       # front instead of one handoff later. The grace is not slack: measured, an idle
       # llama-server exits in ~0.14 s but one with a request in flight ignores SIGTERM and is
       # killed after the full grace, so this is what evicting a busy tier really costs.
-      CORTEX_MODELHOST_STOP_GRACE_S: "${CORTEX_MODELHOST_STOP_GRACE_S:-10}"
-      CORTEX_MODELHOST_REAP_TIMEOUT_S: "${CORTEX_MODELHOST_REAP_TIMEOUT_S:-30}"
-      CORTEX_MODELHOST_PROBE_TIMEOUT_S: "${CORTEX_MODELHOST_PROBE_TIMEOUT_S:-5}"
+      # Spelled with the point the sidecar's own constants carry, so the substitution default and
+      # the declaration are one text and the cross-tree scan can compare them (ADR-0029).
+      CORTEX_MODELHOST_STOP_GRACE_S: "${CORTEX_MODELHOST_STOP_GRACE_S:-10.0}"
+      CORTEX_MODELHOST_REAP_TIMEOUT_S: "${CORTEX_MODELHOST_REAP_TIMEOUT_S:-30.0}"
+      CORTEX_MODELHOST_PROBE_TIMEOUT_S: "${CORTEX_MODELHOST_PROBE_TIMEOUT_S:-5.0}"
       # What GET /health reads the card with, so the brain can refuse a handoff that will not fit.
       # The container toolkit injects this binary alongside the driver, so the default is right
       # wherever a GPU is reserved; where none is, it is simply absent and the daemon reports no

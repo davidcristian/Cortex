@@ -20,6 +20,13 @@ from cortex_core import MAX_IMAGE_BYTES, MAX_IMAGE_EDGE
 
 BodyBackendName = Literal["none", "grpc"]
 
+# The edge the brain asks for when nothing overrides it, named rather than spelled inside the
+# ``Field(...)`` below because it is not only ours: the compose stack ships it as a substitution
+# default and the vision runbook quotes it as the number a deployment is running, so
+# `scripts/crosscheck.py` ties those to this. The two deadline defaults need no such hoist,
+# arriving already named from the client that owns the calls.
+DEFAULT_CAPTURE_MAX_EDGE = 2048
+
 
 class BodyConfig(BaseSettings):
     """Whether the cortex can call the host body over ``BodyService`` (ADR-0023).
@@ -69,7 +76,7 @@ class BodyConfig(BaseSettings):
 
     backend: BodyBackendName = "none"
     endpoint: str = ""
-    capture_max_edge: int = Field(default=2048, ge=0, le=MAX_IMAGE_EDGE)
+    capture_max_edge: int = Field(default=DEFAULT_CAPTURE_MAX_EDGE, ge=0, le=MAX_IMAGE_EDGE)
     max_image_bytes: int = Field(default=MAX_IMAGE_BYTES, gt=0, le=MAX_IMAGE_BYTES)
     capture_timeout_s: float = Field(default=DEFAULT_CAPTURE_TIMEOUT_S, gt=0)
     call_timeout_s: float = Field(default=DEFAULT_CALL_TIMEOUT_S, gt=0)

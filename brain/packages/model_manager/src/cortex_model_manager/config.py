@@ -36,6 +36,20 @@ DEFAULT_BRAIN_MODEL = "brain"
 # while the deep model is resident it is alone on the GPU (ADR-0030 decision 8).
 DEFAULT_SUBAGENT_GPU_MODEL = "subagent-gpu"
 
+# The tier defaults the compose stack spells again as its own substitution defaults, named here
+# rather than inline in the ``Field(...)`` calls below so `scripts/crosscheck.py` can read them:
+# a number a settings field hides is a number the scan cannot compare, and each of these is
+# shipped twice. The two 8192s are separate constants on purpose. The deep tier's context and the
+# subagent tier's are sized on different arguments and merely happen to be equal today, so one
+# name for both would tie two knobs that are free to move apart.
+DEFAULT_NGL = 99
+DEFAULT_CORTEX_CTX_SIZE = 16384
+DEFAULT_BRAIN_CTX_SIZE = 8192
+DEFAULT_SUBAGENT_CTX_SIZE = 8192
+DEFAULT_SUBAGENT_PARALLEL = 2
+DEFAULT_IMAGE_MAX_TOKENS = 1024
+DEFAULT_NVIDIA_SMI = "nvidia-smi"
+
 # Both subagent-tier families are reasoning models and unbounded thinking is minutes per call
 # (ADR-0010), so the hosted subagent tier carries the same server-side reasoning-off pair the CPU
 # subagent service does.
@@ -80,7 +94,7 @@ class ModelHostConfig(BaseSettings):
     # reserved and absent (which reads as no card) wherever one is not; a deployment whose image
     # puts it elsewhere names the path. It is bounded by probe_timeout_s, the same deadline the
     # readiness probe gets, both being control-plane reads a swap step waits on.
-    nvidia_smi: str = "nvidia-smi"
+    nvidia_smi: str = DEFAULT_NVIDIA_SMI
     log_level: str = "info"
     # How a line is rendered, the sidecar's own half of the brain's CORTEX_LOG_FORMAT. Under this
     # prefix because it sits beside the level it pairs with and because this container's env is
@@ -107,10 +121,12 @@ class ModelHostConfig(BaseSettings):
     # (docs/runbooks/llamacpp-gpu.md). A deployment tighter on either sets it back to 0. Ignored
     # without a projector, since it is a budget for pictures and a text-only tier has none.
     cortex_image_max_tokens: int = Field(
-        default=1024, ge=0, validation_alias="CORTEX_IMAGE_MAX_TOKENS"
+        default=DEFAULT_IMAGE_MAX_TOKENS, ge=0, validation_alias="CORTEX_IMAGE_MAX_TOKENS"
     )
-    cortex_ngl: int = Field(default=99, validation_alias="CORTEX_NGL")
-    cortex_ctx_size: int = Field(default=16384, gt=0, validation_alias="CORTEX_CTX_SIZE")
+    cortex_ngl: int = Field(default=DEFAULT_NGL, validation_alias="CORTEX_NGL")
+    cortex_ctx_size: int = Field(
+        default=DEFAULT_CORTEX_CTX_SIZE, gt=0, validation_alias="CORTEX_CTX_SIZE"
+    )
     cortex_port: int = Field(default=8080, gt=0, le=65535)
     # How many tokens this tier may spend deliberating before the engine closes the thought and
     # makes it answer. The middle of a dial the brain only had the ends of: a request says whether
@@ -128,8 +144,10 @@ class ModelHostConfig(BaseSettings):
 
     brain_model: str = Field(default=DEFAULT_BRAIN_MODEL, validation_alias="CORTEX_MODEL_BRAIN")
     brain_file: str = Field(default="", validation_alias="CORTEX_MODEL_FILE_BRAIN")
-    brain_ngl: int = Field(default=99, validation_alias="CORTEX_NGL_BRAIN")
-    brain_ctx_size: int = Field(default=8192, gt=0, validation_alias="CORTEX_CTX_SIZE_BRAIN")
+    brain_ngl: int = Field(default=DEFAULT_NGL, validation_alias="CORTEX_NGL_BRAIN")
+    brain_ctx_size: int = Field(
+        default=DEFAULT_BRAIN_CTX_SIZE, gt=0, validation_alias="CORTEX_CTX_SIZE_BRAIN"
+    )
     brain_port: int = Field(default=8081, gt=0, le=65535)
     # The deep tier's own budget, separate because the two tiers are read on opposite arguments:
     # the cortex answers while somebody watches, and the deep model was picked for reaching an
@@ -145,12 +163,12 @@ class ModelHostConfig(BaseSettings):
         default=DEFAULT_SUBAGENT_GPU_MODEL, validation_alias="CORTEX_MODEL_SUBAGENT_GPU"
     )
     subagent_gpu_file: str = Field(default="", validation_alias="CORTEX_MODEL_FILE_SUBAGENT_GPU")
-    subagent_gpu_ngl: int = Field(default=99, validation_alias="CORTEX_NGL_SUBAGENT_GPU")
+    subagent_gpu_ngl: int = Field(default=DEFAULT_NGL, validation_alias="CORTEX_NGL_SUBAGENT_GPU")
     subagent_gpu_ctx_size: int = Field(
-        default=8192, gt=0, validation_alias="CORTEX_SUBAGENT_CTX_SIZE"
+        default=DEFAULT_SUBAGENT_CTX_SIZE, gt=0, validation_alias="CORTEX_SUBAGENT_CTX_SIZE"
     )
     subagent_gpu_parallel: int = Field(
-        default=2, gt=0, validation_alias="CORTEX_SUBAGENTS_PARALLEL"
+        default=DEFAULT_SUBAGENT_PARALLEL, gt=0, validation_alias="CORTEX_SUBAGENTS_PARALLEL"
     )
     subagent_gpu_port: int = Field(default=8083, gt=0, le=65535)
 

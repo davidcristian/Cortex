@@ -26,6 +26,11 @@ MemoryTaintPolicyName = Literal["skip", "record"]
 # Pydantic field's annotation and a comparison inside a function), so the type is what ties them.
 OutputGuardrailName = Literal["redact", "lookalike", "strict", "off"]
 
+# Which answer the capture tool's advertisement takes when nothing overrides it. Named for the
+# reason the port below is: the body override ships it again as a substitution default, so the
+# scan can hold the two together only if one of them is a declaration it can read.
+DEFAULT_VISION_MODE: VisionMode = "auto"
+
 # The port BrainService listens on by default. Named rather than spelled inline because it is
 # not only ours: the compose stack publishes it and dials it in its own healthcheck, and the
 # host body's default endpoints carry it too, so `scripts/crosscheck.py` ties those to this.
@@ -155,7 +160,7 @@ class InferenceConfig(BaseSettings):
 
     backend: InferenceBackendName = "echo"
     endpoint: str = ""
-    vision: VisionMode = Field(default="auto", validation_alias="CORTEX_VISION")
+    vision: VisionMode = Field(default=DEFAULT_VISION_MODE, validation_alias="CORTEX_VISION")
     stall_timeout_s: float = Field(default=120.0, gt=0)
 
     @model_validator(mode="after")

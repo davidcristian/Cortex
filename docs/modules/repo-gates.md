@@ -13,10 +13,11 @@ belongs to neither the brain nor the body and is gated exactly like both. A stan
 `bindcheck.py`, `backlogcheck.py` and `coverage_gate.py` invoked by `just` recipes, `ci_paths.py`
 by the CI
 workflow, `commitlint.py` by the commit-msg pre-commit stage, `contrast.py` by `just turn-cost`;
-each also exposes a pure, unit-tested core function). Ten modules here have no CLI of their own,
-each split out under the line cap and each named for what it holds: `couplings.py` is the
-vocabulary `crosscheck.py`'s registry is written in and `seamcouplings.py`, `shippedcouplings.py`
-and `overlaycouplings.py` are the three parts of the registry itself, `values.py` is the value
+each also exposes a pure, unit-tested core function). Thirteen modules here have no CLI of their
+own, each split out under the line cap and each named for what it holds: `couplings.py` is the
+vocabulary `crosscheck.py`'s registry is written in, `registry.py` names the parts that registry is
+written in, and `seamcouplings.py`, `shippedcouplings.py`, `subagentcouplings.py`,
+`modelhostcouplings.py` and `overlaycouplings.py` are those parts, `values.py` is the value
 forms that scan compares on and the spellings a mention writes one in, `composemounts.py` is `bindcheck.py`'s compose reader, and
 `backlog.py`, `backlogindex.py`, `backloganchors.py` and `headingshapes.py` are the four
 `backlogcheck.py` reads a backlog through: the task-file grammar, the index renderer, the anchors a
@@ -54,16 +55,19 @@ that last question to have an answer.
 - `crosscheck.py [--root DIR]` ties the values this repo spells in more than one place, because
   both sides of a seam must hold the same one and neither toolchain can import the other's
   (ADR-0029 cross-language-constant addendum and its 2026-08-08 widening). The scan is all of the
-  logic; `seamcouplings.py`, `shippedcouplings.py` and `overlaycouplings.py` are all of the data,
+  logic; the `*couplings.py` files are all of the data,
   one entry per value: a
   label, the reason its places must agree (printed with any failure), its `Site`s, an optional
-  `relation`, and optional `mentions`. The registry is written in three files and read as one,
-  `crosscheck.CONSTANTS` being `SEAM_COUPLINGS`, then `SHIPPED_COUPLINGS`, then
-  `OVERLAY_COUPLINGS`: the first holds the couplings whose far side is another tree's code across
-  the language boundary, the second the ones whose far side restates a number the code declares (a
-  compose default and the cgroup limit that is its hard twin, a runbook row, a module contract),
-  the third the ones that tie the overlay's TypeScript to its own stylesheet.
-  `couplings.py` is the vocabulary all three are written in, left behind when each part moved out
+  `relation`, and optional `mentions`. The registry is written in five files and read as one.
+  `registry.py` is the only module that names them, so a sixth part is a data file plus one line
+  there and the scan never learns the registry has parts; `crosscheck.CONSTANTS` is
+  `SEAM_COUPLINGS`, then `SHIPPED_COUPLINGS`, `SUBAGENT_COUPLINGS`, `MODELHOST_COUPLINGS`, then
+  `OVERLAY_COUPLINGS`. Each part is named for its subject: couplings whose far side is another
+  tree's code across the language boundary; the brain container's own shipped defaults, restated
+  by a compose default, a runbook row or a module contract; the subagent tier's admission budgets
+  and the cgroup limits that are their hard twins; the model-host sidecar's tier settings and the
+  override that ships them; and the overlay's TypeScript against its own stylesheet.
+  `couplings.py` is the vocabulary all five are written in, left behind when each part moved out
   under the cap. Nothing in the scan depends on which file an entry sits in. `values.py` is the third piece and the one neither of the others
   is: it reduces a right-hand side to a comparable value and says whether a constant's readings
   hold together, so the scan finds declarations and that module judges them.
@@ -411,7 +415,19 @@ that last question to have an answer.
   `test_the_registry_reduces_at_least_one_decimal` holds the newest value form to it, a form the
   real tree never spells being unexercised in exactly the same way, and
   `test_the_registry_exercises_every_spelling` holds `Spelling` to the rule `Relation` already
-  answers to.
+  answers to. `test_every_registry_part_on_disk_is_read` guards the split itself: it globs the
+  `*couplings.py` files rather than reading the same import list that would be wrong, so a part
+  nobody added to `registry.py` fails instead of gating nothing in silence.
+- **Which far sides a compose default gets registered against** was settled by reading every
+  `${CORTEX_*:-default}` under `docker/` (ADR-0029's compose-default survey addendum). A
+  substitution is registrable only when some tree **declares** the same value, which is why the
+  survey hoisted several numbers out of `Field(...)` calls into module constants beside the fields
+  they default; a default that appears only in compose files has nothing to disagree with and is
+  deliberately left alone, since a scan over it would assert that a file agrees with itself.
+  Outside `docker/`, a restatement is a far side when it becomes **wrong** as the value moves (a
+  runbook's env row, a stated default, a module contract) and is not one when it becomes
+  **history** (an ADR, a measurement record, a dated log line), which is the same test that has
+  always kept ADRs out.
 - `bindcheck.py` does the same (`test_the_repo_itself_is_clean`), with a guard on the guard:
   `test_the_repo_really_declares_binds_for_this_gate_to_have_checked` fails if the reader ever
   finds fewer than six defaulted bind sources under `docker/`, so the clean verdict cannot go
