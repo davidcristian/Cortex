@@ -3,7 +3,7 @@
 
 default: check
 
-# All gates: the five cross-tree scans first (fast), then the four tree checks in
+# All gates: the six cross-tree scans first (fast), then the four tree checks in
 # PARALLEL (ADR-0006), so wall time ≈ the slowest tree. Output is buffered per tree
 # and printed in a fixed order so logs stay readable; any failure fails the gate.
 # Kept bash-3.2 compatible (no `declare -A` etc.) for macOS system bash.
@@ -14,6 +14,7 @@ check:
     just check-dashcheck
     just check-crosscheck
     just check-bindcheck
+    just check-defaultcheck
     just check-backlog
     tmp=$(mktemp -d)
     trap 'rm -rf "$tmp"' EXIT
@@ -59,6 +60,14 @@ check-crosscheck:
 check-bindcheck:
     cd scripts && uv sync --locked
     cd scripts && uv run python bindcheck.py --root ..
+
+# One variable spelled in several compose files still carries one default in all of them,
+# compared as a value so the one deliberate re-spelling in the tree stays green: docker reads
+# `8.0g` as a size and refuses it, so the subagent memory budget is written `8.0` in an
+# environment block and `8` under the two limits that suffix it.
+check-defaultcheck:
+    cd scripts && uv sync --locked
+    cd scripts && uv run python defaultcheck.py --root ..
 
 # Each backlog index still matches the task files it describes (ADR-0039). A task's
 # status lives on its own Status line and nowhere else, so this is the only thing

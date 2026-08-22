@@ -1,9 +1,12 @@
-"""What a value IS to `crosscheck.py`, and the spelling a mention may write one in.
+"""What a value IS to the scans that compare one, and the spelling a mention may write one in.
 
-Split out of the scan along a real seam rather than an arbitrary one: this module reduces a
-declaration's right-hand side to something two languages can be compared on; the scan finds the
+Split out of `crosscheck.py` along a real seam rather than an arbitrary one: this module reduces
+a declaration's right-hand side to something two languages can be compared on; the scan finds the
 declarations in the tree and reports the ones that do not tie. Nothing here reads a file, and
-nothing here knows where a value lives.
+nothing here knows where a value lives, which is why a second gate reads it too: `defaultcheck.py`
+holds one compose variable's several defaults to one value, and `8.0` beside `8` is the same
+question `whole_spelling` already answers. That function is public for exactly that caller; the
+`Spelling` enum around it stays a mention's vocabulary, a compose default restating nothing.
 
 **Reduction, not text.** A value is compared after reduction, so one site may write ``6291456``
 where another writes ``6 * 1024 * 1024``. Five forms reduce: a product of integer literals, which
@@ -197,7 +200,7 @@ def parse_value(text: str) -> Value:
     return _integer_value(stripped)
 
 
-def _whole_spelling(value: Value) -> str:
+def whole_spelling(value: Value) -> str:
     """A number with no fractional part, for a far side whose syntax carries none.
 
     An integer is already whole. A decimal gives up the digits behind its point when they are
@@ -236,7 +239,7 @@ def _lowered_spelling(value: Value) -> str:
 def spell(value: Value, spelling: Spelling) -> str:
     """The text a mention writes ``value`` as, in the spelling that mention asks for."""
     if spelling is Spelling.WHOLE:
-        return _whole_spelling(value)
+        return whole_spelling(value)
     if spelling is Spelling.LOWERED:
         return _lowered_spelling(value)
     return str(value)

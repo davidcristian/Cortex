@@ -1,0 +1,191 @@
+"""Repo gate: fail when one compose variable carries two different defaults.
+
+A compose default that no tree declares is not a coupling and `crosscheck.py` deliberately does
+not read one: that scan compares a declaration against the places restating it, and here there is
+no declaration to read. What the same survey found is a defect of a different shape, and it is
+this one. `${CORTEX_PG_PASSWORD:-cortex}` is written three times in one override, once as the
+server's own password and twice as a client's; `${CORTEX_MODELS_DIR:-./models}` is written in four
+files that mount one host directory read-only. Nothing holds those spends to each other. One of
+them drifting is a stack that fails at run time in a way no static check reports: Postgres
+refusing its own clients, or one service reading models out of a directory the others do not.
+
+**The rule is not that all spellings are identical**, and the counterexample was already in the
+tree before this gate was: `${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8.0}` sits in an environment block
+while `${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8}g` sits in two container limits, deliberately, because
+docker reads `8.0g` as a size and refuses it. So the rule is that one variable's several defaults
+must be the same **value**, compared through the whole-number spelling `values.py` already
+derives for that same pair. A textual comparison would call the tree's one deliberate re-spelling
+a fault on the day it landed.
+
+**The operator is part of the answer.** Two spends must fall back the same way as well as to the
+same value: `${V:-x}` and `${V-x}` disagree about a variable set to the empty string, and
+`${V:?}` beside `${V:-x}` is one file demanding what another quietly supplies. So a group's
+operators must match, and only then are the values compared, and only for the operators whose
+argument is a value at all (`composedefaults.VALUE_OPERATORS`); two `:?` spends wording their
+message differently have not drifted.
+
+**Why here and not in `crosscheck.py`.** That scan is registry-driven: every question it asks
+starts from a hand-written entry naming a declaring site, and its documented subject is a value
+some tree declares against the places restating it. This question has no registry and no
+declaration. It is discovered by walking the compose files, and its far sides are each other.
+Folding it in would give one scan two entry points and make its stated subject false, which the
+repo's own description of its gates would then have to stop saying. It sits beside `bindcheck.py`
+instead, the other gate that walks every compose file and fails closed on finding none; the walk
+itself is `composefiles.py`, shared so the two gates cannot drift apart about which files exist.
+
+**Fail closed**, the same way both siblings do. No compose file at all, a file that cannot be
+read or decoded, and a `$` form the reader was not taught are each a failure rather than a quiet
+pass. A default this gate cannot reduce is only a failure when its group already disagrees
+textually, since a value nobody re-spells needs no reduction to be compared.
+"""
+
+import argparse
+import sys
+from collections import defaultdict
+from pathlib import Path
+from typing import NamedTuple
+
+from composedefaults import Substitution, SubstitutionReadError, read_substitutions
+from composefiles import ComposeSearchError, compose_files
+from values import CrossCheckError, parse_value, whole_spelling
+
+# How many times a variable has to be written before there is anything to compare. A lone
+# spend has no sibling to disagree with, whatever its default reduces to or refuses to.
+MIN_SPENDS = 2
+
+
+class Spend(NamedTuple):
+    """One place one variable is written: the compose file, and the substitution as read."""
+
+    path: str
+    substitution: Substitution
+
+    def __str__(self) -> str:
+        """`path:line ${NAME:-value}`, which is how a fault names the places that disagree."""
+        return f"{self.path}:{self.substitution.line} {self.substitution.written}"
+
+
+class Fault(NamedTuple):
+    """One variable whose spends disagree, or one compose file the scan could not read."""
+
+    subject: str
+    detail: str
+
+
+def same_value(arguments: list[str]) -> bool:
+    """Whether several default texts are one value once a whole-number spelling is allowed.
+
+    Identical text is one value with nothing to reduce, which is every group in the tree but the
+    subagent memory budget. Anything else is reduced and re-spelled whole, so `8.0` and `8` agree
+    and `8.5` beside `8` does not, the fraction being lost rather than zero. A text the reducer
+    refuses (a path, a hostname, an empty default beside a filled one) cannot be shown equal to a
+    text it does not match, so it disagrees.
+    """
+    if len(set(arguments)) == 1:
+        return True
+    spellings: set[str] = set()
+    for text in arguments:
+        try:
+            spellings.add(whole_spelling(parse_value(text)))
+        except CrossCheckError:
+            return False
+    return len(spellings) == 1
+
+
+def disagreement(name: str, spends: list[Spend]) -> Fault | None:
+    """The complaint about one variable's several spends, or None when they hold together."""
+    shown = ", ".join(str(spend) for spend in spends)
+    operators = {spend.substitution.operator for spend in spends}
+    if len(operators) > 1:
+        return Fault(
+            subject=name,
+            detail=(
+                f"is spelled {len(spends)} times with {len(operators)} different fallback "
+                f"operators, so one spend falls back where another does not ({shown})"
+            ),
+        )
+    if not spends[0].substitution.carries_value:
+        return None
+    if same_value([spend.substitution.argument for spend in spends]):
+        return None
+    return Fault(
+        subject=name,
+        detail=(
+            f"is spelled {len(spends)} times and does not carry one default, so the stack takes "
+            f"whichever spend it happens to read ({shown})"
+        ),
+    )
+
+
+def _read(root: Path, compose: Path, groups: dict[str, list[Spend]]) -> Fault | None:
+    """File one compose file's substitutions under their names, or say why it could not be read."""
+    name = compose.relative_to(root).as_posix()
+    try:
+        found = read_substitutions(compose.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, SubstitutionReadError) as err:
+        return Fault(subject=name, detail=str(err))
+    for substitution in found:
+        groups[substitution.name].append(Spend(path=name, substitution=substitution))
+    return None
+
+
+def group(root: Path) -> tuple[dict[str, list[Spend]], list[Fault]]:
+    """Every variable the compose files under ``root`` spend, and the files that would not read."""
+    groups: dict[str, list[Spend]] = defaultdict(list)
+    faults: list[Fault] = []
+    for compose in compose_files(root):
+        fault = _read(root, compose, groups)
+        if fault is not None:
+            faults.append(fault)
+    return dict(groups), faults
+
+
+def check(root: Path) -> list[Fault]:
+    """Return every variable under ``root`` whose several spends do not agree, name by name."""
+    groups, faults = group(root)
+    for name, spends in sorted(groups.items()):
+        if len(spends) < MIN_SPENDS:
+            continue
+        fault = disagreement(name, spends)
+        if fault is not None:
+            faults.append(fault)
+    return faults
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Run the gate; print any faults and return the process exit code."""
+    parser = argparse.ArgumentParser(
+        description="Fail when one compose variable carries two different defaults.",
+    )
+    parser.add_argument(
+        "--root",
+        type=Path,
+        default=Path(),
+        help="repo root holding the compose files (default: current directory)",
+    )
+    args = parser.parse_args(argv)
+    given: Path = args.root
+    if not given.is_dir():
+        print(f"defaultcheck: root {given} is not a directory", file=sys.stderr)
+        return 2
+    try:
+        faults = check(given.resolve())
+    except ComposeSearchError as err:
+        print(f"defaultcheck: {err}", file=sys.stderr)
+        return 2
+    for fault in faults:
+        print(f"{fault.subject}: {fault.detail}")
+    if faults:
+        print(
+            f"\ndefaultcheck: {len(faults)} compose variable(s) do not carry one default. "
+            "Give every spend of one variable the same default, re-spelled only where the far "
+            "side's own syntax cannot take it as written.",
+            file=sys.stderr,
+        )
+        return 1
+    print(f"defaultcheck OK: every variable spelled twice or more under {given} carries one value")
+    return 0
+
+
+if __name__ == "__main__":  # pragma: no cover -- CLI entry point; main() is unit-tested
+    sys.exit(main())
