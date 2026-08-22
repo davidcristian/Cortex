@@ -9,14 +9,19 @@ judgement about what "not enough time left" means, and says the call was abandon
 remaining time it can finally read printed beside it.
 
 **The reading is printed, never judged.** `time_remaining()` answers three different facts and
-this module decides between none of them: nothing left is the announced deadline expiring, which
-reads as `0` when the cancellation reaches the handler after the deadline passed and as the
-unspent sliver of the window when a loaded machine delivers it a hair early, grpc flooring the
-reading at zero either way rather than letting it run negative; a value well above zero is a
-caller that stopped waiting early, which is the shipped body on every call, since it enforces a
-bound strictly shorter than the one it announces (ADR-0024's grace margin); `None` is a caller
-that announced no deadline at all, so what ended the call was a disconnect. An operator reads the
-number; nothing here branches on it.
+this module decides between none of them. A value well above zero is a caller that stopped waiting
+early, which is the shipped body on every call, since it enforces a bound strictly shorter than
+the one it announces (ADR-0024's grace margin). An integer `0` is the announced deadline enforced
+by the brain's own clock, which is what is left when the body is killed or the connection
+half-opens and the cancellation it would have sent never arrives. `None` is a caller that
+announced no deadline at all, so what ended the call was a disconnect. The type carries the
+distinction the value cannot: `max(deadline - now, 0)` answers with its own second argument, an
+`int`, only once the deadline has passed, so a reading still counting down is a float whatever its
+size, and grpc floors rather than letting the subtraction run negative. When a caller arms its own
+clock on the deadline it announced, the two race, and a cancellation landing a hair early reads as
+an unspent sliver of the window instead of the floor. An operator reads the number; nothing here
+branches on it. Each of the three is asserted over a real wire (ADR-0024's 2026-08-22 addendum),
+in the shape that produces it on a deployed brain.
 
 **Only the unary methods are watched, which is the fence rather than an oversight.** `Converse`
 announces no deadline and must keep announcing none: a turn is long by design, and a stream that

@@ -532,14 +532,21 @@ The service:
 - `AbandonedCallInterceptor()` (`abandon.py`, ADR-0024 abandonment addendum) writes one
   `WARNING` per **unary** call the caller gave up on: `ABANDONED_MESSAGE`, with the RPC's wire
   `method` and the `time_remaining()` the announced deadline had left. It is the brain's one
-  use of the deadline the body announces on every unary call, and it judges nothing: nothing left
-  is that deadline expiring, reading as an integer `0` when the cancellation lands after the
-  deadline passed and as an unspent sliver of the window when a loaded machine lands it a hair
-  early, grpc flooring the reading at zero either way (the wire case asserts that floor and a
-  bound under half the announced window, both on a real reading, rather than an exact `0` a real
-  clock does not always produce); a value well above zero is a caller that stopped
-  early (which the shipped body is on every call, enforcing a bound shorter than it announces),
-  `None` a caller that announced no deadline and simply disconnected. The cancellation is always
+  use of the deadline the body announces on every unary call, and it judges nothing. The three
+  readings, each now asserted over a real loopback wire in the shape that produces it in
+  production (ADR-0024's 2026-08-22 addendum): a value well above zero is a caller that stopped
+  early, which the shipped body is on every call, enforcing a bound shorter than it announces;
+  an integer `0` is the announced deadline enforced by the brain's own clock, which is what
+  happens when the body is killed or the connection half-opens and its cancellation never
+  arrives; `None` is a caller that announced no deadline and simply disconnected. **The type is
+  the distinction, not the value**: `max(deadline - now, 0)` answers with its own second argument,
+  an `int`, only once the deadline has passed, so a reading still counting down is a float
+  whatever its size. When both clocks are armed on one announcement they race, and a reading taken
+  a hair before the deadline is a positive sliver rather than the floor; that case is bounded
+  under half the announced window rather than pinned, and measured slivers run to 0.0107 s against
+  a 0.2 s window. The reading is **not** bounded above by what the caller announced: the server's
+  window is the one the header encoded, measured from when the server received it, and readings
+  above the announcement are measured and normal. The cancellation is always
   re-raised. A handler with no unary-unary behavior is passed through untouched, which is how
   `Converse` stays unwatched: a turn is long by design and announces no deadline, so a stream
   reporting an abandonment against one would be the first half of a bound this seam does not
