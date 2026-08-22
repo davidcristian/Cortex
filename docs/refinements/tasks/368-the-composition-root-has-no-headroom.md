@@ -1,6 +1,6 @@
 # The composition root sits at exactly its line cap
 
-**Status:** open, actionable
+**Status:** landed 2026-08-22
 **Area:** repo-gates
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
 
@@ -31,3 +31,18 @@ that filed this managed only by re-wrapping a docstring bullet that fitted on on
 - 2026-08-21: Filed by the close of
   [363](363-the-call-bound-and-the-run-bound-are-unordered.md), whose one added import line took
   the file to the cap exactly. Recorded in the ADR-0009 ordering addendum.
+- 2026-08-22: Landed as `StreamEngines` in the new `cortex_orchestrator/engines.py`, and every
+  number this entry measured held on re-derivation: 300 lines, 52 comment lines, 74 lines of
+  closures, fourteen captured names. The object takes **twelve**, because the runtime config
+  arrives whole (four of its fields are read) while the three settings objects captured for one
+  value each are reduced to that value, and because the escalating arm's three names travel as one
+  `DeepTier`, which is what makes a half-wired handoff inexpressible and the factory's only branch
+  a single `is None`. **What decided the cut was how often a thing runs, not how many lines it
+  saved**: everything else at the root runs once at boot and these ran again per Converse stream,
+  which is also the property the new `test_engines.py` pins and no end-to-end suite can, each of
+  them opening exactly one stream. The root ends at 230 lines with 70 of headroom. No behaviour
+  changed and no assertion moved; two `monkeypatch.setattr` targets in the vision suite were
+  renamed to the module the two functions are now called from. Four mutations measured over
+  `packages/orchestrator`, in the ADR-0009 root-headroom addendum. One entry opened,
+  [378](378-the-barrel-rule-omits-two-root-internals.md), for the module contract's barrel rule,
+  which now omits three names it documents rather than one.

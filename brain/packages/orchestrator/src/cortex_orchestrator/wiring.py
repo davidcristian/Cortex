@@ -1,29 +1,13 @@
 """Composition root: build the runtime dependencies at the edge, then serve."""
 
 from collections.abc import Callable
-from dataclasses import replace
 
-from cortex_core import (
-    AsyncioSleeper,
-    BrainPhase,
-    CadenceTerms,
-    Confirmer,
-    EscalatingTurnEngine,
-    ProgressSink,
-    SwapConductor,
-    SystemClock,
-    TurnCapabilities,
-    TurnEngine,
-    TurnRunner,
-    VramBudgetPlacer,
-)
+from cortex_core import AsyncioSleeper, SystemClock, VramBudgetPlacer
 from cortex_orchestrator.bounds import check_tool_call_deadline
 from cortex_orchestrator.builders import (
     build_body_gateway,
     build_builtin_tools,
-    build_cortex_tools,
     build_inference_backend,
-    build_output_guardrail,
     build_tool_registry,
 )
 from cortex_orchestrator.config import (
@@ -38,6 +22,7 @@ from cortex_orchestrator.config_schedule import ScheduleConfig
 from cortex_orchestrator.config_subagents import SubagentsConfig
 from cortex_orchestrator.config_swap import SwapConfig
 from cortex_orchestrator.config_tools import ToolsConfig
+from cortex_orchestrator.engines import DeepTier, StreamEngines
 from cortex_orchestrator.memory_builders import build_memory
 from cortex_orchestrator.schedule_builders import (
     build_schedule,
@@ -56,7 +41,6 @@ from cortex_orchestrator.swap_builders import (
     swap_closer,
 )
 from cortex_orchestrator.vision import build_vision
-from cortex_orchestrator.window_builders import build_history_window
 from cortex_session import RedisPreferenceStore, RedisSessionStore
 
 
@@ -135,80 +119,30 @@ async def run_from_env(
     )
     ticker_task = start_ticker(ticker)
     # The handoff's other boot half, beside the deadline check and for the same reason: both are
-    # swap wiring, and this file is at its line cap (`swap_builders.py`).
+    # swap wiring, so both live in `swap_builders.py` and the root only calls them.
     await recover_boot_residency(swap, clock)
     try:
-
-        def capabilities(confirmer: Confirmer, progress: ProgressSink) -> TurnCapabilities:
-            return TurnCapabilities(
-                memory=memory,
-                tools=build_cortex_tools(
-                    tool_registry,
-                    builtins,
-                    clock,
-                    confirmer=confirmer,
-                    policy=tools_config.dispatch_policy,
-                    vision=sight,
-                ),
-                window=build_history_window(
-                    runtime, sessions=stores.sessions, backend=backend, clock=clock
-                ),
-                guardrail=build_output_guardrail(runtime.output_guardrail),
-                # The core takes a bool; the composition root maps the string (ADR-0019).
-                record_tainted_memory=memory_config.on_tainted == "record",
-                generate_titles=runtime.generate_titles,
-                progress=progress,
-                bounds=reply_bounds,
-            )
-
-        def make_turn_engine(caps: TurnCapabilities) -> TurnEngine:
-            # Engines are stateless functions over the store, so per-stream (and, when a turn
-            # escalates, per-turn) construction is free.
-            return TurnEngine(
-                stores.sessions,
-                backend,
-                clock,
-                cortex_model=runtime.cortex_model,
-                capabilities=caps,
-            )
-
-        def make_engine(confirmer: Confirmer, progress: ProgressSink) -> TurnRunner:
-            caps = capabilities(confirmer, progress)
-            if swap is None:
-                return make_turn_engine(caps)
-            deep = replace(
-                caps,
-                escalation=None,
-                tools=build_cortex_tools(
-                    tool_registry,
-                    deep_builtins,
-                    clock,
-                    confirmer=confirmer,
-                    policy=tools_config.dispatch_policy,
-                ),
-            )
-            conductor = SwapConductor(
-                swap.handoffs,
-                swap.manager,
-                BrainPhase(
-                    stores.sessions,
-                    backend,
-                    clock,
-                    swap.plan.brain_model,
-                    deep,
-                    CadenceTerms(swap.plan.brain_decode_tps, swap.manager.handoff_pace),
-                ),
-                swap.plan,
-                clock,
-                scheduler,
-            )
-            return EscalatingTurnEngine(
-                lambda slot: make_turn_engine(replace(caps, escalation=slot)), conductor
-            )
-
+        # The per-stream factory (`engines.py`), which is the one thing here that runs again
+        # after boot: a Converse stream's own confirmer and progress sink are what it adds to
+        # everything above, so it takes those names once instead of closing over them.
+        engines = StreamEngines(
+            sessions=stores.sessions,
+            backend=backend,
+            clock=clock,
+            runtime=runtime,
+            memory=memory,
+            tools=tool_registry,
+            builtins=builtins,
+            policy=tools_config.dispatch_policy,
+            sight=sight,
+            # The core takes a bool; the composition root maps the string (ADR-0019).
+            record_tainted_memory=memory_config.on_tainted == "record",
+            bounds=reply_bounds,
+            deep=None if swap is None else DeepTier(swap, deep_builtins, scheduler),
+        )
         await serve(
             seam_config,
-            make_engine,
+            engines.for_stream,
             stores.sessions,
             SeamPorts(
                 schedules=schedules,
