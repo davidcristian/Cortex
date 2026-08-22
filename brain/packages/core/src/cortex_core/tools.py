@@ -16,7 +16,11 @@ if TYPE_CHECKING:
 
 
 class Trust(Enum):
-    """The provenance of a tool result's content (ADR-0013): is it data or instructions?"""
+    """The provenance of a tool result's content: is it data or instructions?
+
+    Every default in this module is ``UNTRUSTED``, so content reaching the model without an
+    explicit stamp is framed as data rather than obeyed.
+    """
 
     TRUSTED = "trusted"
     UNTRUSTED = "untrusted"
@@ -29,16 +33,19 @@ class ToolSpec:
     name: str
     description: str
     parameters: Mapping[str, Any]
+    # Marks an outbound or irreversible action, which needs the user's confirmation and is
+    # refused outright once the turn has read untrusted content.
     gated: bool = False
 
 
 @dataclass(frozen=True, slots=True)
 class TurnStamp:
-    """What the dispatching turn hands the call, stamped on at dispatch time (ADR-0027)."""
+    """What the dispatching turn hands the call, stamped on at dispatch time."""
 
     session_id: str = ""
     turn_id: str = ""
     task_id: str = ""
+    item_id: str = ""
     tainted: bool = False
     sources: tuple[Provenance, ...] = ()
     budget: DispatchBudget | None = field(default=None, compare=False)
@@ -46,8 +53,6 @@ class TurnStamp:
     escalation: "EscalationSlot | None" = field(default=None, compare=False)
 
 
-# The unattributed default stamp: no originating session, no taint. A named constant
-# (not a call in a default) so signatures can default to it under the lint gate.
 UNSTAMPED = TurnStamp()
 
 
@@ -58,13 +63,15 @@ class ToolCall:
     id: str
     name: str
     arguments: Mapping[str, Any]
+    # Never the model's to set: the dispatcher overwrites it at dispatch time with the calling
+    # turn's own stamp.
     stamp: TurnStamp = UNSTAMPED
 
 
 @dataclass(frozen=True, slots=True)
 class ToolResult:
-    """The outcome of one ``ToolCall``: ``content`` fed back to the model, ``is_error`` set
-    when the tool (or its dispatch) failed. The model is told, so it can recover.
+    """The outcome of one ``ToolCall``: ``content`` fed back to the model, ``is_error`` set when the
+    tool (or its dispatch) failed.
     """
 
     call_id: str
@@ -85,9 +92,11 @@ class ToolInvocation:
     detail: str
     at: datetime
     trust: Trust = Trust.UNTRUSTED
+    call_id: str = ""
     session_id: str = ""
     turn_id: str = ""
     task_id: str = ""
+    item_id: str = ""
 
     def __post_init__(self) -> None:
         if self.at.tzinfo is None or self.at.tzinfo.utcoffset(self.at) is None:
@@ -97,7 +106,7 @@ class ToolInvocation:
 
 @dataclass(frozen=True, slots=True)
 class ConfirmationRequest:
-    """A request for out-of-band user confirmation of a gated tool call (ADR-0013/0022)."""
+    """A request for out-of-band user confirmation of a tool call."""
 
     tool_name: str
     arguments: Mapping[str, Any]

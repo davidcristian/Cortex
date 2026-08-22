@@ -258,14 +258,17 @@ Tool domain (Slice 6, ADR-0009; untrusted-content fields Slice 6.5, ADR-0013):
   needs confirmation once the turn read untrusted content, but no tool sets it today). What a tool
   advertises.
 - `TurnStamp` is a frozen dataclass: `session_id: str = ""`, `turn_id: str = ""`,
-  `task_id: str = ""`, `tainted: bool = False`,
+  `task_id: str = ""`, `item_id: str = ""`, `tainted: bool = False`,
   `sources: tuple[Provenance, ...] = ()`, `budget: DispatchBudget | None = None` (`compare=False`),
   `progress: ProgressSink | None = None` (`compare=False`).
   What the dispatching turn hands the call (ADR-0027): its origin chat (`""` for an unattributed
   caller), the conversation turn it was made for and the subagent task it was made inside (the two
   identities the audit trail names the work by, ADR-0009 named-work addendum; each `""` when there
   is none, so a turn's own dispatch names no task and a ticker-rooted subagent's names no turn),
-  whether it had read untrusted content at dispatch time, which sources that content
+  the scheduled item whose fire made the dispatch (ADR-0009 named-call addendum; `ScheduleTicker`
+  is its only caller in the tree, so a model cannot make the trail say an item fired however it
+  spells its own call id), whether it had read untrusted content at dispatch time, which sources
+  that content
   came from (ADR-0027 addendum), the turn's shared dispatch pool (`None` for a caller
   that runs no tool loop, e.g. the schedule ticker), the stream's progress side channel
   (`None` for a caller with no overlay stream, ADR-0010 progress addendum), and the turn's
@@ -301,11 +304,18 @@ Tool domain (Slice 6, ADR-0009; untrusted-content fields Slice 6.5, ADR-0013):
   relaxing taint.
 - `ToolInvocation` is a frozen dataclass: `name`, `arguments`, `ok: bool`, `detail: str`,
   `at: datetime` (tz-aware, rejects naive), `trust: Trust = Trust.UNTRUSTED` (the provenance
-  audit trail), `session_id: str = ""`, `turn_id: str = ""`, `task_id: str = ""`. One audit-trail
-  line. The three ids are the work the call was made for (ADR-0009 named-work addendum), copied
+  audit trail), `call_id: str = ""`, `session_id: str = ""`, `turn_id: str = ""`,
+  `task_id: str = ""`, `item_id: str = ""`. One audit-trail
+  line. The four work ids are what the call was made for (ADR-0009 named-work and named-call
+  addenda), copied
   off the dispatch's `TurnStamp` by `ToolDispatcher._audited` and `""` when the dispatch had none.
   They are the stamp's *identities* rather than the stamp itself, because a record that outlives
-  its process must not hold the stamp's live handles.
+  its process must not hold the stamp's live handles. `call_id` is the odd one out and
+  deliberately so: it is copied off `ToolCall.id` rather than off the stamp, so on a cortex
+  dispatch it is the **model's** own string, printed for the reason `name` and `arguments` are
+  (the line records what was asked for) and read back by nothing. What makes that safe is the
+  formatter: `render_value` quotes and JSON-escapes any value carrying whitespace or a quote, so
+  no id can add a field to a line, and `VALUE_CHARS` cuts an over-long one with a marker.
 - `ConfirmationRequest` is a frozen dataclass: `tool_name: str`, `arguments: Mapping[str, Any]`,
   `reason: str`. What the dispatcher hands the `Confirmer` to approve a gated call out of band.
 

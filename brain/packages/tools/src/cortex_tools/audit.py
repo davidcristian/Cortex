@@ -23,9 +23,11 @@ class LoggingAuditSink:
             {
                 name: identity
                 for name, identity in (
+                    ("call_id", invocation.call_id),
                     ("session_id", invocation.session_id),
                     ("turn_id", invocation.turn_id),
                     ("task_id", invocation.task_id),
+                    ("item_id", invocation.item_id),
                 )
                 if identity
             }

@@ -98,14 +98,25 @@ With both up, `docker compose --project-directory . -f docker/docker-compose.yml
 brain with `CORTEX_TOOLS_BACKEND=mcp`, so a turn that needs a file calls the tool, the dispatch
 is audited (one `cortex.tools.audit` line per call), and the result is fed back to the model.
 That line is a bare `tool.invocation` message followed by its fields, the tool's name, `ok`, the
-arguments, the result's `trust`, either `result_chars` or `error`, and the work the call was made
-for, printed in name order by the
-formatter the process entry installs (ADR-0038 rendered-fields addendum). The work is up to three
-ids (ADR-0009 named-work addendum): `session_id`, `turn_id` and `task_id`, each printed only when
+arguments, the result's `trust`, either `result_chars` or `error`, the work the call was made
+for, and which call it was, printed in name order by the
+formatter the process entry installs (ADR-0038 rendered-fields addendum). The work is up to four
+ids (ADR-0009 named-work and named-call addenda): `session_id`, `turn_id`, `task_id` and
+`item_id`, each printed only when
 the dispatch had it, so `grep turn_id=t-...` gathers a turn's own tool calls, the tool calls its
 subagents made, and the line a failed turn wrote, while a subagent's `task_id` selects one
-delegate's work out of a batch. A schedule fire carries the chat that scheduled the item and no
-turn, because nothing conversational is waiting on it. It used to carry a JSON
+delegate's work out of a batch. A schedule fire carries the chat that scheduled the item, the
+`item_id` of the item that fired, and no
+turn, because nothing conversational is waiting on it.
+
+`call_id` is the fifth id and is read differently from the other four. It is `ToolCall.id`, the
+string the result and its `Role.TOOL` message are keyed by, so it says which of a turn's
+dispatches a line is; and on a cortex call it is whatever the model emitted, exactly like `tool`
+and `arguments`, where the four work ids come off the dispatch stamp and are the brain's. Read it
+as what was asked for, never as an assertion: a `call_id=schedule-...` on a line with no `item_id`
+is a model that chose to spell the ticker's prefix, not a fire. It cannot damage the line either
+way, the formatter quoting and escaping any value that carries whitespace or a quote and cutting
+one past `VALUE_CHARS`, so an id can fill a field and never add one. It used to carry a JSON
 copy of the same fields inside the message, which is what the trail needed back when the shipped
 handler printed no field at all; see [local-dev-wsl.md](local-dev-wsl.md) for how a line reads
 now and what it withholds.

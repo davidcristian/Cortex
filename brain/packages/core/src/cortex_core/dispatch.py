@@ -1,4 +1,4 @@
-"""Dispatch one tool call and audit it. It is the only path a tool runs through (ADR-0009/0013)."""
+"""Dispatch one tool call and audit it."""
 
 from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass, field, replace
@@ -22,14 +22,8 @@ from cortex_core.tools import (
 )
 from cortex_core.untrusted import DENIED_MSG, USER_DECLINED_MSG
 
-# Why confirmation is required, shown verbatim to the user by the overlay (ADR-0022). The
-# default when the policy names no per-tool reason (ADR-0030 decision 1): true for the outbound
-# and irreversible tools, and overridden where it would be false (the escalate card).
 _GATE_REASON = "this action is outbound or irreversible and runs only with your approval"
 
-# The result content fed back when the caller's dispatch budget is spent (ADR-0009 budget
-# addendum). Phrased so the model stops calling tools and answers with what it already has,
-# rather than retrying the same call into a bound that cannot move within the loop.
 BUDGET_EXHAUSTED_MSG = (
     "REFUSED: this turn has reached its limit on tool calls, so the tool was not run. Do not "
     "retry this or any other tool call. Answer the user with the information you already have, "
@@ -77,18 +71,11 @@ class DispatchPolicy:
         object.__setattr__(self, "gate_reasons", MappingProxyType(dict(self.gate_reasons)))
 
 
-# The policy a dispatcher gets unless the composition root passes one: nothing gated, every tool
-# priced at one, and repeats refused. Only the last is a behavior the loop had to opt into
-# before; the other two are the pre-policy defaults restated.
 DEFAULT_DISPATCH_POLICY = DispatchPolicy()
 
 
 class ToolDispatcher:
-    """Run a tool call through the registry, gating and recording one audit line per dispatch.
-
-    Also the turn's single tool gateway: ``describe_tools`` passes through to the registry
-    so the engine advertises the same tools it can dispatch.
-    """
+    """Run a tool call through the registry, ask for confirmation when needed, and audit it."""
 
     def __init__(
         self,
@@ -110,7 +97,7 @@ class ToolDispatcher:
         return await self._registry.describe_tools()
 
     def cost_of(self, name: str) -> int:
-        """What dispatching ``name`` spends of the caller's budget (ADR-0009 cost addendum)."""
+        """What dispatching ``name`` costs against the caller's budget."""
         return self._policy.costs.cost_of(name)
 
     def admits(self, call: ToolCall, dispatched: Sequence[Sequence[ToolCall]]) -> bool:
@@ -126,9 +113,8 @@ class ToolDispatcher:
         refusal: DispatchRefusal | None = None,
     ) -> ToolResult:
         """Invoke ``call``, audit the outcome, and return the result the model consumes."""
-        # Overwrite the call's stamp with the turn's (ADR-0018/0027): provenance for built-ins
-        # that spawn further work, never authority. The gate below keeps using the explicit
-        # ``stamp`` argument, so a model-forged stamp is discarded and feeds nothing.
+        # The caller's stamp replaces whatever the call arrived with, so a model-written stamp
+        # is discarded. The taint check below reads the ``stamp`` argument for the same reason.
         call = replace(call, stamp=stamp)
         if refusal is not None:
             refused = ToolResult(
@@ -138,8 +124,7 @@ class ToolDispatcher:
                 trust=Trust.TRUSTED,
             )
             return await self._audited(call, refused)
-        # The advertised flag OR the authoritative gated set (ADR-0022): a gated tool a flaky
-        # sidecar hid from this turn's advertisement snapshot is still gated here.
+        # A tool a failing sidecar left out of this turn's list still needs confirmation.
         gated = gated or call.name in self._policy.gated_names
         if gated:
             if stamp.tainted:
@@ -155,15 +140,13 @@ class ToolDispatcher:
         try:
             result = await self._registry.invoke(call)
         except ToolError as err:
-            # Our own dispatch-error message (not external content) is trusted, so it neither
-            # frames as data nor taints the turn.
             result = ToolResult(
                 call_id=call.id, content=str(err), is_error=True, trust=Trust.TRUSTED
             )
         return await self._audited(call, result)
 
     async def _confirmed(self, call: ToolCall) -> bool:
-        """Ask the confirmer to approve a gated call; a missing confirmer denies (fail-closed)."""
+        """Ask the confirmer to approve the call; with no confirmer the call is refused."""
         if self._confirmer is None:
             return False
         request = ConfirmationRequest(
@@ -174,7 +157,7 @@ class ToolDispatcher:
         return await self._confirmer.confirm(request)
 
     async def _audited(self, call: ToolCall, result: ToolResult) -> ToolResult:
-        """Record one audit line (its provenance and the work it was for) and return the result."""
+        """Record one audit line (its provenance, the work it was for, the call) and return it."""
         await self._audit.record(
             ToolInvocation(
                 name=call.name,
@@ -183,9 +166,11 @@ class ToolDispatcher:
                 detail=result.content,
                 at=self._clock.now(),
                 trust=result.trust,
+                call_id=call.id,
                 session_id=call.stamp.session_id,
                 turn_id=call.stamp.turn_id,
                 task_id=call.stamp.task_id,
+                item_id=call.stamp.item_id,
             )
         )
         return result

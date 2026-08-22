@@ -189,7 +189,8 @@ class ScheduleTicker:
         )
         try:
             result = await self._spawn.dispatch(
-                call, stamp=TurnStamp(session_id=item.session_id, tainted=item.tainted)
+                call,
+                stamp=TurnStamp(session_id=item.session_id, item_id=item.id, tainted=item.tainted),
             )
         except TaskStoreError as err:
             return f"FAILED: the task store is unavailable: {err}", False
