@@ -27,6 +27,13 @@ import values
         ("5.0  # the short deadline", values.Digits("5.0")),
         ("0.35", values.Digits("0.35")),
         ("1_000.25", values.Digits("1000.25")),  # separators group digits and decide nothing
+        ("-1", -1),  # the sentinel a tier's argv reads as "emit no flag"
+        ("  -1  ", -1),
+        ("-1  # llama.cpp's own word for unbounded", -1),
+        ("-2 * 3", -6),  # the sign is the expression's, and a product still reduces under one
+        ("False", values.Truth("False")),
+        ("True", values.Truth("True")),
+        ("False  # an escape hatch that ships open is not one", values.Truth("False")),
     ],
 )
 def test_parse_value_reduces_every_form(text: str, expected: values.Value) -> None:
@@ -47,7 +54,13 @@ def test_parse_value_reduces_every_form(text: str, expected: values.Value) -> No
         "1.2.3",  # a version, which is not one number
         "1.0e3",  # an exponent this reducer does not evaluate
         "10.0f64",  # Rust's own type suffix, which no registered site spells
-        "-5.0",  # a sign, refused as it is on a product of integers
+        "-5.0",  # a signed decimal, the sign belonging to the integer form alone
+        "+1",  # a leading plus, which no rendered needle would spell back
+        "2 * -3",  # a sign on a factor rather than on the expression
+        "-",  # a sign with no digits behind it
+        "false",  # YAML's casing, which is a spelling at a mention and not a form at a site
+        "TRUE",  # nor is any other casing of the word
+        "None",  # an absence, which is not one of the two words a boolean has
         "6 * 1.5",  # a product a decimal factor takes out of the integer form
         "cortex_seam.SEAM_TOKEN_HEADER",  # an alias whose dot is not a decimal point
         "",  # an empty right-hand side
@@ -92,6 +105,28 @@ def test_a_decimal_renders_as_the_digits_a_needle_and_a_fault_both_want() -> Non
     assert f"{values.parse_value('10.0')!r}" == "10.0"
 
 
+def test_a_boolean_is_not_the_zero_python_says_it_equals() -> None:
+    """The reason the word gets its own type: `bool` IS `int` here, and `False == 0` is true.
+
+    A bare boolean would tie a hatch that ships shut to any site declaring zero, and would sort
+    under an ordering that has no business over an answer with two values.
+    """
+    assert values.parse_value("False") != values.parse_value("0")
+    assert values.parse_value("True") != values.parse_value("1")
+    assert not isinstance(values.parse_value("False"), int)
+
+
+def test_a_boolean_is_not_the_string_literal_that_spells_it() -> None:
+    """Its own type for `Digits`' other reason too: a quoted `"False"` is a different answer."""
+    assert values.parse_value("False") != values.parse_value('"False"')
+
+
+def test_a_boolean_renders_as_the_word_a_needle_and_a_fault_both_want() -> None:
+    """The site's own casing, which is what the written spelling substitutes."""
+    assert str(values.parse_value("False")) == "False"
+    assert f"{values.parse_value('True')!r}" == "True"
+
+
 @pytest.mark.parametrize(
     ("text", "expected"),
     [
@@ -106,11 +141,38 @@ def test_a_whole_spelling_drops_a_fraction_that_is_zero(text: str, expected: str
     assert values.spell(values.parse_value(text), couplings.Spelling.WHOLE) == expected
 
 
-@pytest.mark.parametrize("text", ["8.0", "8.00", "12", '"8.0"'])
-def test_the_written_spelling_is_the_digits_the_site_writes(text: str) -> None:
+@pytest.mark.parametrize("text", ["8.0", "8.00", "12", '"8.0"', "False", "-1"])
+def test_the_written_spelling_is_the_text_the_site_writes(text: str) -> None:
     """The default spelling changes nothing, whatever the value form: the site's own text."""
     written = values.spell(values.parse_value(text), couplings.Spelling.WRITTEN)
     assert written == text.strip('"')
+
+
+@pytest.mark.parametrize(("text", "expected"), [("False", "false"), ("True", "true")])
+def test_a_lowered_spelling_folds_the_word_the_other_language_writes(
+    text: str, expected: str
+) -> None:
+    """The shape this exists for: a compose default spells `false` where the field says `False`."""
+    assert values.spell(values.parse_value(text), couplings.Spelling.LOWERED) == expected
+
+
+@pytest.mark.parametrize("text", ["8.0", "12", '"False"', 'frozenset({"False"})'])
+def test_a_value_that_is_not_a_boolean_has_no_lowered_spelling(text: str) -> None:
+    """Fail closed: folding a string would tie two literals differing in case alone."""
+    with pytest.raises(values.CrossCheckError, match="needs a boolean"):
+        values.spell(values.parse_value(text), couplings.Spelling.LOWERED)
+
+
+def test_only_the_whole_spelling_is_lossy() -> None:
+    """Which spellings owe a faithful reading beside them, sorted once for every member.
+
+    `8` and `8.0` are one whole number and one whole spelling, so a whole one can hide a site
+    that dropped its point. `False` and `True` lower to two words, so a lowered one cannot hide
+    anything, and the written spelling changes nothing at all.
+    """
+    assert {spelling for spelling in couplings.Spelling if spelling.lossy} == {
+        couplings.Spelling.WHOLE
+    }
 
 
 def test_a_fraction_that_is_not_zero_cannot_be_spelled_whole() -> None:
@@ -124,7 +186,7 @@ def test_a_fraction_that_is_not_zero_cannot_be_spelled_whole() -> None:
         values.spell(values.parse_value("8.5"), couplings.Spelling.WHOLE)
 
 
-@pytest.mark.parametrize("text", ['"eight"', 'frozenset({"8"})'])
+@pytest.mark.parametrize("text", ['"eight"', 'frozenset({"8"})', "False"])
 def test_a_value_that_is_not_a_number_has_no_whole_spelling(text: str) -> None:
     """Fail closed: a re-spelling is arithmetic-shaped, and text has no fractional part to drop."""
     with pytest.raises(values.CrossCheckError, match="needs a number"):
@@ -133,6 +195,9 @@ def test_a_value_that_is_not_a_number_has_no_whole_spelling(text: str) -> None:
 
 SITE = couplings.Site("config.py", "BUDGET")
 WHOLE_SPEND = couplings.Mention("stack.yml", "{value}g", spelling=couplings.Spelling.WHOLE)
+LOWERED_SPEND = couplings.Mention(
+    "stack.yml", "${HATCH:-{value}}", spelling=couplings.Spelling.LOWERED
+)
 
 
 def _entry(
@@ -174,3 +239,13 @@ def test_an_entry_that_only_ever_re_spells_is_refused(constant: couplings.Consta
     fault = values.spelling_fault(constant)
     assert fault is not None
     assert "nothing holds the spelling the site writes" in fault
+
+
+def test_a_faithful_re_spelling_needs_no_reading_beside_it() -> None:
+    """The rule turns on a distinction being lost, and a case fold loses none.
+
+    An entry whose one mention lowers a boolean holds the whole drift by itself: a site that
+    flipped renders the other word, so the needle goes unfound with nothing else registered.
+    Refusing it would be the whole-number rule applied where its reason does not reach.
+    """
+    assert values.spelling_fault(_entry(LOWERED_SPEND)) is None

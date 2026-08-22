@@ -151,6 +151,10 @@ is the middle of a dial whose ends are the per-request `thinking` bound the brai
 `-1`, the default, is the engine's own word for unrestricted and emits **no flag at all**, so an
 unasked deployment's argv is the one it always had; `0` is a real setting (thinking ends at once)
 and reaches the argv, which is why the sentinel cannot be the falsy value the image budget uses.
+It lives in `_UNRESTRICTED_REASONING`, which the GPU override restates for both tiers and
+`scripts/crosscheck.py` therefore reads **under its underscore**: a registered site is a name a
+file declares, not a name a module exports, so the sentinel stays private and the gate stays a
+reader of text (ADR-0029's boolean addendum).
 It is per tier because llama.cpp accepts it per server only: a request body carrying the same key
 is ignored in both directions, measured. The GPU-placed subagent tier deliberately has no such
 knob, its deliberation being off at the template already

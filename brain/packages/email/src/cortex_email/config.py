@@ -13,6 +13,14 @@ TlsSecurity = Literal["starttls", "ssl"]
 # The reader's historical name for the same two modes; both halves accept the same values.
 ImapSecurity = TlsSecurity
 
+# The two shipped answers the email override spells again as its own substitution defaults, named
+# here rather than left inside the fields so `scripts/crosscheck.py` can read them: a default the
+# scan cannot compare is a default the stack may flip alone. One name covers both TLS hatches
+# because it is one answer rather than two that coincide: a hatch that ships open is not a hatch,
+# and the reader's and the sender's are shut for that single reason.
+DEFAULT_TLS_INSECURE = False
+DEFAULT_SEND_ENABLED = False
+
 
 class EmailConfig(BaseSettings):
     """Where the read-only email server connects (ADR-0009).
@@ -31,7 +39,7 @@ class EmailConfig(BaseSettings):
     password: SecretStr = SecretStr("")
     security: ImapSecurity = "starttls"
     ca_cert: str = ""
-    tls_insecure: bool = False
+    tls_insecure: bool = DEFAULT_TLS_INSECURE
 
 
 class SmtpConfig(BaseSettings):
@@ -51,14 +59,16 @@ class SmtpConfig(BaseSettings):
 
     # env CORTEX_EMAIL_SEND_ENABLED sits deliberately outside the SMTP_ prefix: it flips the
     # server's write capability, not a connection detail.
-    enabled: bool = Field(default=False, validation_alias="CORTEX_EMAIL_SEND_ENABLED")
+    enabled: bool = Field(
+        default=DEFAULT_SEND_ENABLED, validation_alias="CORTEX_EMAIL_SEND_ENABLED"
+    )
     host: str = "127.0.0.1"
     port: int = 1025
     user: str = ""
     password: SecretStr = SecretStr("")
     security: TlsSecurity = "starttls"
     ca_cert: str = ""
-    tls_insecure: bool = False
+    tls_insecure: bool = DEFAULT_TLS_INSECURE
 
     @model_validator(mode="after")
     def _enabled_needs_credentials(self) -> "SmtpConfig":

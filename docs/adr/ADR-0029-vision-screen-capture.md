@@ -3464,3 +3464,167 @@ own listen port, which the compose endpoint restates and no tree declares
 survey read past: what it sorted was the substitutions, and the prose above two of them quotes the
 value the other file sets, in a shape the scan is not built to find
 ([R-377](../refinements/tasks/377-a-comment-restates-a-registered-value.md)).
+
+## Addendum (2026-08-22): the scan learns a boolean and a sign, and a comment turns out to be neither
+
+The compose survey sorted every `${CORTEX_*:-default}` under `docker/` and left four narrower
+tasks behind. Two of them are one question with two faces, which is why they are answered
+together: what `scripts/values.py` may reduce a value to, and what spelling a far side is allowed
+to write one in. Five of the survey's fifty six defaults were couplings by every test it applied
+and went untied because the reducer refused the value; two comments above other substitutions
+quote a number the survey registered on the far side of the tree and nothing held the sentence.
+
+**One claim in the task files did not survive re-derivation, and it is the standing warning
+again.** The boolean entry says each compose default "restates a field that declares `False`",
+which reads as though the reducer were the only obstacle. It was half of one. `DECLARATIONS`
+matches a Python constant anchored at column 0, so an indented `tls_insecure: bool = False` is
+invisible to the scan whatever the reducer learns, and the same name is declared in both settings
+classes, which would have been read as one constant declared twice. The remedy is the one the
+survey already paid eleven times: hoist the value into a module constant beside the field it
+defaults. Everything else in both files held, including the two comments quoted verbatim and the
+sentinel being readable at column 0 already.
+
+### The fifth form is a boolean, and it reduces to its word
+
+`values.Truth` holds the word a boolean is written with, exactly as `Digits` holds the characters
+of a decimal, and for the same reason: a mention renders the agreed value into its template and
+goes looking for the result, so the text is the half a coupling needs. Python supplies a second
+reason of its own. `bool` **is** `int` here and `False == 0`, so a bare boolean would tie an escape
+hatch that ships shut to any site declaring zero, and would sort under an ordering that has no
+business over an answer with two values. An ordering therefore refuses it, in the same sentence
+that already refuses a string and a decimal.
+
+**A site may write Python's two words and no others.** Not because no other language has booleans,
+but because a second casing at a declaring site would be two texts naming one answer, and this
+scan compares texts: two sites spelling `True` and `true` would be reported as a disagreement
+nobody has. A far side that writes another casing is reached from the mention side instead, which
+is what the spelling below is.
+
+### The sign is not a sixth form but a widening: a product of integers may open with a minus
+
+`-1` is llama.cpp's own word for a trace nobody bounds and this repo's "unset" for the same
+reason, and it is now a value the reducer reads. The sign belongs to the whole expression and
+never to a factor, `2 * -3` being arithmetic nobody writes here, and a leading `+` stays refused
+because `str(1)` renders `1` and a needle built that way would not find a site spelling `+1`. A
+signed integer is a number in every other respect: it has an ordering, it needs no spelling, and
+a site declaring `-1` sits under one declaring `0` and not under one declaring `-2`.
+
+### `Spelling.LOWERED`, and the rule that had to learn what it was really about
+
+Python writes `False` where YAML writes `false`. Neither can be rendered from the other's text, so
+the third `Spelling` folds a boolean's word to lower case, derived from the declared value exactly
+as the whole spelling is and refusing anything that is not a boolean.
+
+Dropping it in met a rule that would have refused every boolean entry. `values.spelling_fault`
+required an entry that re-spells to hold the written form somewhere too, and each of these entries
+is one site and one or two mentions that all lower. The rule was right and its statement was too
+wide: what makes a whole spelling need a witness is that it is **lossy**, `8` and `8.0` rendering
+alike, so an entry that only ever spells whole cannot see a site that dropped its point. A case
+fold loses nothing, `False` and `True` folding to two different words, so a site that flipped
+always moves the needle and a second reading would hold nothing that the first does not.
+`Spelling.lossy` is now that question, asked per member and answered beside the member's own
+definition, and `spelling_fault` turns on it rather than on whether a mention re-spells at all.
+Nothing about the whole spelling changed, which the suite's existing refusals still show.
+
+### The private name is read under its underscore, and the registry says so
+
+`_UNRESTRICTED_REASONING` is module private and a registry entry naming it reaches past that
+underscore. The two ways out were to make the constant public or to state the rule, and the rule
+is the better answer: **a `Site` names what a file declares, not what a module exports.** This
+scan reads text and imports nothing, so naming a private constant asks nothing of the module,
+where renaming one to suit a reader would be the gate editing the contract it exists to watch, and
+the next private sentinel would face the same push. What it costs is a rename nobody tells the
+registry about, and that is not silent: an unreadable place is a fault here and never a skip, so
+the rename fails the gate and the registry is corrected with it, the same as any other site. The
+sentence lives on `Site` itself in `scripts/couplings.py`, where the next person to wonder is
+already reading.
+
+### A comment is not a spelling and not a form, only another place a whole value appears
+
+The second task asked what a mention in prose looks like to the scan, and the answer is that it
+looks like every other mention. A mention was never syntax: it is a template with the agreed value
+rendered into it, required to appear as a token of its own in a file the scan otherwise knows
+nothing about. `docs/runbooks/llamacpp-gpu.md` has been pinned as `CORTEX_BODY_CAPTURE_MAX_EDGE={value}`
+since the survey, which is the same `VAR=value` shape a compose comment writes. The only thing new
+about these two is the file they sit in, and the scan does not ask what else a file is for, so
+`docker/docker-compose.body.yml` carries a substitution for one value and a mention of another
+with nothing to reconcile.
+
+They are registered because they pass the survey's own test rather than because they are quotable.
+Each comment states what the deployment does now: the body override argues for a 2048 px capture
+by naming the encoder's 1024 token budget, and the GPU override argues for the budget by naming
+the capture. A retune of either leaves one of them **wrong** and not merely **past**. Deleting the
+cross reference was the cheaper close and the worse document, the pair being the measurement and
+either number alone being unexplained.
+
+**What is deliberately still unheld** is the same pairing written out in three other documents,
+the vision runbook three times, the GPU runbook's recipe block and measured table, and the model
+manager's contract.
+Those are prose arguing with a number rather than a deployment stating what it does, which the
+survey left unregistered on purpose, and the choice is now written down as its own task rather
+than made silently here.
+
+### What got registered, and what the close cost
+
+**Three entries and two mentions.** The email sidecar's two shipped answers (one name covering
+both TLS escape hatches, because a hatch that ships open is not a hatch and the reader's and the
+sender's are shut for that single reason, and the send switch that turns a read-only server into
+one that can write), the sentinel both reasoning budgets default to, and one comment on each half
+of the legibility pair. That is fifty entries over fifty nine sites and ninety six mentions.
+
+**Two defaults were hoisted out of their fields**, `DEFAULT_TLS_INSECURE` and
+`DEFAULT_SEND_ENABLED`, which is the price the survey named and pays once per value.
+
+**The registry has a sixth part**, `scripts/emailcouplings.py`, and it is the first that arrived as
+a subject rather than as a split under the line cap. That is the claim `registry.py` was written
+to make and had not yet been asked to pay: a new part is a data file plus one line there, and
+`crosscheck.py` still never learns the registry has parts.
+
+**`values.py` split**, the two forms having brought it to 297 of 300 lines. The seam is the one its
+own first paragraph had been drawing since it was written: one half says what a right-hand side
+reduces to and how a mention may spell it, and the other says whether a set of readings holds.
+The second half is `scripts/readings.py` now, and `crosscheck.py` imports from both.
+
+### Proved able to fail, sixteen times, over the crosscheck registry
+
+Every registration was planted on the real tree one drift at a time, the gate run, the file
+restored, and the restoration compared by digest against what it held before. The counts below are
+over the crosscheck registry as it stands after this change (50 entries, 59 sites, 96 mentions),
+not over any test suite: a suite's numbers say nothing about the collection this table is about.
+
+| planted drift | what the gate said |
+|---|---|
+| `DEFAULT_TLS_INSECURE` flips to `True` | 2 faults, both compose defaults unfound as `true` |
+| the IMAP default flips to `true` | 1 fault naming that substitution |
+| the SMTP default flips to `true` | 1 fault naming that substitution |
+| the IMAP default is retyped `False` | 1 fault: the fold is checked, so Python's casing in YAML is caught |
+| `DEFAULT_SEND_ENABLED` flips to `True` | 1 fault, the override still shipping `false` |
+| the send default flips to `true` | 1 fault naming that substitution |
+| `_UNRESTRICTED_REASONING` becomes `512` | 4 faults: both overrides, the runbook, the contract |
+| `_UNRESTRICTED_REASONING` loses its sign | the same 4, which is the sign being compared |
+| the cortex budget's default becomes `512` | 1 fault naming that substitution |
+| the deep tier's default becomes `512` | 1 fault naming that substitution |
+| the GPU runbook's clause says `0` | 1 fault naming the runbook |
+| the module contract says `-2` | 1 fault naming the contract |
+| `DEFAULT_IMAGE_MAX_TOKENS` becomes `2048` | 3 faults, the new body-override comment among them |
+| the body override's comment says `2048` | 1 fault naming the comment's file |
+| `DEFAULT_CAPTURE_MAX_EDGE` becomes `3072` | 4 faults, the new GPU-override comment among them |
+| the GPU override's comment says `3072` | 1 fault naming the comment's file |
+
+All sixteen exited 1 and all sixteen restorations matched by digest. **Twelve are newly catchable
+in the strongest sense**: the reducer at the previous commit raises on `False`, on `True` and on
+`-1`, so none of those three entries could be written down at all, let alone pass. **Two more are
+newly caught** rather than newly catchable, the comments moving alone having been registrable all
+along and simply not registered, which is the honest difference between a gap in the mechanism and
+a gap in the reading. The last two move a site that was already tied, and they are in the table to
+show the new comment standing among the far sides the fault names.
+
+### Records
+
+The records are the two task files
+[R-354](../refinements/tasks/354-two-declared-defaults-the-reducer-refuses.md) and
+[R-377](../refinements/tasks/377-a-comment-restates-a-registered-value.md), which both close,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from them, and this
+addendum. One narrower task opens in their place, the paired cross reference as it is written in
+the three documents that argue with it rather than ship it
+([R-382](../refinements/tasks/382-the-paired-numbers-quoted-in-prose.md)).

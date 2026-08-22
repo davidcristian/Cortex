@@ -166,10 +166,16 @@ SHIPPED_COUPLINGS: tuple[Constant, ...] = (
             "new one (ADR-0029 legibility addendum)"
         ),
         sites=(Site(BODY_CONFIG, "DEFAULT_CAPTURE_MAX_EDGE"),),
+        # The last mention is the GPU override's own comment, which argues for the token budget by
+        # naming this edge, in the same `VAR=value` shape the runbook above it already writes. A
+        # comment is no new form and no new spelling, only another place a whole value appears; a
+        # far side is a sentence that becomes wrong, and this one does, the pair being what each
+        # number is for (ADR-0029 comment addendum).
         mentions=(
             Mention(BODY_COMPOSE, "${CORTEX_BODY_CAPTURE_MAX_EDGE:-{value}}"),
             Mention(VISION_RUNBOOK, "| `CORTEX_BODY_CAPTURE_MAX_EDGE` | brain | `{value}` |"),
             Mention(GPU_RUNBOOK, "CORTEX_BODY_CAPTURE_MAX_EDGE={value}"),
+            Mention(GPU_COMPOSE, "CORTEX_BODY_CAPTURE_MAX_EDGE={value}"),
         ),
     ),
     Constant(

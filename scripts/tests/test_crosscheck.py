@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from importlib import import_module
 from pathlib import Path
 
@@ -242,6 +243,38 @@ def test_an_ordering_over_decimals_is_refused_too(tmp_path: Path) -> None:
     _order(tmp_path, "4.0", "8.0")
     (fault,) = crosscheck.check_constant(tmp_path, ORDERING)
     assert "an ordering compares integers" in fault.detail
+
+
+def _two_python_bounds(root: Path, lower: str, upper: str) -> crosscheck.Constant:
+    """An ordering over two Python files, for the values no `u32` would honestly hold."""
+    (root / "one.py").write_text(f"LOWER = {lower}\n", encoding="utf-8")
+    (root / "other.py").write_text(f"UPPER = {upper}\n", encoding="utf-8")
+    return ORDERING._replace(
+        sites=(crosscheck.Site("one.py", "LOWER"), crosscheck.Site("other.py", "UPPER"))
+    )
+
+
+def test_an_ordering_over_booleans_is_refused_too(tmp_path: Path) -> None:
+    """An answer with two values has no order, and Python's `False == 0` must not supply one."""
+    ordering = _two_python_bounds(tmp_path, "False", "True")
+    (fault,) = crosscheck.check_constant(tmp_path, ordering)
+    assert "an ordering compares integers" in fault.detail
+
+
+@pytest.mark.parametrize(("lower", "upper"), [("-1", "0"), ("-2", "-1")])
+def test_an_ordering_sorts_a_signed_bound_as_the_number_it_is(
+    tmp_path: Path, lower: str, upper: str
+) -> None:
+    """The other half of the sign: a signed integer is a number here and orders like one."""
+    ordering = _two_python_bounds(tmp_path, lower, upper)
+    assert crosscheck.check_constant(tmp_path, ordering) == []
+
+
+def test_an_ordering_catches_a_signed_bound_that_climbed(tmp_path: Path) -> None:
+    """And it is a real comparison rather than a text one, which would file `-1` under `-2`."""
+    ordering = _two_python_bounds(tmp_path, "-1", "-2")
+    (fault,) = crosscheck.check_constant(tmp_path, ordering)
+    assert "not non-decreasing in registry order" in fault.detail
 
 
 # ── memberships, where one side's value must be one of the other's ─────────────
@@ -701,6 +734,97 @@ def test_an_entry_that_re_spells_everywhere_is_refused(tmp_path: Path) -> None:
     assert "nothing holds the spelling the site writes" in fault.detail
 
 
+# ── two words for one answer, and the sentinel that carries a sign ─────────────
+
+
+HATCH = crosscheck.Constant(
+    label="an escape hatch's shipped answer",
+    why="a hatch that ships open is not a hatch",
+    sites=(crosscheck.Site("config.py", "DEFAULT_TLS_INSECURE"),),
+    mentions=(
+        crosscheck.Mention(
+            "stack.yml",
+            "${TLS_INSECURE:-{value}}",
+            spelling=couplings.Spelling.LOWERED,
+        ),
+    ),
+)
+
+
+def _hatch(root: Path, declared: str, substituted: str) -> None:
+    """A boolean a settings module declares and a compose default spells in YAML's casing."""
+    (root / "config.py").write_text(f"DEFAULT_TLS_INSECURE = {declared}\n", encoding="utf-8")
+    (root / "stack.yml").write_text(
+        f'      TLS_INSECURE: "${{TLS_INSECURE:-{substituted}}}"\n', encoding="utf-8"
+    )
+
+
+def test_a_boolean_reaches_the_far_side_that_writes_it_in_lower_case(tmp_path: Path) -> None:
+    """Neither casing can be rendered from the other's text, which is what the spelling is for."""
+    _hatch(tmp_path, declared="False", substituted="false")
+    assert crosscheck.check_constant(tmp_path, HATCH) == []
+
+
+def test_a_hatch_the_stack_opens_alone_is_reported(tmp_path: Path) -> None:
+    """The drift this form was added for: the guarantee is gone and every read path still works."""
+    _hatch(tmp_path, declared="False", substituted="true")
+    (fault,) = crosscheck.check_constant(tmp_path, HATCH)
+    assert "does not spell '${TLS_INSECURE:-false}'" in fault.detail
+
+
+def test_a_hatch_the_field_opens_alone_is_reported_too(tmp_path: Path) -> None:
+    """And the other direction, which is why a lowered spelling needs nothing beside it."""
+    _hatch(tmp_path, declared="True", substituted="false")
+    (fault,) = crosscheck.check_constant(tmp_path, HATCH)
+    assert "does not spell '${TLS_INSECURE:-true}'" in fault.detail
+
+
+def test_a_boolean_a_far_side_writes_as_the_site_does_needs_no_spelling(tmp_path: Path) -> None:
+    """The default spelling still reaches a far side that writes Python's own word."""
+    written = HATCH._replace(
+        mentions=(crosscheck.Mention("stack.yml", "${TLS_INSECURE:-{value}}"),)
+    )
+    _hatch(tmp_path, declared="False", substituted="False")
+    assert crosscheck.check_constant(tmp_path, written) == []
+
+
+SENTINEL = crosscheck.Constant(
+    label="a sentinel that is a number",
+    why="the stack substitutes the word the engine reads as unbounded",
+    sites=(crosscheck.Site("config.py", "_UNRESTRICTED"),),
+    mentions=(crosscheck.Mention("stack.yml", "${BUDGET:-{value}}"),),
+)
+
+
+def _sentinel(root: Path, declared: str, substituted: str) -> None:
+    """A module-private sentinel and the compose default that restates it, sign and all."""
+    (root / "config.py").write_text(f"_UNRESTRICTED = {declared}\n", encoding="utf-8")
+    (root / "stack.yml").write_text(
+        f'      BUDGET: "${{BUDGET:-{substituted}}}"\n', encoding="utf-8"
+    )
+
+
+def test_a_signed_default_renders_into_the_shape_a_stack_substitutes(tmp_path: Path) -> None:
+    """A leading minus survives the round trip, needle and all, under a name a module hides."""
+    _sentinel(tmp_path, declared="-1", substituted="-1")
+    assert crosscheck.check_constant(tmp_path, SENTINEL) == []
+
+
+def test_a_sentinel_the_stack_bounds_alone_is_reported(tmp_path: Path) -> None:
+    """The drift: a tier the config says is unbounded and every deployment starts bounded."""
+    _sentinel(tmp_path, declared="-1", substituted="512")
+    (fault,) = crosscheck.check_constant(tmp_path, SENTINEL)
+    assert "does not spell '${BUDGET:--1}'" in fault.detail
+
+
+def test_a_sentinel_renamed_past_its_underscore_is_a_fault_and_not_a_skip(tmp_path: Path) -> None:
+    """What pays for reading a private name: the rename is reported rather than silently untied."""
+    _sentinel(tmp_path, declared="-1", substituted="-1")
+    (tmp_path / "config.py").write_text("_UNBOUNDED = -1\n", encoding="utf-8")
+    (fault,) = crosscheck.check_constant(tmp_path, SENTINEL)
+    assert "config.py declares no _UNRESTRICTED" in fault.detail
+
+
 def test_check_walks_the_whole_registry(tmp_path: Path) -> None:
     second = BYTE_CEILING._replace(label="another ceiling")
     faults = crosscheck.check(tmp_path, (BYTE_CEILING, second))
@@ -779,14 +903,26 @@ def test_the_registry_spends_at_least_one_rendered_name() -> None:
     assert any(crosscheck.PLACEHOLDER not in mention.template for mention in named)
 
 
-def test_the_registry_reduces_at_least_one_decimal() -> None:
+# Not three forms but two plus a widening of a third, all unexercised in the same way: the
+# reducer refused a leading sign until two compose defaults turned out to spell one.
+WIDENINGS: list[tuple[str, Callable[[values.Value], bool]]] = [
+    ("a decimal", lambda value: isinstance(value, values.Digits)),
+    ("a boolean", lambda value: isinstance(value, values.Truth)),
+    ("a signed integer", lambda value: isinstance(value, int) and value < 0),
+]
+
+
+@pytest.mark.parametrize(("form", "reads"), WIDENINGS)
+def test_the_registry_reduces_every_form_the_reducer_was_widened_for(
+    form: str, reads: Callable[[values.Value], bool]
+) -> None:
     """A value form no entry spells is the same dead wire an unused comparator is."""
     read = [
         crosscheck.read_value(REPO_ROOT, site)
         for constant in crosscheck.CONSTANTS
         for site in constant.sites
     ]
-    assert any(isinstance(value, values.Digits) for value in read)
+    assert any(reads(value) for value in read), form
 
 
 def test_the_registry_exercises_every_spelling() -> None:
