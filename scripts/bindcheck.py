@@ -8,16 +8,8 @@ import sys
 from pathlib import Path
 from typing import NamedTuple
 
+from composefiles import ComposeSearchError, compose_files
 from composemounts import ComposeReadError, Mount, read_mounts, strip_quotes
-
-SKIPPED_DIRS = frozenset(
-    {".git", ".venv", ".claude", "target", "node_modules", "__pycache__", "dist", "coverage"}
-)
-
-# What a compose file is called. Both stems and both suffixes, because a scan that silently
-# missed a new override file is the defect this one exists to prevent.
-COMPOSE_STEMS = ("docker-compose", "compose")
-COMPOSE_SUFFIXES = frozenset({".yml", ".yaml"})
 
 _DEFAULTED = re.compile(r"\$\{[A-Za-z_]\w*:?-(?P<default>[^{}]*)\}")
 _UNDEFAULTED = re.compile(r"^(?:\$\{[A-Za-z_]\w*\}|\$[A-Za-z_]\w*)$")
@@ -139,24 +131,6 @@ def check_file(root: Path, compose: Path) -> list[Fault]:
     return faults
 
 
-def compose_files(root: Path) -> list[Path]:
-    """Return every compose file under ``root``, refusing to report success on none."""
-    found: list[Path] = []
-    for directory, dirnames, filenames in root.walk():
-        dirnames[:] = sorted(name for name in dirnames if name not in SKIPPED_DIRS)
-        found.extend(
-            directory / name
-            for name in sorted(filenames)
-            if Path(name).suffix in COMPOSE_SUFFIXES
-            and Path(name).stem.startswith(COMPOSE_STEMS)
-            and (directory / name).is_file()
-        )
-    if not found:
-        msg = f"no compose file under {root}; a scan that matched nothing cannot fail"
-        raise BindCheckError(msg)
-    return found
-
-
 def check(root: Path) -> list[Fault]:
     """Check every compose file under ``root``, in walk order."""
     return [fault for compose in compose_files(root) for fault in check_file(root, compose)]
@@ -181,7 +155,7 @@ def main(argv: list[str] | None = None) -> int:
     root = given.resolve()
     try:
         faults = check(root)
-    except BindCheckError as err:
+    except (BindCheckError, ComposeSearchError) as err:
         print(f"bindcheck: {err}", file=sys.stderr)
         return 2
     for fault in faults:

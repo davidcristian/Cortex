@@ -264,7 +264,7 @@ GPU. The full working agreement is [AGENTS.md](AGENTS.md).
 
 | Command | What it does |
 | ------- | ------------ |
-| `just check` | The whole gate: four cross-tree scans, then the four trees in parallel |
+| `just check` | The whole gate: six cross-tree scans, then the four trees in parallel |
 | `just up` / `just down` | The brain in Compose, with the scripted inference backend |
 | `just up-gpu` | The brain plus a llama.cpp model host on the GPU |
 | `just brain-serve` | The brain natively, no Docker |

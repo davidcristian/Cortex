@@ -1,4 +1,4 @@
-"""What a value IS to `crosscheck.py`, and the spelling a mention may write one in."""
+"""What a value IS to the scans that compare one, and the spelling a mention may write one in."""
 
 import re
 from typing import NamedTuple
@@ -122,7 +122,7 @@ def parse_value(text: str) -> Value:
     return _integer_value(stripped)
 
 
-def _whole_spelling(value: Value) -> str:
+def whole_spelling(value: Value) -> str:
     """A number with no fractional part, for a far side whose syntax carries none."""
     if isinstance(value, int):
         return str(value)
@@ -150,7 +150,7 @@ def _lowered_spelling(value: Value) -> str:
 def spell(value: Value, spelling: Spelling) -> str:
     """The text a mention writes ``value`` as, in the spelling that mention asks for."""
     if spelling is Spelling.WHOLE:
-        return _whole_spelling(value)
+        return whole_spelling(value)
     if spelling is Spelling.LOWERED:
         return _lowered_spelling(value)
     return str(value)

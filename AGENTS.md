@@ -103,7 +103,7 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    config via env only.
 6. **`just check` is the single gate**, running ruff, pyright, pytest + coverage,
    `cargo fmt --check`, clippy, `cargo test`, `cargo llvm-cov`, the overlay's typecheck and
-   Vitest coverage, and the five cross-tree scans: the line cap, which reaches all three
+   Vitest coverage, and the six cross-tree scans: the line cap, which reaches all three
    toolchains; `dashcheck.py`, which bans a dash used as punctuation in any text file
    (ADR-0026); `crosscheck.py`, which ties every value this repo spells in more than one place,
    whether the far side declares it, orders itself against it, carries it among the several it
@@ -113,12 +113,15 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    mount to resolving outside the repo, onto a path git tracks, or onto one git ignores, so
    no `docker compose up`
    materializes a container-written directory the index would take (ADR-0026 bind addendum);
+   `defaultcheck.py`, which holds one variable spelled in several compose files to one default
+   in all of them, compared as a value rather than as text so the one re-spelling docker's own
+   syntax forces stays green (ADR-0026 defaults addendum);
    and `backlogcheck.py`, which holds each backlog index to the task files it describes and
    every link in them to resolving, so a status can be written in exactly one place, and holds
    every `#fragment` written anywhere in the repo to naming a heading the document it aims at
    really offers, a backlog index answering out of the rendering the gate is about to require
    and every other document out of the file on disk
-   (ADR-0039). All five run unconditionally, in CI too. Pre-commit mirrors it. Run it
+   (ADR-0039). All six run unconditionally, in CI too. Pre-commit mirrors it. Run it
    before declaring anything done. **One recipe is deliberately outside it**, `check-shell`
    (clippy on the Tauri shell), which CI schedules and `just check` does not run: it is the only
    check needing system libraries, the Linux GTK/webkit/dbus dev packages a clean dev box need
@@ -246,8 +249,11 @@ scripts/          repo gates, plus the one module here that gates nothing, contr
                   reduces to and the spelling a mention writes one in) + readings.py (how a
                   constant's readings must then stand),
                   bindcheck.py (no compose bind
-                  default lands unignored in the tree) + composemounts.py (its compose
-                  reader), backlogcheck.py (each backlog index still matches its task files,
+                  default lands unignored in the tree) + composemounts.py (its mount
+                  reader), defaultcheck.py (one variable, one default in every compose file
+                  that spells it) + composedefaults.py (its substitution reader) +
+                  composefiles.py (which files both compose gates walk, answered once so the
+                  two cannot drift apart), backlogcheck.py (each backlog index still matches its task files,
                   ADR-0039) + backlog.py (task-file grammar), backlogindex.py (what the
                   index renders), backloganchors.py (the anchors a document offers and
                   every pointer in the repo aimed at one) and headingshapes.py (what a
@@ -261,7 +267,7 @@ justfile          `just check` + check-*; proto, up/down, brain-serve, seam-heal
                   backlog (regenerate each backlog index from its task files), shuffle (every
                   suite at one chosen seed, the sweep the gate's own fixed seed never draws,
                   ADR-0002)
-                  (`just check` runs the five cross-tree scans before the per-tree ones;
+                  (`just check` runs the six cross-tree scans before the per-tree ones;
                   `turn-cost` is the A/B/A live measurement, where the container restarts
                   between arms live, ADR-0038)
 docker/           Compose stack (run via `just up`/`up-gpu`, or `docker compose --project-directory .

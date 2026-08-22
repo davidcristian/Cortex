@@ -10,6 +10,7 @@ check:
     just check-dashcheck
     just check-crosscheck
     just check-bindcheck
+    just check-defaultcheck
     just check-backlog
     tmp=$(mktemp -d)
     trap 'rm -rf "$tmp"' EXIT
@@ -55,6 +56,10 @@ check-crosscheck:
 check-bindcheck:
     cd scripts && uv sync --locked
     cd scripts && uv run python bindcheck.py --root ..
+
+check-defaultcheck:
+    cd scripts && uv sync --locked
+    cd scripts && uv run python defaultcheck.py --root ..
 
 check-backlog:
     cd scripts && uv sync --locked

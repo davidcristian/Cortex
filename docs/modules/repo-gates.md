@@ -2,26 +2,28 @@
 
 **Purpose.** The repo's own tooling, in the tree neither shipped artifact contains: the cross-tree
 line cap, the punctuating-dash ban, the cross-language constant check, the compose bind-mount
-check, the backlog gate, the Rust coverage threshold, the CI path classifier, the
-commit-message style hook,
+check, the compose defaults check, the backlog gate, the Rust coverage threshold, the CI path
+classifier, the commit-message style hook,
 and, since 2026-08-09, the one module here that gates nothing, the interval a live measurement
 reports. What they have in common is not that each is a gate; it is that each is pure Python that
 belongs to neither the brain nor the body and is gated exactly like both. A standalone uv project
 (not a brain workspace member, per ADR-0002).
 
 **Public contract** (all are CLIs, with `linecap.py`, `dashcheck.py`, `crosscheck.py`,
-`bindcheck.py`, `backlogcheck.py` and `coverage_gate.py` invoked by `just` recipes, `ci_paths.py`
+`bindcheck.py`, `defaultcheck.py`, `backlogcheck.py` and `coverage_gate.py` invoked by `just`
+recipes, `ci_paths.py`
 by the CI
 workflow, `commitlint.py` by the commit-msg pre-commit stage, `contrast.py` by `just turn-cost`;
-each also exposes a pure, unit-tested core function). Sixteen modules here have no CLI of their
+each also exposes a pure, unit-tested core function). Eighteen modules here have no CLI of their
 own, most split out under the line cap and each named for what it holds: `couplings.py` is the
 vocabulary `crosscheck.py`'s registry is written in, `registry.py` names the parts that registry is
 written in, and `seamcouplings.py`, `shippedcouplings.py`, `subagentcouplings.py`,
 `modelhostcouplings.py`, `emailcouplings.py`, `fixturecouplings.py` and `overlaycouplings.py` are
 those parts, `values.py`
 is the value forms that scan compares on and the spellings a mention writes one in, `readings.py`
-is how a set of those values must then stand, `composemounts.py` is `bindcheck.py`'s compose
-reader, and
+is how a set of those values must then stand, `composemounts.py` is `bindcheck.py`'s mount
+reader, `composedefaults.py` is `defaultcheck.py`'s substitution reader, `composefiles.py` is
+which files the two of them walk, answered once so they cannot drift apart about it, and
 `backlog.py`, `backlogindex.py`, `backloganchors.py` and `headingshapes.py` are the four
 `backlogcheck.py` reads a backlog through: the task-file grammar, the index renderer, the anchors a
 document offers with every pointer in the repo aimed at one, and what a heading may look like for
@@ -220,13 +222,57 @@ that last question to have an answer.
   an input the repo ships under one project directory and nothing at all under the other, and it
   is the second landing that a compose run creates. That is why `.gitignore` carries
   `docker/docker/`, where `./docker/postgres/init.sql` and its two neighbours resolve when the
-  project directory is `docker/`. Compose files are found by name anywhere under `--root` (stem `docker-compose`/
-  `compose`, suffix `.yml`/`.yaml`), skipping the vendored directory components, so a new override
-  is covered wherever it is added. **Fails closed**: no compose file at all, a mount entry the
+  project directory is `docker/`. Compose files are found by `composefiles.py`, shared with
+  `defaultcheck.py`, so a new override is covered wherever it is added and the two compose gates
+  cannot come to disagree about which files exist. **Fails closed**: no compose file at all, a mount entry the
   reader refuses, a source that cannot be reduced, and a git that cannot run are each a fault,
   never a skip. Exit 0 with a summary; exit 1 printing `path:line: detail` per fault; exit 2 if
   `--root` is not a directory or the scan could not run at all.
-- `composemounts.py` is `bindcheck.py`'s reader and has no CLI. `read_mounts(text)` returns one
+- `defaultcheck.py [--root DIR]` holds one variable spelled in several compose files to one
+  default in all of them (ADR-0026 defaults addendum). It is compose-only and registry-free: it
+  reads every substitution under `--root`, groups them by variable name across files, and reports
+  a group that does not agree. **The rule is not that all spellings are identical.** The tree
+  carries one deliberate re-spelling, `${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8.0}` in an environment
+  block against `${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8}g` in two container limits, because docker
+  parses `8.0g` as a size and refuses it. So the defaults are compared as a **value**, through the
+  same `values.whole_spelling` `crosscheck.py` renders that pair with: identical text agrees with
+  nothing to reduce, and anything else must reduce and re-spell whole, so `8.0` ties to `8` and
+  `8.5` does not, its fraction being lost rather than zero. **The operator is part of the answer**:
+  a group's spends must fall back the same way as well as to the same value, `${V:-x}` and
+  `${V-x}` disagreeing about a variable set to empty and `${V:?}` beside `${V:-x}` being one file
+  demanding what another supplies, and only the operators whose argument is a value at all are
+  compared, two `:?` spends wording their message differently having not drifted. A variable
+  spelled once is never compared, having no sibling to disagree with. **Why it is not folded into
+  `crosscheck.py`**: that scan is registry-driven and its subject is a value some tree declares
+  against the places restating it, while this question has no declaration and is discovered by
+  walking the files, so the fold would give one scan two entry points and make its stated subject
+  false. **Fails closed**: no compose file at all, a file that cannot be read or decoded, and a
+  `$` form the reader was not taught are each a fault. Exit 0 with a summary; exit 1 printing
+  `NAME: detail` per fault, each naming every place the variable is spelled; exit 2 if `--root`
+  is not a directory or the scan could not run at all.
+- `composedefaults.py` is `defaultcheck.py`'s reader and has no CLI. `read_substitutions(text)`
+  returns one `Substitution(line, name, operator, argument)` per spend, in file order. It is a
+  character walk rather than a YAML parse, because compose expands `${...}` in the raw text before
+  YAML sees it, which is what lets one variable be read the same way as a whole value, inside a
+  connection string and inside a command argument. Seven forms are read (`${N}`, `$N`, and the
+  three operator pairs `:-`/`-`, `:+`/`+`, `:?`/`?`), the operator kept as written rather than
+  folded. `$$` is compose's literal dollar and is consumed whole, so `$${V}` spends nothing. A
+  whole-line comment is skipped, compose expanding nothing in one, which leaves a default written
+  there as prose and therefore `crosscheck.py`'s question; a **trailing** `#` is deliberately not
+  detected, this reader having no model of YAML quoting and so being unable to tell a marker from
+  a `#` inside a connection string, and reading the text either way is the fail-closed side of not
+  knowing. Everything else raises `SubstitutionReadError`: a `$` opening none of those forms, a
+  brace that never closes, a nested expansion (which compose does not expand), a name that is not
+  an identifier, and an operator it was not taught.
+- `composefiles.py` is which files those two gates walk and has no CLI. `compose_files(root)`
+  returns every compose file under `root` by name (stem `docker-compose`/`compose`, suffix
+  `.yml`/`.yaml`), skipping the vendored directory components, and raises `ComposeSearchError`
+  on none, a scan whose glob matched nothing being one that reports success forever. It is one
+  module rather than a copy in each gate because a second walk is a gate that learns about a new
+  override while its sibling does not, in silence. It deliberately does not join the per-gate
+  `SKIPPED_DIRS` lists in `linecap.py` and `dashcheck.py`, which differ from each other because
+  each answers to its own rule.
+- `composemounts.py` is `bindcheck.py`'s mount reader and has no CLI. `read_mounts(text)` returns one
   `Mount(line, source)` per bind mount a compose file declares, skipping named volumes (long-form
   `type:` in `NON_BIND_TYPES`, short-form sources without a `PATH_PREFIXES` prefix) and the
   top-level `volumes:` mapping. It is a line walk, not a YAML parse, because these gates are
@@ -477,6 +523,16 @@ that last question to have an answer.
   `test_the_repo_really_declares_binds_for_this_gate_to_have_checked` fails if the reader ever
   finds fewer than six defaulted bind sources under `docker/`, so the clean verdict cannot go
   vacuously green on a reader that stopped matching.
+- `defaultcheck.py` is held to that pattern twice over.
+  `test_the_repo_itself_carries_one_default_per_variable` is the clean verdict;
+  `test_the_repo_really_spells_variables_more_than_once` fails
+  if the reader ever finds fewer than six variables with a sibling to disagree with; and
+  `test_the_repo_really_spells_one_value_two_ways` pins the set of variables whose defaults differ
+  in text at exactly `{CORTEX_SUBAGENTS_MEM_BUDGET_GB}`, which is the one pair the value comparison
+  exists for. That last one is a set and not a membership on purpose: a SECOND re-spelling landing
+  in the tree fails here and gets argued, rather than riding in on a comparison written for the
+  first. The deliberate pair is pinned green in the suite and a real drift in the same variable
+  pinned red beside it, because a gate that passes the pair by passing everything is no gate.
 - `backloganchors.py` is held to both halves of that same pattern:
   `test_the_repo_itself_offers_every_anchor_aimed_at_it` runs the anchor check over the real
   tree, and `test_the_repo_really_aims_pointers_at_both_indexes_from_outside_the_backlog` fails

@@ -1,7 +1,7 @@
 [project]
-name = "repo-gates"
+name = "repo-checks"
 version = "0.1.0"
-description = "Repo-wide hard-gate tooling: the line-cap scan, the punctuating-dash scan, the cross-language constant check, the Rust coverage gate, the CI path classifier, and the commit-message style hook."
+description = "This repository's own checks: the cross-tree scans, the Rust coverage check, the CI path classifier and the commit-message style hook."
 requires-python = ">=3.12"
 dependencies = []
 
@@ -23,12 +23,14 @@ pythonpath = ["."]
 markers = [
   "integration: exercises live external systems; excluded from coverage gate and CI",
 ]
+# `--randomly-seed` is fixed, so the order is not the collection order and is the same twice. The
+# number is arbitrary and deliberately unlike the other suites' seeds, so nobody reads the four as
+# one value that has to agree. `just shuffle` is what runs the other orders.
 addopts = "--cov=. --cov-branch --cov-report=term-missing --cov-fail-under=100 --strict-markers -m \"not integration\" --randomly-seed=7919"
 
 [tool.coverage.run]
 branch = true
-# Measure the whole tree so a new script is gated by default (fail closed);
-# a module must be excluded here to escape, never merely forgotten.
+# Measure the whole tree, so a new module is covered unless it is excluded here on purpose.
 omit = ["tests/*", ".venv/*"]
 
 [tool.pyright]
