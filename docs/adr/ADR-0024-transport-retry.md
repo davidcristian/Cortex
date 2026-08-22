@@ -973,3 +973,199 @@ both: [R-371](../refinements/tasks/371-a-floor-and-a-sliver-are-indistinguishabl
 half-window bound's margin is a judgement over one machine under one synthetic load, with nothing
 sampling how wide the sliver grows on a busier one:
 [R-372](../refinements/tasks/372-the-sliver-is-unsampled-over-time.md).
+
+## Addendum (2026-08-22): all three readings come off the wire, and the floor stops being a race
+
+Three entries were open on one reading. Two of the three facts the abandonment line distinguishes
+were only ever values the test file handed the wrap
+([R-351](../refinements/tasks/351-two-readings-only-a-fake-ever-produced.md)); the wire case that
+does produce a real reading can no longer tell a grpc that floors it from one that reports the
+unspent sliver
+([R-371](../refinements/tasks/371-a-floor-and-a-sliver-are-indistinguishable.md)); and the margin
+under the half-window bound was measured once and is sampled by nothing
+([R-372](../refinements/tasks/372-the-sliver-is-unsampled-over-time.md)). They are one question,
+so they are answered together: **each of the three readings gets the wire case of the shape that
+produces it in production**, and the third entry is declined because the first two take away the
+only thing it was protecting.
+
+### Re-derived first, and one recorded claim did not hold
+
+Every claim in the three entries was checked against the tree before anything was written. The
+wire case did assert exactly `remaining >= 0` and `remaining < _ANNOUNCED_S / 2`; the other two
+rows were driven through `_Context`; the bound was 0.1 s against 0.2 s announced. The one claim
+that did not hold is R-371's count: it says the `0.05` mutation "reddens three cases, and all
+three are the parameterized renderings". Re-run here before any change, that mutation reddens
+three, and the addendum above records the same three, so the entry is right about the tree and
+wrong about nothing. What did not survive is a claim of R-351's, that the `None` row is a shape
+"the body never sends, so it may be honest to leave that row as a rendering test". The row is not
+about what the body sends. It is about what grpc answers for a call with no deadline, and a grpc
+that folded that case into a `0` would turn an operator's three way reading into a two way one
+with every test still green. That reasoning is why the row got a wire case rather than a written
+excuse.
+
+### The shape each reading really has in production
+
+The reading is not three arbitrary numbers. Each one is a different thing going wrong on this
+seam, and once they are named that way, each has an obvious scenario:
+
+| Reading | How it happens on a deployed brain | Wire case |
+| --- | --- | --- |
+| a value well above zero | the shipped body on **every** call: it announces a deadline and enforces a bound strictly shorter, so it drops the call with most of the announcement unspent (the grace margin addendum above) | announce wide, wait until the handler is really entered, cancel |
+| an integer `0` | the body was killed or the connection half opened, so the cancellation it would have sent never arrives and the announced deadline is enforced by the only clock left, which is the brain's own | announce in `grpc-timeout` metadata with no `timeout=` beside it |
+| `None` | anything reaching this seam without announcing a deadline, then disconnecting | no deadline, wait until the handler is entered, cancel |
+
+The case that was already there, a client whose own `timeout=` fires on the same announcement it
+sent, is the fourth and is kept: it is the only one where two clocks race, and it is where the
+floor is exercised under the one condition that could make the reading negative. It is also, read
+against the table, the *least* faithful of the four, because the grace margin exists precisely so
+that the shipped body never arms its own clock on the deadline it announced.
+
+### Decision 1: the ordering is a fact, never a wait
+
+A cancellation that arrives before the handler is entered produces no line at all, so the two
+cases that cancel have to cancel after it. The never answering store now sets an `asyncio.Event`
+from inside the handler and the fixture hands it out beside the target, so "the handler is
+running" is something the case knows rather than something it hopes. The line itself is waited for
+on the existing latch. No case sleeps to order two events, and the one case that wants the
+deadline to have passed does not wait for that either: announcing through the header with no
+client timer means no clock exists that could fire early, so the subtraction behind the reading
+has always already gone negative by the time anything reads it.
+
+That last point is the whole of decision 2, so it is worth stating as mechanism. `grpc-timeout` is
+how a deadline crosses the wire and the body sends it. Passing it as metadata and omitting
+`timeout=` announces to the server and arms nothing here, which is exactly the deployed shape
+where the body is gone. The server's deadline can only be enforced once it is due, so
+`max(deadline - now, 0)` answers with its own second argument, an `int`, every time.
+
+### Decision 2: the floor is pinned where the sliver cannot exist
+
+This is the answer to R-371, and it is neither of the two shapes that entry weighed.
+
+Not "drive the scenario N times and assert at least one reading is the integer floor". That buys a
+real distinction with N loopback round trips at the announced window each, and it buys it
+probabilistically: the reddening it prevents is the one where every one of N happens to be a
+sliver, which is a flake at a lower rate rather than no flake. Under the load measured below, 51
+of 400 replays were slivers, so a run of N slivers is not impossible at any N a suite can afford.
+
+Not "let the deadline pass by a wide margin before the cancellation is delivered" either, and R-371
+names its own obstacle correctly: nothing in a case chooses when grpc delivers a cancellation.
+Withholding the event loop with a busy wait does force it, and was tried and works, but it costs
+real suite time to guarantee an ordering that the header shape gets for free by removing the
+second clock instead of outrunning it.
+
+The case therefore asserts `isinstance(remaining, int)` and `remaining == 0`, and the rendered
+tail `time_remaining=0` beside them. The `int` is the load bearing one: a reading still counting
+down is a float whatever its value, so the type alone separates the floor from the sliver, and it
+does so on a reading grpc produced rather than on one the file typed.
+
+### Decision 3: the margin is declined, because it no longer protects anything
+
+R-372 offered three shapes and said the third might be the answer. It is.
+
+Not `just shuffle`, and not a periodic reading in the turn cost measurement's shape. Both would
+sample a number, and the argument for sampling it was that a growing sliver would eventually
+redden the half-window bound, whose only remaining value was the floor-versus-sliver distinction
+R-371 filed. That distinction is now held by a case where the sliver cannot occur at all, so a
+sliver that grew costs exactly one thing: the two-clock case reddening if it ever reached 0.1 s.
+
+And the sliver cannot quietly reach 0.1 s, for a structural reason that the measurement below
+turned up. A sliver is the gap between the client's clock firing and the server's window still
+having something left, so it is bounded by the difference between the two, which is a function of
+the call setup this scenario has to complete anyway. A sliver approaching half the announced
+window would mean call setup taking half the announced window, and then the handler is not entered
+before the deadline, no line is written at all, and the case reddens on the latch timing out,
+which is a louder failure naming a real problem. Watching a number whose own upper bound is
+already enforced by the case's precondition is watching for nothing.
+
+What is deliberately not claimed: that the margin cannot narrow. It did, between the measurement
+that chose the bound and this one.
+
+### Measured under load before anything was asserted
+
+The load was 48 busy shell loops on a 24 core machine, twice oversubscribed, with a full `pytest`
+run of the brain suite running beside them, restarted in a loop so it was never absent. Load
+average sat between 45 and 49 throughout. Each scenario was replayed 200 times against a real
+loopback `grpc.aio` `BrainService` built by `create_server`.
+
+| Scenario | Readings | Spread |
+| --- | --- | --- |
+| both clocks armed (the older case) | 178 integer `0`, 22 positive floats | slivers 0.00037 s to 0.0107 s, median 0.0036 s |
+| the brain's clock alone (header only) | 200 integer `0`, no floats | no sliver at any replay |
+| the caller stops early | 200 floats, no integers | 9.9789 s to 10.0993 s against 10 s announced |
+| no deadline announced | 200 `None` | not applicable |
+
+An earlier 200 replay run the same hour, under the busy loops alone, read 171 integer `0` and 29
+slivers, widest 0.0076 s. Across both saturated runs that is 400 replays of the two clock
+scenario, 349 integer `0` and 51 slivers, **widest 0.0107 s**. The previous measurement's widest
+was 0.0073 s, so the margin under the 0.1 s bound went from thirteenfold to nine and a halffold
+between two comparable loads. The bound is unchanged, both because nine and a halffold is still a
+wide margin and because tightening it toward whatever this machine last produced is the mistake
+that addendum already declined once.
+
+**A reading above the announced window was really observed.** 41 of the 200 caller stops early
+replays read *higher* than the 10 s the client announced, the widest 10.0993 s. This is not a
+clock going backwards: the server's window is the one the header encoded, measured from when the
+server received it, and that is not the client's number measured from when the client sent it. A
+separate probe on a bare `grpc.aio` server read the server side window at handler entry as
+0.200092 s for an announced 0.2 s, 1.05897 s for 1.05 s, and 3.008877 s for 3.0 s, all above the
+announcement. The new case therefore asserts a lower bound only. An upper bound at the
+announcement would read as obviously safe and would be asserting something grpc does not promise,
+which is the exact defect these three entries exist to correct.
+
+### Distrust green
+
+Nine mutations, each applied to
+`brain/packages/orchestrator/src/cortex_orchestrator/abandon.py` alone and each run over the
+**whole orchestrator suite** (`packages/orchestrator/tests`, 448 selected, 19 deselected as
+integration), then reverted and the file compared against its pre-mutation text:
+
+| Mutation | Reddens | Was, before this change |
+| --- | --- | --- |
+| the `except` arm deleted | 7 | 4 |
+| the cancellation swallowed instead of re-raised | 3 | 3 |
+| every handler watched, not only the unary-unary ones | the stream passthrough, and then **hangs** `test_converse_grpc.py`, confirmed at 150 s with no completion | same |
+| the `method` field dropped | 7 | 4 |
+| the `time_remaining` field dropped | 7 | 4 |
+| `-0.05`, a grpc reporting the negative remainder | 7 | 4 |
+| `0.15`, a reading that has not run down | 7 | 4 |
+| `0.05`, a grpc that stopped flooring and reports the sliver | **6** | 3, all renderings |
+| `0.0`, one that floors to a float | **6** | 3, all renderings |
+
+The last two rows are what R-371 asked for and the only ones that needed a new kind of evidence.
+Both used to die only in the parameterized renderings, which redden on any constant because a
+constant is what they vary, and the addendum above recorded that as the price of the bound. Both
+now die in the floor case as well, and the assertion each fails is `isinstance(remaining, int)`,
+checked directly: `isinstance(0.05, int)` and `isinstance(0.0, int)`. That is a reading grpc
+produced, in a scenario where a real expiry cannot look like either constant, which is precisely
+what a rendering test cannot supply.
+
+The swallow row is worth its own sentence, because its count did not move and the reason is not
+that the new cases are weak. A client that has already been told its deadline expired, or that
+cancelled the call itself, is told the same thing whether or not the servicer re-raises, so the
+three renderings remain the only cases in a position to watch the cancellation arrive.
+
+The full suite was then run 40 times, one `pytest` process each, under the same load. None
+reddened.
+
+### Consequences
+
+- Every row of the reading table in the abandonment addendum above is now observed over the wire,
+  in the shape that produces it in production, rather than pinned on a value the test file chose.
+- `docs/modules/brain-orchestrator.md` and `abandon.py`'s module docstring say what the suite
+  holds and no more, including the two things that are now known and were not: the reading's type
+  is what separates the floor from the sliver, and the reading is not bounded by the client's
+  announcement.
+- The suite gains three loopback cases. Two are effectively instant, since they cancel as soon as
+  the handler is entered; the header only case costs the announced 0.2 s, the same as the case
+  that was already there.
+
+### What this opens
+
+One, narrower than any of the three closed here. The grace margin addendum above sizes its 250 ms
+partly on "the header encoding's truncation to whole units, at most a millisecond and exactly zero
+for every value the shipped plan produces". The probe above measured the server side window
+running about 100 ms above a 10 s announcement and about 9 ms above a 1.05 s one, which is two
+orders of magnitude past that sentence. The direction is the safe one, the brain waiting longer
+than announced rather than shorter, so no bound is at risk; the sentence is still wrong and the
+shipped plan's own announced values were never measured.
+[R-381](../refinements/tasks/381-the-header-encoding-error-is-larger-than-recorded.md).

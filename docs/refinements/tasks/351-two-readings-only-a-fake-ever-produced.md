@@ -1,6 +1,6 @@
 # Two of the three readings the abandonment line distinguishes are only ever arranged
 
-**Status:** open, actionable
+**Status:** landed 2026-08-22
 **Area:** seam-transport
 **Origin:** [ADR-0024](../../adr/ADR-0024-transport-retry.md)
 
@@ -38,3 +38,17 @@ third case or a written reason it stays a fake.
 
 - 2026-08-21: opened by the close of [R-346](346-a-clamped-reading-nothing-pins.md), which pinned
   the expiry reading over the wire and left the other two rows on values the file arranges.
+- 2026-08-22: Landed, and larger than the entry proposed. Both missing readings got a wire case,
+  not one: a caller that stops early (announce wide, wait on the handler's own entered event,
+  cancel) and a caller that announces no deadline and drops the call. The `None` row was **not**
+  left as a rendering with a written excuse, and the entry's reasoning for that option is the part
+  that did not survive: the row is not a claim about what the body sends, it is a claim about what
+  grpc answers for a call with no deadline, and a grpc that folded that into a `0` would cost an
+  operator a whole reading with the suite still green. The ordering is a fact rather than a wait,
+  as the entry asked: the never-answering store sets an `asyncio.Event` from inside the handler
+  and the fixture hands it out, so nothing sleeps to order two events. Decided together with
+  [R-371](371-a-floor-and-a-sliver-are-indistinguishable.md), which added the fourth wire case
+  that pins the floor, and [R-372](372-the-sliver-is-unsampled-over-time.md), which those two
+  between them made a decline. Opened
+  [R-381](381-the-header-encoding-error-is-larger-than-recorded.md). Recorded in the ADR-0024
+  addendum dated the same day.
