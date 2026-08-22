@@ -92,6 +92,10 @@ just down-imap-probe
 Its LIST returns four names, three of them mailboxes (`INBOX` and `Parent/Child`, which open, and
 `Guarded`, which does not) and one of them a `\Noselect` node that is not a mailbox at all
 (`Parent`). What each is for is written in `docker/dovecot/probe-mailboxes.sh`, which builds them.
+All four are named a second time by `packages/email/tests/test_imap_probe_live.py`, and
+`scripts/crosscheck.py` holds the two spellings together (ADR-0029 fixture addendum): rename a
+mailbox in the script alone and the gate says so on the next commit, where the suite that would
+have noticed is `integration`-marked and runs only when somebody measures.
 The recipe reaches the server at the published port when that answers and at the container's own
 address when it does not, which is what a Docker Desktop engine beside a WSL distro gives; a probe
 that answers at neither is reported rather than waited on. The answers, measured through
