@@ -67,7 +67,11 @@ class TurnStamp:
     ``task_id`` the subagent task it was made inside, the two identities the audit trail
     names the work by (ADR-0009 named-work addendum; each ``""`` when there is none, so a
     turn's own dispatch carries no task and a ticker-rooted subagent's carries no turn);
-    ``tainted`` whether the turn had read untrusted content
+    ``item_id`` the scheduled item whose fire made the dispatch, the one work identity here
+    that is not a conversational one and the only one no turn ever sets (ADR-0009 named-call
+    addendum: the ticker is its single caller, and a fired item's identity had reached the
+    trail only as the text of the call id it spells the item into, which a model can spell
+    too); ``tainted`` whether the turn had read untrusted content
     at dispatch time; ``sources`` which sources that content came from (ADR-0027 addendum),
     the structured provenance behind the bit; ``budget`` the turn's shared dispatch allowance
     (``None`` when the caller runs no tool loop, e.g. the schedule ticker); ``progress`` the
@@ -92,6 +96,7 @@ class TurnStamp:
     session_id: str = ""
     turn_id: str = ""
     task_id: str = ""
+    item_id: str = ""
     tainted: bool = False
     sources: tuple[Provenance, ...] = ()
     budget: DispatchBudget | None = field(default=None, compare=False)
@@ -164,14 +169,25 @@ class ToolInvocation:
     the error message; ``trust`` records whether the call returned untrusted content (the
     provenance trail, ADR-0013); ``at`` must be timezone-aware (the audit outlives the process).
 
-    ``session_id``, ``turn_id`` and ``task_id`` are what the line names the work by (ADR-0009
-    named-work addendum), copied off the dispatch's ``TurnStamp``: the originating chat, the
-    conversation turn, and the subagent task the call was made inside. Each is ``""`` when the
-    dispatch had none, so an unattributed caller records absence rather than a borrowed id.
+    ``session_id``, ``turn_id``, ``task_id`` and ``item_id`` are what the line names the work by
+    (ADR-0009 named-work and named-call addenda), copied off the dispatch's ``TurnStamp``: the
+    originating chat, the conversation turn, the subagent task the call was made inside, and the
+    scheduled item whose fire made it. Each is ``""`` when the dispatch had none, so an
+    unattributed caller records absence rather than a borrowed id.
     They are the stamp's *identities* and not the stamp itself, because the stamp also carries
     live handles (the turn's pool, its progress channel, its handoff slot) and this record is a
     value that outlives the process that wrote it: a durable line holding a live pool is a line
     no sink could ever write down.
+
+    ``call_id`` is the dispatched ``ToolCall``'s own id, the string that correlates it with its
+    ``ToolResult`` and with the ``Role.TOOL`` message that result becomes (ADR-0009 named-call
+    addendum). It is the one identity here that does **not** come off the stamp, and so the one
+    the model may have written: a cortex call's id is whatever the backend emitted. That is
+    deliberate, and it is the same standing ``name`` and ``arguments`` already have on this
+    record, which is what makes it a record of what was asked for rather than of what the brain
+    made of the request. Nothing reads it back, and what keeps it safe to print is the formatter:
+    a value carrying whitespace or a quote is quoted and JSON-escaped, so no id can add a field
+    to a line, and an over-long one is cut at ``VALUE_CHARS`` with the count that went.
     """
 
     name: str
@@ -180,9 +196,11 @@ class ToolInvocation:
     detail: str
     at: datetime
     trust: Trust = Trust.UNTRUSTED
+    call_id: str = ""
     session_id: str = ""
     turn_id: str = ""
     task_id: str = ""
+    item_id: str = ""
 
     def __post_init__(self) -> None:
         if self.at.tzinfo is None or self.at.tzinfo.utcoffset(self.at) is None:

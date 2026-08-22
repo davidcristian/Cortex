@@ -245,6 +245,13 @@ class ScheduleTicker:
         leaving the field off rather than by borrowing an id. The result's trust is the
         fire-time taint the store ORs onto the item. A clean-created task whose subagent read
         untrusted content cannot launder it into a trusted listing.
+
+        It also carries ``item_id``, and this is the only caller in the tree that sets one
+        (ADR-0009 named-call addendum). The id below spells the item into the call, which the
+        trail now prints as ``call_id``, but a call id is the model's own string on every other
+        dispatch, so a reader could not tell this fire from a model that chose to spell
+        ``schedule-`` into an id of its own. The stamp is what a model cannot reach, so that is
+        where the statement "item X fired" is made.
         """
         if self._spawn is None:
             return _NO_RUNNER_OUTCOME, False
@@ -258,7 +265,8 @@ class ScheduleTicker:
         )
         try:
             result = await self._spawn.dispatch(
-                call, stamp=TurnStamp(session_id=item.session_id, tainted=item.tainted)
+                call,
+                stamp=TurnStamp(session_id=item.session_id, item_id=item.id, tainted=item.tainted),
             )
         except TaskStoreError as err:
             return f"FAILED: the task store is unavailable: {err}", False

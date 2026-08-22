@@ -1643,3 +1643,184 @@ composition-root internal and it leaves the module contract's own rule ("everyth
 from `cortex_orchestrator`; `__all__` is the API") describing something narrower than what the doc
 now documents:
 [R-378](../refinements/tasks/378-the-barrel-rule-omits-two-root-internals.md).
+
+## Named-call addendum (2026-08-22): the line names the call, and the fired item beside it
+
+The named-work addendum put the chat, the turn and the task on every audit line and left the
+**call** itself unnamed. `ToolCall.id` is what correlates a call with its result across the loop,
+and `ToolInvocation` never carried one, so `ToolDispatcher._audited` dropped the only string that
+says which of a turn's dispatches a line is. The same gap is why a scheduled fire's line says
+nothing about which item fired: the ticker spells the item into its call id and nowhere else.
+Filed as [R-352](../refinements/tasks/352-a-dispatch-names-no-call.md).
+
+### Re-derived first, and three of the entry's claims needed narrowing
+
+The two structural claims held exactly. `ToolInvocation` has nine fields and none of them is a
+call id, and `_audited` builds one from `call.name`, `call.arguments`, the result and the three
+stamp identities, so the id is dropped at the one place that holds it. The ticker really does
+build `ToolCall(id=f"schedule-{item.id}", ...)` in `_run_task`, and that really is the only place
+a fired item's identity reaches the dispatch path: the stamp beside it carries `session_id` and
+`tainted`, and the arguments carry the item's text and its requested model, never its id.
+`VALUE_CHARS` really does bound a rendered value, at 2048 characters of **rendering** rather than
+of value, spent after the credential pass and marked with the count that went.
+
+Three claims were looser than the entry made them sound.
+
+"Withheld by name like every other field" describes a mechanism the field is subject to and that
+will never fire on it. `record_fields` withholds a value whose key contains one of nine secret
+markers, and `call_id` contains none, so the honest statement is that the id joins a line whose
+every field is screened, not that the id is screened out of anything.
+
+"Paired with the `Role.TOOL` message it produced" is true only inside the turn. `store_codec`
+encodes a message as role, text, timestamp and turn id, and nothing else, so no stored message has
+ever carried a `tool_call_id`; the pairing an id buys is against the live working list, and
+against the one durable place a call id already lands, the handoff record `handoff_codec` writes
+when a turn escalates.
+
+"Two identical calls in one turn write two lines nothing can tell apart" overstates what
+`RepeatSalience` allows. An identical twin inside one round is refused outright and identical
+calls across rounds are capped at two, so the shape is one served line and one refusal line, or
+two served lines in different rounds, and those differ in `at` and often in `ok`. What no line can
+do is say **which** dispatch it is, which is the real gap and the one this addendum closes.
+
+### Decision 1: the call's own id goes on the line, model-authored and all
+
+A cortex call's id is whatever the backend emitted: `finish_calls` reads it off the streamed
+`tool_calls` fragments and hands it through unread. So the question the entry raised is real, and
+the answer is that the audit trail is the wrong surface to refuse a model's string on.
+
+This repo already refuses one, and the refusal is instructive because of where it sits.
+`run_round` renders the overlay's tool chip from `spec.name`, never from `call.name`, precisely so
+a display surface carries no string the model chose. The audit line is the opposite kind of
+surface. It is the record of **what was asked for**, and it has always carried the model's own
+strings: `tool` is `call.name` and `arguments` is the model's argument mapping, logged verbatim as
+the audit's subject, which is a far larger and far more attacker-shaped value than an id. A trail
+that recorded only strings the brain authored would be a record of the brain's reaction rather
+than of the request, and the request is the thing an operator is reading the trail to see.
+
+The narrower shape, recording an id only where the brain wrote one, was rejected on what it leaves
+undone rather than on cost. Under it a cortex call gets no id at all, so the join to the working
+list and to a handoff record does not exist, and the correlation gap the entry opened with stays
+open for every dispatch a model makes, which is nearly all of them. Serving only the second
+reading does not serve the first.
+
+### Decision 2: the fired item is its own field, not a prefix read back out of the first
+
+The other direction fails too. Putting `call_id` on the line does name the fired item, but only as
+the text of a string the trail cannot vouch for: `call_id=schedule-abc` is what the ticker writes
+when item `abc` fires, and it is also what a model writes by choosing that id. A reader could
+recover the difference today by noticing that a genuine fire's line carries a chat and no turn and
+no task, and that reading is exactly the kind of rule the named-work addendum refused when it
+rejected one field meaning "turn or task": a fact that has to be reconstructed from the absence of
+two other fields is the wrong thing to hand someone whose day has already gone wrong.
+
+So `TurnStamp` gains `item_id`, the ticker sets it from the item it is firing, and the line prints
+it beside the three identities it already prints. It is a work identity like they are, minted by
+the brain, and the model cannot reach it for the same reason it cannot reach the others: the
+dispatcher overwrites the call's stamp with the caller's before any branch can return.
+
+That is also what distinguishes the two new fields on the line, and it is the field **name** that
+carries the distinction rather than anything about the strings. `call_id` is the call's own
+correlator, whoever wrote it, and is read the way `tool` and `arguments` are read: as what was
+asked for. `item_id` is off the stamp, and is read the way `session_id`, `turn_id` and `task_id`
+are read: as what the brain knows about the work. The line has had those two classes of field
+since it had fields at all, and each addition joins the class it belongs to.
+
+The ticker keeps its `schedule-` prefix, which is a perfectly good unique id and is what the
+result message inside the fire is keyed by. It is decorative for the trail's purposes, and the
+test suite pins that: a model-authored `schedule-` id produces a line with no `item_id` on it, so
+the counterfeit fails structurally rather than by a reader's judgment.
+
+### Decision 3: what bounds a model's string, and what it does not
+
+Four things stand between a hostile id and the line, and none of them is new work.
+
+`render_value` quotes any rendering that carries whitespace or a quote of its own, and quoting
+means `json.dumps`, so a newline arrives as an escaped `n`, a carriage return as an escaped `r`,
+and a NUL or an ANSI escape as a `\u` sequence. The two characters that could open a second field
+are exactly the two that force the quoting, so **no model-authored value can add a field boundary
+to a line**. A forged `INFO:cortex.tools.audit:tool.invocation ok=True` lands inside one quoted
+value.
+
+`VALUE_CHARS` cuts the rendering at 2048 with a marker naming the characters that went, and an
+over-long id cannot buy its way out by staying bare: bare rendering is guarded by the same bound,
+so a long id is quoted and cut like any other.
+
+`record_fields` screens the key, which will never fire on `call_id` and is the reason the field is
+named for the call rather than for anything a secret is named for.
+
+And nothing reads it back. The id reaches a log record and no store, no branch, no cache key and
+no decision. It is a fact written down, which is what an audit line is for.
+
+What this does not buy is that no substring can appear. A model can put the characters
+`turn_id=t-victim` inside its id, and the line will contain them inside a quoted value beside the
+genuine `turn_id`. That is already true of `arguments` and of `tool`, both of which have carried
+model-authored text since this ADR landed, and it is why the claim made here is about the line's
+**structure** rather than about its substrings: the fields on a line, their names and their count
+are the brain's, and only what is inside a quoted value is ever the model's.
+
+### What did not change, deliberately
+
+The message stays a bare `tool.invocation`. A success still logs its result size rather than its
+content, arguments stay the audit's subject, and an id the dispatch does not have is still left
+off the line rather than printed empty, which now covers five fields instead of three. `ToolCall`,
+`ToolResult` and `Message` are untouched: the id already existed on all three, and this addendum
+copies it rather than inventing it. A ticker-rooted subagent's own dispatches still name no item,
+because `SubagentTask` carries the attribution it was given and `item_id` is not on it yet.
+
+### Distrust green
+
+Nine mutations, each applied to production code alone with the 2,865 tests of `brain/` re-run
+over it (`pytest -q` at the repo's own fixed seed, integration cases deselected), then restored
+and read back off disk:
+
+| Mutation | Reddens |
+| --- | --- |
+| the dispatcher stops copying the call's own id onto the record | 5 |
+| the record's call id is filled from the fired item instead of from the call | 5 |
+| the dispatcher stops copying the fired item onto the record | 2 |
+| the ticker stops stamping the item it is firing | 2 |
+| the sink stops printing the call id | 6 |
+| the sink stops printing the fired item | 1 |
+| the sink prints the two new ids empty rather than leaving them off | 7 |
+| a rendered value may stay bare even carrying whitespace | 11 |
+| a bare rendering escapes the length bound | 7 |
+
+The first two rows redden the same five cases, which is the point of the second: the five assert
+the id the **call** carried, so a line that names an id truthfully and names the wrong one fails
+exactly as one that names none does. The sixth row is the narrowest and the one worth having. It
+reddens only the case that asserts `item_id` is **present**, because the case beside it asserts
+the field is absent from a model-authored `schedule-` line, and a sink that prints no item at all
+satisfies that one truthfully; the seventh row is what that asymmetry is there to catch.
+
+The last two rows are mutations of `log_fields.py` rather than of anything this addendum wrote,
+and they are here because the adversarial cases are claims about a defence they do not own. A
+`_BARE` pattern that tolerates whitespace lets a hostile id render unquoted, and the newline, the
+quote and the control-character cases go red together with eight of the formatter's own; dropping
+the length guard from the bare path reddens the over-long case with six more. Without those two
+rows the three cases would be assertions about behaviour that happens to hold rather than about a
+defence that is load bearing.
+
+The first attempt at the first row reported 39, and that number was a defect in the mutation and
+not a reading. The anchor `call_id=call.id,` at that indentation matches the refusal's
+`ToolResult` before it matches the audit record, so what ran was a `TypeError` on every dispatch
+with a refusal in it. Recorded because the shape recurs: a mutation whose count is an order of
+magnitude off is a mutation that did not do what its label says.
+
+### Consequences
+
+- A line says which dispatch it is, so a turn's audit lines join its live working list and a
+  handoff record's serialized calls, and two identical calls in one turn stop being two lines that
+  differ only by a timestamp.
+- A scheduled fire names the item that fired, in a field the model cannot write, so the one caller
+  nobody is watching is the one whose subject the trail now states outright.
+- The audit line grows from at most nine fields to at most eleven, both additions being short ids
+  that print only when the dispatch has them.
+- `TurnStamp` gains its first identity that is not a conversational one, and the only caller that
+  sets it is the ticker.
+
+### Deferred by this addendum
+
+A subagent spawned by a scheduled fire runs its own tool loop through the same dispatcher, and its
+dispatches name the chat and the task and not the item, because `item_id` stops at the spawn call:
+[R-380](../refinements/tasks/380-a-fires-delegates-do-not-name-the-item.md).

@@ -54,10 +54,17 @@ source of audited, model-callable tools.
   large or sensitive); a failure logs the short error detail; both log the tool name,
   arguments, the result's `trust` provenance (so "did this turn read untrusted content?"
   is answerable from the durable trail alone, per ADR-0013 decision 2), and timestamp (the
-  AGENTS.md audit gate). A line also names the work it was for, `session_id`, `turn_id` and
-  `task_id` off the dispatch's stamp, under the field names the rest of the brain's log lines
-  spell them with, so the trail reads turn by turn and a delegated call names both its task and
-  the turn that spawned it (ADR-0009 named-work addendum). An id the dispatch did not have is
+  AGENTS.md audit gate). A line also names the work it was for, `session_id`, `turn_id`,
+  `task_id` and `item_id` off the dispatch's stamp, under the field names the rest of the brain's
+  log lines
+  spell them with, so the trail reads turn by turn, a delegated call names both its task and
+  the turn that spawned it (ADR-0009 named-work addendum), and a scheduled fire names the item
+  that fired (named-call addendum). It names the **call** too, `call_id` off `ToolCall.id`, which
+  is what the result and its `Role.TOOL` message are keyed by, so a turn's lines stop being
+  interchangeable. That one is the model's own string on a cortex dispatch, printed for the reason
+  the tool name and arguments are and read back by nothing; the field name is what tells a reader
+  which class it is in, and the formatter's quoting and `VALUE_CHARS` are what keep it from
+  forging a field or flooding a line. An id the dispatch did not have is
   left off the line rather than printed empty, absence being the honest rendering of a caller
   with no chat, turn or task behind it. All of it rides the record as `extra` and reaches the line through the
   process entry's formatter (ADR-0038 rendered-fields addendum); the sink used to serialize its

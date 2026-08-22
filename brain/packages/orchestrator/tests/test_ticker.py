@@ -220,7 +220,7 @@ async def test_task_fires_as_a_spawn_dispatch_and_records_the_outcome() -> None:
     assert call.arguments == {"instructions": [{"instruction": "text of t1", "model": "fast"}]}
     # The stamp carries the item's stored provenance (ADR-0027): clean, and attributed to
     # the chat that scheduled it.
-    assert call.stamp == TurnStamp(session_id="chat-1", tainted=False)
+    assert call.stamp == TurnStamp(session_id="chat-1", item_id="t1", tainted=False)
     loaded = await store.get("t1")
     assert loaded is not None
     assert loaded.last_outcome == "[subagent 1] summarized"
@@ -239,6 +239,11 @@ async def test_a_fires_audit_line_names_the_chat_and_no_turn() -> None:
     await _ticker(store, spawn=dispatcher).run_once()
     (record,) = sink.records
     assert (record.session_id, record.turn_id, record.task_id) == ("chat-1", "", "")
+    # And the item it fired, which no other caller in the tree stamps (ADR-0009 named-call
+    # addendum). The call id below spells the same item, but that is the string a model gets
+    # to choose on every other dispatch, so the fact the trail states is the stamped one.
+    assert record.item_id == "t1"
+    assert record.call_id == "schedule-t1"
 
 
 async def test_tainted_task_rides_the_dispatcher_stamp() -> None:
