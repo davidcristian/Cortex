@@ -3738,3 +3738,132 @@ The record is the task file
 [docs/refinements/index.md](../refinements/index.md), which is regenerated from it, and this
 addendum. One narrower task opens in its place, the account name the two files also share
 ([R-384](../refinements/tasks/384-the-probe-account-is-spelled-twice.md)).
+
+## Addendum (2026-08-23): the legibility pair read out of prose, and what a host file is
+
+The compose survey settled which restatements of a value are far sides and left the prose around
+the measured legibility pair unsorted, on the argument that a needle over a clause inside an
+argument pins the argument's phrasing as much as the number
+([R-382](../refinements/tasks/382-the-paired-numbers-quoted-in-prose.md)). This is that sort,
+finished. Both entries grew: the token budget from three far sides to ten, the capture edge from
+four to thirteen.
+
+### The count did not survive re-derivation, and this time it was low
+
+The task file names five loose prose sites across three documents. Counted off the tree, the two
+numbers are spelled **49 times in 14 files** outside the decision records and the backlog, and
+three of those files are ones the entry never reaches at all:
+`body/crates/core/tests/capture_bytes.rs`, which turns out to **declare** the edge,
+[modules/body-core.md](../modules/body-core.md) and
+[modules/brain-orchestrator.md](../modules/brain-orchestrator.md). Two of the spellings sit on
+lines the registry already held, where a presence check was satisfied by the other half of the same
+line and would have gone on passing while that half drifted. The entry's own framing is what hid
+them: it counts documents, and a document with a row is not a document whose every spelling moved.
+
+### The sort
+
+The test is the one the compose survey wrote: a sentence that becomes **wrong** when the value
+moves is a far side, and one that becomes **history** is not.
+
+| kind of sentence | example | side |
+|---|---|---|
+| an env table's Default or Example cell | the GPU runbook's row for the budget, both cells | far side |
+| a copyable recipe under "both are the default" | the two lines of the legibility recipe | far side |
+| a module contract stating the shipped default | "`1024` by default"; "`DEFAULT_CAPTURE_MAX_EDGE` (2048)" | far side |
+| a declaring file's own prose beside the constant | the `BodyConfig` docstring, the `ModelHostConfig` comment | far side |
+| a compose comment naming its own file's default | "The edge defaults to 2048 rather than to the body's own 1600" | far side |
+| a paragraph calling the number the shipped one | the vision runbook's three | far side |
+| a host check telling an operator what a stock deployment does | "captures at 2048 px and reads it at `CORTEX_IMAGE_MAX_TOKENS=1024`" | far side |
+| a measured arm of a matrix | "`CORTEX_IMAGE_MAX_TOKENS=1024` alone \| 629 \| 24 to 26" | history |
+| a cost or a reservation measured at the value | "1010 at the shipped budget"; the swap runbook's row | history |
+| a measurement's stated condition | "with the model host's `CORTEX_IMAGE_MAX_TOKENS` at 1024, a 4K desktop goes from" | history |
+
+The line between the last three and the rest is not what the sentence is about but what it would
+become. A measured arm was measured **at** a value and goes on being true of that value after the
+default moves; a stated default is wrong the moment it moves. Both kinds appear in the same
+paragraph of the same runbook, twice.
+
+### Two shapes carry the sort in the needle, so the phrasing is not what is pinned
+
+The GPU runbook writes `CORTEX_IMAGE_MAX_TOKENS=1024` twice, once in the recipe a reader copies and
+once inside a cell of the matrix below it. One states and one is history, and no words distinguish
+them. The **position** does: the recipe writes it at the start of a line and the cell cannot. So
+that mention is `"\nCORTEX_IMAGE_MAX_TOKENS={value}"`, which is the first template in this registry
+to pin a value's place on its line rather than its neighbours in the sentence. The same runbook's
+`CORTEX_BODY_CAPTURE_MAX_EDGE=2048` appears twice and **both** state, so that one is counted at 2
+instead: before this, a presence check let either drift while the other held it green.
+
+The vision runbook's three are counted at 3 for the reason `occurrences` exists. All three call the
+number the shipped one, so losing one leaves the file telling a reader two different shipped
+budgets, which is a defect and not a design change.
+
+### The edge gained a site in the other tree
+
+`body/crates/core/tests/capture_bytes.rs` declares `const BRAIN_EDGE: u32 = 2048` and measures how
+much room the byte ceiling leaves at the edge the brain asks for. That is not a fixture value the
+suite may choose, the way an endpoint in a wiring test is: it is the brain's number, and a retune
+on the brain alone leaves the suite reporting headroom for a capture nothing requests. So it is a
+second **site** rather than a mention, and the entry now compares two declarations across the
+language boundary as well as spending them in twelve places.
+
+### A host file is a live instruction, not a record
+
+The judgement the neighbouring entry names, and the reading both now share. `docs/host/` holds work
+that is **built and unrun**, its prerequisites section opens "Sittings die on setup. Have these
+before starting", and its own index says a completed item's file **shrinks to a heading, its status
+and a pointer**. So the sentence naming a value exists only while somebody may still read it and
+act on it; it never survives into the record it would otherwise become. A stale number there costs
+a sitting, which is the exact failure that section exists to prevent. The capture check's
+expectation row is therefore a far side, and it is the first thing in `docs/host/` this registry
+holds.
+
+### Proved able to fail, seventeen times, over the crosscheck registry
+
+Each new place was planted with a real disagreement one at a time on the real tree, the gate run,
+the file restored, and the gate re-run green. The counts are over the crosscheck registry as it
+stands after this change, 56 entries over 66 sites and 121 mentions, and not over any test suite: a
+suite's numbers say nothing about the collection this table is about. These two entries are 2 of
+those entries, 3 of those sites and 22 of those mentions.
+
+| planted drift | what the gate said |
+|---|---|
+| the GPU override's own comment says 1025 | 1 fault naming the override |
+| the GPU runbook's recipe line says 1025 | 1 fault naming the line-start needle |
+| the GPU runbook's Example cell says 1025 | 1 fault naming the cell |
+| the vision runbook's env row says 1025 | 1 fault: found 2 of the 3 pinned |
+| `ModelHostConfig`'s own comment says 1025 | 1 fault naming the config |
+| the model-manager contract says 1025 | 1 fault naming the contract |
+| the capture check says it reads at 1025 | 1 fault naming the host check |
+| `BRAIN_EDGE` becomes 2049 | 1 fault: sites are not identical |
+| the body override's own comment says 2049 | 1 fault naming the override |
+| the `BodyConfig` docstring says 2049 | 1 fault naming the config |
+| the vision runbook's default-now paragraph says 2049 | 1 fault naming the runbook |
+| the vision runbook's picture cost says 2049 | 1 fault naming the runbook |
+| the GPU runbook's recipe line says 2049 | 1 fault: found 1 of the 2 pinned |
+| the model-manager contract says 2049 | 1 fault naming the contract |
+| the orchestrator contract says 2049 | 1 fault naming the contract |
+| the body-core contract says 2049 | 1 fault naming the contract |
+| the capture check says it captures at 2049 | 1 fault naming the host check |
+
+All seventeen exited 1 and all seventeen restorations returned the gate to green. Four **controls**
+ran the other way, each rewriting a sentence the sort left out, and all four stayed green: the GPU
+runbook's measured `=1024` arm, its "4 of 47 at 2048 px" finding, the swap runbook's reservation
+row, and the body contract's "resampled to 2048 px" reading. A sort that cannot be shown to exclude
+anything is a sort nobody made.
+
+### What is deliberately still out
+
+[modules/repo-gates.md](../modules/repo-gates.md) quotes both numbers while explaining what this
+gate holds. It is a module contract in the present tense and it does become wrong, but pinning it
+would tie the gate's own prose to the gate's own data, so re-wording an example of a registration
+would redden a gate about a coupling that never moved. A document describing the registry is not a
+far side of the registry. Two narrower residues are written down instead
+([R-387](../refinements/tasks/387-a-second-spelling-shares-a-held-line.md),
+[R-388](../refinements/tasks/388-the-headroom-suite-spells-its-own-constant.md)).
+
+### Records
+
+The record is the task file
+[R-382](../refinements/tasks/382-the-paired-numbers-quoted-in-prose.md), which closes,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from it, the two module
+contracts that gained a sentence, and this addendum.

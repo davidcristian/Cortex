@@ -31,6 +31,8 @@ SWAP_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config_swap.p
 MODEL_MANAGER_DOC = "docs/modules/brain-model-manager.md"
 GPU_RUNBOOK = "docs/runbooks/llamacpp-gpu.md"
 SWAP_RUNBOOK = "docs/runbooks/model-swap.md"
+VISION_RUNBOOK = "docs/runbooks/vision.md"
+CAPTURE_CHECK = "docs/host/tasks/012-display-capture-path.md"
 
 MODELHOST_COUPLINGS: tuple[Constant, ...] = (
     # The two logical ids. Each is spent twice in the override, once as the sidecar's env and once
@@ -142,20 +144,39 @@ MODELHOST_COUPLINGS: tuple[Constant, ...] = (
         label="how many tokens one picture may occupy",
         why=(
             "this is the model-host half of the measured legibility pair the brain's capture "
-            "edge is the other half of, and both the override and the GPU runbook state it, so "
-            "a budget retuned in the config alone would pay the edge's pixels for an encoder "
-            "still refusing to spend tokens on them (ADR-0029 legibility addendum)"
+            "edge is the other half of, and the override, both runbooks, the module contract "
+            "and the config's own comment each state it as the shipped budget, so a budget "
+            "retuned in the field alone would pay the edge's pixels for an encoder still "
+            "refusing to spend tokens on them (ADR-0029 legibility addendum)"
         ),
         sites=(Site(MODELHOST_CONFIG, "DEFAULT_IMAGE_MAX_TOKENS"),),
-        # The third mention is the other half of the pair reading its partner back: the body
-        # override's own comment argues for a 2048 px capture by naming this budget, in the shape
-        # a deployment would type rather than the one compose substitutes. Held because the pair
-        # is the measurement, and a retune of this number leaves that sentence telling a reader
-        # something the stack beside it stopped doing (ADR-0029 comment addendum).
+        # Sorted by the survey's tense test: a sentence that becomes WRONG when the budget moves
+        # is a far side, and one that becomes HISTORY is not. The body override's comment argues
+        # for a 2048 px capture by naming this budget, and the config's and the GPU override's
+        # own comments name their own; each states what the deployment does, so each is held.
+        # The GPU runbook holds three: its env table's claim, that row's own Example cell, which
+        # is a second spelling of the same answer on the same line and pinned by the cell walls
+        # rather than by any of the sentence between them, and the recipe block a reader copies,
+        # pinned at a line start so the measured table's `=1024` arm below it stays out. That arm,
+        # the picture's token cost in the vision runbook and the reservation tables
+        # in the swap runbook are history: each was measured AT this budget and goes on being
+        # true after it moves. The vision runbook's three are counted rather than merely present,
+        # because all three call this number the shipped one and a file left naming two different
+        # shipped budgets is a defect rather than a design change. The last mention is a host
+        # check, which is a live instruction and not a record: a completed check's file shrinks to
+        # a heading, its status and a pointer, so the sentence naming this budget exists only
+        # while somebody may still read it and act on it.
         mentions=(
             Mention(GPU_COMPOSE, "${CORTEX_IMAGE_MAX_TOKENS:-{value}}"),
+            Mention(GPU_COMPOSE, "{value} is the default"),
             Mention(GPU_RUNBOOK, "`{value}` is the default, paired with"),
+            Mention(GPU_RUNBOOK, "| `{value}` |"),
+            Mention(GPU_RUNBOOK, "\nCORTEX_IMAGE_MAX_TOKENS={value}"),
             Mention(BODY_COMPOSE, "CORTEX_IMAGE_MAX_TOKENS={value}"),
+            Mention(MODELHOST_CONFIG, "{value} is the default because"),
+            Mention(VISION_RUNBOOK, "CORTEX_IMAGE_MAX_TOKENS={value}", occurrences=3),
+            Mention(MODEL_MANAGER_DOC, "`{value}` by default"),
+            Mention(CAPTURE_CHECK, "CORTEX_IMAGE_MAX_TOKENS={value}"),
         ),
     ),
     # The sentinel both reasoning budgets default to, declared once under the underscore that says

@@ -44,6 +44,10 @@ BODY_CLIENT_DOC = "docs/modules/brain-body-client.md"
 BODY_CORE_DOC = "docs/modules/body-core.md"
 BODY_RPC_DOC = "docs/modules/body-rpc.md"
 RETRY_PLAN = "body/crates/core/src/retry/plan.rs"
+CAPTURE_BYTES = "body/crates/core/tests/capture_bytes.rs"
+CAPTURE_CHECK = "docs/host/tasks/012-display-capture-path.md"
+MODEL_MANAGER_DOC = "docs/modules/brain-model-manager.md"
+ORCHESTRATOR_DOC = "docs/modules/brain-orchestrator.md"
 GPU_RUNBOOK = "docs/runbooks/llamacpp-gpu.md"
 SCHEDULING_RUNBOOK = "docs/runbooks/scheduling.md"
 TOOLS_RUNBOOK = "docs/runbooks/tools-mcp.md"
@@ -160,22 +164,41 @@ SHIPPED_COUPLINGS: tuple[Constant, ...] = (
     Constant(
         label="the capture edge's shipped default",
         why=(
-            "the compose stack ships this edge into every container and two runbooks quote it as "
-            "the brain half of the measured legibility pair, so retuning the field alone would "
-            "leave every deployment asking for the old edge while the encoder was sized for the "
-            "new one (ADR-0029 legibility addendum)"
+            "the compose stack ships this edge into every container, two runbooks and three "
+            "module contracts quote it as the brain half of the measured legibility pair, and "
+            "the body's own headroom suite sizes its worst case on it, so retuning the field "
+            "alone would leave every deployment asking for the old edge while the encoder was "
+            "sized for the new one (ADR-0029 legibility addendum)"
         ),
-        sites=(Site(BODY_CONFIG, "DEFAULT_CAPTURE_MAX_EDGE"),),
-        # The last mention is the GPU override's own comment, which argues for the token budget by
-        # naming this edge, in the same `VAR=value` shape the runbook above it already writes. A
-        # comment is no new form and no new spelling, only another place a whole value appears; a
-        # far side is a sentence that becomes wrong, and this one does, the pair being what each
-        # number is for (ADR-0029 comment addendum).
+        # The second site is the other tree's: `capture_bytes.rs` names the edge the brain asks
+        # for and measures how much room the byte ceiling leaves at it, so a retune here alone
+        # leaves that suite reporting headroom for a capture nothing requests any more.
+        sites=(Site(BODY_CONFIG, "DEFAULT_CAPTURE_MAX_EDGE"), Site(CAPTURE_BYTES, "BRAIN_EDGE")),
+        # Sorted by the survey's tense test: a sentence that becomes WRONG when the edge moves is
+        # a far side, and one that becomes HISTORY is not. Held are the GPU override's comment
+        # arguing for the token budget by naming this edge, the two files that declare the number
+        # restating it in their own prose beside it, the GPU runbook's env table and the recipe
+        # block under it (counted, since both state the shipped edge and losing one leaves the
+        # file naming two), the vision runbook's pair-is-the-default paragraph and its cost of a
+        # picture, the three module contracts, and the host check that tells an operator what a
+        # stock deployment captures, which is a live instruction rather than a record: a completed
+        # check's file shrinks to a heading, its status and a pointer. Left out are the GPU
+        # runbook's measured arms and the byte-ceiling reading in the body contract, each true of
+        # the edge it was taken at and true still after the default moves (ADR-0029 comment
+        # addendum).
         mentions=(
             Mention(BODY_COMPOSE, "${CORTEX_BODY_CAPTURE_MAX_EDGE:-{value}}"),
+            Mention(BODY_COMPOSE, "defaults to {value} rather"),
+            Mention(BODY_CONFIG, "defaults to **{value} rather"),
             Mention(VISION_RUNBOOK, "| `CORTEX_BODY_CAPTURE_MAX_EDGE` | brain | `{value}` |"),
-            Mention(GPU_RUNBOOK, "CORTEX_BODY_CAPTURE_MAX_EDGE={value}"),
+            Mention(VISION_RUNBOOK, "CORTEX_BODY_CAPTURE_MAX_EDGE={value}"),
+            Mention(VISION_RUNBOOK, "{value} px capture"),
+            Mention(GPU_RUNBOOK, "CORTEX_BODY_CAPTURE_MAX_EDGE={value}", occurrences=2),
             Mention(GPU_COMPOSE, "CORTEX_BODY_CAPTURE_MAX_EDGE={value}"),
+            Mention(MODEL_MANAGER_DOC, "CORTEX_BODY_CAPTURE_MAX_EDGE={value}"),
+            Mention(ORCHESTRATOR_DOC, "DEFAULT_CAPTURE_MAX_EDGE` ({value})"),
+            Mention(BODY_CORE_DOC, "{value} px edge"),
+            Mention(CAPTURE_CHECK, "at {value} px"),
         ),
     ),
     Constant(
