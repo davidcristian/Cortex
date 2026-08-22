@@ -1,17 +1,21 @@
-"""What a value IS to `crosscheck.py`, and how the values at one constant's sites may stand."""
+"""What a value IS to `crosscheck.py`, and the spelling a mention may write one in."""
 
 import re
-from itertools import pairwise
 from typing import NamedTuple
 
-from couplings import PLACEHOLDER, Constant, Relation, Site, Spelling
+from couplings import PLACEHOLDER, Constant, Spelling
 
 # The only comment marker a declaration's right-hand side may carry. Rust and TypeScript need
 # none: their value is captured up to the terminating semicolon, so a trailing `//` never
 # arrives here.
 COMMENT_MARKER = "#"
 
-INTEGER_PRODUCT = re.compile(r"^\d[\d_]*(?:\s*\*\s*\d[\d_]*)*$")
+INTEGER_PRODUCT = re.compile(r"^-?\d[\d_]*(?:\s*\*\s*\d[\d_]*)*$")
+
+# The two words a boolean may be declared with, and the whole of that form. They are Python's own
+# casing because Python declares every registered boolean; another language's are reached by
+# `Spelling.LOWERED` at a mention rather than accepted at a site.
+BOOLEANS = ("True", "False")
 
 COLLECTION_PREFIX = "frozenset("
 COLLECTION = re.compile(r"^frozenset\(\{(?P<members>.+)\}\)$")
@@ -30,8 +34,17 @@ class Digits(NamedTuple):
         return self.written
 
 
-type Value = str | int | frozenset[str] | Digits
-type Reading = tuple[Site, Value]
+class Truth(NamedTuple):
+    """A boolean literal, held as the word it is written with rather than as a truth value."""
+
+    written: str
+
+    def __repr__(self) -> str:
+        """Render as the word itself, which is what a needle and a fault both want."""
+        return self.written
+
+
+type Value = str | int | frozenset[str] | Digits | Truth
 
 
 class CrossCheckError(Exception):
@@ -64,7 +77,10 @@ def _integer_value(text: str) -> int:
     """Reduce a product of integer literals, so `6 * 1024 * 1024` compares as 6291456."""
     expression = _expression(text)
     if not INTEGER_PRODUCT.match(expression):
-        msg = f"{text!r} is not a string, a collection of them, a decimal, or a product of integers"
+        msg = (
+            f"{text!r} is not a string, a collection of them, a boolean, a decimal, or a "
+            "product of integers"
+        )
         raise CrossCheckError(msg)
     product = 1
     for factor in expression.split("*"):
@@ -98,7 +114,10 @@ def parse_value(text: str) -> Value:
         return _string_value(stripped)
     if stripped.startswith(COLLECTION_PREFIX):
         return _collection_value(stripped)
-    if DECIMAL_POINT in _expression(stripped):
+    expression = _expression(stripped)
+    if expression in BOOLEANS:
+        return Truth(expression)
+    if DECIMAL_POINT in expression:
         return _decimal_value(stripped)
     return _integer_value(stripped)
 
@@ -120,48 +139,34 @@ def _whole_spelling(value: Value) -> str:
     return whole
 
 
+def _lowered_spelling(value: Value) -> str:
+    """A boolean in the lower case the other language writes the same answer in."""
+    if not isinstance(value, Truth):
+        msg = f"a lowered spelling needs a boolean, and this constant declares {value!r}"
+        raise CrossCheckError(msg)
+    return value.written.lower()
+
+
 def spell(value: Value, spelling: Spelling) -> str:
     """The text a mention writes ``value`` as, in the spelling that mention asks for."""
-    return str(value) if spelling is Spelling.WRITTEN else _whole_spelling(value)
+    if spelling is Spelling.WHOLE:
+        return _whole_spelling(value)
+    if spelling is Spelling.LOWERED:
+        return _lowered_spelling(value)
+    return str(value)
 
 
 def spelling_fault(constant: Constant) -> str | None:
-    """The complaint about a re-spelling with no written form beside it, or None when one is."""
-    if all(mention.spelling is Spelling.WRITTEN for mention in constant.mentions):
+    """The complaint about a lossy re-spelling with no faithful reading beside it, or None."""
+    if not any(mention.spelling.lossy for mention in constant.mentions):
         return None
-    written = (
-        mention.spelling is Spelling.WRITTEN and PLACEHOLDER in mention.template
+    faithful = (
+        not mention.spelling.lossy and PLACEHOLDER in mention.template
         for mention in constant.mentions
     )
-    if len(constant.sites) > 1 or any(written):
+    if len(constant.sites) > 1 or any(faithful):
         return None
     return (
         "re-spells its one value everywhere it is spent, so nothing holds the spelling the site "
         "writes and a site that changed spelling alone would go unreported"
     )
-
-
-def _member_fault(readings: list[Value], shown: str, generic: str) -> str | None:
-    """A membership holds when every reading but the last is in the collection the last one is."""
-    *produced, accepted = readings
-    if not isinstance(accepted, frozenset):
-        return (
-            "a membership needs a collection at the last site, and that site declares a lone "
-            f"value ({shown})"
-        )
-    return None if all(value in accepted for value in produced) else generic
-
-
-def relation_fault(constant: Constant, values: list[Reading]) -> str | None:
-    """The complaint about how the read values stand to each other, or None when they hold."""
-    shown = ", ".join(f"{site.path}: {site.name} = {value!r}" for site, value in values)
-    generic = f"sites are not {constant.relation.value} ({shown})"
-    readings = [value for _, value in values]
-    if constant.relation is Relation.EQUAL:
-        return None if len(set(readings)) == 1 else generic
-    if constant.relation is Relation.MEMBER:
-        return _member_fault(readings, shown, generic)
-    numbers = [value for value in readings if isinstance(value, int)]
-    if len(numbers) < len(readings):
-        return f"an ordering compares integers, and a site here declares something else ({shown})"
-    return None if all(lower <= upper for lower, upper in pairwise(numbers)) else generic

@@ -5,6 +5,8 @@ written in the vocabulary `couplings.py` holds. This module is the only place th
 which is its whole job: the 300-line cap has split the registry four times now, and each split
 used to edit the scan itself to add an import and a name. It does not any more. A new part is a
 new data file plus one line here, and `crosscheck.py` never learns that the registry has parts.
+The sixth part arrived as a subject rather than as a split, which is the first time that claim
+was paid rather than argued.
 
 The order is the order faults are reported in, and nothing depends on it beyond that: the scan
 never asks which file an entry came from, so a coupling moves house without the gate noticing.
@@ -17,10 +19,12 @@ keeps a move an editorial decision instead of an archaeological one:
 - `subagentcouplings` ties the subagent tier's admission budgets to the container limits that are
   their hard twins.
 - `modelhostcouplings` ties the model-host sidecar's tier settings to the override that ships them.
+- `emailcouplings` ties the email sidecar's shipped answers to the override that spells them again.
 - `overlaycouplings` ties the overlay's TypeScript to the stylesheet that spends what it declares.
 """
 
 from couplings import Constant
+from emailcouplings import EMAIL_COUPLINGS
 from modelhostcouplings import MODELHOST_COUPLINGS
 from overlaycouplings import OVERLAY_COUPLINGS
 from seamcouplings import SEAM_COUPLINGS
@@ -32,5 +36,6 @@ CONSTANTS: tuple[Constant, ...] = (
     *SHIPPED_COUPLINGS,
     *SUBAGENT_COUPLINGS,
     *MODELHOST_COUPLINGS,
+    *EMAIL_COUPLINGS,
     *OVERLAY_COUPLINGS,
 )

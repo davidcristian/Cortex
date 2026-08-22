@@ -131,6 +131,7 @@ SHIPPED_COUPLINGS: tuple[Constant, ...] = (
             Mention(BODY_COMPOSE, "${CORTEX_BODY_CAPTURE_MAX_EDGE:-{value}}"),
             Mention(VISION_RUNBOOK, "| `CORTEX_BODY_CAPTURE_MAX_EDGE` | brain | `{value}` |"),
             Mention(GPU_RUNBOOK, "CORTEX_BODY_CAPTURE_MAX_EDGE={value}"),
+            Mention(GPU_COMPOSE, "CORTEX_BODY_CAPTURE_MAX_EDGE={value}"),
         ),
     ),
     Constant(

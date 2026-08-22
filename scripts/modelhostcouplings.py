@@ -2,6 +2,7 @@
 
 from couplings import Constant, Mention, Site, Spelling
 
+BODY_COMPOSE = "docker/docker-compose.body.yml"
 GPU_COMPOSE = "docker/docker-compose.gpu.yml"
 SUBAGENTS_COMPOSE = "docker/docker-compose.subagents.yml"
 ROSTER_COMPOSE = "docker/docker-compose.subagents-roster.yml"
@@ -131,6 +132,27 @@ MODELHOST_COUPLINGS: tuple[Constant, ...] = (
         mentions=(
             Mention(GPU_COMPOSE, "${CORTEX_IMAGE_MAX_TOKENS:-{value}}"),
             Mention(GPU_RUNBOOK, "`{value}` is the default, paired with"),
+            Mention(BODY_COMPOSE, "CORTEX_IMAGE_MAX_TOKENS={value}"),
+        ),
+    ),
+    # The sentinel both reasoning budgets default to, declared once under the underscore that says
+    # no module imports it and read here anyway: a `Site` names what a file declares, not what a
+    # module exports, and this scan reads text rather than importing anything (see `couplings.py`).
+    Constant(
+        label="the unbounded reasoning budget both tiers ship with",
+        why=(
+            "llama.cpp's own word for a trace nobody bounds is the default for the cortex and "
+            "for the deep tier, and the override spells it again for each while the runbook and "
+            "the module contract state it as the answer that emits no flag, so a deployment "
+            "given a budget in the config alone would still start both tiers unbounded "
+            "(ADR-0030, and the thinking-budget measurements in the GPU runbook)"
+        ),
+        sites=(Site(MODELHOST_CONFIG, "_UNRESTRICTED_REASONING"),),
+        mentions=(
+            Mention(GPU_COMPOSE, "${CORTEX_REASONING_BUDGET:-{value}}"),
+            Mention(GPU_COMPOSE, "${CORTEX_REASONING_BUDGET_BRAIN:-{value}}"),
+            Mention(GPU_RUNBOOK, "`{value}` (the default) emits no flag"),
+            Mention(MODEL_MANAGER_DOC, "`{value}`, the default, is the engine's own word"),
         ),
     ),
     Constant(

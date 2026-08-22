@@ -26,6 +26,12 @@ class Spelling(Enum):
 
     WRITTEN = "as the declaring site writes it"
     WHOLE = "as a whole number, which the declared value must be"
+    LOWERED = "in the lower case another language writes the same word in"
+
+    @property
+    def lossy(self) -> bool:
+        """Whether two declared values may render alike, which is what needs a reading beside it."""
+        return self is Spelling.WHOLE
 
 
 class Site(NamedTuple):

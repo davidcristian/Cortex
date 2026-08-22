@@ -1,6 +1,6 @@
 # A compose comment restates a registered value and nothing holds it there
 
-**Status:** open, actionable
+**Status:** landed 2026-08-22
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -41,3 +41,18 @@ partner would be cheaper to hold and worth less to read.
 - 2026-08-21: opened by the close of
   [R-333](333-compose-defaults-that-restate-a-declaration.md), which registered both numbers and
   left the two comments that argue for them naming each other unheld.
+- 2026-08-22: landed, and **this entry's own reading was right**: a comment is neither a form nor
+  a spelling, only another place a whole value appears. A mention was never syntax, being a
+  template rendered and required to appear as a token of its own, so the runbook sentence that
+  answered this once, `CORTEX_BODY_CAPTURE_MAX_EDGE={value}`, is the same shape a compose comment
+  writes, and `scripts/values.py` needed nothing at all. The only thing new is the file, and the
+  scan never asks what else a file is for, so the body override carries a substitution of one
+  value and a mention of another with nothing to reconcile. Both quotes re-derived verbatim and
+  both numbers were already registered, so the work was two rows and their reasons. Answered
+  together with [R-354](354-two-declared-defaults-the-reducer-refuses.md), which is where the
+  reducer's half went; the two were one question with two faces, and testing this half's reading
+  against that one is what kept a comment from being given a spelling it does not need. Two
+  planted drifts, one per row, each exiting 1 and restored byte for byte, inside the sixteen the
+  ADR-0029 boolean addendum tables. Deliberately not closed by deleting the cross reference. One
+  narrower task opens for the same pairing where it is argued rather than shipped,
+  [R-382](382-the-paired-numbers-quoted-in-prose.md).

@@ -14,16 +14,9 @@ from couplings import (
     Relation,
     Site,
 )
+from readings import Reading, relation_fault
 from registry import CONSTANTS
-from values import (
-    CrossCheckError,
-    Reading,
-    Value,
-    parse_value,
-    relation_fault,
-    spell,
-    spelling_fault,
-)
+from values import CrossCheckError, Value, parse_value, spell, spelling_fault
 
 # What counts as a continuation of a rendered needle's own token, at whichever of its two edges is
 # itself made of one. A needle edged by punctuation (`var(--ceiling,`) needs no such guard.
