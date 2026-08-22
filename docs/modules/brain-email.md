@@ -38,7 +38,10 @@ denied outright.
   refused-search addendum). It carries the `query` it refused and its message points the model at
   the `query` field's own description rather than restating the dialect.
   `FolderUnknownError` is no mailbox having the folder that was named (ADR-0022 unknown-folder
-  addendum). It carries the `folder` it was given and sends the model to `list_folders`, the
+  addendum), and a name no mailbox *could* have is the same error rather than a third one: the
+  two servers disagree about which fact an empty or malformed name is and cannot disagree about
+  the correction, since `list_folders` never offered such a name (ADR-0022 refused-name addendum).
+  It carries the `folder` it was given and sends the model to `list_folders`, the
   cheaper correction of the two: one call rather than a rewrite. Neither carries any part of the
   server's answer, those fragments (`UID command error: BAD [b'[Error offset=38]: expected
   space']`; `Response status "OK" expected, but "NO" received. Data: [b'no such mailbox']`) being
@@ -51,23 +54,37 @@ denied outright.
   EXAMINE and drops it only if the server refuses it too. The two servers disagree about the flag,
   Dovecot refusing such a node in the very words that prove a folder missing and the Bridge opening
   the two parents of its own hierarchy, so asking is what is correct on both (ADR-0022
-  flagged-and-refused addendum). No exception of the IMAP stack escapes it: a `BAD` answer to
+  flagged-and-refused addendum). Both spellings are measured, in different listings: Dovecot sends
+  `\Noselect` with its hierarchy node under every LIST it accepts, and keeps `\NonExistent` for a
+  subscribed name no mailbox has, which only a LIST asking for subscriptions returns. The plain
+  `LIST "" "*"` that `folder.list()` sends can carry neither that name nor that word, and the
+  Bridge answers an extended LIST with `BAD`, so reading the newer spelling is a defence against a
+  server not yet met rather than a live path (ADR-0022 newer-spelling addendum).
+  No exception of the IMAP stack escapes it: a `BAD` answer to
   a search becomes `SearchRefusedError`, a `NO` to `SELECT` whose own text says the mailbox does
   not exist becomes `FolderUnknownError`, and everything else, imaplib's `IMAP4.abort` for a
   connection lost mid-command included, becomes `MailboxError` with the cause chained. Both
   classifications look rather than assume, and for the same reason. The abort is tested for by
   subclass, since reporting a dropped connection as a refused query would send a model round a
-  rewrite loop that cannot end. The select is classified from what the server said
-  (`_FOLDER_MISSING_ANSWERS`: the Bridge's measured `no such mailbox`, Dovecot's measured
-  `Mailbox doesn't exist`, or RFC 5530's `[NONEXISTENT]` code), because the same `NO` also covers
-  a folder that is really there and could not be opened, and a folder that cannot be proved
-  missing is not reported missing. Two servers, one fact, no shared word and no response code
-  from either, which is why the words are read at all and why there are two of them; the other
+  rewrite loop that cannot end. The select is classified from what the server said, in either of
+  the two forms it can say it in: `_FOLDER_MISSING_PHRASES` holds the Bridge's measured `no such
+  mailbox` and Dovecot's measured `Mailbox doesn't exist`, and `_FOLDER_MISSING_CODES` holds the
+  RFC 5530 codes `[NONEXISTENT]` and `[CANNOT]`. The same `NO` also covers a folder that is
+  really there and could not be opened, and a folder that cannot be proved missing is not
+  reported missing. Two servers, one fact, no shared word and no response code from either for
+  the missing case, which is why the words are read at all and why there are two of them; the
+  code is what settles the refusal whose prose says nothing about a mailbox, Dovecot answering
+  every malformed name (empty, `Parent/`, `/Parent`, `Parent//Child`, `INBOX/../etc`, `~root`)
+  with `[CANNOT] Invalid mailbox name` where the Bridge says `no such mailbox` (ADR-0022
+  refused-name addendum). It is read bracketed rather than as the word inside it, so a refusal
+  whose prose merely contains "cannot" is untouched. The other
   refusal is `[NOPERM] Permission denied`, measured on a mailbox that is listed and shut (ADR-0022
   two-server addendum, `tests/test_imap_probe_live.py` over `docker/docker-compose.imap-probe.yml`).
-- **The probe suite's four mailbox names are module constants and registered couplings.**
-  `GUARDED_FOLDER`, `REAL_FOLDER`, `NOSELECT_PARENT` and `NODE_CHILD` name what
-  `docker/dovecot/probe-mailboxes.sh` builds, and `scripts/crosscheck.py` ties each to the path
+- **The probe suite's five fixture names are module constants and registered couplings.**
+  `GUARDED_FOLDER`, `REAL_FOLDER`, `NOSELECT_PARENT` and `NODE_CHILD` name mailboxes
+  `docker/dovecot/probe-mailboxes.sh` builds, and `GHOST_SUBSCRIPTION` names the one it does not:
+  a subscription written into the account's own file with no mailbox behind it, which is the only
+  way that server sends `\NonExistent`. `scripts/crosscheck.py` ties each to the line
   the script writes it in (ADR-0029 fixture addendum). This suite is `integration`-marked and
   never runs in CI, so the gate is the only thing that would notice the fixture and the suite
   drifting apart; the invented name the suite expects to be refused is deliberately not tied,

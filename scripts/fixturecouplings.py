@@ -71,6 +71,20 @@ FIXTURE_COUPLINGS: tuple[Constant, ...] = (
         mentions=(Mention(PROBE_SCRIPT, "mailboxes/{value}/"),),
     ),
     Constant(
+        label="the probe's subscribed name that no mailbox has",
+        why=(
+            "this name is the only thing that makes the server send RFC 5258's newer word for a "
+            "name that is not a mailbox, and it exists solely as a line in the subscription file "
+            "the script writes, so a rename there alone would leave the suite asking a listing "
+            "about a name nothing subscribed and reading the empty answer as the flag being gone "
+            "(ADR-0022 newer-spelling addendum)"
+        ),
+        sites=(Site(PROBE_SUITE, "GHOST_SUBSCRIPTION"),),
+        # The name as the file's one content line, which is the whole of what the script says
+        # about it: there is no directory to pin, the absence of one being the point.
+        mentions=(Mention(PROBE_SCRIPT, "\\n\\n{value}\\n"),),
+    ),
+    Constant(
         label="the probe's child under that node",
         why=(
             "dropping an unselectable parent from an offered list is lossless only because its "

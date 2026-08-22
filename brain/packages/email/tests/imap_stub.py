@@ -52,6 +52,15 @@ OTHER_MISSING_FOLDER_ANSWER = ("NO", [b"Mailbox doesn't exist: Receipts (0.001 +
 # (docker/docker-compose.imap-probe.yml), so the fail-safe branch is scripted here from a
 # sentence a real server really sent.
 UNOPENABLE_FOLDER_ANSWER = ("NO", [b"[NOPERM] Permission denied (0.001 + 0.000 secs)."])
+# A NO to a name that is not one a mailbox could have, rather than one no mailbox happens to
+# have. Measured verbatim on the same Dovecot against the empty folder name, where the Bridge
+# answers `MISSING_FOLDER_ANSWER` instead: RFC 5530's code for a request that can never succeed,
+# and the only refusal in this file whose prose says nothing about a mailbox (ADR-0022
+# refused-name addendum).
+REFUSED_NAME_ANSWER = (
+    "NO",
+    [b"[CANNOT] Invalid mailbox name: Name is empty (0.001 + 0.000 secs)."],
+)
 
 
 # The LIST attributes a real server sends with a name that is only a point in the hierarchy,
@@ -65,6 +74,13 @@ MAILBOX_FLAGS = ("\\HasNoChildren",)
 # flags the two parents of its own hierarchy and then opens both:
 # `FolderInfo(name='Folders', delim='/', flags=('\\Noselect', '\\Unmarked'))`.
 OPEN_NODE_FLAGS = ("\\Noselect", "\\Unmarked")
+# RFC 5258's newer word for the same claim, measured on the same Dovecot rather than read off
+# the standard, verbatim from `LIST (SUBSCRIBED) "" "*"`: `(\Subscribed \NonExistent) "/" Ghost`.
+# It arrives instead of `\Noselect` and never beside it, and only in a listing that asks for
+# subscriptions, which imap-tools' `folder.list()` does not ask for. So what this scripts is the
+# answer a server would hand an adapter that asked, which is why the filter reads the word at all
+# (ADR-0022 newer-spelling addendum).
+NONEXISTENT_NODE_FLAGS = ("\\Subscribed", "\\NonExistent")
 
 
 class Folder:

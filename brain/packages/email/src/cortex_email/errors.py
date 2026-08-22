@@ -63,10 +63,17 @@ class FolderUnknownError(MailboxError):
     [b'no such mailbox']``, a command status reported to a caller that never sent a command; that
     stays on the chained cause, where an operator reading a traceback finds it.
 
-    Raised only for a refusal whose own text says the mailbox does not exist. A `NO` to `SELECT`
-    also covers a folder that is really there and could not be opened, and a folder that cannot be
-    proved missing must not be reported missing (ADR-0022 unknown-folder addendum), so every other
+    Raised only for a refusal whose own answer says so, in the words two servers were measured
+    using or in the response code a server sends instead of them. A `NO` to `SELECT` also covers
+    a folder that is really there and could not be opened, and a folder that cannot be proved
+    missing must not be reported missing (ADR-0022 unknown-folder addendum), so every other
     refusal stays a plain `MailboxError`.
+
+    A name no mailbox *could* have is raised here too, rather than as a third type. One server
+    answers the empty name ``[CANNOT] Invalid mailbox name`` and the other answers it
+    ``no such mailbox``, so the two disagree about which fact it is; what they cannot disagree
+    about is the correction, since `list_folders` never offered such a name and never will
+    (ADR-0022 refused-name addendum).
     """
 
     def __init__(self, folder: str) -> None:

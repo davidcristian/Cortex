@@ -11,8 +11,10 @@ from imaplib import IMAP4
 
 import pytest
 from imap_stub import (
+    NONEXISTENT_NODE_FLAGS,
     OPEN_NODE_FLAGS,
     OTHER_MISSING_FOLDER_ANSWER,
+    REFUSED_NAME_ANSWER,
     UNOPENABLE_FOLDER_ANSWER,
     FakeBox,
     Msg,
@@ -41,13 +43,15 @@ def test_list_folders_logs_in_and_lists(monkeypatch: pytest.MonkeyPatch) -> None
 def test_the_newer_spelling_of_unselectable_is_dropped_too(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # Two servers may say the same thing in two words: RFC 3501 writes a name that is not a
-    # mailbox `\Noselect` (what the probe's Dovecot sends) and RFC 5258's LIST-EXTENDED writes
-    # it `\NonExistent`. Both are read, and read case-folded, because the attribute is an IMAP
-    # atom and no server promises its casing.
-    box = FakeBox(names=["INBOX"], nodes=["Archive"], node_flags=("\\nonexistent",))
+    # One server has two words for it: the probe's Dovecot flags a hierarchy node `\Noselect`
+    # and keeps RFC 5258's `\NonExistent` for a subscribed name no mailbox has, which it sends
+    # only to a LIST that asks for subscriptions. The flags here are that answer verbatim, so
+    # the newer spelling is read from a server rather than from the standard, and it is read
+    # case-folded because the attribute is an IMAP atom and no server promises its casing.
+    box = FakeBox(names=["INBOX"], nodes=["Ghost"], node_flags=NONEXISTENT_NODE_FLAGS)
     patch_box(monkeypatch, box)
     assert list(ImapMailbox(config()).list_folders()) == ["INBOX"]
+    assert box.set_calls == [("Ghost", True)]  # the newer word buys the same one question
 
 
 def test_a_flagged_name_the_server_opens_is_still_offered(
@@ -167,6 +171,58 @@ def test_the_second_server_s_own_words_for_a_missing_mailbox_are_read_too(
     with pytest.raises(FolderUnknownError) as raised:
         ImapMailbox(config()).search("Receipts", "ALL", 5)
     assert raised.value.folder == "Receipts"
+
+
+def test_a_name_no_mailbox_could_have_is_read_off_the_code_and_not_the_prose(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The third fact one NO carries, and the one whose words say nothing about a mailbox: this
+    # server will not read the name as a name at all. Nothing in `Invalid mailbox name: Name is
+    # empty` matches a measured phrase, so the classification turns on RFC 5530's `[CANNOT]`,
+    # which is a claim the server made rather than a sentence it happened to phrase that way
+    # (ADR-0022 refused-name addendum). The correction is the folder one because a name no
+    # mailbox could have is a name `list_folders` never offered.
+    box = FakeBox(names=["INBOX"])
+    box.folder.select_error = MailboxFolderSelectError(REFUSED_NAME_ANSWER, "OK")
+    patch_box(monkeypatch, box)
+    with pytest.raises(FolderUnknownError) as raised:
+        ImapMailbox(config()).search("", "ALL", 5)
+    assert raised.value.folder == ""
+    assert "list_folders" in str(raised.value)
+    assert "CANNOT" not in str(raised.value)  # the code is read, never passed on
+
+
+def test_the_bracketed_code_is_read_and_not_the_english_word_inside_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The measured refusal with its brackets taken off. It is not a sentence any server here
+    # sent and is not offered as one: what it pins is the difference the rule turns on. A
+    # response code is a claim the server made in a form ordinary prose cannot imitate, while
+    # `cannot` is a word a refusal about a mailbox that is merely shut could easily contain, and
+    # reading the word rather than the code would report such a mailbox missing. That is the one
+    # direction this classification may never go (ADR-0022 unknown-folder addendum).
+    box = FakeBox(names=["INBOX"])
+    box.folder.select_error = MailboxFolderSelectError(
+        ("NO", [b"CANNOT Invalid mailbox name: Name is empty (0.001 + 0.000 secs)."]), "OK"
+    )
+    patch_box(monkeypatch, box)
+    with pytest.raises(MailboxError) as raised:
+        ImapMailbox(config()).search("INBOX", "ALL", 5)
+    assert not isinstance(raised.value, FolderUnknownError)
+
+
+def test_the_other_server_reaches_that_same_answer_through_its_words(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The disagreement the port has to absorb: a Bridge has no code for this and answers the
+    # empty name with the `no such mailbox` it gives every other wrong name, which the measured
+    # phrases already read. Two servers, two facts, one correction, so a model that sent a name
+    # no mailbox could have is sent to the list on either of them.
+    box = FakeBox(names=["INBOX"])
+    patch_box(monkeypatch, box)
+    with pytest.raises(FolderUnknownError) as raised:
+        ImapMailbox(config()).fetch("", "7")
+    assert raised.value.folder == ""
 
 
 def test_the_standard_s_own_word_for_a_missing_mailbox_is_read_too(

@@ -136,7 +136,11 @@ def test_a_folder_no_mailbox_has_is_refused_by_name_and_by_the_folder_list() -> 
     if not config.user:
         pytest.skip("set CORTEX_EMAIL_IMAP_USER/PASSWORD (~/.cortex/email.env) to run")
     mailbox = ImapMailbox(config)
-    for name in ("Receipts", "INBOX/Receipts", "inbox/", '"Receipts"'):
+    # The last of these is a name no mailbox *could* have rather than one none happens to have,
+    # and it is here because this server does not distinguish them: it answers the empty name
+    # with the same `no such mailbox`, where the probe's Dovecot answers `[CANNOT] Invalid
+    # mailbox name`. One correction out of two different facts (ADR-0022 refused-name addendum).
+    for name in ("Receipts", "INBOX/Receipts", "inbox/", '"Receipts"', ""):
         with pytest.raises(FolderUnknownError) as raised:
             mailbox.search(name, "ALL", 1)
         assert raised.value.folder == name

@@ -33,6 +33,10 @@ WIRE_ANSWER = "UID command error: BAD [b'[Error offset=38]: expected space']"
 # under test lists. Every check that uses it asserts that first, so it cannot rot into a name a
 # fixture quietly grew.
 INVENTED_FOLDER = "Receipts"
+# A name no mailbox could have rather than one no mailbox happens to have, which is the other
+# way a folder argument goes wrong and the one the two servers describe differently: a Bridge
+# calls the empty name no such mailbox and the probe's Dovecot refuses to read it as a name.
+IMPOSSIBLE_FOLDER = ""
 # The pieces of what imap-tools says when a real Bridge refuses the SELECT of that name. It reads
 # `Response status "OK" expected, but "NO" received. Data: [b'no such mailbox']` in full, verbatim
 # from a live pass: a command status reported to a caller that sent no command, so no
@@ -182,6 +186,26 @@ def an_unknown_folder_says_where_the_real_names_are(under_test: MailboxUnderTest
         assert fragment not in message
 
 
+def a_name_no_mailbox_could_have_is_one_no_mailbox_has(under_test: MailboxUnderTest) -> None:
+    """A folder argument that could never name a mailbox is the same correction as a wrong one.
+
+    The port owes one answer here even though the servers behind it give two. A ProtonMail
+    Bridge refuses the empty name with the `no such mailbox` it gives every other wrong name,
+    and the probe's Dovecot refuses to read it as a mailbox name at all, `[CANNOT] Invalid
+    mailbox name: Name is empty`, which is RFC 5530 for a request that can never succeed. Both
+    are a name `list_folders` did not return and never could, so a caller is owed the correction
+    that names the list rather than a base error indistinguishable from the mailbox being down
+    (ADR-0022 refused-name addendum).
+    """
+    assert IMPOSSIBLE_FOLDER not in list(under_test.mailbox.list_folders())
+    with pytest.raises(FolderUnknownError) as searched:
+        under_test.mailbox.search(IMPOSSIBLE_FOLDER, "ALL", 5)
+    assert searched.value.folder == IMPOSSIBLE_FOLDER
+    with pytest.raises(FolderUnknownError) as read:
+        under_test.mailbox.fetch(IMPOSSIBLE_FOLDER, "1")
+    assert read.value.folder == IMPOSSIBLE_FOLDER
+
+
 def a_folder_that_could_not_be_opened_is_not_reported_missing(
     under_test: MailboxUnderTest,
 ) -> None:
@@ -208,5 +232,6 @@ ALL_CHECKS: Sequence[Check] = (
     a_refusal_says_what_to_do_and_never_what_the_wire_said,
     a_folder_no_mailbox_has_raises_the_port_s_own_error,
     an_unknown_folder_says_where_the_real_names_are,
+    a_name_no_mailbox_could_have_is_one_no_mailbox_has,
     a_folder_that_could_not_be_opened_is_not_reported_missing,
 )

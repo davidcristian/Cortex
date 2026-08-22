@@ -16,6 +16,18 @@
 #   Parent/Child  a real mailbox under that node, and it opens, which is what makes dropping
 #                 the parent from an offered list lossless
 #
+# And a fifth name that no LIST returns, which is why it is written into a file rather than made
+# as a directory:
+#
+#   Ghost         subscribed and not there, so a LIST that asks for subscriptions answers with
+#                 it flagged \NonExistent, RFC 5258's newer spelling of "this is not a mailbox".
+#                 It is the only way to make this server send that word: an ordinary LIST never
+#                 carries it, and SUBSCRIBE of a name no mailbox has is itself refused here
+#                 (`NO Mailbox doesn't exist: Ghost`), so the subscription cannot be arranged
+#                 over the wire and the file is written directly. The format is dovecot's own,
+#                 read back off a subscription it wrote itself: a `V<TAB>2` version line, an
+#                 empty namespace-prefix line, then one name per line.
+#
 # The tree is made with mkdir rather than with `doveadm`, which would need the auth socket of a
 # server that is not listening yet. An sdbox mailbox IS a directory holding `dbox-Mails`, and
 # dovecot writes its own indexes into one on first use; a directory without that child is
@@ -32,6 +44,7 @@ mkdir -p "$ROOT/mailboxes/INBOX/dbox-Mails" \
     "$ROOT/mailboxes/Guarded/dbox-Mails" \
     "$ROOT/mailboxes/Parent/Child/dbox-Mails"
 printf 'owner l\n' > "$ROOT/mailboxes/Guarded/dbox-Mails/dovecot-acl"
+printf 'V\t2\n\nGhost\n' > "$ROOT/subscriptions"
 chown -R "$MAIL_UID:$MAIL_GID" /srv/mail/probe
 
 exec /usr/sbin/dovecot -F
