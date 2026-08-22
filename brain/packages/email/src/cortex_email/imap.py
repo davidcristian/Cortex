@@ -34,13 +34,19 @@ def _translated(action: str) -> Generator[None, None, None]:
         raise MailboxError(msg) from err
 
 
-_FOLDER_MISSING_ANSWERS = ("no such mailbox", "mailbox doesn't exist", "[nonexistent]")
+_FOLDER_MISSING_PHRASES = ("no such mailbox", "mailbox doesn't exist")
+
+_FOLDER_MISSING_CODES = ("[nonexistent]", "[cannot]")
+
+# One tuple because `_select` asks one question of it: the halves differ in what kind of
+# evidence they are, not in what a caller is owed once either of them appears.
+_FOLDER_MISSING_ANSWERS = (*_FOLDER_MISSING_PHRASES, *_FOLDER_MISSING_CODES)
 
 _NOT_A_MAILBOX = frozenset({"\\noselect", "\\nonexistent"})
 
 
 def _select(box: BaseMailBox, folder: str) -> None:
-    """Open ``folder`` read-only (EXAMINE), saying which of the two things a refusal means."""
+    """Open ``folder`` read-only (EXAMINE), saying which thing a refusal of it means."""
     try:
         box.folder.set(folder, readonly=True)  # pyright: ignore[reportUnknownMemberType]
     except MailboxFolderSelectError as err:

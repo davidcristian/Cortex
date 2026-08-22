@@ -39,6 +39,10 @@ MISSING_FOLDER_ANSWER = ("NO", [b"no such mailbox"])
 # than one (ADR-0022 two-server addendum).
 OTHER_MISSING_FOLDER_ANSWER = ("NO", [b"Mailbox doesn't exist: Receipts (0.001 + 0.000 secs)."])
 UNOPENABLE_FOLDER_ANSWER = ("NO", [b"[NOPERM] Permission denied (0.001 + 0.000 secs)."])
+REFUSED_NAME_ANSWER = (
+    "NO",
+    [b"[CANNOT] Invalid mailbox name: Name is empty (0.001 + 0.000 secs)."],
+)
 
 
 # The LIST attributes a real server sends with a name that is only a point in the hierarchy,
@@ -52,6 +56,7 @@ MAILBOX_FLAGS = ("\\HasNoChildren",)
 # flags the two parents of its own hierarchy and then opens both:
 # `FolderInfo(name='Folders', delim='/', flags=('\\Noselect', '\\Unmarked'))`.
 OPEN_NODE_FLAGS = ("\\Noselect", "\\Unmarked")
+NONEXISTENT_NODE_FLAGS = ("\\Subscribed", "\\NonExistent")
 
 
 class Folder:

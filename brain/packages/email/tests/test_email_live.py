@@ -106,7 +106,7 @@ def test_a_folder_no_mailbox_has_is_refused_by_name_and_by_the_folder_list() -> 
     if not config.user:
         pytest.skip("set CORTEX_EMAIL_IMAP_USER/PASSWORD (~/.cortex/email.env) to run")
     mailbox = ImapMailbox(config)
-    for name in ("Receipts", "INBOX/Receipts", "inbox/", '"Receipts"'):
+    for name in ("Receipts", "INBOX/Receipts", "inbox/", '"Receipts"', ""):
         with pytest.raises(FolderUnknownError) as raised:
             mailbox.search(name, "ALL", 1)
         assert raised.value.folder == name

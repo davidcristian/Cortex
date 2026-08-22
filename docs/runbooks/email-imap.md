@@ -91,8 +91,10 @@ just down-imap-probe
 
 Its LIST returns four names, three of them mailboxes (`INBOX` and `Parent/Child`, which open, and
 `Guarded`, which does not) and one of them a `\Noselect` node that is not a mailbox at all
-(`Parent`). What each is for is written in `docker/dovecot/probe-mailboxes.sh`, which builds them.
-All four are named a second time by `packages/email/tests/test_imap_probe_live.py`, and
+(`Parent`). A fifth name, `Ghost`, is subscribed and not there, which no LIST returns and which
+exists only to make the server send `\NonExistent`. What each is for is written in
+`docker/dovecot/probe-mailboxes.sh`, which builds them.
+All five are named a second time by `packages/email/tests/test_imap_probe_live.py`, and
 `scripts/crosscheck.py` holds the two spellings together (ADR-0029 fixture addendum): rename a
 mailbox in the script alone and the gate says so on the next commit, where the suite that would
 have noticed is `integration`-marked and runs only when somebody measures.
@@ -107,17 +109,42 @@ that answers at neither is reported rather than waited on. The answers, measured
 | `Guarded`, listed and ACL-shut | `NO [NOPERM] Permission denied (0.001 + 0.000 secs).` |
 | `Parent`, a `\Noselect` node with a child | `NO Mailbox doesn't exist: Parent (0.001 + 0.000 secs).` |
 | `""`, the empty name | `NO [CANNOT] Invalid mailbox name: Name is empty (0.001 + 0.000 secs).` |
+| `Parent/`, and every other malformed shape | `NO [CANNOT] Invalid mailbox name: Ends with hierarchy separator (0.001 + 0.000 secs).` |
 
-Three things to read off that. The refusal for a mailbox that is **there and shut** carries none
+Four things to read off that. The refusal for a mailbox that is **there and shut** carries none
 of the words that prove a folder missing, which is the assumption the whole classification rests
 on and was until now only assumed. The refusal for a **missing** mailbox shares no word with the
-Bridge's, so both phrases are read and neither server sends a response code to read instead. And
+Bridge's, so both phrases are read and neither server sends a response code to read instead. The
+refusal for a name **no mailbox could have** says nothing about a mailbox at all, so it is read off
+RFC 5530's `[CANNOT]` instead and typed as the folder correction, which is what the Bridge already
+gave it through its ordinary `no such mailbox` (ADR-0022 refused-name addendum); this server sends
+that code with six different reasons, one per way a name can be malformed. And
 this server refuses a listed `\Noselect` node exactly as it refuses a name no mailbox has, where
 the Bridge's own `\Noselect` parents open. Since the refusal carries nothing that could tell the
 two apart, `list_folders` reads the LIST attributes imap-tools already carries beside each name and
 opens anything flagged `\Noselect` or `\NonExistent` before deciding, dropping it only when this
 server refuses it as well (ADR-0022 flagged-and-refused addendum). `Parent` goes, `Parent/Child` is
 listed in its own right, and on the Bridge the two flagged parents that open are kept.
+
+### Asking this server for the flag imap-tools never asks about
+
+`folder.list()` sends the plain `LIST "" "*"`, so the newer spelling of "not a mailbox" cannot
+reach the adapter through it. To see where that word really comes from, drive imaplib directly
+against the running probe (this is what
+`test_the_newer_spelling_of_unselectable_is_a_word_this_server_really_sends` does, so
+`just email-folder-probe` runs it for you):
+
+```python
+conn.xatom("LIST", "(SUBSCRIBED)", '""', '"*"')
+conn.response("LIST")   # ('LIST', [b'(\\Subscribed \\NonExistent) "/" Ghost'])
+conn.xatom("LIST", '""', '"*"', "RETURN (CHILDREN)")
+conn.response("LIST")   # Parent is still (\Noselect \HasChildren) here
+```
+
+`\NonExistent` arrives instead of `\Noselect` and never beside it, on the subscribed name rather
+than on the node, and `Ghost` is refused by a SELECT in the same words `Parent` is. The Bridge
+cannot be asked at all: it advertises no LIST-EXTENDED and answers the extended form with `BAD`
+(ADR-0022 newer-spelling addendum).
 
 Rerun the probe after any change to the folder classification, and after a Dovecot bump if the
 pinned image ever moves: the wordings above are the evidence the rule is built on, and a server
