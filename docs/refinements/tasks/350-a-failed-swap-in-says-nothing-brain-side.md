@@ -1,6 +1,6 @@
 # A swap that failed on the model host says nothing in the brain's own log
 
-**Status:** open, actionable
+**Status:** landed 2026-08-22
 **Area:** inference-model-manager
 **Origin:** [ADR-0030](../../adr/ADR-0030-brain-handoff.md)
 
@@ -41,3 +41,18 @@ against the other two rather than by omission.
 
 - 2026-08-21: opened by the close of [R-345](345-a-refusal-that-is-not-the-only-record.md), whose
   seven-caller survey found this one keeps nothing at all.
+- 2026-08-22: Landed as the ADR-0030 failed-reason addendum, as the third shape: a `failure` field
+  on the handoff record, written by the settling transition through a widened `HandoffStore.transition`
+  and a `HandoffSettler.fail` that no caller can reach without a reason. The record was chosen over
+  the two log-only shapes because it is the only one that survives the process, which is what a
+  reader of a `FAILED` record has, and because the write that puts it there is also where the line
+  belongs, so the cheaper shape came with it rather than instead of it. Every way a handoff can end
+  failed now says which: three app-authored sentences in a new `swap_reasons.py` (the drain abort,
+  the teardown, the boot that found the record stranded) and, on the two paths that arrive as an
+  exception, that exception's own message, which is where the model host's status code and response
+  body reach the brain's side. The three user-facing notes are untouched. Re-derivation found one
+  claim of this entry's overstated: the fit check inside `swap_in` already logged both of its
+  refusals at `ERROR`, so "the swap in keeps nothing" was true of the eviction, the load and the
+  gate and false of the two refusals above them. What the close opened, that the reason is now
+  written to two surfaces neither of which anything reads back, is
+  [R-379](379-a-settled-reason-nothing-reads-back.md).

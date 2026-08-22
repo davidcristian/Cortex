@@ -218,6 +218,36 @@ async def check_transition_of_an_unknown_id_is_false(store: HandoffStore) -> Non
     assert await store.transition(_handoff_id(), HandoffState.FAILED) is False
 
 
+async def check_the_settled_reason_outlives_the_process(store: HandoffStore) -> None:
+    """A ``FAILED`` record says why, and it says it from the store rather than from an object."""
+    reason = (
+        "the model host failed while swapping in 'brain': the model host refused POST "
+        '/models/cortex/stop for model \'cortex\' with HTTP 503: {"detail": "child is wedged"}'
+    )
+    record = make_record(_handoff_id())
+    await store.put(record)
+    assert record.failure is None  # a snapshot carries none: nothing has failed yet
+    assert await store.transition(record.handoff_id, HandoffState.FAILED, failure=reason) is True
+    loaded = await store.get(record.handoff_id)
+    assert loaded is not None
+    assert loaded.state is HandoffState.FAILED
+    assert loaded.failure == reason
+    await store.delete(record.handoff_id)
+
+
+async def check_a_reasonless_transition_leaves_no_reason_behind(store: HandoffStore) -> None:
+    """A state written without a reason carries none, whatever the record said before."""
+    record = make_record(_handoff_id())
+    await store.put(record)
+    assert await store.transition(record.handoff_id, HandoffState.FAILED, failure="a bad swap")
+    assert await store.transition(record.handoff_id, HandoffState.DONE) is True
+    loaded = await store.get(record.handoff_id)
+    assert loaded is not None
+    assert loaded.state is HandoffState.DONE
+    assert loaded.failure is None
+    await store.delete(record.handoff_id)
+
+
 async def check_delete_removes_and_releases(store: HandoffStore) -> None:
     """Delete removes the record and the active slot it held; deleting again is a no-op."""
     record = make_record(_handoff_id())
@@ -275,6 +305,8 @@ ALL_CHECKS = (
     check_transition_walks_the_lifecycle,
     check_terminal_transition_releases_active_but_keeps_the_record,
     check_transition_of_an_unknown_id_is_false,
+    check_the_settled_reason_outlives_the_process,
+    check_a_reasonless_transition_leaves_no_reason_behind,
     check_delete_removes_and_releases,
     check_a_terminal_put_is_never_active,
     check_the_last_nonterminal_put_wins_the_slot,

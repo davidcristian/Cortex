@@ -17,14 +17,26 @@ class HandoffSettler:
 
     async def advance(self, record: HandoffRecord, state: HandoffState) -> None:
         """Move the record to ``state``, and free the store's claim once it is settled."""
-        written = await self._write_state(record.handoff_id, state)
-        if state is HandoffState.DONE or (state.terminal and not written):
-            await self._release_claim(record.handoff_id)
+        await self._settle(record.handoff_id, state, None)
 
-    async def _write_state(self, handoff_id: str, state: HandoffState) -> bool:
+    async def fail(self, record: HandoffRecord, reason: str) -> None:
+        """Settle the record ``FAILED``, saying why, in the log and on the record alike."""
+        _logger.warning(
+            "a handoff ended failed",
+            extra={"handoff": record.handoff_id, "reason": reason},
+        )
+        await self._settle(record.handoff_id, HandoffState.FAILED, reason)
+
+    async def _settle(self, handoff_id: str, state: HandoffState, failure: str | None) -> None:
+        """Write one state, then release the claim if this write is what owed it."""
+        written = await self._write_state(handoff_id, state, failure)
+        if state is HandoffState.DONE or (state.terminal and not written):
+            await self._release_claim(handoff_id)
+
+    async def _write_state(self, handoff_id: str, state: HandoffState, failure: str | None) -> bool:
         """Write one state onto the record; False when the store refused it."""
         try:
-            await self._handoffs.transition(handoff_id, state)
+            await self._handoffs.transition(handoff_id, state, failure=failure)
         except HandoffStoreError:
             _logger.exception(
                 "could not record the handoff's state",

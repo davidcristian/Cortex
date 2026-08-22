@@ -1,4 +1,4 @@
-"""In-memory ``HandoffStore`` fake: the contract twin of the Redis adapter (ADR-0030)."""
+"""In-memory ``HandoffStore``, tested against the same contract as the Redis adapter."""
 
 from dataclasses import replace
 
@@ -24,16 +24,18 @@ class InMemoryHandoffStore:
         """Return the record with ``handoff_id``, or None when unknown."""
         return self._records.get(handoff_id)
 
-    async def transition(self, handoff_id: str, state: HandoffState) -> bool:
-        """Rewrite the record's state (False for an unknown id, never an error)."""
+    async def transition(
+        self, handoff_id: str, state: HandoffState, *, failure: str | None = None
+    ) -> bool:
+        """Rewrite the record's state and reason (False for an unknown id, never an error)."""
         record = self._records.get(handoff_id)
         if record is None:
             return False
-        await self.put(replace(record, state=state))
+        await self.put(replace(record, state=state, failure=failure))
         return True
 
     async def delete(self, handoff_id: str) -> None:
-        """Remove the record outright, idempotently, releasing the pointer if it names it."""
+        """Remove the record, idempotently, clearing the active pointer when it points here."""
         self._records.pop(handoff_id, None)
         if self._active_id == handoff_id:
             self._active_id = None

@@ -353,6 +353,13 @@ under "Use-case" is what snapshots it and runs the swap):
   carries `UNSTAMPED` calls). Per the one hard rule it carries ONLY what is not already in a
   store. `taint_ledger()` reconstructs an exact, detached `TaintLedger` for the brain phase
   (both bits, sources order, URL set), the round trip the contract test pins.
+  `failure: str | None = None` is the one field that is not turn state (ADR-0030 failed-reason
+  addendum): what a `FAILED` record says about itself, written by the settling transition rather
+  than at the snapshot, and `None` on every record that has not been settled failed. It is
+  app-authored text (`swap_reasons.py`) or the message of the error that ended the sequence,
+  which on the swap path is where the model host's status code and its own response body reach
+  the brain's side. The contract test pins its round trip through the store, the reader it
+  exists for being the one holding nothing but the store.
 - `EscalationSlot(refs=None, brief=None)` is the mutable turn-local handle through which
   in-flight state reaches the serializer. Built **empty** by whoever orchestrates the turn (the
   escalating engine wrapper, ADR-0030 decision 5, so it can hold the slot across the delegated
@@ -1049,8 +1056,11 @@ unchanged):
   a model process (ADR-0010). Unknown ids return `None`.
 - `HandoffStore` holds the one in-flight brain handoff (ADR-0030): `async put(record) -> None`
   (persist a `HandoffRecord` snapshot), `async get(handoff_id) -> HandoffRecord | None`,
-  `async transition(handoff_id, state) -> bool` (rewrite just the state; `False` for an
-  unknown/expired id, never an error), `async delete(handoff_id) -> None` (idempotent), and
+  `async transition(handoff_id, state, *, failure=None) -> bool` (rewrite the state and the
+  reason it carries; `False` for an unknown/expired id, never an error). State and reason move
+  in one read-modify-write, so a transition naming no reason clears the field and no record
+  carries a sentence about a state it has left (ADR-0030 failed-reason addendum).
+  `async delete(handoff_id) -> None` (idempotent), and
   `async active() -> HandoffRecord | None` (the one non-terminal record; at most one handoff is
   in flight at a time, one GPU). The record is the mid-turn state the swap must not lose (brief,
   nonce, taint ledger, budget position, tool-loop tail); everything else is already in the other
@@ -1292,7 +1302,15 @@ Use-case:
   `HandoffSettler` (`swap_settle.py`), split off for the line cap along the seam the ADR's own
   addendum names: the conductor owns the order the machine changes hands in, while what the record
   owes at each of those moments turns on the state being written rather than on where in the
-  sequence it is written. Held by the conductor and deliberately not exported.
+  sequence it is written. Held by the conductor and deliberately not exported. It has two verbs,
+  not one (ADR-0030 failed-reason addendum): `advance(record, state)` for the two writes that owe
+  no reason (`BRAIN_ACTIVE`, `DONE`), and `fail(record, reason)` for the one that does, so no path
+  can settle a handoff failed without saying why. `fail` writes the reason to two places, each
+  covering the other's failure: onto the record, where it outlives the process, and into one
+  `WARNING` (`a handoff ended failed`, with the reason in a `reason` field), which still lands
+  when the store is the thing that broke and the record has to be dropped instead. The level is
+  a statement about the machine: every path that reaches it has converged back to a serving
+  cortex, and the louder levels are already spent on the failures somebody must act on.
   `undrain` is owed in a `finally` on every
   path, swap-back and abort alike, and **after** the swap generator's teardown, never beside it:
   closing that generator is what restores the standing residency, and admission reopens onto the
@@ -1361,9 +1379,11 @@ Use-case:
 - `recover_handoffs(handoffs, host, plan, tiers, *, clock, sleeper) -> bool` and
   `converge_residency(host, plan, tiers, *, clock, sleeper) -> bool` (`swap_recovery.py`) are boot
   recovery: the composition root calls the first once at startup, and it marks any non-terminal
-  record `FAILED`
+  record `FAILED`, with `STRANDED_REASON` on it
   (a handoff cannot outlive its process; a live record would otherwise refuse every later
-  escalation) and converges the GPU back onto the standing residency. Convergence is the
+  escalation, and this is the one settle whose writer is certainly not the process that ran the
+  handoff, so the record is the only place the reason can still be said) and converges the GPU
+  back onto the standing residency. Convergence is the
   conductor's own order: clear the GPU (stop every `plan.evict_models` tier, since a crash can
   leave one holding VRAM the cortex needs, then the deep model), settle the cortex to `READY`,
   and start the evicted tiers back through the swap back's own `restart_evicted`, so a boot leaves
@@ -1398,6 +1418,15 @@ Use-case:
   backstop guard, for a caller that swapped without claiming) says a handoff is already running,
   because the deep model IS loaded and the cortex is NOT back, which is the opposite of what the
   swap-failure note asserts; anything else is a swap that genuinely broke.
+- `DRAIN_TIMEOUT_REASON` / `TORN_DOWN_REASON` / `STRANDED_REASON` (`swap_reasons.py`) are the
+  deliberate opposite of those notes and the companion module to them (ADR-0030 failed-reason
+  addendum): a note is what the user is told and describes the GPU, a reason is what the record
+  keeps and describes the fault. The three name the failures of the sequence itself (the drain
+  bound elapsed with work in flight; the turn was torn down; the brain restarted mid handoff).
+  The other two ways a handoff ends failed carry the message of the error instead
+  (`ModelManagerError` from the swap, `InferenceError` from the deep model's own server), which
+  is how the model host's sentence reaches the brain's side at all. The two families never share
+  a string, and none of it is model text.
 - `TurnCapabilities(memory=None, tools=None, window=None, guardrail=None,
   record_tainted_memory=False, generate_titles=False, progress=None, escalation=None)` is a
   frozen bundle of the

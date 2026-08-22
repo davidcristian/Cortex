@@ -1,4 +1,4 @@
-"""Codec for the Redis ``HandoffStore``: one ``HandoffRecord`` as one JSON document (ADR-0030)."""
+"""Codec for the Redis ``HandoffStore``: one ``HandoffRecord`` as one JSON document."""
 
 import json
 from datetime import datetime
@@ -21,8 +21,8 @@ def record_key(handoff_id: str) -> str:
     return f"cortex:handoff:{handoff_id}"
 
 
-# The single-active-handoff pointer (one GPU, at most one swap in flight): holds the id of the
-# non-terminal record, maintained by every write, read by `active()`.
+# Holds the id of the one non-terminal record: there is one GPU, so at most one swap runs at a
+# time. Every write maintains it and ``active()`` reads it.
 ACTIVE_KEY = "cortex:handoff:active"
 
 
@@ -55,7 +55,7 @@ def _decode_message(fields: dict[str, Any]) -> Message:
 
 
 def encode_record(record: HandoffRecord) -> str:
-    """Serialize one record; the reader below accepts exactly this shape."""
+    """Serialize one record; the reader below accepts exactly these keys."""
     return json.dumps(
         {
             "handoff_id": record.handoff_id,
@@ -74,6 +74,7 @@ def encode_record(record: HandoffRecord) -> str:
             "budget_closed": record.budget_closed,
             "rounds_used": record.rounds_used,
             "loop_tail": [_encode_message(message) for message in record.loop_tail],
+            "failure": record.failure,
         }
     )
 
@@ -100,6 +101,7 @@ def decode_record(raw: bytes | str, handoff_id: str) -> HandoffRecord:
             budget_closed=fields["budget_closed"],
             rounds_used=fields["rounds_used"],
             loop_tail=tuple(_decode_message(message) for message in fields["loop_tail"]),
+            failure=fields["failure"],
         )
     except (KeyError, TypeError, ValueError) as err:
         msg = f"corrupt handoff record at {record_key(handoff_id)!r}"

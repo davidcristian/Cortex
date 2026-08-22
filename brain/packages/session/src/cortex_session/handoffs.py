@@ -68,16 +68,14 @@ class RedisHandoffStore:
             raise HandoffStoreError(msg) from err
         return decode_record(raw, handoff_id) if raw is not None else None
 
-    async def transition(self, handoff_id: str, state: HandoffState) -> bool:
-        """Rewrite the record's state (False for an unknown id, never an error).
-
-        A read-modify-write through ``put``, so a terminal transition inherits its TTL and
-        pointer release atomically with the state change.
-        """
+    async def transition(
+        self, handoff_id: str, state: HandoffState, *, failure: str | None = None
+    ) -> bool:
+        """Rewrite the record's state and reason (False for an unknown id, never an error)."""
         record = await self.get(handoff_id)
         if record is None:
             return False
-        await self.put(replace(record, state=state))
+        await self.put(replace(record, state=state, failure=failure))
         return True
 
     async def delete(self, handoff_id: str) -> None:

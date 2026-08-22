@@ -1,4 +1,4 @@
-"""The brain-handoff record: the mid-turn state a model swap must not lose (ADR-0030)."""
+"""The brain-handoff record: the mid-turn state a model swap must not lose."""
 
 from dataclasses import dataclass
 from datetime import datetime
@@ -11,8 +11,7 @@ from cortex_core.untrusted import TaintLedger
 
 
 class HandoffState(Enum):
-    """Where one handoff stands: ``PENDING`` → ``READY`` → ``BRAIN_ACTIVE`` → ``DONE``/``FAILED``.
-    """
+    """The stages of one handoff: PENDING, READY, BRAIN_ACTIVE, then DONE or FAILED."""
 
     PENDING = "pending"
     READY = "ready"
@@ -26,14 +25,12 @@ class HandoffState(Enum):
         return self in _TERMINAL_STATES
 
 
-# The states after which a record is history rather than an in-flight handoff. Held beside the
-# enum (the `SourceKind.attested` precedent) so the members keep their wire-ish string values.
 _TERMINAL_STATES = frozenset({HandoffState.DONE, HandoffState.FAILED})
 
 
 @dataclass(frozen=True, slots=True)
 class HandoffRecord:
-    """One serialized escalation: the turn state that must survive the model swap (ADR-0030)."""
+    """One serialized escalation: the turn state that must survive the model swap."""
 
     handoff_id: str
     session_id: str
@@ -49,6 +46,7 @@ class HandoffRecord:
     budget_closed: bool
     rounds_used: int
     loop_tail: tuple[Message, ...]
+    failure: str | None = None
 
     def __post_init__(self) -> None:
         if self.requested_at.tzinfo is None or self.requested_at.utcoffset() is None:
@@ -56,7 +54,7 @@ class HandoffRecord:
             raise ValueError(msg)
 
     def taint_ledger(self) -> TaintLedger:
-        """Reconstruct the turn's ``TaintLedger`` for the brain phase (ADR-0030 decision 4)."""
+        """Reconstruct the turn's ``TaintLedger`` for the brain phase."""
         return TaintLedger(
             tainted=self.tainted,
             opaque=self.opaque,
@@ -67,7 +65,7 @@ class HandoffRecord:
 
 @dataclass(frozen=True, slots=True)
 class EscalationRefs:
-    """The live turn-local state the engine arms an ``EscalationSlot`` with at turn start."""
+    """The live turn-local state the engine puts into an ``EscalationSlot`` at turn start."""
 
     working: list[Message]
     taint: TaintLedger
@@ -84,7 +82,7 @@ class EscalationSlot:
     brief: str | None = None
 
     def snapshot(self, *, turn_id: str, session_id: str, requested_at: datetime) -> HandoffRecord:
-        """Serialize the slot into a ``READY`` ``HandoffRecord`` (ADR-0030 decision 4 step 1)."""
+        """Serialize the slot into a ``READY`` ``HandoffRecord``."""
         if self.brief is None:
             msg = "EscalationSlot.snapshot requires a brief (no escalation was requested)"
             raise ValueError(msg)

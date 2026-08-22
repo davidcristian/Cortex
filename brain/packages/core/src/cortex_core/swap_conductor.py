@@ -27,6 +27,7 @@ from cortex_core.swap_notes import (
     WORKING_DETAIL,
     note_for,
 )
+from cortex_core.swap_reasons import DRAIN_TIMEOUT_REASON, TORN_DOWN_REASON
 from cortex_core.swap_settle import HandoffSettler
 
 _logger = logging.getLogger(__name__)
@@ -91,7 +92,7 @@ class SwapConductor:
             if not await self._drain():
                 # The abort direction: nothing has been evicted, so the cortex is still serving
                 # and the turn simply ends with what it has.
-                await self._settle.advance(prepared, HandoffState.FAILED)
+                await self._settle.fail(prepared, DRAIN_TIMEOUT_REASON)
                 yield TextDelta(text=DRAIN_TIMEOUT_NOTE)
                 return
             swap = self._swap(prepared)
@@ -104,7 +105,7 @@ class SwapConductor:
             # Cancellation and stream teardown included: a handoff that stops being run is a
             # failed handoff, and a live record would otherwise strand the next boot. The write
             # is best-effort under cancellation, which is exactly what boot recovery backs up.
-            await self._settle.advance(prepared, HandoffState.FAILED)
+            await self._settle.fail(prepared, TORN_DOWN_REASON)
             raise
         finally:
             self._undrain()
@@ -156,7 +157,7 @@ class SwapConductor:
             _logger.exception("the handoff store failed before anything was evicted")
             return STORE_FAILED_NOTE
         except BaseException:
-            await self._settle.advance(record, HandoffState.FAILED)
+            await self._settle.fail(record, TORN_DOWN_REASON)
             raise
         return record
 
@@ -176,14 +177,14 @@ class SwapConductor:
                 finally:
                     await phase.aclose()
                 yield _status(RESTORING_DETAIL)
-        except InferenceError:
-            # The deep model died mid-work. Its phase has already streamed and persisted its
-            # partial answer with the honest note, so there is nothing to add here: the scope's
-            # finally has restored the cortex and the record is what is left to settle.
-            await self._settle.advance(record, HandoffState.FAILED)
+        except InferenceError as err:
+            await self._settle.fail(record, str(err))
             return
         except ModelManagerError as err:
-            await self._settle.advance(record, HandoffState.FAILED)
+            # The one path this whole field exists for: the error's message is where the model
+            # host's status code and the leading characters of its own response body ended up,
+            # and the note below is about the GPU rather than about any of that.
+            await self._settle.fail(record, str(err))
             yield TextDelta(text=note_for(err))
             return
         await self._settle.advance(record, HandoffState.DONE)

@@ -9,6 +9,7 @@ from cortex_core.model_host import ModelHostState, ResidencyPlan
 from cortex_core.ports import Clock, HandoffStore, ModelHost, Sleeper
 from cortex_core.residency_moves import restart_evicted
 from cortex_core.residency_tiers import StandingTiers
+from cortex_core.swap_reasons import STRANDED_REASON
 
 _logger = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ async def recover_handoffs(
 
 
 async def _fail_stranded_handoff(handoffs: HandoffStore) -> None:
-    """Mark the one non-terminal record ``FAILED``; a handoff cannot outlive its process."""
+    """Mark the one non-terminal record ``FAILED``, saying so on the record as well as here."""
     try:
         record = await handoffs.active()
         if record is None:
@@ -37,7 +38,7 @@ async def _fail_stranded_handoff(handoffs: HandoffStore) -> None:
             "a handoff did not survive the restart; marking it failed",
             extra={"handoff": record.handoff_id, "state": record.state.value},
         )
-        await handoffs.transition(record.handoff_id, HandoffState.FAILED)
+        await handoffs.transition(record.handoff_id, HandoffState.FAILED, failure=STRANDED_REASON)
     except HandoffStoreError:
         _logger.exception("could not read or fail a stranded handoff at startup")
 
