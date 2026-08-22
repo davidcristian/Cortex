@@ -136,7 +136,7 @@ jobs:
       - uses: taiki-e/install-action@7f4eb899022d8fe70b20c4f3de697aa85c309026 # v2
         with:
           tool: cargo-llvm-cov,just
-      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+      - uses: Swatinem/rust-cache@f0d9c3887740aee45f6153b24b3a6b815192ec16 # v2
         with:
           workspaces: body
       # uv is needed because check-body's branch gate runs scripts/coverage_gate.py.
@@ -177,7 +177,7 @@ jobs:
           tool: just
       # The shell is its own cargo workspace, so it needs its own cache key; sharing the
       # rust job's would thrash both.
-      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+      - uses: Swatinem/rust-cache@f0d9c3887740aee45f6153b24b3a6b815192ec16 # v2
         with:
           workspaces: body/app/src-tauri
       - run: just check-shell
