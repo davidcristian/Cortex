@@ -65,6 +65,13 @@ denied outright.
   from either, which is why the words are read at all and why there are two of them; the other
   refusal is `[NOPERM] Permission denied`, measured on a mailbox that is listed and shut (ADR-0022
   two-server addendum, `tests/test_imap_probe_live.py` over `docker/docker-compose.imap-probe.yml`).
+- **The probe suite's four mailbox names are module constants and registered couplings.**
+  `GUARDED_FOLDER`, `REAL_FOLDER`, `NOSELECT_PARENT` and `NODE_CHILD` name what
+  `docker/dovecot/probe-mailboxes.sh` builds, and `scripts/crosscheck.py` ties each to the path
+  the script writes it in (ADR-0029 fixture addendum). This suite is `integration`-marked and
+  never runs in CI, so the gate is the only thing that would notice the fixture and the suite
+  drifting apart; the invented name the suite expects to be refused is deliberately not tied,
+  the point of it being that nothing builds it.
 - `EmailConfig` holds env-driven settings (`CORTEX_EMAIL_IMAP_*`): host/port/user/password
   (`SecretStr`), `security` (starttls|ssl), and `ca_cert` / `tls_insecure` for the Bridge's
   self-signed cert. Defaults target a local Bridge (127.0.0.1:1143, STARTTLS).

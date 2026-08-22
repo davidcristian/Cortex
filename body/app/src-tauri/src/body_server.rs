@@ -2,6 +2,11 @@
 //! it to run OS actions (volume, and the reminder toast of ADR-0025).
 
 #[cfg(windows)]
+const DEFAULT_BODY_PORT: u16 = 50151;
+
+/// The `AppUserModelID` the toast is attributed to when `CORTEX_TOAST_APP_ID` is unset: the app's
+/// own Tauri identifier (`tauri.conf.json`), which the installed Start Menu shortcut carries.
+#[cfg(windows)]
 const DEFAULT_TOAST_APP_ID: &str = "dev.cortex.body";
 
 /// Starts the `BodyService` server on `CORTEX_BODY_ADDR` (default `127.0.0.1:50151`) with the
@@ -21,7 +26,7 @@ pub fn start(excluded: bool) {
     let addr: SocketAddr = std::env::var("CORTEX_BODY_ADDR")
         .ok()
         .and_then(|raw| raw.parse().ok())
-        .unwrap_or_else(|| SocketAddr::from((Ipv4Addr::LOCALHOST, 50151)));
+        .unwrap_or_else(|| SocketAddr::from((Ipv4Addr::LOCALHOST, DEFAULT_BODY_PORT)));
     let token = std::env::var("CORTEX_SEAM_TOKEN").unwrap_or_default();
     let app_id =
         std::env::var("CORTEX_TOAST_APP_ID").unwrap_or_else(|_| String::from(DEFAULT_TOAST_APP_ID));

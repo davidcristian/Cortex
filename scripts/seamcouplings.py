@@ -3,7 +3,13 @@
 from couplings import Constant, Mention, Relation, Site
 
 BASE_COMPOSE = "docker/docker-compose.yml"
+BODY_COMPOSE = "docker/docker-compose.body.yml"
 BODY_GATEWAY = "brain/packages/body_client/src/cortex_body_client/gateway.py"
+BODY_SERVER = "body/app/src-tauri/src/body_server.rs"
+GATEWAY_LIVE = "brain/packages/body_client/tests/test_gateway_live.py"
+SCHEDULING_RUNBOOK = "docs/runbooks/scheduling.md"
+VOLUME_RUNBOOK = "docs/runbooks/body-volume.md"
+WSL_RUNBOOK = "docs/runbooks/local-dev-wsl.md"
 
 SEAM_COUPLINGS: tuple[Constant, ...] = (
     Constant(
@@ -139,6 +145,24 @@ SEAM_COUPLINGS: tuple[Constant, ...] = (
             Mention(BASE_COMPOSE, "insecure_channel('127.0.0.1:{value}')"),
             Mention("body/app/src-tauri/src/seam.rs", '"http://127.0.0.1:{value}"'),
             Mention("body/app/src-tauri/src/converse.rs", '"http://127.0.0.1:{value}"'),
+        ),
+    ),
+    Constant(
+        label="the body's own listen port",
+        why=(
+            "the entry above with the trees swapped: the host body binds this port when nothing "
+            "names another, and the body override dials it from inside the container, three "
+            "runbooks quote it to an operator as the bind and the endpoint, and the brain's live "
+            "gateway test falls back to it, so a change to the bind default alone leaves the "
+            "container dialling a port the host is not listening on (ADR-0023)"
+        ),
+        sites=(Site(BODY_SERVER, "DEFAULT_BODY_PORT"),),
+        mentions=(
+            Mention(BODY_COMPOSE, "${CORTEX_BODY_ENDPOINT:-host.docker.internal:{value}}"),
+            Mention(VOLUME_RUNBOOK, "`CORTEX_BODY_ADDR` (default `127.0.0.1:{value}`)"),
+            Mention(WSL_RUNBOOK, "| `CORTEX_BODY_ADDR` | `127.0.0.1:{value}` |"),
+            Mention(SCHEDULING_RUNBOOK, "`CORTEX_BODY_ADDR=0.0.0.0:{value}`"),
+            Mention(GATEWAY_LIVE, 'os.environ.get("CORTEX_BODY_ENDPOINT", "127.0.0.1:{value}")'),
         ),
     ),
 )

@@ -1,6 +1,6 @@
 # The IMAP probe's fixture names are spelled twice and nothing ties the two spellings
 
-**Status:** open, actionable
+**Status:** landed 2026-08-22
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -34,3 +34,18 @@ far sides the scan cannot currently reach.
 - 2026-08-21: Filed by the close of [327](327-the-other-no-to-select-is-unseen.md), which built the
   probe stack and its live suite and left their shared names unregistered rather than forcing a
   registry taxonomy decision inside a measurement slice.
+- 2026-08-22: landed. **The taxonomy question is answered with a new part**,
+  `scripts/fixturecouplings.py`, the seventh, added the way `emailcouplings.py` was two days
+  earlier: a data file plus one line in `registry.py`, with the scan never learning the registry
+  grew. Joining the email part would have made its own docstring false, its subject being the
+  sidecar's shipped env answers and not a dovecot fixture's mailbox tree; the honest distinction is
+  that every other part ties something the repo ships and this one ties something it measures with,
+  which generalises to the next fixture without stretching. **Two claims did not re-derive:** the
+  two files share four names and not three (`INBOX` joins `Guarded`, `Parent` and `Parent/Child`,
+  and all four are registered), and the mailbox names are not the whole of what they share, the
+  account `probe` being spelled in the suite and again inside the script's mail root
+  ([R-384](384-the-probe-account-is-spelled-twice.md)). The deliberate exclusions held: the address
+  and the port stay out, the recipe reading both back off docker. The guarded mailbox's mention
+  pins 2 occurrences, the directory and the ACL file inside it being one set. Nine planted drifts,
+  each exiting 1 and restored by digest, including the half applied rename the count exists for.
+  Tabled in the ADR-0029 fixture addendum.
