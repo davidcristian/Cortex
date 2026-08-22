@@ -680,3 +680,118 @@ The record is the task file
 [docs/refinements/index.md](../refinements/index.md), which is regenerated from it, and this
 addendum. One narrower task opens in its place, the twelve other files that spell the port
 ([R-383](../refinements/tasks/383-the-body-port-past-the-six-that-were-registered.md)).
+
+## Addendum (2026-08-23): the port read out of prose, and what a host file is
+
+The port addendum above registered six files and left the other twelve sorted only by a promise
+([R-383](../refinements/tasks/383-the-body-port-past-the-six-that-were-registered.md)). This is
+that sort, finished. The entry goes from five far sides to twenty three, and every place outside
+the decision records, the backlog and three wiring tests is now held.
+
+### The eighteen held, and the two counts that did not
+
+The entry's file count is right, which is worth saying after the count it corrected: eighteen files
+spell the port outside the backlog, seventeen of them plus this ADR. Two smaller numbers in it are
+not. It says this ADR spells the port four times; it spells it **seven**. And its framing counts
+**files**, which hid the rest: the port is spelled **33 times in 17 files** outside the decision
+records and the backlog, and eight of those spellings sit inside files that already carried a row.
+`docs/runbooks/body-volume.md` alone spells it six times and had one row; a presence check was
+satisfied by that one and would have gone on passing while the other five drifted. A file with a
+row is not a file whose every spelling moved, and that is the shape both of this month's registry
+tasks keep finding.
+
+### Four shapes, and the shapes do the excluding
+
+No needle here pins a word of the sentence around the number. Every one of the twenty three is
+built from one of four things the port is written **inside**:
+
+| shape | what it reaches | why it states |
+|---|---|---|
+| `default 127.0.0.1:{value}` | the bind a reader is told the body takes | wrong the moment the bind moves |
+| `CORTEX_BODY_ADDR=0.0.0.0:{value}` | the export the container path needs | an instruction, not an observation |
+| `host.docker.internal:{value}` | the endpoint the brain dials from a container | wrong the moment the body listens elsewhere |
+| the declaring module's own doc comments | what `body_server.rs` says it binds | a module documenting a port it stopped binding |
+
+That is what keeps the sort out of the registry's judgement and inside the text. The volume
+runbook's paragraph recording that a fake `BodyService` once served on `0.0.0.0:50151` writes the
+**address** and not the export, so none of the four reaches it, which is correct: it is a dated
+reading of what was run, it stays true after the default moves, and history is never a far side.
+The exclusion is a consequence of the shape rather than a decision applied on top of it.
+
+Three wiring tests are out for the other reason, and the entry had this right. Each sets
+`CORTEX_BODY_ENDPOINT` to a string and asserts the composition root read it back; any port would
+pass, and tying a fixture to a deployment default would redden on a change that broke nothing. The
+contrast with `capture_bytes.rs` is the useful one: that suite's `BRAIN_EDGE` **is** the brain's
+number and was promoted to a site the same day (the ADR-0029 legibility-prose addendum), because
+what it measures is meaningless at any other value. A test constant is a far side when the test is
+wrong without it, and a fixture when the test is merely specific.
+
+### The judgement call: a host file is a live instruction, not a record
+
+The entry named this as the thing it must leave written down, and it is settled: **in**. Three
+things decide it, and none of them is a preference.
+
+`docs/host/` holds work that is **built and unrun**. Its prerequisites section opens "Sittings die
+on setup. Have these before starting", which is an imperative in the present tense addressed to
+somebody who has not started yet. Its own index says a completed item's file **shrinks to a
+heading, its status and a pointer**, so the sentence naming a port is deleted when the sitting
+finishes: the record form the reading against this was worried about is a form these sentences
+never take. And the cost of being wrong is exactly the failure that section exists to prevent. An
+operator who exports a stale port loses the sitting to a bind nothing dials, on a machine this repo
+is not developed on, where the next attempt may be weeks away.
+
+So `docs/host/index.md` and the three host tasks under it are far sides, along with the capture
+check the legibility pair registered on the same reading. Four of the twenty three mentions and the
+first four `docs/host/` files this registry holds.
+
+### Proved able to fail, eighteen times, over the crosscheck registry
+
+Each new place was planted with a real disagreement one at a time on the real tree, the gate run,
+the file restored, and the gate re-run green. The counts are over the crosscheck registry as it
+stands after this change, 56 entries over 66 sites and 139 mentions, and not over any test suite: a
+suite's numbers say nothing about the collection this table is about. This entry is 1 of those
+entries, 1 of those sites and 23 of those mentions.
+
+| planted drift | what the gate said |
+|---|---|
+| `body_server.rs` documents a different bind | 1 fault naming the module |
+| `body_server.rs` documents a different export | 1 fault naming the module |
+| the override's header names a different bind | 1 fault naming the override |
+| the override's header opens a different port | 1 fault naming the override |
+| the override's inline comment names another | 1 fault naming the override |
+| the gateway docstring's endpoint shape moves | 1 fault naming the gateway |
+| the live test's run command moves | 1 fault naming the test |
+| the volume runbook's first endpoint moves | 1 fault: found 1 of the 2 pinned |
+| the volume runbook's first export moves | 1 fault: found 1 of the 2 pinned |
+| the WSL table's endpoint moves | 1 fault naming the runbook |
+| the WSL table's open bind moves | 1 fault naming the runbook |
+| the host index's prerequisite moves | 1 fault naming the index |
+| the bring-up task's PowerShell export moves | 1 fault naming the task |
+| the volume check's prerequisite moves | 1 fault naming the task |
+| the toast check's prerequisite moves | 1 fault naming the task |
+| the body app contract's config list moves | 1 fault: found 1 of the 2 pinned |
+| the body client contract's example moves | 1 fault naming the contract |
+| the orchestrator contract's example moves | 1 fault naming the contract |
+
+All eighteen exited 1 and all eighteen restorations returned the gate to green. Four **controls**
+ran the other way and all four stayed green: the volume runbook's dated record of the address a
+fake server once served on, and the three wiring tests' fixture endpoints. The two counted mentions
+are what the eighth, ninth and sixteenth rows show, a file losing one of a pair reddening as loudly
+as one losing both.
+
+### What this opened
+
+The brain's own seam port has the same gap with the roles reversed. `DEFAULT_SEAM_PORT` is held to
+a compose publish, a healthcheck dial and two Tauri modules, and to no prose at all, while nine
+documents state it: the same host prerequisites list, four module contracts, the overlay and WSL
+runbooks. It was the worked example this port was measured against, and it is now the looser of the
+two ([R-389](../refinements/tasks/389-the-brain-port-is-held-in-code-and-not-in-prose.md)).
+
+### Records
+
+The record is the task file
+[R-383](../refinements/tasks/383-the-body-port-past-the-six-that-were-registered.md), which closes,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from it,
+`body/app/src-tauri/src/body_server.rs` and
+[modules/body-app.md](../modules/body-app.md), whose accounts of what is tied were both stale by
+this change, [modules/repo-gates.md](../modules/repo-gates.md), and this addendum.

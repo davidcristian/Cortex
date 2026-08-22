@@ -1,6 +1,6 @@
 # The body port is spelled in twelve more files and only six of them are held
 
-**Status:** open, actionable
+**Status:** landed 2026-08-23
 **Area:** repo-gates
 **Origin:** [ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)
 
@@ -39,3 +39,26 @@ about a different value.
 - 2026-08-22: opened by the close of [R-356](356-the-body-port-is-a-bare-literal.md), whose own
   count of the files spelling the port was an enumeration rather than a survey, which is what
   turned a finished registration into a sorting task.
+- 2026-08-23: landed. The file count held up and two smaller ones in this file did not: ADR-0023
+  spells the port seven times rather than four, and counting files hid eight spellings inside files
+  that already carried a row, `docs/runbooks/body-volume.md` alone spelling it six times against
+  one. Counted off the tree, the port is written 33 times in 17 files outside the decision records
+  and the backlog. The entry went from five far sides to twenty three, and every place outside the
+  decision records, the backlog and the three wiring tests is now held. Four needle shapes carry
+  the sort so that none pins a word of the sentence around the number: `default 127.0.0.1:` for a
+  stated bind, `CORTEX_BODY_ADDR=0.0.0.0:` for the export the container path needs,
+  `host.docker.internal:` for the endpoint the brain dials, and the declaring module's own two doc
+  comments. The shapes do the excluding: the volume runbook's record of a fake server once served
+  on that address writes the address alone, so no needle reaches it, which is right for a dated
+  reading. The three wiring tests stay out for the reason this file gives, and the contrast that
+  makes the rule usable arrived the same day: a test constant is a far side when the test is wrong
+  without it and a fixture when the test is merely specific. **The judgement call is settled in:**
+  a host file is a live instruction and not a record, because its prerequisites open "Sittings die
+  on setup", a completed check's file shrinks to a heading, its status and a pointer, and a stale
+  port there costs a sitting on hardware nobody here has. Eighteen planted drifts each reddened the
+  gate and four controls each left it green. Recorded in the ADR-0023 port-prose addendum, in
+  `body/app/src-tauri/src/body_server.rs` and
+  [modules/body-app.md](../../modules/body-app.md), whose accounts of what is tied were stale, and
+  in [modules/repo-gates.md](../../modules/repo-gates.md). One narrower entry opens in its place,
+  the brain's own port being held in code and in no prose at all
+  ([389](389-the-brain-port-is-held-in-code-and-not-in-prose.md)).

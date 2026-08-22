@@ -8,10 +8,13 @@
 
 /// The TCP port `BodyService` listens on when `CORTEX_BODY_ADDR` names none. It is the body's
 /// own, the brain's `BrainService` being 50051, and it is a declaration rather than a literal
-/// in the bind below because five other files spell it: the body override's endpoint default,
-/// three runbooks quoting it to an operator, and the brain's live gateway fallback.
-/// `scripts/crosscheck.py` holds all of them to this one number, which is the only thing that
-/// does; nothing here and nothing there can import the other.
+/// in the bind below because thirteen other files spell it: the body override and its header
+/// comments, three runbooks quoting it to an operator, three module contracts, the brain's
+/// gateway and its live test, and the four `docs/host/` files that tell an operator to export
+/// it before a sitting. `scripts/crosscheck.py` holds every one of those to this one number,
+/// which is the only thing that does; nothing here and nothing there can import the other.
+/// The two doc comments below are held to it as well, so a retune cannot leave this module
+/// documenting a port it stopped binding.
 #[cfg(windows)]
 const DEFAULT_BODY_PORT: u16 = 50151;
 
