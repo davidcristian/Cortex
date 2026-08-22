@@ -30,12 +30,20 @@ class LoggingAuditSink:
     async def record(self, invocation: ToolInvocation) -> None:
         """Log the invocation: name, ok, arguments, trust, timestamp; detail only on failure.
 
-        Then what the call was made for (ADR-0009 named-work addendum), under the same field
-        names the rest of this repo's log lines spell those ids with, so an operator reading a
-        failed turn's line can grep its `turn_id` and get the tool calls that preceded it. An
-        id the dispatch did not have is left off the line rather than printed empty: absence is
-        the honest rendering of an unattributed caller, and an empty field would read as a
-        missing value rather than as no such thing.
+        Then which call it was and what it was made for (ADR-0009 named-work and named-call
+        addenda), under the same field names the rest of this repo's log lines spell those ids
+        with, so an operator reading a failed turn's line can grep its `turn_id` and get the tool
+        calls that preceded it. An id the dispatch did not have is left off the line rather than
+        printed empty: absence is the honest rendering of an unattributed caller, and an empty
+        field would read as a missing value rather than as no such thing.
+
+        The five ids print alike and are read differently, which is the field name's job.
+        `session_id`, `turn_id`, `task_id` and `item_id` are off the dispatch stamp, which the
+        dispatcher overwrites, so they are what the brain knows about the work; `call_id` is the
+        call's own, which on a cortex dispatch is whatever the model emitted, so it is read the
+        way `tool` and `arguments` are read. The formatter is what makes printing that safe: a
+        rendered value carrying whitespace or a quote is quoted and escaped, so no id can forge
+        a field boundary, and an over-long one is cut with a marker.
         """
         fields: dict[str, object] = {
             "tool": invocation.name,
@@ -48,9 +56,11 @@ class LoggingAuditSink:
             {
                 name: identity
                 for name, identity in (
+                    ("call_id", invocation.call_id),
                     ("session_id", invocation.session_id),
                     ("turn_id", invocation.turn_id),
                     ("task_id", invocation.task_id),
+                    ("item_id", invocation.item_id),
                 )
                 if identity
             }

@@ -1,6 +1,6 @@
 # A dispatched call's own id reaches no line
 
-**Status:** open, actionable
+**Status:** landed 2026-08-22
 **Area:** tools-mcp
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
 
@@ -31,3 +31,16 @@ cannot name, and it is also the caller nobody is watching when it runs.
 - 2026-08-21: Opened by the close of
   [342](342-the-audit-trail-cannot-name-the-turn.md), which put the chat, the turn and the task on
   the line and left the call itself unnamed. Recorded in the ADR-0009 named-work addendum.
+- 2026-08-22: Landed as **both** readings, which the entry framed as alternatives. `ToolInvocation`
+  gains `call_id`, copied off `ToolCall.id` by `ToolDispatcher._audited`, model-authored and all:
+  the audit line records what was **asked for**, which is why it has always carried the model's
+  `tool` and `arguments`, and refusing the id would have left the correlation gap open for nearly
+  every dispatch. `TurnStamp` and `ToolInvocation` gain `item_id`, which the ticker sets and no
+  other caller does, because the fired item read out of the `schedule-` prefix is a fact a model
+  can counterfeit by choosing that prefix, and a fact off the stamp is one it cannot. The field
+  name is what tells the two apart on the line. Recorded in the ADR-0009 named-call addendum,
+  which also narrows three of this entry's claims: the withheld-by-name mechanism is one `call_id`
+  is subject to and never triggers, the `Role.TOOL` message the id pairs with is turn-local
+  (`store_codec` persists no `tool_call_id`), and `RepeatSalience` already keeps two identical
+  calls in one turn from writing two lines that agree in every field. Opened
+  [380](380-a-fires-delegates-do-not-name-the-item.md), the item stopping at the spawn call.

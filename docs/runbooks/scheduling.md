@@ -101,7 +101,10 @@ and fires fresh rather than re-delivering the stale one (ADR-0025 rule-edit adde
 With subagents wired (`CORTEX_SUBAGENTS_BACKEND=llamacpp`) the tool also offers
 `kind: "task"`, which is an autonomous subagent run per fire, dispatched through the ticker's own
 audited `spawn_subagents` path (`confirmer=None`, so gated tools stay structurally
-unreachable; a tainted-created task is refused at creation outright). A finished task's
+unreachable; a tainted-created task is refused at creation outright). That dispatch writes one
+audit line carrying `item_id`, which is how `docker compose logs brain | grep item_id=` answers
+"what fired, and what did it do?" for the one caller nobody is watching (ADR-0009 named-call
+addendum). A finished task's
 **outcome delivers as a notification** the same way a reminder's text does (ADR-0025 task-outcome
 addendum): the outcome (not the standing instruction) becomes the toast body under a `Cortex task`
 title and, if the push does not land, waits in the store for the overlay's next pull. So a one-shot

@@ -624,8 +624,11 @@ The service:
   or re-claim won) delivers nothing. A `TASK` dispatches a synthetic `spawn_subagents`
   call through `spawn`, the ticker's own audited dispatcher (`confirmer=None`, fail-closed;
   the dispatch's `TurnStamp` carries `item.tainted` → ADR-0017 pinning, plus the item's origin
-  `session_id` (provenance on the dispatch, unconsumed until the ADR-0027 SubagentTask
-  deferral lands); the result's trust becomes the fire-time taint the store ORs onto the item),
+  `session_id`, which the spawn tool writes onto each task and the audit trail prints, and its
+  `item_id`, which nothing else in the tree stamps: the call id spells the item too, as
+  `schedule-<item id>`, but a call id is a model's own string on every other dispatch, so the
+  trail's statement that an item fired is made in the field a model cannot reach (ADR-0009
+  named-call addendum); the result's trust becomes the fire-time taint the store ORs onto the item),
   then finishes deliverable and delivers its **outcome** (not the standing instruction) under
   `TASK_TITLE`, so a task's result reaches the user as a notification and survives a body-down
   fire in the store rather than being lost (ADR-0025 task-outcome addendum); no `spawn` wired →

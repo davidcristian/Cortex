@@ -261,12 +261,20 @@ class ToolDispatcher:
         return await self._confirmer.confirm(request)
 
     async def _audited(self, call: ToolCall, result: ToolResult) -> ToolResult:
-        """Record one audit line (its provenance and the work it was for) and return the result.
+        """Record one audit line (its provenance, the work it was for, the call) and return it.
 
-        The three identities come off the call's own stamp, which ``dispatch`` overwrote with
+        The four identities come off the call's own stamp, which ``dispatch`` overwrote with
         the caller's before any branch above could return, so a refusal, a gate denial and a
         served call all name their work the same way (ADR-0009 named-work addendum). A model
-        can no more forge them than it can forge the taint bit, for the same reason.
+        can no more forge them than it can forge the taint bit, for the same reason. ``item_id``
+        is the one no turn ever sets: a scheduled fire is its only caller, which is what keeps
+        the trail's statement that an item fired unforgeable by a model that spells the ticker's
+        own call-id prefix into an id of its own (ADR-0009 named-call addendum).
+
+        ``call_id`` is the exception in both directions: it comes off the call rather than the
+        stamp, and it is therefore the model's own string on a cortex dispatch. It is copied
+        anyway, for the reason ``name`` and ``arguments`` are, and it is the id the result and
+        its ``Role.TOOL`` message are keyed by, so the line says which dispatch it is.
         """
         await self._audit.record(
             ToolInvocation(
@@ -276,9 +284,11 @@ class ToolDispatcher:
                 detail=result.content,
                 at=self._clock.now(),
                 trust=result.trust,
+                call_id=call.id,
                 session_id=call.stamp.session_id,
                 turn_id=call.stamp.turn_id,
                 task_id=call.stamp.task_id,
+                item_id=call.stamp.item_id,
             )
         )
         return result

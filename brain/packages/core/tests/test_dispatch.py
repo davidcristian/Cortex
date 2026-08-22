@@ -568,3 +568,66 @@ async def test_a_model_cannot_forge_the_work_its_call_is_audited_under() -> None
     )
     (record,) = sink.records
     assert (record.session_id, record.turn_id, record.task_id) == ("s-4", "t-4", "")
+
+
+async def test_the_audit_line_names_the_call_that_was_dispatched() -> None:
+    # The call's own id (ADR-0009 named-call addendum): the string the result and its
+    # `Role.TOOL` message are keyed by, so a line says which of a turn's dispatches it is
+    # rather than only which turn made it. Off the call, not off the stamp.
+    sink = RecordingAuditSink()
+    registry = InMemoryToolRegistry({"read": (_spec("read"), _ran)})
+    await _dispatcher(registry, sink).dispatch(
+        ToolCall(id="call-7", name="read", arguments={"path": "/p"}),
+        stamp=TurnStamp(session_id="s-1", turn_id="t-1"),
+    )
+    (record,) = sink.records
+    assert record.call_id == "call-7"
+
+
+async def test_a_refused_and_a_denied_call_name_themselves_too() -> None:
+    # The two early returns. A budget refusal and a taint denial never reach the registry, so
+    # their lines are the only trace the call existed at all, and a trace that cannot say which
+    # call it was is what the entry behind this addendum was about.
+    sink = RecordingAuditSink()
+    await _outbound(sink, None).dispatch(
+        ToolCall(id="call-8", name="send", arguments={}), refusal=DispatchRefusal.BUDGET
+    )
+    await _outbound(sink, None).dispatch(
+        ToolCall(id="call-9", name="send", arguments={}),
+        stamp=TurnStamp(tainted=True),
+        gated=True,
+    )
+    refused, denied = sink.records
+    assert (refused.call_id, denied.call_id) == ("call-8", "call-9")
+    assert (refused.detail, denied.detail) == (DispatchRefusal.BUDGET.message, DENIED_MSG)
+
+
+async def test_a_fired_items_identity_reaches_the_line_off_the_stamp() -> None:
+    # The ticker's shape (ADR-0009 named-call addendum): the item is a work identity beside
+    # the chat, the turn and the task, and it is the only one of the four no turn ever sets.
+    sink = RecordingAuditSink()
+    registry = InMemoryToolRegistry({"read": (_spec("read"), _ran)})
+    await _dispatcher(registry, sink).dispatch(
+        ToolCall(id="schedule-t1", name="read", arguments={"path": "/p"}),
+        stamp=TurnStamp(session_id="chat-1", item_id="t1"),
+    )
+    (record,) = sink.records
+    assert (record.item_id, record.call_id) == ("t1", "schedule-t1")
+
+
+async def test_a_model_cannot_counterfeit_a_fire_by_spelling_the_ticker_prefix() -> None:
+    # The collision the ticker's `schedule-` prefix invites. A model may choose that id, and
+    # the trail prints it as asked, because a call id is what was asked for. What it cannot do
+    # is name an item: `item_id` is off the stamp the dispatcher overwrote, so the counterfeit
+    # fails structurally rather than by a reader noticing which other fields are missing.
+    sink = RecordingAuditSink()
+    registry = InMemoryToolRegistry({"read": (_spec("read"), _ran)})
+    forged = TurnStamp(session_id="victim", item_id="t-victim")
+    await _dispatcher(registry, sink).dispatch(
+        ToolCall(id="schedule-t-victim", name="read", arguments={"path": "/p"}, stamp=forged),
+        stamp=TurnStamp(session_id="s-5", turn_id="t-5"),
+    )
+    (record,) = sink.records
+    assert record.call_id == "schedule-t-victim"
+    assert record.item_id == ""
+    assert (record.session_id, record.turn_id) == ("s-5", "t-5")
