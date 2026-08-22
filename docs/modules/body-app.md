@@ -850,8 +850,11 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   plan, so there is none to tell the brain about.
 - **The `body_server` module** (`src-tauri/src/body_server.rs`, ADR-0023/0025): `start()` (`cfg(windows)`)
   binds `CORTEX_BODY_ADDR` (default `127.0.0.1:50151`, the port declared once as
-  `DEFAULT_BODY_PORT` and tied by `scripts/crosscheck.py` to the body override, three runbooks and
-  the brain's live gateway fallback, ADR-0023 port addendum), reads `CORTEX_SEAM_TOKEN` and
+  `DEFAULT_BODY_PORT` and tied by `scripts/crosscheck.py` to every other place that states it:
+  the body override and its header comments, three runbooks, three module contracts including
+  this one, the brain's gateway and its live test, and the four `docs/host/` files that tell an
+  operator to export it before a sitting, ADR-0023 port and port-prose addenda), reads
+  `CORTEX_SEAM_TOKEN` and
   `CORTEX_TOAST_APP_ID` (default `dev.cortex.body`, the app's Tauri identifier), and serves
   `body_rpc::body_service(WindowsAudioControl::new(), WindowsNotify::new(&app_id), &token)` on
   Tauri's async runtime

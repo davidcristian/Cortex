@@ -521,8 +521,8 @@ that last question to have an answer.
   GPU one), because the pair is what either number is for, and the two that name their own file's
   default a few lines above the substitution carrying it.
 - **The legibility pair was then read out of prose the same way** (ADR-0029 legibility-prose
-  addendum), which is what turned two entries with three and four far sides into two with nine and
-  twelve. Held: the module contracts stating either default, the GPU runbook's env table **and**
+  addendum), which is what turned two entries with three and four far sides into two with ten and
+  thirteen. Held: the module contracts stating either default, the GPU runbook's env table **and**
   the recipe block under it, the vision runbook's three claims about what ships, both declaring
   files' own prose beside the constant, and the host check telling an operator what a stock
   deployment captures. Left out: every measured arm, cost and reservation row, each of which was
@@ -533,7 +533,16 @@ that last question to have an answer.
   design change. The edge gained a second **site** in the other tree, `BRAIN_EDGE` in
   `body/crates/core/tests/capture_bytes.rs`, which is what the byte-ceiling headroom suite measures
   against and is a fixture that has to follow the brain rather than a value it may choose.
-- **A host file is a live instruction, not a record**, which is the reading that sort needed.
+- **The body's bind port was read out the same way** (ADR-0023 port-prose addendum), which took one
+  entry from five far sides to twenty three. Four needle shapes carry that sort, so none of them
+  pins the phrasing around the number: `default 127.0.0.1:` for a stated bind,
+  `CORTEX_BODY_ADDR=0.0.0.0:` for the export the container path needs, `host.docker.internal:` for
+  the endpoint the brain dials, and the declaring module's own two doc comments. The shapes do the
+  excluding: the volume runbook's record of a fake server once served on that address writes the
+  address alone and so is reached by none of them, which is right, a dated reading being history.
+  Three wiring tests are out for the other reason, each setting `CORTEX_BODY_ENDPOINT` to a string
+  and asserting the composition root read it back, which any port would pass.
+- **A host file is a live instruction, not a record**, which is the reading both sorts needed.
   `docs/host/` holds work that is built and unrun, its prerequisites exist so a sitting does not die
   on setup, and a completed item's file shrinks to a heading, its status and a pointer, so the
   sentence naming a value never survives into the record it would otherwise become. A stale number

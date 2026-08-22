@@ -10,6 +10,13 @@ GATEWAY_LIVE = "brain/packages/body_client/tests/test_gateway_live.py"
 SCHEDULING_RUNBOOK = "docs/runbooks/scheduling.md"
 VOLUME_RUNBOOK = "docs/runbooks/body-volume.md"
 WSL_RUNBOOK = "docs/runbooks/local-dev-wsl.md"
+BODY_APP_DOC = "docs/modules/body-app.md"
+BODY_CLIENT_DOC = "docs/modules/brain-body-client.md"
+ORCHESTRATOR_DOC = "docs/modules/brain-orchestrator.md"
+HOST_INDEX = "docs/host/index.md"
+HOST_BRINGUP = "docs/host/tasks/001-bring-up-and-streamed-turn.md"
+HOST_VOLUME_CHECK = "docs/host/tasks/002-core-audio-volume-action.md"
+HOST_TOAST_CHECK = "docs/host/tasks/003-real-reminder-toast.md"
 
 SEAM_COUPLINGS: tuple[Constant, ...] = (
     Constant(
@@ -151,18 +158,37 @@ SEAM_COUPLINGS: tuple[Constant, ...] = (
         label="the body's own listen port",
         why=(
             "the entry above with the trees swapped: the host body binds this port when nothing "
-            "names another, and the body override dials it from inside the container, three "
-            "runbooks quote it to an operator as the bind and the endpoint, and the brain's live "
-            "gateway test falls back to it, so a change to the bind default alone leaves the "
-            "container dialling a port the host is not listening on (ADR-0023)"
+            "names another, the body override dials it from inside the container, three runbooks "
+            "and three module contracts quote it to an operator as the bind and the endpoint, "
+            "the host sitting's prerequisites tell an operator to export it, and the brain's "
+            "live gateway test falls back to it, so a change to the bind default alone leaves "
+            "the container dialling a port the host is not listening on (ADR-0023)"
         ),
         sites=(Site(BODY_SERVER, "DEFAULT_BODY_PORT"),),
         mentions=(
+            Mention(BODY_SERVER, "default `127.0.0.1:{value}`"),
+            Mention(BODY_SERVER, "CORTEX_BODY_ADDR=0.0.0.0:{value}"),
             Mention(BODY_COMPOSE, "${CORTEX_BODY_ENDPOINT:-host.docker.internal:{value}}"),
-            Mention(VOLUME_RUNBOOK, "`CORTEX_BODY_ADDR` (default `127.0.0.1:{value}`)"),
-            Mention(WSL_RUNBOOK, "| `CORTEX_BODY_ADDR` | `127.0.0.1:{value}` |"),
-            Mention(SCHEDULING_RUNBOOK, "`CORTEX_BODY_ADDR=0.0.0.0:{value}`"),
+            Mention(BODY_COMPOSE, "default 127.0.0.1:{value}"),
+            Mention(BODY_COMPOSE, "(0.0.0.0:{value})"),
+            Mention(BODY_COMPOSE, "{value} is the"),
+            Mention(BODY_GATEWAY, "``host:{value}``"),
             Mention(GATEWAY_LIVE, 'os.environ.get("CORTEX_BODY_ENDPOINT", "127.0.0.1:{value}")'),
+            Mention(GATEWAY_LIVE, "host.docker.internal:{value}"),
+            Mention(VOLUME_RUNBOOK, "`CORTEX_BODY_ADDR` (default `127.0.0.1:{value}`)"),
+            Mention(VOLUME_RUNBOOK, "host.docker.internal:{value}", occurrences=2),
+            Mention(VOLUME_RUNBOOK, "CORTEX_BODY_ADDR=0.0.0.0:{value}", occurrences=2),
+            Mention(WSL_RUNBOOK, "| `CORTEX_BODY_ADDR` | `127.0.0.1:{value}` |"),
+            Mention(WSL_RUNBOOK, "host.docker.internal:{value}"),
+            Mention(WSL_RUNBOOK, "0.0.0.0:{value}"),
+            Mention(SCHEDULING_RUNBOOK, "`CORTEX_BODY_ADDR=0.0.0.0:{value}`"),
+            Mention(HOST_INDEX, "CORTEX_BODY_ADDR=0.0.0.0:{value}"),
+            Mention(HOST_BRINGUP, '"0.0.0.0:{value}"'),
+            Mention(HOST_VOLUME_CHECK, "CORTEX_BODY_ADDR=0.0.0.0:{value}"),
+            Mention(HOST_TOAST_CHECK, "CORTEX_BODY_ADDR=0.0.0.0:{value}"),
+            Mention(BODY_APP_DOC, "default `127.0.0.1:{value}`", occurrences=2),
+            Mention(BODY_CLIENT_DOC, "host.docker.internal:{value}"),
+            Mention(ORCHESTRATOR_DOC, "host.docker.internal:{value}"),
         ),
     ),
 )
