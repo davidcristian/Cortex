@@ -177,14 +177,13 @@ def _refused(model: str, err: SupervisorError, code: HTTPStatus) -> Response:
     again; the sentence rides the ``error`` field, so the level has to ride the line that is left
     or a child holding GPU memory nothing can free reads exactly like a typo in a model id.
 
-    It matters most on the one caller that keeps nothing: a swap's eviction meets the 503 through
-    the brain's own port, and the conductor answers one of three fixed user-facing notes without
-    ever reading the error's text, so on that path this line is the whole record. It is not the
-    only record everywhere, and the level is not resting on that. Every other caller of these
-    routes writes the sentence into the brain's log as well, the swap back and boot recovery
-    inside a traceback and the peer sweep in a field, because the message they carry was built
-    out of this body. So the level stands on what a 5xx means rather than on being unique
-    (ADR-0030's refusal-reach addendum, which surveys all seven callers).
+    It is not the only record of itself anywhere, and the level is not resting on that. Every
+    caller of these routes writes the sentence into the brain's log as well, the swap back and
+    boot recovery inside a traceback, the peer sweep in a field, and the swap in by settling it
+    onto the handoff record it fails and logging it once beside that write (ADR-0030's
+    refusal-reach addendum surveys all seven callers, and its failed-reason addendum is what
+    closed the one that used to keep nothing). Each of those messages was built out of this body,
+    so the level stands on what a 5xx means rather than on being unique.
     """
     level = logging.ERROR if code >= HTTPStatus.INTERNAL_SERVER_ERROR else logging.WARNING
     _logger.log(level, "a model-host request failed", extra={"model": model, "error": str(err)})

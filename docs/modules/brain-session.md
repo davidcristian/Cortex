@@ -143,9 +143,11 @@ Translators only: serialization, key layout, and error wrapping; no business log
   - `async get(handoff_id)` GET/decodes one record (unknown/expired id → `None`); a corrupt
     record fails loudly naming its key, since silently defaulting the taint fields would fail
     open after the swap.
-  - `async transition(handoff_id, state)` is a read-modify-write through `put`, so a terminal
-    transition inherits its TTL and pointer release atomically with the state change; an
-    unknown id no-ops `False`.
+  - `async transition(handoff_id, state, *, failure=None)` is a read-modify-write through
+    `put`, so a terminal transition inherits its TTL and pointer release atomically with the
+    state change; an unknown id no-ops `False`. The reason a handoff was settled failed rides
+    the same document and the same write (ADR-0030 failed-reason addendum), so it cannot land
+    without its state or outlive it: a transition naming no reason clears the field.
   - `async delete(handoff_id)` DELs the record and the pointer when it names it, idempotently.
   - `async active()` follows the pointer to the one in-flight record (`None` when free); a
     dangling pointer or a hand-crafted terminal record behind it reads as no active handoff,
@@ -195,13 +197,17 @@ the task-store precedent) plus the pointer key `cortex:handoff:active` holding t
 record's id (one GPU, at most one swap at a time). The document carries the escalation `brief`,
 the turn's fence `nonce`, the whole taint ledger (`tainted`, `opaque`, `sources` as ordered
 `{"kind", "value"}` pairs, `untrusted_urls` stored sorted and read back as a set), the budget
-position (`budget_remaining`/`budget_closed`), `rounds_used`, and `loop_tail` (each message
+position (`budget_remaining`/`budget_closed`), `rounds_used`, `loop_tail` (each message
 with its `tool_calls` as `{"id", "name", "arguments"}`; the transient dispatch stamp is never
-persisted, per the core's `ToolCall` contract). Timestamps preserve their offset as
-everywhere. Non-terminal records carry **no TTL**; terminal (`done`/`failed`) records expire
-after an hour, kept only for diagnosis. Decode is strict (a missing key is a corrupt record,
-no legacy paths): taint fields that silently defaulted would fail open after the swap, which
-is the exact laundering/taint gap the contract round trip pins shut.
+persisted, per the core's `ToolCall` contract), and `failure`, the only field written after the
+snapshot: what a settled `FAILED` record says about itself, `null` on every other record, and a
+required key like the rest (a document without it is not this codec's, and reading one as "no
+reason given" would be indistinguishable from the state the field exists to end). Timestamps
+preserve their offset as everywhere. Non-terminal records carry **no TTL**; terminal
+(`done`/`failed`) records expire after an hour, kept only for diagnosis. Decode is strict (a
+missing key is a corrupt record, no legacy paths): taint fields that silently defaulted would
+fail open after the swap, which is the exact laundering/taint gap the contract round trip pins
+shut.
 
 Schedule state (ADR-0025) is the durable retention class again: one record per schedule at
 `cortex:schedule:{id}` storing `{"v": 1, "kind": "schedule", "id", "item_kind", "text",
@@ -296,7 +302,9 @@ the `opaque` bit's own both-poles round trip beside it (ADR-0029/0030: a clean r
 `False` and an image-marked one `True`, on the record and on the rebuilt ledger, because both of
 that bit's consumers open on a `False` after the swap), then the lifecycle checks (active-slot
 claim/release across put/transition/delete, terminal records readable but never active,
-unknown-id no-ops, timezone fidelity on the record and its tool-bearing tail), with adapter-only
+unknown-id no-ops, timezone fidelity on the record and its tool-bearing tail, and the settled
+reason's own round trip: a `FAILED` transition carrying the model host's sentence reads it back
+out of the store, and a later reasonless write leaves none behind), with adapter-only
 mechanics (error wrapping per operation, strict corrupt-record policy over each of the four taint
 fields and a forged provenance kind, terminal-only TTL, dangling/terminal pointer self-healing)
 against the Redis adapter alone. The

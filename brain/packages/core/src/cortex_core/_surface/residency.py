@@ -60,6 +60,7 @@ from cortex_core.swap_notes import (
     UNHOSTED_TIER_NOTE,
     WORKING_DETAIL,
 )
+from cortex_core.swap_reasons import DRAIN_TIMEOUT_REASON, STRANDED_REASON, TORN_DOWN_REASON
 from cortex_core.swap_recovery import converge_residency, recover_handoffs
 
 __all__ = [
@@ -72,6 +73,7 @@ __all__ = [
     "DEFAULT_TIER_HEAL_INTERVAL_S",
     "DRAINING_DETAIL",
     "DRAIN_TIMEOUT_NOTE",
+    "DRAIN_TIMEOUT_REASON",
     "LOADING_DETAIL",
     "MIN_CADENCE_TOKENS",
     "NO_CADENCE_TERMS",
@@ -86,9 +88,11 @@ __all__ = [
     "RESTORING_DETAIL",
     "SPILLED_PACE_DETAIL",
     "STORE_FAILED_NOTE",
+    "STRANDED_REASON",
     "SWAPPING_STATE",
     "SWAP_FAILED_NOTE",
     "TIERS_MISSING_DETAIL",
+    "TORN_DOWN_REASON",
     "UNHOSTED_TIER_NOTE",
     "WORKING_DETAIL",
     "CadenceReading",

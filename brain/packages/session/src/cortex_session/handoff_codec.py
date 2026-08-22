@@ -11,6 +11,12 @@ for a deterministic document, read back as a set), the budget position, and the 
 with each message's tool calls. A tool call's ``stamp`` is a transient live handle and is never
 persisted (``tools.py``: the loop persists the unstamped calls), so a decoded call carries the
 default ``UNSTAMPED``, exactly as the loop appended it.
+
+``failure`` rides the same document under the same rule, ``null`` on every record that has not
+been settled failed. It is written last because it is the only field written after the snapshot,
+and it is a required key like the rest: a document without it is a record from something that is
+not this codec, and reading one as "no reason given" would be indistinguishable from a handoff
+that really was settled without one, which is exactly the state this field exists to end.
 """
 
 import json
@@ -87,6 +93,7 @@ def encode_record(record: HandoffRecord) -> str:
             "budget_closed": record.budget_closed,
             "rounds_used": record.rounds_used,
             "loop_tail": [_encode_message(message) for message in record.loop_tail],
+            "failure": record.failure,
         }
     )
 
@@ -113,6 +120,7 @@ def decode_record(raw: bytes | str, handoff_id: str) -> HandoffRecord:
             budget_closed=fields["budget_closed"],
             rounds_used=fields["rounds_used"],
             loop_tail=tuple(_decode_message(message) for message in fields["loop_tail"]),
+            failure=fields["failure"],
         )
     except (KeyError, TypeError, ValueError) as err:
         msg = f"corrupt handoff record at {record_key(handoff_id)!r}"

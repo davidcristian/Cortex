@@ -183,7 +183,9 @@ class RecordingHandoffStore(InMemoryHandoffStore):
         if self._put_gate is not None:
             await self._put_gate.pause()
 
-    async def transition(self, handoff_id: str, state: HandoffState) -> bool:
+    async def transition(
+        self, handoff_id: str, state: HandoffState, *, failure: str | None = None
+    ) -> bool:
         """As the in-memory twin, except that ``fail_settle`` refuses that state exactly once.
 
         One transient hiccup on the write that ends a handoff, which is the failure that used to
@@ -194,7 +196,7 @@ class RecordingHandoffStore(InMemoryHandoffStore):
             self._fail_settle = None
             msg = f"redis refused the {state.value} write"
             raise HandoffStoreError(msg)
-        return await super().transition(handoff_id, state)
+        return await super().transition(handoff_id, state, failure=failure)
 
     async def delete(self, handoff_id: str) -> None:
         self.deleted.append(handoff_id)

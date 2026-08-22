@@ -37,12 +37,14 @@ class InMemoryHandoffStore:
         """Return the record with ``handoff_id``, or None when unknown."""
         return self._records.get(handoff_id)
 
-    async def transition(self, handoff_id: str, state: HandoffState) -> bool:
-        """Rewrite the record's state (False for an unknown id, never an error)."""
+    async def transition(
+        self, handoff_id: str, state: HandoffState, *, failure: str | None = None
+    ) -> bool:
+        """Rewrite the record's state and reason (False for an unknown id, never an error)."""
         record = self._records.get(handoff_id)
         if record is None:
             return False
-        await self.put(replace(record, state=state))
+        await self.put(replace(record, state=state, failure=failure))
         return True
 
     async def delete(self, handoff_id: str) -> None:

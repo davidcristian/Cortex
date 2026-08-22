@@ -3745,3 +3745,165 @@ fails during the eviction or the load settles its record as failed, streams a fi
 writes no line naming what the model host said, so the reason exists only in the sidecar's
 container log. That is a real gap rather than a wording one, and it is filed as
 [R-350](../refinements/tasks/350-a-failed-swap-in-says-nothing-brain-side.md).
+
+## Failed-reason addendum (2026-08-22): a handoff that failed says why, and says it on the record
+
+The refusal-reach addendum above ends by naming the gap it found: the swap in is the one caller of
+the model host's per-model routes that keeps nothing, and it keeps nothing anywhere on the brain's
+side, so a handoff that died during the eviction or the load left the brain's log silent and its
+record carrying a state and nothing else. The reason existed only in the `model-host` sidecar's own
+container log. This is the decision that closes it, and the decision is about the record's shape
+rather than about a missing log call.
+
+### Re-derived from the tree first, because an entry records a reading and not the tree
+
+Every claim the entry made was checked against the code before anything was designed, and one of
+them was overstated.
+
+- `swap_in` (`residency_moves.py`) raises three times and logs at none of them: a
+  `ModelNotHostedError` arm, a `ModelHostError` arm, and the gate that did not reach `READY`. The
+  first two put the caught error's message into the `SwapFailedError` they raise, so the daemon's
+  own sentence is carried but never written down. **Held.**
+- `swap_conductor._swap` catches that as a `ModelManagerError`, settles the record `FAILED`, and
+  answers `note_for(err)`. **Held.**
+- `HandoffSettler.advance(record, state)` took a state and no reason. **Held.**
+- `note_for` maps the error's type to one of three fixed sentences and never reads `str(err)`.
+  **Held.**
+- "The swap in keeps nothing." **Overstated.** The fit check `swap_in` calls between the evictions
+  and the load, `_refuse_a_load_the_card_cannot_hold`, logs both of its refusals at `ERROR` with
+  the figures in fields before raising its own `SwapFailedError`. So the swap in kept nothing on
+  the eviction, the load and the gate, and kept a loud line on the two refusals above them. The
+  entry inherited the sentence from the refusal-reach table, which was a survey of callers of the
+  model host's per-model routes, and the fit check refuses without calling one. The gap is real
+  and it is narrower than the sentence naming it.
+
+One thing the entry did not say, and it changed the design more than anything it did say: the
+conductor settles `FAILED` at **five** sites (the drain abort, the teardown of the claimed run, the
+teardown of the snapshot write, the deep model dying mid work, and the swap failing), and boot
+recovery settles a sixth from outside the conductor entirely. A reason filled in at one of six
+would have been the same half-decision this entry was filed to end.
+
+### The three shapes, and why the record is the one that decides
+
+The entry named three, and they are not three ways of writing the same thing. Two of them are a log
+line and one of them is a field.
+
+1. **A line at the conductor's catch.** One call, at the place that already knows the handoff
+   failed. The entry calls it the shape that says least about which move failed, and that part is
+   not quite right either: the message it would print is the `SwapFailedError`'s, which already
+   names the move (`while swapping in 'brain'`) and, through the adapter that built the inner
+   error, the method, the route, the tier and the HTTP status. Its real defect is the one it shares
+   with shape 2.
+2. **A line at each raise inside `swap_in`.** Where the move is known, and the shape the swap back
+   already uses, which makes it the most consistent with its neighbours and the cheapest to write.
+   Against it: it says nothing the message the raise is already building does not say, it puts
+   three lines where one fact is, and it can only ever speak for the failures that happen inside
+   that function, which is three of the six ways a handoff ends failed. A drain that timed out and
+   a turn that was torn down are not a swap that broke, and both settle a record too.
+3. **A reason on the record.** The only one that survives the process, and the only one a later
+   reader of a `FAILED` record could use. It needs a field the record does not have, which is a
+   port change and a store change rather than a log call.
+
+Shape 3 wins, and the argument is the one hard rule read literally. State must survive a model
+swap, and the handoff record is this design's answer to it: the thing that outlives the process
+running the swap. A failed handoff's record is the one artifact that is still there afterwards, and
+before this it said `failed` without saying what refused, which made it a receipt for a question it
+could not answer. Who reads it settles the rest. The operator correlating a failure while a user
+waits reads the log; the person asking an hour later, or after the brain restarted, has only the
+record. A log line cannot serve the second reader at all, and the field can serve both, because the
+place that writes the field is the place that has the reason in hand.
+
+So the cheaper shape is not rejected, it is subsumed: `HandoffSettler.fail` writes the reason to the
+record **and** emits one line carrying it, which is shape 1's single call, made one level below
+shape 1's site and therefore covering all six settles rather than the one, at the cost of already
+having the sentence in hand. That is deliberately not the same as picking shape 1: the shape
+decides where the reason lives, and it lives on the record. The line is a copy of it.
+
+The two copies are not redundancy for its own sake, because each covers the other's failure. The
+log line is written before the store is asked and whatever the store answers, and a settling write
+the store refuses is followed by **dropping** the record (that delete is what frees the active
+pointer, per the addendum above), so the one failure that costs the record is exactly the failure
+the line covers for. In the other direction, the record is what is left when the process that
+logged the line is gone, which is precisely boot recovery's case.
+
+### The decision, in four parts
+
+1. **The field.** `HandoffRecord.failure: str | None = None`, the only field written after the
+   snapshot. `None` on every record that has not been settled failed. It is app-authored text or
+   the message of the error that ended the sequence; it is never model text, so it needs no
+   guardrail pass and nothing the cortex read before escalating can steer it.
+2. **The port, before the adapters.** `HandoffStore.transition(handoff_id, state, *, failure=None)`.
+   The reason rides the state's own read-modify-write rather than a second call or a second key, so
+   it cannot land without its state or outlive one: a transition naming no reason clears the field.
+   The in-memory fake and the Redis adapter both implement it and both pass the same two new
+   contract checks, one asserting the model host's own sentence back **out of the store**, the other
+   that a later reasonless write leaves nothing behind.
+3. **The verb.** `HandoffSettler` gains `fail(record, reason)` beside `advance(record, state)`,
+   and every `FAILED` settle goes through it. A separate verb rather than a defaulted argument,
+   because an optional reason would have gone missing exactly where the reason went missing before:
+   this way no path can write the state without saying why, and the six sites are six sentences
+   rather than one filled-in site and five holes.
+4. **The vocabulary, and the line.** Three app-authored reasons live in a new `swap_reasons.py`,
+   the deliberate opposite of `swap_notes.py` beside it: a note is what the user is told and
+   describes the GPU, a reason is what the record keeps and describes the fault, and the two never
+   share a string. The three are the failures of the sequence itself (`DRAIN_TIMEOUT_REASON`,
+   `TORN_DOWN_REASON`, `STRANDED_REASON`). The other two carry the exception's own message
+   (`ModelManagerError` from the swap, `InferenceError` from the deep model's server), which is how
+   the model host's status code and the leading characters of its response body reach the brain's
+   side at all. The line is one `WARNING` from `swap_settle`, `a handoff ended failed`, with the
+   handoff id and the reason in fields. `WARNING` is a statement about the machine rather than
+   about the disappointment: every path that reaches it has converged back to a serving cortex and
+   told the user so, and the louder levels are already spent on the failures somebody must act on,
+   a cortex that would not come back among them.
+
+### What the user is told is unchanged, on purpose
+
+The three notes still describe the GPU rather than the fault, word for word. That was right before
+this change and it is right after it: the person waiting on a turn is owed what is true of their
+machine, not an HTTP status from a container they do not know exists. The whole of this addendum is
+about what the brain writes for itself.
+
+### The reason is not a widening of what is persisted
+
+The record already carries the escalation brief and the entire tool-loop tail, which is
+conversation content; one sentence about a control call is not a new class of thing to keep. The
+messages themselves are already logged verbatim by six of the seven callers the refusal-reach
+addendum surveyed, so this is a seventh caller writing what six already write rather than a new
+kind of content in the brain's log. Field
+redaction is unchanged and applies as it does everywhere (`log_fields.py` withholds secret-named
+fields and strips URL credentials from the whole line), and the terminal record's one-hour
+diagnosis TTL is unchanged, so nothing is kept for longer than it was.
+
+### Proven able to fail before being trusted
+
+Every mutation below was applied on its own to production code, measured over the **whole brain
+`packages` suite** (2854 tests, `pytest -q --no-cov`), and then restored, on 2026-08-22. The
+baseline is green at 100% line and branch coverage.
+
+| Mutation | Reddens | Which |
+| --- | --- | --- |
+| `HandoffSettler.fail` writes no reason onto the record (the state alone, as it was before) | **18** | the two swap-sentence cases; the drain abort in both suites; the deep model dying mid answer; the cortex that would not come back; the seven kill boundaries; and the close, the second cancellation and the scripted failures in the chaos suite, all through the record's own invariant there |
+| `fail` writes no line | **3** | the two swap-sentence cases and the one that drops the record and keeps only the line |
+| the swap's `ModelManagerError` arm settles a fixed category instead of `str(err)` | **4** | the two swap-sentence cases, the drop-the-record case, and the cortex that would not come back, whose reason names the tier it gave up on |
+| the Redis adapter drops the reason on the settling write, the fake still carrying it | **1** | the shared contract check, on its Redis parameter alone |
+| the codec never encodes the reason, both stores' own code intact | **1** | the shared contract check, on its Redis parameter alone |
+
+The last two are the ones that matter for ports-before-adapters: each breaks one implementation
+while leaving the other correct, and each reddens the contract check for the store it broke and
+nothing else, which is what proves the shared check is really running against both.
+
+### What this deliberately does not do
+
+- **It does not touch the seam.** `Health` and the residency report say nothing new. A failure the
+  user was already told about is not a new readiness fact, and whether the reason deserves a
+  surface an operator does not have to know to look for is filed as
+  [R-379](../refinements/tasks/379-a-settled-reason-nothing-reads-back.md), against the spill
+  note's precedent for the same question one step earlier.
+- **It does not make the reason an enum.** Nothing branches on it, so a code would buy nothing a
+  sentence does not, and every new failure would have to widen it. The sentence is already the
+  thing a human reads.
+- **It does not put a traceback on the record.** One sentence, because the record is a diagnosis
+  copy and not a log. Tracebacks stay where the six logging callers already put them.
+- **It does not stop `advance` from accepting `FAILED` at the type level.** Nothing calls it that
+  way, every call site is in one file, and a second enum for the two states `advance` may write
+  would be machinery for a fact one grep settles.

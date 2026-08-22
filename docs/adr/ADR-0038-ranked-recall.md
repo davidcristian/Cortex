@@ -2652,6 +2652,12 @@ sidecar's line is the only record on one caller of seven rather than everywhere.
 this paragraph argues for is unaffected, and the survey behind the correction is in
 [ADR-0030](ADR-0030-brain-handoff.md)'s refusal-reach addendum.
 
+**Narrowed again 2026-08-22.** The one caller now writes it down too: a swap that fails settles
+the reason onto its handoff record and logs it once beside that write, so the sidecar's line is a
+second copy on all seven rather than the only record on any. The level rule is still unaffected,
+and rests where the correction above put it, on what a 5xx means. The decision is
+[ADR-0030](ADR-0030-brain-handoff.md)'s failed-reason addendum.
+
 ### Distrust green
 
 Five mutations, each applied to production code alone with the whole brain workspace re-run:
