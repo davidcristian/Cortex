@@ -72,6 +72,7 @@ from cortex_core import (
     BUDGET_EXHAUSTED_MSG,
     CAPTURE_SCREEN_TOOL_NAME,
     DRAIN_TIMEOUT_NOTE,
+    DRAIN_TIMEOUT_REASON,
     DRAINING_DETAIL,
     ESCALATE_TOOL_NAME,
     LOADING_DETAIL,
@@ -107,6 +108,7 @@ from cortex_core import (
     TurnCapabilities,
     TurnEvent,
     UrlRedactingGuardrail,
+    record_fields,
 )
 from cortex_core.composite import CompositeToolRegistry
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
@@ -394,6 +396,11 @@ async def test_a_drain_that_times_out_aborts_before_anything_is_evicted() -> Non
     assert _texts(events) == DRAIN_TIMEOUT_NOTE
     assert live.host.calls == harness.PREFLIGHT_CALLS  # nothing evicted, the cortex still serves
     assert live.handoffs.states == [HandoffState.READY, HandoffState.FAILED]
+    # The record says which failure this was, and the abort is the one that has to be told apart
+    # from a swap that broke: nothing refused anything and nothing left the card.
+    aborted = await live.handoffs.get(harness.TURN)
+    assert aborted is not None
+    assert aborted.failure == DRAIN_TIMEOUT_REASON
     # Premise rather than claim, as in the chaos suite's twin of this case: this test's own
     # event is what holds the straggler, and nothing in the conductor could release it, v1
     # killing no subagent mid-stream. What it buys is that the abort above really did happen
@@ -442,6 +449,46 @@ async def test_a_deep_model_that_will_not_load_ends_the_turn_honestly() -> None:
     assert live.backend.calls == 0  # the deep model never ran, so nothing half-ran
 
 
+@pytest.mark.parametrize(
+    ("failing_call", "sentence"),
+    [
+        (("stop", "cortex"), "the child is wedged and will not reap"),
+        (("start", "brain"), "CUDA OOM at load"),
+    ],
+)
+async def test_a_swap_that_broke_writes_the_model_hosts_own_sentence_down(
+    failing_call: tuple[str, str], sentence: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    """What the model host said reaches the brain's own side, on the record and in one line.
+
+    The gap this closes (ADR-0030 failed-reason addendum): the conductor answers a fixed note
+    that describes the GPU rather than the fault, so before this the daemon's sentence existed
+    only in the sidecar's container log, and correlating a failure a user is waiting on meant
+    knowing to read a different container. Both ends of the move are parametrized because the
+    reason has to distinguish them: the eviction and the load fail with the same note and are
+    two different repairs.
+
+    The record is read back **out of the store** rather than off the settled object, since the
+    reader this field exists for is the one holding nothing but the store.
+    """
+    host = ScriptedModelHost(running=["cortex"], fail={failing_call: sentence})
+    live = build_harness(Fakes(host=host))
+    await live.seed_session()
+    with caplog.at_level(logging.WARNING, logger="cortex_core.swap_settle"):
+        events = await harness.run_handoff(live, harness.armed_slot())
+    assert _texts(events) == SWAP_FAILED_NOTE  # the user is told about the GPU, as before
+    settled = await live.handoffs.get(harness.TURN)
+    assert settled is not None
+    assert settled.state is HandoffState.FAILED
+    assert settled.failure is not None
+    assert sentence in settled.failure  # the daemon's words, not a category
+    assert "swapping in 'brain'" in settled.failure  # and which move was being made
+    logged = [
+        record for record in caplog.records if record.getMessage() == "a handoff ended failed"
+    ]
+    assert [record_fields(entry)["reason"] for entry in logged] == [settled.failure]
+
+
 async def test_a_deep_model_that_never_becomes_ready_ends_the_turn_honestly() -> None:
     live = build_harness(
         Fakes(
@@ -472,6 +519,11 @@ async def test_a_deep_model_that_dies_mid_answer_keeps_its_partial_text_with_a_n
         HandoffState.BRAIN_ACTIVE,
         HandoffState.FAILED,
     ]
+    # The note above tells the user the answer is unfinished; the record keeps what the deep
+    # model's own server said, which is the half no reader of the reply can get to.
+    died = await live.handoffs.get(harness.TURN)
+    assert died is not None
+    assert died.failure == "the deep model's server died mid-stream"
     assert live.host.running == {"cortex"}  # and the cortex is serving again
 
 
@@ -487,13 +539,21 @@ async def test_a_cortex_that_cannot_be_restored_says_so_on_the_stream() -> None:
     assert _texts(events) == "a deep answer" + RESTORE_FAILED_NOTE
     assert live.handoffs.states[-1] is HandoffState.FAILED
     assert live.host.calls.count(("start", "cortex")) == 2  # it tried, then retried
+    # The gravest failure names the tier it gave up on, on the record as well as in the log the
+    # runbook sends an operator to: this is the one a later reader most needs to tell apart.
+    gave_up = await live.handoffs.get(harness.TURN)
+    assert gave_up is not None
+    assert gave_up.failure is not None
+    assert "could not restore 'cortex'" in gave_up.failure
 
 
 class _FailsLate(RecordingHandoffStore):
     """A store that goes away after the snapshot: every state written from then on is refused."""
 
-    async def transition(self, handoff_id: str, state: HandoffState) -> bool:
-        del handoff_id, state
+    async def transition(
+        self, handoff_id: str, state: HandoffState, *, failure: str | None = None
+    ) -> bool:
+        del handoff_id, state, failure
         msg = "redis went away mid-handoff"
         raise HandoffStoreError(msg)
 
@@ -520,6 +580,35 @@ async def test_a_store_that_fails_while_settling_the_record_does_not_fail_the_tu
     ]
     assert live.handoffs.deleted == [harness.TURN]  # the claim is released by dropping it
     assert await live.handoffs.active() is None  # so nothing reads a finished handoff as live
+
+
+async def test_the_reason_reaches_the_log_even_when_the_store_cannot_keep_it(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The two places the reason goes are not a duplicate: one of them is the store.
+
+    A settling write the store refuses is followed by dropping the record, because that delete
+    is what frees the active pointer, so the diagnosis copy is exactly what the failure costs.
+    The line is therefore written before the store is asked and whatever it answers: this is
+    the case where an operator has nothing else, and it is also the case where a design that
+    had put the reason only on the record would have lost it completely.
+    """
+    live = build_harness(
+        Fakes(
+            handoffs=_FailsLate(),
+            host=ScriptedModelHost(running=["cortex"], fail={("start", "brain"): "CUDA OOM"}),
+        )
+    )
+    await live.seed_session()
+    with caplog.at_level(logging.WARNING, logger="cortex_core.swap_settle"):
+        events = await harness.run_handoff(live, harness.armed_slot())
+    assert _texts(events) == SWAP_FAILED_NOTE
+    assert await live.handoffs.get(harness.TURN) is None  # dropped, so it carries nothing at all
+    logged = [
+        record for record in caplog.records if record.getMessage() == "a handoff ended failed"
+    ]
+    assert len(logged) == 1
+    assert "CUDA OOM" in str(record_fields(logged[0])["reason"])
 
 
 async def test_a_store_that_cannot_even_drop_the_record_says_what_is_now_stuck(

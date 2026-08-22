@@ -172,20 +172,30 @@ class HandoffStore(Protocol):
     ledger, budget position, tool-loop tail); everything else already lives in the other
     stores, so the swap protocol is a stateless function over this one. ``put`` persists a
     snapshot and ``get`` reads it back (``None`` when unknown or expired); ``transition``
-    rewrites just the state, answering ``False`` for an unknown id (a stale claimant is a
-    no-op, never an error). ``delete`` removes a record outright, idempotently. ``active``
+    rewrites the state and the reason it carries, answering ``False`` for an unknown id (a
+    stale claimant is a no-op, never an error). ``delete`` removes a record outright,
+    idempotently. ``active``
     returns the one non-terminal record, or ``None``: at most one handoff is in flight at a
     time (one GPU), the conductor checks that here before snapshotting, and boot recovery
     reads it to mark a crash-stranded handoff ``FAILED`` (ADR-0030 decision 4). Terminal
     records are kept briefly for diagnosis (the adapter expires them) and are never
     ``active``. Failures surface as ``HandoffStoreError``.
+
+    ``failure`` is what a settling write puts on the record, and it is part of this port rather
+    than a second write for the reason a diagnosis copy exists at all: the state and the reason
+    for it are one fact, and a store that took them separately could keep a ``FAILED`` record
+    that never says why (ADR-0030 failed-reason addendum). It is written by the same
+    read-modify-write as the state, so a transition that names none clears it, and no record
+    can carry a reason left over from a state it is no longer in.
     """
 
     async def put(self, record: HandoffRecord) -> None: ...
 
     async def get(self, handoff_id: str) -> HandoffRecord | None: ...
 
-    async def transition(self, handoff_id: str, state: HandoffState) -> bool: ...
+    async def transition(
+        self, handoff_id: str, state: HandoffState, *, failure: str | None = None
+    ) -> bool: ...
 
     async def delete(self, handoff_id: str) -> None: ...
 

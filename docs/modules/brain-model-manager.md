@@ -79,13 +79,15 @@ different halves of itself. **The log level follows the code**, so both refusals
 greppable sentence `a model-host request failed` and the 5xx arrives at `ERROR` while the 4xx
 arrives at `WARNING`. The refusal's own words ride the `error` field, which is why the supervisor
 raises them and does not also print them: the API's line and the shutdown sweep's traceback are
-both the whole sentence, and a line at the raise printed one event twice. It is also the only
-record on the path that matters most, a swap's eviction meeting the 503 through the brain's port,
-which turns it into one of three fixed user-facing notes without reading its text. **Only that
-path**, and the level does not rest on it: the swap back, the peer restart and boot recovery log
-what they caught with a traceback, and the unrostered preflight, the peer sweep and the regain
-pass log the message in an `error` field, so on six of the seven brain-side callers of these
-routes the sentence is in the brain's log too (ADR-0030's refusal-reach addendum).
+both the whole sentence, and a line at the raise printed one event twice. The level does not
+rest on who else is reading, and it never did: it follows what the two codes mean. On six of the
+seven brain-side callers of these routes the sentence reaches the brain's own log as well, by a
+traceback (the swap back, the peer restart, boot recovery) or in an `error` field (the unrostered
+preflight, the peer sweep, the regain pass), per ADR-0030's refusal-reach addendum. The seventh,
+a swap's eviction meeting the 503 through the brain's port, turns it into one of three fixed
+user-facing notes without reading its text, and used to keep it nowhere at all; the swap now
+settles that sentence onto the handoff record and logs it once beside it (ADR-0030's
+failed-reason addendum), so this line is a second copy on every one of the seven.
 
 **The device seam.** `DeviceMemoryProbe` is `read() -> DeviceMemory | None`, with two
 implementations: `NoDeviceMemory` (always `None`, the default and what a CPU-only stack truthfully

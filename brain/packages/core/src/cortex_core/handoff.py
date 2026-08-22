@@ -79,6 +79,14 @@ class HandoffRecord:
     is every message the loop appended this turn, in order. Tool-call stamps are transient live
     handles and are never persisted (``tools.py``: the loop persists the unstamped calls), so a
     re-read tail carries ``UNSTAMPED`` calls, exactly as it was appended.
+
+    ``failure`` is the one field that is not turn state: it is what a ``FAILED`` record says
+    about itself (ADR-0030 failed-reason addendum). Every other field is written once at the
+    snapshot and read after the swap; this one is written by the settling transition and read by
+    whoever finds the record afterwards, which is the only reader a failed handoff has left once
+    its process is gone. ``None`` on every record that has not been settled failed, and never a
+    sentence the model wrote: it is app-authored text, or the message of the error the swap
+    itself raised, which is where the model host's own words reach the brain's side.
     """
 
     handoff_id: str
@@ -95,6 +103,7 @@ class HandoffRecord:
     budget_closed: bool
     rounds_used: int
     loop_tail: tuple[Message, ...]
+    failure: str | None = None
 
     def __post_init__(self) -> None:
         if self.requested_at.tzinfo is None or self.requested_at.utcoffset() is None:

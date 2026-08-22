@@ -7,6 +7,10 @@ The load-bearing check is the tainted-ledger round trip: a ledger built through 
 untrusted content naming a URI and a memory) must come back from the store bit-, order-, and
 set-exact, or taint would fail open across the model swap. Its companion is the ``opaque``
 bit's own round trip, held to the same standard for the same reason.
+
+The settled reason is checked the same way and for a related one: it is the only field written
+after the snapshot, and the only reader a failed handoff has left is whoever reads the record
+after the process that wrote it is gone, so "it survives" has to mean out of the store.
 """
 
 from dataclasses import replace
@@ -253,6 +257,50 @@ async def check_transition_of_an_unknown_id_is_false(store: HandoffStore) -> Non
     assert await store.transition(_handoff_id(), HandoffState.FAILED) is False
 
 
+async def check_the_settled_reason_outlives_the_process(store: HandoffStore) -> None:
+    """A ``FAILED`` record says why, and it says it from the store rather than from an object.
+
+    The point of the field (ADR-0030 failed-reason addendum) is the reader who has only the
+    record: the process that ran the handoff is gone, and the state alone says a swap did not
+    happen without saying what refused. So the reason is asserted after a round trip through
+    the store, with the model host's own sentence in it, since that is the text this exists to
+    carry and it is exactly the shape (a code, a route, a quoted body) a lossy codec would
+    mangle rather than drop.
+    """
+    reason = (
+        "the model host failed while swapping in 'brain': the model host refused POST "
+        '/models/cortex/stop for model \'cortex\' with HTTP 503: {"detail": "child is wedged"}'
+    )
+    record = make_record(_handoff_id())
+    await store.put(record)
+    assert record.failure is None  # a snapshot carries none: nothing has failed yet
+    assert await store.transition(record.handoff_id, HandoffState.FAILED, failure=reason) is True
+    loaded = await store.get(record.handoff_id)
+    assert loaded is not None
+    assert loaded.state is HandoffState.FAILED
+    assert loaded.failure == reason
+    await store.delete(record.handoff_id)
+
+
+async def check_a_reasonless_transition_leaves_no_reason_behind(store: HandoffStore) -> None:
+    """A state written without a reason carries none, whatever the record said before.
+
+    The other half of one read-modify-write: state and reason move together, so a record that
+    was settled failed and is then written again does not keep a sentence about a state it is
+    no longer in. Nothing in the conductor does this today (a terminal record is never
+    transitioned again), which is why it is pinned here rather than left to a caller's manners.
+    """
+    record = make_record(_handoff_id())
+    await store.put(record)
+    assert await store.transition(record.handoff_id, HandoffState.FAILED, failure="a bad swap")
+    assert await store.transition(record.handoff_id, HandoffState.DONE) is True
+    loaded = await store.get(record.handoff_id)
+    assert loaded is not None
+    assert loaded.state is HandoffState.DONE
+    assert loaded.failure is None
+    await store.delete(record.handoff_id)
+
+
 async def check_delete_removes_and_releases(store: HandoffStore) -> None:
     """Delete removes the record and the active slot it held; deleting again is a no-op."""
     record = make_record(_handoff_id())
@@ -310,6 +358,8 @@ ALL_CHECKS = (
     check_transition_walks_the_lifecycle,
     check_terminal_transition_releases_active_but_keeps_the_record,
     check_transition_of_an_unknown_id_is_false,
+    check_the_settled_reason_outlives_the_process,
+    check_a_reasonless_transition_leaves_no_reason_behind,
     check_delete_removes_and_releases,
     check_a_terminal_put_is_never_active,
     check_the_last_nonterminal_put_wins_the_slot,

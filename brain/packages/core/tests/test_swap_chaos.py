@@ -151,8 +151,10 @@ from swap_harness import (
 from cortex_core import (
     ALREADY_ACTIVE_NOTE,
     BRAIN_FAILED_NOTE,
+    STRANDED_REASON,
     SWAP_FAILED_NOTE,
     SWAPPING_STATE,
+    TORN_DOWN_REASON,
     HandoffRecord,
     HandoffState,
     ModelHostState,
@@ -341,6 +343,12 @@ async def assert_stores_intact(
     assert await live.handoffs.active() is None
     record = await live.handoffs.get(harness.TURN)
     assert record is None or record.state.terminal
+    # A record kept for diagnosis says what it is a diagnosis of (ADR-0030 failed-reason
+    # addendum). Held here rather than per case because it is true of every way a handoff can
+    # end failed, this suite's whole subject being the ways it can: a settle that wrote FAILED
+    # and nothing else is the state the field exists to make unreachable.
+    if record is not None and record.state is HandoffState.FAILED:
+        assert record.failure
     assert live.handoffs.states  # the record existed at all
     if settled:
         assert live.handoffs.states[-1].terminal  # and its last written state ended it
@@ -639,6 +647,12 @@ async def test_a_kill_at_a_step_boundary_converges_back_onto_the_cortex(
     await _settle()
     await assert_converged_on_cortex(live)
     await assert_stores_intact(live, deep_reply=deep_reply, killed=True)
+    # And it says which of the failures it was. A kill is the one that says nothing about the
+    # machine (nothing refused anything; the sequence simply stopped being run), so the record
+    # must not describe it as a swap that broke.
+    torn_down = await live.handoffs.get(harness.TURN)
+    assert torn_down is not None
+    assert torn_down.failure == TORN_DOWN_REASON
     assert_stream_ended_honestly(live, events, killed=True)
     await assert_the_next_turn_still_works(live)
 
@@ -947,6 +961,9 @@ async def test_boot_recovery_fails_a_stranded_record_and_lets_the_next_handoff_r
     failed = await live.handoffs.get(harness.TURN)
     assert failed is not None
     assert failed.state is HandoffState.FAILED
+    # And it says which failure it was, which on this path is the only reader's only chance:
+    # the process that ran the handoff is gone, so its log is a different container's history.
+    assert failed.failure == STRANDED_REASON
     assert host.running == {"cortex"}
     await assert_the_next_turn_still_works(live)
 

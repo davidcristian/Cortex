@@ -484,6 +484,58 @@ docker compose --project-directory . -f docker/docker-compose.yml \
 Expect: the turn fails honestly on the stream, the cortex comes back (the swap back is a `finally`),
 and the next turn works. Do it once mid load as well as mid answer. Record the timings here.
 
+## Why a handoff failed
+
+The reply a user gets says what is true of the GPU, never what broke: "the deep model could not
+be loaded, so the handoff was cancelled" is the whole of it, deliberately. What broke is written
+in two places instead, and either is enough
+([ADR-0030](../adr/ADR-0030-brain-handoff.md) failed-reason addendum).
+
+**The brain's own log, which is where to look while somebody is waiting.** Every handoff that
+ends failed writes one `WARNING` from `cortex_core.swap_settle`:
+
+```
+WARNING:cortex_core.swap_settle:a handoff ended failed handoff=<turn id> reason="<what happened>"
+```
+
+The `reason` field is the whole sentence. On a swap that broke it is the model host's own words,
+carried out of the adapter that built them: the method, the route, the tier, the HTTP status and
+the leading characters of the daemon's response body, wrapped in which move the swap was making
+(`the model host failed while swapping in 'brain': ...`). That is the line that used to be
+missing, and its absence is why reading `docker logs model-host` was previously the only way to
+find out what a failure the brain reported had actually been. Both logs still say it; you no
+longer have to know that.
+
+Six kinds of sentence are possible, and they are worth telling apart before you touch anything:
+
+| What `reason` starts with | What actually happened |
+| --- | --- |
+| `the model host failed while swapping in ...`, `the model host does not serve ...`, `model ... did not become ready in time`, or one of the fit check's two (`needs N MiB of free device memory`, `reports no device memory`) | the swap in broke, and on the first two the daemon's own answer follows the colon |
+| `could not restore '<cortex>' after 2 attempts ...` | the swap back gave up; this is the grave one, and "The error that sends you here" below is entirely about it |
+| `a residency scope for ... is already active` | nothing was evicted for this turn; something entered the swap without taking the handoff claim first, and another handoff owns the GPU |
+| `delegated work was still running when the drain bound elapsed ...` | nothing was evicted and nothing broke; a subagent outlasted `CORTEX_SWAP_DRAIN_TIMEOUT_S` |
+| `the turn was torn down before the handoff finished` | the user or the stream ended the turn; the machine is fine |
+| `the brain restarted while this handoff was still in flight` | boot recovery settled a record its own process did not write |
+
+Anything else is the deep model's own server dying mid answer, whose message comes from the
+inference backend rather than from the swap; the user already has that one, since the reply
+carries the note saying the answer is unfinished.
+
+**The record itself, which is where to look afterwards.** The same sentence is on the handoff
+record, which survives the process that wrote it and stays readable for the diagnosis hour the
+store keeps a terminal record:
+
+```sh
+docker compose --project-directory . -f docker/docker-compose.yml \
+  exec redis redis-cli get 'cortex:handoff:<turn id>'
+```
+
+The `state` is `failed` and the `failure` field is the reason. This is the copy to reach for when
+the brain has since restarted, or when the log has rolled, and it is the only one that survives
+either. The two are not a duplicate: a store that refuses the settling write is followed by
+dropping the record outright (that delete is what frees the active pointer), so the failure that
+costs you the record is exactly the failure the log line covers for.
+
 ## The error that sends you here
 
 ```

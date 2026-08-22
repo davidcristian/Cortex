@@ -12,7 +12,10 @@ writer, because the conductor is the store's one writer by construction (``activ
 it checks that), unlike the multi-claimant schedule store. This adapter only translates: every
 backend failure crosses the port as ``HandoffStoreError`` with the cause chained, and a
 corrupt record fails LOUDLY naming its key. The taint fields round-trip whole (bit, sources
-order, URL set): taint that did not survive a re-read would fail open after the swap.
+order, URL set): taint that did not survive a re-read would fail open after the swap. So does the
+reason a settled record was failed for, which is the one field written after the snapshot and the
+one thing a reader of a terminal record has (ADR-0030 failed-reason addendum): it rides the state's
+own read-modify-write, so it cannot land without its state or outlive one.
 """
 
 from dataclasses import replace
@@ -88,16 +91,19 @@ class RedisHandoffStore:
             raise HandoffStoreError(msg) from err
         return decode_record(raw, handoff_id) if raw is not None else None
 
-    async def transition(self, handoff_id: str, state: HandoffState) -> bool:
-        """Rewrite the record's state (False for an unknown id, never an error).
+    async def transition(
+        self, handoff_id: str, state: HandoffState, *, failure: str | None = None
+    ) -> bool:
+        """Rewrite the record's state and reason (False for an unknown id, never an error).
 
         A read-modify-write through ``put``, so a terminal transition inherits its TTL and
-        pointer release atomically with the state change.
+        pointer release atomically with the state change, and the reason it was settled for
+        rides the same document rather than a key of its own.
         """
         record = await self.get(handoff_id)
         if record is None:
             return False
-        await self.put(replace(record, state=state))
+        await self.put(replace(record, state=state, failure=failure))
         return True
 
     async def delete(self, handoff_id: str) -> None:
