@@ -1,6 +1,6 @@
 # One of the two unselectable flags is read from a standard and from no server
 
-**Status:** open, actionable
+**Status:** landed 2026-08-22
 **Area:** email-confirmer
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
 
@@ -28,7 +28,24 @@ rather than an invented one. If it cannot, the honest close is to say in the com
 spelling is defensive and unmeasured, which is what the neighbouring measured phrases already say
 about themselves.
 
+That dialogue was run and the sentence above is wrong about where it would lead: `Parent` comes back
+`\Noselect` under every extended LIST this server accepts, because dovecot converts its own
+nonexistent flag *down* to `\Noselect` for a client that did not ask and never up, and a node with
+a child on disk is not nonexistent in its model. The word turned out to belong to another fact
+entirely, which is what the close measured instead.
+
 ## Trail
 
+- 2026-08-22: Landed as a measurement rather than a downgrade (ADR-0022 newer-spelling addendum).
+  `\NonExistent` is a word this server really sends, but for a subscribed name no mailbox has and
+  only to a listing that asks for subscriptions: `(\Subscribed \NonExistent) "/" Ghost`, arriving
+  instead of `\Noselect` rather than beside it, on a name a SELECT then refuses in the very words
+  the node is refused in. So both halves of the shape question are answered. The probe grew a
+  fifth name to produce it, written into the account's subscription file because this server
+  refuses a SUBSCRIBE of a name no mailbox has, and it is a registered coupling like the other
+  four. The spelling stays in `_NOT_A_MAILBOX` and the comment now says what kind of evidence it
+  is: the plain `LIST "" "*"` that `folder.list()` sends cannot carry the word on a conformant
+  server, and the Bridge answers an extended LIST with `BAD`, so reading it is a defence against a
+  server not yet met rather than a live path.
 - 2026-08-21: Filed by the close of [364](364-list-folders-offers-a-name-no-mailbox-has.md), which
   added the flag beside the one it measured. Recorded in the ADR-0022 hierarchy-node addendum.

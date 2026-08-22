@@ -16,7 +16,10 @@ addendum).
 No exception of the IMAP stack crosses the port (ADR-0022 refused-search addendum): whatever
 imap-tools, imaplib or the socket raises is wrapped as `MailboxError`, and the two failures a
 model can act on get their own types, a search the server answered ``BAD`` as
-`SearchRefusedError` and a folder no mailbox has as `FolderUnknownError`.
+`SearchRefusedError` and a folder no mailbox has as `FolderUnknownError`. A name the server
+declines to read as a mailbox name at all is the second of those and not a third: it is a name
+`list_folders` cannot have offered, so the correction is the same one call (ADR-0022
+refused-name addendum).
 """
 
 import ssl
@@ -58,23 +61,52 @@ def _translated(action: str) -> Generator[None, None, None]:
         raise MailboxError(msg) from err
 
 
-# What a refused SELECT must itself say for the folder to be *known* missing. Measured against
-# two real servers, which agree on the fact and share no word of how they say it (ADR-0022
-# two-server addendum): a ProtonMail Bridge answers every name no mailbox has with
+# What a refused SELECT must itself say in words for the folder to be *known* missing. Measured
+# against two real servers, which agree on the fact and share no word of how they say it
+# (ADR-0022 two-server addendum): a ProtonMail Bridge answers every name no mailbox has with
 # ``('NO', [b'no such mailbox'])``, and Dovecot 2.3.21 answers the same names with
-# ``('NO', [b"Mailbox doesn't exist: <name>"])``. Neither sends a response code with it, so
-# there is no machine-readable signal to read instead of the words; the RFC 5530 code is listed
-# beside them because it is the standard's own spelling of the same fact, so a server that does
-# send it is saying exactly this. Anything else a ``NO`` can carry is not proof, and what cannot
-# be proved missing is not reported missing: the same Dovecot refuses a mailbox that exists and
-# is shut with ``[NOPERM] Permission denied``, which is none of these.
-_FOLDER_MISSING_ANSWERS = ("no such mailbox", "mailbox doesn't exist", "[nonexistent]")
+# ``('NO', [b"Mailbox doesn't exist: <name>"])``. Neither sends a response code with that one,
+# so there the words really are all there is. Anything else a ``NO`` can carry is not proof, and
+# what cannot be proved missing is not reported missing: the same Dovecot refuses a mailbox that
+# exists and is shut with ``[NOPERM] Permission denied``, which is neither of these.
+_FOLDER_MISSING_PHRASES = ("no such mailbox", "mailbox doesn't exist")
+
+# The same conclusion drawn from a machine-readable code instead of from prose, for the servers
+# that send one. ``[NONEXISTENT]`` is RFC 5530's own spelling of the phrases above, so a server
+# that sends it is saying exactly what they say. ``[CANNOT]`` is a different fact reaching the
+# same answer: the server declining to read the name as a mailbox name at all, measured on
+# Dovecot 2.3.21 against the empty name as
+# ``('NO', [b'[CANNOT] Invalid mailbox name: Name is empty (0.001 + 0.000 secs).'])``. It is
+# classified with the missing folder because a name no mailbox could have is a name no mailbox
+# has: `list_folders` never offered it, so the one-call correction is the right one, and the
+# refusal the fail-safe direction exists to protect, a real mailbox that is merely shut, can
+# never be answered ``[CANNOT]``, whose whole meaning in RFC 5530 is that the request can never
+# succeed. The Bridge reaches the same answer through its words, refusing the empty name with
+# the ordinary ``no such mailbox`` it gives every other wrong name, so the two servers disagree
+# about which fact this is and correct the guess identically (ADR-0022 refused-name addendum).
+_FOLDER_MISSING_CODES = ("[nonexistent]", "[cannot]")
+
+# One tuple because `_select` asks one question of it: the halves differ in what kind of
+# evidence they are, not in what a caller is owed once either of them appears.
+_FOLDER_MISSING_ANSWERS = (*_FOLDER_MISSING_PHRASES, *_FOLDER_MISSING_CODES)
 
 # The LIST attributes by which a server says the name it just listed is not a mailbox: RFC 3501's
 # ``\Noselect`` for a name that exists only as a point in the hierarchy, and RFC 5258's
-# ``\NonExistent`` for the same fact in the newer spelling that LIST-EXTENDED introduced. Being
-# flagged is a question rather than an answer, because the two servers this repo talks to mean
-# different things by it (ADR-0022 flagged-and-refused addendum): Dovecot 2.3.21 lists a
+# ``\NonExistent`` for the newer spelling that LIST-EXTENDED introduced. Both are measured, and
+# they are measured in different listings (ADR-0022 newer-spelling addendum). Dovecot 2.3.21
+# sends ``('\\Noselect', '\\HasChildren')`` with its ``Parent`` node, and goes on sending exactly
+# that when the LIST asks for return options; the newer word it keeps for a different fact, a
+# subscribed name no mailbox has, and sends it only to a LIST that asks for subscriptions:
+# ``(\Subscribed \NonExistent) "/" Ghost``, where it arrives instead of ``\Noselect`` rather than
+# beside it, and where the name refuses to open in the same words the node does. So this set
+# reads a spelling that the one call made here, imap-tools' plain ``LIST "" "*"``, is not the
+# listing to carry it: RFC 5258 lets a server send ``\NonExistent`` only alongside a selection
+# option, and the Bridge answers an extended LIST with ``BAD`` rather than a flag. It is kept
+# because reading a word no server here sends costs one comparison, while not reading it costs a
+# name offered to a model that cannot be opened.
+#
+# Being flagged is a question rather than an answer either way, because the two servers mean
+# different things by it (ADR-0022 flagged-and-refused addendum): Dovecot lists that
 # ``\Noselect`` parent and then refuses it with ``Mailbox doesn't exist: Parent``, the very words
 # that prove a folder missing, while a ProtonMail Bridge flags the two parents of its own
 # hierarchy, ``Folders`` and ``Labels``, and opens both. So the flag selects which names get
@@ -83,16 +115,22 @@ _NOT_A_MAILBOX = frozenset({"\\noselect", "\\nonexistent"})
 
 
 def _select(box: BaseMailBox, folder: str) -> None:
-    """Open ``folder`` read-only (EXAMINE), saying which of the two things a refusal means.
+    """Open ``folder`` read-only (EXAMINE), saying which thing a refusal of it means.
 
     A ``NO`` to `SELECT` is not by itself a missing folder: the same status covers a mailbox that
     exists and could not be opened, so the name is called wrong only when the server's own answer
-    says no mailbox has it. That is the fail-safe direction. Sending a model to `list_folders`
-    over a folder that is really there would have it hunt for a name it already had, while the
-    base error it gets instead says the mailbox could not answer, which is true either way.
+    says so. That is the fail-safe direction. Sending a model to `list_folders` over a folder
+    that is really there would have it hunt for a name it already had, while the base error it
+    gets instead says the mailbox could not answer, which is true either way.
 
-    imap-tools renders the refused command's status and data into its exception message, so the
-    server's words are read from there rather than from a wire the adapter never sees.
+    The answer says so in one of two ways, and both are read: the words two servers were measured
+    using, and the RFC 5530 response code a server sends instead of them. The codes are the
+    stronger reading where they appear, being a machine-readable claim rather than a sentence
+    somebody's server happens to phrase that way, which is why one of them settles a refusal
+    whose prose says nothing about a mailbox at all.
+
+    imap-tools renders the refused command's status and data into its exception message, so both
+    are read from there rather than from a wire the adapter never sees.
     """
     try:
         box.folder.set(folder, readonly=True)  # pyright: ignore[reportUnknownMemberType]

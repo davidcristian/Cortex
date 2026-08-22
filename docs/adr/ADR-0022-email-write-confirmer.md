@@ -1326,3 +1326,154 @@ re-read off disk: believing the flag again reds two of the unit suite and the li
 flagged name that the server refused reds three of the unit suite, one of them the port contract's
 own check on the `imap` arm; and asking every listed name rather than the flagged ones reds two,
 at the assertion that says which names were opened.
+
+## Addendum (2026-08-22): a refused name is the folder correction, read off a code
+
+The two-server addendum measured a third thing the same `NO` carries and left it untyped: Dovecot
+2.3.21 answers a `SELECT` of the empty name `[CANNOT] Invalid mailbox name: Name is empty`, which
+is neither of the two facts the classification is drawn between. Nothing in it says the folder is
+missing and nothing says a folder is there and shut, so it fell through to the base `MailboxError`
+and a model that guessed a name which is not a name read back something indistinguishable from the
+Bridge being down. This settles it.
+
+**What the two servers say, measured through `ImapMailbox` and through a raw imaplib dialogue
+against the running probe, verbatim.** The `[CANNOT]` reasons are one refusal with six wordings,
+and the point of listing them is that every one of them is about the **name**:
+
+| SELECT of | dovecot/dovecot:2.3.21 answered |
+| --- | --- |
+| `""` | `NO [CANNOT] Invalid mailbox name: Name is empty (0.001 + 0.000 secs).` |
+| `Parent/` | `NO [CANNOT] Invalid mailbox name: Ends with hierarchy separator (0.001 + 0.000 secs).` |
+| `/Parent` | `NO [CANNOT] Invalid mailbox name: Begins with hierarchy separator (0.001 + 0.000 secs).` |
+| `Parent//Child` | `NO [CANNOT] Invalid mailbox name: Has adjacent hierarchy separators (0.001 + 0.000 secs).` |
+| `INBOX/../etc` | `NO [CANNOT] Invalid mailbox name: Contains '..' part (0.001 + 0.000 secs).` |
+| `~root` | `NO [CANNOT] Invalid mailbox name: Begins with '~' (0.001 + 0.000 secs).` |
+| `Bad\Name` | `NO Mailbox doesn't exist: Bad\Name (0.001 + 0.000 secs).` |
+| `"  "`, two spaces | `NO Mailbox doesn't exist:    (0.001 + 0.000 secs).` |
+
+And the same account of the same question on a live ProtonMail Bridge, which has no code for any
+of it:
+
+| SELECT of | the Bridge answered |
+| --- | --- |
+| `""` | `NO no such mailbox` |
+| `Nonexistent` | `NO no such mailbox` |
+
+So the empty name was already the folder correction on one server and the base error on the other,
+which is the drift the two-server addendum spent a fixture closing for the missing case.
+
+**Decision: `FolderUnknownError`, and a response-code test rather than a seventh phrase.** A name
+no mailbox could have is a name no mailbox has. `list_folders` never offered it and never will, so
+the correction a caller is owed is the one that names the list, and it is the same one call on
+either server. The classification now reads two RFC 5530 codes, `[NONEXISTENT]` and `[CANNOT]`,
+beside the two measured phrases, and `_FOLDER_MISSING_PHRASES` and `_FOLDER_MISSING_CODES` are
+separate constants because they are different kinds of evidence reaching one conclusion.
+
+**The alternative, and why it lost.** `[CANNOT]` is the server refusing the request rather than
+reporting the mailbox, which is closer to what `SearchRefusedError` says about a query, and typing
+it as missing has the port assert something this server declined to assert. Three things decide
+against it. The port's error is the correction a caller can act on rather than a restatement of
+the server's claim, and here the correction is identical whichever fact it was. A third type would
+also be a difference the port invented out of a difference in server wording, which is exactly what
+the second measured phrase was added to erase: the Bridge would answer `search_emails(folder="")`
+with one type and the probe with another, for one mistake. And `SearchRefusedError` is the wrong
+sibling anyway, since it carries the query and points at the query dialect, while this fails in
+`_select` before any query is read, on `fetch` as much as on `search`.
+
+**Why the fail-safe direction does not object.** The rule that a folder which cannot be proved
+missing is not reported missing exists to protect one case, a mailbox that is really there and
+temporarily shut, because sending a model to `list_folders` over it starts a loop. `[CANNOT]` is
+RFC 5530 for an operation that can never succeed, so it cannot be that case; the probe's own
+"there but shut" mailbox answers `[NOPERM] Permission denied` and is untouched here. The other
+thing `[CANNOT]` could plausibly mark, a name that exists and can never be opened, is the
+hierarchy node, and the port already answers that with `FolderUnknownError`.
+
+**It is a port decision, so the contract carries it.** `mailbox_contract.py` gains a check
+saying that a name no mailbox could have is one no mailbox has: `search` and `fetch` of the empty
+name both raise `FolderUnknownError` carrying it. The fake, the adapter over its stand-in, the live probe and
+the live Bridge all pass it, and on the probe it passes only because of this change, which is where
+the check has force. No new error type was added, so nothing else about the port's vocabulary moved.
+
+**A mutation found the hole in the first version of this.** Reading the bare word `cannot` instead
+of the bracketed `[CANNOT]` left every test green, and a server saying a real mailbox "cannot be
+opened right now" would then have been reported missing. The test that closes it drives the
+measured sentence with its brackets removed, which is a constructed near miss and is labelled as
+one where it sits: what it pins is that the rule turns on a
+response code, a form ordinary prose cannot imitate.
+
+**Validation.** `just check` green, run to completion in the session that landed this. The probe
+was taken up with `just up-imap-probe`, measured with `just email-folder-probe`, and taken down
+with `just down-imap-probe`; the live Bridge half ran as `pytest -m integration -k folder` over
+`test_email_live.py` with `CORTEX_EMAIL_IMAP_TLS_INSECURE=true`, green. The mutation table covers
+this change and the next one together and sits at the end of the addendum below, both having
+landed in one pass against one bring-up of the probe.
+
+## Addendum (2026-08-22): the newer unselectable word, measured where it really lives
+
+The hierarchy-node addendum put two spellings in `_NOT_A_MAILBOX` and measured one. `\Noselect` is
+what the probe's Dovecot sends with its `Parent` node; `\NonExistent` was RFC 5258's spelling of
+the same fact, read off the standard, sent by no server this repo had connected to, and pinned by a
+unit test driving a stand-in that had been told to say it. The refinement that closed asked for the
+cheap version of the missing evidence: a direct imaplib dialogue issuing an extended LIST and
+recording what `Parent` comes back flagged as.
+
+**That dialogue was run, and it refutes the premise it was built on.** `Parent` is `\Noselect`
+under every extended LIST this server accepts, so there was never a `\NonExistent` waiting behind
+a return option. Verbatim, against dovecot/dovecot:2.3.21:
+
+    LIST "" "*"                        (\Noselect \HasChildren) "/" Parent
+    LIST "" "*" RETURN (CHILDREN)       (\Noselect \HasChildren) "/" Parent
+    LIST "" ("*") RETURN (SPECIAL-USE)  (\Noselect) "/" Parent
+    LIST (SUBSCRIBED) "" "*"            (\Subscribed \Noselect) "/" Parent
+
+The last two prove the client really did reach the extended syntax, since both drop the children
+flags a plain LIST carries. The fourth line needed the node subscribed for the length of that
+dialogue, which is why the fixture does not carry it and this is the one row here a rerun has to
+arrange for itself. Dovecot converts its own `NONEXISTENT` to `\Noselect` for a client that
+did not ask for LIST-EXTENDED and never the other way, and a node with a child on disk is
+`\Noselect` in its model rather than nonexistent.
+
+**Where the word does live, measured.** `\NonExistent` is this server's answer about a **subscribed
+name no mailbox has**, and it takes a listing that asks for subscriptions to see one:
+
+    LIST (SUBSCRIBED) "" "*"            (\Subscribed \NonExistent) "/" Ghost
+    LIST (SUBSCRIBED RECURSIVEMATCH)    (\Subscribed \NonExistent) "/" Ghost
+    LIST "" "*"                         Ghost is not returned at all
+    LSUB "" "*"                         () "/" Ghost
+    EXAMINE Ghost                       NO Mailbox doesn't exist: Ghost (0.001 + 0.000 secs).
+
+So both halves of what the refinement asked are answered. It arrives **instead of** `\Noselect`
+rather than beside it, on a different name and for a different reason. And the name behaves exactly
+as the measured one does: it is refused in the very words that prove a folder missing, which is what
+would send a model back to the list it read the name off.
+
+**The fixture grew a fifth name to produce it.** `SUBSCRIBE Ghost` is itself refused here (`NO
+Mailbox doesn't exist: Ghost`), so the subscription cannot be arranged over the wire and
+`docker/dovecot/probe-mailboxes.sh` writes the subscription file directly, in the format read back
+off one dovecot wrote itself: a `V<TAB>2` version line, an empty namespace prefix line, then one
+name per line. The name is registered in `scripts/fixturecouplings.py` beside the other four, so a
+rename in the script alone is caught by a gate rather than by the next measurement.
+
+**Decision: keep the spelling, and say in the comment what kind of evidence it now is.** The
+honest downgrade the refinement offered is not needed, because the word is measured; but the shape
+around it is more interesting than the word. The call `ImapMailbox` makes is imap-tools'
+`folder.list()`, which sends the plain `LIST "" "*"` and nothing else, and RFC 5258 lets a server
+return `\NonExistent` only where a selection option was given. The Bridge cannot send it under any
+phrasing: it advertises `AUTH=PLAIN ID IDLE IMAP4REV1 STARTTLS` and answers an extended LIST with
+`BAD [Error offset=17]: expected CR`. So on both servers this repo talks to, reading the newer word
+is a defence rather than a live path. It stays because reading a word neither server sends costs
+one comparison of a tuple that is already being walked, while not reading it costs a name offered
+to a model that cannot open it, on the first server met that lists one.
+
+**Validation.** `just check` green, run to completion in the session that landed this, and both
+suites run against the probe brought up and taken down around the pass. Mutations, each reverted
+from a saved copy and the file re-read off disk, over the email package's unit suite (110 tests, integration deselected), the probe's live
+suite (6 integration tests, `just email-folder-probe`) and `just check-crosscheck`:
+
+| mutation | expected | observed |
+| --- | --- | --- |
+| drop `[cannot]` from the codes | the empty name falls back to the base error | 1 unit test red (the code-not-prose one) and 1 live probe test red, at the port contract's own check |
+| read `cannot` instead of `[cannot]` | prose imitating a code is classified | 1 unit test red (the bracketed-code one); this mutation was green before that test existed, which is why it exists |
+| drop `\nonexistent` from `_NOT_A_MAILBOX` | the newer spelling stops being read | 1 unit test red; no live test, since neither server sends the word to the listing the adapter makes |
+| the fixture stops writing the subscription | the word has no source | 1 live probe test red and `crosscheck` red |
+| rename the subscribed name in the script alone | the two spellings drift | `crosscheck` red on the new coupling, and the same live test red |

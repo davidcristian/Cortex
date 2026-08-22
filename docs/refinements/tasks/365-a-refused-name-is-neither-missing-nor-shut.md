@@ -1,6 +1,6 @@
 # A third thing a refused SELECT can mean, a name no mailbox could have, is untyped
 
-**Status:** open, actionable
+**Status:** landed 2026-08-22
 **Area:** email-confirmer
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
 
@@ -33,6 +33,21 @@ already measured, so both sides of the decision can be checked before anything i
 
 ## Trail
 
+- 2026-08-22: Landed as `FolderUnknownError`, read off the response code (ADR-0022 refused-name
+  addendum). The decision went to the first reading: the port's error is the correction a caller
+  can act on rather than a restatement of the server's claim, and the correction is identical
+  whichever fact it was, so a third type would be a difference the port invented out of a
+  difference in wording. `_FOLDER_MISSING_CODES` now holds `[cannot]` beside `[nonexistent]`,
+  separate from the two measured phrases because they are different kinds of evidence, and the
+  port contract gained a check that both calls taking a folder answer the empty name that way.
+  Two things the measurement added to what this entry recorded. The probe sends `[CANNOT]` with
+  six reasons rather than one, and five of them are shapes a model really writes (`Parent/`,
+  `/Parent`, `Parent//Child`, `INBOX/../etc`, `~root`), so this is not only about the empty
+  string. And a mutation showed the first version of the test could not tell the bracketed code
+  from the English word inside it, which a refusal about a mailbox that is merely shut could
+  easily carry; a near-miss test now pins the brackets. One residue opened, the folder name
+  riding inside the text the rule reads
+  ([386](386-the-answer-read-holds-the-name-that-was-sent.md)).
 - 2026-08-21: Filed by the close of [327](327-the-other-no-to-select-is-unseen.md), which ran a
   second IMAP server to settle what a refused SELECT means and met a third answer while it was
   there. Recorded in the ADR-0022 two-server addendum.
