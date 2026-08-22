@@ -1,6 +1,6 @@
 # A grpc that stopped flooring the reading is no longer told from one that did
 
-**Status:** open, actionable
+**Status:** landed 2026-08-22
 **Area:** seam-transport
 **Origin:** [ADR-0024](../../adr/ADR-0024-transport-retry.md)
 
@@ -43,3 +43,18 @@ claims more than the suite holds, which is the failure mode this repo actually t
   [370](370-an-expiry-reading-is-asserted-exactly.md), which measured the expiry reading under load
   and replaced the exact assertion with a bound. Recorded in the ADR-0024 addendum dated the same
   day.
+- 2026-08-22: Landed, by a shape this entry did not weigh. Neither of the two it offered was
+  taken. Driving the scenario N times and asserting one reading is the integer floor buys the
+  distinction probabilistically, and 51 of 400 saturated replays were slivers, so a run of N of
+  them is not impossible at any N a suite can afford; forcing a deeply negative subtraction by
+  withholding the event loop does work and was tried, but pays suite time to outrun a second clock
+  rather than removing it. The case landed instead announces the deadline in `grpc-timeout`
+  metadata with no `timeout=` beside it, so the only clock that can end the call is the brain's
+  own, which cannot fire before it is due; 200 replays under saturation read an integer `0` every
+  time. It asserts `isinstance(remaining, int)`, which separates the floor from the sliver by type
+  rather than by value, and that is the assertion the `0.05` and `0.0` mutations now die to over
+  the wire, having previously died only in the renderings. It is also the deployed shape of an
+  expiry: the body killed or the connection half-opened, its cancellation never arriving. Decided
+  together with [R-351](351-two-readings-only-a-fake-ever-produced.md), whose other two wire cases
+  it sits beside, and [R-372](372-the-sliver-is-unsampled-over-time.md), which this close is the
+  reason to decline. Recorded in the ADR-0024 addendum dated the same day.
