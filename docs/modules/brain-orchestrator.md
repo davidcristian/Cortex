@@ -3,7 +3,8 @@
 **Purpose.** The thin grpc.aio service hosting `BrainService` (the brain's end of the
 seam), plus the composition root that wires the core's ports to real adapters (the
 per-capability `build_*` factories in `builders.py`, the boot orderings no single settings
-class can check for itself in `bounds.py`, and the root `run_from_env` in `wiring.py`). A shell only: turn logic lives in `cortex_core.TurnEngine`; no
+class can check for itself in `bounds.py`, the root `run_from_env` in `wiring.py`, and the
+per-stream `StreamEngines` in `engines.py` that root hands `serve`). A shell only: turn logic lives in `cortex_core.TurnEngine`; no
 conversation/task state may live in this process beyond the in-flight turn (AGENTS.md
 hard rule).
 
@@ -732,7 +733,8 @@ The service:
   runtime's own `close`, before the store and the control client it spends;
   registers `escalate_to_brain`; hands that same manager to `serve` inside
   `SeamPorts` as the seam's `residency` reporter (which is what makes `Health` honest mid
-  handoff, ADR-0030 decision 6); and returns an `EscalatingTurnEngine` from `make_engine`: a
+  handoff, ADR-0030 decision 6); and rides into `StreamEngines` as its `DeepTier`, which is what
+  makes `for_stream` answer an `EscalatingTurnEngine`: a
   fresh slot and inner engine per turn, and a `SwapConductor` over a dispatcher built from THIS
   stream's confirmer, whose `BrainPhase` is handed
   `CadenceTerms(swap.plan.brain_decode_tps, swap.manager.handoff_pace)`, which is the one place
@@ -790,6 +792,18 @@ The service:
   `CORTEX_TOOLS_GATED` overlay in `build_tool_registry`) prompts the overlay, a tainted one is
   denied outright, and a spawned subagent's progress reaches that stream's overlay. Subagent
   dispatchers keep `confirmer=None` (fail-closed, ADR-0013).
+  That factory is **`StreamEngines.for_stream` in `engines.py`**, not a closure at the root:
+  it is the one thing there that runs again per Converse stream rather than once per process,
+  so it is an object built once with the twelve names it needs (the ports, the runtime config,
+  the two policy-shaped values the root mapped, and an optional `DeepTier`) rather than three
+  nested closures over the root's locals, which is what had `wiring.py` sitting at the line cap.
+  Nothing in it reads env, opens a resource, or picks an adapter. Per call it builds this
+  stream's `TurnCapabilities` (its own dispatcher, window and guardrail) and returns either the
+  plain `TurnEngine` or, when `DeepTier` is present, the `EscalatingTurnEngine` over a
+  `SwapConductor` bound to this stream's dispatcher. `DeepTier(swap, builtins, scheduler)` is
+  the escalating arm's three parts as one value, so a handoff cannot be half-wired: the deep
+  tier's own built-in set (vision-less, ADR-0029 decision 6) travels with the runtime that
+  swaps and the subagent pool the conductor drains.
   **Echo is the default inference backend; llama.cpp is opt-in via
   `CORTEX_INFERENCE_BACKEND=llamacpp`** (ADR-0007), so the deterministic `"reply {n}: {text}"`
   script (brain-core.md) runs in CI. Every adapter's resources are released on the way out.

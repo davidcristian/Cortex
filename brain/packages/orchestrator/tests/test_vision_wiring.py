@@ -58,7 +58,7 @@ from cortex_core import (
     ToolDispatcher,
     TurnCapabilities,
 )
-from cortex_orchestrator import build_builtin_tools, run_from_env, wiring
+from cortex_orchestrator import build_builtin_tools, engines, run_from_env, wiring
 from cortex_orchestrator.builders import build_cortex_tools
 from cortex_orchestrator.config import InferenceConfig
 from cortex_orchestrator.config_body import BodyConfig
@@ -147,10 +147,13 @@ def _record(monkeypatch: pytest.MonkeyPatch, root: _Root, vision_answers: tuple[
         root.deep_capabilities.append(cast("TurnCapabilities", args[4]))
         return real_phase(*args)  # pyright: ignore[reportCallIssue, reportArgumentType]
 
+    # Two of the four are patched where the per-stream factory reads them (`engines.py`): the
+    # root assembles the two built-in sets and probes for vision, and the factory is what turns
+    # a set into a dispatcher and hands the deep tier's bundle to its phase.
     monkeypatch.setattr(wiring, "build_builtin_tools", recording_builtins)
     monkeypatch.setattr(wiring, "build_vision", recording_vision)
-    monkeypatch.setattr(wiring, "build_cortex_tools", recording_tools)
-    monkeypatch.setattr(wiring, "BrainPhase", recording_phase)
+    monkeypatch.setattr(engines, "build_cortex_tools", recording_tools)
+    monkeypatch.setattr(engines, "BrainPhase", recording_phase)
 
 
 async def _compose(

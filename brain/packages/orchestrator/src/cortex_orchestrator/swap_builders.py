@@ -58,9 +58,8 @@ class SwapRuntime:
     ``healer`` is the one background loop this capability owns: it reads what every evictable
     peer tier is doing and puts back the ones that are not serving, whether or not anything ever
     refused to start them (ADR-0030 tier-outage and tier-sweep addenda). It is started by boot
-    recovery and
-    stopped by ``close``, rather than by two more lines at a composition root already at its line
-    cap, which is also why it owns its own task.
+    recovery and stopped by ``close``, rather than by two more lines at a composition root that
+    was at its line cap when it landed, which is also why it owns its own task.
     """
 
     host: ModelHost
