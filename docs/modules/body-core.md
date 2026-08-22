@@ -387,7 +387,10 @@ and the pure core decides what crosses the seam.
   size of the screen), and `covers_display()`, which is the one bit the receipt needs.
   How much room the ceiling leaves at the 2048 px edge the brain asks for is
   measured by `tests/capture_bytes.rs`, which is `#[ignore]`d because it is seconds of CPU
-  rather than a gate. The costliest display there is 2560x1440 rather than 4K, at 79% of the
+  rather than a gate. That suite names the edge as `BRAIN_EDGE`, and `scripts/crosscheck.py`
+  holds it to the brain's own `DEFAULT_CAPTURE_MAX_EDGE`: the number is not this suite's to
+  pick, and an edge retuned on the brain alone would leave the headroom reported here measured
+  for a capture nothing asks for (ADR-0029 legibility-prose addendum). The costliest display there is 2560x1440 rather than 4K, at 79% of the
   ceiling under heavy grain, because a display nearer the requested edge averages less of the
   grain away. **`TooLarge` is unreachable at the seam's own ceiling**, which is why the
   ceiling rides the request: each rung halves the edge the last one reached, so the third is at

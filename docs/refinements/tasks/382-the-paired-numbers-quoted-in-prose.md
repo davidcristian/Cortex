@@ -1,6 +1,6 @@
 # The legibility pair is quoted in three more documents and only the compose halves are held
 
-**Status:** open, actionable
+**Status:** landed 2026-08-23
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -38,3 +38,24 @@ task must not leave behind is another reading nobody wrote down.
   [R-377](377-a-comment-restates-a-registered-value.md), which settled that a comment is a place a
   value appears and not a form or a spelling, registered the two that state a deployment's own
   pairing, and deliberately left the prose that argues for it unsorted.
+- 2026-08-23: landed. The survey ran wider than this file: the two numbers are spelled 49 times in
+  14 files outside the decision records and the backlog, not five times in three. Sorted by the
+  tense test, the token budget went from three registered far sides to ten and the capture edge
+  from four to thirteen, and the edge gained a second declaring site in the other tree
+  (`BRAIN_EDGE` in `body/crates/core/tests/capture_bytes.rs`, which measures byte-ceiling headroom
+  at the edge the brain asks for). Held: both env table cells of the GPU runbook's row, the recipe
+  block under it, the vision runbook's three claims about what ships, both declaring files' own
+  prose, both compose overrides' comments about their own default, the three module contracts, and
+  the capture check in `docs/host/`. Left out as history: every measured arm, cost and reservation
+  row, each true of the value it was taken at. Two needle shapes carry that sort without pinning a
+  sentence: the recipe is pinned at a line start, since the measured table below it writes the same
+  text inside a cell, and the counted mentions hold a file's several claims about one shipped
+  number as one set. Seventeen planted drifts each reddened the gate and four rewritten history
+  sentences each left it green. The reading of `docs/host/` that this entry's neighbour called a
+  judgement call is settled here and shared with it: a host file is a live instruction and not a
+  record, because a completed check's file shrinks to a heading, its status and a pointer. Recorded
+  in the ADR-0029 legibility-prose addendum, in
+  [modules/repo-gates.md](../../modules/repo-gates.md) and in
+  [modules/body-core.md](../../modules/body-core.md). Two narrower entries open in its place:
+  [387](387-a-second-spelling-shares-a-held-line.md) and
+  [388](388-the-headroom-suite-spells-its-own-constant.md).

@@ -17,6 +17,10 @@ BODY_CLIENT_DOC = "docs/modules/brain-body-client.md"
 BODY_CORE_DOC = "docs/modules/body-core.md"
 BODY_RPC_DOC = "docs/modules/body-rpc.md"
 RETRY_PLAN = "body/crates/core/src/retry/plan.rs"
+CAPTURE_BYTES = "body/crates/core/tests/capture_bytes.rs"
+CAPTURE_CHECK = "docs/host/tasks/012-display-capture-path.md"
+MODEL_MANAGER_DOC = "docs/modules/brain-model-manager.md"
+ORCHESTRATOR_DOC = "docs/modules/brain-orchestrator.md"
 GPU_RUNBOOK = "docs/runbooks/llamacpp-gpu.md"
 SCHEDULING_RUNBOOK = "docs/runbooks/scheduling.md"
 TOOLS_RUNBOOK = "docs/runbooks/tools-mcp.md"
@@ -121,17 +125,29 @@ SHIPPED_COUPLINGS: tuple[Constant, ...] = (
     Constant(
         label="the capture edge's shipped default",
         why=(
-            "the compose stack ships this edge into every container and two runbooks quote it as "
-            "the brain half of the measured legibility pair, so retuning the field alone would "
-            "leave every deployment asking for the old edge while the encoder was sized for the "
-            "new one (ADR-0029 legibility addendum)"
+            "the compose stack ships this edge into every container, two runbooks and three "
+            "module contracts quote it as the brain half of the measured legibility pair, and "
+            "the body's own headroom suite sizes its worst case on it, so retuning the field "
+            "alone would leave every deployment asking for the old edge while the encoder was "
+            "sized for the new one (ADR-0029 legibility addendum)"
         ),
-        sites=(Site(BODY_CONFIG, "DEFAULT_CAPTURE_MAX_EDGE"),),
+        # The second site is the other tree's: `capture_bytes.rs` names the edge the brain asks
+        # for and measures how much room the byte ceiling leaves at it, so a retune here alone
+        # leaves that suite reporting headroom for a capture nothing requests any more.
+        sites=(Site(BODY_CONFIG, "DEFAULT_CAPTURE_MAX_EDGE"), Site(CAPTURE_BYTES, "BRAIN_EDGE")),
         mentions=(
             Mention(BODY_COMPOSE, "${CORTEX_BODY_CAPTURE_MAX_EDGE:-{value}}"),
+            Mention(BODY_COMPOSE, "defaults to {value} rather"),
+            Mention(BODY_CONFIG, "defaults to **{value} rather"),
             Mention(VISION_RUNBOOK, "| `CORTEX_BODY_CAPTURE_MAX_EDGE` | brain | `{value}` |"),
-            Mention(GPU_RUNBOOK, "CORTEX_BODY_CAPTURE_MAX_EDGE={value}"),
+            Mention(VISION_RUNBOOK, "CORTEX_BODY_CAPTURE_MAX_EDGE={value}"),
+            Mention(VISION_RUNBOOK, "{value} px capture"),
+            Mention(GPU_RUNBOOK, "CORTEX_BODY_CAPTURE_MAX_EDGE={value}", occurrences=2),
             Mention(GPU_COMPOSE, "CORTEX_BODY_CAPTURE_MAX_EDGE={value}"),
+            Mention(MODEL_MANAGER_DOC, "CORTEX_BODY_CAPTURE_MAX_EDGE={value}"),
+            Mention(ORCHESTRATOR_DOC, "DEFAULT_CAPTURE_MAX_EDGE` ({value})"),
+            Mention(BODY_CORE_DOC, "{value} px edge"),
+            Mention(CAPTURE_CHECK, "at {value} px"),
         ),
     ),
     Constant(

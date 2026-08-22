@@ -515,10 +515,29 @@ that last question to have an answer.
   **history** (an ADR, a measurement record, a dated log line), which is the same test that has
   always kept ADRs out. **A comment inside a compose file answers to that test and to nothing
   else** (ADR-0029 comment addendum): it is no new form and no new spelling, only another place a
-  whole value appears, reached by the mention template the runbook sentences already use. Two are
-  registered, each the half of the measured legibility pair that names the other file's number
+  whole value appears, reached by the mention template the runbook sentences already use. Four are
+  registered: the two halves of the measured legibility pair that name the other file's number
   (`CORTEX_IMAGE_MAX_TOKENS=1024` in the body override, `CORTEX_BODY_CAPTURE_MAX_EDGE=2048` in the
-  GPU one), because the pair is what either number is for.
+  GPU one), because the pair is what either number is for, and the two that name their own file's
+  default a few lines above the substitution carrying it.
+- **The legibility pair was then read out of prose the same way** (ADR-0029 legibility-prose
+  addendum), which is what turned two entries with three and four far sides into two with nine and
+  twelve. Held: the module contracts stating either default, the GPU runbook's env table **and**
+  the recipe block under it, the vision runbook's three claims about what ships, both declaring
+  files' own prose beside the constant, and the host check telling an operator what a stock
+  deployment captures. Left out: every measured arm, cost and reservation row, each of which was
+  measured **at** a value and goes on being true after it moves. The needle carries that sort where
+  it can: the recipe block is pinned at a line start, `"\nCORTEX_IMAGE_MAX_TOKENS={value}"`, because
+  the measured table below it writes the same text inside a cell, and the vision runbook's three are
+  pinned by count because a file naming two different shipped budgets is a defect rather than a
+  design change. The edge gained a second **site** in the other tree, `BRAIN_EDGE` in
+  `body/crates/core/tests/capture_bytes.rs`, which is what the byte-ceiling headroom suite measures
+  against and is a fixture that has to follow the brain rather than a value it may choose.
+- **A host file is a live instruction, not a record**, which is the reading that sort needed.
+  `docs/host/` holds work that is built and unrun, its prerequisites exist so a sitting does not die
+  on setup, and a completed item's file shrinks to a heading, its status and a pointer, so the
+  sentence naming a value never survives into the record it would otherwise become. A stale number
+  there costs a sitting, which is the failure that section exists to prevent.
 - `bindcheck.py` does the same (`test_the_repo_itself_is_clean`), with a guard on the guard:
   `test_the_repo_really_declares_binds_for_this_gate_to_have_checked` fails if the reader ever
   finds fewer than six defaulted bind sources under `docker/`, so the clean verdict cannot go

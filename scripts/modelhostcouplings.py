@@ -13,6 +13,8 @@ SWAP_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config_swap.p
 MODEL_MANAGER_DOC = "docs/modules/brain-model-manager.md"
 GPU_RUNBOOK = "docs/runbooks/llamacpp-gpu.md"
 SWAP_RUNBOOK = "docs/runbooks/model-swap.md"
+VISION_RUNBOOK = "docs/runbooks/vision.md"
+CAPTURE_CHECK = "docs/host/tasks/012-display-capture-path.md"
 
 MODELHOST_COUPLINGS: tuple[Constant, ...] = (
     # The two logical ids. Each is spent twice in the override, once as the sidecar's env and once
@@ -124,15 +126,23 @@ MODELHOST_COUPLINGS: tuple[Constant, ...] = (
         label="how many tokens one picture may occupy",
         why=(
             "this is the model-host half of the measured legibility pair the brain's capture "
-            "edge is the other half of, and both the override and the GPU runbook state it, so "
-            "a budget retuned in the config alone would pay the edge's pixels for an encoder "
-            "still refusing to spend tokens on them (ADR-0029 legibility addendum)"
+            "edge is the other half of, and the override, both runbooks, the module contract "
+            "and the config's own comment each state it as the shipped budget, so a budget "
+            "retuned in the field alone would pay the edge's pixels for an encoder still "
+            "refusing to spend tokens on them (ADR-0029 legibility addendum)"
         ),
         sites=(Site(MODELHOST_CONFIG, "DEFAULT_IMAGE_MAX_TOKENS"),),
         mentions=(
             Mention(GPU_COMPOSE, "${CORTEX_IMAGE_MAX_TOKENS:-{value}}"),
+            Mention(GPU_COMPOSE, "{value} is the default"),
             Mention(GPU_RUNBOOK, "`{value}` is the default, paired with"),
+            Mention(GPU_RUNBOOK, "| `{value}` |"),
+            Mention(GPU_RUNBOOK, "\nCORTEX_IMAGE_MAX_TOKENS={value}"),
             Mention(BODY_COMPOSE, "CORTEX_IMAGE_MAX_TOKENS={value}"),
+            Mention(MODELHOST_CONFIG, "{value} is the default because"),
+            Mention(VISION_RUNBOOK, "CORTEX_IMAGE_MAX_TOKENS={value}", occurrences=3),
+            Mention(MODEL_MANAGER_DOC, "`{value}` by default"),
+            Mention(CAPTURE_CHECK, "CORTEX_IMAGE_MAX_TOKENS={value}"),
         ),
     ),
     # The sentinel both reasoning budgets default to, declared once under the underscore that says
