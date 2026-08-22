@@ -3628,3 +3628,113 @@ The records are the two task files
 addendum. One narrower task opens in their place, the paired cross reference as it is written in
 the three documents that argue with it rather than ship it
 ([R-382](../refinements/tasks/382-the-paired-numbers-quoted-in-prose.md)).
+
+## Addendum (2026-08-22): the registry takes a subject the repo does not ship
+
+The IMAP probe is a second real IMAP server, run locally so that both of the things a refused
+`SELECT` can mean have a server saying them. `docker/dovecot/probe-mailboxes.sh` builds its mailbox
+tree and `brain/packages/email/tests/test_imap_probe_live.py` names what it built. Rename a mailbox
+in one and the other goes on asking about a mailbox nothing makes
+([R-366](../refinements/tasks/366-the-probe-fixture-and-its-test-are-untied.md)).
+
+### The claim that did not survive re-derivation, and it is the count again
+
+The task file says the two files name "the same three mailboxes". They name four: `INBOX`, the one
+folder the probe leaves openable; `Guarded`, the mailbox its ACL shuts; `Parent`, the node that is
+listed and is no mailbox; and `Parent/Child`, the real mailbox under it that makes dropping the
+parent lossless. The entry's own sentence enumerates `Guarded`, the parent and "the one folder that
+opens", which reads as three and is ambiguous between two of the four. All four are registered.
+
+The entry also says the mailbox names are the whole of what the two files share. They are not. The
+account is spelled `probe` in the suite and again inside the script's `ROOT=/srv/mail/probe/Mail`,
+which is the user's mail home under this server's static userdb, so renaming the account in the
+suite alone would have dovecot look in an empty home and every mailbox go missing at once. It is
+not registered here because it has no declaration to read: the suite spells it inline in the
+`EmailConfig` it builds, and hoisting it is a change to the suite rather than to the registry
+([R-384](../refinements/tasks/384-the-probe-account-is-spelled-twice.md)). What the entry excludes
+deliberately does hold: neither the address nor the port belongs here, `just email-folder-probe`
+reading both back off docker, and neither is written down anywhere a rename could strand.
+
+### A new part, because a fixture is not a shipped answer
+
+The question the entry left open was whether these join an existing part on a stretched reading of
+its subject, or earn one of their own. They earn one. `scripts/emailcouplings.py` arrived two days
+ago as the sixth part and the first added as a subject rather than as a split under the line cap,
+and its subject is written narrowly on purpose: the read-only IMAP sidecar's own env surface, three
+variables whose default is an answer rather than a number. A dovecot fixture's mailbox names are
+not that sidecar's shipped answers. They are not the same subject wearing a different hat; they are
+the same **topic**, which is not what the parts are named for. Filing them there because both say
+IMAP would make the part's own docstring false, and the next reader would learn that a part's name
+is a hint rather than a claim.
+
+`scripts/fixturecouplings.py` is the seventh part, and it names the distinction that is actually
+there. Every other part ties something this repo **ships**: a default a container boots on, a value
+one tree's code hands another's, a custom property a stylesheet spends. This one ties something the
+repo **measures with**. The subject generalises without stretching, since the next stack built to
+be measured against belongs here on the same reading, and it costs what `registry.py` was built to
+charge: one data file and one line there, with `crosscheck.py` never learning the registry grew.
+
+**The name.** `fixture` over `probe`, which names this one stack and would have to be renamed by
+the second, and over `measure`, which names the activity rather than the subject and would read as
+a part holding measurements. The other six parts are nouns naming what they hold, and this is one.
+
+**Why a fixture needs the gate more than a shipped value does, not less.** A shipped default has a
+suite that runs on every commit and would notice. This suite is `integration`-marked, so it never
+runs in CI and runs on a host only when somebody chooses to measure. The fixture and the suite can
+disagree for months with every gate green, and the failure surfaces on the next measurement worded
+as a server behaving oddly rather than as a fixture that moved. That is the shape of failure this
+scan's own docstring describes, arriving in the one place nothing else was watching.
+
+### The entries, and the one that is counted
+
+Four entries, each a site in the suite against a mention rendering the name into the path the
+script writes it in. `GUARDED_FOLDER`, `REAL_FOLDER` and `NODE_CHILD` render as
+`mailboxes/{value}/dbox-Mails`, which is what an sdbox mailbox looks like on disk.
+`NOSELECT_PARENT` renders as `mailboxes/{value}/` instead, because the whole of what the script
+says about that name is that a path runs through it: the node is unselectable precisely because
+nothing is written directly under it, and a needle cannot pin an absence.
+
+The guarded mailbox's mention is the fifth in the registry to pin an occurrence count, at 2. The
+script writes that name twice, once as the mailbox directory and once as the `dovecot-acl` file
+inside it, and the two are one set: a rename that moved the directory and left the ACL puts the ACL
+somewhere dovecot never reads, the mailbox opens like any other, and the measurement the whole
+stack exists for quietly becomes vacuous while every name still resolves.
+
+**What is deliberately not tied.** The suite's `INVENTED_FOLDER` is `Nonexistent`, and the point of
+it is that the script does not build it; a coupling needs two places holding one value and that one
+has one place on purpose. The script's own header table names all four mailboxes a second time, in
+a column aligned by padding, and pinning a padded comment would tie the spacing along with the
+name, which is a coupling about formatting rather than about a value.
+
+### Proved able to fail, nine times, over the crosscheck registry
+
+Each side of each entry was planted with a real disagreement one at a time on the real tree, the
+gate run, the file restored, and the restoration compared by digest against what it held before.
+The counts are over the crosscheck registry as it stands after this change and the body-port
+registration landed beside it (the ADR-0023 port addendum), 55 entries over 64 sites and 105
+mentions, and not over any test suite: a suite's numbers say nothing about the collection this
+table is about. This part is 4 of those entries, 4 of those sites and 4 of those mentions.
+
+| planted drift | what the gate said |
+|---|---|
+| `GUARDED_FOLDER` becomes `Shut` | 1 fault: found 0 of the 2 the mention pins |
+| the script renames the guarded mailbox and not its ACL | 1 fault: found 1 of 2, which is the count earning its place |
+| the script renames both halves of it | 1 fault: found 0 of 2 |
+| `REAL_FOLDER` becomes `Inbox` | 1 fault naming the script |
+| the script builds `Inbox` instead | 1 fault naming the script |
+| `NOSELECT_PARENT` becomes `Node` | 1 fault naming the script |
+| the script renames the parent segment | 2 faults, the node and the child under it |
+| `NODE_CHILD` becomes `Parent/Kid` | 1 fault naming the script |
+| the script renames the child segment | 1 fault, the child alone, the parent segment still standing |
+
+All nine exited 1 and all nine restorations matched by digest. The seventh and the ninth are the
+pair that shows the two path entries are not one entry written twice: renaming the parent reddens
+both, renaming the child reddens only the child.
+
+### Records
+
+The record is the task file
+[R-366](../refinements/tasks/366-the-probe-fixture-and-its-test-are-untied.md), which closes,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from it, and this
+addendum. One narrower task opens in its place, the account name the two files also share
+([R-384](../refinements/tasks/384-the-probe-account-is-spelled-twice.md)).

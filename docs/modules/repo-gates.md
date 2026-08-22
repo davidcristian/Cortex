@@ -13,11 +13,12 @@ belongs to neither the brain nor the body and is gated exactly like both. A stan
 `bindcheck.py`, `backlogcheck.py` and `coverage_gate.py` invoked by `just` recipes, `ci_paths.py`
 by the CI
 workflow, `commitlint.py` by the commit-msg pre-commit stage, `contrast.py` by `just turn-cost`;
-each also exposes a pure, unit-tested core function). Fifteen modules here have no CLI of their
+each also exposes a pure, unit-tested core function). Sixteen modules here have no CLI of their
 own, most split out under the line cap and each named for what it holds: `couplings.py` is the
 vocabulary `crosscheck.py`'s registry is written in, `registry.py` names the parts that registry is
 written in, and `seamcouplings.py`, `shippedcouplings.py`, `subagentcouplings.py`,
-`modelhostcouplings.py`, `emailcouplings.py` and `overlaycouplings.py` are those parts, `values.py`
+`modelhostcouplings.py`, `emailcouplings.py`, `fixturecouplings.py` and `overlaycouplings.py` are
+those parts, `values.py`
 is the value forms that scan compares on and the spellings a mention writes one in, `readings.py`
 is how a set of those values must then stand, `composemounts.py` is `bindcheck.py`'s compose
 reader, and
@@ -60,20 +61,21 @@ that last question to have an answer.
   logic; the `*couplings.py` files are all of the data,
   one entry per value: a
   label, the reason its places must agree (printed with any failure), its `Site`s, an optional
-  `relation`, and optional `mentions`. The registry is written in six files and read as one.
-  `registry.py` is the only module that names them, so a seventh part is a data file plus one line
+  `relation`, and optional `mentions`. The registry is written in seven files and read as one.
+  `registry.py` is the only module that names them, so an eighth part is a data file plus one line
   there and the scan never learns the registry has parts; `crosscheck.CONSTANTS` is
   `SEAM_COUPLINGS`, then `SHIPPED_COUPLINGS`, `SUBAGENT_COUPLINGS`, `MODELHOST_COUPLINGS`,
-  `EMAIL_COUPLINGS`, then
+  `EMAIL_COUPLINGS`, `FIXTURE_COUPLINGS`, then
   `OVERLAY_COUPLINGS`. Each part is named for its subject: couplings whose far side is another
   tree's code across the language boundary; the brain container's own shipped defaults, restated
   by a compose default, a runbook row or a module contract; the subagent tier's admission budgets
   and the cgroup limits that are their hard twins; the model-host sidecar's tier settings and the
   override that ships them; the email sidecar's three safety answers and the override that spells
-  each again; and the overlay's TypeScript against its own stylesheet. The first five arrived as
-  splits under the cap and the sixth as a subject, which is the first time the one-line claim was
+  each again; a stack built to be measured against and the suite that measures it, the one subject
+  the repo does not ship; and the overlay's TypeScript against its own stylesheet. The first five
+  arrived as splits under the cap and the last two as subjects, which is the one-line claim being
   paid rather than argued.
-  `couplings.py` is the vocabulary all six are written in, left behind when each part moved out
+  `couplings.py` is the vocabulary all seven are written in, left behind when each part moved out
   under the cap. Nothing in the scan depends on which file an entry sits in. `values.py` and
   `readings.py` are the pieces neither the scan nor the data is: the first reduces a right-hand
   side to a comparable value and says how a mention may spell it, the second says whether a
@@ -84,7 +86,13 @@ that last question to have an answer.
   underscore: this scan reads text and imports nothing, and widening an API to suit a reader would
   be the gate editing the contract it watches. What that costs is a rename nobody tells the
   registry about, and an unreadable place is a fault here rather than a skip, so the rename is
-  reported. **A `Mention` spends it without declaring it** (a path plus a template
+  reported. **Nor does a site have to sit in a tree `just check` compiles or runs.** The scan reads
+  text and imports nothing, so the file it reads need only exist: `DEFAULT_BODY_PORT` is declared
+  in the ungated Tauri shell, whose clippy lives in CI's `check-shell` alone (ADR-0023 port
+  addendum), and the probe fixture's four mailbox names are declared in an `integration`-marked
+  test module no CI run executes (ADR-0029 fixture addendum). Both are held on every `just check`,
+  which is more often than either is built or run, and that is the argument for reading them here
+  rather than the objection to it. **A `Mention` spends it without declaring it** (a path plus a template
   carrying `{value}`): the scan renders the agreed value into the template and requires the result
   to appear in the file **as a token of its own**, `bounded()` guarding whichever of the needle's
   two edges is itself a word character. That is not circular, since the template carries the shape
@@ -130,13 +138,16 @@ that last question to have an answer.
   which is what a half applied rename looks like. `occurrences` pins an EXACT number of bounded
   matches rather than a floor, because a floor cannot notice the far side has grown past it and so
   widens itself by however much the tree drifted; a count below 1 is refused, zero being a mention
-  asking the value to be absent. It is opt in, and the survey that set it is in the ADR: four of
-  the thirty registered mentions are counted, `Message.tsx` at 2 (the `className` and the
+  asking the value to be absent. It is opt in, and the survey that set it is in the ADR: five
+  registered mentions are counted, `Message.tsx` at 2 (the `className` and the
   `aria-label` of one chip), `docker-compose.subagents.yml`'s `mem_limit` pair at 2 (memswap equal
   to memory is what disables the container's swap, so one moving without the other re-enables it in
   silence), `overlay.css`'s `:not([{value}="0"])` at 2 (the two section share
-  caps, whose handover is symmetric or nothing), and `overlay.css`'s `var(--roll)` at 2 (the two
-  rules that must land WITH a roll, which is the set the entry's own reason names), while the bare
+  caps, whose handover is symmetric or nothing), `overlay.css`'s `var(--roll)` at 2 (the two
+  rules that must land WITH a roll, which is the set the entry's own reason names), and
+  `probe-mailboxes.sh`'s guarded mailbox at 2 (the directory and the ACL file inside it, since a
+  rename that moved only the first leaves the ACL somewhere dovecot never reads and the mailbox
+  opens like any other), while the bare
   `[{value}` mention stays a presence check because its three rules are the sum of two unrelated
   features and `var(--ease)` stays one because 52 transitions across unrelated features ride that
   curve. Every mention that occurs once is left unpinned, a count of one saying nothing a presence

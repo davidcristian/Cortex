@@ -1,6 +1,6 @@
 # The body's own listen port is a bare literal, so nothing ties the endpoint that dials it
 
-**Status:** open, actionable
+**Status:** landed 2026-08-22
 **Area:** repo-gates
 **Origin:** [ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)
 
@@ -32,3 +32,19 @@ already lives with in the other direction.
   [R-333](333-compose-defaults-that-restate-a-declaration.md), which found the endpoint default
   among the thirteen compose defaults nothing declares and noticed that this one is a missing
   declaration rather than a value with no other side.
+- 2026-08-22: landed. `DEFAULT_BODY_PORT` is declared in `body/app/src-tauri/src/body_server.rs`,
+  `cfg(windows)` beside `DEFAULT_TOAST_APP_ID`, and one entry in `scripts/seamcouplings.py` holds
+  it against five places: the body override's endpoint default, three runbook sentences, and the
+  brain's live gateway fallback. **The placement question this entry filed is answered in the
+  shell's favour and argued rather than assumed.** Hoisting into `body_core` or `body_rpc` would
+  buy a compiler's opinion of a `u16` while putting a host process's deployment default in a crate
+  that never binds, and no compiler can hold a YAML string against a runbook cell anyway; the scan
+  can, and it fails closed, so a rename here reddens `just check` before the CI job that compiles
+  the crate ever runs. **One claim did not re-derive:** "six files spell one number" is the six the
+  entry enumerates, not the eighteen that spell it. The other twelve are sorted in the ADR and left
+  to [R-383](383-the-body-port-past-the-six-that-were-registered.md), three of them not far sides
+  at all. Six planted drifts, one per registered place, each exiting 1 and restored by digest; the
+  one in the Rust constant produced five faults, which is the scan reading a declaration in the
+  ungated shell. `just check-shell` ran green here over the sudo-less pkg-config prefix, though
+  that is a Linux clippy and the constant is `cfg(windows)`, so the item itself was compiled out
+  and was checked in isolation instead. Tabled in the ADR-0023 port addendum.

@@ -562,3 +562,121 @@ capture failing on a real Win32 desktop session. Every row above rides a fake or
 because `os_linux`'s `ScreenCapture` is an `unimplemented!()` stub and this machine has no desktop
 session. The rows that a real GDI backend alone can produce (`NoDisplay` from an actually shut lid,
 `Backend` from a real `BitBlt` failure) have never been seen from real hardware, only constructed.
+
+## Addendum (2026-08-22): the body's own port becomes a declaration, and the shell becomes a site
+
+The brain's seam port has been the worked example of a coupling done right since the compose
+survey: `DEFAULT_SEAM_PORT` is declared once in
+`brain/packages/orchestrator/src/cortex_orchestrator/config.py`, and `scripts/crosscheck.py` holds
+the compose publish, the healthcheck dial and the two Tauri modules that spend it to that one
+number. The body's own port had none of it.
+`body/app/src-tauri/src/body_server.rs` bound `SocketAddr::from((Ipv4Addr::LOCALHOST, 50151))` as a
+bare literal inside a fallback expression, so no tree declared the value and nothing compared the
+files that spell it ([R-356](../refinements/tasks/356-the-body-port-is-a-bare-literal.md)).
+
+### One claim in the task file did not survive re-derivation
+
+The entry says "six files spell one number and nothing compares them". Six is the number of files
+the entry **enumerates**, and every one of them held. It is not the number of files that spell it:
+eighteen do, outside the backlog itself. The twelve the entry does not name are the ADR you are
+reading, two module contracts that quote the endpoint as an example, the body app's own contract,
+four host-task files carrying it as an operator prerequisite, the gateway docstring's `host:50151`,
+and three orchestrator wiring tests that set the endpoint as an env value. The count read like a
+survey and was an enumeration, which is the standing warning about a task file recording what
+somebody once measured rather than what the tree does now. Everything else held: the bind really
+is a bare literal in a fallback, the scan really reads Rust `const`/`static` at item level, and the
+brain's port really is spent by two mentions in this same crate.
+
+The twelve are not all far sides, and sorting them is what the follow-up task is for. Three of them
+are not far sides at all: a wiring test that sets `CORTEX_BODY_ENDPOINT` to a string and asserts
+the composition root read it back is testing the plumbing and not the number, and would go on
+passing with any port in it. The rest are unregistered on purpose for now
+([R-383](../refinements/tasks/383-the-body-port-past-the-six-that-were-registered.md)).
+
+### The constant lives in the shell, and that is the argument rather than the convenience
+
+The port is declared as `DEFAULT_BODY_PORT` in `body/app/src-tauri/src/body_server.rs`, the module
+that binds it, `cfg(windows)` like the `DEFAULT_TOAST_APP_ID` beside it, since `start` is Windows
+only and an item nothing on this platform reads is a clippy failure rather than a spare constant.
+
+The alternative was to hoist it into the gated workspace, `body_core` or `body_rpc`, where
+`just check` compiles it and clippy sees it. That was declined. `body_rpc::body_service` builds a
+service and never binds one; `body_core` is pure logic and OS traits. A host process's deployment
+default in either of them is a value the crate declaring it has no opinion about, exported for one
+consumer outside the workspace, and it would buy a compiler's opinion of a `u16` literal, which is
+not the thing that can go wrong. What can go wrong is a YAML string, a runbook table cell and a
+test module's fallback disagreeing with the bind, and no compiler in either toolchain can hold
+those. The scan can, and the scan runs unconditionally.
+
+**The split is real and it is the same one the entry above already lives with, upside down.** The
+Tauri shell is outside `just check`: only CI's `check-shell` compiles it, and `cargo fmt --check`
+is all `check-body` does to it. So this declaration is read by the cross-tree scan on every commit
+and compiled by nothing on most of them. The brain's seam port has had the mirror of that since
+the survey: it is declared in a tree every gate builds and spent by two mentions in this same
+unbuilt crate. What makes both safe is that the scan fails closed. A declaration it cannot find is
+a fault and never a skip, so a rename in the shell reddens `just check` before the compiler that
+would have caught it ever runs, and the gate that reads the value runs more often than the
+compiler that builds it. That is the argument for reading it here rather than the objection to it.
+
+### What got registered, and what it is now tied to
+
+One entry in `scripts/seamcouplings.py`, beside the brain's port and written as its mirror: one
+site, the shell's declaration, and five mentions, the body override's endpoint default, the volume
+runbook's bind sentence, the WSL runbook's table cell, the scheduling runbook's recipe line, and
+the brain's live gateway fallback in `test_gateway_live.py`. The live test module is the second
+`integration`-marked file the registry reaches and it is registered for the same reason as the
+first: the suite that would notice never runs in CI.
+
+`seamcouplings.py` is the right part rather than `shippedcouplings.py`, by that file's own test.
+The question that files a coupling there is whether the far side's own code has to hold the value
+for the two trees to work together, and here it does: the brain's live gateway test dials this port
+when nothing names another, which is a tree's code holding a number the other tree's code declares.
+
+### Proved able to fail, six times, over the crosscheck registry
+
+Each place was planted with a real disagreement one at a time on the real tree, the gate run, the
+file restored, and the restoration compared by digest against what it held before. The counts are
+over the crosscheck registry as it stands after this change and the fixture registration landed
+beside it (the ADR-0029 fixture addendum), 55 entries over 64 sites and 105 mentions, and not over
+any test suite: a suite's numbers say nothing about the collection this table is about. This entry
+is 1 of those entries, 1 of those sites and 5 of those mentions.
+
+| planted drift | what the gate said |
+|---|---|
+| `DEFAULT_BODY_PORT` becomes `50251` | 5 faults, one per mention, which is the site being read |
+| the body override dials `50251` | 1 fault naming that substitution |
+| the volume runbook's bind default says `50251` | 1 fault naming that runbook |
+| the WSL runbook's table cell says `50251` | 1 fault naming that runbook |
+| the scheduling runbook's recipe says `50251` | 1 fault naming that runbook |
+| the live gateway fallback says `50251` | 1 fault naming the test module |
+
+All six exited 1 and all six restorations matched by digest. The first row is the one that answers
+the question the placement raised: the scan does read the declaration in the ungated shell, and it
+reads it as the value every other place is compared against rather than as one more far side.
+
+### What was verified here, and the one thing that could not be
+
+`just check-shell` ran green in the session that landed this, over the sudo-less prefix the
+ADR-0011 shell-clippy addendum records: `apt-get download` of the five `-dev` roots and their
+closure (131 packages here, 60.8 MB fetched), `dpkg-deb -x` into a scratch prefix outside the repo,
+and `PKG_CONFIG_PATH` naming its two `pkgconfig` directories. `cargo clippy --locked --all-targets
+-- -D warnings` finished in 1m 15s and exited 0.
+
+**That is a Linux clippy, and the new constant is `cfg(windows)`, so clippy compiled it out.** The
+honest reading is that the shell as a whole still lints clean and the changed item itself was not
+seen by it. Clippying the shell for the Windows target does not work on this machine either: the
+crate's own build script runs `tauri-winres`, which needs `llvm-rc` and panics without it, before
+any Rust in the crate is read. So the item was checked in isolation instead, the same declaration
+and the same bind expression compiled by `rustc -D warnings` in a standalone file, which typechecks
+the `u16` against the `From<(Ipv4Addr, u16)>` the tuple goes through and prints `127.0.0.1:50151`.
+That plus the unchanged shape of the edit is what stands behind it here; the Windows build on a
+real desktop session is where it becomes a full measurement, as it already is for everything else
+in this module.
+
+### Records
+
+The record is the task file
+[R-356](../refinements/tasks/356-the-body-port-is-a-bare-literal.md), which closes,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from it, and this
+addendum. One narrower task opens in its place, the twelve other files that spell the port
+([R-383](../refinements/tasks/383-the-body-port-past-the-six-that-were-registered.md)).

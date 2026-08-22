@@ -6,6 +6,15 @@
 //!
 //! Host-validated on Windows, like the hotkey/converse glue; never in CI.
 
+/// The TCP port `BodyService` listens on when `CORTEX_BODY_ADDR` names none. It is the body's
+/// own, the brain's `BrainService` being 50051, and it is a declaration rather than a literal
+/// in the bind below because five other files spell it: the body override's endpoint default,
+/// three runbooks quoting it to an operator, and the brain's live gateway fallback.
+/// `scripts/crosscheck.py` holds all of them to this one number, which is the only thing that
+/// does; nothing here and nothing there can import the other.
+#[cfg(windows)]
+const DEFAULT_BODY_PORT: u16 = 50151;
+
 /// The `AppUserModelID` the toast is attributed to when `CORTEX_TOAST_APP_ID` is unset: the
 /// app's own Tauri identifier (`tauri.conf.json`), which the installed Start Menu shortcut
 /// carries. A dev run started straight from `npm run tauri dev` has no such shortcut, so the
@@ -43,7 +52,7 @@ pub fn start(excluded: bool) {
     let addr: SocketAddr = std::env::var("CORTEX_BODY_ADDR")
         .ok()
         .and_then(|raw| raw.parse().ok())
-        .unwrap_or_else(|| SocketAddr::from((Ipv4Addr::LOCALHOST, 50151)));
+        .unwrap_or_else(|| SocketAddr::from((Ipv4Addr::LOCALHOST, DEFAULT_BODY_PORT)));
     let token = std::env::var("CORTEX_SEAM_TOKEN").unwrap_or_default();
     let app_id =
         std::env::var("CORTEX_TOAST_APP_ID").unwrap_or_else(|_| String::from(DEFAULT_TOAST_APP_ID));
