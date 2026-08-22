@@ -1,7 +1,7 @@
 [project]
 name = "repo-gates"
 version = "0.1.0"
-description = "Repo-wide hard-gate tooling: the line-cap scan, the punctuating-dash scan, the cross-language constant check, the Rust coverage gate, the CI path classifier, and the commit-message style hook."
+description = "Repo-wide hard-gate tooling: the line-cap scan, the punctuating-dash scan, the cross-language constant check, the compose bind-mount and compose defaults checks, the backlog check, the Rust coverage gate, the CI path classifier, and the commit-message style hook."
 requires-python = ">=3.12"
 dependencies = []
 

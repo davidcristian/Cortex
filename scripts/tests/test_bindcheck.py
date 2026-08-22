@@ -180,7 +180,7 @@ def test_an_absolute_source_inside_the_tree_is_still_checked(repo: Path) -> None
 
 def test_a_tree_with_no_compose_file_is_a_failure_not_a_pass(repo: Path) -> None:
     """A scan whose glob matched nothing reporting OK is the defect this gate exists to avoid."""
-    with pytest.raises(bindcheck.BindCheckError, match="matched nothing cannot fail"):
+    with pytest.raises(bindcheck.ComposeSearchError, match="matched nothing cannot fail"):
         bindcheck.check(repo)
 
 

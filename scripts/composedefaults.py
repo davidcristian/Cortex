@@ -1,0 +1,132 @@
+"""Read every variable substitution a compose file spends, refusing every form it cannot name.
+
+Split out of `defaultcheck.py`, which owns the rule, exactly as `composemounts.py` is split out
+of `bindcheck.py`: this module owns only the reading. It is a character walk rather than a YAML
+parse, because these gates are stdlib-only (`pyproject.toml` in this directory) and because a
+substitution is not a YAML construct at all. Compose expands `${...}` in the raw text before YAML
+ever sees it, which is why one variable can be spelled as a whole value, inside a connection
+string and inside a command argument, and why all three have to be read the same way.
+
+**Seven forms, and the one that is not a substitution.** `$$` is compose's escape for a literal
+dollar and is consumed whole, so `$${VAR}` is text and nothing is spent there. `${NAME}` and
+`$NAME` name a variable with nothing to fall back on. `${NAME:-x}` and `${NAME-x}` carry a
+default; `${NAME:+x}` and `${NAME+x}` carry a replacement; `${NAME:?x}` and `${NAME?x}` carry the
+message an operator sees when the variable is missing. The operator is kept **as written** rather
+than folded: `:-` and `-` disagree about a variable set to the empty string, so a reader that
+called them one form would hand the rule two behaviours under one name.
+
+**Anything else is raised, never skipped.** A `$` that opens none of those forms, a brace that
+never closes, a nested expansion (which compose does not expand), and a name that is not an
+identifier are each a fault, because a reader that quietly walks past the one spend a new
+override adds is a gate that cannot fail.
+
+**A whole-line comment is not read.** Compose expands nothing in one, so a default written there
+is prose, and prose that restates a value is `crosscheck.py`'s question, which already registers
+two compose comments as far sides. A **trailing** `#` is a different matter and is deliberately
+not detected: this reader has no model of YAML quoting, so it cannot tell a comment marker from a
+`#` inside a connection string, and reading the text either way is the fail-closed side of not
+knowing. A note that spells a stale default after a value on the same line is therefore reported,
+and the remedy is to put the note on a line of its own.
+"""
+
+import re
+from typing import NamedTuple
+
+# The only comment marker YAML has, and the one shape of it this reader is sure about: a line
+# whose first non-blank character is this one carries no value and expands nothing.
+COMMENT_MARKER = "#"
+
+# What compose may write between a variable's name and the closing brace, longest first so `:-`
+# is never read as `:` followed by something else. A bare `${NAME}` carries none of them.
+OPERATORS = (":-", ":?", ":+", "-", "?", "+")
+
+# The operators whose argument is a VALUE the variable falls back to or is replaced by. The
+# other two (`:?`, `?`) carry prose telling an operator what to set, and two spends wording that
+# differently have not drifted, so only a value is ever compared.
+VALUE_OPERATORS = frozenset({":-", "-", ":+", "+"})
+
+_NAME = re.compile(r"[A-Za-z_]\w*")
+
+
+class SubstitutionReadError(Exception):
+    """A compose file carries a `$` form this reader will not guess at."""
+
+
+class Substitution(NamedTuple):
+    """One spend of one variable: where it is written, and what it falls back to."""
+
+    line: int
+    name: str
+    operator: str
+    argument: str
+
+    @property
+    def carries_value(self) -> bool:
+        """Whether ``argument`` is a value the variable can take, rather than prose or nothing."""
+        return self.operator in VALUE_OPERATORS
+
+    @property
+    def written(self) -> str:
+        """The spend as a fault should show it, the bare form normalized to braces."""
+        return f"${{{self.name}{self.operator}{self.argument}}}"
+
+
+def _braced(number: int, text: str, start: int) -> tuple[Substitution, int]:
+    """Read the `${...}` beginning at ``start``, and return the index just past it."""
+    end = text.find("}", start)
+    if end < 0:
+        msg = f"line {number}: {text[start:]!r} opens a substitution that never closes"
+        raise SubstitutionReadError(msg)
+    body = text[start + 2 : end]
+    if "{" in body:
+        msg = f"line {number}: nested substitution ${{{body}}}, which compose does not expand"
+        raise SubstitutionReadError(msg)
+    name = _NAME.match(body)
+    if name is None:
+        msg = f"line {number}: ${{{body}}} names no variable"
+        raise SubstitutionReadError(msg)
+    rest = body[name.end() :]
+    for operator in OPERATORS:
+        if rest.startswith(operator):
+            argument = rest[len(operator) :]
+            return Substitution(number, name.group(), operator, argument), end + 1
+    if rest:
+        msg = f"line {number}: ${{{body}}} uses an operator this reader was not taught"
+        raise SubstitutionReadError(msg)
+    return Substitution(number, name.group(), "", ""), end + 1
+
+
+def _bare(number: int, text: str, start: int) -> tuple[Substitution, int]:
+    """Read the `$NAME` beginning at ``start``, and return the index just past it."""
+    name = _NAME.match(text, start + 1)
+    if name is None:
+        msg = f"line {number}: {text[start : start + 2]!r} is a dollar that opens no substitution"
+        raise SubstitutionReadError(msg)
+    return Substitution(number, name.group(), "", ""), name.end()
+
+
+def read_line(number: int, text: str) -> list[Substitution]:
+    """Return every substitution one line spends, in the order the line writes them."""
+    found: list[Substitution] = []
+    index = text.find("$")
+    while index >= 0:
+        if text.startswith("$$", index):
+            index += 2  # compose's escape for a literal dollar, so nothing is spent here
+        elif text.startswith("${", index):
+            substitution, index = _braced(number, text, index)
+            found.append(substitution)
+        else:
+            substitution, index = _bare(number, text, index)
+            found.append(substitution)
+        index = text.find("$", index)
+    return found
+
+
+def read_substitutions(text: str) -> list[Substitution]:
+    """Return every substitution one compose file spends, skipping whole-line comments."""
+    return [
+        substitution
+        for number, line in enumerate(text.splitlines(), start=1)
+        if not line.lstrip().startswith(COMMENT_MARKER)
+        for substitution in read_line(number, line)
+    ]

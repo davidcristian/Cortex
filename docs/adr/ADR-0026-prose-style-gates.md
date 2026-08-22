@@ -469,3 +469,123 @@ refused, every line of it being a hash, which is the accepted cost of the column
 a gap: such a paste is a message full of pointers that stop resolving, which is the case the rule
 was written for. Neither has an instance in the tree, and filing either would inflate the backlog
 with work nothing is waiting on.
+
+## Addendum (2026-08-22): a sixth cross-tree scan, over one variable's several compose defaults
+
+The compose-default survey behind the cross-language scan's 2026-08-21 widening settled that a
+default no tree declares is not a coupling, `crosscheck.py` comparing a declaration against the
+places restating it and there being no declaration to read. It also named the one real defect that
+answer leaves standing, which is a different shape: **a variable spelled several times in compose
+must carry one default in all of them, and nothing held it to that.**
+`${CORTEX_PG_PASSWORD:-cortex}` is written three times in one override, once as the server's own
+password and twice as a client's; `${CORTEX_MODELS_DIR:-./models}` is written in four files that
+mount one host directory read-only. One spend drifting from its siblings is a stack that fails at
+run time in a way nothing static reported: Postgres refusing its own clients, or one service
+reading models out of a directory the others do not. `scripts/defaultcheck.py` is that check, and
+it joins the line cap, the dash ban, the constant registry, the bind check and the backlog check as
+an unconditional `just check` scan.
+
+**The counts, and what they are over.** They are over every `${...}` and `$NAME` form in the ten
+compose files under `docker/`, read by the gate's own reader. The survey recorded 70 substitutions
+over 56 variables, of which 8 are spelled more than once. Re-derived at the commit that recorded
+it, those three numbers are exact. Re-derived at this commit they are **71 over 57, still 8**: the
+one-turn tool deadline landed `CORTEX_TOOLS_CALL_TIMEOUT_S` between the two readings, which is one
+new substitution of one new variable and joins no group. Of the 73 total forms, 71 carry a `:-`
+default and 2 carry a `:?`, both of the latter spelled once. The 8 groups hold 22 spends between
+them.
+
+**One claim in the record did not survive re-derivation.** It said `scripts/composemounts.py`
+already parses these files, so the reader exists. It does not. That module reads `volumes:` blocks
+and returns bind mounts; it has no notion of a substitution anywhere else in the file, which is
+where every one of the three password spends and two of the four model-directory spends live. What
+was reusable is the file discovery, and that is now `scripts/composefiles.py`, read by both compose
+gates so neither can learn about a new override while its sibling does not. The substitution reader
+is new, and it is `scripts/composedefaults.py`.
+
+**The rule is not that all spellings are identical.** The counterexample was in the tree before the
+gate was: `${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8.0}` in an environment block against
+`${CORTEX_SUBAGENTS_MEM_BUDGET_GB:-8}g` in two container limits, deliberately, because docker parses
+`8.0g` as a size and refuses it. So the several defaults of one variable must be the same **value**,
+compared through the same `values.whole_spelling` the cross-language scan renders that pair with:
+identical text is one value with nothing to reduce, and anything else must reduce and re-spell
+whole, so `8.0` ties to `8` and `8.5` does not, its fraction being lost rather than zero. That
+function was private to the spelling machinery and is public now, for that one caller; the
+`Spelling` enum around it stays the vocabulary of a mention, which a compose default is not.
+
+**The operator is part of the answer.** Two spends must fall back the same way as well as to the
+same value. `${V:-x}` and `${V-x}` disagree about a variable set to the empty string, and `${V:?}`
+beside `${V:-x}` is one file demanding what another quietly supplies. So a group's operators must
+match first, and only the operators whose argument is a value at all are then compared: two `:?`
+spends wording their message differently have not drifted. No group in the tree mixes operators
+today, so this half of the rule is strictness bought before it is needed, which is the direction a
+gate should be wrong in.
+
+**Where it lives, and why not in `crosscheck.py`.** That scan is registry-driven. Every question it
+asks starts from a hand-written entry naming a declaring site, and its documented subject is a
+value some tree declares against the places restating it. This question has no registry and no
+declaration; it is discovered by walking the compose files, and its far sides are each other.
+Folding it in would give one scan two entry points and make its stated subject false, which every
+description of the gates in this repo would then have to stop saying, and it would relitigate by
+placement the very decision that these are not couplings. It sits beside `bindcheck.py` instead,
+the other gate that walks every compose file and fails closed on finding none. The one-fewer-file
+argument for folding was illusory anyway: `crosscheck.py` stands at 277 lines of a 300 cap, so the
+fold would have forced a split on its first day.
+
+**What the reader treats as a spend was decided rather than defaulted**, because a false positive
+here fails every future commit. `$$` is compose's escape for a literal dollar and is consumed
+whole, so `$${V}` spends nothing. `${V}` and `$V` are spends carrying no default, compared on their
+operator alone. `${V:-}` is a real default, the empty string, and disagrees with a filled one. A
+substitution inside a quoted string is read, which is the whole point: compose expands before YAML
+parses, and the three password spends are inside a connection string, an environment value and a
+client's variable. A **whole-line** comment is skipped, compose expanding nothing in one, which
+leaves a default written there as prose and therefore the cross-language scan's question, it having
+registered two compose comments already. A **trailing** `#` is deliberately not detected: this
+reader has no model of YAML quoting, so it cannot tell a marker from a `#` inside a connection
+string, and reading the text either way is the fail-closed side of not knowing. A `$` opening none
+of those forms, a brace that never closes, a nested expansion and a name that is not an identifier
+are each raised rather than skipped.
+
+### Proven able to fail, one planted drift per group
+
+Eight groups, eight plants, each a single edit to a real compose file in the working tree, each
+followed by `cd scripts && uv run python defaultcheck.py --root ..` and a `git checkout --` whose
+restoration was compared by SHA-256 digest against the file before the edit. Every one exited 1 and
+named every spend of the variable, not only the edited one. The counts below are over the ten
+compose files under `docker/` at this commit.
+
+| Group (spends) | Planted edit | Result |
+| --- | --- | --- |
+| `CORTEX_PG_PASSWORD` (3) | the client's `PGPASSWORD` to `cortexx` | exit 1, all 3 spends named |
+| `CORTEX_MODELS_DIR` (4) | the roster mount to `./model` | exit 1, all 4 spends named |
+| `CORTEX_MODEL_BRAIN` (2) | the healthcheck dial to `brains` | exit 1, both spends named |
+| `CORTEX_MODEL_CORTEX` (2) | the healthcheck dial to `cortexx` | exit 1, both spends named |
+| `CORTEX_SUBAGENTS_CPU_BUDGET` (2) | the cgroup `cpus` to `4.5` | exit 1, both spends named |
+| `CORTEX_SUBAGENTS_PARALLEL` (3) | the server flag to `3` | exit 1, all 3 spends named |
+| `CORTEX_SUBAGENT_CTX_SIZE` (3) | the GPU override's env to `4096` | exit 1, all 3 spends named |
+| `CORTEX_SUBAGENTS_MEM_BUDGET_GB` (3) | `memswap_limit` to `7` | exit 1, all 3 spends named |
+
+And the converse, which is the half that matters most here, since a gate that reddens on everything
+would also redden on the tree's one deliberate re-spelling:
+
+| Case | Expected | Result |
+| --- | --- | --- |
+| the tree as it stands, `8.0` beside `8` twice | green | exit 0, `defaultcheck OK` |
+| a third whole spelling, `8.00`, beside those two | green | exit 0, `defaultcheck OK` |
+| a fraction that is lost rather than zero, `8.5` beside `8` | red | exit 1, naming all 3 spends |
+| a whole-line comment restating `./cache` beside a live `./models` | green | exit 0, comment not read |
+| the same text as a trailing comment on the value line | red | exit 1, that line named twice |
+| a nested `${CORTEX_MODELS_DIR:-${INNER}}` | red | exit 1, the reader refusing it |
+| an operator it was not taught, `${CORTEX_NGL!99}` | red | exit 1, the reader refusing it |
+
+The suite pins both directions too, so `check-scripts` catches a drift even when
+`check-defaultcheck` is not the recipe that runs: the deliberate pair is asserted green,
+a real drift in that same variable is asserted red, and two guards on the guard fail if the tree
+ever stops carrying six variables with a sibling to disagree with, or if the set of variables whose
+defaults differ in text stops being exactly the memory budget. That last one is a set and not a
+membership on purpose, so a second re-spelling landing in the tree gets argued rather than riding
+in on a comparison written for the first.
+
+**One deferral opens**, recorded in the backlog: the trailing-comment reading above is a documented
+strictness with no instance in the tree, and teaching the reader enough YAML quoting to tell a real
+comment from a `#` inside a scalar would let a note sit beside a value. Nothing is waiting on it,
+and the remedy meanwhile is one line long.

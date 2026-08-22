@@ -1,6 +1,6 @@
 # A substitution's several spends may drift from each other with nothing declaring them
 
-**Status:** open, actionable
+**Status:** landed 2026-08-22
 **Area:** repo-gates
 **Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
 
@@ -38,3 +38,18 @@ as a second compose-shaped gate is the design decision to record.
 - 2026-08-21: opened by the close of
   [R-333](333-compose-defaults-that-restate-a-declaration.md), which declined to register these as
   cross-tree couplings and named the defect the decline leaves.
+- 2026-08-22: landed as `scripts/defaultcheck.py`, a sixth cross-tree scan beside `bindcheck.py`,
+  with `scripts/composedefaults.py` as its substitution reader and `scripts/composefiles.py`
+  holding the compose-file walk both compose gates now share. Recorded in the
+  [ADR-0026 defaults addendum](../../adr/ADR-0026-prose-style-gates.md#addendum-2026-08-22-a-sixth-cross-tree-scan-over-one-variables-several-compose-defaults),
+  which argues the placement against a fold into `crosscheck.py` and carries the proof table.
+- 2026-08-22: two counts here were re-derived rather than trusted. **The survey's three numbers were
+  exact at the commit that recorded them** (70 substitutions, 56 variables, 8 spelled more than
+  once) and read 71 over 57 with the same 8 groups at the commit that closed this, one tool-deadline
+  variable having landed between the two readings. **One claim did not survive**: `composemounts.py`
+  does not parse these files in any sense this gate could reuse, reading `volumes:` blocks alone,
+  where five of the eight groups' spends sit in environment values, a connection string and a
+  healthcheck command. Its file discovery was the reusable half and is now shared.
+- 2026-08-22: the deferral this close opens is
+  [R-385](385-a-note-beside-a-compose-value-is-read-as-a-spend.md), the reader's deliberate
+  blindness to a trailing comment marker.
