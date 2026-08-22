@@ -13,12 +13,14 @@ belongs to neither the brain nor the body and is gated exactly like both. A stan
 `bindcheck.py`, `backlogcheck.py` and `coverage_gate.py` invoked by `just` recipes, `ci_paths.py`
 by the CI
 workflow, `commitlint.py` by the commit-msg pre-commit stage, `contrast.py` by `just turn-cost`;
-each also exposes a pure, unit-tested core function). Thirteen modules here have no CLI of their
-own, each split out under the line cap and each named for what it holds: `couplings.py` is the
+each also exposes a pure, unit-tested core function). Fifteen modules here have no CLI of their
+own, most split out under the line cap and each named for what it holds: `couplings.py` is the
 vocabulary `crosscheck.py`'s registry is written in, `registry.py` names the parts that registry is
 written in, and `seamcouplings.py`, `shippedcouplings.py`, `subagentcouplings.py`,
-`modelhostcouplings.py` and `overlaycouplings.py` are those parts, `values.py` is the value
-forms that scan compares on and the spellings a mention writes one in, `composemounts.py` is `bindcheck.py`'s compose reader, and
+`modelhostcouplings.py`, `emailcouplings.py` and `overlaycouplings.py` are those parts, `values.py`
+is the value forms that scan compares on and the spellings a mention writes one in, `readings.py`
+is how a set of those values must then stand, `composemounts.py` is `bindcheck.py`'s compose
+reader, and
 `backlog.py`, `backlogindex.py`, `backloganchors.py` and `headingshapes.py` are the four
 `backlogcheck.py` reads a backlog through: the task-file grammar, the index renderer, the anchors a
 document offers with every pointer in the repo aimed at one, and what a heading may look like for
@@ -58,21 +60,31 @@ that last question to have an answer.
   logic; the `*couplings.py` files are all of the data,
   one entry per value: a
   label, the reason its places must agree (printed with any failure), its `Site`s, an optional
-  `relation`, and optional `mentions`. The registry is written in five files and read as one.
-  `registry.py` is the only module that names them, so a sixth part is a data file plus one line
+  `relation`, and optional `mentions`. The registry is written in six files and read as one.
+  `registry.py` is the only module that names them, so a seventh part is a data file plus one line
   there and the scan never learns the registry has parts; `crosscheck.CONSTANTS` is
-  `SEAM_COUPLINGS`, then `SHIPPED_COUPLINGS`, `SUBAGENT_COUPLINGS`, `MODELHOST_COUPLINGS`, then
+  `SEAM_COUPLINGS`, then `SHIPPED_COUPLINGS`, `SUBAGENT_COUPLINGS`, `MODELHOST_COUPLINGS`,
+  `EMAIL_COUPLINGS`, then
   `OVERLAY_COUPLINGS`. Each part is named for its subject: couplings whose far side is another
   tree's code across the language boundary; the brain container's own shipped defaults, restated
   by a compose default, a runbook row or a module contract; the subagent tier's admission budgets
   and the cgroup limits that are their hard twins; the model-host sidecar's tier settings and the
-  override that ships them; and the overlay's TypeScript against its own stylesheet.
-  `couplings.py` is the vocabulary all five are written in, left behind when each part moved out
-  under the cap. Nothing in the scan depends on which file an entry sits in. `values.py` is the third piece and the one neither of the others
-  is: it reduces a right-hand side to a comparable value and says whether a constant's readings
-  hold together, so the scan finds declarations and that module judges them.
+  override that ships them; the email sidecar's three safety answers and the override that spells
+  each again; and the overlay's TypeScript against its own stylesheet. The first five arrived as
+  splits under the cap and the sixth as a subject, which is the first time the one-line claim was
+  paid rather than argued.
+  `couplings.py` is the vocabulary all six are written in, left behind when each part moved out
+  under the cap. Nothing in the scan depends on which file an entry sits in. `values.py` and
+  `readings.py` are the pieces neither the scan nor the data is: the first reduces a right-hand
+  side to a comparable value and says how a mention may spell it, the second says whether a
+  constant's readings hold together, so the scan finds declarations and those two judge them.
   **A `Site` declares the value** (a repo-relative path plus the identifier declared in it) and is
-  read and compared. **A `Mention` spends it without declaring it** (a path plus a template
+  read and compared. The identifier is a name a file **declares**, never a name a module exports,
+  so a module-private one is registrable and `_UNRESTRICTED_REASONING` is registered under its
+  underscore: this scan reads text and imports nothing, and widening an API to suit a reader would
+  be the gate editing the contract it watches. What that costs is a rename nobody tells the
+  registry about, and an unreadable place is a fault here rather than a skip, so the rename is
+  reported. **A `Mention` spends it without declaring it** (a path plus a template
   carrying `{value}`): the scan renders the agreed value into the template and requires the result
   to appear in the file **as a token of its own**, `bounded()` guarding whichever of the needle's
   two edges is itself a word character. That is not circular, since the template carries the shape
@@ -99,14 +111,20 @@ that last question to have an answer.
   addendum). `Mention.spelling` is `Spelling.WRITTEN` by default, which is the site's own text;
   `Spelling.WHOLE` renders the same number with no fractional part, for a syntax that carries none
   (docker parses `mem_limit: "8g"` as a size and refuses `8.0g`, so the subagent memory budget is
-  spelled `8.0` in the environment block and `8` in the two container limits of one compose file).
+  spelled `8.0` in the environment block and `8` in the two container limits of one compose file);
+  `Spelling.LOWERED` folds a boolean's word to the case the other language writes it in, for the
+  compose default that spells `false` where the field it restates declares `False`, and refuses
+  anything that is not a boolean (ADR-0029 boolean addendum).
   The second spelling is DERIVED by `values.spell` and never typed into the registry, so one number
   is still written down once, and a value it would have to change to fit is refused: a budget at
   `8.5` fails the scan naming the far side that cannot spell it rather than quietly capping a
-  container half a gigabyte under what the scheduler admits. A re-spelling is blind to a site that
-  drops its point (`8` and `8.0` are one whole number and one whole spelling), which is the drift
-  the textual reduction exists to catch, so `values.spelling_fault` refuses an entry whose mentions
-  all re-spell: a second site, or a mention rendering the value as written, must stand beside them.
+  container half a gigabyte under what the scheduler admits. A LOSSY re-spelling is blind to a site
+  that drops its point (`8` and `8.0` are one whole number and one whole spelling), which is the
+  drift the textual reduction exists to catch, so `values.spelling_fault` refuses an entry whose
+  mentions all spell lossily: a second site, or a mention rendering the value faithfully, must
+  stand beside them. `Spelling.lossy` is which kind a spelling is and is the question that rule
+  turns on: a whole spelling is lossy and a case fold is not, `False` and `True` lowering to two
+  different words, so an entry whose only mention lowers a boolean holds the drift by itself.
   **Counted where the occurrences are one set.** A mention is a presence check unless it carries
   `occurrences`, so a file spending the value twice and losing one of them passes by default,
   which is what a half applied rename looks like. `occurrences` pins an EXACT number of bounded
@@ -125,8 +143,9 @@ that last question to have an answer.
   check does not.
   **`Relation`** is `EQUAL` by default; `ORDERED` holds an entry's sites to non-decreasing order
   in registry order, for a bound that must sit under another rather than match it. An ordering
-  compares integers only (a string under one is a fault, and so is a decimal, which is text here
-  and would sort `10.0` under `9.0`), and it may carry no mentions, there being
+  compares integers only, a signed one included (a string under one is a fault, and so is a
+  decimal, which is text here and would sort `10.0` under `9.0`, and so is a boolean, an answer
+  with two values having no order at all), and it may carry no mentions, there being
   no single value to spell. `MEMBER` is the third and it reads registry order too: every site but
   the last must declare a value the last site's collection carries, which is the shape of a value
   one tree produces and another accepts a set of (the body's `CAPTURE_MIME` inside the brain's
@@ -137,11 +156,13 @@ that last question to have an answer.
   editing either side alone fails and a deliberate change is a change to all of them.
   `proto/body.proto` is not the source: protobuf has no constant, so a value could only sit
   there as a comment, which is one more uncoupled copy. Values are compared after reduction,
-  so `6291456` and `6 * 1024 * 1024` tie; the four forms that reduce are a product of integer
-  literals, a plain double-quoted string, a one-line `frozenset` of those strings, which is
+  so `6291456` and `6 * 1024 * 1024` tie; the five forms that reduce are a product of integer
+  literals, which may open with a minus (the sign is the expression's and never a factor's, and a
+  leading plus is refused, `str(1)` rendering a needle `+1` does not spell), a plain double-quoted
+  string, a one-line `frozenset` of those strings, which is
   how this repo spells an allow-list and is what a membership is decided against (a set literal
   is mutable and a multi-line spelling never reaches the reducer, a declaration being captured one
-  line at a time), and a decimal literal.
+  line at a time), a decimal literal, and a boolean.
   **A decimal reduces to its digits rather than to a number** (ADR-0029 decimal addendum), which is
   the one place the reducer stops short of arithmetic: `5` and `5.0` are one number and two
   spellings, and the spelling is what a mention needs, a needle rendered as `5` finding nothing in
@@ -150,7 +171,14 @@ that last question to have an answer.
   drops its point stops agreeing, where a float would have kept agreeing while every place spending
   it went unfound. Digits, one point, digits, with `_` grouping either run; a leading or trailing
   point, a sign, an exponent and a language's own type suffix are refused with everything else the
-  reducer will not guess at. `DECLARATIONS` holds one declaration syntax
+  reducer will not guess at.
+  **A boolean reduces to its word rather than to a truth value** (ADR-0029 boolean addendum), for
+  that same reason and one Python adds: `False` IS an `int` that equals `0`, so a bare `bool` would
+  tie to a site declaring zero and would sort under an ordering that has no business over an answer
+  with two values. So a boolean becomes a `values.Truth`, and the two words a SITE may write are
+  Python's own `True` and `False`, that being the only language a registered boolean is declared
+  in; a second language's casing at a site would be two texts for one answer, and a far side that
+  writes one is reached by `Spelling.LOWERED` instead. `DECLARATIONS` holds one declaration syntax
   per language (`.py`, `.rs`, `.ts`), matching module-level and item-level constants only: the
   Python and TypeScript forms are anchored at column 0, so an indented `const` is a local and not
   a second declaration of the module's constant. A mention needs no declaration syntax, so its
@@ -412,7 +440,8 @@ that last question to have an answer.
   entry uses is a gate that cannot fail. `test_the_registry_pins_at_least_one_occurrence_count`
   and `test_the_registry_spends_at_least_one_rendered_name` hold the two newest fields to the same
   rule, a field no entry sets being a dead wire, and
-  `test_the_registry_reduces_at_least_one_decimal` holds the newest value form to it, a form the
+  `test_the_registry_reduces_every_form_the_reducer_was_widened_for` holds the decimal, the boolean
+  and the signed integer to it, a form the
   real tree never spells being unexercised in exactly the same way, and
   `test_the_registry_exercises_every_spelling` holds `Spelling` to the rule `Relation` already
   answers to. `test_every_registry_part_on_disk_is_read` guards the split itself: it globs the
@@ -427,7 +456,12 @@ that last question to have an answer.
   Outside `docker/`, a restatement is a far side when it becomes **wrong** as the value moves (a
   runbook's env row, a stated default, a module contract) and is not one when it becomes
   **history** (an ADR, a measurement record, a dated log line), which is the same test that has
-  always kept ADRs out.
+  always kept ADRs out. **A comment inside a compose file answers to that test and to nothing
+  else** (ADR-0029 comment addendum): it is no new form and no new spelling, only another place a
+  whole value appears, reached by the mention template the runbook sentences already use. Two are
+  registered, each the half of the measured legibility pair that names the other file's number
+  (`CORTEX_IMAGE_MAX_TOKENS=1024` in the body override, `CORTEX_BODY_CAPTURE_MAX_EDGE=2048` in the
+  GPU one), because the pair is what either number is for.
 - `bindcheck.py` does the same (`test_the_repo_itself_is_clean`), with a guard on the guard:
   `test_the_repo_really_declares_binds_for_this_gate_to_have_checked` fails if the reader ever
   finds fewer than six defaulted bind sources under `docker/`, so the clean verdict cannot go

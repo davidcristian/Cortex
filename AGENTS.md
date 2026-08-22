@@ -235,12 +235,14 @@ scripts/          repo gates, plus the one module here that gates nothing, contr
                   agreeing) + couplings.py (the vocabulary its registry is written in) +
                   registry.py (the only module naming the parts that registry is written in) +
                   seamcouplings.py, shippedcouplings.py, subagentcouplings.py,
-                  modelhostcouplings.py and overlaycouplings.py (the registry itself, in the five
-                  parts the line cap split it into: another tree's code, the brain's own shipped
-                  defaults, the subagent tier's budgets, the model host's tiers, the overlay's own
+                  modelhostcouplings.py, emailcouplings.py and overlaycouplings.py (the registry
+                  itself, in the six parts it is written in, five split off by the line cap and
+                  one added as a subject: another tree's code, the brain's own shipped
+                  defaults, the subagent tier's budgets, the model host's tiers, the email
+                  sidecar's shipped answers, the overlay's own
                   stylesheet) + values.py (what a value
-                  reduces to, how a
-                  constant's readings must stand, and the spelling a mention writes one in),
+                  reduces to and the spelling a mention writes one in) + readings.py (how a
+                  constant's readings must then stand),
                   bindcheck.py (no compose bind
                   default lands unignored in the tree) + composemounts.py (its compose
                   reader), backlogcheck.py (each backlog index still matches its task files,

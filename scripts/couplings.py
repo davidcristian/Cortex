@@ -38,13 +38,15 @@ where losing one occurrence is a defect rather than a design change.
 **`Spelling`** is how a mention WRITES the value down, for the far side whose syntax cannot carry
 it the way the declaring site does. Docker reads `8g` as a size and refuses `8.0g`, so a budget
 declared as `8.0` is spelled without its point in a `mem_limit` and with it in the environment
-block three dozen lines above. Both are the same number and neither can be rendered from the
-other's text, so the mention says which spelling it wants and the value is re-spelled for it. The
+block three dozen lines above; a compose default writes `false` where the field it restates
+declares `False`. Each pair is one answer in two texts and neither can be rendered from the
+other's, so the mention says which spelling it wants and the value is re-spelled for it. The
 re-spelling is DERIVED from the declared value and never typed into the registry, and it refuses
 any value it would have to change to fit, so it cannot quietly tie a far side to a different
-number. A re-spelling is also blind to the drift the textual comparison exists to catch (`8` and
-`8.0` are one whole number), so an entry that re-spells must hold the written form somewhere too:
-a second site, or a mention that renders the value as the site writes it.
+number. A LOSSY re-spelling is also blind to the drift the textual comparison exists to catch (`8`
+and `8.0` are one whole number), so an entry that spells lossily must hold a faithful reading
+somewhere too: a second site, or a mention that renders the value in a spelling two declared
+values cannot share.
 
 **`Relation`** says how a constant's sites must stand to each other. Most couplings are
 equalities. A few are orderings, where one side's bound has to sit under another's rather than
@@ -80,15 +82,37 @@ class Spelling(Enum):
     ``WRITTEN`` is every mention that spells the value the way its site declares it, which is all
     of them until a far side cannot. ``WHOLE`` drops a fractional part a syntax will not take, and
     refuses a value whose fraction is not zero rather than truncating one: a far side that cannot
-    spell the number the site declares is a fault, not a rounding.
+    spell the number the site declares is a fault, not a rounding. ``LOWERED`` folds a boolean's
+    word to the case another language writes it in, Python declaring `False` where YAML spells
+    `false`, and refuses anything that is not a boolean.
     """
 
     WRITTEN = "as the declaring site writes it"
     WHOLE = "as a whole number, which the declared value must be"
+    LOWERED = "in the lower case another language writes the same word in"
+
+    @property
+    def lossy(self) -> bool:
+        """Whether two declared values may render alike, which is what needs a reading beside it.
+
+        A whole spelling may: `8` and `8.0` are one whole number, so an entry that only ever
+        spells whole cannot see a site that dropped its point. A case fold may not: `False` and
+        `True` lower to two different words, so a site that flipped always moves the needle, and
+        requiring a second reading beside it would be a rule with nothing behind it.
+        """
+        return self is Spelling.WHOLE
 
 
 class Site(NamedTuple):
-    """One declaration: a repo-relative file and the identifier declared in it."""
+    """One declaration: a repo-relative file and the identifier declared in it.
+
+    The identifier is a name a file declares, never a name a module exports, so a
+    module-private one is fair game and `_UNRESTRICTED_REASONING` is registered under its
+    underscore. This scan reads text and imports nothing, so naming a private constant asks
+    nothing of the module: widening an API to suit a reader would be the gate editing the
+    contract it is meant to watch. The risk that pays for is a rename nobody tells the registry
+    about, and that is reported rather than silent, an unreadable place being a fault here.
+    """
 
     path: str
     name: str

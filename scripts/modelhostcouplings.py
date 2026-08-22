@@ -11,10 +11,16 @@ nothing anywhere and says so nowhere. That is the drift these entries report.
 Several of the numbers here were hidden inside `Field(...)` calls, which this scan cannot read; the
 survey hoisted each into a module constant beside the field it defaults, which is the cost of a
 registered coupling and is paid once (ADR-0029's compose-default survey addendum).
+
+One entry reaches past that override and into the body's, because the token budget is half of a
+measured pair whose other half the brain sets: each file's prose names the other file's number,
+and a comment that states what the deployment does is a far side like any other sentence that
+becomes wrong when the value moves (ADR-0029's comment addendum).
 """
 
 from couplings import Constant, Mention, Site, Spelling
 
+BODY_COMPOSE = "docker/docker-compose.body.yml"
 GPU_COMPOSE = "docker/docker-compose.gpu.yml"
 SUBAGENTS_COMPOSE = "docker/docker-compose.subagents.yml"
 ROSTER_COMPOSE = "docker/docker-compose.subagents-roster.yml"
@@ -141,9 +147,35 @@ MODELHOST_COUPLINGS: tuple[Constant, ...] = (
             "still refusing to spend tokens on them (ADR-0029 legibility addendum)"
         ),
         sites=(Site(MODELHOST_CONFIG, "DEFAULT_IMAGE_MAX_TOKENS"),),
+        # The third mention is the other half of the pair reading its partner back: the body
+        # override's own comment argues for a 2048 px capture by naming this budget, in the shape
+        # a deployment would type rather than the one compose substitutes. Held because the pair
+        # is the measurement, and a retune of this number leaves that sentence telling a reader
+        # something the stack beside it stopped doing (ADR-0029 comment addendum).
         mentions=(
             Mention(GPU_COMPOSE, "${CORTEX_IMAGE_MAX_TOKENS:-{value}}"),
             Mention(GPU_RUNBOOK, "`{value}` is the default, paired with"),
+            Mention(BODY_COMPOSE, "CORTEX_IMAGE_MAX_TOKENS={value}"),
+        ),
+    ),
+    # The sentinel both reasoning budgets default to, declared once under the underscore that says
+    # no module imports it and read here anyway: a `Site` names what a file declares, not what a
+    # module exports, and this scan reads text rather than importing anything (see `couplings.py`).
+    Constant(
+        label="the unbounded reasoning budget both tiers ship with",
+        why=(
+            "llama.cpp's own word for a trace nobody bounds is the default for the cortex and "
+            "for the deep tier, and the override spells it again for each while the runbook and "
+            "the module contract state it as the answer that emits no flag, so a deployment "
+            "given a budget in the config alone would still start both tiers unbounded "
+            "(ADR-0030, and the thinking-budget measurements in the GPU runbook)"
+        ),
+        sites=(Site(MODELHOST_CONFIG, "_UNRESTRICTED_REASONING"),),
+        mentions=(
+            Mention(GPU_COMPOSE, "${CORTEX_REASONING_BUDGET:-{value}}"),
+            Mention(GPU_COMPOSE, "${CORTEX_REASONING_BUDGET_BRAIN:-{value}}"),
+            Mention(GPU_RUNBOOK, "`{value}` (the default) emits no flag"),
+            Mention(MODEL_MANAGER_DOC, "`{value}`, the default, is the engine's own word"),
         ),
     ),
     Constant(

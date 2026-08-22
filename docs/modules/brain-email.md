@@ -68,6 +68,12 @@ denied outright.
 - `EmailConfig` holds env-driven settings (`CORTEX_EMAIL_IMAP_*`): host/port/user/password
   (`SecretStr`), `security` (starttls|ssl), and `ca_cert` / `tls_insecure` for the Bridge's
   self-signed cert. Defaults target a local Bridge (127.0.0.1:1143, STARTTLS).
+- **Two of these defaults are module constants rather than literals inside the fields**,
+  `DEFAULT_TLS_INSECURE` (which both halves read) and `DEFAULT_SEND_ENABLED`, because the email
+  override spells each again as a substitution default and `scripts/crosscheck.py` can only hold a
+  restatement to a declaration it can read (ADR-0029's boolean addendum). Flip both or neither.
+  One name covers the reader's hatch and the sender's because it is one answer rather than two
+  that coincide: a hatch that ships open is not a hatch.
 - `EmailSummary` / `EmailDetail` are frozen value types (a search hit; a full message).
 - `EmailDraft` is the frozen send-side value the user approves: `to`/`subject`/`body` plus
   optional `cc`, `bcc`, `html` (each defaulting to `""` = omitted), and `attachments`. It is the

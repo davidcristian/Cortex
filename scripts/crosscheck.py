@@ -20,9 +20,10 @@ or cannot reduce to a value is a failure, never a silent pass, because a rename 
 emptied the registry would leave a scan that always agrees with itself.
 
 A value is compared after reduction, not as text, so one site may write ``6291456`` where another
-writes ``6 * 1024 * 1024``. What reduces, and what it means for a constant's readings to hold
-together, is `values.py`: this file finds the declarations and reports the ones that do not tie,
-and that module says what it found and whether it stands.
+writes ``6 * 1024 * 1024``. What reduces, and how a mention may spell what did, is `values.py`;
+what it means for a constant's readings to hold together is `readings.py`. This file finds the
+declarations and reports the ones that do not tie, and those two say what it found and whether it
+stands.
 
 Not every far side is a declaration, and the ones that are not used to be unreachable. A key
 spelled inside a shell string, a custom property a stylesheet reads back with ``var(...)``, a
@@ -68,16 +69,9 @@ from couplings import (
     Relation,
     Site,
 )
+from readings import Reading, relation_fault
 from registry import CONSTANTS
-from values import (
-    CrossCheckError,
-    Reading,
-    Value,
-    parse_value,
-    relation_fault,
-    spell,
-    spelling_fault,
-)
+from values import CrossCheckError, Value, parse_value, spell, spelling_fault
 
 # What counts as a continuation of a rendered needle's own token, at whichever of its two edges is
 # itself made of one. A needle edged by punctuation (`var(--ceiling,`) needs no such guard.
