@@ -1554,3 +1554,92 @@ turned up the one relation in it that is documented and enforced nowhere, a run 
 to sit under the wait a queued peer will spend, which is two fields of one settings class and so
 the cheapest of the four to check:
 [R-369](../refinements/tasks/369-the-run-deadline-under-the-queue-is-prose-only.md).
+
+## Root-headroom addendum (2026-08-22): the part of the root that is not a composition step
+
+The ordering addendum above landed one import line and left `wiring.py` at exactly 300, so the
+next capability wired there had to split the file before it could add a line. Filed as
+[R-368](../refinements/tasks/368-the-composition-root-has-no-headroom.md).
+
+### Re-derived first, and every number in the entry held
+
+The file was 300 lines with 52 comment lines and a 21-line module docstring, and the three nested
+closures the entry names (`capabilities`, `make_turn_engine`, `make_engine`) spanned 74 lines,
+closing over exactly the fourteen local names it counted. Its reading of why they had stayed also
+held: each of the six earlier splits took a builder out one module at a time, and what was left
+around them really is a sequence of config reads, builder calls and a `finally` that releases in
+reverse order, with no economy in it to find.
+
+### Decision 1: the seam is per-stream against per-process, not the largest block
+
+What comes out is chosen by **how often it runs**, not by how many lines it saves. Everything else
+in the root runs once at boot; those three closures run again for every Converse stream, because a
+stream's confirmer and progress sink are what they add to the shared adapters. That makes them a
+factory rather than a composition step, and it makes the extracted object's contract easy to state:
+built once from parts that never change, called once per stream. `stores.py` was lifted out on the
+same argument and is the precedent this follows.
+
+Cutting instead by size was rejected. The largest single block is the boot ordering, and it is the
+one part that cannot leave: what the root exists to say is which object is built before which, and
+the comments arguing those orderings are the file's real content. Splitting it would have moved
+the argument away from the code it is about and left the root reading as a list of calls to
+elsewhere.
+
+### Decision 2: an object with twelve fields, and the escalating three travel as one
+
+`StreamEngines` (in `engines.py`) takes twelve names where the closures captured fourteen. The
+difference is not compression for its own sake: `BrainRuntimeConfig` arrives whole because four
+of its fields are read (the window's three plus the model id), while the three settings objects
+that were captured for one value each are reduced to that value, so the factory is handed a
+`DispatchPolicy` and a bool rather than `ToolsConfig` and `MemoryConfig`. The bool is still mapped
+at the root, where the string is read, which is where ADR-0019 put it.
+
+The escalating arm's three parts are one `DeepTier(swap, builtins, scheduler)`, present exactly
+when `CORTEX_ESCALATION` is on. They are meaningless apart: the deep tier's own vision-less
+built-in set exists only for a handoff to run, and the subagent pool's scheduler is reached only
+to be drained before one. As one value, a half-wired handoff cannot be expressed, and the branch
+in the factory is one `is None` on a single field rather than a `swap is None` test standing in
+for the state of three names.
+
+### What did not change, deliberately
+
+No behaviour. The two built-in sets are still assembled at the root, and the deep set is still
+built whether or not escalation is on, which is what it did before. The window, the guardrail and
+the dispatcher are still built per stream rather than hoisted to boot, since that is where they
+were built and hoisting one would be a behaviour change wearing a refactor's clothes. Every
+existing case in `test_wiring`, `test_swap_wiring` and `test_vision_wiring` passes unchanged
+except for two `monkeypatch.setattr` targets in the vision suite, `build_cortex_tools` and
+`BrainPhase`, which now name the module those two are called from. No assertion moved.
+
+### Distrust green
+
+Four mutations, each applied to `engines.py` alone with the 445 tests of `packages/orchestrator`
+re-run over it. Caching the bundle so every stream gets the first stream's reddens exactly one
+case, the new suite's two-confirmer one, which is the property no end-to-end suite can see: each
+of them opens a single stream, so all three stayed green under that mutation while the second
+stream's gated call would have prompted the wrong overlay. Handing the deep phase the cortex's
+built-in set reddens two, the new deep-tier case and the vision suite's. Dropping the reply bound
+from the bundle reddens one. Returning the plain engine unconditionally reddens four, which is the
+whole escalating arm and no more.
+
+### Consequences
+
+- `wiring.py` is 230 lines, so the next capability wired at the root has 70 lines to arrive in
+  rather than a split to perform first. The root reads as the sequence of composition steps it is,
+  ending in one factory construction and the `serve` call it feeds.
+- The per-stream contract is now testable without a socket. `test_engines.py` drives the factory
+  over in-memory parts, which is what made the two-confirmer case cheap enough to write at all;
+  through `run_from_env` it would have meant two live Converse streams over a real channel.
+- Three module docstrings that justified an earlier placement with "the composition root is at its
+  line cap" now say it was, since the sentence was load bearing for those decisions and is no
+  longer true of the file it names.
+
+### Deferred by this addendum
+
+The factory is reachable only through the package's submodule attribute: `engines.py` exports
+`StreamEngines` and `DeepTier` in its own `__all__`, but the `cortex_orchestrator` barrel lists
+neither, following `stores.RedisStores`, which the barrel also omits. That is deliberate for a
+composition-root internal and it leaves the module contract's own rule ("everything importable
+from `cortex_orchestrator`; `__all__` is the API") describing something narrower than what the doc
+now documents:
+[R-378](../refinements/tasks/378-the-barrel-rule-omits-two-root-internals.md).

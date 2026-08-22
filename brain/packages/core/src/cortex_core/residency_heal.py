@@ -8,10 +8,10 @@ than the manager, so the object that knows whether a handoff is in flight keeps 
 (``SwappingModelManager.heal_residency``) and nothing here has to import it.
 
 The loop owns its own task, unlike the schedule ticker's, whose start and stop are two more lines
-at a composition root already at its line cap. The lifecycle is the same otherwise: an
-unenumerated bug in a pass degrades to a skipped pass rather than a silently dead loop, a stop is
-a signal rather than a cancellation so an in-flight pass finishes, and the wait between passes
-wakes early on that signal instead of holding shutdown for the interval.
+at a composition root that was at its line cap when this landed. The lifecycle is the same
+otherwise: an unenumerated bug in a pass degrades to a skipped pass rather than a dead loop, a
+stop is a signal rather than a cancellation so an in-flight pass finishes, and the wait between
+passes wakes early on that signal instead of holding shutdown for the interval.
 """
 
 import asyncio
