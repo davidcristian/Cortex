@@ -16,7 +16,7 @@ from couplings import (
 )
 from needles import bounded, unfound
 from readings import Reading, relation_fault
-from registry import CONSTANTS
+from registry import CONSTANTS, shape
 from values import CrossCheckError, Value, parse_value, spell, spelling_fault
 
 # A registry entry naming one place would agree with itself forever, which is the gate that
@@ -199,7 +199,12 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
         return 1
-    print(f"crosscheck OK: {len(CONSTANTS)} cross-tree constant(s) under {root} agree")
+    size = shape(CONSTANTS)
+    print(
+        f"crosscheck OK: {size.entries} cross-tree constant(s) under {root} agree, "
+        f"over {size.sites} declaring site(s) and {size.mentions} mention(s), "
+        f"{size.counted} of them pinned to a count"
+    )
     return 0
 
 

@@ -65,8 +65,8 @@ that last question to have an answer.
   logic; the `*couplings.py` files are all of the data,
   one entry per value: a
   label, the reason its places must agree (printed with any failure), its `Site`s, an optional
-  `relation`, and optional `mentions`. The registry is written in nine files and read as one.
-  `registry.py` is the only module that names them, so a tenth part is a data file plus one line
+  `relation`, and optional `mentions`. The registry is written in several data files and read as
+  one. `registry.py` is the only module that names them, so a new part is a data file plus one line
   there and the scan never learns the registry has parts; `crosscheck.CONSTANTS` is
   `SEAM_COUPLINGS`, then `ENDPOINT_COUPLINGS`, `SHIPPED_COUPLINGS`, `CAPTURE_COUPLINGS`,
   `SUBAGENT_COUPLINGS`,
@@ -80,10 +80,10 @@ that last question to have an answer.
   and the
   override that ships them; the email sidecar's three safety answers and the override that spells
   each again; a stack built to be measured against and the suite that measures it, the one subject
-  the repo does not ship; and the overlay's TypeScript against its own stylesheet. Seven arrived as
-  splits under the cap and two as subjects, which is the one-line claim being paid from both
-  directions rather than argued.
-  `couplings.py` is the vocabulary all nine are written in, left behind when each part moved out
+  the repo does not ship; and the overlay's TypeScript against its own stylesheet. Some arrived as
+  splits under the cap and some as subjects added beside them, which is the one-line claim being
+  paid from both directions rather than argued.
+  `couplings.py` is the vocabulary every part is written in, left behind when each moved out
   under the cap. Nothing in the scan depends on which file an entry sits in. `values.py` and
   `readings.py` are the pieces neither the scan nor the data is: the first reduces a right-hand
   side to a comparable value and says how a mention may spell it, the second says whether a
@@ -163,8 +163,10 @@ that last question to have an answer.
   which is what a half applied rename looks like. `occurrences` pins an EXACT number of bounded
   matches rather than a floor, because a floor cannot notice the far side has grown past it and so
   widens itself by however much the tree drifted; a count below 1 is refused, zero being a mention
-  asking the value to be absent. It is opt in, and the survey that set it is in the ADR: seventeen
-  registered mentions are counted, `Message.tsx` at 2 (the `className` and the
+  asking the value to be absent. It is opt in, and the survey that set it is in the ADR. How many
+  mentions carry a count is a number this doc no longer states, the scan's own success line
+  answering it; what is worth writing down is which ones and why. `Message.tsx` at 2 (the
+  `className` and the
   `aria-label` of one chip), `docker-compose.subagents.yml`'s `mem_limit` pair at 2 (memswap equal
   to memory is what disables the container's swap, so one moving without the other re-enables it in
   silence) and its `cpus` pair at 2 (the budget passed to the scheduler and the cgroup cap on the
@@ -177,7 +179,7 @@ that last question to have an answer.
   rename that moved only the first leaves the ACL somewhere dovecot never reads and the mailbox
   opens like any other), and the probe account's mail home in that same script at 2 (the tree is
   built under it and chowned by it, and `set -eu` stops the script when one of the two moves
-  alone, which is loud and arrives only when somebody next measures), and seven the prose sorts
+  alone, which is loud and arrives only when somebody next measures), and the ones the prose sorts
   added, every one of them a file stating one shipped value twice where losing one leaves it
   naming two different answers at once: the volume runbook's endpoint pair and its export pair,
   the body app contract's two stated binds, the GPU runbook's two recipe lines, the vision
@@ -241,7 +243,11 @@ that last question to have an answer.
   or pins a count below 1, a name pinned as a spend that no mention pays a value under, and a
   registry entry naming no declaring site or
   fewer than `MIN_PLACES` (2) places are each a fault, never a skip. Exit 0 with a summary; exit 1
-  printing `label: detail` per fault; exit 2 if `--root` is not a directory.
+  printing `label: detail` per fault; exit 2 if `--root` is not a directory. **The summary states
+  the registry's own shape**, `registry.shape` counting entries, declaring sites, mentions and
+  mentions pinned to a count over the same tuple the scan walks. That is the collection every
+  mutation table in this repo opens by naming, and it is a reading rather than a gate: see the
+  census bullet below for why nothing asserts it.
 - `bindcheck.py [--root DIR]` holds every compose bind mount to landing somewhere git
   accounts for (ADR-0026 bind addendum). The rule, stated in the module's own docstring: a
   bind source must resolve **outside** the repo (an absolute path, or an expansion with no
@@ -640,6 +646,18 @@ that last question to have an answer.
   which is the judgement no scan makes. The one scoping that did measure well, counting a value's
   leftover occurrences on lines a needle already matched, is the second-spelling reading above, and
   it found and closed its own population.
+- **The one reading over the registry that IS worth having is its own shape** (ADR-0029
+  registry-shape addendum), and it is printed and never asserted. The census above declines a
+  reading over the tree; this is the reading over the registry, and it costs one walk of a tuple
+  the scan already walks. What made it worth building is that the numbers were being counted by
+  hand: this document's tally of how many mentions carry a count was corrected three times in one
+  day and its account of how many files the registry is written in twice, and on the day it was
+  built the tally was stale again, saying seven prose-sort additions where the registry held eight.
+  Nothing asserts the shape, and that is the decision rather than an omission. A gate holding this
+  document to the registry would tie the gate's own prose to the gate's own data, which is the
+  exclusion the legibility sort wrote down and which a document describing the gate has always had.
+  So the hand-counted tallies left this document instead: the counts above are the scan's to print
+  and this doc's job is which mentions are counted and why.
 - **A value a needle carries as a literal is SHADOWED, not held** (ADR-0023 bind-host addendum).
   Two dozen templates across the two endpoint entries spell `127.0.0.1`, which reads like the
   loopback address being tied in two dozen places. It is not tied anywhere by them, for three
