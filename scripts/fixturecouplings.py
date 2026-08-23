@@ -7,6 +7,19 @@ PROBE_SUITE = "brain/packages/email/tests/test_imap_probe_live.py"
 
 FIXTURE_COUPLINGS: tuple[Constant, ...] = (
     Constant(
+        label="the probe's account",
+        why=(
+            "this server resolves an account's mail home out of the login itself "
+            "(`home=/srv/mail/%Lu` in docker/dovecot/probe.conf), so the segment the script "
+            "builds its tree under IS the account the suite logs in as, and a rename on one side "
+            "alone leaves dovecot looking in an empty home: every mailbox goes missing at once, "
+            "the control among them, and the run reads as a server that lost its mail rather "
+            "than as a fixture built for somebody else (ADR-0022 two-server addendum)"
+        ),
+        sites=(Site(PROBE_SUITE, "PROBE_LOGIN"),),
+        mentions=(Mention(PROBE_SCRIPT, "/srv/mail/{value}", occurrences=2),),
+    ),
+    Constant(
         label="the probe mailbox the ACL shuts",
         why=(
             "this is the mailbox the whole second-server stack exists to produce, listed and "

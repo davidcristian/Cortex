@@ -91,8 +91,8 @@ that last question to have an answer.
   reported. **Nor does a site have to sit in a tree `just check` compiles or runs.** The scan reads
   text and imports nothing, so the file it reads need only exist: `DEFAULT_BODY_PORT` is declared
   in the ungated Tauri shell, whose clippy lives in CI's `check-shell` alone (ADR-0023 port
-  addendum), and the probe fixture's four mailbox names are declared in an `integration`-marked
-  test module no CI run executes (ADR-0029 fixture addendum). Both are held on every `just check`,
+  addendum), and the probe fixture's names, the account it logs in as among them, are declared in
+  an `integration`-marked test module no CI run executes (ADR-0029 fixture addendum). Both are held on every `just check`,
   which is more often than either is built or run, and that is the argument for reading them here
   rather than the objection to it. **A `Mention` spends it without declaring it** (a path plus a template
   carrying `{value}`): the scan renders the agreed value into the template and requires the result
@@ -140,16 +140,21 @@ that last question to have an answer.
   which is what a half applied rename looks like. `occurrences` pins an EXACT number of bounded
   matches rather than a floor, because a floor cannot notice the far side has grown past it and so
   widens itself by however much the tree drifted; a count below 1 is refused, zero being a mention
-  asking the value to be absent. It is opt in, and the survey that set it is in the ADR: five
+  asking the value to be absent. It is opt in, and the survey that set it is in the ADR: nine
   registered mentions are counted, `Message.tsx` at 2 (the `className` and the
   `aria-label` of one chip), `docker-compose.subagents.yml`'s `mem_limit` pair at 2 (memswap equal
   to memory is what disables the container's swap, so one moving without the other re-enables it in
-  silence), `overlay.css`'s `:not([{value}="0"])` at 2 (the two section share
+  silence) and its `cpus` pair at 2 (the budget passed to the scheduler and the cgroup cap on the
+  container serving what it admits), each logical model id in `docker-compose.gpu.yml` at 2 (passed
+  to the sidecar and probed again in the healthcheck beside it), `overlay.css`'s
+  `:not([{value}="0"])` at 2 (the two section share
   caps, whose handover is symmetric or nothing), `overlay.css`'s `var(--roll)` at 2 (the two
-  rules that must land WITH a roll, which is the set the entry's own reason names), and
+  rules that must land WITH a roll, which is the set the entry's own reason names),
   `probe-mailboxes.sh`'s guarded mailbox at 2 (the directory and the ACL file inside it, since a
   rename that moved only the first leaves the ACL somewhere dovecot never reads and the mailbox
-  opens like any other), while the bare
+  opens like any other), and the probe account's mail home in that same script at 2 (the tree is
+  built under it and chowned by it, and `set -eu` stops the script when one of the two moves
+  alone, which is loud and arrives only when somebody next measures), while the bare
   `[{value}` mention stays a presence check because its three rules are the sum of two unrelated
   features and `var(--ease)` stays one because 52 transitions across unrelated features ride that
   curve. Every mention that occurs once is left unpinned, a count of one saying nothing a presence
