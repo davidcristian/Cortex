@@ -1,6 +1,6 @@
 # The registry holds every place it names, and nothing says it names every place
 
-**Status:** open, actionable
+**Status:** declined 2026-08-23
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -51,3 +51,22 @@ report is the answer and the gate is not.
 - 2026-08-23: opened by the close of
   [R-389](389-the-brain-port-is-held-in-code-and-not-in-prose.md), the third sort whose count the
   tree corrected upward, after the legibility pair's and the body port's.
+- 2026-08-23: declined, on the measurement the entry itself asked for first. Both honest candidate
+  sets were run over the 61 entries against every tracked text file. Rendering each registered value
+  and counting its bounded occurrences returns **37,717** that no needle covers, because the deep
+  tier's logical id is the word `brain` (3,799 hits), the resident tier's is `cortex` (3,281) and
+  four entries are the number `2`. Narrowing candidates to files that also spell the constant's own
+  identifier returns **927**, of which 34 belong to the brain's bind host, an entry that had been
+  sorted exhaustively an hour earlier and whose true far sides are three. So a gate would need an
+  acknowledged-exclusions list of either size, a second registry nobody maintains, and a report at
+  either rate is the listing nobody reads that this entry named as its own failure mode, with the
+  added cost that it would let a sort claim it had been checked. **The entry's premise survives and
+  its remedy does not**: a value spelled where no needle reaches is still invisible, and what the
+  measurement settles is that the invisibility is lifted by sorting rather than by counting. The
+  method is recorded in [repo-gates.md](../../modules/repo-gates.md) instead: sort by the name a
+  value is spelled under, never by its digits, then read each hit against the tense test, which is
+  the judgement no scan makes and the one a census would have to make 927 times. The one scoping
+  that did measure well, leftover occurrences on lines a needle already matched, is the
+  second-spelling reading, which closed its own population. Tabled in the ADR-0029 census addendum.
+  One residue filed: the registry's own shape is stated by hand in every addendum and goes stale
+  ([R-404](404-the-registrys-own-shape-is-counted-by-hand.md)).

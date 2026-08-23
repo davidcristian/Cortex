@@ -4297,3 +4297,82 @@ The record is the task file
 `scripts/subagentcouplings.py`, which carries the row,
 `brain/packages/core/src/cortex_core/scheduler.py`, whose declaration now says what holds it and
 what deliberately does not, [modules/repo-gates.md](../modules/repo-gates.md), and this addendum.
+
+## Addendum (2026-08-23): the census that was measured and then declined
+
+Four sorts in a row corrected their own count of the tree upward by hand, and each correction found
+whole files, so the question was asked whether this registry should be able to say that it names
+every place a value is spelled
+([R-397](../refinements/tasks/397-nothing-counts-what-the-registry-does-not-name.md)). The entry
+named a cheap end (a `--survey` report) and an expensive one (a gate with acknowledged exclusions),
+and it asked for the false positive rate to be read first, since that decides everything. That
+reading is this addendum, and the answer is that neither end is worth building.
+
+### The measurement, over the registry as it stood
+
+Both scopings were run over 61 entries against every file `git ls-files` lists, less the two
+lockfiles and the overlay's installed tree, with each registered value rendered in all three
+spellings and matched with the scan's own bounded-token rule, and with everything the registry's
+own needles already cover subtracted.
+
+| candidate set | occurrences no needle covers |
+|---|---|
+| every tracked text file | **37,717** |
+| files that also spell the constant's own identifier | **927** |
+
+The first number is not a surprise once it is looked at: the deep tier's logical id is the word
+`brain`, which the repo says 3,799 times, the resident tier's is `cortex`, 3,281 times, and four
+separate entries are the number `2`. A candidate set built from digits cannot tell a coupling from
+a coincidence, and this repo's decision records had already shown it twice in a day, the
+`DEFAULT_SPILL_DWELL_S` that spells the admission wait's 3600 s two hundred lines away in one
+contract, and the two dozen `127.0.0.1`s that turned out to be five values.
+
+The second number is the interesting one, because it is the narrowing anybody would reach for and
+it still fails. Of those 927, **34 belong to the brain's bind host**, an entry sorted exhaustively
+one hour before the measurement was taken, whose true far sides are three. The identifier scopes
+the *file* and the file still spells the digits for other reasons.
+
+### The decision: neither, and the method instead
+
+Not a gate. An acknowledged-exclusions list would have to carry 37,717 entries, or 927, nearly all
+of them permanent, which is a second registry nobody maintains and whose staleness is silent in the
+same way the gap it closes is.
+
+Not a report either, which is the part worth stating plainly, since the entry offered it as the
+cheap end. At either rate the output is the listing nobody reads that the entry itself named as the
+failure mode, and a listing nobody reads is worse than nothing here: it would let a sort claim it
+had been checked.
+
+What actually found every miss this month was a person grepping a **name** and then reading each
+hit. So the method is recorded in [modules/repo-gates.md](../modules/repo-gates.md) rather than
+automated: sort by the name a value is spelled under, never by its digits, and read each hit
+against the tense test. The last step is why this cannot be a tool. Deciding whether a sentence
+becomes wrong or becomes history is the judgement the second-spelling reading already refused to
+mechanize, on a case a mechanism would have got backwards, and a census would need to make it 927
+times.
+
+The one scoping that measured well is already spent: counting a value's leftover occurrences on
+lines a needle had matched returned eleven readings, of which five were real and four became rows.
+That reading was worth taking because its candidate set was "a line this registry already claims",
+and it closed its own population.
+
+### What this leaves, and what it opens
+
+The gap the entry describes is real and stays open: a value spelled where no needle reaches is
+invisible to this scan, silently. Nothing measured here makes that less true. What the measurement
+establishes is that the invisibility cannot be lifted by counting, only by sorting, and that the
+sorting is done by name and by judgement.
+
+One thing near it is mechanically answerable and was not asked for. Every addendum in this series
+states the registry's shape by hand, entries over sites and mentions, and
+[modules/repo-gates.md](../modules/repo-gates.md)'s tally of counted mentions has now gone stale
+three times in a day. The scan already prints its entry count on success and could print the other
+two ([R-404](../refinements/tasks/404-the-registrys-own-shape-is-counted-by-hand.md)).
+
+### Records
+
+The record is the task file
+[R-397](../refinements/tasks/397-nothing-counts-what-the-registry-does-not-name.md), which closes
+declined, [docs/refinements/index.md](../refinements/index.md), which is regenerated from it,
+[modules/repo-gates.md](../modules/repo-gates.md), which carries the method and both numbers, and
+this addendum. No code changed, which is the point of it.
