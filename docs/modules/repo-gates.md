@@ -14,7 +14,7 @@ belongs to neither the brain nor the body and is gated exactly like both. A stan
 recipes, `ci_paths.py`
 by the CI
 workflow, `commitlint.py` by the commit-msg pre-commit stage, `contrast.py` by `just turn-cost`;
-each also exposes a pure, unit-tested core function). Nineteen modules here have no CLI of their
+each also exposes a pure, unit-tested core function). Twenty-one modules here have no CLI of their
 own, most split out under the line cap and each named for what it holds: `couplings.py` is the
 vocabulary `crosscheck.py`'s registry is written in, `registry.py` names the parts that registry is
 written in, and `seamcouplings.py`, `endpointcouplings.py`, `shippedcouplings.py`,
@@ -22,7 +22,8 @@ written in, and `seamcouplings.py`, `endpointcouplings.py`, `shippedcouplings.py
 `modelhostcouplings.py`, `emailcouplings.py`, `fixturecouplings.py`, `capturecouplings.py` and
 `overlaycouplings.py` are those parts, `values.py`
 is the value forms that scan compares on and the spellings a mention writes one in, `readings.py`
-is how a set of those values must then stand, `composemounts.py` is `bindcheck.py`'s mount
+is how a set of those values must then stand, `needles.py` is how a rendered needle is looked for
+and what a file that lacks one is told, `composemounts.py` is `bindcheck.py`'s mount
 reader, `composedefaults.py` is `defaultcheck.py`'s substitution reader, `composefiles.py` is
 which files the two of them walk, answered once so they cannot drift apart about it, and
 `backlog.py`, `backlogindex.py`, `backloganchors.py` and `headingshapes.py` are the four
@@ -87,6 +88,9 @@ that last question to have an answer.
   `readings.py` are the pieces neither the scan nor the data is: the first reduces a right-hand
   side to a comparable value and says how a mention may spell it, the second says whether a
   constant's readings hold together, so the scan finds declarations and those two judge them.
+  `needles.py` is the third such piece, on the mention's side rather than the site's: it holds how
+  a rendered needle is bounded and looked for, and what a file that does not carry one is told
+  about which of the needle's literals stopped matching.
   **A `Site` declares the value** (a repo-relative path plus the identifier declared in it) and is
   read and compared. The identifier is a name a file **declares**, never a name a module exports,
   so a module-private one is registrable and `_UNRESTRICTED_REASONING` is registered under its
@@ -122,6 +126,20 @@ that last question to have an answer.
   needle, which is a template question rather than a matcher one, so the compose publish is
   registered as `"127.0.0.1:{value}:{value}"` and the healthcheck dial beside it as its own
   mention.
+  **An unfound needle says whose literal stopped matching** (ADR-0023 misattributed-fault
+  addendum). A needle is a value plus shape and the shape is other people's text, so moving a
+  neighbour's value out of a template reddens the entry beside it: the compose publish's host-side
+  interface and the body app contract's `CORTEX_BRAIN_ADDR` default each reported *the brain's
+  seam port*, which neither of them spells. `needles.py` now answers the fault with two readings.
+  The first is whether the file **still spells this constant's own value** as a token of its own,
+  which is the evidence that what moved is shape and that the entry named is probably not the entry
+  to change; a mention rendering only a name spells no value at all and is told so instead. The
+  second is the **longest opening run of the needle the file carries**, which pinpoints the
+  divergence where the shape is unique to the needle. That run is measured over the whole file
+  rather than one line, because a mention names a file, so a prefix satisfied on another line makes
+  it longer than the divergence a reader is looking at: the compose interface moving still leaves
+  `"127.0.0.1:` carried, by the redis publish below it. It is worded as the most of the needle the
+  file carries anywhere, and it is the second half of the message for that reason.
   **Re-spelled where the far side's syntax cannot take the value as written** (ADR-0029 spelling
   addendum). `Mention.spelling` is `Spelling.WRITTEN` by default, which is the site's own text;
   `Spelling.WHOLE` renders the same number with no fractional part, for a syntax that carries none

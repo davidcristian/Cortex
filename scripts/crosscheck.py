@@ -29,11 +29,9 @@ Not every far side is a declaration, and the ones that are not used to be unreac
 spelled inside a shell string, a custom property a stylesheet reads back with ``var(...)``, a
 bare literal a component compares against: each is a **mention**, checked by rendering the agreed
 value into the mention's own template and requiring the result to **appear as a whole token** in
-the file. Bare containment was not enough and had two passing violations to prove it: a value that
-is a *prefix* of the one written down (`5005` inside `50051`) satisfied an `in` test, and so did a
-published `host:container` port pair whose host half alone carried the needle. So a rendered
-needle is bounded at each word-character edge, and a template is written to cover the whole of
-what it pins rather than a leading piece of it.
+the file. How a needle is looked for, and what an unfound one is told about where the file stopped
+agreeing with it, is `needles.py`; a template is written to cover the whole of what it pins rather
+than a leading piece of it.
 
 A mention is a presence check unless it says otherwise, so a file that spends the value twice and
 loses one of them passes: what the gate ties is the spelling and not how many times it is spent.
@@ -69,13 +67,10 @@ from couplings import (
     Relation,
     Site,
 )
+from needles import bounded, unfound
 from readings import Reading, relation_fault
 from registry import CONSTANTS
 from values import CrossCheckError, Value, parse_value, spell, spelling_fault
-
-# What counts as a continuation of a rendered needle's own token, at whichever of its two edges is
-# itself made of one. A needle edged by punctuation (`var(--ceiling,`) needs no such guard.
-WORD_CHARACTER = re.compile(r"\w")
 
 # A registry entry naming one place would agree with itself forever, which is the gate that
 # cannot fail this scan was written to remove. Two is therefore the floor, not a formality, and
@@ -136,13 +131,6 @@ def read_value(root: Path, site: Site) -> Value:
     return parse_value(found[0])
 
 
-def bounded(needle: str) -> re.Pattern[str]:
-    """The needle as a pattern no longer token can contain: a word edge may not touch a word."""
-    lead = r"(?<!\w)" if WORD_CHARACTER.match(needle[:1]) else ""
-    trail = r"(?!\w)" if WORD_CHARACTER.match(needle[-1:]) else ""
-    return re.compile(f"{lead}{re.escape(needle)}{trail}")
-
-
 def rendered(mention: Mention, value: Value) -> str:
     """The text a mention pins: its template with the agreed value and its own name rendered in."""
     renders_name = NAME_PLACEHOLDER in mention.template
@@ -171,10 +159,11 @@ def check_mention(root: Path, mention: Mention, value: Value) -> None:
         msg = f"mention {mention.template!r} pins {wanted} occurrences, which ties nothing"
         raise CrossCheckError(msg)
     needle = rendered(mention, value)
-    found = len(bounded(needle).findall(_read(root, mention.path)))
+    text = _read(root, mention.path)
+    found = len(bounded(needle).findall(text))
     if wanted is None:
         if not found:
-            msg = f"{mention.path} does not spell {needle!r} as a token of its own"
+            msg = unfound(mention, needle, text, spell(value, mention.spelling))
             raise CrossCheckError(msg)
     elif found != wanted:
         msg = (

@@ -1028,3 +1028,90 @@ The record is the task file
 moved with it, [AGENTS.md](../../AGENTS.md) and
 [modules/repo-gates.md](../modules/repo-gates.md), whose accounts of how many parts the registry
 has were both stale by this change, and this addendum.
+
+## Addendum (2026-08-23): what an unfound needle now says about whose literal moved
+
+The bind-host sort above measured a misattribution and left it standing: a needle is a value plus
+shape, the shape is other people's text, and moving a neighbour's value reddens the entry beside it
+under a fault naming a constant that did not move
+([R-403](../refinements/tasks/403-a-needles-literal-reddens-the-wrong-entry.md)). This is that
+fault answered. It is a message change and a new module; no registry row moved and no value changed.
+
+### The two shapes, and why the cheap one is the only one that reaches these cases
+
+The entry offered a better fault or a template that renders a **registered neighbour's** value, and
+said to try them in that order. The order turned out not to matter, because the expensive shape
+cannot reach either measured case at all. Both neighbours are unregistered **on purpose**: the sort
+above counted `127.0.0.1` as five different values, held the brain's bind host and deliberately
+declined the other four, one of them the compose publish's host-side interface and another the
+`CORTEX_BRAIN_ADDR` client default. A template rendering a neighbour's entry can only name a
+neighbour that has one, so fixing these two cases that way would first mean registering four values
+the ruling had just refused, and inventing an edge between registry entries to spend them through.
+The cheap shape needs neither: it reads the file it already read.
+
+### What the fault says, and why it says the value first
+
+`scripts/needles.py` is the mention's side of the scan, standing to a `Mention` as `values.py` and
+`readings.py` stand to a `Site`. It holds `bounded()`, which moved there whole, and answers an
+unfound needle with two readings.
+
+**Whether the file still spells this constant's own value** as a token of its own. If it does, what
+stopped matching is shape, and the entry the fault names is probably not the entry to change. That
+is the misattribution said out loud, and it is deliberately worded as a likelihood: a file may
+spell the same digits under two meanings, which is the same reason a survey by number cannot be
+trusted. A mention rendering only a name spells no value at all and is told that instead.
+
+**The longest opening run of the needle the file carries**, which pinpoints the divergence where
+the needle's shape is unique to it: the body app contract's fault now quotes the run back and it
+stops at `http://127.0.0.`, which is exactly where the address moved.
+
+The run is the second half of the message rather than the first, and the reason is a surprise
+worth recording. It was written first, on the assumption that the run ends at the divergence. It
+does not always. A mention names a **file**, so the run is measured over the whole file, and a
+prefix satisfied on some other line makes it longer than the divergence the reader means: with the
+compose publish's interface moved to `0.0.0.0`, the run still reaches `"127.0.0.1:`, carried by the
+**redis** publish forty lines below. The first draft's stronger claim, that a run ending before the
+value proves the value did not move, was false on exactly the case this entry exists for. So the
+value's own presence carries the claim, the run is worded as the most of the needle the file
+carries anywhere, which is precisely what it is, and the misreading is written down here rather
+than shipped as a fault that is confidently wrong.
+
+### Proved able to fail, three times, over the crosscheck registry
+
+Each drift was planted on the real tree one at a time, the gate run before the change and after
+it, the file restored from a copy taken beforehand, and the gate re-run green. The counts are over
+the crosscheck registry as it stands, 61 entries over 71 sites and 176 mentions, unchanged by this
+work and not over any test suite: a suite's numbers say nothing about the collection this table is
+about.
+
+| planted drift | before | after |
+|---|---|---|
+| compose publish's host-side interface to `0.0.0.0` | the seam port is not tied, no more | the seam port, plus "the file does still spell `50051` as a token of its own, so what moved is likely shape this needle carries rather than this value, and the constant to change may not be the one named here" |
+| body app contract's `CORTEX_BRAIN_ADDR` to `127.0.0.2` | the seam port is not tied, no more | the same clause, and a run stopping at `http://127.0.0.` |
+| the image's own `EXPOSE 50051` to `50052` | the seam port is not tied, no more | "the file does not spell `50051` as a token of its own either", blaming no shape |
+
+The first two are the misattribution the entry was filed for, still reported under the seam port
+and now saying so. The third is the **control** that keeps the new clause from being a rubber
+stamp: a drift where the value really is what moved must not blame a neighbour, and does not. All
+three exited 1 before and after, and all three restorations returned the gate to green, at
+`crosscheck OK: 61 cross-tree constant(s) under .. agree`.
+
+### What this leaves
+
+Two residues, both narrow and both written down. A mention with a pinned `occurrences` count that
+finds **zero** still gets the old bare count message, the new reading being wired into the presence
+check alone
+([R-405](../refinements/tasks/405-a-counted-mention-that-finds-nothing-says-nothing.md)). And the
+run overstates itself whenever another line in the same file carries a longer prefix, which is the
+surprise above left as a limitation rather than papered over
+([R-406](../refinements/tasks/406-the-carried-run-is-measured-over-a-whole-file.md)).
+
+### Records
+
+The record is the task file
+[R-403](../refinements/tasks/403-a-needles-literal-reddens-the-wrong-entry.md), which closes,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from it,
+`scripts/needles.py`, which is the new module, `scripts/crosscheck.py`, which hands it the text it
+already read, [AGENTS.md](../../AGENTS.md), whose repo map now names it, and
+[modules/repo-gates.md](../modules/repo-gates.md), whose count of the modules here that have no CLI
+of their own was already stale by one before this change touched it, and this addendum.

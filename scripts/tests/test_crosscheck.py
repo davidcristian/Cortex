@@ -396,6 +396,7 @@ def test_a_number_a_longer_one_merely_contains_is_not_spelled(tmp_path: Path) ->
     _publish(tmp_path, declared="5005", host="50051", container="50051")
     (fault,) = crosscheck.check_constant(tmp_path, _ported("127.0.0.1:{value}"))
     assert "does not spell '127.0.0.1:5005' as a token of its own" in fault.detail
+    assert "carrying it only inside a longer token" in fault.detail
 
 
 def test_a_template_that_pins_only_the_host_half_leaves_the_other_free(tmp_path: Path) -> None:
@@ -404,6 +405,57 @@ def test_a_template_that_pins_only_the_host_half_leaves_the_other_free(tmp_path:
     assert crosscheck.check_constant(tmp_path, _ported("127.0.0.1:{value}")) == []
     (fault,) = crosscheck.check_constant(tmp_path, _ported("127.0.0.1:{value}:{value}"))
     assert "does not spell '127.0.0.1:50051:50051'" in fault.detail
+
+
+# ── what an unfound needle says about whose literal stopped matching ───────────
+#
+# A needle is a value plus shape and the shape is other people's text, so an unfound one used to
+# name the entry it belongs to over a literal that entry does not own. `needles.py` reports
+# whether the file still spells this constant's own value, and how much of the needle it carries.
+
+
+def _publish_on(root: Path, interface: str) -> None:
+    """The publish with its host-side interface moved and both port halves left alone."""
+    (root / "config.py").write_text("PORT = 50051\n", encoding="utf-8")
+    (root / "stack.yml").write_text(f'      - "{interface}:50051:50051"\n', encoding="utf-8")
+
+
+def test_a_moved_neighbour_is_reported_as_shape_and_not_as_this_value(tmp_path: Path) -> None:
+    """The misattribution measured on the real tree: the publish's interface is not the port."""
+    _publish_on(tmp_path, "127.0.0.2")
+    (fault,) = crosscheck.check_constant(tmp_path, _ported("127.0.0.1:{value}:{value}"))
+    assert "carrying no more of it than '127.0.0.'" in fault.detail
+    assert "the file does still spell '50051' as a token of its own" in fault.detail
+    assert "the constant to change may not be the one named here" in fault.detail
+
+
+def test_a_moved_value_is_reported_as_absent_and_blames_no_neighbour(tmp_path: Path) -> None:
+    """The other direction, which must NOT blame shape: the port itself is what moved."""
+    _publish(tmp_path, declared="50052", host="50051", container="50051")
+    (fault,) = crosscheck.check_constant(tmp_path, _ported("127.0.0.1:{value}"))
+    assert "carrying no more of it than '127.0.0.1:5005'" in fault.detail
+    assert "the file does not spell '50052' as a token of its own either" in fault.detail
+
+
+def test_a_file_carrying_no_part_of_the_needle_has_no_run_to_report(tmp_path: Path) -> None:
+    """A needle whose opening character is absent: there is nothing of it to quote back."""
+    (tmp_path / "budget.ts").write_text('const CEILING_PROPERTY = "--ceiling";\n', encoding="utf-8")
+    (tmp_path / "overlay.css").write_text(".panel { height: 100px; }\n", encoding="utf-8")
+    (fault,) = crosscheck.check_constant(tmp_path, MENTIONED)
+    assert "carrying no part of it" in fault.detail
+    assert "does not spell '--ceiling' as a token of its own either" in fault.detail
+
+
+def test_a_needle_that_renders_only_a_name_is_shape_all_through(tmp_path: Path) -> None:
+    """A name-only needle spells the value nowhere, so there is no value to report on."""
+    _restate(tmp_path, "--roll", "--ease", "--ease")
+    spent = RESTATED._replace(
+        mentions=(RESTATED.mentions[0], RESTATED.mentions[1]._replace(occurrences=None)),
+    )
+    (fault,) = crosscheck.check_constant(tmp_path, spent)
+    assert "does not spell 'var(--roll)' as a token of its own" in fault.detail
+    assert "carrying no more of it than 'var(--'" in fault.detail
+    assert "this needle renders no value, so the whole of it is shape" in fault.detail
 
 
 @pytest.mark.parametrize(
