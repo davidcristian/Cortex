@@ -3987,3 +3987,111 @@ The record is the task file
 addendum. One narrower task opens in its place, the mail root the three fixture files share with
 nothing to declare it
 ([R-390](../refinements/tasks/390-the-probes-mail-root-is-spelled-in-three-files.md)).
+
+## Addendum (2026-08-23): the second spelling on a line the registry already holds
+
+The legibility sort closed leaving one shape it had no clean answer for: `docs/runbooks/vision.md`
+writes the capture edge twice on one table row, the Default cell held by a needle and the sentence
+beside it free, and every needle that could reach the second seemed to have to pin four words of an
+explanation ([R-387](../refinements/tasks/387-a-second-spelling-shares-a-held-line.md)). The entry
+asked for the population to be measured before anything was decided, which is what makes this a
+decision rather than a preference.
+
+### The population, measured rather than guessed
+
+Every mention in the registry was rendered, its needle matched against its file line by line, and
+the value's bounded occurrences on each matched line counted against the ones the needle itself
+covers. **Eleven lines came back. Six are artefacts of the reading:**
+
+- `turnState.ts` writes `const thinking = event.state === "thinking";`, where the extra occurrence
+  is an identifier that happens to spell a string value.
+- `local-dev-wsl.md` and `llamacpp-gpu.md` each have a line held **jointly** by two needles, so the
+  per-mention count under-reports what the registry covers.
+- `model-swap.md` reports a latency of `10.09 s` beside a `10 s` grace, and `10` is a bounded token
+  in front of a decimal point.
+
+**Five are real, and one of the five is not a far side.** `docs/runbooks/vision.md` writes
+``| `CORTEX_VISION` | brain | `auto` |`` and then, in the same row, "`auto` probes `GET
+{CORTEX_INFERENCE_ENDPOINT}/props` on every advertisement and every call; `on`/`off` fix the answer
+without touching the network". The second `auto` names a mode and says what that mode does. Make
+`on` the shipped answer tomorrow and the sentence is still true. It is a second spelling of the
+value and not a second claim about the default, and the tense test says so without hesitating.
+
+### That one case decided the mechanism, which is that there is none
+
+The entry named three ways out. Two of them are the same mechanism: count a value's occurrences on
+a held line, either by pinning the line or by teaching `Mention` to reach occurrences within one.
+Both would demand that the vision runbook's second `auto` be held, and neither can be told that it
+should not be, because what distinguishes it is what the sentence claims and not where the number
+sits. A mechanism that manufactures a coupling the tense test rejects is worse than the gap it
+closes. The third way, rewording the prose so a shape the registry already pins reaches the number,
+is the gate editing the text it watches, and it was refused for the reason it has always been.
+
+So the answer is the one the registry already had: **a second spelling gets its own mention.** The
+premise that this was forbidden does not survive contact with the tree. `` `{value}` is the
+default, paired with `` has been a registered needle in `modelhostcouplings.py` since the
+legibility sort, carrying five words. Words are shape when they are what makes the sentence a claim
+about the shipped value rather than about the world; the survey's rule bans a needle that pins
+phrasing which carries no sort, and it has never banned every word.
+
+### Four rows, and two of them held the wrong half of a line
+
+| line | held before | added |
+|---|---|---|
+| the vision runbook's edge row | the Default cell | "`2048` is the brain half" |
+| the vision runbook's byte row | the Default cell | "outside `1..6291456`" |
+| the GPU runbook's layer row | "`99` = all" | the Default cell |
+| the GPU runbook's reasoning rows | "`-1` (the default) emits no flag" | both Default cells, counted at 2 |
+
+The bottom two are the more dangerous form and the reason this entry was worth measuring. The
+needle held the **Meaning** cell and the **Default** cell was free, which is the wrong half to
+hold: `99` = all says what the number means to llama.cpp and goes on being true after the default
+moves, where the Default cell states what ships. The legend is registered still, the default being
+chosen as that sentinel, but it is no longer the only thing holding that row.
+
+The byte row's second spelling is a far side rather than a reading of one, and that is worth
+saying because the sentence looks like a validator's business rather than a shipped number's: the
+field really is bounded by the constant (`le=MAX_IMAGE_BYTES` in `config_body.py`), so a tightened
+ceiling makes "outside `1..6291456` the brain refuses to boot" **wrong** and not merely dated.
+
+### The registry took an eighth part on the way
+
+`shippedcouplings.py` reached the 300-line cap on these rows, so one capture's own numbers moved
+into `capturecouplings.py`: the edge, the byte budget, the two seam deadlines and whether the tool
+is advertised. The seam was already written in that file as a comment above the entries that moved,
+`# The two capture bounds that ride with a request`. This is the third time the one-line claim in
+`registry.py` has been paid rather than argued, and the first from this direction: the sixth and
+seventh parts arrived as new subjects, and the eighth is a split that cost one import and one name.
+
+### Proved able to fail, twenty three times, over the crosscheck registry
+
+Each place was planted with a real disagreement one at a time on the real tree, the gate run, the
+file restored from a copy taken beforehand, and the gate re-run green. The counts are over the
+crosscheck registry as it stands after this change, 57 entries over 67 sites and 163 mentions, and
+not over any test suite. The four rows this addendum adds are 4 of those mentions; the other
+nineteen rows below are the entries they joined, re-proved across the split, since a part that
+moved house and stopped being read would otherwise gate nothing in silence.
+
+| planted drift | what the gate said |
+|---|---|
+| the vision runbook says the edge is the brain half of another pair | 1 fault naming the runbook |
+| the vision runbook states another accepted range | 1 fault naming the runbook |
+| the GPU runbook's layer Default cell moves | 1 fault naming the runbook |
+| the GPU runbook's reasoning Default cells lose one | 1 fault: found 1 of the 2 pinned |
+| the nineteen mentions already on those four entries | 1 fault each, naming its own file |
+
+All twenty three exited 1 and all twenty three restorations returned the gate to green. Three
+**controls** ran the other way and all three stayed green: the vision runbook's second `auto`
+reworded to another mode, the model-swap runbook's measured latencies moved, and `turnState.ts`'s
+`thinking` identifier renamed. Those three are exactly the artefacts the population reading
+over-reported, so the controls prove the sort excludes what the measurement could not.
+
+### Records
+
+The record is the task file
+[R-387](../refinements/tasks/387-a-second-spelling-shares-a-held-line.md), which closes,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from it,
+`scripts/capturecouplings.py` and `scripts/registry.py`, which carry the split,
+[AGENTS.md](../../AGENTS.md) and [modules/repo-gates.md](../modules/repo-gates.md), whose accounts
+of how many parts the registry has and how many mentions are counted were both stale by this
+change, and this addendum.

@@ -14,12 +14,12 @@ belongs to neither the brain nor the body and is gated exactly like both. A stan
 recipes, `ci_paths.py`
 by the CI
 workflow, `commitlint.py` by the commit-msg pre-commit stage, `contrast.py` by `just turn-cost`;
-each also exposes a pure, unit-tested core function). Eighteen modules here have no CLI of their
+each also exposes a pure, unit-tested core function). Nineteen modules here have no CLI of their
 own, most split out under the line cap and each named for what it holds: `couplings.py` is the
 vocabulary `crosscheck.py`'s registry is written in, `registry.py` names the parts that registry is
 written in, and `seamcouplings.py`, `shippedcouplings.py`, `subagentcouplings.py`,
-`modelhostcouplings.py`, `emailcouplings.py`, `fixturecouplings.py` and `overlaycouplings.py` are
-those parts, `values.py`
+`modelhostcouplings.py`, `emailcouplings.py`, `fixturecouplings.py`, `capturecouplings.py` and
+`overlaycouplings.py` are those parts, `values.py`
 is the value forms that scan compares on and the spellings a mention writes one in, `readings.py`
 is how a set of those values must then stand, `composemounts.py` is `bindcheck.py`'s mount
 reader, `composedefaults.py` is `defaultcheck.py`'s substitution reader, `composefiles.py` is
@@ -63,21 +63,23 @@ that last question to have an answer.
   logic; the `*couplings.py` files are all of the data,
   one entry per value: a
   label, the reason its places must agree (printed with any failure), its `Site`s, an optional
-  `relation`, and optional `mentions`. The registry is written in seven files and read as one.
-  `registry.py` is the only module that names them, so an eighth part is a data file plus one line
+  `relation`, and optional `mentions`. The registry is written in eight files and read as one.
+  `registry.py` is the only module that names them, so a ninth part is a data file plus one line
   there and the scan never learns the registry has parts; `crosscheck.CONSTANTS` is
-  `SEAM_COUPLINGS`, then `SHIPPED_COUPLINGS`, `SUBAGENT_COUPLINGS`, `MODELHOST_COUPLINGS`,
-  `EMAIL_COUPLINGS`, `FIXTURE_COUPLINGS`, then
+  `SEAM_COUPLINGS`, then `SHIPPED_COUPLINGS`, `CAPTURE_COUPLINGS`, `SUBAGENT_COUPLINGS`,
+  `MODELHOST_COUPLINGS`, `EMAIL_COUPLINGS`, `FIXTURE_COUPLINGS`, then
   `OVERLAY_COUPLINGS`. Each part is named for its subject: couplings whose far side is another
   tree's code across the language boundary; the brain container's own shipped defaults, restated
-  by a compose default, a runbook row or a module contract; the subagent tier's admission budgets
-  and the cgroup limits that are their hard twins; the model-host sidecar's tier settings and the
+  by a compose default, a runbook row or a module contract; one capture's own edge, byte budget
+  and deadlines, which are that same kind narrowed to a single request; the subagent tier's
+  admission budgets and the cgroup limits that are their hard twins; the model-host tier settings
+  and the
   override that ships them; the email sidecar's three safety answers and the override that spells
   each again; a stack built to be measured against and the suite that measures it, the one subject
-  the repo does not ship; and the overlay's TypeScript against its own stylesheet. The first five
-  arrived as splits under the cap and the last two as subjects, which is the one-line claim being
-  paid rather than argued.
-  `couplings.py` is the vocabulary all seven are written in, left behind when each part moved out
+  the repo does not ship; and the overlay's TypeScript against its own stylesheet. Six arrived as
+  splits under the cap and two as subjects, which is the one-line claim being paid from both
+  directions rather than argued.
+  `couplings.py` is the vocabulary all eight are written in, left behind when each part moved out
   under the cap. Nothing in the scan depends on which file an entry sits in. `values.py` and
   `readings.py` are the pieces neither the scan nor the data is: the first reduces a right-hand
   side to a comparable value and says how a mention may spell it, the second says whether a
@@ -140,7 +142,7 @@ that last question to have an answer.
   which is what a half applied rename looks like. `occurrences` pins an EXACT number of bounded
   matches rather than a floor, because a floor cannot notice the far side has grown past it and so
   widens itself by however much the tree drifted; a count below 1 is refused, zero being a mention
-  asking the value to be absent. It is opt in, and the survey that set it is in the ADR: sixteen
+  asking the value to be absent. It is opt in, and the survey that set it is in the ADR: seventeen
   registered mentions are counted, `Message.tsx` at 2 (the `className` and the
   `aria-label` of one chip), `docker-compose.subagents.yml`'s `mem_limit` pair at 2 (memswap equal
   to memory is what disables the container's swap, so one moving without the other re-enables it in
@@ -159,9 +161,11 @@ that last question to have an answer.
   naming two different answers at once: the volume runbook's endpoint pair and its export pair,
   the body app contract's two stated binds, the GPU runbook's two recipe lines, the vision
   runbook's three token-budget claims, and, for the brain's own port, the body RPC contract's two
-  stated endpoints and the Rust live suite's stated default beside the fallback it uses. Those
-  last two are the shape a presence check reads as green while half the file is wrong, since each
-  file spells the number in two places for two different readers. Meanwhile the bare
+  stated endpoints and the Rust live suite's stated default beside the fallback it uses, and the
+  GPU runbook's two reasoning-budget Default cells, one per tier, since a file naming one tier
+  unbounded and the other bounded states a split the config does not have. Those are all the shape
+  a presence check reads as green while half the file is wrong, since each file spells the number
+  in two places for two different readers. Meanwhile the bare
   `[{value}` mention stays a presence check because its three rules are the sum of two unrelated
   features and `var(--ease)` stays one because 52 transitions across unrelated features ride that
   curve. Every mention that occurs once is left unpinned, a count of one saying nothing a presence
@@ -570,6 +574,23 @@ that last question to have an answer.
   test fails the moment the constant moves without it, where an `#[ignore]`d measurement or an
   `integration`-marked live test drifts in silence until somebody next measures. That is the same
   line `capture_bytes.rs` sits on, promoted to a site for exactly this reason.
+- **A second spelling on an already held line gets its own needle, and the scan learns nothing new**
+  (ADR-0029 second-spelling addendum). A mention is a presence check, so a line whose first
+  spelling a needle reaches can carry a second that drifts freely. The population was measured
+  before anything was decided, by rendering every needle in the registry and counting the value's
+  bounded occurrences left over on each line it matched: eleven lines, of which six were artefacts
+  of the reading (an identifier that happens to spell a string value, two lines held jointly by two
+  needles each, and a decimal whose whole part sits inside a measured latency), leaving five real
+  ones. **One of those five is deliberately not a far side**, the vision runbook's second `auto`,
+  which says what that mode DOES beside what `on` and `off` do and stays true after another mode
+  becomes the shipped answer. That single case is what refused a mechanism: counting a value's
+  occurrences per line, whether as a field or as a rule, would manufacture a coupling the tense
+  test rejects, and it cannot be told the difference. Rewording the prose was refused as the gate
+  editing what it watches. So the four real ones became four ordinary mentions, and the objection
+  that such a needle must carry words of a sentence was already answered by the tree, which had
+  been holding `` `1024` is the default, paired with `` since the legibility sort. Two of the four
+  are the more dangerous form, where the needle held the Meaning cell's explanation and left the
+  **Default cell** free.
 - **A host file is a live instruction, not a record**, which is the reading both sorts needed.
   `docs/host/` holds work that is built and unrun, its prerequisites exist so a sitting does not die
   on setup, and a completed item's file shrinks to a heading, its status and a pointer, so the

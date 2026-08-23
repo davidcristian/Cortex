@@ -82,10 +82,16 @@ MODELHOST_COUPLINGS: tuple[Constant, ...] = (
             "card in the config alone would still get every layer on the GPU (ADR-0004 addendum)"
         ),
         sites=(Site(MODELHOST_CONFIG, "DEFAULT_NGL"),),
+        # The runbook's row spells this number twice and only the legend was held, which is the
+        # worse half of that pair to hold: `99` = all says what the value MEANS to llama.cpp and
+        # stays true after the default moves, where the Default cell states what ships and does
+        # not. Both are registered rather than one swapped for the other, the legend being the
+        # sentinel this default was chosen to be; cell walls pin the second without pinning a word.
         mentions=(
             Mention(GPU_COMPOSE, "${CORTEX_NGL:-{value}}"),
             Mention(GPU_COMPOSE, "${CORTEX_NGL_BRAIN:-{value}}"),
             Mention(GPU_RUNBOOK, "`{value}` = all"),
+            Mention(GPU_RUNBOOK, "| `{value}` |"),
         ),
     ),
     Constant(
@@ -192,10 +198,15 @@ MODELHOST_COUPLINGS: tuple[Constant, ...] = (
             "(ADR-0030, and the thinking-budget measurements in the GPU runbook)"
         ),
         sites=(Site(MODELHOST_CONFIG, "_UNRESTRICTED_REASONING"),),
+        # The runbook gives the two tiers a row each and both Default cells were free while the
+        # sentence above them was held. They are counted at 2 because they are one set: the entry's
+        # own reason is that this answer ships for BOTH tiers, so a file naming one of them
+        # unbounded and the other bounded states a split this config does not have.
         mentions=(
             Mention(GPU_COMPOSE, "${CORTEX_REASONING_BUDGET:-{value}}"),
             Mention(GPU_COMPOSE, "${CORTEX_REASONING_BUDGET_BRAIN:-{value}}"),
             Mention(GPU_RUNBOOK, "`{value}` (the default) emits no flag"),
+            Mention(GPU_RUNBOOK, "| `{value}` |", occurrences=2),
             Mention(MODEL_MANAGER_DOC, "`{value}`, the default, is the engine's own word"),
         ),
     ),
