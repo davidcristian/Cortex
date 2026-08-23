@@ -46,6 +46,20 @@ def same_value(arguments: list[str]) -> bool:
     return len(spellings) == 1
 
 
+def one_line_hint(spends: list[Spend]) -> str:
+    """The remedy for a group naming one `path:line` twice, or nothing to add."""
+    places = [(spend.path, spend.substitution.line) for spend in spends]
+    repeated = sorted({place for place in places if places.count(place) > 1})
+    if not repeated:
+        return ""
+    shared = ", ".join(f"{path}:{line}" for path, line in repeated)
+    return (
+        f"; more than one of those spends is on {shared}, which is what a note written after a "
+        "value looks like to this reader, so if one of them is a comment, move it above the line "
+        "it annotates"
+    )
+
+
 def disagreement(name: str, spends: list[Spend]) -> Fault | None:
     """The complaint about one variable's several spends, or None when they hold together."""
     shown = ", ".join(str(spend) for spend in spends)
@@ -66,7 +80,7 @@ def disagreement(name: str, spends: list[Spend]) -> Fault | None:
         subject=name,
         detail=(
             f"is spelled {len(spends)} times and does not carry one default, so the stack takes "
-            f"whichever spend it happens to read ({shown})"
+            f"whichever spend it happens to read ({shown}){one_line_hint(spends)}"
         ),
     )
 

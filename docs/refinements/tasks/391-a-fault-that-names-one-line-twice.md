@@ -1,6 +1,6 @@
 # A compose-defaults fault that names one line twice says nothing about the note behind it
 
-**Status:** open, actionable
+**Status:** landed 2026-08-23
 **Area:** repo-gates
 **Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
 
@@ -42,3 +42,13 @@ lines of both shapes.
   [R-385](385-a-note-beside-a-compose-value-is-read-as-a-spend.md), which measured this message
   while proving the strictness it comes from is loud rather than silent, and left the wording as
   the residue of that decline.
+- 2026-08-23: landed as `defaultcheck.one_line_hint`, appended to the value disagreement's own
+  fault. **This entry's statement of the condition was wrong, and the tree said so.** It reads "a
+  group whose spends share one file and one line is the whole of the condition"; replanting the
+  note it quotes reddens a group of **five** spends across **four** files, only two of which are
+  that line, so a whole-group test would have stayed silent on the very case the entry was written
+  from. The condition shipped is a **repeated** `path:line` within the group, which is what the
+  quoted fault actually shows. The care the entry asked for is kept: no `#` is looked for, the
+  sentence names the line the two spends share, and the note is offered as the likely reading
+  rather than as a finding, so `"${V:-a}/in:${V:-b}"` gets the same hint honestly. Proved on the
+  real tree by replanting that note and reading the fault back, then restored and re-run green.
