@@ -390,7 +390,15 @@ and the pure core decides what crosses the seam.
   rather than a gate. That suite names the edge as `BRAIN_EDGE`, and `scripts/crosscheck.py`
   holds it to the brain's own `DEFAULT_CAPTURE_MAX_EDGE`: the number is not this suite's to
   pick, and an edge retuned on the brain alone would leave the headroom reported here measured
-  for a capture nothing asks for (ADR-0029 legibility-prose addendum). The costliest display there is 2560x1440 rather than 4K, at 79% of the
+  for a capture nothing asks for (ADR-0029 legibility-prose addendum). The baseline it prints
+  beside that edge is not this suite's to pick either, and it needs no gate: `BODY_EDGE` is
+  `DEFAULT_MAX_EDGE` imported, so the compiler holds it. That is the line between the two, and it
+  is about reach rather than about importance: a value declared in a crate the suite already
+  imports needs no scan, and one declared in another language has nothing else. What is **not**
+  held there is the size that pair implies: the resampled `2048x1152` the maximised-window case
+  once asserted as digits is a consequence of the edge and of the fixture's own display, not a
+  second spelling of either, so the case computes it and no registry row could
+  (ADR-0029 second-spelling addendum). The costliest display there is 2560x1440 rather than 4K, at 79% of the
   ceiling under heavy grain, because a display nearer the requested edge averages less of the
   grain away. **`TooLarge` is unreachable at the seam's own ceiling**, which is why the
   ceiling rides the request: each rung halves the edge the last one reached, so the third is at

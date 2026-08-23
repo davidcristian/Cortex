@@ -20,6 +20,12 @@ pub use crate::os::screen_image::encode_png;
 /// bigger picture buys context legibility at the price of bytes only. 1600 keeps a little
 /// more text readable than 1280 while a worst-case incompressible screen still encodes
 /// inside [`MAX_CAPTURE_BYTES`] without the ladder firing.
+///
+/// `tests/capture_bytes.rs` prints every screen's cost at this edge beside the cost at the one the
+/// brain asks for, and takes it from here rather than spelling it again: the baseline is not that
+/// suite's to pick, and a copy retuned here alone would leave every row of that measurement
+/// comparing against a capture nothing takes any more. Its neighbour `BRAIN_EDGE` cannot be
+/// imported the same way, being the brain's, and is held by `scripts/crosscheck.py` instead.
 pub const DEFAULT_MAX_EDGE: u32 = 1600;
 
 /// The largest long edge a caller may ask for. A request above this is clamped, not refused:

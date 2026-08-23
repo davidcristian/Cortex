@@ -4095,3 +4095,123 @@ The record is the task file
 [AGENTS.md](../../AGENTS.md) and [modules/repo-gates.md](../modules/repo-gates.md), whose accounts
 of how many parts the registry has and how many mentions are counted were both stale by this
 change, and this addendum.
+
+## Addendum (2026-08-23): what the headroom suite spells, and what a derived literal is
+
+The legibility sort promoted `body/crates/core/tests/capture_bytes.rs` from a file nobody had read
+into a declaring site and left the four spellings around that constant unsorted, one of them an
+assertion rather than prose
+([R-388](../refinements/tasks/388-the-headroom-suite-spells-its-own-constant.md)). This is that
+sort, and the decision the assertion needed.
+
+### Three sentences, and the count was right this time
+
+The entry's count survives re-derivation, which is worth saying after three that did not: the file
+spells `2048` four times past the constant, in two docstring sentences, one comment inside the
+window case, and the assertion. **One claim in it is wrong**: it names "the file's own header
+table", and there is no table in that file. What it was reaching for is the halving prose, which is
+dealt with below.
+
+The three sentences are far sides on the reading the compose survey already settled for a declaring
+file's own prose. The docstring says the brain asks for a capture at this edge by default, says it
+is the reason a capture at this edge costs so much more than one at the body's, and the window
+case's comment says the whole desktop is resampled to it. All three are wrong **about this file**
+the day the edge is retuned, and none of the three is a measurement taken at the edge.
+
+That last distinction is what separates them from the control this registry has carried since the
+legibility sort: [modules/body-core.md](../modules/body-core.md) writes "whole costs 1978393 B
+resampled to 2048 px", which is a byte count read off one run and stays true of that run forever.
+The needle for the comment is `resampled to {value} px`, which is the control's own words, so it is
+scoped to the suite's path and the control was re-run to prove the contract still moves freely.
+
+### A derived literal is a consequence of a value, and the registry holds values
+
+The assertion was `assert_eq!((width, height), (2048, 1152))`. The width is the edge. The height is
+not: it is `2048 * 2160 / 3840`, the edge times the shape of the display the fixture builds. Two
+independent things decide it, and only one of them is the constant this entry is about.
+
+The pull to register it is real, because the failure is real: retune the edge and that assertion
+fails in a suite nothing runs, with two numbers nothing in the file explains, while every gate here
+reports green. But a needle over `(2048, 1152)` would tie the capture edge and the fixture's aspect
+ratio into one answer, so changing the display the fixture is built at would redden a gate about
+the capture edge. That is the false red the survey's own rule forbids, wearing the same digits.
+
+So the ruling is: **a derived literal is not a second spelling of a value, it is a consequence of
+one, and the registry cannot express a consequence.** The tool that checks arithmetic is the
+language. The case now computes the size from `SOURCE` and `BRAIN_EDGE` through the policy's own
+documented rule, which removes the coupling rather than holding it, and the maximised window's own
+rectangle is built from `SOURCE` too, since an expectation derived from a constant and an input
+spelled as digits would only move the inconsistency one line down.
+
+What that assertion gives up is an independently written floor. What it still catches is a capture
+that was not resampled at all, one resampled to the wrong bound, one that lost its aspect ratio,
+and the halving ladder firing, which are the failures the case exists for. The same reading answers
+the entry's closing question about the quarters and halves: the `1024` in that file's prose is the
+rung below this edge, a consequence exactly as the height is, and it stays out.
+
+### The sibling the entry did not ask about, and the registry's own refusal of it
+
+Reading the file for the halved numbers found the un-halved one instead. `BODY_EDGE` is declared
+beside `BRAIN_EDGE` and is the body's own `DEFAULT_MAX_EDGE` copied as a literal, every row of the
+measurement prints a cost at it, and nothing held the two together. The argument for holding them
+is the one that promoted its neighbour, word for word: it is not a number the suite may choose.
+
+It was registered as a two-site entry, and **the registry's own suite refused it**, which is the
+most useful thing that happened here. `test_every_registered_constant_spans_more_than_one_language`
+fails an entry whose places are all one suffix, on the ground that such an entry proves nothing
+about a seam. That invariant is right and it pointed at a better fix than the row: `capture_bytes.rs`
+already imports `MAX_CAPTURE_BYTES` from the very module that declares `DEFAULT_MAX_EDGE`, so the
+copy never needed a gate. It needed to stop being a copy. `BODY_EDGE` is now that constant imported,
+the compiler holds it, and the entry is gone.
+
+So the line between the two constants in that file is about **reach** rather than importance. Both
+are numbers the suite must follow rather than choose. One is declared in a crate the suite already
+imports and needs no scan; the other lives in a language no compiler here reaches and has nothing
+but this scan. Registering the first would have been a gate over a drift the compiler already
+refuses, which is the same mistake `test_config.py` was kept out of on the port sort the same day.
+
+The prose around `DEFAULT_MAX_EDGE` is still untied, and deliberately. `1600` is spelled 70 times
+across 29 files, and most of those are a fixture's own choice of edge, a Cargo lockfile, or a
+number that means something else. That is a survey the size of the two this month, not a clause in
+a close about another constant
+([R-399](../refinements/tasks/399-the-body-edge-is-two-sites-and-no-prose.md)).
+
+### Proved able to fail, three times over the crosscheck registry and twice over the Rust suite
+
+The counts are over the crosscheck registry as it stands after this change, 57 entries over 67
+sites and 166 mentions, and not over any test suite. This entry adds 3 of those mentions and no
+entry, the fourth coupling it found being closed by an import instead. The Rust rows are over
+`cargo test -p body-core --test capture_bytes -- --ignored`, four cases, and they are named
+separately because the two gates catch different things and the whole point of this entry is that
+one of them could not catch the assertion.
+
+| planted drift | what the gate said |
+|---|---|
+| the docstring's default-now sentence names another edge | 1 crosscheck fault naming the suite |
+| the docstring's cost sentence names another edge | 1 crosscheck fault naming the suite |
+| the window comment's resampled size names another edge | 1 crosscheck fault naming the suite |
+| `BRAIN_EDGE` retuned to 1800, assertion as a literal pair | cargo exits 101, `left: (1800, 1012)` against `right: (2048, 1152)`; crosscheck also 1 |
+| `BRAIN_EDGE` retuned to 1800, assertion as it now stands | cargo exits 0, the case reporting 1800x1012; crosscheck 1, as the other site did not move |
+
+The last two rows are the entry's whole argument, measured. A sixth planting is the one that is not
+in the table because it never reached a gate: `DEFAULT_MAX_EDGE` and `BODY_EDGE` were each moved
+alone while the two were a registered pair, and each reddened crosscheck with `sites are not
+identical`, which is what an import makes unnecessary rather than what it makes untrue. Three
+**controls** ran the other way and all three stayed green: the halved `1024` in the suite's prose,
+the `1600` prose whose survey is deferred, and the body contract's dated `resampled to 2048 px`
+byte reading, re-run because the needle added here spells the same words.
+
+The four cases pass on the restored tree, in 77 s unoptimized, with the maximised window at
+2048x1152 and every desktop inside the ceiling. One caution for whoever replays this: restoring a
+Rust file with a copy that preserves its modification time leaves cargo running the previously
+built binary, which reports a failure the source no longer contains.
+
+### Records
+
+The record is the task file
+[R-388](../refinements/tasks/388-the-headroom-suite-spells-its-own-constant.md), which closes,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from it,
+`body/crates/core/tests/capture_bytes.rs`, which carries the arithmetic and the import,
+`body/crates/core/src/os/screen_policy.rs` and
+[modules/body-core.md](../modules/body-core.md), whose accounts of what is tied were both short by
+this change, [modules/repo-gates.md](../modules/repo-gates.md), and this addendum.

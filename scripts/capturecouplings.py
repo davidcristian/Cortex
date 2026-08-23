@@ -106,6 +106,17 @@ CAPTURE_COUPLINGS: tuple[Constant, ...] = (
         # the edge it was taken at and true still after the default moves (ADR-0029 comment
         # addendum).
         #
+        # The headroom suite's own three sentences are held for the reason both declaring files'
+        # prose already is: it names this number as the one the brain asks for, as the reason its
+        # two measured edges cost differently, and as what a maximised window is resampled to, and
+        # all three are wrong about the file the day the edge is retuned. The pair the same suite
+        # once asserted as digits is deliberately NOT here. `1152` is not a second spelling of the
+        # edge, it is a consequence of the edge and of the fixture's aspect ratio, so a needle over
+        # `(2048, 1152)` would tie two independent couplings into one and would redden on a change
+        # to the display the fixture builds. That one is arithmetic in the suite instead, which
+        # removes the coupling rather than holding it, and the same reading keeps the halved `1024`
+        # in that file's prose out: a rung of the ladder below this edge is a consequence too.
+        #
         # The last needle is the vision runbook's second spelling on the row the first one holds,
         # where the Meaning cell calls this number the brain half of the legibility pair. It
         # carries four words of that sentence, which is what the second-spelling survey settled
@@ -116,6 +127,9 @@ CAPTURE_COUPLINGS: tuple[Constant, ...] = (
             Mention(BODY_COMPOSE, "${CORTEX_BODY_CAPTURE_MAX_EDGE:-{value}}"),
             Mention(BODY_COMPOSE, "defaults to {value} rather"),
             Mention(BODY_CONFIG, "defaults to **{value} rather"),
+            Mention(CAPTURE_BYTES, "a {value} px capture by default"),
+            Mention(CAPTURE_BYTES, "a {value} px capture costs"),
+            Mention(CAPTURE_BYTES, "resampled to {value} px"),
             Mention(VISION_RUNBOOK, "| `CORTEX_BODY_CAPTURE_MAX_EDGE` | brain | `{value}` |"),
             Mention(VISION_RUNBOOK, "CORTEX_BODY_CAPTURE_MAX_EDGE={value}"),
             Mention(VISION_RUNBOOK, "{value} px capture"),
