@@ -32,8 +32,13 @@ OutputGuardrailName = Literal["redact", "lookalike", "strict", "off"]
 DEFAULT_VISION_MODE: VisionMode = "auto"
 
 # The port BrainService listens on by default. Named rather than spelled inline because it is
-# not only ours: the compose stack publishes it and dials it in its own healthcheck, and the
-# host body's default endpoints carry it too, so `scripts/crosscheck.py` ties those to this.
+# not only ours: the compose stack publishes it and dials it in its own healthcheck, the image
+# exposes it, the host body's default endpoints carry it, four module contracts and two runbooks
+# quote it to a reader, the host sitting's prerequisites name it, and three live suites fall back
+# to it when no endpoint is exported. `scripts/crosscheck.py` holds all twenty three of those
+# places to this one number, which is the only thing that does. The unit test beside this file
+# pins it too and is deliberately not among them: it runs on every commit, so a retune that left
+# it behind fails in the suite that owns it rather than drifting.
 DEFAULT_SEAM_PORT = 50051
 
 

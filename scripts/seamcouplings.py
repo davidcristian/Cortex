@@ -23,14 +23,21 @@ from couplings import Constant, Mention, Relation, Site
 
 BASE_COMPOSE = "docker/docker-compose.yml"
 BODY_COMPOSE = "docker/docker-compose.body.yml"
+BRAIN_DOCKERFILE = "brain/Dockerfile"
 BODY_GATEWAY = "brain/packages/body_client/src/cortex_body_client/gateway.py"
 BODY_SERVER = "body/app/src-tauri/src/body_server.rs"
+RPC_CLIENT = "body/crates/rpc/src/client.rs"
+RPC_LIVE = "body/crates/rpc/tests/live.rs"
 GATEWAY_LIVE = "brain/packages/body_client/tests/test_gateway_live.py"
+SCHEDULE_LIVE = "brain/packages/orchestrator/tests/test_schedule_live_seam.py"
+TURN_COST_LIVE = "brain/packages/orchestrator/tests/test_turn_cost_live.py"
+OVERLAY_RUNBOOK = "docs/runbooks/body-overlay.md"
 SCHEDULING_RUNBOOK = "docs/runbooks/scheduling.md"
 VOLUME_RUNBOOK = "docs/runbooks/body-volume.md"
 WSL_RUNBOOK = "docs/runbooks/local-dev-wsl.md"
 BODY_APP_DOC = "docs/modules/body-app.md"
 BODY_CLIENT_DOC = "docs/modules/brain-body-client.md"
+BODY_RPC_DOC = "docs/modules/body-rpc.md"
 ORCHESTRATOR_DOC = "docs/modules/brain-orchestrator.md"
 HOST_INDEX = "docs/host/index.md"
 HOST_BRINGUP = "docs/host/tasks/001-bring-up-and-streamed-turn.md"
@@ -154,9 +161,13 @@ SEAM_COUPLINGS: tuple[Constant, ...] = (
     Constant(
         label="the brain's seam port",
         why=(
-            "the compose stack publishes this port and dials it in its own healthcheck, and the "
-            "host body's default endpoints name it too, so a change to the server default alone "
-            "leaves every one of them pointed at a port nothing listens on (ADR-0003/0016)"
+            "the compose stack publishes this port and dials it in its own healthcheck, the "
+            "image declares it, the host body's default endpoints name it, two runbooks and "
+            "four module contracts quote it to a reader as the address the brain answers on, "
+            "the host sitting's prerequisites tell an operator to expect it, and three live "
+            "suites fall back to it when no endpoint is exported, so a change to the server "
+            "default alone leaves every one of them pointed at a port nothing listens on "
+            "(ADR-0003/0016)"
         ),
         sites=(
             Site(
@@ -166,11 +177,44 @@ SEAM_COUPLINGS: tuple[Constant, ...] = (
         # The publish is `host:container` and it is the container half that this value names, so
         # its template spells both: `127.0.0.1:{value}` alone was satisfied by the host half and
         # left the half that has to match the server's own default free to drift.
+        #
+        # The rest is the body port's sort with the trees swapped, on the same tense test: a
+        # sentence that becomes WRONG when the port moves is a far side, and one that becomes
+        # HISTORY is not. The shapes carry it, so no needle pins the phrasing of a sentence: the
+        # stated `CORTEX_BRAIN_ADDR` default, the export a reader copies, the endpoint a snippet
+        # dials, an env table's own cell, and a declaring or falling-back file's own prose. Two
+        # kinds are deliberately out. The WSL runbook's `port=50051` is one line of captured
+        # server output inside a fence, shown to explain how a log renders its fields, which is a
+        # dated reading and true still after the default moves. And `test_config.py` asserts this
+        # very default three times, which needs no gate: it runs on every commit, so a retune
+        # that left it behind fails loudly in the suite that owns it. That is the line between
+        # the suites below and that one, and it is the same line `capture_bytes.rs` sits on: a
+        # suite that runs on every commit holds itself, and one that does not (`#[ignore]`d
+        # there, `integration`-marked here) drifts in silence until somebody measures.
         mentions=(
             Mention(BASE_COMPOSE, '"127.0.0.1:{value}:{value}"'),
             Mention(BASE_COMPOSE, "insecure_channel('127.0.0.1:{value}')"),
+            Mention(BRAIN_DOCKERFILE, "EXPOSE {value}"),
+            Mention(BODY_COMPOSE, "({value} is the brain's BrainService)"),
             Mention("body/app/src-tauri/src/seam.rs", '"http://127.0.0.1:{value}"'),
             Mention("body/app/src-tauri/src/converse.rs", '"http://127.0.0.1:{value}"'),
+            Mention(BODY_SERVER, "`BrainService` being {value}"),
+            Mention(RPC_CLIENT, "`http://127.0.0.1:{value}`"),
+            Mention(RPC_LIVE, "http://127.0.0.1:{value}", occurrences=2),
+            Mention(SCHEDULE_LIVE, 'os.environ.get("CORTEX_SEAM_ENDPOINT", "127.0.0.1:{value}")'),
+            Mention(TURN_COST_LIVE, 'os.environ.get("CORTEX_SEAM_ENDPOINT", "127.0.0.1:{value}")'),
+            Mention(HOST_INDEX, "`CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:{value}`)"),
+            Mention(BODY_APP_DOC, "`CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:{value}`)"),
+            Mention(BODY_RPC_DOC, "`http://127.0.0.1:{value}`", occurrences=2),
+            Mention(BODY_RPC_DOC, "defaults `127.0.0.1`/`{value}`"),
+            Mention(ORCHESTRATOR_DOC, "DEFAULT_SEAM_PORT` ({value},"),
+            Mention(ORCHESTRATOR_DOC, "`CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:{value}`)"),
+            Mention(OVERLAY_RUNBOOK, "`CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:{value}`)"),
+            Mention(OVERLAY_RUNBOOK, 'CORTEX_BRAIN_ADDR = "http://127.0.0.1:{value}"'),
+            Mention(WSL_RUNBOOK, "| `CORTEX_SEAM_PORT` | `{value}` |"),
+            Mention(WSL_RUNBOOK, "| `CORTEX_BRAIN_ADDR` | `http://127.0.0.1:{value}` |"),
+            Mention(WSL_RUNBOOK, 'insecure_channel("127.0.0.1:{value}")'),
+            Mention(WSL_RUNBOOK, "insecure_channel('127.0.0.1:{value}')"),
         ),
     ),
     Constant(

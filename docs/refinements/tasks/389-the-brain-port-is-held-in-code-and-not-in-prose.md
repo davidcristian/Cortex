@@ -1,6 +1,6 @@
 # The brain's seam port is tied to four places in code and to none of the nine documents stating it
 
-**Status:** open, actionable
+**Status:** landed 2026-08-23
 **Area:** repo-gates
 **Origin:** [ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)
 
@@ -40,3 +40,24 @@ before either becomes a row.
 - 2026-08-23: opened by the close of
   [R-383](383-the-body-port-past-the-six-that-were-registered.md), which found the brain's port
   held in four places of code and in no prose while sorting the body's port out of thirteen files.
+- 2026-08-23: landed as nineteen more mentions on the existing entry, taking it from four far sides
+  to twenty three over twenty six spellings in eighteen files. **The entry was wrong about the kind
+  of gap this was.** It counts nine documents and names six; it counts four module contracts and
+  names three; and its title says the port is loose in prose, when eight of the loose spellings are
+  code the entry never reaches: `brain/Dockerfile`'s `EXPOSE`, `body/crates/rpc/src/client.rs`'s
+  dial example, `body/crates/rpc/tests/live.rs` twice, `body_server.rs`'s doc comment,
+  `docker/docker-compose.body.yml`'s comment, and the two `integration`-marked live seam suites in
+  the brain. Counted off the tree the port is spelled 32 times in 19 files outside the decision
+  records, the backlog and this gate's own suite. **The judgement this settles is when a suite
+  holds itself**: `test_config.py` asserts this default three times and is deliberately out,
+  because it runs on every commit and a retune that left it behind fails in the suite that owns the
+  constant, while the two live suites are in because `integration` keeps them out of CI and their
+  drift surfaces weeks later as a server that is not answering. That is a fact about the file
+  rather than a reading of the test, and it is the same line `capture_bytes.rs` sits on. The WSL
+  runbook's `port=50051` stays out as a paste of captured output. Twenty three planted drifts each
+  exited 1 and each restoration returned the gate to green, with three controls staying green;
+  tabled in the ADR-0023 seam-port-prose addendum. Two residues filed: the loopback address that
+  rides inside a dozen of these needles as shape
+  ([R-396](396-the-seam-host-rides-inside-the-ports-needles.md)), and the fact that three sorts in
+  a row have corrected their own count upward by hand because nothing reads what the registry does
+  not name ([R-397](397-nothing-counts-what-the-registry-does-not-name.md)).

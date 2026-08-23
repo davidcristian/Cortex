@@ -795,3 +795,127 @@ The record is the task file
 `body/app/src-tauri/src/body_server.rs` and
 [modules/body-app.md](../modules/body-app.md), whose accounts of what is tied were both stale by
 this change, [modules/repo-gates.md](../modules/repo-gates.md), and this addendum.
+
+## Addendum (2026-08-23): the brain's own port, which was loose in code as well as in prose
+
+The addendum above closed the body's bind port and recorded that the port it had been modelled on
+was now the looser of the two, held to four places of code and to no prose at all
+([R-389](../refinements/tasks/389-the-brain-port-is-held-in-code-and-not-in-prose.md)). This is
+that sort, finished. The entry goes from four far sides to twenty three, over twenty six spellings
+in eighteen files.
+
+### The entry was wrong about what kind of gap this was
+
+It says nine documents state the port, and names six. It says four module contracts restate it,
+and names three. Counted off the tree, the port is spelled **32 times in 19 files** outside the
+decision records, the backlog and this gate's own suite, and **six** documents carry it, fourteen
+times between them.
+
+The load-bearing error is not arithmetic. The entry is titled for a port held in code and loose in
+prose, and that is not what the tree looks like: **eight of the loose spellings are code**, in
+files the entry never reaches. `brain/Dockerfile` declares `EXPOSE 50051`, so an image could go on
+advertising a port the server had stopped binding. `body/crates/rpc/src/client.rs` carries the
+endpoint as its dial example. `body/crates/rpc/tests/live.rs` states the default in its module doc
+and falls back to it in `unwrap_or_else`, twice in one file. `body_server.rs` names this port in
+the doc comment that explains why the body's own is different, and the body override's comment
+does the same beside its own endpoint. And two `integration`-marked suites in the brain itself,
+`test_schedule_live_seam.py` and `test_turn_cost_live.py`, fall back to it when no endpoint is
+exported. A survey that had asked which documents were loose would have registered thirteen
+spellings and left those eight, which is how an entry's own framing decides what a reader finds.
+
+### A suite that runs on every commit holds itself
+
+The one judgement here, and it settles a question the two earlier sorts left implicit. Three
+suites spell this port, and they do not all sort the same way.
+
+`brain/packages/orchestrator/tests/test_config.py` asserts this very default three times, in a
+test named for it. It is **out**, and not because a test is a fixture: it is out because it runs
+on every commit, so a retune that left it behind fails in the suite that owns the constant, and a
+second gate over that drift would report a fault that cannot be silent. The two live seam suites
+are **in** for the mirror of that reason. They are `integration`-marked, so they never run in CI
+and run on a host only when somebody chooses to measure; a retune leaves them dialling a port
+nothing listens on, and the failure surfaces weeks later worded as a server that is not answering.
+
+That is the same line `capture_bytes.rs` was promoted to a site across, `#[ignore]`d rather than
+`integration`-marked but unrun for the same reason, and it is a sharper rule than the one the body
+port's sort wrote down. That one said a test constant is a far side when the test would be wrong
+without it and a fixture when the test is merely specific, which is true and still needs a reader
+to judge. **When the suite runs is a fact about the file.** A suite CI runs holds itself; a suite
+CI does not run is held here or nowhere.
+
+### The shapes, and the one paste that stays out
+
+No needle pins a word of an explanation. Every one of the twenty three is built from something the
+port is written inside: the stated `CORTEX_BRAIN_ADDR` default, an export a reader copies, the
+endpoint a copyable snippet dials, an env table's own cell, `EXPOSE`, and a declaring or
+falling-back file's own prose.
+
+`docs/runbooks/local-dev-wsl.md` writes `port=50051` inside a fenced block of captured server
+output, shown to explain that a log line carries its fields in name order. None of the shapes
+reaches it, which is right: it is a paste of what one run printed, it stays true of that run after
+the default moves, and it is the same exclusion the volume runbook's fake `BodyService` address
+earned above.
+
+### Proved able to fail, twenty three times, over the crosscheck registry
+
+Each place was planted with a real disagreement one at a time on the real tree, the gate run, the
+file restored from a copy taken before anything was touched, and the gate re-run green. The counts
+are over the crosscheck registry as it stands after this change, 57 entries over 67 sites and 159
+mentions, and not over any test suite: a suite's numbers say nothing about the collection this
+table is about. This entry is 1 of those entries, 1 of those sites and 23 of those mentions.
+
+| planted drift | what the gate said |
+|---|---|
+| the base compose publish moves | 1 fault naming the compose file |
+| the healthcheck dial inside it moves | 1 fault naming the compose file |
+| the image exposes another port | 1 fault naming the Dockerfile |
+| the body override's comment names another | 1 fault naming the override |
+| the Tauri seam module's endpoint moves | 1 fault naming the module |
+| the Tauri converse module's endpoint moves | 1 fault naming the module |
+| the body server's doc comment moves | 1 fault naming the module |
+| the tonic client's dial example moves | 1 fault naming the client |
+| the Rust live suite's stated default moves | 1 fault: found 1 of the 2 pinned |
+| the schedule live suite's fallback moves | 1 fault naming the suite |
+| the turn-cost live suite's fallback moves | 1 fault naming the suite |
+| the host index's prerequisite moves | 1 fault naming the index |
+| the body app contract's config list moves | 1 fault naming the contract |
+| the body rpc contract's dial example moves | 1 fault: found 1 of the 2 pinned |
+| the body rpc contract's paired defaults move | 1 fault naming the contract |
+| the orchestrator contract's field default moves | 1 fault naming the contract |
+| the orchestrator contract's endpoint moves | 1 fault naming the contract |
+| the overlay runbook's prerequisite moves | 1 fault naming the runbook |
+| the overlay runbook's PowerShell export moves | 1 fault naming the runbook |
+| the WSL table's port row moves | 1 fault naming the runbook |
+| the WSL table's endpoint row moves | 1 fault naming the runbook |
+| the WSL runbook's async one-liner moves | 1 fault naming the runbook |
+| the WSL runbook's health one-liner moves | 1 fault naming the runbook |
+
+All twenty three exited 1 and all twenty three restorations returned the gate to green. Three
+**controls** ran the other way and all three stayed green: the WSL runbook's captured log line
+rewritten to another port, `test_config.py` rewritten to another port throughout, and this gate's
+own contract rewritten so the substring defect it records reads `6006` inside `60061`. A sort that
+cannot be shown to exclude anything is a sort nobody made.
+
+### What this opened
+
+Two things, and the second is larger than the entry that found it.
+
+`CORTEX_SEAM_HOST` is spelled beside this port in a dozen of the templates above, and it is tied
+nowhere. Its default is a pydantic field rather than a module constant, so there is no declaration
+this scan can read, and the loopback address rides along inside the port's own needles as shape
+([R-396](../refinements/tasks/396-the-seam-host-rides-inside-the-ports-needles.md)).
+
+And three sorts in a row have now corrected their own count upward, by hand, and the corrections
+found whole files. The registry can say that every place it names still agrees; nothing says that
+it names every place. That question is answerable off the same data the scan already holds
+([R-397](../refinements/tasks/397-nothing-counts-what-the-registry-does-not-name.md)).
+
+### Records
+
+The record is the task file
+[R-389](../refinements/tasks/389-the-brain-port-is-held-in-code-and-not-in-prose.md), which closes,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from it,
+`brain/packages/orchestrator/src/cortex_orchestrator/config.py` and
+[modules/brain-orchestrator.md](../modules/brain-orchestrator.md), whose accounts of what is tied
+were both stale by this change, [modules/repo-gates.md](../modules/repo-gates.md), whose count of
+counted mentions was stale by five before this change touched it, and this addendum.

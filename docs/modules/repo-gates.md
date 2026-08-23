@@ -140,7 +140,7 @@ that last question to have an answer.
   which is what a half applied rename looks like. `occurrences` pins an EXACT number of bounded
   matches rather than a floor, because a floor cannot notice the far side has grown past it and so
   widens itself by however much the tree drifted; a count below 1 is refused, zero being a mention
-  asking the value to be absent. It is opt in, and the survey that set it is in the ADR: nine
+  asking the value to be absent. It is opt in, and the survey that set it is in the ADR: sixteen
   registered mentions are counted, `Message.tsx` at 2 (the `className` and the
   `aria-label` of one chip), `docker-compose.subagents.yml`'s `mem_limit` pair at 2 (memswap equal
   to memory is what disables the container's swap, so one moving without the other re-enables it in
@@ -154,7 +154,14 @@ that last question to have an answer.
   rename that moved only the first leaves the ACL somewhere dovecot never reads and the mailbox
   opens like any other), and the probe account's mail home in that same script at 2 (the tree is
   built under it and chowned by it, and `set -eu` stops the script when one of the two moves
-  alone, which is loud and arrives only when somebody next measures), while the bare
+  alone, which is loud and arrives only when somebody next measures), and seven the prose sorts
+  added, every one of them a file stating one shipped value twice where losing one leaves it
+  naming two different answers at once: the volume runbook's endpoint pair and its export pair,
+  the body app contract's two stated binds, the GPU runbook's two recipe lines, the vision
+  runbook's three token-budget claims, and, for the brain's own port, the body RPC contract's two
+  stated endpoints and the Rust live suite's stated default beside the fallback it uses. Those
+  last two are the shape a presence check reads as green while half the file is wrong, since each
+  file spells the number in two places for two different readers. Meanwhile the bare
   `[{value}` mention stays a presence check because its three rules are the sum of two unrelated
   features and `var(--ease)` stays one because 52 transitions across unrelated features ride that
   curve. Every mention that occurs once is left unpinned, a count of one saying nothing a presence
@@ -549,6 +556,20 @@ that last question to have an answer.
   address alone and so is reached by none of them, which is right, a dated reading being history.
   Three wiring tests are out for the other reason, each setting `CORTEX_BODY_ENDPOINT` to a string
   and asserting the composition root read it back, which any port would pass.
+- **The brain's own seam port went the same way** (ADR-0023 seam-port-prose addendum), which took
+  the entry the body's port had been modelled on from four far sides to twenty three, over twenty
+  six spellings in eighteen files. The gap was not the one the backlog recorded as prose only:
+  eight of those spellings are code. `brain/Dockerfile`'s `EXPOSE`, the tonic client's dial
+  example, the Rust live suite's stated default beside the fallback it uses, the body server's doc
+  comment naming whose port this is, the body override's comment beside it, and two
+  `integration`-marked live suites were all loose. Two kinds stay out, and each names a rule. The
+  WSL runbook's `port=50051` is a captured line of server output shown to explain how a log
+  renders its fields, so it is a dated reading like the volume runbook's address. And
+  `test_config.py` asserts this very default three times while needing no gate at all, which is
+  where the line falls between a suite that holds itself and one this scan has to hold: a unit
+  test fails the moment the constant moves without it, where an `#[ignore]`d measurement or an
+  `integration`-marked live test drifts in silence until somebody next measures. That is the same
+  line `capture_bytes.rs` sits on, promoted to a site for exactly this reason.
 - **A host file is a live instruction, not a record**, which is the reading both sorts needed.
   `docs/host/` holds work that is built and unrun, its prerequisites exist so a sitting does not die
   on setup, and a completed item's file shrinks to a heading, its status and a pointer, so the
