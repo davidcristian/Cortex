@@ -113,7 +113,11 @@ DEFAULT_SUBAGENT_MAX_TOKENS = 1024
 # spent it on one. It also sits strictly between the two bounds either side of it, the pool's 600 s
 # stall ceiling and its 3600 s admission wait, so the three are ordered by the scope of what they
 # bound: one silent gap, then one whole run, then the queue for a run. ``SubagentsConfig`` refuses
-# to start unless the first of those orderings holds for the deployment's own numbers.
+# to start unless both of those orderings hold for the deployment's own numbers, the second of
+# them skipped at a wait of zero, which is the policy of never queueing at all. Those two
+# refusals are what hold this ordering, here and in the repo's own numbers: every bare
+# construction of that class reads these three declarations, so a retune inverting either
+# relation fails the orchestrator suite on the commit that types it.
 DEFAULT_SUBAGENT_RUN_TIMEOUT_S = 2400.0
 
 

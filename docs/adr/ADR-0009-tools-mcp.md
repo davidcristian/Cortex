@@ -2082,3 +2082,92 @@ so the grep this addendum restores still misses the lines the ticker writes abou
 identities are copied by hand across six hops with nothing structural tying them, which is what
 makes a fifth one's arrival the moment to re-open the bundle:
 [R-395](../refinements/tasks/395-a-work-identity-is-copied-by-hand-at-every-hop.md).
+
+## Held-ordering addendum (2026-08-23): where an ordering between bounds is kept, and why not in the constant scan
+
+The queue addendum above ordered the delegated run's deadline against the wait a queued peer will
+spend, beside the older validator ordering it against the stall ceiling. Both are `SubagentsConfig`
+validators. Within hours a backlog entry was filed asking for the same three bounds to be ordered
+again in `scripts/crosscheck.py`, on the reading that the ordering the core module's comment states
+was "held by nothing". This addendum records that the entry is declined, what its premise got
+wrong, and the criterion the decline leaves behind.
+
+### What the tree actually does
+
+Three declarations, three modules, all decimals:
+`DEFAULT_STALL_TIMEOUT_S = 600.0` in `config_subagents.py`,
+`DEFAULT_SUBAGENT_RUN_TIMEOUT_S = 2400.0` in `cortex_core/subagents.py`, and
+`DEFAULT_ADMISSION_WAIT_S = 3600.0` in `cortex_core/scheduler.py`. `SubagentsConfig` imports all
+three as its field defaults and carries a validator for each relation between them:
+`_the_run_deadline_must_outlast_the_stall_ceiling` and
+`_the_run_deadline_must_fit_inside_the_queue_for_it`. Both run on every construction of that class,
+whatever the backend, so the class cannot be built out of a misordered trio.
+
+That is the load-bearing consequence and it is what the entry missed: because those three
+declarations are the class's own defaults, **a bare construction is a reading of the repo's shipped
+numbers**, and the orchestrator suite makes many. Retuning any one of the three into an inversion
+reddens on the commit that types it, with no deployment and no capability enabled. The zero wait is
+carved out inside the second validator, meaning never queue, so nothing waits on a running spawn
+and there is no relation to keep.
+
+### Why the constant scan is the wrong home for it
+
+The registry ties one value spelled in several places. An ordering is a relation between three
+different values, and expressing it there would cost three concessions at once:
+
+- `Relation.ORDERED` compares integers. All three bounds are decimals, and `values.py` reduces a
+  decimal to the digits it is written with rather than to a number, deliberately, so that a needle
+  spelled `5` does not go looking inside `5.0`. Teaching the ordering to compare decimals means
+  parsing that text back into arithmetic in the one module that refuses to.
+- `Relation.ORDERED` is non-decreasing, and every relation between these bounds is strict. The
+  proposed entry would have gone green on all three set equal, which is precisely what both
+  validators refuse.
+- The registry suite requires an entry to span more than one language, and three Python
+  declarations do not.
+
+Three concessions to buy a weaker copy of a check that already exists is a bad trade, and a second
+place stating a relation is a second place to let it go stale.
+
+### The criterion this leaves
+
+**An ordering between two numbers one settings class reads belongs in that class's validators. An
+ordering between numbers no single class reads has nowhere else to go and is the constant scan's
+business.** That is why the tool call bound under the run bound stays open as
+[R-367](../refinements/tasks/367-the-shipped-ordering-of-two-bounds-is-ungated.md): its check is
+`check_tool_call_deadline`, not a validator, and it runs only when a deployment enables both tools
+and delegation, which CI never does. The subagent trio has the opposite shape, so it needs nothing.
+
+### Measured, on `brain/packages/orchestrator/tests/test_config.py` (104 cases)
+
+| Mutation | Reddens |
+| --- | --- |
+| the run deadline retuned to 4000.0, above the shipped wait | 11 |
+| the run deadline retuned to 500.0, under the shipped ceiling | 10 |
+| the stall ceiling retuned to 3000.0, above the shipped deadline | 13 |
+| the admission wait retuned to 2000.0, under the shipped deadline | 10 |
+
+Every row is a shipped default retuned into an inversion of a relation the core module's comment
+states, and every row is red without a deployment. The first row reddens 36 cases over the whole
+brain workspace suite rather than 11. Restoring each file from a copy returns the suite to 104
+passed, and the converse holds: with the three declarations as they ship, nothing here is red.
+
+The registry alternative was measured too, in the negative. `relation_fault` under
+`Relation.ORDERED` answers two decimal readings with "an ordering compares integers, and a site
+here declares something else", and answers two equal integer readings with `None`, which is the
+non-strictness above.
+
+### Consequences
+
+- The ordering the core module states is enforced, and the sentence saying so is now true. It had
+  claimed only the first of the two orderings was refused at boot, which stopped being the case
+  when the queue addendum landed and did not touch the sibling module that names it.
+- The backlog keeps one entry about the constant scan's blindness to a decimal and to a strict
+  relation instead of two, and that entry now records both halves.
+- A future ordering has a criterion to be judged against rather than a precedent to copy.
+
+### Deferred by this addendum
+
+Nothing new. The one relation these validators still cannot make true along the CPU re-run path is
+already
+[R-392](../refinements/tasks/392-a-re-runs-second-deadline-outlasts-the-queue.md), unchanged by
+this.
