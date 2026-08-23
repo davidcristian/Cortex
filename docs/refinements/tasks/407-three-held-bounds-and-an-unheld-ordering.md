@@ -1,6 +1,6 @@
 # Three bounds are held as three values and the ordering they are stated in is held by nothing
 
-**Status:** open, actionable
+**Status:** declined 2026-08-23
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -36,3 +36,20 @@ decimals, so either the relation grows a decimal comparison or this shape is not
 registry suite requires an entry to span more than one language, which an ordering over three
 Python declarations does not, so that rule has to be argued about or the entry has to reach a far
 side that is not Python.
+
+## Trail
+
+- 2026-08-23: **Declined.** The premise is false on two counts and the proposed remedy is wrong on
+  a third, all re-derived from the tree. The second ordering is not caught nowhere: the close that
+  landed it three hours before this file was written added
+  `_the_run_deadline_must_fit_inside_the_queue_for_it` beside the older ceiling validator, so
+  `SubagentsConfig` refuses both relations, and every bare construction of that class reads all
+  three declarations, which makes a retune inverting either one fail the orchestrator suite on the
+  commit that types it. The zero-wait note this file read as an absence is the carve-out inside
+  that validator. And `Relation.ORDERED` is non-decreasing, so the fourth entry proposed here
+  would have gone green on the three bounds set equal, which is the misordering both validators
+  exist to refuse. What is left of the observation, that the registry cannot express an ordering
+  over decimals and cannot express a strict one at all, is
+  [R-367](367-the-shipped-ordering-of-two-bounds-is-ungated.md), which records both halves and
+  covers a pair no settings class validates. The stale sentence this file quoted is corrected in
+  `cortex_core/subagents.py`. Recorded in the ADR-0009 held-ordering addendum. Opens nothing.

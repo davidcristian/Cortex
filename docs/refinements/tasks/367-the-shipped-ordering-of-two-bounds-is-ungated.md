@@ -52,3 +52,10 @@ ends up the wrong way round.
   [363](363-the-call-bound-and-the-run-bound-are-unordered.md), which ordered the pair for a
   deployment and left the repo's own copy of it ungated. Recorded in the ADR-0009 ordering
   addendum.
+- 2026-08-23: Widened by the decline of
+  [407](407-three-held-bounds-and-an-unheld-ordering.md), which proposed the same widening for the
+  three subagent bounds and was refused because a settings class already refuses both of those
+  orderings for any deployment and for the repo's own numbers. This pair is the one that stays,
+  its check being no settings class's validator. The decline also measured the non-strictness
+  above: `relation_fault` returns None on three equal readings, so the two halves here are needed
+  together rather than either alone.
