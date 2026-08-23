@@ -55,6 +55,12 @@ ADMISSION_WAIT_MSG = (
 # equality on one that it was first written as. Anything under it would refuse work that was going
 # to run, which is worse than the unbounded wait it replaces: it turns a slow success into a
 # failure.
+#
+# Four places outside this module state the number rather than derive it: the delegation runbook's
+# env paragraph, the two module contracts, and the sibling module's ordering above the deadline it
+# declares. `scripts/crosscheck.py` holds all four to this declaration. The arithmetic those
+# same paragraphs carry (twice 1800 s, four times 900 s) is deliberately not held: it is a
+# consequence of this bound and of a measurement, not a second spelling of either.
 DEFAULT_ADMISSION_WAIT_S = 3600.0
 
 

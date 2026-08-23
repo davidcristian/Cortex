@@ -603,6 +603,17 @@ that last question to have an answer.
   a rung of the ladder below the edge being a consequence too. Proved both ways on the real tree:
   retuned to 1800, the literal pair fails the case with `left: (1800, 1012)` against
   `right: (2048, 1152)` and the derived one passes.
+- **The admission wait was sorted on those same two rulings** (ADR-0029 admission-wait addendum),
+  which took an entry that did not exist to one site and four mentions. The entry's own account of
+  the tree named two documents and the tree carries five far sides, one of them a code comment in
+  the module that declares the deadline sitting under this bound. Held: the delegation runbook's
+  env paragraph, the two module contracts (one restating the field, one the constant), and that
+  ordering comment. Out on the derived-literal ruling: the four sentences saying the bound is twice
+  1800 s and four times 900 s, which are consequences of the wait and of a measured batch, so a
+  needle over one would redden when the measurement moved. Out on the rule that keeps decision
+  records out: [index.md](../index.md)'s catalogue entry, which says what a dated addendum decided
+  and stays true after the default moves. Out on the suite rule: the two unit tests asserting the
+  default, which run on every commit.
 - **And a copy the compiler can reach is an import, not a row**, which the registry's own suite
   enforces: `test_every_registered_constant_spans_more_than_one_language` refuses an entry whose
   places are all one suffix, on the ground that it proves nothing about a seam. The same headroom

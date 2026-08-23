@@ -4216,3 +4216,84 @@ The record is the task file
 `body/crates/core/src/os/screen_policy.rs` and
 [modules/body-core.md](../modules/body-core.md), whose accounts of what is tied were both short by
 this change, [modules/repo-gates.md](../modules/repo-gates.md), and this addendum.
+
+## Addendum (2026-08-23): the admission wait, and the arithmetic that stays out
+
+The queue sort put the admission wait beside the delegated run's deadline in one boot-time
+comparison and sent a reader to a registry that held the one and not the other
+([R-393](../refinements/tasks/393-the-admission-waits-default-is-tied-to-nothing.md)). This is the
+missing entry, written on the rulings the three sorts before it settled.
+
+### The count was low again, and one of the misses is code
+
+The entry names two documents. Counted off the tree, `DEFAULT_ADMISSION_WAIT_S` is stated in
+**five** places outside the decision records, the backlog and two unit suites, and one of them is
+not a document at all: `brain/packages/core/src/cortex_core/subagents.py` writes "the pool's 600 s
+stall ceiling and its 3600 s admission wait, so the three are ordered by the scope of what they
+bound", in the comment above the run deadline that has to sit between them. That is the same shape
+the seam port's sort kept finding, an entry framed as a prose gap whose misses turn out to include
+code, and it is the third entry in a row whose own count of the tree was low.
+
+The two the entry did name are right: the delegation runbook's env paragraph and the orchestrator
+contract's restatement of the field. The two it missed besides the comment are
+[modules/brain-core.md](../modules/brain-core.md), which states the constant by name, and
+[index.md](../index.md), which is dealt with below.
+
+### The sort, which needed no new rule
+
+| kind of sentence | example | side |
+|---|---|---|
+| a runbook's stated env default | "`CORTEX_SUBAGENTS_ADMISSION_WAIT_S` (default 3600 s)" | far side |
+| a module contract restating the field | "`admission_wait_s: float = 3600.0`" | far side |
+| a module contract stating the constant | "`DEFAULT_ADMISSION_WAIT_S` is 3600.0" | far side |
+| a sibling module's ordering comment | "its 3600 s admission wait, so the three are ordered" | far side |
+| the arithmetic under the value | "twice the 1800 s"; "four times the 900 s" | derived |
+| the ADR catalogue's own summary | "Its 2026-08-09 addendum bounds ... 3600 s" | history |
+| a unit suite asserting the default | `assert config.admission_wait_s == 3600.0` | holds itself |
+
+The middle row is the entry's own open question, and the headroom sort answered it before this one
+was picked up: 1800 s and 900 s are what a measured batch waits, and 3600 s is twice one of them.
+A needle over either would tie this bound to a measurement, so re-measuring the batch would redden
+a gate about a default that never moved. **The arithmetic under a value is a consequence of it and
+of something else, and the registry holds values.** The failure the entry worried about, the pair
+moving without the sentence, is real and stays uncovered here for the reason the resampled size
+does: the tool that checks arithmetic is not this one.
+
+[index.md](../index.md) is the first time this registry has had to sort the ADR catalogue, and it
+sorts with the ADRs it indexes. Its sentence is "Its 2026-08-09 addendum bounds how long a spawn
+may queue for room (`CORTEX_SUBAGENTS_ADMISSION_WAIT_S`, 3600 s, ...)", whose subject is a dated
+addendum and whose predicate is what that addendum decided. Retune the default and the sentence is
+still true of the addendum. A précis of a decision record is a decision record.
+
+### Proved able to fail, five times, over the crosscheck registry
+
+Each place was planted with a real disagreement one at a time on the real tree, the gate run, the
+file restored from a copy taken beforehand, and the gate re-run green. The counts are over the
+crosscheck registry as it stands after this change, 60 entries over 70 sites and 173 mentions, and
+not over any test suite: a suite's numbers say nothing about the collection this table is about.
+This entry is 1 of those entries, 1 of those sites and 4 of those mentions.
+
+| planted drift | what the gate said |
+|---|---|
+| the declaration alone is retuned to 1800.0 | 4 faults, one per mention, each naming its own file |
+| the delegation runbook states another wait | 1 fault naming the runbook |
+| the sibling module's ordering names another | 1 fault naming the core module |
+| the orchestrator contract's field default moves | 1 fault naming the contract |
+| the core contract's stated constant moves | 1 fault naming the contract |
+
+All five exited 1 and all five restorations returned the gate to green. Four **controls** ran the
+other way and all four stayed green: the runbook's derived 1800 s wait moved to 2000 s, the ADR
+catalogue's dated summary moved, the orchestrator unit suite's assertion moved, and
+`DEFAULT_SPILL_DWELL_S`, which spells 3600 s two hundred lines above the admission wait in the same
+contract and is a different constant that happens to share the digits. That last control is the
+one worth keeping: it is the reason a survey over digits cannot be trusted, and it is answered by
+name rather than by number.
+
+### Records
+
+The record is the task file
+[R-393](../refinements/tasks/393-the-admission-waits-default-is-tied-to-nothing.md), which closes,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from it,
+`scripts/subagentcouplings.py`, which carries the row,
+`brain/packages/core/src/cortex_core/scheduler.py`, whose declaration now says what holds it and
+what deliberately does not, [modules/repo-gates.md](../modules/repo-gates.md), and this addendum.

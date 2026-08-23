@@ -18,8 +18,10 @@ from couplings import Constant, Mention, Site, Spelling
 SUBAGENTS_COMPOSE = "docker/docker-compose.subagents.yml"
 SUBAGENTS_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config_subagents.py"
 SUBAGENTS_CORE = "brain/packages/core/src/cortex_core/subagents.py"
+SUBAGENTS_SCHEDULER = "brain/packages/core/src/cortex_core/scheduler.py"
 SUBAGENTS_RUNBOOK = "docs/runbooks/subagents-cpu.md"
 TOOLS_RUNBOOK = "docs/runbooks/tools-mcp.md"
+CORE_DOC = "docs/modules/brain-core.md"
 ORCHESTRATOR_DOC = "docs/modules/brain-orchestrator.md"
 
 SUBAGENT_COUPLINGS: tuple[Constant, ...] = (
@@ -50,6 +52,42 @@ SUBAGENT_COUPLINGS: tuple[Constant, ...] = (
                 spelling=Spelling.WHOLE,
             ),
             Mention(ORCHESTRATOR_DOC, "`run_timeout_s: float = {value}`"),
+        ),
+    ),
+    Constant(
+        label="the admission wait's shipped default",
+        why=(
+            "the bound on how long a spawn may queue for room is declared in the core module the "
+            "scheduler defaults from, quoted to an operator by the delegation runbook as the "
+            "wait the refusal names, restated in the two module contracts a future agent reads "
+            "instead of the tree, and asserted as the upper end of an ordering by the sibling "
+            "module declaring the run deadline that has to sit under it, so retuning the "
+            "declaration alone would leave four places quoting a bound no spawn is given "
+            "(ADR-0012 bounded-admission-wait addendum)"
+        ),
+        sites=(Site(SUBAGENTS_SCHEDULER, "DEFAULT_ADMISSION_WAIT_S"),),
+        # The deadline's entry above with the numbers changed, and one shape more. The runbook and
+        # the sibling module write the number the way it is said out loud, a whole count of
+        # seconds; the two module contracts write the declaration itself, one restating the
+        # field and one the constant, so both carry the point the float is declared with and the
+        # entry keeps a faithful reading beside the two lossy ones.
+        #
+        # What is deliberately out is the arithmetic under the value rather than the value. Four
+        # places say this bound is twice 1800 s and four times 900 s; those are consequences of
+        # the wait and of a measured batch, and a needle over one would tie this constant to a
+        # measurement, reddening when the measurement moved. The ADR index's own summary is out
+        # on the rule that keeps every decision record out: it says what a dated addendum
+        # decided, which stays true after the default moves. And the two unit suites asserting
+        # this default run on every commit, so they hold themselves.
+        mentions=(
+            Mention(
+                SUBAGENTS_RUNBOOK,
+                "`CORTEX_SUBAGENTS_ADMISSION_WAIT_S` (default {value} s)",
+                spelling=Spelling.WHOLE,
+            ),
+            Mention(SUBAGENTS_CORE, "its {value} s admission wait", spelling=Spelling.WHOLE),
+            Mention(ORCHESTRATOR_DOC, "`admission_wait_s: float = {value}`"),
+            Mention(CORE_DOC, "`DEFAULT_ADMISSION_WAIT_S` is {value},"),
         ),
     ),
     Constant(

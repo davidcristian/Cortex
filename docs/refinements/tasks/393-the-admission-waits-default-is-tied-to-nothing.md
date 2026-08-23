@@ -1,6 +1,6 @@
 # The admission wait's shipped default is spelled in three places and tied in none
 
-**Status:** open, actionable
+**Status:** landed 2026-08-23
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -31,3 +31,21 @@ cannot hold them to it, and the pair moving without the sentence is the failure
   [369](369-the-run-deadline-under-the-queue-is-prose-only.md), whose validator put the admission
   wait beside the run deadline in one comparison and sent a reader to the registry that already
   holds the one and not the other. Recorded in the ADR-0009 queue addendum.
+- 2026-08-23: landed as one entry in `scripts/subagentcouplings.py`, one site and four mentions.
+  **The entry's count was low, and one of its misses is code.** It names two documents; the tree
+  carries five far sides. The two it missed besides the code are
+  [modules/brain-core.md](../../modules/brain-core.md), which states the constant by name, and
+  `brain/packages/core/src/cortex_core/subagents.py`, whose comment above the run deadline asserts
+  the ordering "the pool's 600 s stall ceiling and its 3600 s admission wait". That is the third
+  entry in a row framed as a prose gap whose misses include code. **Its own open question is
+  answered by the derived-literal ruling**, which landed hours before this was picked up: the
+  1800 s and 900 s the bound is twice and four times are consequences of this value and of a
+  measured batch, so a needle over either would redden when the measurement moved, and they stay
+  out. Two more kinds stay out: [index.md](../../index.md)'s catalogue sentence, whose subject is a
+  dated addendum and which sorts with the decision records it indexes, and the two unit suites
+  asserting the default, which run on every commit and hold themselves. Five planted drifts each
+  exited 1 and each restoration returned the gate to green, with four controls staying green, one
+  of them `DEFAULT_SPILL_DWELL_S`, a different constant spelling 3600 s in the same contract;
+  tabled in the ADR-0029 admission-wait addendum. One residue filed: the stall ceiling under this
+  bound is stated in the same three places and tied in none
+  ([R-402](402-the-stall-ceiling-is-ordered-against-two-held-bounds.md)).
