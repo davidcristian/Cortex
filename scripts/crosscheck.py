@@ -47,6 +47,11 @@ second number into the registry: ``Mention.spelling`` names the shape and `value
 refusing any value it would have to change to fit. An entry that re-spells everywhere it is spent
 is refused, nothing there holding the spelling the site itself writes.
 
+**The success line states the registry's own shape**, entries over sites over mentions and how
+many of those mentions pin a count, because that is the collection every mutation table in this
+repo opens by naming and it was counted by hand until now. It is a reading and never an assertion:
+holding the documents that quote it to it would tie this gate's prose to this gate's own data.
+
 And not every coupling is an equality: `Relation.ORDERED` holds a registry's sites to
 non-decreasing order instead, for the bounds that must sit under one another rather than match,
 and `Relation.MEMBER` holds them to one being inside another's collection, for the encoding one
@@ -69,7 +74,7 @@ from couplings import (
 )
 from needles import bounded, unfound
 from readings import Reading, relation_fault
-from registry import CONSTANTS
+from registry import CONSTANTS, shape
 from values import CrossCheckError, Value, parse_value, spell, spelling_fault
 
 # A registry entry naming one place would agree with itself forever, which is the gate that
@@ -258,7 +263,12 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
         return 1
-    print(f"crosscheck OK: {len(CONSTANTS)} cross-tree constant(s) under {root} agree")
+    size = shape(CONSTANTS)
+    print(
+        f"crosscheck OK: {size.entries} cross-tree constant(s) under {root} agree, "
+        f"over {size.sites} declaring site(s) and {size.mentions} mention(s), "
+        f"{size.counted} of them pinned to a count"
+    )
     return 0
 
 

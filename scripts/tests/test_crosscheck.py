@@ -6,6 +6,7 @@ import pytest
 
 import couplings
 import crosscheck
+import registry
 import values
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -1008,12 +1009,78 @@ def test_the_registry_pins_at_least_one_occurrence_count() -> None:
     assert all(count >= crosscheck.MIN_OCCURRENCES for count in counted)
 
 
+# ── the registry's own shape, which is read and never asserted ─────────────────
+#
+# Four numbers over one walk of the same tuple the scan already walks. Nothing here pins what the
+# real registry's shape IS: that would be a gate over the documents quoting it, which is the
+# exclusion a document describing this gate has always had. What is pinned is that each number
+# counts the thing it is named for, which is the only way a mutation table's "one of N" means
+# anything.
+
+_SHAPED = (
+    crosscheck.Constant(
+        label="two sites and nothing spent",
+        why="both enforcers must agree",
+        sites=(crosscheck.Site("a.rs", "A"), crosscheck.Site("a.py", "A")),
+    ),
+    crosscheck.Constant(
+        label="one spend counted, one not",
+        why="the runbook restates it",
+        sites=(crosscheck.Site("b.py", "B"),),
+        mentions=(
+            couplings.Mention(path="b.md", template="B={value}"),
+            couplings.Mention(path="b.yml", template="B={value}", occurrences=2),
+        ),
+    ),
+    crosscheck.Constant(
+        label="three spends, one counted",
+        why="the stylesheet spends it",
+        sites=(crosscheck.Site("c.ts", "C"),),
+        mentions=(
+            couplings.Mention(path="c.css", template="{value}"),
+            couplings.Mention(path="d.css", template="{value}"),
+            couplings.Mention(path="e.css", template="{value}", occurrences=3),
+        ),
+    ),
+)
+
+
+def test_shape_counts_each_kind_of_place_separately() -> None:
+    """Four distinct numbers, so a field counting the wrong collection cannot pass unnoticed."""
+    assert registry.shape(_SHAPED) == registry.Shape(entries=3, sites=4, mentions=5, counted=2)
+
+
+def test_shape_of_an_empty_registry_is_all_zeros() -> None:
+    """What a rename that emptied the registry would print: a scan agreeing with nothing."""
+    assert registry.shape(()) == registry.Shape(entries=0, sites=0, mentions=0, counted=0)
+
+
+def test_shape_counts_a_pinned_count_once_and_not_its_occurrences() -> None:
+    """`counted` is how many mentions pin a number, never the sum of the numbers they pin."""
+    pinned = registry.shape(_SHAPED).counted
+    assert pinned == 2
+    assert pinned != sum(
+        mention.occurrences or 0 for constant in _SHAPED for mention in constant.mentions
+    )
+
+
 # ── the CLI ────────────────────────────────────────────────────────────────────
 
 
 def test_main_passes_the_real_repo(capsys: pytest.CaptureFixture[str]) -> None:
     assert crosscheck.main(["--root", str(REPO_ROOT)]) == 0
     assert "crosscheck OK" in capsys.readouterr().out
+
+
+def test_main_states_the_registrys_shape_on_success(capsys: pytest.CaptureFixture[str]) -> None:
+    """The success line carries all four numbers, which is the whole deliverable here."""
+    assert crosscheck.main(["--root", str(REPO_ROOT)]) == 0
+    size = registry.shape(crosscheck.CONSTANTS)
+    out = capsys.readouterr().out
+    assert f"{size.entries} cross-tree constant(s)" in out
+    assert f"{size.sites} declaring site(s)" in out
+    assert f"{size.mentions} mention(s)" in out
+    assert f"{size.counted} of them pinned to a count" in out
 
 
 def test_main_fails_closed_when_no_site_can_be_found(

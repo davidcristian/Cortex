@@ -30,7 +30,13 @@ keeps a move an editorial decision instead of an archaeological one:
 - `fixturecouplings` ties a stack built to be measured against to the suite that measures it, the
   only part whose subject the repo does not ship.
 - `overlaycouplings` ties the overlay's TypeScript to the stylesheet that spends what it declares.
+
+Counting the registry lives here too, beside the tuple the parts are joined into, because the size
+of a collection is a fact about the collection rather than about any scan over it. `shape` is what
+`crosscheck.py` prints on success and what every mutation table in this repo opens by stating.
 """
+
+from typing import NamedTuple
 
 from capturecouplings import CAPTURE_COUPLINGS
 from couplings import Constant
@@ -54,3 +60,28 @@ CONSTANTS: tuple[Constant, ...] = (
     *FIXTURE_COUPLINGS,
     *OVERLAY_COUPLINGS,
 )
+
+
+class Shape(NamedTuple):
+    """How big a registry is: the collection any reading over it is a reading over.
+
+    Four numbers, because a mutation table that says "one of N" without saying what N counts has
+    not named its collection: how many entries, how many places declare a value, how many spend
+    one, and how many of those spends pin an exact count rather than a presence.
+    """
+
+    entries: int
+    sites: int
+    mentions: int
+    counted: int
+
+
+def shape(constants: tuple[Constant, ...]) -> Shape:
+    """Count one registry's entries and the places they declare, spend and pin a value in."""
+    mentions = [mention for constant in constants for mention in constant.mentions]
+    return Shape(
+        entries=len(constants),
+        sites=sum(len(constant.sites) for constant in constants),
+        mentions=len(mentions),
+        counted=sum(1 for mention in mentions if mention.occurrences is not None),
+    )

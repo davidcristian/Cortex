@@ -4462,3 +4462,90 @@ closes, [docs/refinements/index.md](../refinements/index.md), which is regenerat
 `brain/packages/orchestrator/src/cortex_orchestrator/config_subagents.py`, which carries the hoist,
 `scripts/subagentcouplings.py`, which carries the row, and
 [modules/repo-gates.md](../modules/repo-gates.md), and this addendum.
+
+## Addendum (2026-08-23): the registry's own shape, printed and never asserted
+
+Every mutation table in this series opens by stating the registry's shape, so that "five of them
+exited 1" names the collection five was drawn from. Every one of those numbers was counted by hand,
+and each was stale by the next row. The evidence is in this repo's own text rather than in a
+worry: [modules/repo-gates.md](../modules/repo-gates.md)'s tally of how many mentions carry an
+`occurrences` count was corrected three times on this one day, from five to nine to sixteen to
+seventeen, and its account of how many files the registry is written in twice. The scan was already
+printing one of the numbers and holding the rest in the tuple it walks.
+
+### It was stale again while this was being written
+
+Re-derived before anything was changed. The registry stands at 62 entries, 72 declaring sites and
+180 mentions, 17 of which pin a count. The document's own sentence said "seventeen registered
+mentions are counted" and then, in the same sentence, "seven the prose sorts added" over a list
+naming eight. Nine of the counted mentions predate the prose sorts, so the second number had been
+one low since the run that bumped the first one from sixteen and left the other alone. A tally the
+same paragraph contradicts is the argument for not writing tallies.
+
+### What was built
+
+`registry.shape` counts one registry in one walk and returns four numbers: entries, declaring
+sites, mentions, and mentions pinned to a count. It lives beside `CONSTANTS` rather than in the
+scan, because the size of a collection is a fact about the collection. `crosscheck.py` prints it on
+success, keeping the `crosscheck OK` prefix everything already reads for:
+
+```
+crosscheck OK: 62 cross-tree constant(s) under .. agree, over 72 declaring site(s) and 180
+mention(s), 17 of them pinned to a count
+```
+
+Four numbers rather than three, because the number that kept going stale is the fourth one, and it
+is the same walk.
+
+### Nothing asserts them, and that is the decision
+
+A gate holding [modules/repo-gates.md](../modules/repo-gates.md) to the registry's shape would tie
+the gate's own prose to the gate's own data, which is exactly the exclusion written down when the
+legibility sort left that document out: a document describing the registry is not a far side of the
+registry. So the deliverable is a line an addendum's author reads. The suite pins that `shape`
+counts each kind of place separately and that the success line carries all four numbers; it pins no
+number the real registry currently holds.
+
+The honest half of the same decision is that the prose tallies are gone. `modules/repo-gates.md` no
+longer states how many mentions carry a count, how many files the registry is written in, or how
+many parts arrived as splits. What it keeps is which mentions are counted and why, which is
+reasoning and does not go stale on the next row. The one number a reader wants is one command away.
+
+### Proved able to fail, six times, over the crosscheck registry and its suite
+
+Three mutations over `scripts/tests/test_crosscheck.py` (119 tests), to show the new tests can
+fail, and three over the live registry, to show the printed numbers move. Each was restored from a
+backup copy taken before the first mutation, with `__pycache__` purged between runs, and the
+baseline was re-established after every row.
+
+| # | mutation | expected | observed |
+| --- | --- | --- | --- |
+| 1 | `shape` fills `sites` from the mentions and `mentions` from the sites | the shape test fails | 1 failed, 118 passed |
+| 2 | `counted` sums the pinned occurrences instead of counting the mentions that pin one | two tests fail | 2 failed, 117 passed |
+| 3 | the success line drops the site count | the CLI test fails | 1 failed, 118 passed |
+| 4 | one scratch entry with two sites appended to `overlaycouplings.py` | entries and sites move, nothing else | 63 entries, 74 sites, 180 mentions, 17 counted |
+| 5 | one presence mention added to an existing entry | mentions moves by one alone | 62, 72, 181, 17 |
+| 6 | `occurrences=1` added to a mention that had none | counted moves by one alone | 62, 72, 180, 18 |
+
+Rows 4 through 6 stayed green on exit 0, which is the point: the shape is a reading, so moving it
+moves the output and never the verdict. Row 4 moved sites by two rather than one because an entry
+naming one place is refused by `MIN_PLACES`, so the smallest addable entry declares twice.
+
+### What this opened
+
+The shape counts places and not parts, so how many files the registry is written in is still
+answered by counting imports, and `registry.py`'s own docstring still narrates that count by
+ordinal
+([R-408](../refinements/tasks/408-the-registry-shape-counts-places-not-parts.md)). And the five
+other gates say nothing at all about what they covered: a `linecap OK` over an empty tree reads the
+same as one over the whole repo
+([R-409](../refinements/tasks/409-a-gates-success-line-names-no-collection.md)).
+
+### Records
+
+The record is the task file
+[R-404](../refinements/tasks/404-the-registrys-own-shape-is-counted-by-hand.md), which closes,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from it,
+`scripts/registry.py`, which carries `Shape` and `shape`, `scripts/crosscheck.py`, which prints it,
+`scripts/tests/test_crosscheck.py`, which drives it, and
+[modules/repo-gates.md](../modules/repo-gates.md), whose tallies this removes, and this addendum.
