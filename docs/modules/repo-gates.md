@@ -606,6 +606,22 @@ that last question to have an answer.
   a rung of the ladder below the edge being a consequence too. Proved both ways on the real tree:
   retuned to 1800, the literal pair fails the case with `left: (1800, 1012)` against
   `right: (2048, 1152)` and the derived one passes.
+- **There is deliberately no coverage reading over this registry** (ADR-0029 census addendum). The
+  scan says every place it names still agrees and cannot say it names every place, and four sorts
+  in a row corrected their own count of the tree upward by hand, so a census was asked for as
+  either a gate or a report. It was measured before it was designed, over the registry as it then
+  stood, and both honest scopings failed. Rendering each registered value and counting its bounded
+  occurrences across every tracked text file returns **37,717** occurrences no needle covers,
+  because `brain` and `cortex` are words, `2` is a number and `False` is a keyword. Narrowing the
+  candidate set to files that also spell the constant's own identifier returns **927**, of which 34
+  belong to an entry that had just been sorted exhaustively an hour earlier. A gate would need an
+  acknowledged-exclusions list of either size, which is a second registry nobody maintains, and a
+  report at either rate is the listing nobody reads that the request itself named as the failure.
+  What replaces it is a **method**, and it is written down because it cannot be a tool: sort by the
+  **name** a value is spelled under, never by its digits, then read each hit against the tense test,
+  which is the judgement no scan makes. The one scoping that did measure well, counting a value's
+  leftover occurrences on lines a needle already matched, is the second-spelling reading above, and
+  it found and closed its own population.
 - **A value a needle carries as a literal is SHADOWED, not held** (ADR-0023 bind-host addendum).
   Two dozen templates across the two endpoint entries spell `127.0.0.1`, which reads like the
   loopback address being tied in two dozen places. It is not tied anywhere by them, for three
