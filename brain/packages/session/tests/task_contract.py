@@ -49,6 +49,7 @@ async def check_task_round_trips(store: TaskStore) -> None:
         ),
         session_id="chat-7",
         turn_id="t-7",
+        item_id="r-7",
     )
     await store.put_task(task)
     assert await store.get_task(task.id) == task

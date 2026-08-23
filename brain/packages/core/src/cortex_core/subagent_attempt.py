@@ -109,6 +109,7 @@ class PlacedAttempt:
             nonce=new_nonce(),
             session_id=task.session_id,
             task_id=task.id,
+            item_id=task.item_id,
             schema=REPLY_ENVELOPE if constrain else None,
             # How far each of this loop's completions may decode. The rounds cap and this one
             # multiply, so what they bound together is the attempt's decoding rather than one

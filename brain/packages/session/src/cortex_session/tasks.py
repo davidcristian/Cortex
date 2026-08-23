@@ -1,4 +1,4 @@
-"""RedisTaskStore: the TaskStore port over Redis keys for subagent tasks + results (ADR-0010)."""
+"""RedisTaskStore: the TaskStore port over Redis keys for subagent tasks and results."""
 
 import json
 from datetime import datetime
@@ -10,7 +10,6 @@ from redis.exceptions import RedisError
 from cortex_core import SubagentResult, SubagentTask, TaskStoreError
 from cortex_session.store import DEFAULT_REDIS_URL
 
-# Task state is short-lived (a delegation completes within a turn); expire keys so none leak.
 _TASK_TTL_SECONDS = 3600
 
 
@@ -33,6 +32,7 @@ def _encode_task(task: SubagentTask) -> str:
             "tainted": task.tainted,
             "session_id": task.session_id,
             "turn_id": task.turn_id,
+            "item_id": task.item_id,
         }
     )
 
@@ -49,6 +49,7 @@ def _decode_task(raw: bytes | str, task_id: str) -> SubagentTask:
             tainted=fields["tainted"],
             session_id=fields["session_id"],
             turn_id=fields["turn_id"],
+            item_id=fields["item_id"],
         )
     except (KeyError, TypeError, ValueError) as err:
         msg = f"corrupt task record at {_task_key(task_id)!r}"

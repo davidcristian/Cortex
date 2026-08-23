@@ -155,6 +155,7 @@ class SpawnSubagentsTool:
                 tainted=call.stamp.tainted,
                 session_id=call.stamp.session_id,
                 turn_id=call.stamp.turn_id,
+                item_id=call.stamp.item_id,
             )
             for item in parsed
         ]

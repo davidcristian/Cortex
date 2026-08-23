@@ -183,9 +183,10 @@ Task state uses two string keys per delegation: `cortex:task:{id}` (the `Subagen
 TTL**. Task state is *hot and ephemeral* (it lives only for the in-flight delegation, written
 and read back by one deployment within one turn), so unlike session/memory records it carries
 **no `v`/`kind` markers**. Timestamps preserve their offset the same way. The whole record
-round-trips, with a task's `model`/`tainted`/`session_id`/`turn_id` and a result's `tainted`
-included (ADR-0018, ADR-0009 named-work addendum): the
-resolution inputs, the spawning turn's attribution and the taint verdict are exactly what must
+round-trips, with a task's `model`/`tainted`/`session_id`/`turn_id`/`item_id` and a result's
+`tainted` included (ADR-0018, ADR-0009 named-work and fired-work addenda): the
+resolution inputs, the attribution of whatever spawned the task (a chat and a turn, or a fired
+schedule item) and the taint verdict are exactly what must
 survive a restart or swap
 mid-delegation (taint that did not would fail open, and an attribution that did not would put a
 delegated call in the audit trail under nobody), and all of them decode strictly (a missing key is

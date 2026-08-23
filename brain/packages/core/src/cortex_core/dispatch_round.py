@@ -32,6 +32,7 @@ class ToolLoopContext:
     nonce: str
     session_id: str
     task_id: str = ""
+    item_id: str = ""
     schema: JsonSchema | None = None
     bounds: GenerationBounds | None = None
     budget: DispatchBudget = field(default_factory=DispatchBudget)
@@ -70,6 +71,7 @@ def _stamp(context: ToolLoopContext) -> TurnStamp:
         session_id=context.session_id,
         turn_id=context.turn_id,
         task_id=context.task_id,
+        item_id=context.item_id,
         tainted=context.taint.tainted,
         sources=context.taint.sources,
         budget=context.budget,

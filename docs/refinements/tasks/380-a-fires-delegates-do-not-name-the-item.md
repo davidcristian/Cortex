@@ -1,6 +1,6 @@
 # A fire's delegates do not name the item that fired them
 
-**Status:** open, actionable
+**Status:** landed 2026-08-23
 **Area:** tools-mcp
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
 
@@ -36,3 +36,24 @@ argument spelled the same way.
 - 2026-08-22: Opened by the close of
   [352](352-a-dispatch-names-no-call.md), which put the fired item on the ticker's own dispatch
   and stopped there. Recorded in the ADR-0009 named-call addendum.
+- 2026-08-23: Landed in the shape this entry proposed, every hop where it said it was:
+  `SubagentTask` gained `item_id`, `SpawnSubagentsTool` writes it off the dispatch stamp, the
+  Redis codec round-trips it, `PlacedAttempt` reads it back into its `ToolLoopContext`, and
+  `_stamp` puts it on every dispatch the delegate makes. The cost it named was the codec and its
+  contract test, and that held. The one question it left open, whether a task stored without the
+  field should read back as unattributed, is answered **no**: the key is required like both
+  neighbours, because `""` already means "no item" and a defaulted read would make a dropped
+  attribution indistinguishable from an absence the record was told about. The bundle it asked
+  about is **declined**, and the count in the question is the correction: there were three work
+  identities on `ToolLoopContext` and this makes four. They stay four keywords, on the criterion
+  the deep tier's own bundle was built on, that a value earns its name when its parts are
+  meaningless apart. These four are the opposite: every combination of present and absent is a
+  caller this tree really has, so a bundle would exclude no invalid state, and the same four are
+  deliberately flat on `TurnStamp` and on the audit record, so one would cost a translation at
+  each end. Verified against a real Redis and the shipped formatter, where a fire-shaped dispatch
+  put `item_id=r-live-1` on the fire's line and on its delegate's. Two entries opened,
+  [394](394-the-fired-item-has-two-spellings-in-the-logs.md) for the ticker's own lines spelling
+  the same id `reminder_id`, and
+  [395](395-a-work-identity-is-copied-by-hand-at-every-hop.md) for the six hand-written copies a
+  work identity crosses, which is what a fifth one's arrival would have to be judged against.
+  Recorded in the ADR-0009 fired-work addendum.

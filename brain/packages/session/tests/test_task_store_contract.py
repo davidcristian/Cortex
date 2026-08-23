@@ -74,6 +74,24 @@ async def test_corrupt_task_record_wraps_into_task_store_error() -> None:
         await RedisTaskStore(client).get_task("t1")
 
 
+async def test_a_task_record_missing_an_identity_is_corrupt_rather_than_unattributed() -> None:
+    """A dropped attribution must not read back as an honest absence (ADR-0009 fired-work)."""
+    client = FakeAsyncRedis(server=FakeServer())
+    older = {
+        "id": "t1",
+        "instruction": "go",
+        "context": "",
+        "at": task_contract.make_task("t1").at.isoformat(),
+        "model": "",
+        "tainted": False,
+        "session_id": "chat-1",
+        "turn_id": "t-1",
+    }
+    await client.set("cortex:task:t1", json.dumps(older))
+    with pytest.raises(TaskStoreError, match="corrupt task record at 'cortex:task:t1'"):
+        await RedisTaskStore(client).get_task("t1")
+
+
 async def test_corrupt_result_record_wraps_into_task_store_error() -> None:
     client = FakeAsyncRedis(server=FakeServer())
     await client.set("cortex:task:t1:result", json.dumps({"task_id": "t1"}))  # missing fields

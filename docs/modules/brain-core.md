@@ -323,7 +323,7 @@ Subagent domain (Slice 7, ADR-0010):
 
 - `SubagentTask` is a frozen dataclass: `id: str`, `instruction: str`, `context: str`,
   `at: datetime` (tz-aware, rejects naive), `model: str = ""`, `tainted: bool = False`,
-  `session_id: str = ""`, `turn_id: str = ""`. One
+  `session_id: str = ""`, `turn_id: str = ""`, `item_id: str = ""`. One
   narrow task delegated to a subagent, persisted before it runs; `context` is the material the
   subagent works from (the cortex conversation is never shared, as the subagent is stateless over
   the task). `model` is the roster entry the cortex requested (`""` = the default) and `tainted`
@@ -332,7 +332,10 @@ Subagent domain (Slice 7, ADR-0010):
   (ADR-0017/0018). `session_id`/`turn_id` are the spawning turn's attribution, written off the
   spawn dispatch's stamp and read back by the attempt, so a delegated call is audited under the
   chat and the turn that asked for it (ADR-0009 named-work addendum; both `""` for a run nothing
-  conversational spawned, which is the ticker's fire). They ride the record rather than a
+  conversational spawned, which is the ticker's fire). `item_id` is the same for the fire itself
+  (ADR-0009 fired-work addendum): the scheduled item whose firing spawned this task, `""` for
+  every spawn a conversation made, so a delegate's own calls say which item they are the work of.
+  All three ride the record rather than a
   parameter because a subagent is a stateless function over the store.
 - `SubagentResult` is a frozen dataclass: `task_id: str`, `output: str`, `ok: bool = True`,
   `detail: str = ""`, `tainted: bool = False`. A subagent's outcome; `ok=False` (with `detail`)
@@ -605,15 +608,23 @@ Untrusted-content boundary (Slice 6.5, ADR-0013; the pure primitives in `untrust
   Reconstructed each turn, never persisted. Structurally satisfies `TaintView` (below), so the
   engine passes the live ledger straight to `OutputGuardrail.open`.
 - `ToolLoopContext` is a frozen bundle of a tool loop's per-invocation collaborators (`dispatcher`,
-  `clock`, `turn_id`, `taint`, `nonce`, `session_id`, `task_id=""`, `schema=None`, `bounds=None`,
+  `clock`, `turn_id`, `taint`, `nonce`, `session_id`, `task_id=""`, `item_id=""`, `schema=None`,
+  `bounds=None`,
   `budget=DispatchBudget()` by default factory, `progress=None`, `escalation=None`,
   `cadence=None`, `stops=None`), keeping
   `stream_tool_loop`
   under its argument ceiling. `session_id` is the originating chat the loop stamps onto each
-  dispatch (ADR-0027; `""` for a caller with no chat behind it); `turn_id`/`task_id` are the
-  conversation turn this loop serves and the subagent task it is running, stamped onto each
-  dispatch as the work it was made for (ADR-0009 named-work addendum): a turn's loop sets the
-  first, a subagent's sets the second and takes the first off its stored task. The `unit_id`
+  dispatch (ADR-0027; `""` for a caller with no chat behind it); `turn_id`/`task_id`/`item_id` are
+  the conversation turn this loop serves, the subagent task it is running and the scheduled item
+  whose fire is behind it, stamped onto each
+  dispatch as the work it was made for (ADR-0009 named-work and fired-work addenda): a turn's loop
+  sets the first, a subagent's sets the task and takes the other two off its stored task, so a
+  fire's delegate names the item that fired it on every call it makes. With `session_id` they stay
+  four keywords rather than one bundled work identity: each is independently present or absent,
+  every combination is a caller this tree has, so a bundle would exclude no invalid state, and the
+  same four are flat on `TurnStamp` and on the audit record, so one would cost a translation at
+  each end.
+  The `unit_id`
   property is neither, and is what the loop's own messages are grouped under: the task when there
   is one, else the turn. `schema` (ADR-0028), when
   set, constrains the model's output to that JSON Schema (a constrained tool-less subagent
@@ -1975,7 +1986,8 @@ Use-case:
   into the object path (real models sometimes stringify the object form, per the ADR-0018 addendum;
   same validation either way). It persists one `SubagentTask` per item, each stamped with the
   requested `model`, the item's `context`, and the **call stamp's `tainted`** (the dispatcher's
-  `TurnStamp`, ADR-0018/0027). When the **call stamp carries a `progress` sink** (ADR-0010 progress
+  `TurnStamp`, ADR-0018/0027) beside its three work identities, the chat, the turn and the fired
+  item, so the runner audits from the store alone (ADR-0009 named-work and fired-work addenda). When the **call stamp carries a `progress` sink** (ADR-0010 progress
   addendum) it emits a `StatusUpdate(state="delegating", detail="delegating N subtask(s)")` (the
   batch's scale, brain-authored) before running, and hands the same sink to each run so the
   subagents' own tool steps surface too. It dispatches the `SubagentRunner`s
