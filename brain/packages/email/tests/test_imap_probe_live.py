@@ -35,6 +35,13 @@ REAL_FOLDER = "INBOX"
 # only way to make this server send RFC 5258's `\NonExistent`: it refuses a SUBSCRIBE of a name
 # no mailbox has, so the subscription is written into its own file rather than asked for here.
 GHOST_SUBSCRIPTION = "Ghost"
+# A real mailbox that opens and that one of this server's listings still calls unselectable,
+# which is the shape the Bridge shows in its ordinary LIST and the reason the flag is a question
+# rather than an answer. The child below is subscribed and this one is not.
+FEIGNED_FOLDER = "Feigned"
+# That child. Its subscription is the whole cause: RFC 3501 has an `LSUB` of `%` flag an
+# unsubscribed name with subscribed children `\Noselect` whatever the name really is.
+FOLLOWED_SUBSCRIPTION = "Feigned/Followed"
 IMPOSSIBLE_NAMES = ("Parent/", "/Parent", "Parent//Child", "INBOX/../etc")
 # No password is checked (docker/dovecot/probe.conf), so this is a formality the IMAP dialogue
 # requires rather than a secret of anything, and it is one word because both halves of a login
@@ -186,6 +193,27 @@ def test_the_newer_spelling_of_unselectable_is_a_word_this_server_really_sends()
     assert GHOST_SUBSCRIPTION not in plain
     assert plain[NOSELECT_PARENT] == "(\\Noselect \\HasChildren)"
     assert GHOST_SUBSCRIPTION not in list(probe_mailbox().list_folders())
+
+
+@pytest.mark.integration
+def test_a_name_this_server_calls_unselectable_and_opens_anyway_is_a_real_thing() -> None:
+    """The other half of the flag rule, which had been measured on one account and nowhere else."""
+    with probe_dialogue() as conn:
+        subscribed_tree = _named(conn.lsub('""', '"%"'))
+        plain = _named(conn.list())
+    assert subscribed_tree[FEIGNED_FOLDER] == "(\\Noselect)"
+    plain_flags = set(plain[FEIGNED_FOLDER].strip("()").split())
+    assert "\\HasChildren" in plain_flags
+    assert not plain_flags & {"\\Noselect", "\\NonExistent"}
+
+    # And the same name opens, which is what makes the flag a lie worth asking about rather than
+    # a fact worth believing. Through the port, so the offer and the open are one story: both the
+    # parent and the child that flagged it are names a caller may really be given.
+    mailbox = probe_mailbox()
+    offered = list(mailbox.list_folders())
+    assert FEIGNED_FOLDER in offered
+    assert FOLLOWED_SUBSCRIPTION in offered
+    assert list(mailbox.search(FEIGNED_FOLDER, "ALL", 1)) == []
 
 
 def _named(answer: tuple[str, Sequence[bytes | tuple[bytes, bytes] | None]]) -> dict[str, str]:

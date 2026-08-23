@@ -89,12 +89,12 @@ just email-folder-probe
 just down-imap-probe
 ```
 
-Its LIST returns four names, three of them mailboxes (`INBOX` and `Parent/Child`, which open, and
-`Guarded`, which does not) and one of them a `\Noselect` node that is not a mailbox at all
-(`Parent`). A fifth name, `Ghost`, is subscribed and not there, which no LIST returns and which
-exists only to make the server send `\NonExistent`. What each is for is written in
-`docker/dovecot/probe-mailboxes.sh`, which builds them.
-All five are named a second time by `packages/email/tests/test_imap_probe_live.py`, and
+Its LIST returns six names, five of them mailboxes (`INBOX`, `Parent/Child`, `Feigned` and
+`Feigned/Followed`, which open, and `Guarded`, which does not) and one of them a `\Noselect` node
+that is not a mailbox at all (`Parent`). A seventh name, `Ghost`, is subscribed and not there,
+which no LIST returns and which exists only to make the server send `\NonExistent`. What each is
+for is written in `docker/dovecot/probe-mailboxes.sh`, which builds them.
+All seven are named a second time by `packages/email/tests/test_imap_probe_live.py`, and
 `scripts/crosscheck.py` holds the two spellings together (ADR-0029 fixture addendum): rename a
 mailbox in the script alone and the gate says so on the next commit, where the suite that would
 have noticed is `integration`-marked and runs only when somebody measures.
@@ -145,6 +145,30 @@ conn.response("LIST")   # Parent is still (\Noselect \HasChildren) here
 than on the node, and `Ghost` is refused by a SELECT in the same words `Parent` is. The Bridge
 cannot be asked at all: it advertises no LIST-EXTENDED and answers the extended form with `BAD`
 (ADR-0022 newer-spelling addendum).
+
+### And for the flag that lies, which is why the flag is asked rather than believed
+
+`list_folders` drops a flagged name only when the server also refuses it, because a `\Noselect`
+name really can open. That was measured on the Bridge, on one account, and nowhere else until
+`Feigned` was added to this fixture. `Feigned` is an ordinary mailbox that opens; its child
+`Feigned/Followed` is subscribed and it is not, which is the state RFC 3501 has an `LSUB` of `%`
+answer with `\Noselect` whatever the name really is. So a standard obliges a compliant server to
+flag a mailbox it will happily open, and this one does:
+
+```python
+conn.lsub('""', '"%"')  # ('LSUB', [b'() "/" Ghost', b'(\\Noselect) "/" Feigned'])
+conn.list()             # Feigned is (\HasChildren) here, and nothing else
+conn.select('"Feigned"', readonly=True)   # ('OK', [b'0'])
+```
+
+The second line is the half that stays out of reach, and it is asserted too. In dovecot 2.3.21's
+plain `LIST`, the one listing the adapter itself makes, the flag and the refusal are computed from
+one fact, so no name can be flagged there and still open. Two configurations were tried against
+2.3.21 to produce one and both failed: a second namespace whose prefix collides with a real
+mailbox lists that name twice, once `(\Noselect \HasChildren)`, and a SELECT resolves to the
+flagged reading and is refused; a namespace prefixed `INBOX/` is merged with the real INBOX and
+listed `(\HasChildren)` with no flag at all. The Bridge's own test therefore stays the only live
+proof of the keep in the listing the adapter makes (ADR-0022 flagged-name-that-opens addendum).
 
 Rerun the probe after any change to the folder classification, and after a Dovecot bump if the
 pinned image ever moves: the wordings above are the evidence the rule is built on, and a server

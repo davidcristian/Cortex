@@ -1,6 +1,6 @@
 # The kept half of the folder filter is proved only on a server nobody here can configure
 
-**Status:** open, actionable
+**Status:** landed 2026-08-23
 **Area:** email-confirmer
 **Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
 
@@ -28,3 +28,13 @@ declined with it written down, leaving the Bridge test as the only live proof an
 - 2026-08-21: Filed by the close of [374](374-two-names-the-bridge-lists-are-now-withheld.md),
   whose live measurement of the Bridge is currently the only evidence that a flagged name which
   opens is kept. Recorded in the ADR-0022 flagged-and-refused addendum.
+- 2026-08-23: Landed as the `Feigned` pair in `docker/dovecot/probe-mailboxes.sh`, asserted live in
+  `brain/packages/email/tests/test_imap_probe_live.py` and tied in `scripts/fixturecouplings.py`.
+  The premise is now measured on a server this repo builds: RFC 3501 obliges an `LSUB` of `%` to
+  flag an unsubscribed name with subscribed children `\Noselect`, so Dovecot 2.3.21 flags `Feigned`
+  there and opens it. The listing the adapter itself makes is a different answer, and it is the one
+  this file asked for: two configurations were built to move the flag into a plain `LIST` and both
+  failed, so the keep in that listing stays proved only against the Bridge. That half went to
+  [400](400-the-keep-in-the-adapters-listing-is-one-account.md) and the unrun configurations to
+  [401](401-the-rejected-probe-configurations-are-prose.md). The measurements, both directions, are
+  in the ADR-0022 flagged-name-that-opens addendum.
