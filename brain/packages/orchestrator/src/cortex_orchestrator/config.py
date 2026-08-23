@@ -22,9 +22,6 @@ OutputGuardrailName = Literal["redact", "lookalike", "strict", "off"]
 # scan can hold the two together only if one of them is a declaration it can read.
 DEFAULT_VISION_MODE: VisionMode = "auto"
 
-# The port BrainService listens on by default. Named rather than spelled inline because it is
-# not only ours: the compose stack publishes it and dials it in its own healthcheck, and the
-# host body's default endpoints carry it too, so `scripts/crosscheck.py` ties those to this.
 DEFAULT_SEAM_PORT = 50051
 
 
