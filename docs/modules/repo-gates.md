@@ -678,6 +678,14 @@ that last question to have an answer.
   override's knob list, which documents the env var and leaves the value to the brain. Out on the
   suite rule: the unit test asserting the default. The resident tier's `stall_timeout_s` is a
   different constant sharing the field name (120.0 in `config.py`) and ran as the control.
+- **A defaults fault that names one place twice now points at the note behind it** (ADR-0026
+  note-remedy addendum). `composedefaults.py` reads a note written after a value as a second spend
+  of the variable it names, so a stale note is two spends that disagree, reported by naming one
+  `path:line` twice and nothing else. `defaultcheck.one_line_hint` appends the remedy when a group
+  repeats a place. The condition is a **repeated** place and not one the whole group shares, which
+  the backlog entry had wrong: the planted note reddens a group of five spends across four files.
+  No `#` is looked for, since `"${V:-a}/in:${V:-b}"` is one value spending one variable twice, so
+  the sentence names the shared line and offers the note as a likely reading.
 - **And a copy the compiler can reach is an import, not a row**, which the registry's own suite
   enforces: `test_every_registered_constant_spans_more_than_one_language` refuses an entry whose
   places are all one suffix, on the ground that it proves nothing about a seam. The same headroom

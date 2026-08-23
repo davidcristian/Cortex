@@ -234,3 +234,32 @@ def test_main_reports_a_scan_that_could_not_run(
 ) -> None:
     assert defaultcheck.main(["--root", str(tmp_path)]) == 2
     assert "defaultcheck: no compose file" in capsys.readouterr().err
+
+
+# ── the note behind a fault that names one line twice ──────────────────────────
+
+
+def test_a_group_all_on_one_line_points_at_the_note_behind_it(tmp_path: Path) -> None:
+    """The measured shape: a stale note after a value is a second spend on the same line."""
+    spend = '      DIR: "${MODELS_DIR:-./models}"  # ${MODELS_DIR:-./cache}\n'
+    _compose(tmp_path, f"services:\n  brain:\n    environment:\n{spend}")
+    (fault,) = defaultcheck.check(tmp_path)
+    assert "does not carry one default" in fault.detail
+    assert "more than one of those spends is on docker-compose.yml:4" in fault.detail
+    assert "move it above the line it annotates" in fault.detail
+
+
+def test_a_group_spread_over_two_lines_is_offered_no_such_remedy(tmp_path: Path) -> None:
+    """The hint must be a reading of what was read: two lines cannot be one note and a value."""
+    _compose(tmp_path, _environment("${MODELS_DIR:-./models}", "${MODELS_DIR:-./cache}"))
+    (fault,) = defaultcheck.check(tmp_path)
+    assert "does not carry one default" in fault.detail
+    assert "more than one of those spends" not in fault.detail
+
+
+def test_one_line_with_no_comment_in_sight_gets_the_hint_as_a_maybe(tmp_path: Path) -> None:
+    """No `#` was looked for, so the sentence offers the note as a maybe and not as a finding."""
+    _compose(tmp_path, _environment("${V:-a}/in:${V:-b}"))
+    (fault,) = defaultcheck.check(tmp_path)
+    assert "more than one of those spends is on docker-compose.yml:4" in fault.detail
+    assert "if one of them is a comment" in fault.detail

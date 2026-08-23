@@ -648,3 +648,43 @@ from it, this addendum, and the two documents that state what the reader does:
 [docs/modules/repo-gates.md](../modules/repo-gates.md), both of which now say the reading is
 settled rather than deferred, and both of which had also been describing compose as expanding the
 raw text before YAML sees it, which the first measurement above corrects.
+
+## Addendum (2026-08-23): the compose-defaults fault now points at the note behind it
+
+The decline that left `composedefaults.py` reading a trailing note as a spend was paid for with one
+rough edge: a group containing such a note is reported by naming the same `path:line` twice, which
+is true and is not the remedy
+([R-391](../refinements/tasks/391-a-fault-that-names-one-line-twice.md)). `defaultcheck.py` now
+appends the remedy to that fault.
+
+### The condition is a repeated place, not a group on one line
+
+The entry proposed "a group whose spends share one file and one line is the whole of the
+condition". Replanting the note it quotes shows that is wrong: `CORTEX_MODELS_DIR` is spelled five
+times across four compose files, and the note makes **two** of those five one line. A whole-group
+test would have stayed green on the exact case the entry was written from. So the condition shipped
+is a repeated `path:line` inside the group, which is what the quoted fault has always shown.
+
+### The hint is a reading, not a guess
+
+No `#` is looked for, because one variable really can be spelled twice on one line with no comment
+in sight: `"${V:-a}/in:${V:-b}"` is one value spending one variable twice. The sentence therefore
+names the line the spends share, which is what was measured, and offers the note as the likely
+reading rather than as a finding: "which is what a note written after a value looks like to this
+reader, so if one of them is a comment, move it above the line it annotates".
+
+### Proved on the real tree, and in both directions in the suite
+
+A note restating a stale model directory was planted beside the mount source in
+`docker/docker-compose.gpu.yml`, the gate run, the file restored from a copy taken beforehand, and
+the gate re-run green. The fault carried the remedy after the change and did not before it. Three
+cases pin it in `scripts/tests/test_defaultcheck.py`: the planted note, a group spread over two
+lines that must be offered no such remedy, and two spends on one line with no comment, which gets
+the hint as the maybe it is worded as.
+
+### Records
+
+The record is the task file
+[R-391](../refinements/tasks/391-a-fault-that-names-one-line-twice.md), which closes,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from it,
+`scripts/defaultcheck.py`, which carries the hint, and this addendum.
