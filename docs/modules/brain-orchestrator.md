@@ -280,7 +280,13 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   than restated here. `run_timeout_s` must be **strictly greater** than `stall_timeout_s`, else
   construction fails: a deadline that does not outlast the ceiling on one silent gap would report
   every wedged stream as a run that would not stop and silently delete the CPU re-run scheduled
-  for exactly that failure. It must also stay **strictly above** a whole delegated dispatch, which
+  for exactly that failure. It must equally stay **strictly under** `admission_wait_s`, else
+  construction fails again: a run allowed to hold its admission for as long as a peer will queue
+  for that admission makes a working pool read as one that refuses spawns under load, under a
+  refusal naming the queue rather than the deadline that filled it. A wait of zero is exempt from
+  that one, being the setting where nothing queues, and what is compared is one attempt's deadline,
+  a task on the CPU re-run path holding its admission for two. It must also stay **strictly above**
+  a whole delegated dispatch, which
   is `CORTEX_TOOLS_CALL_TIMEOUT_S` times `delegated_call_bounds`: a fourth bound on the same run
   that sits beside the stall ceiling rather than under it, and one a dispatch spends several times
   over, which `check_tool_call_deadline` enforces at boot because the numbers are declared in two

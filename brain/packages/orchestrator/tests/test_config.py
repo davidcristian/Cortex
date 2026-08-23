@@ -562,8 +562,8 @@ def test_the_admission_wait_is_settable_including_zero_and_refuses_a_negative(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Zero is a policy here, unlike the ceiling above: never queue, refuse what does not fit."""
-    monkeypatch.setenv("CORTEX_SUBAGENTS_ADMISSION_WAIT_S", "900")
-    assert SubagentsConfig().admission_wait_s == 900.0
+    monkeypatch.setenv("CORTEX_SUBAGENTS_ADMISSION_WAIT_S", "3000")
+    assert SubagentsConfig().admission_wait_s == 3000.0
     monkeypatch.setenv("CORTEX_SUBAGENTS_ADMISSION_WAIT_S", "0")
     assert SubagentsConfig().admission_wait_s == 0.0
     monkeypatch.setenv("CORTEX_SUBAGENTS_ADMISSION_WAIT_S", "-1")
@@ -604,6 +604,34 @@ def test_a_run_deadline_that_would_hide_the_stall_ceiling_fails_the_brain_at_boo
         SubagentsConfig()
     monkeypatch.setenv("CORTEX_SUBAGENTS_RUN_TIMEOUT_S", "601")
     assert SubagentsConfig().run_timeout_s == 601.0
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_a_run_deadline_no_queued_peer_would_outlast_fails_the_brain_at_boot(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The other half of the deadline's place, refused rather than merely written down."""
+    monkeypatch.setenv("CORTEX_SUBAGENTS_ADMISSION_WAIT_S", "900")
+    monkeypatch.setenv("CORTEX_SUBAGENTS_RUN_TIMEOUT_S", "900")
+    with pytest.raises(ValidationError, match="must be less than"):
+        SubagentsConfig()
+    monkeypatch.setenv("CORTEX_SUBAGENTS_RUN_TIMEOUT_S", "1200")
+    with pytest.raises(ValidationError, match="must be less than"):
+        SubagentsConfig()
+    monkeypatch.setenv("CORTEX_SUBAGENTS_RUN_TIMEOUT_S", "899")
+    assert SubagentsConfig().run_timeout_s == 899.0
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_a_pool_that_never_queues_keeps_whatever_deadline_it_was_given(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Zero is a policy rather than the smallest inversion, so the ordering above skips it."""
+    monkeypatch.setenv("CORTEX_SUBAGENTS_ADMISSION_WAIT_S", "0")
+    monkeypatch.setenv("CORTEX_SUBAGENTS_RUN_TIMEOUT_S", "3000")
+    config = SubagentsConfig()
+    assert config.admission_wait_s == 0.0
+    assert config.run_timeout_s == 3000.0
 
 
 def _llamacpp_env(monkeypatch: pytest.MonkeyPatch) -> None:

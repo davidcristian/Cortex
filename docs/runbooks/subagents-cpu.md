@@ -69,7 +69,14 @@ delegation time (ADR-0012 admission-wall addendum).
 > times the longest whole subtask (623.8 s, the same one), the extra doubling covering a tool-using
 > run whose loop spends on several rounds what that measurement spent on one completion. The
 > deadline also lands between the two bounds either side of it, above the stall ceiling and below
-> the admission wait, so a run can never hold its admission longer than a peer will queue for it.
+> `CORTEX_SUBAGENTS_ADMISSION_WAIT_S`, and the brain refuses to start on either ordering broken, so
+> a deployment where a run holds its admission for as long as a peer will queue for that admission
+> is one that never boots. A wait of **zero** is the exception and passes beside any deadline, that
+> being the setting where nothing queues and so nothing waits on a run at all. What the boot check
+> compares is **one attempt's** deadline. A GPU-placed run whose backend fails is re-run once on the
+> CPU inside the same admission under a deadline armed fresh, so along that one path a task holds
+> its room for two deadlines, and twice the shipped deadline does not fit inside the shipped wait:
+> that half of the relation is recorded rather than enforced, both numbers being measured ones.
 > One more bound sits inside it, beside the stall ceiling rather than under it:
 > `CORTEX_TOOLS_CALL_TIMEOUT_S` (default 60 s) bounds one tool dispatch, and a delegated loop
 > dispatches tools between its completions. A dispatch spends that bound several times over, once

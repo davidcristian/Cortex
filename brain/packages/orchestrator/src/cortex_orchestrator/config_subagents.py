@@ -114,6 +114,21 @@ class SubagentsConfig(BaseSettings):
             raise ValueError(msg)
         return self
 
+    @model_validator(mode="after")
+    def _the_run_deadline_must_fit_inside_the_queue_for_it(self) -> "SubagentsConfig":
+        """Refuse at boot a deadline no queued peer would still be waiting through."""
+        if self.admission_wait_s > 0 and self.run_timeout_s >= self.admission_wait_s:
+            msg = (
+                f"CORTEX_SUBAGENTS_RUN_TIMEOUT_S ({self.run_timeout_s}) must be less than "
+                f"CORTEX_SUBAGENTS_ADMISSION_WAIT_S ({self.admission_wait_s}); a run allowed to "
+                "hold its admission for at least as long as a peer will queue for that admission "
+                "makes a working pool read as one that refuses spawns under load, and the "
+                "refusal names the queue rather than the deadline that filled it. Lower the run "
+                "deadline, or raise the admission wait above it (docs/runbooks/subagents-cpu.md)"
+            )
+            raise ValueError(msg)
+        return self
+
     @property
     def attempt_bounds(self) -> AttemptBounds:
         """How far one delegated attempt may go, as the core's value (ADR-0005 total-cap addendum).
