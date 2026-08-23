@@ -109,9 +109,43 @@ FIXTURE_COUPLINGS: tuple[Constant, ...] = (
             "(ADR-0022 newer-spelling addendum)"
         ),
         sites=(Site(PROBE_SUITE, "GHOST_SUBSCRIPTION"),),
-        # The name as the file's one content line, which is the whole of what the script says
-        # about it: there is no directory to pin, the absence of one being the point.
-        mentions=(Mention(PROBE_SCRIPT, "\\n\\n{value}\\n"),),
+        # The name as the file's first content line, straight after the empty namespace-prefix
+        # line, which is the whole of what the script says about it: there is no directory to pin,
+        # the absence of one being the point. The line's own end is deliberately not pinned. It
+        # was once, when this was the only subscription, and the needle went stale the moment a
+        # second name was written under it: what a subscription needs is a line of its own, not
+        # the last one in the file.
+        mentions=(Mention(PROBE_SCRIPT, "\\n\\n{value}"),),
+    ),
+    Constant(
+        label="the probe's flagged name that opens",
+        why=(
+            "this is the second server's answer to the half of the flag rule that had been "
+            "measured on one Bridge account and nowhere else, a name a listing calls unselectable "
+            "and a SELECT opens, and the suite reads that contrast off this name in two listings "
+            "at once, so a rename in the script alone would leave both readings asking about a "
+            "name the server never lists (ADR-0022 flagged-name-that-opens addendum)"
+        ),
+        sites=(Site(PROBE_SUITE, "FEIGNED_FOLDER"),),
+        mentions=(Mention(PROBE_SCRIPT, "mailboxes/{value}/dbox-Mails"),),
+    ),
+    Constant(
+        label="the probe's subscribed child that flags its parent",
+        why=(
+            "the parent above carries `\\Noselect` only because this child is subscribed and it "
+            "is not, so this name is the entire cause of the flag, and a rename that moved the "
+            "mailbox and left the subscription line, or the reverse, would take the flag off the "
+            "parent while every mailbox the suite names still existed: the reading would go quiet "
+            "rather than red (ADR-0022 flagged-name-that-opens addendum)"
+        ),
+        sites=(Site(PROBE_SUITE, "FOLLOWED_SUBSCRIPTION"),),
+        # Two mentions rather than two occurrences of one, the halves being different shapes: the
+        # mailbox that makes the name real, and the subscription line that makes it flag its
+        # parent. Either alone is a fixture that builds something the suite is not measuring.
+        mentions=(
+            Mention(PROBE_SCRIPT, "mailboxes/{value}/dbox-Mails"),
+            Mention(PROBE_SCRIPT, "\\n{value}"),
+        ),
     ),
     Constant(
         label="the probe's child under that node",

@@ -80,11 +80,16 @@ denied outright.
   whose prose merely contains "cannot" is untouched. The other
   refusal is `[NOPERM] Permission denied`, measured on a mailbox that is listed and shut (ADR-0022
   two-server addendum, `tests/test_imap_probe_live.py` over `docker/docker-compose.imap-probe.yml`).
-- **The probe suite's five fixture names are module constants and registered couplings.**
-  `GUARDED_FOLDER`, `REAL_FOLDER`, `NOSELECT_PARENT` and `NODE_CHILD` name mailboxes
-  `docker/dovecot/probe-mailboxes.sh` builds, and `GHOST_SUBSCRIPTION` names the one it does not:
+- **The probe suite's seven fixture names are module constants and registered couplings.**
+  `GUARDED_FOLDER`, `REAL_FOLDER`, `NOSELECT_PARENT`, `NODE_CHILD`, `FEIGNED_FOLDER` and
+  `FOLLOWED_SUBSCRIPTION` name mailboxes `docker/dovecot/probe-mailboxes.sh` builds, and
+  `GHOST_SUBSCRIPTION` names the one it does not:
   a subscription written into the account's own file with no mailbox behind it, which is the only
-  way that server sends `\NonExistent`. `scripts/crosscheck.py` ties each to the line
+  way that server sends `\NonExistent`. The last two are a pair: `FEIGNED_FOLDER` opens, and
+  carries `\Noselect` in an `LSUB` of `%` only because `FOLLOWED_SUBSCRIPTION` under it is
+  subscribed and it is not, which is the one way this server says what the Bridge says in its
+  ordinary LIST (ADR-0022 flagged-name-that-opens addendum).
+  `scripts/crosscheck.py` ties each to the line
   the script writes it in (ADR-0029 fixture addendum). This suite is `integration`-marked and
   never runs in CI, so the gate is the only thing that would notice the fixture and the suite
   drifting apart; the invented name the suite expects to be refused is deliberately not tied,

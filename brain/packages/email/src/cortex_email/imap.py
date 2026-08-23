@@ -110,7 +110,11 @@ _FOLDER_MISSING_ANSWERS = (*_FOLDER_MISSING_PHRASES, *_FOLDER_MISSING_CODES)
 # ``\Noselect`` parent and then refuses it with ``Mailbox doesn't exist: Parent``, the very words
 # that prove a folder missing, while a ProtonMail Bridge flags the two parents of its own
 # hierarchy, ``Folders`` and ``Labels``, and opens both. So the flag selects which names get
-# asked, and the server's answer decides.
+# asked, and the server's answer decides. The half that reads like one server's quirk is not one:
+# RFC 3501 obliges any server to answer an ``LSUB`` of ``%`` with ``\Noselect`` for an
+# unsubscribed name that has subscribed children, whatever that name really is, and the probe
+# duly flags its ``Feigned`` mailbox there and then opens it (ADR-0022 flagged-name-that-opens
+# addendum). Believing a flag is wrong against a standard, not just against a Bridge.
 _NOT_A_MAILBOX = frozenset({"\\noselect", "\\nonexistent"})
 
 
@@ -161,7 +165,7 @@ def _opens(box: BaseMailBox, folder: str) -> bool:
 
     Read-only like every other open here (EXAMINE), and paid once per flagged name rather than
     once per listed name, which is what keeps the check off the ordinary mailboxes: a Bridge
-    flags two of nineteen names and the probe's Dovecot one of four.
+    flags two of nineteen names and the probe's Dovecot one of six.
     """
     try:
         box.folder.set(folder, readonly=True)  # pyright: ignore[reportUnknownMemberType]

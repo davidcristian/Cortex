@@ -3,9 +3,9 @@
 Integration-marked: needs the probe stack up (`just up-imap-probe`), never runs in CI. Run it
 with `just email-folder-probe`, which finds where the server answers and passes host and port in;
 CORTEX_EMAIL_PROBE_PORT unset means the stack is not up and every test here skips. The stack is
-docker/docker-compose.imap-probe.yml, and its four listed names, of which three are mailboxes and
+docker/docker-compose.imap-probe.yml, and its six listed names, of which five are mailboxes and
 one is a `\\Noselect` node that is not, are built by docker/dovecot/probe-mailboxes.sh, whose
-header says what each is for. A fifth name is subscribed and not there, which is the one way to
+header says what each is for. A seventh name is subscribed and not there, which is the one way to
 make this server send RFC 5258's newer word for a name that is not a mailbox.
 
 Why a second server. A `NO` to `SELECT` covers two facts, a mailbox that does not exist and a
@@ -63,6 +63,13 @@ REAL_FOLDER = "INBOX"
 # only way to make this server send RFC 5258's `\NonExistent`: it refuses a SUBSCRIBE of a name
 # no mailbox has, so the subscription is written into its own file rather than asked for here.
 GHOST_SUBSCRIPTION = "Ghost"
+# A real mailbox that opens and that one of this server's listings still calls unselectable,
+# which is the shape the Bridge shows in its ordinary LIST and the reason the flag is a question
+# rather than an answer. The child below is subscribed and this one is not.
+FEIGNED_FOLDER = "Feigned"
+# That child. Its subscription is the whole cause: RFC 3501 has an `LSUB` of `%` flag an
+# unsubscribed name with subscribed children `\Noselect` whatever the name really is.
+FOLLOWED_SUBSCRIPTION = "Feigned/Followed"
 # Four shapes of name this server refuses to read as a mailbox name at all, each answered with
 # RFC 5530's `[CANNOT]` and its own reason: a trailing separator, a leading one, two of them
 # together, and a relative path. They are here rather than in the unit suite because they are
@@ -100,8 +107,9 @@ def probe_dialogue() -> imaplib.IMAP4:
     """The same server over raw imaplib, for the one question imap-tools cannot be asked.
 
     `folder.list()` sends the plain `LIST "" "*"` and nothing else, so a listing carrying a
-    selection option has to be composed here. Everything else in this file goes through the port,
-    which is the point of the file; this reaches past it to measure what the server itself sends.
+    selection option, and the older `LSUB` beside it, have to be composed here. Everything else in
+    this file goes through the port, which is the point of the file; this reaches past it to
+    measure what the server itself sends.
     """
     host, port = _probe_address()
     context = ssl.create_default_context()
@@ -274,6 +282,54 @@ def test_the_newer_spelling_of_unselectable_is_a_word_this_server_really_sends()
     assert GHOST_SUBSCRIPTION not in plain
     assert plain[NOSELECT_PARENT] == "(\\Noselect \\HasChildren)"
     assert GHOST_SUBSCRIPTION not in list(probe_mailbox().list_folders())
+
+
+@pytest.mark.integration
+def test_a_name_this_server_calls_unselectable_and_opens_anyway_is_a_real_thing() -> None:
+    """The other half of the flag rule, which had been measured on one account and nowhere else.
+
+    `list_folders` drops a flagged name only when the server also refuses it, and that second
+    question exists because a `\\Noselect` name really can open: a ProtonMail Bridge flags the two
+    parents of its own hierarchy and opens both. That was the whole evidence, one account's folder
+    tree, which goes stale the way any account does. This is a second server saying it, on a
+    fixture this repo builds, and it is not a quirk but a requirement: RFC 3501 has an `LSUB` of
+    `%` answer with `\\Noselect` for a name that is unsubscribed and has subscribed children,
+    whatever that name really is, so a standard obliges a compliant server to flag a mailbox it
+    will happily open. `Feigned` is exactly that name here, and it opens through the port.
+
+    What this server will NOT do is put the flag in the listing the adapter itself makes, which
+    is asserted here too, because it is the reason the Bridge's own test stays the only live proof
+    of the keep and not a redundant one. In dovecot 2.3.21's plain `LIST` the flag and the refusal
+    are computed from one fact, so `Feigned` is `\\HasChildren` there and nothing else. Two
+    configurations were tried against 2.3.21 to move it and both failed the same way: a second
+    namespace whose prefix collides with a real mailbox lists that name twice, once flagged, and
+    the flagged reading is the one a SELECT resolves to, so the name is refused; and a namespace
+    prefixed `INBOX/` is merged with the real INBOX and listed `\\HasChildren` with no flag at all.
+    The finding is written up in the ADR-0022 flagged-name-that-opens addendum.
+    """
+    with probe_dialogue() as conn:
+        subscribed_tree = _named(conn.lsub('""', '"%"'))
+        plain = _named(conn.list())
+    assert subscribed_tree[FEIGNED_FOLDER] == "(\\Noselect)"
+    # The plain listing is read for the absence of that word rather than as a whole tuple,
+    # because the rest of the tuple is not a property of the name. This server starts sending
+    # `\UnMarked` with a mailbox once something has searched it, and the port contract's own
+    # check searches every name `list_folders` offers, so `Feigned` is `(\HasChildren)` on the
+    # first run against a fresh container and `(\HasChildren \UnMarked)` on every run after.
+    # An exact reading was written here, passed on the container that built it, and reddened on
+    # the rerun, which is the whole argument for this shape.
+    plain_flags = set(plain[FEIGNED_FOLDER].strip("()").split())
+    assert "\\HasChildren" in plain_flags
+    assert not plain_flags & {"\\Noselect", "\\NonExistent"}
+
+    # And the same name opens, which is what makes the flag a lie worth asking about rather than
+    # a fact worth believing. Through the port, so the offer and the open are one story: both the
+    # parent and the child that flagged it are names a caller may really be given.
+    mailbox = probe_mailbox()
+    offered = list(mailbox.list_folders())
+    assert FEIGNED_FOLDER in offered
+    assert FOLLOWED_SUBSCRIPTION in offered
+    assert list(mailbox.search(FEIGNED_FOLDER, "ALL", 1)) == []
 
 
 def _named(answer: tuple[str, Sequence[bytes | tuple[bytes, bytes] | None]]) -> dict[str, str]:

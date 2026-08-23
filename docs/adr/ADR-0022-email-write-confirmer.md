@@ -1477,3 +1477,91 @@ suite (6 integration tests, `just email-folder-probe`) and `just check-crosschec
 | drop `\nonexistent` from `_NOT_A_MAILBOX` | the newer spelling stops being read | 1 unit test red; no live test, since neither server sends the word to the listing the adapter makes |
 | the fixture stops writing the subscription | the word has no source | 1 live probe test red and `crosscheck` red |
 | rename the subscribed name in the script alone | the two spellings drift | `crosscheck` red on the new coupling, and the same live test red |
+
+## Addendum (2026-08-23): the flag that lies, on a server this repo builds
+
+The flagged-and-refused addendum shipped a rule with two halves and evidence for one of them. A
+name a server flags `\Noselect` or `\NonExistent` is opened once before being judged: dropped if
+the server refuses it, kept if it opens. The **drop** is pinned on a fixture, the probe's `Parent`
+node, which this repo builds and can rebuild. The **keep** was pinned on nothing but a live
+ProtonMail Bridge, on one account, whose `Folders` and `Labels` happen to be flagged and open.
+That was filed as
+[the kept half has no fixture](../refinements/tasks/376-the-bridge-flag-reading-is-one-account.md),
+and the question it asked is whether Dovecot can be made to produce an openable flagged name at
+all. It can, and it cannot, and which of the two depends on the listing.
+
+**It cannot, in the plain `LIST "" "*"` the adapter itself makes.** There, on dovecot 2.3.21, the
+flag and the refusal are computed from one fact, so a name flagged there is a name SELECT will
+refuse. Two configurations were built and measured against that claim, and both confirmed it:
+
+| what was tried | what the plain LIST answered | what a SELECT of it answered |
+| --- | --- | --- |
+| a second namespace `prefix = Shared/` beside a real mailbox `Shared` | `(\HasNoChildren) "/" Shared` **and** `(\Noselect \HasChildren) "/" Shared`, the name listed twice | `NO Mailbox doesn't exist: Shared`, the prefix node being what the name resolves to |
+| a second namespace `prefix = INBOX/`, whose prefix node is INBOX itself | `(\HasChildren) "/" INBOX`, merged with the real one and not flagged at all | `OK`, but there was no flag to survive |
+
+The first is the closer miss and the more instructive: the flagged line really is there in a plain
+LIST, and the name really is a mailbox in another namespace, and the server still refuses it,
+because a bare prefix resolves to the prefix node rather than to the mailbox it collides with. The
+second shows the rule from the other side: Dovecot knows INBOX is selectable, so it declines to
+flag the prefix node at all. Both are one behaviour seen twice.
+
+**It can, in an `LSUB` of `%`, and there it is a requirement rather than a quirk.** RFC 3501
+section 6.3.9 says a name that is unsubscribed and has subscribed children MUST come back from
+LSUB flagged `\Noselect`, whatever that name really is. So the standard obliges a compliant server
+to flag a mailbox it will happily open, which is the shape the Bridge shows in its ordinary LIST.
+The fixture grew a pair to produce it, `Feigned` and its child `Feigned/Followed`, and both are
+ordinary mailboxes. Verbatim, against dovecot/dovecot:2.3.21 (build `47349e2482`):
+
+    LSUB "" "%"          () "/" Ghost
+                         (\Noselect) "/" Feigned
+    LIST "" "*"          (\HasChildren) "/" Feigned
+                         (\HasNoChildren) "/" Feigned/Followed
+    EXAMINE Feigned      OK
+
+**Decision: land the pair and assert both halves, and leave the Bridge test as the only proof of
+the third thing.** The live suite now reads the flag out of the subscribed listing, reads its
+absence out of the plain one, and opens the name through the port. What that establishes is the
+premise the keep rests on: a real server, one this repo builds and can rebuild after any bump,
+flags a name unselectable and opens it, so believing a flag is wrong against a standard and not
+only against somebody's mailbox. What it does not establish is that `list_folders` keeps such a
+name, because the flag never reaches the listing `list_folders` makes on this server. That stays
+proved only by `test_email_live.py` against the Bridge, and it is now filed as its own narrower
+thing rather than as half of this one:
+[the keep in the adapter's own listing is still one account](../refinements/tasks/400-the-keep-in-the-adapters-listing-is-one-account.md).
+The two rejected configurations are prose here and nothing runs them, which is the other residue:
+[the rejected probe configurations are prose only](../refinements/tasks/401-the-rejected-probe-configurations-are-prose.md).
+
+**Naming.** `Feigned` says what is true of it: the unselectability is a pretence, and the name is
+a mailbox. It sits with `Guarded` as a participle describing what the server does to the name, next
+to the nouns `Parent`, `Child` and `Ghost` that describe what the name is. `Followed` is the child,
+named for the subscription that is the entire cause of the parent's flag. Alternates weighed and
+not taken: `Masked` and `Belied` for the parent, both true and neither as plain; `Watched` and
+`Kept` for the child, the second colliding with the word this decision record already spends on the
+half of the rule that keeps a name.
+
+**One measured thing that is not about IMAP at all.** The plain-LIST reading was first written as
+an exact tuple, `(\HasChildren)`, and it passed. It then reddened on the next run against the same
+container, which is how the transience was found: this server starts sending `\UnMarked` with a
+mailbox once something has searched it, and the port contract's own check searches every name
+`list_folders` offers, so the first run against a fresh container and every run after it see
+different tuples. The assertion now reads the words it is about, that no attribute in that listing
+calls the name unselectable, and ignores the rest. An exact reading of a live server's flags is a
+reading of that server's history as much as of its configuration.
+
+**Validation.** `just check` green, run to completion in the session that landed this, output
+captured to a file. The probe stack was brought up through `docker compose` and taken down around
+every arm, the mail store being a tmpfs so each arm builds its tree from the edited script. This
+host cannot let compose create a network (`all predefined address pools have been fully subnetted`,
+a split default route rather than anything in this repo), so the network was pre-created with an
+explicit subnet and compose adopted it; everything else in the compose file ran as written.
+Mutations, each planted in the fixture, measured after a container recreate, and reverted from a
+saved copy, over the probe's live suite (7 integration tests, `just email-folder-probe` against
+`127.0.0.1:11143`) and `just check-crosscheck`. The email package's unit suite (110 tests,
+integration deselected) is unmoved by all three, which is the point of a fixture:
+
+| mutation | expected | observed |
+| --- | --- | --- |
+| the fixture stops subscribing `Feigned/Followed` | the parent loses the flag, so the subscribed listing has nothing to read | 1 of 7 live red, at the LSUB reading, and `crosscheck` red on the subscription mention |
+| the fixture stops building `Feigned` as a mailbox, leaving it a bare node | the plain listing starts calling it unselectable, which is what the second assertion denies | 1 of 7 live red, twice in a row, at the plain-LIST reading, and `crosscheck` red on the parent's mailbox mention |
+| rename the pair in the script alone | the fixture builds a tree the suite is not measuring | 1 of 7 live red, and `crosscheck` red 3 times over 2 couplings |
+| all three reverted | back to green | 7 of 7 live green three runs running, one against a fresh container and two against a warm one |
