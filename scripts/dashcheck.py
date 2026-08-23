@@ -24,6 +24,10 @@ SKIPPED_DIRS = frozenset(
     }
 )
 
+# The floor under the reading below, and the same one `linecap.py` carries: a walk that read a
+# single text file has entered the tree, and a walk that read none cannot fail on anything.
+MIN_FILES = 1
+
 
 class UnreadableFileError(Exception):
     """A candidate file exists but cannot be read."""
@@ -36,6 +40,18 @@ class Violation(NamedTuple):
     line: int
     kind: str
     text: str
+
+
+class Scan(NamedTuple):
+    """One walk: the collection the verdict is over, then the verdict.
+
+    ``files`` and ``lines`` count the text that was read, so a binary file the walk skipped is
+    in neither. The rule is per line, which is why the lines are counted as well as the files.
+    """
+
+    files: int
+    lines: int
+    violations: list[Violation]
 
 
 def is_binary(data: bytes) -> bool:
@@ -82,9 +98,11 @@ def read_text(path: Path) -> str | None:
     return data.decode("utf-8")
 
 
-def scan(root: Path) -> list[Violation]:
-    """Walk ``root`` and return every banned-dash violation in its text files."""
+def scan(root: Path) -> Scan:
+    """Walk ``root``, counting the text it reads and returning every banned-dash violation."""
     violations: list[Violation] = []
+    files = 0
+    lines = 0
     for directory, dirnames, filenames in root.walk():
         dirnames[:] = sorted(name for name in dirnames if name not in SKIPPED_DIRS)
         for name in sorted(filenames):
@@ -94,8 +112,10 @@ def scan(root: Path) -> list[Violation]:
             text = read_text(path)
             if text is None:
                 continue
+            files += 1
+            lines += len(text.splitlines())
             violations.extend(scan_text(path.relative_to(root), text))
-    return violations
+    return Scan(files=files, lines=lines, violations=violations)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -115,10 +135,17 @@ def main(argv: list[str] | None = None) -> int:
         print(f"dashcheck: root {root} is not a directory", file=sys.stderr)
         return 2
     try:
-        violations = scan(root)
+        scanned = scan(root)
     except UnreadableFileError as err:
         print(f"dashcheck: {err}", file=sys.stderr)
         return 2
+    if scanned.files < MIN_FILES:
+        print(
+            f"dashcheck: no text file under {root}; a scan that read nothing cannot fail",
+            file=sys.stderr,
+        )
+        return 2
+    violations = scanned.violations
     for violation in violations:
         print(f"{violation.path}:{violation.line}: {violation.kind}: {violation.text}")
     if violations:
@@ -130,7 +157,10 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
         return 1
-    print(f"dashcheck OK: no text file under {root} uses a banned dash")
+    print(
+        f"dashcheck OK: {scanned.files} text file(s) under {root} use no banned dash, "
+        f"over {scanned.lines} line(s) read"
+    )
     return 0
 
 

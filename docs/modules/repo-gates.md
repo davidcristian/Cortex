@@ -43,8 +43,11 @@ that last question to have an answer.
   Directory symlinks are not traversed (deliberate: no
   cycles, no escapes outside the root); a candidate that is not a regular file after
   following symlinks (e.g. a dangling editor-lockfile symlink) is skipped.
-  Exit 0 with a summary line; exit 1 printing `path: N lines (cap M)` per violation;
-  exit 2 if `--root` is not a directory or a source file cannot be read.
+  Exit 0 with a summary line **stating what the walk measured**, files and lines counted after
+  every exclusion, so a verdict that would be equally true of a tree the scan never entered says
+  which tree it is over; exit 1 printing `path: N lines (cap M)` per violation;
+  exit 2 if `--root` is not a directory, a source file cannot be read, or the walk measured
+  **no** file at all (`MIN_FILES`), a scan that read nothing being one that cannot fail.
 - `dashcheck.py [--root DIR]` implements the no-dash-as-punctuation rule (ADR-0026).
   Scans EVERY text file under `--root` (default `.`), not just `*.py`/`*.rs`, because the
   rule covers docs and comments alike. Flags U+2014 EM DASH and U+2013 EN DASH anywhere,
@@ -56,9 +59,11 @@ that last question to have an answer.
   `test_skipped_dirs_match_dashcheck_plus_tests_and_generated` holds the two lists to that
   sentence rather than leaving it to be believed; binary files are
   detected and skipped. A line carrying `dashcheck: allow` plus a reason is exempt, for a
-  dash that means rather than punctuates. Exit 0 with a summary; exit 1 printing
-  `path:line: kind: text` per violation; exit 2 if `--root` is not a directory or a file
-  cannot be read.
+  dash that means rather than punctuates. Exit 0 with a summary **stating the text it read**,
+  files and lines with the binaries in neither; exit 1 printing
+  `path:line: kind: text` per violation; exit 2 if `--root` is not a directory, a file
+  cannot be read, or no text file was read at all (`MIN_FILES`, the same floor `linecap.py`
+  carries and the one `composefiles.py` has always given the two compose gates).
 - `crosscheck.py [--root DIR]` ties the values this repo spells in more than one place, because
   both sides of a seam must hold the same one and neither toolchain can import the other's
   (ADR-0029 cross-language-constant addendum and its 2026-08-08 widening). The scan is all of the
@@ -269,7 +274,9 @@ that last question to have an answer.
   `defaultcheck.py`, so a new override is covered wherever it is added and the two compose gates
   cannot come to disagree about which files exist. **Fails closed**: no compose file at all, a mount entry the
   reader refuses, a source that cannot be reduced, and a git that cannot run are each a fault,
-  never a skip. Exit 0 with a summary; exit 1 printing `path:line: detail` per fault; exit 2 if
+  never a skip. Exit 0 with a summary **stating what the walk read**, compose files, the binds
+  they declare, and the landings git was asked about, which is neither the binds nor twice them;
+  exit 1 printing `path:line: detail` per fault; exit 2 if
   `--root` is not a directory or the scan could not run at all.
 - `defaultcheck.py [--root DIR]` holds one variable spelled in several compose files to one
   default in all of them (ADR-0026 defaults addendum). It is compose-only and registry-free: it
@@ -290,7 +297,9 @@ that last question to have an answer.
   against the places restating it, while this question has no declaration and is discovered by
   walking the files, so the fold would give one scan two entry points and make its stated subject
   false. **Fails closed**: no compose file at all, a file that cannot be read or decoded, and a
-  `$` form the reader was not taught are each a fault. Exit 0 with a summary; exit 1 printing
+  `$` form the reader was not taught are each a fault. Exit 0 with a summary **leading on the
+  variables actually compared**, over the compose files and the variables read to find them,
+  since a variable spelled once is not in the collection the verdict is about; exit 1 printing
   `NAME: detail` per fault, each naming every place the variable is spelled; exit 2 if `--root`
   is not a directory or the scan could not run at all.
 - `composedefaults.py` is `defaultcheck.py`'s reader and has no CLI. `read_substitutions(text)`
@@ -658,6 +667,20 @@ that last question to have an answer.
   exclusion the legibility sort wrote down and which a document describing the gate has always had.
   So the hand-counted tallies left this document instead: the counts above are the scan's to print
   and this doc's job is which mentions are counted and why.
+- **Every cross-tree scan states the collection its verdict is over** (ADR-0029 addendum on the
+  other four gates), which generalised the reading above to all six. The rule is that a success
+  line naming no collection is equally true of a scan that read nothing, so each gate prints what
+  its own walk read **after** its exclusions: files and lines for the line cap and the dash ban,
+  compose files, binds and landings for the bind check, compose files and variables beside the
+  variables actually compared for the defaults check, the registry's four-part shape for
+  `crosscheck.py`, and a count line per backlog for `backlogcheck.py`. Every one of those numbers
+  is a reading and **nothing asserts any of them**, here or anywhere: the suites pin that a gate's
+  counts count different things, over fixtures built so no two of the numbers coincide, and pin no
+  number the live tree holds. **The floor is the exception and is a gate**, because "at least one
+  file was read" is a fact about the walk rather than about the tree: `linecap.py` and
+  `dashcheck.py` exit 2 on a walk that measured nothing, which is the rule `composefiles.py` has
+  always given the two compose gates. The deeper counts get no floor, a compose file declaring no
+  bind and a variable spelled once each being ordinary.
 - **A value a needle carries as a literal is SHADOWED, not held** (ADR-0023 bind-host addendum).
   Two dozen templates across the two endpoint entries spell `127.0.0.1`, which reads like the
   loopback address being tied in two dozen places. It is not tied anywhere by them, for three
