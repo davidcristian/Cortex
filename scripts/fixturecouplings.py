@@ -20,7 +20,18 @@ email-folder-probe` reads both back off docker, the publish when it answers and 
 own address when it does not, so neither is written down anywhere a rename could strand. Nor the
 name the suite invents to be refused, `Nonexistent`, whose whole point is that the script does not
 build it; a coupling needs two places holding one value, and that one is a value with one place on
-purpose.
+purpose. Nor the login's password, which is the account's own name spent a second time in one
+expression, `nopassword=y` leaving nothing on the server to agree with it: a value spelled twice in
+one file under one constant is not two places, and the far side here is an absence.
+
+**And the mail root above the account is not here, for a reason worth writing down.** `/srv/mail`
+is spelled in the script, in `docker/dovecot/probe.conf` and in the compose tmpfs that makes the
+store throwaway, and those three really must agree. No tree declares it. This scan compares a
+declaration against the places restating one, and inventing a declaration in a suite that has no
+use for the value would be the gate editing the contract it watches, so the prefix rides along
+inside the account's own template as shape rather than as a value of its own. That leaves the
+compose tmpfs untied, which is the same shape of gap the compose defaults had before a gate of
+their own was written for them.
 """
 
 from couplings import Constant, Mention, Site
@@ -29,6 +40,24 @@ PROBE_SCRIPT = "docker/dovecot/probe-mailboxes.sh"
 PROBE_SUITE = "brain/packages/email/tests/test_imap_probe_live.py"
 
 FIXTURE_COUPLINGS: tuple[Constant, ...] = (
+    Constant(
+        label="the probe's account",
+        why=(
+            "this server resolves an account's mail home out of the login itself "
+            "(`home=/srv/mail/%Lu` in docker/dovecot/probe.conf), so the segment the script "
+            "builds its tree under IS the account the suite logs in as, and a rename on one side "
+            "alone leaves dovecot looking in an empty home: every mailbox goes missing at once, "
+            "the control among them, and the run reads as a server that lost its mail rather "
+            "than as a fixture built for somebody else (ADR-0022 two-server addendum)"
+        ),
+        sites=(Site(PROBE_SUITE, "PROBE_LOGIN"),),
+        # Two occurrences and one set: the home the tree is built under, and the same home handed
+        # to `chown` seven lines later. Unlike the guarded mailbox's pair, a half applied rename
+        # here is not silent, `set -eu` stopping the script on a chown of a directory nothing
+        # made. It is only late: nothing runs this fixture until somebody measures, which is the
+        # whole reason this part exists, so the count moves that failure to the gate that runs.
+        mentions=(Mention(PROBE_SCRIPT, "/srv/mail/{value}", occurrences=2),),
+    ),
     Constant(
         label="the probe mailbox the ACL shuts",
         why=(

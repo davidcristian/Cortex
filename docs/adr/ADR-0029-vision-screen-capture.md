@@ -3867,3 +3867,123 @@ The record is the task file
 [R-382](../refinements/tasks/382-the-paired-numbers-quoted-in-prose.md), which closes,
 [docs/refinements/index.md](../refinements/index.md), which is regenerated from it, the two module
 contracts that gained a sentence, and this addendum.
+
+## Addendum (2026-08-23): the probe's account is a row, and the mail root above it is not
+
+The fixture part opened with the account the suite logs in as left out of it, for want of a
+declaration to read
+([R-384](../refinements/tasks/384-the-probe-account-is-spelled-twice.md)). It is registered now,
+and the same reading says why the path above it stays out.
+
+### Half of what the entry proposed was already in the tree
+
+The entry says the suite spells the account inline in the `EmailConfig` it builds, so that hoisting
+it to a module constant is a change to the suite rather than to the registry. That was true when it
+was written and was not true a day later: the measurement that read a refused folder name off the
+response code hoisted the login to `PROBE_LOGIN` in
+`brain/packages/email/tests/test_imap_probe_live.py`, with the comment beside it saying the
+password is the same word. Only the registration was missing. This is the backlog's second standing
+warning arriving in its ordinary form, a task file describing a tree that had moved, and it is
+worth naming because the entry's own cost estimate was mostly the hoist.
+
+The entry is also one place short on the far side. It names `ROOT=/srv/mail/probe/Mail`. The script
+spells that home twice: the `ROOT` the mailbox tree is built under, and the `chown -R` seven lines
+later that hands the whole home to the mail user. Both are the account, because
+`docker/dovecot/probe.conf` gives the static userdb `home=/srv/mail/%Lu`, and that expansion is the
+mechanism rather than a third spelling: the conf never writes the account down, so there is nothing
+in it a needle could pin.
+
+### One entry, counted at 2, and why the count is worth having here
+
+`Site(PROBE_SUITE, "PROBE_LOGIN")` against `Mention(PROBE_SCRIPT, "/srv/mail/{value}",
+occurrences=2)`. The prefix rides inside the template as shape, the way the port pair's
+`"127.0.0.1:{value}:{value}"` does, so what is compared is still the one value the site declares.
+
+The count is the ninth in the registry and its argument differs from the guarded mailbox's. There,
+a half applied rename is silent: the ACL lands where dovecot never reads it and the mailbox opens
+like any other. Here it is loud, `set -eu` stopping the script on a `chown` of a directory nothing
+made, so the container never reaches the server. What it is not is early. Nothing runs this fixture
+until somebody chooses to measure, which is the whole reason this part exists, so the count moves a
+failure that would surface at the next measurement to the gate that runs on every commit.
+
+### The password, and the mail root
+
+**The password is one value, not two spellings of one.** The suite passes `PROBE_LOGIN` as both
+halves of the login, which is one constant spent twice in one expression rather than a coupling,
+and the far side is an absence: `nopassword=y` means the server checks nothing, so there is no
+password anywhere in `docker/dovecot/` for a registry to hold it against. The comment in the suite
+already says as much, and it is right.
+
+**The mail root above the account cannot be a row here, and the reason is the one this scan is
+built on.** `/srv/mail` is written in the script, in `probe.conf` and in the compose file's tmpfs,
+and those three must agree: move the tmpfs alone and the store stops being throwaway, move the
+conf alone and every mailbox goes missing exactly as a renamed account does. No tree declares it.
+This scan compares a declaration against the places restating it, and the honest options are both
+refused. Inventing a constant in a suite that has no use for the value would be the gate editing
+the contract it watches, which is the same argument that keeps a module-private name registrable
+without widening its API. Registering it with no site at all is what `registry_fault` already
+rejects. So the prefix is held only as far as the account's own template carries it, which is the
+script's two spellings and neither of the other two files, and the gap is filed rather than
+papered over
+([R-390](../refinements/tasks/390-the-probes-mail-root-is-spelled-in-three-files.md)). It is the
+same shape as the compose defaults that had no declaration either, and those were answered with a
+gate of their own rather than with a stretched registry.
+
+### Measured against the real server, not only against the text
+
+The claim the entry rests on was checked live before the row was written. `dovecot/dovecot:2.3.21`
+was run from `docker/dovecot/probe.conf` and `docker/dovecot/probe-mailboxes.sh` with the mail
+store on a tmpfs and 143 published on loopback, and the six `integration`-marked tests in
+`test_imap_probe_live.py` were run against it.
+
+| what was run | what it printed |
+|---|---|
+| the fixture as it stands | 6 passed |
+| the script's home renamed, the suite left alone | 6 failed |
+| the rename reverted, digest matched | 6 passed |
+
+The middle row is the entry's claim, and it is stronger than any of the five mailbox names
+produce: renaming one of those takes out the test that names it, while renaming the account takes
+out all six at once, the control among them, because the server finds the account's home empty and
+lists nothing. The suite is never run by CI, so nothing in the gate mirror would have said a word.
+
+The stack is not brought up by `just up-imap-probe` in the record above. That recipe failed on this
+host, docker refusing to create a network at all (`all predefined address pools have been fully
+subnetted`, a split default route covering every candidate pool), so the container was run by hand
+on the pre-existing default bridge with the same two mounts, the same tmpfs and the same publish.
+That is a fact about this host's networking rather than about the fixture, and it is written down
+because the measurement above was made that way.
+
+### Proved able to fail, five times, over the crosscheck registry
+
+Each side of the entry was planted with a real disagreement one at a time on the real tree, the
+gate run with `uv run python crosscheck.py --root ..`, the file restored, and the restoration
+compared by SHA-256 digest against what it held before. The counts are over the crosscheck registry
+as it stands after this change, 57 entries over 66 sites and 107 mentions, and not over any test
+suite: a suite's numbers say nothing about the collection this table is about. The fixture part is
+6 of those entries, 6 of those sites and 6 of those mentions.
+
+| planted drift | what the gate said |
+|---|---|
+| `PROBE_LOGIN` becomes `prober` | 1 fault: found 0 of the 2 the mention pins |
+| the script builds the tree under a renamed home | 1 fault: found 1 of 2 |
+| the script chowns a renamed home | 1 fault: found 1 of 2, the other half of that set |
+| the script renames both halves | 1 fault: found 0 of 2 |
+| the script moves the root above the account to `/var/mail` | 1 fault: found 0 of 2 |
+
+All five exited 1 and all five restorations matched by digest. The converse was run too, since a
+gate that reddens on a legitimate rename is worse than one that misses: renaming the account in the
+suite and in both of the script's spellings together exits 0, `crosscheck OK` over all 57. The
+fifth row is what the template's literal prefix buys and costs at once. A move of the mail root
+reddens this entry even though the value it compares did not change, so the registry has to be
+edited along with the script, which is the moment somebody would notice `probe.conf` and the tmpfs
+standing where they were.
+
+### Records
+
+The record is the task file
+[R-384](../refinements/tasks/384-the-probe-account-is-spelled-twice.md), which closes,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from it, and this
+addendum. One narrower task opens in its place, the mail root the three fixture files share with
+nothing to declare it
+([R-390](../refinements/tasks/390-the-probes-mail-root-is-spelled-in-three-files.md)).
