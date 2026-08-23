@@ -41,6 +41,16 @@ DEFAULT_VISION_MODE: VisionMode = "auto"
 # it behind fails in the suite that owns it rather than drifting.
 DEFAULT_SEAM_PORT = 50051
 
+# The interface BrainService binds when nothing overrides it, hoisted beside the port for the same
+# reason and for exactly one place fewer than a reader expects. `127.0.0.1` is spelled in two dozen
+# needles of the two port entries in `scripts/crosscheck.py`, and one of them is this value: the
+# rest are the body's own bind, the two `CORTEX_*_ADDR` client defaults, the compose publish's
+# host-side interface and a handful of loopback dials, all of which go on saying `127.0.0.1` after
+# this one moves. Three places state THIS default and the scan holds all three. The shipped stack
+# does not run on it: `docker/docker-compose.yml` sets `CORTEX_SEAM_HOST=0.0.0.0` so the published
+# port can reach the server, and exposure stays loopback-only through the publish.
+DEFAULT_SEAM_HOST = "127.0.0.1"
+
 
 class SeamServerConfig(BaseSettings):
     """Where (and to whom) the brain hosts BrainService.
@@ -53,7 +63,7 @@ class SeamServerConfig(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="CORTEX_SEAM_")
 
-    host: str = "127.0.0.1"
+    host: str = DEFAULT_SEAM_HOST
     port: int = DEFAULT_SEAM_PORT
     # env CORTEX_SEAM_TOKEN is the shared secret both sides read from env (never the repo).
     token: str = ""

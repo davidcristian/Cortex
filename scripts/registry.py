@@ -8,7 +8,8 @@ new data file plus one line here, and `crosscheck.py` never learns that the regi
 The sixth part arrived as a subject rather than as a split, which was the first time that claim
 was paid rather than argued, and the seventh arrived the same way, which is the second. The eighth
 went back to being a split, and paid the claim a third time from the other direction: the cap moved
-five entries into a file of their own and nothing outside this line changed.
+five entries into a file of their own and nothing outside this line changed. So did the ninth,
+which took the two endpoint entries out on the day a third joined them.
 
 The order is the order faults are reported in, and nothing depends on it beyond that: the scan
 never asks which file an entry came from, so a coupling moves house without the gate noticing.
@@ -16,6 +17,8 @@ Each part is named for the subject it holds rather than for when it was written,
 keeps a move an editorial decision instead of an archaeological one:
 
 - `seamcouplings` ties one tree's code to another's, where neither toolchain can import the other.
+- `endpointcouplings` ties each side's own endpoint, the address it answers on and its port, to
+  compose, to the image, to the suites that dial it and to every document that states it.
 - `shippedcouplings` ties the brain container's own defaults to the stacks and documents that
   restate them.
 - `capturecouplings` ties one capture's own numbers, the edge and byte budget it rides with and
@@ -32,6 +35,7 @@ keeps a move an editorial decision instead of an archaeological one:
 from capturecouplings import CAPTURE_COUPLINGS
 from couplings import Constant
 from emailcouplings import EMAIL_COUPLINGS
+from endpointcouplings import ENDPOINT_COUPLINGS
 from fixturecouplings import FIXTURE_COUPLINGS
 from modelhostcouplings import MODELHOST_COUPLINGS
 from overlaycouplings import OVERLAY_COUPLINGS
@@ -41,6 +45,7 @@ from subagentcouplings import SUBAGENT_COUPLINGS
 
 CONSTANTS: tuple[Constant, ...] = (
     *SEAM_COUPLINGS,
+    *ENDPOINT_COUPLINGS,
     *SHIPPED_COUPLINGS,
     *CAPTURE_COUPLINGS,
     *SUBAGENT_COUPLINGS,

@@ -919,3 +919,112 @@ The record is the task file
 [modules/brain-orchestrator.md](../modules/brain-orchestrator.md), whose accounts of what is tied
 were both stale by this change, [modules/repo-gates.md](../modules/repo-gates.md), whose count of
 counted mentions was stale by five before this change touched it, and this addendum.
+
+## Addendum (2026-08-23): the bind host, and what a needle's own literals are
+
+The seam port's sort recorded that `CORTEX_SEAM_HOST` rides inside a dozen of that entry's needles
+as shape while nothing holds it as a value
+([R-396](../refinements/tasks/396-the-seam-host-rides-inside-the-ports-needles.md)). The host is
+registered now, over three places rather than twelve, and the reason for the difference is the
+ruling this addendum exists for.
+
+### The entry was wrong about which value those needles carry
+
+Counted off the tree, `127.0.0.1` appears in **24** needles, not twelve: 18 on the brain's seam
+port and 6 on the body's own listen port, which the entry never mentions. That count is the smaller
+correction. The larger one is that **those digits are not one value.** They are five:
+
+| what the digits are | where | moves when |
+|---|---|---|
+| the brain's own bind default | `SeamServerConfig.host` | somebody rebinds the brain |
+| the body's own bind default | `DEFAULT_BODY_PORT`'s two doc comments | somebody rebinds the body |
+| the `CORTEX_BRAIN_ADDR` client default | `seam.rs`, `converse.rs`, six documents | the body dials elsewhere |
+| the compose publish's host-side interface | `docker/docker-compose.yml`'s `ports` | the loopback-only posture changes |
+| a loopback dial | a healthcheck, two live suites, two one-liners | never; it is localhost |
+
+The shipped stack settles it. `docker/docker-compose.yml` sets `CORTEX_SEAM_HOST: "0.0.0.0"` and
+`brain/Dockerfile` says why: the in-process default is loopback and Compose binds all interfaces so
+the published port can reach the server. So the container the repo ships does not run on
+`127.0.0.1` at all, and the publish's `127.0.0.1` is the host machine's interface, chosen by the
+security posture rather than by the server's default. Retune `SeamServerConfig.host` and **one** of
+those 24 needles is stale. The entry's own prediction, twelve needles unfound at once and twelve
+ports named in the fault, would have been a false red twelve times over.
+
+### The ruling: a shadow is not a hold, and not even evidence
+
+An incidentally-pinned value is **shadowed**. The gate does compare the digits, but three
+properties keep that from being a coupling:
+
+- The comparison runs against the **registry's own text**, not against a declaration. That makes
+  the registry one more uncoupled copy of the value, which is the argument that has always kept a
+  proto comment from being a master.
+- It fails in **one direction only**. Move the far side and the needle is unfound; move the
+  declaration and every needle goes on rendering the old digits, green.
+- The fault **names the wrong constant**. This was measured rather than argued: moving the compose
+  publish's host-side interface, and moving the body app contract's `CORTEX_BRAIN_ADDR` default,
+  each reddened *the brain's seam port*, a value neither of them spells.
+
+And the fourth property is the one that decides the remedy: a shadow is not evidence the value is
+there. Reading those 24 needles as coverage of the loopback address would have been reading four
+other values as this one. So a value gets held by getting an **entry**, and the shadow stays what
+it is, a maintenance cost visible in the registry: a needle must carry enough neighbouring text to
+be a claim about the right sentence, and some of that text is other people's values. What a new
+entry can do, and this one does, is carry only its own value where the shape allows. The RPC
+contract writes the host and the port on one line, and the two entries pay that line once each from
+opposite ends, ``defaults `{value}`/`` against ``defaults `127.0.0.1`/`{value}` ``.
+
+The hoist itself is the idiom the port beside it already lives under: `DEFAULT_SEAM_HOST` is a
+module constant because a pydantic field is indented and this scan's Python declaration form is
+anchored at column 0, and the comment above it says so.
+
+### The registry took a ninth part
+
+`seamcouplings.py` reached the 300-line cap on this entry, and the two endpoint entries had grown
+into more than half of it, so they moved to `endpointcouplings.py` with the bind host joining them.
+The seam that split is the one both were already written to: an endpoint is not a number two trees
+compute with but a place one listens and the other dials. The move cost one import and one name in
+`registry.py`, which is the fourth time that file's one-line claim has been paid rather than argued.
+
+### Proved able to fail, seven times, over the crosscheck registry
+
+Each place was planted with a real disagreement one at a time on the real tree, the gate run, the
+file restored from a copy taken beforehand, and the gate re-run green. The counts are over the
+crosscheck registry as it stands after this change, 61 entries over 71 sites and 176 mentions, and
+not over any test suite: a suite's numbers say nothing about the collection this table is about.
+This entry is 1 of those entries, 1 of those sites and 3 of those mentions.
+
+| planted drift | what the gate said |
+|---|---|
+| `DEFAULT_SEAM_HOST` moved alone | 3 faults, one per mention, each naming its own file |
+| the orchestrator contract's stated default moves | 1 fault naming the contract |
+| the RPC contract's paired defaults move | 2 faults: the bind host, and the port, which shadows it |
+| the WSL table's bind host row moves | 1 fault naming the runbook |
+| the compose publish's host-side interface moves | 1 fault naming **the seam port**, which it is not |
+| the body app contract's brain dial default moves | 1 fault naming **the seam port**, which it is not |
+
+The first four are the entry proving able to fail, all exiting 1 and all restorations returning the
+gate to green. The last three rows are the ruling above, measured: three moves of a value that is
+not the seam port, each reported as the seam port, one of them alongside the correct fault. Two
+**controls** ran the other way and both stayed green: the shipped `CORTEX_SEAM_HOST=0.0.0.0`
+override, which is not a restatement of the default, and a wiring test exporting the host as a
+fixture, which any address would pass.
+
+### What this opened
+
+The misattribution is the residue. A fault says a constant is not tied when what moved is a
+neighbour's value sitting inside its needle, and the reader is sent to the wrong declaration. That
+is answerable, by rendering a needle's literals against the registry and saying which one moved, or
+by letting a template render a registered neighbour's value instead of spelling it
+([R-403](../refinements/tasks/403-a-needles-literal-reddens-the-wrong-entry.md)).
+
+### Records
+
+The record is the task file
+[R-396](../refinements/tasks/396-the-seam-host-rides-inside-the-ports-needles.md), which closes,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from it,
+`brain/packages/orchestrator/src/cortex_orchestrator/config.py`, which carries the hoist,
+`scripts/endpointcouplings.py` and `scripts/registry.py`, which carry the split,
+[modules/brain-orchestrator.md](../modules/brain-orchestrator.md), whose restatement of the field
+moved with it, [AGENTS.md](../../AGENTS.md) and
+[modules/repo-gates.md](../modules/repo-gates.md), whose accounts of how many parts the registry
+has were both stale by this change, and this addendum.
