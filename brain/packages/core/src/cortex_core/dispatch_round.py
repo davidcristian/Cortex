@@ -41,11 +41,17 @@ class ToolLoopContext:
     ``taint`` is the turn-local ledger the loop marks on each untrusted result; ``nonce`` fences
     those results; ``session_id`` is the originating chat the loop stamps onto each dispatch
     (ADR-0027; ``""`` for a caller with no chat behind it); ``turn_id`` is the conversation turn
-    this loop serves and ``task_id`` the subagent task it is running, the pair the audit trail
-    names each dispatch's work by (ADR-0009 named-work addendum). A turn's loop sets the first
-    and leaves the second empty; a subagent's sets the second and takes the first off its stored
-    task, so a delegated call names both its task and the turn that spawned it, and a
-    ticker-rooted run honestly names no turn. What this loop's own messages are grouped under is
+    this loop serves, ``task_id`` the subagent task it is running and ``item_id`` the scheduled
+    item whose fire is behind it, which with the chat are the four the audit trail names each
+    dispatch's work by (ADR-0009 named-work and fired-work addenda). A turn's loop sets the turn
+    and leaves the rest empty; a subagent's sets the task and takes the chat, the turn and the
+    item off its stored task, so a delegated call names its task and whatever spawned it, and a
+    ticker-rooted run honestly names no turn while naming the item that fired. The four are kept
+    as their own keywords rather than bundled into one work-identity value: each is independently
+    present or absent, every combination of them is a caller this tree really has, so a bundle
+    would exclude no invalid state, and the same four are flat on ``TurnStamp`` and on the audit
+    record, so one here would cost a translation at each end. What this loop's own messages are
+    grouped under is
     neither field but ``unit_id`` below, the work they belong to; ``schema`` (ADR-0028), when
     set, constrains the model's output to that JSON Schema (a constrained tool-less subagent
     envelope; ``None`` for the cortex and every tool-enabled path); ``bounds`` (ADR-0005
@@ -88,6 +94,7 @@ class ToolLoopContext:
     nonce: str
     session_id: str
     task_id: str = ""
+    item_id: str = ""
     schema: JsonSchema | None = None
     bounds: GenerationBounds | None = None
     budget: DispatchBudget = field(default_factory=DispatchBudget)
@@ -152,7 +159,10 @@ def _stamp(context: ToolLoopContext) -> TurnStamp:
     results arrive, and the sources behind it grow with it. The identities beside it are fixed
     for the whole loop and ride the same value, so the audit line and the tool that spawns
     further work read the work this call was made for from one place (ADR-0009 named-work
-    addendum). The budget, the progress channel and
+    addendum). The fired item is among them wherever the loop was handed one, which is a
+    delegate of a fire and nothing else, so the item's own dispatch and every dispatch its
+    delegate makes carry the same id (ADR-0009 fired-work addendum). The budget, the progress
+    channel and
     the escalation slot are live shared handles that travel to whatever the call spawns: a
     subagent draws from the turn's remaining allowance instead of a fresh one, surfaces its own
     steps onto this turn's overlay while the loop is suspended inside the dispatch, and the
@@ -162,6 +172,7 @@ def _stamp(context: ToolLoopContext) -> TurnStamp:
         session_id=context.session_id,
         turn_id=context.turn_id,
         task_id=context.task_id,
+        item_id=context.item_id,
         tainted=context.taint.tainted,
         sources=context.taint.sources,
         budget=context.budget,

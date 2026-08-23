@@ -388,6 +388,10 @@ async def test_a_delegated_call_is_audited_under_the_turn_that_spawned_it() -> N
         "t-9",
         "st-1",
     )
+    # And it names no item, which is the truth about a turn's delegate: nothing fired it. The
+    # absence is asserted rather than assumed, because a propagation that borrowed some other
+    # id would satisfy every line above (ADR-0009 fired-work addendum).
+    assert (task.item_id, read_line.item_id) == ("", "")
     # What the subagent's own messages are grouped under is still its task, not that turn: a
     # working list nobody persists is the task's, and only the trail is read across both.
     _, second_step = sub_backend.seen
@@ -415,3 +419,47 @@ async def test_a_ticker_rooted_subagent_names_its_chat_and_no_turn() -> None:
     )
     (read_line,) = sub_sink.records
     assert (read_line.session_id, read_line.turn_id, read_line.task_id) == ("chat-1", "", "st-1")
+
+
+async def test_a_fires_delegate_names_the_item_that_fired_it() -> None:
+    # The reading the fired-item field was added for (ADR-0009 fired-work addendum). A fire's
+    # own dispatch has named its item since the named-call addendum; the work that firing
+    # causes is whatever its subagent does, and those calls named the chat and a uuid task and
+    # no item, so `item_id=r-1` reached the line saying the item fired and none of the lines
+    # saying what firing it caused. The id travels on the stored task rather than as a
+    # parameter, because a subagent is a stateless function over that store.
+    task_store = InMemoryTaskStore()
+    sub_backend = ScriptedCortexBackend(
+        [[ToolCall(id="s1", name="read", arguments={"path": "/notes"})], [TextChunk("done")]]
+    )
+    sub_sink = RecordingAuditSink()
+    sub_tools = ToolDispatcher(
+        InMemoryToolRegistry({"read": (_READ_SPEC, _read_handler)}), sub_sink, FixedClock()
+    )
+    runner = SubagentRunner(task_store, _single_roster(sub_backend), FixedClock(), tools=sub_tools)
+    spawn = SpawnSubagentsTool(runner, task_store, FixedClock(), task_id_factory=_counter())
+    fire_sink = RecordingAuditSink()
+    dispatcher = ToolDispatcher(CompositeToolRegistry([spawn]), fire_sink, FixedClock())
+    await dispatcher.dispatch(
+        ToolCall(id="schedule-r1", name="spawn_subagents", arguments={"instructions": ["do it"]}),
+        stamp=TurnStamp(session_id="chat-1", item_id="r-1"),
+    )
+    # The item rode the store, which is the only place a re-read could recover it from.
+    task = await task_store.get_task("st-1")
+    assert task is not None
+    assert task.item_id == "r-1"
+    # So one grep over the trail reaches the fire and the work it caused, and neither line
+    # borrows an identity it does not have: the fire is still turn-less, its delegate too.
+    (fire_line,) = fire_sink.records
+    (read_line,) = sub_sink.records
+    assert (fire_line.name, fire_line.item_id, fire_line.turn_id) == (
+        "spawn_subagents",
+        "r-1",
+        "",
+    )
+    assert (read_line.name, read_line.item_id, read_line.task_id, read_line.turn_id) == (
+        "read",
+        "r-1",
+        "st-1",
+        "",
+    )

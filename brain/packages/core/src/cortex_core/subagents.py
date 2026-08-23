@@ -27,7 +27,11 @@ class SubagentTask:
     dispatch's ``TurnStamp`` and read back by the runner, so this task's own tool calls are
     audited under the chat and the turn that asked for them (ADR-0009 named-work addendum;
     both ``""`` when nothing conversational spawned it, which is the schedule ticker's fire).
-    They ride the record rather than the call for the reason everything else here does: a
+    ``item_id`` is the third and is that fire's own (ADR-0009 fired-work addendum): the
+    scheduled item whose firing spawned this task, ``""`` for every spawn a conversation made,
+    so a delegate's calls say which item they are the work of and a turn's delegate keeps
+    saying honestly that no item is behind it.
+    All three ride the record rather than the call for the reason everything else here does: a
     subagent is a stateless function over the store, so an attribution that lived only in a
     parameter would be lost by the first re-read (the one hard rule).
     """
@@ -40,6 +44,7 @@ class SubagentTask:
     tainted: bool = False
     session_id: str = ""
     turn_id: str = ""
+    item_id: str = ""
 
     def __post_init__(self) -> None:
         if self.at.tzinfo is None or self.at.tzinfo.utcoffset(self.at) is None:

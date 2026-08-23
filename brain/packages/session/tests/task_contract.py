@@ -40,10 +40,13 @@ async def check_missing_task_and_result_are_none(store: TaskStore) -> None:
 async def check_task_round_trips(store: TaskStore) -> None:
     """A stored task reads back field-for-field, the resolution inputs included (ADR-0018).
 
-    The spawning turn's attribution is on that record too (ADR-0009 named-work addendum), and
-    it must survive the round trip for the same reason the taint must: the runner reads the
-    task back to know whose work it is doing, so an attribution lost in the store would put a
-    delegated call in the audit trail under nobody at all.
+    The spawning dispatch's attribution is on that record too (ADR-0009 named-work and fired-work
+    addenda), and it must survive the round trip for the same reason the taint must: the runner
+    reads the task back to know whose work it is doing, so an attribution lost in the store would
+    put a delegated call in the audit trail under nobody at all. All three identities are set here
+    even though no single spawn carries all three, because what the codec must not do is drop a
+    field it was handed, and a fixture that left one empty could not tell a dropped field from an
+    honest absence.
     """
     task = replace(
         make_task(
@@ -55,6 +58,7 @@ async def check_task_round_trips(store: TaskStore) -> None:
         ),
         session_id="chat-7",
         turn_id="t-7",
+        item_id="r-7",
     )
     await store.put_task(task)
     assert await store.get_task(task.id) == task

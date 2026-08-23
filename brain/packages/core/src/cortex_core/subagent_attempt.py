@@ -164,13 +164,15 @@ class PlacedAttempt:
             turn_id=task.turn_id,
             taint=taint,
             nonce=new_nonce(),
-            # A subagent run has no chat or turn of its own, so both come off the stored task:
-            # the spawning turn wrote them there through the dispatch stamp, and the audit
-            # trail is the consumer the attribution waited for (ADR-0027, ADR-0009 named-work
-            # addendum). Both are "" for a run nothing conversational spawned, which is the
-            # schedule ticker's fire.
+            # A subagent run has no chat, turn or fired item of its own, so all three come off
+            # the stored task: the spawning dispatch wrote them there through its stamp, and the
+            # audit trail is the consumer the attribution waited for (ADR-0027, ADR-0009
+            # named-work and fired-work addenda). The chat and turn are "" for a run nothing
+            # conversational spawned, which is the schedule ticker's fire, and the item is ""
+            # for every run a conversation spawned, which is all the rest.
             session_id=task.session_id,
             task_id=task.id,
+            item_id=task.item_id,
             schema=REPLY_ENVELOPE if constrain else None,
             # How far each of this loop's completions may decode. The rounds cap and this one
             # multiply, so what they bound together is the attempt's decoding rather than one

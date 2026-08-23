@@ -172,11 +172,12 @@ class SpawnSubagentsTool:
     async def invoke(self, call: ToolCall) -> ToolResult:
         """Persist each subtask, run the subagents concurrently, and aggregate their results.
 
-        Each task carries the requested model, the spawning turn's taint, and that turn's own
-        attribution (its chat and its turn id, both ``""`` off a turn-less caller like the
-        ticker), all four read from the dispatcher's stamp on ``call``, so the runner resolves it
-        safely and audits it honestly from the store alone (ADR-0018, ADR-0009 named-work
-        addendum). The same stamp carries the turn's dispatch budget, which every spawned run
+        Each task carries the requested model, the spawning turn's taint, and the work the spawn
+        was made for (its chat, its turn id, and the scheduled item whose fire made it, each
+        ``""`` when this caller has none: a turn names no item, the ticker names no turn), all
+        five read from the dispatcher's stamp on ``call``, so the runner resolves it safely and
+        audits it honestly from the store alone (ADR-0018, ADR-0009 named-work and fired-work
+        addenda). The same stamp carries the turn's dispatch budget, which every spawned run
         shares, and the stream's ``progress`` sink (``None`` off an overlay-less caller, e.g. the
         ticker), which the batch's scale and each subagent's tool steps surface onto (ADR-0010
         progress
@@ -199,6 +200,7 @@ class SpawnSubagentsTool:
                 tainted=call.stamp.tainted,
                 session_id=call.stamp.session_id,
                 turn_id=call.stamp.turn_id,
+                item_id=call.stamp.item_id,
             )
             for item in parsed
         ]

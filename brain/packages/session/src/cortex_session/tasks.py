@@ -9,10 +9,14 @@ subagent is a stateless function over. It survives an orchestrator restart or a 
 mid-delegation (the one hard rule). This adapter only translates: every backend failure crosses
 the port as ``TaskStoreError`` with the cause chained, and a corrupt record fails LOUDLY. The
 whole record round-trips, including ``model``/``tainted`` on a task and ``tainted`` on a result
-(ADR-0018): taint that did not survive a re-read would fail open. The task's ``session_id`` and
-``turn_id`` round-trip for the neighbouring reason (ADR-0009 named-work addendum): the runner
-audits a delegated call under the turn that spawned it, and an attribution lost in the store
-would make the trail claim the work belonged to nobody.
+(ADR-0018): taint that did not survive a re-read would fail open. The task's ``session_id``,
+``turn_id`` and ``item_id`` round-trip for the neighbouring reason (ADR-0009 named-work and
+fired-work addenda): the runner audits a delegated call under the turn or the fired item that
+spawned it, and an attribution lost in the store would make the trail claim the work belonged to
+nobody. Each is read back as a **required** key, the rule this module already holds every field
+to: ``""`` is how the record says a spawn had no turn or no item behind it, so a codec that
+supplied one for a key it could not find would make an attribution it dropped indistinguishable
+from an absence it was told about.
 """
 
 import json
@@ -48,6 +52,7 @@ def _encode_task(task: SubagentTask) -> str:
             "tainted": task.tainted,
             "session_id": task.session_id,
             "turn_id": task.turn_id,
+            "item_id": task.item_id,
         }
     )
 
@@ -64,6 +69,7 @@ def _decode_task(raw: bytes | str, task_id: str) -> SubagentTask:
             tainted=fields["tainted"],
             session_id=fields["session_id"],
             turn_id=fields["turn_id"],
+            item_id=fields["item_id"],
         )
     except (KeyError, TypeError, ValueError) as err:
         msg = f"corrupt task record at {_task_key(task_id)!r}"

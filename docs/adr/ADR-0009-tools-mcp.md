@@ -1940,3 +1940,145 @@ The doubled hold on the CPU re-run path is unenforced and the shipped pair does 
 admission wait's shipped default is spelled in two documents beside its declaration and tied by no
 row of the constant scan, where the run deadline beside it is tied by three:
 [R-393](../refinements/tasks/393-the-admission-waits-default-is-tied-to-nothing.md).
+
+## Fired-work addendum (2026-08-23): a fire's delegate names the item that fired it
+
+The named-call addendum above put the fired schedule item on the audit line and stopped at the
+ticker's own dispatch. The subagent that dispatch spawns runs its own tool loop through the same
+dispatcher, so the work a fire actually caused was audited under the chat and a task id and no
+item, and `grep item_id=t1` reached the one line saying the item fired and none of the lines
+saying what firing it caused. Filed as
+[R-380](../refinements/tasks/380-a-fires-delegates-do-not-name-the-item.md).
+
+### Re-derived first, and every hop the entry names was where it said
+
+`TurnStamp.item_id` exists and only `ScheduleTicker._run_task` sets one; `ToolDispatcher._audited`
+copies it onto the record; `SubagentTask` carried `session_id` and `turn_id` and no item;
+`SpawnSubagentsTool.invoke` wrote those two off the stamp; `PlacedAttempt.run` read them back into
+its `ToolLoopContext`; and `_stamp` built every delegated dispatch's stamp from that context
+without an item. The entry's account of why neither existing field is a filter also holds: the
+chat is on a conversation's lines too, and the task id is minted by `uuid4` inside the spawn tool,
+printed on no other line, and stored under an hour's TTL.
+
+One count in it needs correcting, and it is the count this addendum's own decision turns on. The
+entry calls them "the four work identities on `ToolLoopContext`", which is what they become; there
+were three before this change, and with the item there are four.
+
+### Decision 1: the identity rides the stored task, and the entry's own argument is why
+
+`SubagentTask` gains `item_id`, `SpawnSubagentsTool` writes it off the dispatch stamp,
+`PlacedAttempt` reads it back into the loop context, and `_stamp` puts it on every dispatch the
+delegate makes. Threading it down `SubagentRunner.run` and `PlacedAttempt.run` as a keyword beside
+`budget` and `progress` was available and is wrong for the reason those two are threaded: they are
+live handles a store cannot hold, and an id is a value. A subagent is a stateless function over
+the `TaskStore` (the one hard rule), so an attribution living only in a parameter is the one fact
+about the work that a re-read after a restart could not recover. This is decision 3 of the
+named-work addendum applied to the third identity, and the record already carried the two
+neighbouring ones for the same reason.
+
+### Decision 2: the codec reads it as a required key, so a dropped id cannot read as an absence
+
+`""` is already how this record says a spawn had no item behind it, which is every spawn a
+conversation made. A codec that supplied `""` for a key it could not find would make an
+attribution it dropped indistinguishable from an absence it was told about, and the trail would
+then state something about the work, that nothing fired it, on the strength of a field nobody
+wrote. So the key is required, exactly as `session_id` and `turn_id` are, and a record missing it
+is corruption that fails loudly.
+
+Tolerating a record written by an older build was weighed and refused on the module's own stated
+model: task state is hot and ephemeral, written and read back by one deployment inside one turn
+under an hour's TTL, which is why it carries no `v`/`kind` markers at all. A tolerant read would be
+a legacy path for records this store says it does not have, bought at the price of the distinction
+above. The suite pins it: a record carrying every other field and no item is read as corrupt.
+
+### Decision 3: the four identities stay four keywords, and the bundle is declined
+
+The entry asked whether they want to travel as one value. They do not, and the criterion is the one
+`DeepTier` was built on in the root-headroom addendum: a bundle earns its name when its parts are
+meaningless apart, so that a half-wired state cannot be expressed. These four are the opposite.
+Each is independently present or absent, and decision 4 of the named-work addendum makes each
+absence a fact the trail states by leaving the field off. Every combination is a caller this tree
+really has: a turn (chat and turn), a turn's delegate (chat, turn, task), a fire (chat, item), a
+fire's delegate (chat, task, item), an unattributed dispatch (none). A bundle would exclude no
+invalid state.
+
+It would also cost more than it saves at both ends. Three places construct a `ToolLoopContext` and
+this change adds one keyword to one of them. The same four identities are flat on `TurnStamp` and
+flat on `ToolInvocation`, the latter deliberately, decision 2 of the named-work addendum having
+chosen the strings over the stamp because a durable record cannot hold a live handle. So a bundle
+on the context alone buys a translation in `_stamp`, and a bundle on all three puts a nested value
+inside the audit record whose flatness is a decision already made. The fifth argument the entry
+anticipates would change the arithmetic and not the criterion, and is filed as the trigger it is.
+
+### What did not change, deliberately
+
+No new field on `TurnStamp`, `ToolInvocation` or the log line: the item has been on all three since
+the named-call addendum, and this addendum only carries the value further along the path it was
+already on. The ticker is still the only caller in the tree that sets one, so a model still cannot
+reach it. A subagent's own messages are still grouped under its task rather than under whatever
+spawned it, and the delegate of a fire still names no turn, a fire not being one.
+
+### Distrust green
+
+Five mutations, each applied to production code alone with the 2,877 tests of `brain/` re-run over
+it (`pytest -q` at the repo's own fixed seed, integration cases deselected), then restored and read
+back off disk:
+
+| Mutation | Reddens |
+| --- | --- |
+| the spawn tool stops writing the fired item onto the task | 1 |
+| the stored record drops the fired item on the way in | 4 |
+| the codec supplies a default for a record that carries no item | 1 |
+| the attempt does not read the item back into its loop context | 1 |
+| the loop stamp drops the item off every dispatch | 1 |
+
+Three of the rows of one are three different hops of one path, and the case they redden is the
+same one: the end-to-end delegation case that dispatches a fire-shaped call and asserts the item
+on both the fire's line and its delegate's. That is the point of an end-to-end case over a chain
+nothing else joins, and it is why a per-hop unit case was not written beside it: each would assert
+the hop's own copy back, and none would say the chain carries an id from a fire to the work it
+caused.
+
+The third row is the narrow one and reddens a different case, the record missing an identity being
+read as corrupt. A codec that defaults a key it cannot find is invisible to every case that writes
+a record before reading it, which is every other case in the suite, so without that one the
+required key would be a decision nothing held.
+
+The second row is the loud one and its shape is the reading: dropping the item on the way into the
+store makes the record undecodable, so it reddens the Redis arm of the task-store contract, its
+timezone case and the `from_url` case, and leaves the in-memory arm green, which is exactly the
+asymmetry a contract test over a fake and an adapter exists to catch.
+
+### Verified against a real Redis
+
+The suite's Redis arm is fakeredis, so the round trip was driven once against `redis:8-alpine`
+through the real `RedisTaskStore`, the real `ToolDispatcher`, the real `LoggingAuditSink` and the
+process entry's own `PlainFormatter`, with only the model faked. A fire-shaped dispatch carrying
+`item_id=r-live-1` produced these two lines, which is the whole reading the entry was opened for:
+
+```
+INFO:cortex.tools.audit:tool.invocation arguments={"path":"/notes"} at=2026-08-23T03:00:00+00:00 call_id=s1 item_id=r-live-1 ok=True result_chars=18 session_id=chat-live task_id=live-task-1 tool=read trust=untrusted
+INFO:cortex.tools.audit:tool.invocation arguments={"instructions":["summarize the notes"]} at=2026-08-23T03:00:00+00:00 call_id=schedule-r-live-1 item_id=r-live-1 ok=True result_chars=32 session_id=chat-live tool=spawn_subagents trust=untrusted
+```
+
+and the task read back out of Redis carried `item_id='r-live-1'` beside `turn_id=''`. Before this
+change the first of those two lines carried no item at all.
+
+### Consequences
+
+- One grep by item reaches the fire and the work firing it caused, which is what the field was
+  added for and what it did not yet do.
+- `SubagentTask` now carries the whole of what the spawning dispatch knew about its work, so the
+  runner audits a delegated call from the store alone whether a conversation or a fire spawned it.
+- The four work identities are settled as four fields rather than a value, with the argument
+  written down, so the next one to arrive has a criterion to be judged against rather than a
+  precedent to follow.
+
+### Deferred by this addendum
+
+The ticker's own log lines spell the fired item `reminder_id` where the trail spells it `item_id`,
+so the grep this addendum restores still misses the lines the ticker writes about the same fire:
+[R-394](../refinements/tasks/394-the-fired-item-has-two-spellings-in-the-logs.md). And the four
+identities are copied by hand across six hops with nothing structural tying them, which is what
+makes a fifth one's arrival the moment to re-open the bundle:
+[R-395](../refinements/tasks/395-a-work-identity-is-copied-by-hand-at-every-hop.md).
