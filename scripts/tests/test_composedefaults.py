@@ -78,7 +78,7 @@ def test_a_whole_line_comment_spends_nothing() -> None:
 
 
 def test_a_trailing_comment_is_read_like_any_other_text() -> None:
-    """Deliberate: this reader has no model of YAML quoting, so it cannot find a real marker."""
+    """Settled rather than deferred: a real marker needs a quoting model this tree would break."""
     spends = read_substitutions('    DIR: "${MODELS_DIR:-./models}"  # or ${MODELS_DIR:-./cache}\n')
     assert [spend.argument for spend in spends] == ["./models", "./cache"]
 
