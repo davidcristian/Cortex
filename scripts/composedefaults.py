@@ -3,8 +3,8 @@
 Split out of `defaultcheck.py`, which owns the rule, exactly as `composemounts.py` is split out
 of `bindcheck.py`: this module owns only the reading. It is a character walk rather than a YAML
 parse, because these gates are stdlib-only (`pyproject.toml` in this directory) and because a
-substitution is not a YAML construct at all. Compose expands `${...}` in the raw text before YAML
-ever sees it, which is why one variable can be spelled as a whole value, inside a connection
+substitution is not a YAML construct at all: compose interpolates the strings a YAML parse has
+already produced, which is why one variable can be spelled as a whole value, inside a connection
 string and inside a command argument, and why all three have to be read the same way.
 
 **Seven forms, and the one that is not a substitution.** `$$` is compose's escape for a literal
@@ -20,13 +20,19 @@ never closes, a nested expansion (which compose does not expand), and a name tha
 identifier are each a fault, because a reader that quietly walks past the one spend a new
 override adds is a gate that cannot fail.
 
-**A whole-line comment is not read.** Compose expands nothing in one, so a default written there
-is prose, and prose that restates a value is `crosscheck.py`'s question, which already registers
-two compose comments as far sides. A **trailing** `#` is a different matter and is deliberately
-not detected: this reader has no model of YAML quoting, so it cannot tell a comment marker from a
-`#` inside a connection string, and reading the text either way is the fail-closed side of not
-knowing. A note that spells a stale default after a value on the same line is therefore reported,
-and the remedy is to put the note on a line of its own.
+**A whole-line comment is not read, and a trailing one is read like any other text.** Compose
+interpolates neither, a comment not surviving the parse the interpolation runs over, so a default
+written in one is prose either way, and prose that restates a value is `crosscheck.py`'s question,
+which already registers two compose comments as far sides. Skipping the whole-line form is
+therefore exact. Skipping the trailing form is not, and this reader deliberately does not try: a
+`#` is a marker only outside a quoted scalar, so finding one means tracking quotes across a line,
+and this tree's two folded block scalars already carry a line with an odd number of double quotes
+and content compose does interpolate. A quoting model would have to track block scalars and their
+indentation too, which is a YAML parser in a project with no dependencies, bought to allow a note
+beside a value. The asymmetry is the whole argument: a note read as a spend is loud, the gate
+naming one line twice, and one line from its remedy, which is to write the note above the value; a
+`#` wrongly read as a marker would drop a real spend from the comparison in silence, which is the
+failure this gate exists to remove.
 """
 
 import re

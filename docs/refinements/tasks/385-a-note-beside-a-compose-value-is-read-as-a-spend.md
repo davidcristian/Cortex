@@ -1,6 +1,6 @@
 # A note written after a compose value is read as a spend of the variable it names
 
-**Status:** open, actionable
+**Status:** declined 2026-08-23
 **Area:** repo-gates
 **Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
 
@@ -39,3 +39,21 @@ to move with it.
 - 2026-08-22: opened by the close of
   [R-355](355-one-variable-several-defaults-no-declaration.md), which measured the behaviour in
   both directions and recorded it as the deferral that close opens.
+- 2026-08-23: declined, and three measurements say why. **The strictness is a false positive rather
+  than a conservative reading**: `docker compose config` accepts an unset `${VAR:?...}` written as
+  a whole-line comment and as a trailing one, refuses the same form in a live value, and names a
+  path into the parsed document when it does, so interpolation runs over what a YAML parse
+  produced and nothing in a note is ever spent. **The remedy as written here reddens the tree it
+  protects**: implemented exactly as this entry describes it and run over the ten compose files, it
+  refuses five lines, the three block scalars in `docker-compose.tools.yml` and
+  `docker-compose.subagents-roster.yml` and two lines inside the roster's folded scalar carrying an
+  odd number of double quotes. **And a block scalar cannot be skipped either**, its content being
+  interpolated like any other value, so a correct reader needs block tracking with indentation,
+  which is a YAML parser in a project that declares no dependencies. The asymmetry decides it: a
+  note read as a spend is loud and one line from its remedy, while a `#` wrongly read as a marker
+  drops every later spend from the comparison in silence, which is the failure the gate exists to
+  remove. `scripts/composedefaults.py` and [docs/modules/repo-gates.md](../../modules/repo-gates.md)
+  now say the reading is settled rather than deferred, and both lose the claim that compose expands
+  the raw text before YAML sees it. One narrower task opens, the fault message that names one line
+  twice and never mentions the remedy ([R-391](391-a-fault-that-names-one-line-twice.md)). Argued
+  in the ADR-0026 trailing-note addendum.

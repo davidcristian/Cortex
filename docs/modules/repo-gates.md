@@ -257,16 +257,18 @@ that last question to have an answer.
   is not a directory or the scan could not run at all.
 - `composedefaults.py` is `defaultcheck.py`'s reader and has no CLI. `read_substitutions(text)`
   returns one `Substitution(line, name, operator, argument)` per spend, in file order. It is a
-  character walk rather than a YAML parse, because compose expands `${...}` in the raw text before
-  YAML sees it, which is what lets one variable be read the same way as a whole value, inside a
-  connection string and inside a command argument. Seven forms are read (`${N}`, `$N`, and the
-  three operator pairs `:-`/`-`, `:+`/`+`, `:?`/`?`), the operator kept as written rather than
+  character walk rather than a YAML parse, because compose interpolates the strings a YAML parse
+  has already produced, which is what lets one variable be read the same way as a whole value,
+  inside a connection string and inside a command argument. Seven forms are read (`${N}`, `$N`, and
+  the three operator pairs `:-`/`-`, `:+`/`+`, `:?`/`?`), the operator kept as written rather than
   folded. `$$` is compose's literal dollar and is consumed whole, so `$${V}` spends nothing. A
-  whole-line comment is skipped, compose expanding nothing in one, which leaves a default written
-  there as prose and therefore `crosscheck.py`'s question; a **trailing** `#` is deliberately not
-  detected, this reader having no model of YAML quoting and so being unable to tell a marker from
-  a `#` inside a connection string, and reading the text either way is the fail-closed side of not
-  knowing. Everything else raises `SubstitutionReadError`: a `$` opening none of those forms, a
+  whole-line comment is skipped, compose interpolating nothing in one, which leaves a default
+  written there as prose and therefore `crosscheck.py`'s question; a **trailing** `#` is read like
+  any other text, and that is settled rather than deferred (ADR-0026 trailing-note addendum): a
+  marker can only be found by tracking quotes and block scalars across a file, which is a YAML
+  parser in a dependency-free project, and the strictness it would buy off is loud and one line
+  from its remedy where a mistaken marker would drop a real spend in silence. Everything else
+  raises `SubstitutionReadError`: a `$` opening none of those forms, a
   brace that never closes, a nested expansion (which compose does not expand), a name that is not
   an identifier, and an operator it was not taught.
 - `composefiles.py` is which files those two gates walk and has no CLI. `compose_files(root)`

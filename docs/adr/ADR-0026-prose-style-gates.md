@@ -589,3 +589,62 @@ in on a comparison written for the first.
 strictness with no instance in the tree, and teaching the reader enough YAML quoting to tell a real
 comment from a `#` inside a scalar would let a note sit beside a value. Nothing is waiting on it,
 and the remedy meanwhile is one line long.
+
+## Addendum (2026-08-23): the trailing note stays a spend, and the reason is now measured
+
+The compose-defaults gate landed with one strictness bought deliberately: a note written after a
+value on the same line is read as a second spend of the variable it names, because the reader has
+no model of YAML quoting and cannot tell a marker from a `#` inside a scalar
+([R-385](../refinements/tasks/385-a-note-beside-a-compose-value-is-read-as-a-spend.md)). That entry
+is **declined**. The reader goes on reading a trailing `#`, and the three things measured while
+deciding are worth more than the deferral was.
+
+**The strictness is a false positive and not a conservative reading.** Compose interpolates
+neither kind of comment. `docker compose config` (v2.39.1) refuses a file whose live value spends
+an unset `${CORTEX_TEST_UNSET:?...}` and accepts the same form written as a whole-line comment and
+as a trailing one, and the refusal names `services.a.command.[]`, a path into the parsed document.
+So interpolation runs over the strings a YAML parse produced, a comment never survives that parse,
+and nothing in a note is ever spent. The gate's whole-line skip is therefore exact, and its
+trailing-note reading is wrong about compose rather than careful about it.
+
+**The remedy as the entry proposes it reddens the tree it protects.** Written out exactly as the
+entry describes it (track single and double quotes across the line with the backslash escape, take
+a `#` that opens a line or follows whitespace outside a quote, refuse an unterminated quote and a
+block scalar) and run over the ten compose files under `docker/`, it refuses five lines in two of
+them: the three block scalars at `docker-compose.tools.yml` lines 29 and 60 and
+`docker-compose.subagents-roster.yml` line 32, and lines 35 and 36 of that roster file, which sit
+inside a folded scalar and carry three double quotes and one. A per-line quoting model reads those
+last two as a quote that never closes, which is exactly the loud refusal the entry asks for, aimed
+at text this repo does contain.
+
+**And a block scalar cannot simply be skipped, because its content is interpolated.** The same
+`docker compose config` refuses a file whose `>-` scalar spends an unset variable on its second
+line, naming `services.a.environment.NOTE`. So a reader that skipped block scalars would go blind
+to real spends, and the roster file's own tier settings are written in one. What a correct model
+needs is block-scalar tracking with indentation, reading that content for substitutions while
+never reading a `#` in it as a marker: a YAML parser, in a project whose `pyproject.toml` declares
+no dependencies at all, bought to allow a note beside a value.
+
+**The asymmetry is the decision.** Reading a note as a spend is loud: the gate exits 1, names the
+line twice among the group's spends, and the remedy is to move the note above the value. A `#`
+wrongly read as a marker is silent: every substitution after it drops out of the comparison, and
+the group goes on agreeing with itself, which is precisely the failure this gate was written to
+remove. The same argument `headingshapes.py` makes for refusing six heading shapes rather than
+emulating a renderer holds here with the added weight that the mechanism is measured: no compose
+file in this tree wants the shape, and two of them already break the model the remedy would need.
+
+**One narrower task opens.** The fault says nothing about the one-line remedy, and a reader who
+hits it sees one `path:line` twice among the spends with no hint that a `#` is why
+([R-391](../refinements/tasks/391-a-fault-that-names-one-line-twice.md)). That is the residue this
+decline leaves, and it is a message rather than a reader.
+
+### Records
+
+The record is the task file
+[R-385](../refinements/tasks/385-a-note-beside-a-compose-value-is-read-as-a-spend.md), which
+closes as declined, [docs/refinements/index.md](../refinements/index.md), which is regenerated
+from it, this addendum, and the two documents that state what the reader does:
+`scripts/composedefaults.py`'s docstring and
+[docs/modules/repo-gates.md](../modules/repo-gates.md), both of which now say the reading is
+settled rather than deferred, and both of which had also been describing compose as expanding the
+raw text before YAML sees it, which the first measurement above corrects.

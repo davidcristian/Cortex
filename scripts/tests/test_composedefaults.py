@@ -84,7 +84,13 @@ def test_a_whole_line_comment_spends_nothing() -> None:
 
 
 def test_a_trailing_comment_is_read_like_any_other_text() -> None:
-    """Deliberate: this reader has no model of YAML quoting, so it cannot find a real marker."""
+    """Settled rather than deferred: a real marker needs a quoting model this tree would break.
+
+    Finding one means tracking quotes, and that means tracking block scalars too, two of which
+    sit in these compose files carrying a line of odd quotes and content compose does interpolate.
+    What the strictness costs is loud and one line from its remedy; what a mistaken marker would
+    cost is a spend dropped from the comparison in silence.
+    """
     spends = read_substitutions('    DIR: "${MODELS_DIR:-./models}"  # or ${MODELS_DIR:-./cache}\n')
     assert [spend.argument for spend in spends] == ["./models", "./cache"]
 
