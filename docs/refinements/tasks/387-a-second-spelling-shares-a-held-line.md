@@ -1,6 +1,6 @@
 # A second spelling of a value shares a line the registry already holds, and rides its needle
 
-**Status:** open, actionable
+**Status:** landed 2026-08-23
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -40,3 +40,23 @@ twenty. If it is one, a count is honest and cheap; if it is many, the scan chang
   [R-382](382-the-paired-numbers-quoted-in-prose.md), which held both cells of the GPU runbook's
   row and could not hold the vision runbook's second spelling by any needle that pins the number
   rather than the sentence.
+- 2026-08-23: landed as four ordinary mentions and **no new mechanism**, the population having
+  decided it. Eleven held lines carry a leftover spelling; six are artefacts of the reading (an
+  identifier spelling a string value, two lines held jointly by two needles, a bounded integer
+  inside a decimal), leaving five. **One of the five is not a far side**: the vision runbook's
+  second `auto` says what that mode does rather than which mode ships, and stays true after another
+  becomes the default. That single case refuses both mechanisms this entry proposed, since counting
+  a value's occurrences on a line cannot be told that one of them makes no claim about the default,
+  and rewording was refused as the gate editing what it watches. **The entry's premise was also
+  wrong**: a needle carrying words of a sentence is not forbidden, the tree having held
+  `` `1024` is the default, paired with `` since the legibility sort, so the four became four
+  needles. Two of them are the shape this entry did not predict, where the registry held the
+  Meaning cell's explanation and left the **Default cell** free, on the GPU runbook's layer row and
+  its two reasoning rows. `shippedcouplings.py` hit the 300-line cap on the way, so one capture's
+  own numbers moved to `scripts/capturecouplings.py`, an eighth part costing one import and one
+  name. Twenty three planted drifts each exited 1 and each restoration returned the gate to green,
+  with three controls staying green, tabled in the ADR-0029 second-spelling addendum. Two residues:
+  the matcher edge the reading tripped over
+  ([R-398](398-a-rendered-integer-is-a-token-inside-a-decimal.md)), and the fact that this reading
+  only sees lines a needle already matches, which is the general question already filed
+  ([R-397](397-nothing-counts-what-the-registry-does-not-name.md)).

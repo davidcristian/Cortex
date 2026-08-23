@@ -68,6 +68,7 @@ MODELHOST_COUPLINGS: tuple[Constant, ...] = (
             Mention(GPU_COMPOSE, "${CORTEX_NGL:-{value}}"),
             Mention(GPU_COMPOSE, "${CORTEX_NGL_BRAIN:-{value}}"),
             Mention(GPU_RUNBOOK, "`{value}` = all"),
+            Mention(GPU_RUNBOOK, "| `{value}` |"),
         ),
     ),
     Constant(
@@ -162,6 +163,7 @@ MODELHOST_COUPLINGS: tuple[Constant, ...] = (
             Mention(GPU_COMPOSE, "${CORTEX_REASONING_BUDGET:-{value}}"),
             Mention(GPU_COMPOSE, "${CORTEX_REASONING_BUDGET_BRAIN:-{value}}"),
             Mention(GPU_RUNBOOK, "`{value}` (the default) emits no flag"),
+            Mention(GPU_RUNBOOK, "| `{value}` |", occurrences=2),
             Mention(MODEL_MANAGER_DOC, "`{value}`, the default, is the engine's own word"),
         ),
     ),
