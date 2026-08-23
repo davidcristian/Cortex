@@ -40,3 +40,21 @@ both want rewriting with it.
   against the queue for it and found, while writing the check, that the relation it was enforcing
   is false along the CPU re-run path and cannot be made true by any comparison over the shipped
   numbers. Recorded in the ADR-0009 queue addendum.
+- 2026-08-23: Re-derived against the tree and left open, its trigger not having fired. The
+  mechanism above is exactly what the code does: `subagent_attempt.py` arms
+  `asyncio.timeout(self._bounds.timeout_s)` inside the attempt, and `SubagentRunner._placed` calls
+  that attempt twice inside one `scheduler.admit`, so two whole deadlines fit in one admission.
+  Neither of the two bounds has been retuned since the commit that declared it, and no spawn has
+  been observed refused at the admission bound, so the batch measurement
+  [207](207-whole-subtask-figure-off.md) is waiting on remains what this waits on too.
+  What the re-derivation does sharpen is the size of the violating window, which the text above
+  overstates as the whole re-run path. A stalled stream is an `INFERENCE` failure rather than a
+  truncation: the attempt's `TimeoutError` arm reports the inner-timeout message under
+  `AttemptFailure.INFERENCE` whenever the timer that fired was not the attempt's own. So the
+  ordinary wedge does re-place, and it re-places at the moment the stall ceiling fired rather than
+  at the deadline, which puts the common doubled hold at 600 s plus a fresh 2400 s, comfortably
+  inside the 3600 s wait. The shipped pair fails the doubled relation only when a first attempt
+  ends in `INFERENCE` after spending more than 1200 s of its deadline, which is a backend dying
+  late in a stream that never went quiet long enough to trip the ceiling. That is narrower than
+  twice the deadline and is not a reason to close this, but it is the window a retune should be
+  sized against rather than the factor of two.
