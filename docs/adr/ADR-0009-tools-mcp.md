@@ -1824,3 +1824,119 @@ magnitude off is a mutation that did not do what its label says.
 A subagent spawned by a scheduled fire runs its own tool loop through the same dispatcher, and its
 dispatches name the chat and the task and not the item, because `item_id` stops at the spawn call:
 [R-380](../refinements/tasks/380-a-fires-delegates-do-not-name-the-item.md).
+
+## Queue addendum (2026-08-23): the run deadline is ordered against the queue for it
+
+The ordering addendum above related the innermost of the four bounds on a delegated run to the run
+itself, and left the outermost relation where it had always been, in a runbook sentence.
+`docs/runbooks/subagents-cpu.md` said the deadline "lands between the two bounds either side of it,
+above the stall ceiling and below the admission wait", and only the first half was refused at boot.
+Filed as [R-369](../refinements/tasks/369-the-run-deadline-under-the-queue-is-prose-only.md).
+
+### Re-derived first, and the entry over-counted what was already enforced
+
+The entry opens "three of the relations between them are now refused at boot" and then names two,
+which is the true count. `SubagentsConfig._the_run_deadline_must_outlast_the_stall_ceiling` refuses
+one and `check_tool_call_deadline` refuses the other; `ToolsConfig` declares no validator over
+`call_timeout_s` at all, and nothing anywhere compares `run_timeout_s` with `admission_wait_s`.
+Everything else the entry says held: both are plain fields of one class, the wait may be zero and
+means never queue, and the neighbours are strict.
+
+What the entry did not know is that the relation it quotes is not true of the numbers this repo
+ships, and cannot be made true by a comparison. `SubagentRunner._placed` re-runs a GPU-placed
+inference failure once on the CPU **inside the same admission**, and `PlacedAttempt` arms the
+deadline fresh for that second attempt, which the runner's own docstring states outright: "a task
+can therefore hold its admission for two deadlines rather than one". Twice the shipped deadline is
+above the shipped wait, so a check comparing what a run can really hold would refuse the stack this
+repo ships, at boot, on defaults nobody typed.
+
+### Decision 1: a validator beside the stall-ceiling one, and strictly under
+
+Both numbers are fields of `SubagentsConfig`, so this is not the composition-root shape the call
+bound needed; it is the shape its other neighbour already has, a `model_validator(mode="after")`
+that compares two of this deployment's own numbers and refuses. The failure it refuses is a pool
+that works and reads as one that does not: a peer gives up while the run in front of it is still
+inside the time the same deployment granted it, and the refusal the operator then reads names the
+queue, which is the knob that did not cause it.
+
+Strictly under, for the reason both neighbours are strict. Equality means the peer gives up at the
+instant the room it queued for comes back, which is a race rather than a relation holding, and it
+is the same race `check_tool_call_deadline` refuses one bound short of.
+
+### Decision 2: a zero wait passes, because that deployment has no relation to keep
+
+`admission_wait_s` is `ge=0` and zero is a policy the runbook states: never queue, refuse whatever
+does not fit right now. Under a zero wait nothing ever queues behind a running spawn, so there is
+no peer for a deadline to outlast and no relation between the two numbers at all. Read as a bare
+inequality, zero is the smallest possible inversion and the loudest failure; read as what it means,
+it is the one setting where the question does not arise. Refusing it would make "never queue"
+unsettable beside any deadline whatsoever, which is every deployment that sets it, so the
+comparison is guarded rather than the field re-typed: the guard is where the meaning lives, and
+`ge=0` stays the field's own statement that zero is a number an operator may type.
+
+### Decision 3: what is compared is one attempt's deadline, and the doubled hold is filed
+
+The measured worst case is two deadlines, along the one path a dead GPU-placed backend opens. Three
+answers were available and two were rejected.
+
+Comparing the doubled hold refuses the shipped pair. Both numbers are measured (the deadline is
+four times the longest whole subtask on the shipped entry, the wait twice the serial batch wait
+these budgets produce), so clearing the doubled relation means retuning a measurement rather than
+correcting an ordering, and it would take a re-measurement this change is not making. That is the
+same reason the ordering addendum declined to widen its own comparison to a whole run: a ceiling
+the shipped pair does not clear is a ceiling that refuses working deployments.
+
+Warning instead was rejected for the reason it was rejected one addendum ago. A boot line nobody
+greps is exactly as invisible as the knob it describes, and it leaves the misordering running.
+
+So the validator compares one attempt's deadline, which is the misordering an operator can type,
+and the doubled hold is recorded where a known gap belongs, in the backlog and in the two documents
+that state the relation. The runbook sentence the entry quotes has been corrected rather than
+merely enforced: it claimed a run can never hold its admission longer than a peer will queue for
+it, and along the re-run path it can.
+
+### What did not change, deliberately
+
+No bound moved. The shipped deadline, wait, stall ceiling and call bound are the numbers they were,
+and every deployment that boots today still boots, with one exception that is the point of the
+change: a wait tightened under the run deadline is now refused where it used to run. The suite's
+own admission-wait case was such a pair (a 900 s wait beside the shipped 2400 s deadline) and now
+tightens to 3000 s, which is what that case was always testing, a deployment shortening the hour.
+
+### Distrust green
+
+Four mutations, each applied to `config_subagents.py` alone with the 2,875 tests of `brain/` re-run
+over it (`pytest -q` at the repo's own fixed seed, integration cases deselected), then restored and
+read back off disk:
+
+| Mutation | Reddens |
+| --- | --- |
+| the run deadline is never compared with the admission wait | 1 |
+| the comparison admits equality | 1 |
+| a wait of zero is compared like any other | 3 |
+| the pair is compared the other way round | 45 |
+
+The first two redden the one case that asserts the ordering, which holds both arms of it, and the
+third is the one worth having: it reddens the zero case, the existing settable-including-zero case,
+and the wiring suite's own never-queue build, which is the pool proving behaviourally that a zero
+wait refuses rather than parks. The fourth row is not a subtler mutation but a sanity check on the
+sweep: comparing the pair the other way round refuses the shipped defaults, so 45 cases across the
+config, wiring and bounds suites fail at construction, and a first row of 1 beside a fourth row of
+45 is what tells you the gate is narrow rather than absent.
+
+### Consequences
+
+- All three relations in the series a delegated run is bounded by are now refused at boot, two by
+  validators on the class that declares both numbers and one at the root that reads two classes.
+- A deployment tightening the admission wait must now bring the run deadline under it, which is a
+  boot failure naming both knobs rather than a pool that refuses spawns for reasons no line states.
+- The runbook says what is enforced and what is not, so the one relation this repo cannot keep
+  under its own measured numbers is written down rather than claimed.
+
+### Deferred by this addendum
+
+The doubled hold on the CPU re-run path is unenforced and the shipped pair does not clear it:
+[R-392](../refinements/tasks/392-a-re-runs-second-deadline-outlasts-the-queue.md). And the
+admission wait's shipped default is spelled in two documents beside its declaration and tied by no
+row of the constant scan, where the run deadline beside it is tied by three:
+[R-393](../refinements/tasks/393-the-admission-waits-default-is-tied-to-nothing.md).

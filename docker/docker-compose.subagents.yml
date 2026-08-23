@@ -55,7 +55,11 @@
 #                              talking. Both left to the brain's own defaults here, measured on
 #                              this file's CPU entry; the deadline must stay above the stall
 #                              ceiling or the brain refuses to start, since a wedge reported as
-#                              a runaway loses the CPU re-run it deserves
+#                              a runaway loses the CPU re-run it deserves, and under the
+#                              admission wait above or it refuses to start for the other
+#                              reason, a run holding its room for as long as a peer will queue
+#                              for that room being a working pool that reads as a refusing one
+#                              (a wait of zero queues nothing and is exempt)
 
 services:
   brain:

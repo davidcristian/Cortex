@@ -132,7 +132,8 @@ class SubagentsConfig(BaseSettings):
     # before it is refused instead of waiting for room forever (ADR-0012 bounded-admission-wait
     # addendum). The default is twice the worst wait a full batch can legitimately produce
     # against the budgets above, so it fires on a pool that is not draining rather than on one
-    # that is merely slow. Zero means never queue: refuse anything that does not fit right now.
+    # that is merely slow. Zero means never queue: refuse anything that does not fit right now,
+    # which is also the one setting of it the run deadline is not ordered against below.
     admission_wait_s: float = Field(default=DEFAULT_ADMISSION_WAIT_S, ge=0)
     # env CORTEX_SUBAGENTS_MAX_TOKENS is how far any one of a delegated run's completions may
     # decode, and CORTEX_SUBAGENTS_RUN_TIMEOUT_S is the deadline on the whole run, tool dispatches
@@ -208,6 +209,39 @@ class SubagentsConfig(BaseSettings):
                 "whole run that does not outlast the ceiling on one silent gap would report every "
                 "wedged stream as a run that would not stop, and a wedge is the one failure a "
                 "re-run on another target can help"
+            )
+            raise ValueError(msg)
+        return self
+
+    @model_validator(mode="after")
+    def _the_run_deadline_must_fit_inside_the_queue_for_it(self) -> "SubagentsConfig":
+        """Refuse at boot a deadline no queued peer would still be waiting through.
+
+        The pair bounds the two halves of one room: the deadline is how long a run may hold its
+        admission, the wait how long the next spawn queues for that admission to come back. At or
+        above the wait, a peer gives up while the run in front of it is still inside the time this
+        deployment granted it, so a working pool reads as one that refuses spawns under load, under
+        a refusal naming the queue rather than the deadline that filled it. Strictly under, the
+        neighbours' rule: equality is the peer giving up at the instant the room is released.
+
+        **A zero wait passes**, and is the one number here that must: zero means never queue at
+        all, so nothing waits on a running spawn and there is no relation to keep.
+
+        **What it does not promise**, in the shape ``check_tool_call_deadline`` states its own: it
+        compares one attempt's deadline, and a task can hold its admission for two. ``_placed``
+        re-runs a GPU-placed inference failure on the CPU inside the same admission under a
+        deadline armed fresh, so the worst-case hold is twice this number along that one path. The
+        shipped pair does not clear the doubled relation and no comparison here can make it, both
+        defaults being measured; what is refused is the misordering an operator types.
+        """
+        if self.admission_wait_s > 0 and self.run_timeout_s >= self.admission_wait_s:
+            msg = (
+                f"CORTEX_SUBAGENTS_RUN_TIMEOUT_S ({self.run_timeout_s}) must be less than "
+                f"CORTEX_SUBAGENTS_ADMISSION_WAIT_S ({self.admission_wait_s}); a run allowed to "
+                "hold its admission for at least as long as a peer will queue for that admission "
+                "makes a working pool read as one that refuses spawns under load, and the "
+                "refusal names the queue rather than the deadline that filled it. Lower the run "
+                "deadline, or raise the admission wait above it (docs/runbooks/subagents-cpu.md)"
             )
             raise ValueError(msg)
         return self
