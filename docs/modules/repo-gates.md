@@ -578,10 +578,10 @@ that last question to have an answer.
   (ADR-0029 second-spelling addendum). A mention is a presence check, so a line whose first
   spelling a needle reaches can carry a second that drifts freely. The population was measured
   before anything was decided, by rendering every needle in the registry and counting the value's
-  bounded occurrences left over on each line it matched: eleven lines, of which six were artefacts
-  of the reading (an identifier that happens to spell a string value, two lines held jointly by two
-  needles each, and a decimal whose whole part sits inside a measured latency), leaving five real
-  ones. **One of those five is deliberately not a far side**, the vision runbook's second `auto`,
+  bounded occurrences left over on each line it matched: eleven readings over nine lines, of which
+  six were artefacts of the reading (an identifier that happens to spell a string value, two lines
+  held jointly by two needles each and so counted twice, and a decimal whose whole part sits
+  inside a measured latency), leaving five real ones. **One of those five is deliberately not a far side**, the vision runbook's second `auto`,
   which says what that mode DOES beside what `on` and `off` do and stays true after another mode
   becomes the shipped answer. That single case is what refused a mechanism: counting a value's
   occurrences per line, whether as a field or as a rule, would manufacture a coupling the tense

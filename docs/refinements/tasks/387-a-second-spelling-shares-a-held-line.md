@@ -54,7 +54,7 @@ twenty. If it is one, a count is honest and cheap; if it is many, the scan chang
   Meaning cell's explanation and left the **Default cell** free, on the GPU runbook's layer row and
   its two reasoning rows. `shippedcouplings.py` hit the 300-line cap on the way, so one capture's
   own numbers moved to `scripts/capturecouplings.py`, an eighth part costing one import and one
-  name. Twenty three planted drifts each exited 1 and each restoration returned the gate to green,
+  name. Twenty five planted drifts each exited 1 and each restoration returned the gate to green,
   with three controls staying green, tabled in the ADR-0029 second-spelling addendum. Two residues:
   the matcher edge the reading tripped over
   ([R-398](398-a-rendered-integer-is-a-token-inside-a-decimal.md)), and the fact that this reading

@@ -4001,7 +4001,8 @@ decision rather than a preference.
 
 Every mention in the registry was rendered, its needle matched against its file line by line, and
 the value's bounded occurrences on each matched line counted against the ones the needle itself
-covers. **Eleven lines came back. Six are artefacts of the reading:**
+covers. **Eleven readings came back, over nine lines. Six are artefacts of the reading, and two
+of those six are one line counted twice:**
 
 - `turnState.ts` writes `const thinking = event.state === "thinking";`, where the extra occurrence
   is an identifier that happens to spell a string value.
@@ -4063,14 +4064,14 @@ is advertised. The seam was already written in that file as a comment above the 
 `registry.py` has been paid rather than argued, and the first from this direction: the sixth and
 seventh parts arrived as new subjects, and the eighth is a split that cost one import and one name.
 
-### Proved able to fail, twenty three times, over the crosscheck registry
+### Proved able to fail, twenty five times, over the crosscheck registry
 
 Each place was planted with a real disagreement one at a time on the real tree, the gate run, the
 file restored from a copy taken beforehand, and the gate re-run green. The counts are over the
 crosscheck registry as it stands after this change, 57 entries over 67 sites and 163 mentions, and
 not over any test suite. The four rows this addendum adds are 4 of those mentions; the other
-nineteen rows below are the entries they joined, re-proved across the split, since a part that
-moved house and stopped being read would otherwise gate nothing in silence.
+twenty one are every remaining mention of the four entries they joined, re-proved across the split,
+since a part that moved house and stopped being read would otherwise gate nothing in silence.
 
 | planted drift | what the gate said |
 |---|---|
@@ -4078,9 +4079,9 @@ moved house and stopped being read would otherwise gate nothing in silence.
 | the vision runbook states another accepted range | 1 fault naming the runbook |
 | the GPU runbook's layer Default cell moves | 1 fault naming the runbook |
 | the GPU runbook's reasoning Default cells lose one | 1 fault: found 1 of the 2 pinned |
-| the nineteen mentions already on those four entries | 1 fault each, naming its own file |
+| the twenty one mentions already on those four entries | 1 fault each, naming its own file |
 
-All twenty three exited 1 and all twenty three restorations returned the gate to green. Three
+All twenty five exited 1 and all twenty five restorations returned the gate to green. Three
 **controls** ran the other way and all three stayed green: the vision runbook's second `auto`
 reworded to another mode, the model-swap runbook's measured latencies moved, and `turnState.ts`'s
 `thinking` identifier renamed. Those three are exactly the artefacts the population reading
