@@ -7,8 +7,10 @@ from couplings import Constant, Mention, Site, Spelling
 SUBAGENTS_COMPOSE = "docker/docker-compose.subagents.yml"
 SUBAGENTS_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config_subagents.py"
 SUBAGENTS_CORE = "brain/packages/core/src/cortex_core/subagents.py"
+SUBAGENTS_SCHEDULER = "brain/packages/core/src/cortex_core/scheduler.py"
 SUBAGENTS_RUNBOOK = "docs/runbooks/subagents-cpu.md"
 TOOLS_RUNBOOK = "docs/runbooks/tools-mcp.md"
+CORE_DOC = "docs/modules/brain-core.md"
 ORCHESTRATOR_DOC = "docs/modules/brain-orchestrator.md"
 
 SUBAGENT_COUPLINGS: tuple[Constant, ...] = (
@@ -35,6 +37,29 @@ SUBAGENT_COUPLINGS: tuple[Constant, ...] = (
                 spelling=Spelling.WHOLE,
             ),
             Mention(ORCHESTRATOR_DOC, "`run_timeout_s: float = {value}`"),
+        ),
+    ),
+    Constant(
+        label="the admission wait's shipped default",
+        why=(
+            "the bound on how long a spawn may queue for room is declared in the core module the "
+            "scheduler defaults from, quoted to an operator by the delegation runbook as the "
+            "wait the refusal names, restated in the two module contracts a future agent reads "
+            "instead of the tree, and asserted as the upper end of an ordering by the sibling "
+            "module declaring the run deadline that has to sit under it, so retuning the "
+            "declaration alone would leave four places quoting a bound no spawn is given "
+            "(ADR-0012 bounded-admission-wait addendum)"
+        ),
+        sites=(Site(SUBAGENTS_SCHEDULER, "DEFAULT_ADMISSION_WAIT_S"),),
+        mentions=(
+            Mention(
+                SUBAGENTS_RUNBOOK,
+                "`CORTEX_SUBAGENTS_ADMISSION_WAIT_S` (default {value} s)",
+                spelling=Spelling.WHOLE,
+            ),
+            Mention(SUBAGENTS_CORE, "its {value} s admission wait", spelling=Spelling.WHOLE),
+            Mention(ORCHESTRATOR_DOC, "`admission_wait_s: float = {value}`"),
+            Mention(CORE_DOC, "`DEFAULT_ADMISSION_WAIT_S` is {value},"),
         ),
     ),
     Constant(
