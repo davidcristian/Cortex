@@ -250,7 +250,9 @@ scripts/          repo gates, plus the one module here that gates nothing, contr
                   measures it, the overlay's own
                   stylesheet) + values.py (what a value
                   reduces to and the spelling a mention writes one in) + readings.py (how a
-                  constant's readings must then stand),
+                  constant's readings must then stand) + needles.py (how a rendered needle is
+                  looked for, and which of its literals a file that lacks one is told stopped
+                  matching),
                   bindcheck.py (no compose bind
                   default lands unignored in the tree) + composemounts.py (its mount
                   reader), defaultcheck.py (one variable, one default in every compose file

@@ -14,13 +14,10 @@ from couplings import (
     Relation,
     Site,
 )
+from needles import bounded, unfound
 from readings import Reading, relation_fault
 from registry import CONSTANTS
 from values import CrossCheckError, Value, parse_value, spell, spelling_fault
-
-# What counts as a continuation of a rendered needle's own token, at whichever of its two edges is
-# itself made of one. A needle edged by punctuation (`var(--ceiling,`) needs no such guard.
-WORD_CHARACTER = re.compile(r"\w")
 
 # A registry entry naming one place would agree with itself forever, which is the gate that
 # cannot fail this scan was written to remove. Two is therefore the floor, not a formality, and
@@ -75,13 +72,6 @@ def read_value(root: Path, site: Site) -> Value:
     return parse_value(found[0])
 
 
-def bounded(needle: str) -> re.Pattern[str]:
-    """The needle as a pattern no longer token can contain: a word edge may not touch a word."""
-    lead = r"(?<!\w)" if WORD_CHARACTER.match(needle[:1]) else ""
-    trail = r"(?!\w)" if WORD_CHARACTER.match(needle[-1:]) else ""
-    return re.compile(f"{lead}{re.escape(needle)}{trail}")
-
-
 def rendered(mention: Mention, value: Value) -> str:
     """The text a mention pins: its template with the agreed value and its own name rendered in."""
     renders_name = NAME_PLACEHOLDER in mention.template
@@ -110,10 +100,11 @@ def check_mention(root: Path, mention: Mention, value: Value) -> None:
         msg = f"mention {mention.template!r} pins {wanted} occurrences, which ties nothing"
         raise CrossCheckError(msg)
     needle = rendered(mention, value)
-    found = len(bounded(needle).findall(_read(root, mention.path)))
+    text = _read(root, mention.path)
+    found = len(bounded(needle).findall(text))
     if wanted is None:
         if not found:
-            msg = f"{mention.path} does not spell {needle!r} as a token of its own"
+            msg = unfound(mention, needle, text, spell(value, mention.spelling))
             raise CrossCheckError(msg)
     elif found != wanted:
         msg = (

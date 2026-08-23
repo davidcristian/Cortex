@@ -1,6 +1,6 @@
 # A needle's own literal reddens the entry beside the value that moved
 
-**Status:** open, actionable
+**Status:** landed 2026-08-23
 **Area:** repo-gates
 **Origin:** [ADR-0023](../../adr/ADR-0023-body-gateway-volume.md)
 
@@ -34,3 +34,24 @@ entries and each side is read from its own declaration. Read the cost before wri
 one mention depend on another entry, which is a new edge in a registry that has none, and it wants
 an answer for what happens when the neighbour's own entry is the one that is failing. The cheap
 shape may make the expensive one unnecessary, which is the order to try them in.
+
+## Trail
+
+- 2026-08-23: filed by the close of
+  [R-396](396-the-seam-host-rides-inside-the-ports-needles.md), which measured the misattribution
+  while settling that a value carried as a needle's literal is shadowed rather than held.
+- 2026-08-23: landed as the cheap shape, in a new `scripts/needles.py` holding the mention's side
+  of the scan. **The expensive shape was not deferred, it was refused**: both measured neighbours
+  are unregistered on purpose, the close that filed this having counted `127.0.0.1` as five values
+  and held one, so a template rendering a registered neighbour could not have reached either case
+  without first registering four values that ruling had just declined. **And this entry's own
+  proposal was wrong in its stronger half.** It offered "the longest prefix that still matches,
+  which points at the literal that moved"; a run is measured over a file and not a line, so a
+  prefix satisfied elsewhere overstates it, and on the flagship case itself the redis publish
+  carries `"127.0.0.1:` after the seam publish's interface moves. The claim that carries the fault
+  is therefore whether the file still spells this constant's own value as a token of its own, with
+  the run kept as a second, weaker reading. Three plantings before and after on the real tree, two
+  of them the misattributed cases and one a control where the value really moved; tabled in the
+  ADR-0023 misattributed-fault addendum. Two residues filed: a counted mention that finds nothing
+  gets none of this ([R-405](405-a-counted-mention-that-finds-nothing-says-nothing.md)), and the
+  run's own overstatement ([R-406](406-the-carried-run-is-measured-over-a-whole-file.md)).
