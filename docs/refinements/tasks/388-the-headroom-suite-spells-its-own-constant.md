@@ -1,6 +1,6 @@
 # The headroom suite spells the edge it now declares four more times, in prose and in an assertion
 
-**Status:** open, actionable
+**Status:** landed 2026-08-23
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -37,3 +37,27 @@ this constant or independent numbers is the question that decides how far this g
   [R-382](382-the-paired-numbers-quoted-in-prose.md), which registered this file's constant and
   deliberately left the four spellings around it unsorted, the assertion being a code change rather
   than a row.
+- 2026-08-23: landed as three mentions, one new two-site entry and one arithmetic change. **The
+  count was right**, unlike the three sorts before it, and one claim was not: the entry names "the
+  file's own header table" and that file has no table. The three sentences are far sides on the
+  reading a declaring file's own prose already had; the byte reading in the body contract stays a
+  control, and was re-run because the needle added here spells its words. **A derived literal is a
+  consequence of a value and not a spelling of it**, so `(2048, 1152)` gets no row: the height is
+  the edge times the fixture's aspect ratio, and a needle over the pair would redden when the
+  fixture's display changed, naming a coupling that never moved. The case computes the size from
+  the constants it declares instead, which removes the coupling rather than holding it, and the
+  maximised window's rectangle now derives from `SOURCE` for the same reason. The same reading
+  keeps the halved `1024` out, a rung below the edge being a consequence too, which answers this
+  entry's closing question about quarters and halves. **The sibling was the un-halved number**:
+  `BODY_EDGE` is the body's own `DEFAULT_MAX_EDGE` copied as a literal and held by nothing. It was
+  registered as a two-site entry and **the registry's own suite refused it**, an entry whose places
+  are all one language proving nothing about a seam, and that refusal was right: this suite already
+  imports from the module that declares it, so the copy needed to stop being a copy rather than to
+  gain a gate. `BODY_EDGE` is now that constant imported and the compiler holds it, which puts the
+  line between the two edges at reach rather than importance. Its prose is deferred as a survey of
+  seventy spellings ([R-399](399-the-body-edge-is-two-sites-and-no-prose.md)). Three planted drifts
+  reddened crosscheck and one reddened the Rust suite alone, which is the entry's own argument
+  measured:
+  retuned to 1800 the literal pair fails with `left: (1800, 1012)` against `right: (2048, 1152)`
+  and the derived pair passes. All four cases run green on the restored tree in 77 s. Tabled in the
+  ADR-0029 second-spelling addendum.

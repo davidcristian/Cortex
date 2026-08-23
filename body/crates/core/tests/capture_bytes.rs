@@ -3,7 +3,7 @@
 
 use std::fmt::Debug;
 
-use body_core::os::screen_policy::MAX_CAPTURE_BYTES;
+use body_core::os::screen_policy::{DEFAULT_MAX_EDGE, MAX_CAPTURE_BYTES};
 use body_core::{Capture, CaptureRequest, CapturedFrame, RawFrame, TargetRect};
 
 /// The display the desktop fixtures are built at: one 4K screen, which is what the capture path
@@ -12,7 +12,7 @@ use body_core::{Capture, CaptureRequest, CapturedFrame, RawFrame, TargetRect};
 const SOURCE: (u32, u32) = (3840, 2160);
 
 /// The body's own default edge, what a caller that asks for nothing still gets.
-const BODY_EDGE: u32 = 1600;
+const BODY_EDGE: u32 = DEFAULT_MAX_EDGE;
 
 /// The edge the brain asks for by default from this slice on.
 const BRAIN_EDGE: u32 = 2048;
@@ -237,6 +237,22 @@ fn uniform_noise() -> RawFrame {
     screen.frame()
 }
 
+/// The size a region of `source` comes back at when the brain asks for [`BRAIN_EDGE`]: the
+/// policy's own rule, the longest edge landing on the bound and the other scaled by the same
+/// ratio and floored, written once here instead of a pair of digits per case.
+fn brain_size(source: (u32, u32)) -> (u32, u32) {
+    let longest = source.0.max(source.1);
+    if longest <= BRAIN_EDGE {
+        return source;
+    }
+    let scaled = |edge: u32| {
+        ok(u32::try_from(
+            u64::from(edge) * u64::from(BRAIN_EDGE) / u64::from(longest),
+        ))
+    };
+    (scaled(source.0), scaled(source.1))
+}
+
 /// One frame through the real policy at one edge: the bytes that would cross the seam, and the
 /// size they came back at, which is how the halving ladder announces itself.
 fn measure(captured: &CapturedFrame, edge: u32) -> (usize, u32, u32) {
@@ -302,9 +318,19 @@ fn a_window_inside_the_capture_edge_crosses_at_its_own_resolution() {
     let (maximised, width, height) = report_window(
         "a maximised window",
         &frame,
-        TargetRect::new(0, 0, 3840, 2160),
+        TargetRect::new(
+            0,
+            0,
+            ok(i32::try_from(SOURCE.0)),
+            ok(i32::try_from(SOURCE.1)),
+        ),
     );
-    assert_eq!((width, height), (2048, 1152));
+    assert_eq!(
+        (width, height),
+        brain_size(SOURCE),
+        "a maximised window is the whole display, so it comes back resampled to the edge the \
+         brain asks for rather than at its own resolution"
+    );
     assert_eq!(maximised, whole_bytes);
 }
 
@@ -351,7 +377,7 @@ const WORST_DISPLAY: (u32, u32) = (2560, 1440);
 #[ignore = "byte measurement on 4K frames: run with --release -- --ignored --nocapture"]
 fn a_display_nearer_the_requested_edge_is_the_expensive_one() {
     println!("\nThe same grainy photograph on the displays a person actually owns:");
-    for source in [(3840, 2160), WORST_DISPLAY, (1920, 1080)] {
+    for source in [SOURCE, WORST_DISPLAY, (1920, 1080)] {
         assert!(
             report(
                 &format!("photograph, grain 16, {}x{}", source.0, source.1),

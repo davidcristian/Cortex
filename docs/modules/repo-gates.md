@@ -591,6 +591,27 @@ that last question to have an answer.
   been holding `` `1024` is the default, paired with `` since the legibility sort. Two of the four
   are the more dangerous form, where the needle held the Meaning cell's explanation and left the
   **Default cell** free.
+- **A derived literal is a consequence of a value, not a spelling of it, and no row may hold one**
+  (ADR-0029 second-spelling addendum). The headroom suite asserted a resampled size as the pair
+  `(2048, 1152)`, where the width is the capture edge and the height is that edge times the
+  fixture's own aspect ratio. Retune the edge and the Rust suite fails with two numbers nothing in
+  the file explains, while every gate here stays green, so the pull to register it is real. It is
+  still wrong: a needle over the pair would tie the edge and the fixture's display shape into one
+  answer and would redden when the fixture changed, naming a coupling that never moved. So the
+  suite computes the size from the constants it already declares, which **removes** the coupling
+  instead of holding it, and the same reading keeps the halved `1024` in that file's prose out,
+  a rung of the ladder below the edge being a consequence too. Proved both ways on the real tree:
+  retuned to 1800, the literal pair fails the case with `left: (1800, 1012)` against
+  `right: (2048, 1152)` and the derived one passes.
+- **And a copy the compiler can reach is an import, not a row**, which the registry's own suite
+  enforces: `test_every_registered_constant_spans_more_than_one_language` refuses an entry whose
+  places are all one suffix, on the ground that it proves nothing about a seam. The same headroom
+  suite copied the body's `DEFAULT_MAX_EDGE` as a literal beside the brain's edge, and registering
+  the pair failed that invariant, correctly. The suite already imports from the module declaring
+  it, so the copy stopped being a copy. That puts the line between the two constants in that file
+  at **reach** rather than importance: both are numbers the suite must follow rather than choose,
+  one is declared where a compiler can hold it, and only the other has nothing but this scan. It is
+  the same reason the brain's own unit test on the seam port stays out.
 - **A host file is a live instruction, not a record**, which is the reading both sorts needed.
   `docs/host/` holds work that is built and unrun, its prerequisites exist so a sitting does not die
   on setup, and a completed item's file shrinks to a heading, its status and a pointer, so the
