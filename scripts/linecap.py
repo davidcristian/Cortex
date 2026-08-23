@@ -9,6 +9,13 @@ TypeScript (ADR-0011 line-cap addendum). It deliberately does not cover the styl
 the markup, or `proto/body.proto`, which are not modules the cap's split-by-responsibility
 remedy applies to; see that addendum for the argument and the repo-gates tasks in
 docs/refinements/ for what stays unmeasured.
+
+**The success line states what the walk read**, files and lines after the exclusions rather
+than before, because "no file exceeds the cap" is equally true of a tree the scan never
+entered. The two numbers are a reading and nothing asserts them. What IS asserted is the
+floor under them: reading no source file at all exits 2, the way `composefiles.py` already
+refuses an empty compose walk, since a scan that read nothing is the one failure a gate this
+shape cannot report any other way.
 """
 
 import argparse
@@ -49,6 +56,10 @@ SKIPPED_FILE_PATTERNS = (
     "test-setup.ts",
 )
 
+# The floor under the reading below. One file is the whole of it: a walk that measured a single
+# source file has entered the tree, and a walk that measured none cannot fail on anything.
+MIN_FILES = 1
+
 
 class UnreadableFileError(Exception):
     """A candidate source file exists but cannot be read."""
@@ -59,6 +70,19 @@ class Violation(NamedTuple):
 
     path: Path
     lines: int
+
+
+class Scan(NamedTuple):
+    """One walk: the collection the verdict is over, then the verdict.
+
+    ``files`` and ``lines`` count what was measured after every exclusion, which is the only
+    count worth printing; the number of files the walk enumerated says nothing about what the
+    cap was applied to.
+    """
+
+    files: int
+    lines: int
+    violations: list[Violation]
 
 
 def is_skipped_file(name: str) -> bool:
@@ -75,9 +99,11 @@ def count_lines(path: Path) -> int:
         raise UnreadableFileError(msg) from err
 
 
-def scan(root: Path, cap: int) -> list[Violation]:
-    """Walk ``root`` and return every non-exempt source file longer than ``cap`` lines."""
+def scan(root: Path, cap: int) -> Scan:
+    """Walk ``root``, counting what it measures and returning the files longer than ``cap``."""
     violations: list[Violation] = []
+    files = 0
+    total = 0
     for directory, dirnames, filenames in root.walk():
         dirnames[:] = sorted(name for name in dirnames if name not in SKIPPED_DIRS)
         for name in sorted(filenames):
@@ -87,9 +113,11 @@ def scan(root: Path, cap: int) -> list[Violation]:
             if not path.is_file():  # dangling symlink or other non-regular file
                 continue
             lines = count_lines(path)
+            files += 1
+            total += lines
             if lines > cap:
                 violations.append(Violation(path=path.relative_to(root), lines=lines))
-    return violations
+    return Scan(files=files, lines=total, violations=violations)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -116,15 +144,24 @@ def main(argv: list[str] | None = None) -> int:
         print(f"linecap: root {root} is not a directory", file=sys.stderr)
         return 2
     try:
-        violations = scan(root, cap)
+        scanned = scan(root, cap)
     except UnreadableFileError as err:
         print(f"linecap: {err}", file=sys.stderr)
         return 2
-    for violation in violations:
+    if scanned.files < MIN_FILES:
+        print(
+            f"linecap: no non-test source file under {root}; a scan that read nothing cannot fail",
+            file=sys.stderr,
+        )
+        return 2
+    for violation in scanned.violations:
         print(f"{violation.path}: {violation.lines} lines (cap {cap})")
-    if violations:
+    if scanned.violations:
         return 1
-    print(f"linecap OK: no non-test source file under {root} exceeds {cap} lines")
+    print(
+        f"linecap OK: {scanned.files} non-test source file(s) under {root} are within "
+        f"{cap} lines, over {scanned.lines} line(s) counted"
+    )
     return 0
 
 

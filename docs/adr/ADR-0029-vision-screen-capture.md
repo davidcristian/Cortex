@@ -4549,3 +4549,141 @@ The record is the task file
 `scripts/registry.py`, which carries `Shape` and `shape`, `scripts/crosscheck.py`, which prints it,
 `scripts/tests/test_crosscheck.py`, which drives it, and
 [modules/repo-gates.md](../modules/repo-gates.md), whose tallies this removes, and this addendum.
+
+## Addendum (2026-08-24): the other four gates, and the floor a reading makes visible
+
+The registry-shape addendum above gave one scan a success line that names the collection its
+verdict is over, and left the other five saying nothing about what they had read. One of those
+five, `backlogcheck.py`, already printed a count line per backlog. The remaining four printed a
+claim with no collection behind it: no source file exceeds the cap, no text file uses a banned
+dash, every compose bind default is accounted for, every variable spelled twice carries one value.
+Each of those sentences is as true of a collection of nothing as of the repo, so a run whose root
+resolved wrong or whose exclusion widened reported exactly what a real run reports.
+
+### Why this sits here and not at the four gates' own records
+
+The line cap is ADR-0011's and the dash ban, the bind rule and the defaults rule are ADR-0026's,
+and none of them changes here: the same files are walked, the same violations are reported, and
+the same exit codes come back. What changes is what a **passing** run says, and the convention it
+now says it under was written in the registry-shape addendum on this decision record: a gate states
+the collection its verdict is over, as a reading and never as an assertion. Splitting one close
+across three records to say that four times would bury it. The one behavioural change, the floor
+below, is the rule `composefiles.py` already carries for two of these four, argued in the ADR-0026
+bind addendum's fail-closed paragraph, so it is an extension of that record rather than a
+correction of it.
+
+### Re-derived first, and the entry was half right about the empty tree
+
+The four success lines were quoted correctly by the task, and the two that already say something
+say what it claimed. What did not survive re-derivation is the sentence that "each is true of an
+empty tree". It is true of `linecap.py` and `dashcheck.py`, which walk a tree and report OK over
+nothing. It is false of `bindcheck.py` and `defaultcheck.py`, which have refused an empty walk
+since the day they landed: `composefiles.py` raises on finding no compose file, for exactly the
+reason the entry gives. So the fail-open case the entry describes was open in two gates, not four,
+and the other two were the precedent for closing it rather than fellow offenders.
+
+What is true of all four, and is what the counts are for, is the collection **inside** a tree that
+was really walked. A `bindcheck OK` over ten compose files that declare no bind at all is a
+verdict over nothing, and it is a legitimate thing for a compose file to be, which is why that
+half gets a printed number and no floor.
+
+### What each line says now
+
+Measured over the tree while this was being written, which is the most any prose can honestly
+claim about them:
+
+```
+linecap OK: 379 non-test source file(s) under .. are within 300 lines, over 52087 line(s) counted
+dashcheck OK: 1252 text file(s) under .. use no banned dash, over 240186 line(s) read
+bindcheck OK: 11 bind mount(s) under .. are outside, tracked, or ignored, over 10 compose file(s)
+and 22 landing(s) checked
+defaultcheck OK: 8 variable(s) spelled twice or more under .. carry one value, over 10 compose
+file(s) and 59 variable(s) read
+```
+
+The second of those was stale before the paragraph under it was finished, and by this document's
+own doing: the dash ban reads every text file in the tree, so writing this addendum and the two
+task files it opens moved the number it quotes. That is the whole argument for the decision below,
+demonstrated rather than asserted, and it is why the block above is dated evidence of a run and
+never a fact anything is held to.
+
+Every number is the count **after** the exclusions, which is the only count worth printing: what a
+walk enumerated says nothing about what a rule was applied to. So the line cap's 379 excludes the
+test-named files and the skipped directory components, the dash ban's 1252 excludes the binaries it
+skipped, the bind check's 22 landings are the places git was actually asked about rather than the
+mounts or twice the mounts, and the defaults check leads on the 8 groups that had a sibling to
+disagree with rather than on the 59 variables it read to find them. Two of the four report a second
+dimension of the same walk, lines rather than files, because both rules are per line and a tree of
+empty files would otherwise read like a tree that was measured.
+
+`defaultcheck.py` reports three numbers where the entry proposed two. The third is the one the
+verdict is over: a variable spelled once is never compared, so 8 of the 59 are what "carries one
+value" is a claim about.
+
+### Nothing asserts them, and the floor is not one of them
+
+The decision is the registry-shape addendum's, for the same reason and now over four more numbers:
+a document that quoted them would be prose tied to a gate's own data, and it would go stale on the
+next file added to the repo. The suites pin that each gate's counts count different things, over
+fixtures built so that no two of the numbers coincide (one file of seven lines; two text files over
+three lines; two compose files, four binds and three landings; three compose files, five variables
+and two comparisons). No test pins a number the live tree currently holds.
+
+The floor is the exception the entry asked about, and it is a gate rather than a reading, so it is
+written as one. `linecap.py` and `dashcheck.py` now exit 2 when the walk measured no file at all,
+with the message `composefiles.py` has always given its two callers. The argument for it is that
+"at least one file was read" is not a fact about the repo that prose could restate and go stale on;
+it is the one condition under which every other thing these gates say is vacuous. A walk that read
+nothing cannot fail, and a gate that cannot fail is a defect by this repo's own rule. The argument
+against, that a person could legitimately point `--root` at a subtree with no source files, is
+worth less than the argument for: the recipes point both gates at the repo root, and refusing with
+a message that says why is a better answer to a mistyped root than a green tick.
+
+The deeper counts get no floor. A compose file declaring no bind is ordinary, a tree whose
+variables are each spelled once is ordinary, and a floor over either would redden on a legitimate
+tree. That is the line between the two: the file count is the walk, and the rest is the tree.
+
+### Proved able to fail, ten times, over the scripts suite and the live tree
+
+Six planted mutations over `scripts/` (the `scripts/tests` suite, 830 tests, which is the
+collection every count below is out of), to show the new tests can fail, and four runs against the
+live tree, to show the printed numbers move and the floor fires. Each mutation was restored from a
+copy taken before the first one, with `__pycache__` purged between runs, and the baseline was
+re-established after every row.
+
+| # | mutation | expected | observed |
+| --- | --- | --- | --- |
+| 1 | linecap's line total counts one per file instead of the file's lines | the count test and the summary test fail | 2 failed, 828 passed |
+| 2 | `linecap.MIN_FILES` lowered to 0 | both floor tests fail | 2 failed, 828 passed |
+| 3 | dashcheck counts the binary files it skipped | the count test and the floor test fail | 2 failed, 828 passed |
+| 4 | `dashcheck.MIN_FILES` lowered to 0 | the floor test fails | 1 failed, 829 passed |
+| 5 | bindcheck counts one landing per mount rather than the landings asked about | the count test and the CLI test fail | 2 failed, 828 passed |
+| 6 | defaultcheck counts every variable as compared | the count test and the CLI test fail | 2 failed, 828 passed |
+| 7 | one 12-line source file planted at the repo root | both file walks move by one file and twelve lines, nothing else | linecap 380 files, 52099 lines; dashcheck 1253 files, 240198 lines |
+| 8 | one bind planted in the brain's compose file, its source an already ignored default | binds and landings move, the compared variables do not | bindcheck 12 mounts, 24 landings; defaultcheck 60 variables, 8 compared |
+| 9 | both gates run over an empty directory | exit 2 from each | `a scan that read nothing cannot fail`, twice |
+| 10 | both gates run over a tree holding only what they exclude (one `tests/test_only.py`, one PNG) | exit 2 from each, the walk having entered a tree and measured nothing in it | the same message, twice |
+
+Rows 7 and 8 stayed green on exit 0, which is the point: the counts are a reading, so moving them
+moves the output and never the verdict. Row 8 moved the bind check's landings by two because a
+source in `docker/` lands under both project directories, and left the defaults check's comparison
+count alone because the variable it added is spelled once.
+
+### What this opened
+
+The floor is one file, so a walk that collapsed from 379 files to three clears it and prints the
+collapse to nobody in particular
+([R-410](../refinements/tasks/410-the-floor-under-a-walk-is-one-file.md)). And the dash ban's 1252
+is a fact about a working tree rather than about a commit: ten of the files it read are files git
+does not track, and 26 files git does track it never reads
+([R-411](../refinements/tasks/411-the-dash-ban-reads-a-working-tree-not-a-commit.md)).
+
+### Records
+
+The record is the task file
+[R-409](../refinements/tasks/409-a-gates-success-line-names-no-collection.md), which closes,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from it,
+`scripts/linecap.py`, `scripts/dashcheck.py`, `scripts/bindcheck.py` and
+`scripts/defaultcheck.py`, which carry the readings and the two floors, their four suites, which
+drive them, [modules/repo-gates.md](../modules/repo-gates.md), which states what each gate now
+prints, and this addendum.

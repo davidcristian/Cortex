@@ -63,19 +63,31 @@ def _compose(repo: Path, source: str, name: str = "docker/docker-compose.yml") -
     return path
 
 
+def _binds(repo: Path, sources: list[str], name: str) -> Path:
+    """One compose file declaring several binds, for counting what a walk read."""
+    path = repo / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    entries = "".join(
+        f'      - type: bind\n        source: "{source}"\n        target: /at{index}\n'
+        for index, source in enumerate(sources)
+    )
+    path.write_text(f"services:\n  brain:\n    volumes:\n{entries}", encoding="utf-8")
+    return path
+
+
 # ── the three verdicts ─────────────────────────────────────────────────────────
 
 
 def test_an_ignored_default_is_accounted_for(repo: Path) -> None:
     """`cache/` is unanchored, so it covers the repo root and `docker/` alike."""
     _compose(repo, "${CACHE_DIR:-./cache}")
-    assert bindcheck.check(repo) == []
+    assert bindcheck.check(repo).faults == []
 
 
 def test_a_tracked_input_needs_no_ignore_rule(repo: Path) -> None:
     """Not "every default must be gitignored": compose finds an input rather than making one."""
     _compose(repo, "./docker/seed.sql", name="docker-compose.yml")
-    assert bindcheck.check(repo) == []
+    assert bindcheck.check(repo).faults == []
 
 
 def test_a_tracked_landing_does_not_speak_for_the_other_one(repo: Path) -> None:
@@ -86,7 +98,7 @@ def test_a_tracked_landing_does_not_speak_for_the_other_one(repo: Path) -> None:
     the tracked landing as an answer for both left it unreported.
     """
     _compose(repo, "./docker/seed.sql")
-    faults = bindcheck.check(repo)
+    faults = bindcheck.check(repo).faults
     assert len(faults) == 1
     assert "'docker/docker/seed.sql'" in faults[0].detail
 
@@ -94,7 +106,7 @@ def test_a_tracked_landing_does_not_speak_for_the_other_one(repo: Path) -> None:
 def test_an_unignored_default_is_reported_at_both_landings(repo: Path) -> None:
     """The whole point: a third default nobody remembered to ignore."""
     _compose(repo, "${MODELS_DIR:-./models}")
-    faults = bindcheck.check(repo)
+    faults = bindcheck.check(repo).faults
     assert [fault.line for fault in faults] == [4, 4]
     assert [fault.path for fault in faults] == ["docker/docker-compose.yml"] * 2
     assert "'models'" in faults[0].detail
@@ -105,14 +117,14 @@ def test_an_ignore_that_only_covers_the_repo_root_still_fails(repo: Path) -> Non
     """An anchored rule misses the bare `docker compose -f docker/...` project directory."""
     (repo / ".gitignore").write_text("cache/\n/models/\n", encoding="utf-8")
     _compose(repo, "${MODELS_DIR:-./models}")
-    faults = bindcheck.check(repo)
+    faults = bindcheck.check(repo).faults
     assert len(faults) == 1
     assert "'docker/models'" in faults[0].detail
 
 
 def test_a_compose_file_at_the_root_has_one_landing(repo: Path) -> None:
     _compose(repo, "${MODELS_DIR:-./models}", name="docker-compose.yml")
-    assert len(bindcheck.check(repo)) == 1
+    assert len(bindcheck.check(repo).faults) == 1
 
 
 # ── which sources the gate has an opinion about ────────────────────────────────
@@ -143,17 +155,17 @@ def test_a_source_it_cannot_reduce_is_refused() -> None:
 
 def test_an_env_only_source_is_nobody_elses_business(repo: Path) -> None:
     _compose(repo, "${MODELS_DIR}")
-    assert bindcheck.check(repo) == []
+    assert bindcheck.check(repo).faults == []
 
 
 def test_a_path_outside_the_tree_is_nobody_elses_business(repo: Path) -> None:
     _compose(repo, "/srv/models")
-    assert bindcheck.check(repo) == []
+    assert bindcheck.check(repo).faults == []
 
 
 def test_a_relative_escape_out_of_the_tree_is_ignored(repo: Path) -> None:
     _compose(repo, "../models", name="docker-compose.yml")
-    assert bindcheck.check(repo) == []
+    assert bindcheck.check(repo).faults == []
 
 
 def test_an_escape_that_lands_back_inside_from_the_other_project_directory_is_checked(
@@ -161,7 +173,7 @@ def test_an_escape_that_lands_back_inside_from_the_other_project_directory_is_ch
 ) -> None:
     """`../models` beside `docker/` is outside the tree; beside the repo root it is `models`."""
     _compose(repo, "../models")
-    faults = bindcheck.check(repo)
+    faults = bindcheck.check(repo).faults
     assert len(faults) == 1
     assert "'models'" in faults[0].detail
 
@@ -188,7 +200,7 @@ def test_a_compose_file_the_reader_refuses_is_a_fault(repo: Path) -> None:
     (repo / "docker-compose.yml").write_text(
         "services:\n  a:\n    volumes:\n      - type: bind\n        target: /x\n", encoding="utf-8"
     )
-    faults = bindcheck.check(repo)
+    faults = bindcheck.check(repo).faults
     assert len(faults) == 1
     assert faults[0].line == 0
     assert "declares no source" in faults[0].detail
@@ -196,14 +208,14 @@ def test_a_compose_file_the_reader_refuses_is_a_fault(repo: Path) -> None:
 
 def test_a_compose_file_that_is_not_text_is_a_fault(repo: Path) -> None:
     (repo / "docker-compose.yml").write_bytes(b"\xff\xfe not utf-8")
-    faults = bindcheck.check(repo)
+    faults = bindcheck.check(repo).faults
     assert len(faults) == 1
     assert faults[0].line == 0
 
 
 def test_an_unreducible_source_is_a_fault_on_its_own_line(repo: Path) -> None:
     _compose(repo, "./models/${TIER}")
-    faults = bindcheck.check(repo)
+    faults = bindcheck.check(repo).faults
     assert len(faults) == 1
     assert faults[0].line == 4
     assert "cannot reduce" in faults[0].detail
@@ -256,7 +268,7 @@ def test_vendored_trees_are_not_scanned(repo: Path) -> None:
     _compose(repo, "${A:-./cache}")
     _compose(repo, "${B:-./models}", name="node_modules/pkg/docker-compose.yml")
     assert [path.name for path in bindcheck.compose_files(repo)] == ["docker-compose.yml"]
-    assert bindcheck.check(repo) == []
+    assert bindcheck.check(repo).faults == []
 
 
 def test_a_dangling_symlink_is_skipped(repo: Path) -> None:
@@ -270,7 +282,7 @@ def test_a_dangling_symlink_is_skipped(repo: Path) -> None:
 
 def test_the_repo_itself_is_clean() -> None:
     """The gate's own assertion, run as a test so `check-scripts` catches drift too."""
-    assert bindcheck.check(REPO_ROOT) == []
+    assert bindcheck.check(REPO_ROOT).faults == []
 
 
 def test_the_repo_really_declares_binds_for_this_gate_to_have_checked() -> None:
@@ -287,6 +299,34 @@ def test_the_repo_really_declares_binds_for_this_gate_to_have_checked() -> None:
 def test_main_passes_the_real_repo(capsys: pytest.CaptureFixture[str]) -> None:
     assert bindcheck.main(["--root", str(REPO_ROOT)]) == 0
     assert "bindcheck OK" in capsys.readouterr().out
+
+
+# ── what the walk read ─────────────────────────────────────────────────────────
+
+
+def _counted(repo: Path) -> None:
+    """Two files, four binds, three landings: three different numbers, none derivable."""
+    _binds(repo, ["${CACHE_DIR:-./cache}", "${MODELS_DIR}", "/srv/models"], "docker-compose.yml")
+    _binds(repo, ["${CACHE_DIR:-./cache}"], "docker/docker-compose.yml")
+
+
+def test_check_counts_the_files_binds_and_landings_it_read(repo: Path) -> None:
+    """Landings are neither the mounts nor twice them: env-only asks nowhere, the root asks once."""
+    _counted(repo)
+    scanned = bindcheck.check(repo)
+    assert (scanned.files, scanned.mounts, scanned.landings) == (2, 4, 3)
+    assert scanned.faults == []
+
+
+def test_main_states_what_it_read_beside_the_verdict(
+    repo: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _counted(repo)
+    assert bindcheck.main(["--root", str(repo)]) == 0
+    assert capsys.readouterr().out == (
+        f"bindcheck OK: 4 bind mount(s) under {repo} are outside, tracked, or ignored, "
+        f"over 2 compose file(s) and 3 landing(s) checked\n"
+    )
 
 
 def test_main_reports_each_fault_and_exits_one(

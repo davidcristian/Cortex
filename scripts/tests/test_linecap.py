@@ -15,7 +15,7 @@ def test_scan_reports_files_over_cap_in_walk_order(tmp_path: Path) -> None:
     write_file(tmp_path / "big.py", 11)
     write_file(tmp_path / "ok.py", 10)
     write_file(tmp_path / "nested" / "huge.rs", 12)
-    violations = linecap.scan(tmp_path, cap=10)
+    violations = linecap.scan(tmp_path, cap=10).violations
     assert violations == [
         linecap.Violation(path=Path("big.py"), lines=11),
         linecap.Violation(path=Path("nested/huge.rs"), lines=12),
@@ -24,40 +24,40 @@ def test_scan_reports_files_over_cap_in_walk_order(tmp_path: Path) -> None:
 
 def test_scan_clean_tree_returns_nothing(tmp_path: Path) -> None:
     write_file(tmp_path / "small.py", 3)
-    assert linecap.scan(tmp_path, cap=10) == []
+    assert linecap.scan(tmp_path, cap=10).violations == []
 
 
 def test_scan_cap_boundary_allows_exactly_cap_lines(tmp_path: Path) -> None:
     write_file(tmp_path / "at_cap.py", 300)
     write_file(tmp_path / "over_cap.py", 301)
-    violations = linecap.scan(tmp_path, cap=300)
+    violations = linecap.scan(tmp_path, cap=300).violations
     assert violations == [linecap.Violation(path=Path("over_cap.py"), lines=301)]
 
 
 def test_scan_counts_comments_and_blank_lines(tmp_path: Path) -> None:
     (tmp_path / "mixed.py").write_text("# comment\n\nvalue = 1\n", encoding="utf-8")
-    violations = linecap.scan(tmp_path, cap=2)
+    violations = linecap.scan(tmp_path, cap=2).violations
     assert violations == [linecap.Violation(path=Path("mixed.py"), lines=3)]
 
 
 @pytest.mark.parametrize("name", ["big.ts", "big.tsx"])
 def test_scan_caps_overlay_typescript(tmp_path: Path, name: str) -> None:
     write_file(tmp_path / "app" / "src" / name, 50)
-    violations = linecap.scan(tmp_path, cap=10)
+    violations = linecap.scan(tmp_path, cap=10).violations
     assert violations == [linecap.Violation(path=Path("app/src") / name, lines=50)]
 
 
 def test_scan_caps_ambient_declaration_files(tmp_path: Path) -> None:
     """`.d.ts` is hand-written TypeScript, so it is capped like any other `.ts`."""
     write_file(tmp_path / "shims.d.ts", 50)
-    violations = linecap.scan(tmp_path, cap=10)
+    violations = linecap.scan(tmp_path, cap=10).violations
     assert violations == [linecap.Violation(path=Path("shims.d.ts"), lines=50)]
 
 
 def test_scan_ignores_non_source_suffixes(tmp_path: Path) -> None:
     write_file(tmp_path / "notes.txt", 50)
     write_file(tmp_path / "README.md", 50)
-    assert linecap.scan(tmp_path, cap=10) == []
+    assert linecap.scan(tmp_path, cap=10).violations == []
 
 
 def test_scan_ignores_stylesheets_markup_and_the_proto(tmp_path: Path) -> None:
@@ -65,7 +65,7 @@ def test_scan_ignores_stylesheets_markup_and_the_proto(tmp_path: Path) -> None:
     write_file(tmp_path / "overlay.css", 50)
     write_file(tmp_path / "index.html", 50)
     write_file(tmp_path / "body.proto", 50)
-    assert linecap.scan(tmp_path, cap=10) == []
+    assert linecap.scan(tmp_path, cap=10).violations == []
 
 
 @pytest.mark.parametrize(
@@ -82,13 +82,13 @@ def test_scan_ignores_stylesheets_markup_and_the_proto(tmp_path: Path) -> None:
 )
 def test_scan_skips_test_named_files(tmp_path: Path, name: str) -> None:
     write_file(tmp_path / name, 50)
-    assert linecap.scan(tmp_path, cap=10) == []
+    assert linecap.scan(tmp_path, cap=10).violations == []
 
 
 @pytest.mark.parametrize("name", ["attestation.py", "latest.ts", "Contest.tsx", "testable.ts"])
 def test_scan_does_not_skip_files_that_merely_contain_test(tmp_path: Path, name: str) -> None:
     write_file(tmp_path / name, 50)
-    violations = linecap.scan(tmp_path, cap=10)
+    violations = linecap.scan(tmp_path, cap=10).violations
     assert violations == [linecap.Violation(path=Path(name), lines=50)]
 
 
@@ -112,7 +112,7 @@ def test_scan_does_not_skip_files_that_merely_contain_test(tmp_path: Path, name:
 def test_scan_skips_exempt_directories(tmp_path: Path, directory: str) -> None:
     write_file(tmp_path / directory / "big.py", 50)
     write_file(tmp_path / directory / "big.ts", 50)
-    assert linecap.scan(tmp_path, cap=10) == []
+    assert linecap.scan(tmp_path, cap=10).violations == []
 
 
 def test_skipped_dirs_match_dashcheck_plus_tests_and_generated() -> None:
@@ -126,14 +126,14 @@ def test_skipped_dirs_match_dashcheck_plus_tests_and_generated() -> None:
 def test_scan_skips_exempt_directory_components_at_any_depth(tmp_path: Path) -> None:
     write_file(tmp_path / "crate" / "tests" / "deep" / "big.rs", 50)
     write_file(tmp_path / "crate" / "src" / "big.rs", 50)
-    violations = linecap.scan(tmp_path, cap=10)
+    violations = linecap.scan(tmp_path, cap=10).violations
     assert violations == [linecap.Violation(path=Path("crate/src/big.rs"), lines=50)]
 
 
 def test_scan_skips_dangling_symlink(tmp_path: Path) -> None:
     write_file(tmp_path / "ok.py", 3)
     (tmp_path / ".#routing.py").symlink_to(tmp_path / "routing.py")
-    assert linecap.scan(tmp_path, cap=10) == []
+    assert linecap.scan(tmp_path, cap=10).violations == []
 
 
 def test_scan_raises_typed_error_for_unreadable_file(tmp_path: Path) -> None:
@@ -175,11 +175,51 @@ def test_main_prints_violations_and_exits_1(
 def test_main_prints_summary_and_exits_0(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    write_file(tmp_path / "ok.py", 10)
+    """Three different numbers, so a summary that mixed two of them up would show here."""
+    write_file(tmp_path / "ok.py", 7)
     exit_code = linecap.main(["--root", str(tmp_path), "--max-lines", "10"])
     assert exit_code == 0
-    expected = f"linecap OK: no non-test source file under {tmp_path} exceeds 10 lines\n"
+    expected = (
+        f"linecap OK: 1 non-test source file(s) under {tmp_path} are within 10 lines, "
+        f"over 7 line(s) counted\n"
+    )
     assert capsys.readouterr().out == expected
+
+
+# ── what the walk read, and the floor under it ─────────────────────────────────
+
+
+def test_scan_counts_what_it_measured_and_not_what_it_walked_past(tmp_path: Path) -> None:
+    """The count after the exclusions: a file the cap was never applied to is in neither number."""
+    write_file(tmp_path / "one.py", 3)
+    write_file(tmp_path / "nested" / "two.rs", 5)
+    write_file(tmp_path / "test_three.py", 400)
+    write_file(tmp_path / "notes.md", 400)
+    write_file(tmp_path / "tests" / "four.py", 400)
+    scanned = linecap.scan(tmp_path, cap=10)
+    assert (scanned.files, scanned.lines) == (2, 8)
+    assert scanned.violations == []
+
+
+def test_a_tree_with_no_source_file_is_a_failure_not_a_pass(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A walk that measured nothing cannot fail, so reporting OK over one is the fail-open case."""
+    write_file(tmp_path / "test_only.py", 400)
+    write_file(tmp_path / "README.md", 400)
+    assert linecap.main(["--root", str(tmp_path), "--max-lines", "10"]) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == (
+        f"linecap: no non-test source file under {tmp_path}; a scan that read nothing cannot fail\n"
+    )
+
+
+def test_an_empty_tree_is_the_same_failure(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert linecap.main(["--root", str(tmp_path)]) == 2
+    assert "a scan that read nothing cannot fail" in capsys.readouterr().err
 
 
 def test_main_defaults_to_cwd_and_cap_300(

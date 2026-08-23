@@ -104,7 +104,7 @@ def test_scan_finds_violations_across_file_types(tmp_path: Path) -> None:
     _write(tmp_path, "doc.md", f"prose {EM} here\n")
     _write(tmp_path, "src/app.ts", f"// comment {EM} here\n")
     _write(tmp_path, "clean.py", "x = 1\n")
-    found = {v.path.name for v in dashcheck.scan(tmp_path)}
+    found = {v.path.name for v in dashcheck.scan(tmp_path).violations}
     assert found == {"doc.md", "app.ts"}
 
 
@@ -112,26 +112,54 @@ def test_scan_skips_excluded_directories(tmp_path: Path) -> None:
     _write(tmp_path, "node_modules/pkg/index.js", f"a {EM} b\n")
     _write(tmp_path, "target/debug/out.rs", f"a {EM} b\n")
     _write(tmp_path, ".git/COMMIT_EDITMSG", f"a {EM} b\n")
-    assert dashcheck.scan(tmp_path) == []
+    assert dashcheck.scan(tmp_path).violations == []
 
 
 def test_scan_skips_binary_files(tmp_path: Path) -> None:
     (tmp_path / "logo.png").write_bytes(b"\x89PNG\x00\xff")
-    assert dashcheck.scan(tmp_path) == []
+    assert dashcheck.scan(tmp_path).violations == []
 
 
 def test_scan_skips_non_regular_files(tmp_path: Path) -> None:
     (tmp_path / "dangling").symlink_to(tmp_path / "nowhere")
-    assert dashcheck.scan(tmp_path) == []
+    assert dashcheck.scan(tmp_path).violations == []
 
 
 # ── the CLI ────────────────────────────────────────────────────────────────────
 
 
 def test_main_passes_a_clean_tree(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Two different numbers, so a summary that printed one of them twice would show here."""
     _write(tmp_path, "doc.md", "clean prose\n")
+    _write(tmp_path, "src/app.ts", "// one\n// two\n")
     assert dashcheck.main(["--root", str(tmp_path)]) == 0
-    assert "dashcheck OK" in capsys.readouterr().out
+    assert capsys.readouterr().out == (
+        f"dashcheck OK: 2 text file(s) under {tmp_path} use no banned dash, over 3 line(s) read\n"
+    )
+
+
+def test_scan_counts_the_text_it_read_and_not_what_it_skipped(tmp_path: Path) -> None:
+    """The count after the skips: a binary file and an excluded tree are in neither number."""
+    _write(tmp_path, "doc.md", "one\ntwo\n")
+    _write(tmp_path, "src/app.ts", "// three\n")
+    (tmp_path / "logo.png").write_bytes(b"\x89PNG\x00\xff")
+    _write(tmp_path, "node_modules/pkg/index.js", "four\nfive\nsix\n")
+    scanned = dashcheck.scan(tmp_path)
+    assert (scanned.files, scanned.lines) == (2, 3)
+    assert scanned.violations == []
+
+
+def test_a_tree_with_no_text_file_is_a_failure_not_a_pass(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A walk that read nothing cannot fail, so reporting OK over one is the fail-open case."""
+    (tmp_path / "logo.png").write_bytes(b"\x89PNG\x00\xff")
+    assert dashcheck.main(["--root", str(tmp_path)]) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == (
+        f"dashcheck: no text file under {tmp_path}; a scan that read nothing cannot fail\n"
+    )
 
 
 def test_main_fails_and_names_the_line(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

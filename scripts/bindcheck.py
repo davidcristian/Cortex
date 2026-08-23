@@ -28,6 +28,12 @@ alike, so the two cannot drift apart about which files exist), a mount entry tha
 classified (`composemounts.py` refuses those), a source whose expansion cannot be reduced, and a
 `git` that cannot be run are each a failure rather than a quiet pass, because a scan whose glob
 matched nothing would report success forever.
+
+**The success line states what the walk read**: compose files, the binds they declare, and the
+landings git was actually asked about, which is the count after the env-only sources drop out
+rather than before. It is a reading and nothing asserts it. The floor is already here and is
+`composefiles.py`'s, no compose file at all being a failure; the deeper counts get no floor of
+their own, a real compose file declaring no bind at all being an ordinary thing for one to do.
 """
 
 import argparse
@@ -55,6 +61,21 @@ class Fault(NamedTuple):
     path: str
     line: int
     detail: str
+
+
+class Scan(NamedTuple):
+    """One walk of the compose files: what it read, then what it could not account for.
+
+    ``check_file`` returns one of these per file, so the whole walk is their sum. ``landings``
+    counts the places git was asked about, which is neither the mounts (an env-only source is
+    asked about nowhere) nor twice them (one source can land on one path from both project
+    directories, and does whenever the compose file sits at the root).
+    """
+
+    files: int
+    mounts: int
+    landings: int
+    faults: list[Fault]
 
 
 def default_path(source: str) -> str | None:
@@ -121,8 +142,8 @@ def is_ignored(root: Path, relative: str) -> bool:
     return result.returncode == 0
 
 
-def _spots(root: Path, compose: Path, mount: Mount) -> list[str]:
-    """Every repo-relative landing of one mount that git would have to account for.
+def _spots(root: Path, compose: Path, mount: Mount) -> tuple[int, list[str]]:
+    """How many landings git was asked about for one mount, and which of them it disowned.
 
     Both questions are asked per landing, never once for the mount. A source can land on an input
     the repo ships under one project directory and on nothing at all under the other, and it is
@@ -131,28 +152,30 @@ def _spots(root: Path, compose: Path, mount: Mount) -> list[str]:
     """
     path = default_path(mount.source)
     if path is None:
-        return []
-    return [
-        spot
-        for spot in landings(root, compose, path)
-        if not is_tracked(root, spot) and not is_ignored(root, spot)
+        return 0, []
+    spots = landings(root, compose, path)
+    return len(spots), [
+        spot for spot in spots if not is_tracked(root, spot) and not is_ignored(root, spot)
     ]
 
 
-def check_file(root: Path, compose: Path) -> list[Fault]:
-    """Return every unaccounted bind default in one compose file."""
+def check_file(root: Path, compose: Path) -> Scan:
+    """Return what one compose file offered the gate, and every unaccounted bind default in it."""
     name = compose.relative_to(root).as_posix()
     try:
         mounts = read_mounts(compose.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, ComposeReadError) as err:
-        return [Fault(path=name, line=0, detail=str(err))]
+        fault = Fault(path=name, line=0, detail=str(err))
+        return Scan(files=1, mounts=0, landings=0, faults=[fault])
+    asked = 0
     faults: list[Fault] = []
     for mount in mounts:
         try:
-            spots = _spots(root, compose, mount)
+            count, spots = _spots(root, compose, mount)
         except BindCheckError as err:
             faults.append(Fault(path=name, line=mount.line, detail=str(err)))
             continue
+        asked += count
         faults.extend(
             Fault(
                 path=name,
@@ -164,12 +187,18 @@ def check_file(root: Path, compose: Path) -> list[Fault]:
             )
             for spot in spots
         )
-    return faults
+    return Scan(files=1, mounts=len(mounts), landings=asked, faults=faults)
 
 
-def check(root: Path) -> list[Fault]:
-    """Check every compose file under ``root``, in walk order."""
-    return [fault for compose in compose_files(root) for fault in check_file(root, compose)]
+def check(root: Path) -> Scan:
+    """Check every compose file under ``root``, in walk order, counting what was read."""
+    scans = [check_file(root, compose) for compose in compose_files(root)]
+    return Scan(
+        files=len(scans),
+        mounts=sum(scan.mounts for scan in scans),
+        landings=sum(scan.landings for scan in scans),
+        faults=[fault for scan in scans for fault in scan.faults],
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -190,10 +219,11 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     root = given.resolve()
     try:
-        faults = check(root)
+        scanned = check(root)
     except (BindCheckError, ComposeSearchError) as err:
         print(f"bindcheck: {err}", file=sys.stderr)
         return 2
+    faults = scanned.faults
     for fault in faults:
         print(f"{fault.path}:{fault.line}: {fault.detail}")
     if faults:
@@ -204,7 +234,10 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
         return 1
-    print(f"bindcheck OK: every compose bind default under {given} is outside, tracked, or ignored")
+    print(
+        f"bindcheck OK: {scanned.mounts} bind mount(s) under {given} are outside, tracked, or "
+        f"ignored, over {scanned.files} compose file(s) and {scanned.landings} landing(s) checked"
+    )
     return 0
 
 

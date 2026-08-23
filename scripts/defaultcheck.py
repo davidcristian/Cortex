@@ -37,6 +37,12 @@ itself is `composefiles.py`, shared so the two gates cannot drift apart about wh
 read or decoded, and a `$` form the reader was not taught are each a failure rather than a quiet
 pass. A default this gate cannot reduce is only a failure when its group already disagrees
 textually, since a value nobody re-spells needs no reduction to be compared.
+
+**The success line states what the walk read**: compose files, the variables they spend, and how
+many of those were compared at all, that last being the collection the verdict is really over,
+since a variable spelled once is never compared. It is a reading and nothing asserts it. The
+floor is `composefiles.py`'s and already here; the deeper counts get none, a tree whose variables
+are each spelled once being a legitimate one to find nothing wrong with.
 """
 
 import argparse
@@ -70,6 +76,28 @@ class Fault(NamedTuple):
 
     subject: str
     detail: str
+
+
+class Walk(NamedTuple):
+    """What the compose files under a root spend, and which of those files would not read."""
+
+    files: int
+    groups: dict[str, list[Spend]]
+    faults: list[Fault]
+
+
+class Scan(NamedTuple):
+    """One walk: the collection the verdict is over, then the verdict.
+
+    ``compared`` is the number of variables with a sibling to disagree with, and it is the one
+    the success line leads on: the other two say how far the walk reached, this one says how much
+    of what it reached the rule had anything to say about.
+    """
+
+    files: int
+    variables: int
+    compared: int
+    faults: list[Fault]
 
 
 def same_value(arguments: list[str]) -> bool:
@@ -155,27 +183,32 @@ def _read(root: Path, compose: Path, groups: dict[str, list[Spend]]) -> Fault | 
     return None
 
 
-def group(root: Path) -> tuple[dict[str, list[Spend]], list[Fault]]:
+def group(root: Path) -> Walk:
     """Every variable the compose files under ``root`` spend, and the files that would not read."""
     groups: dict[str, list[Spend]] = defaultdict(list)
     faults: list[Fault] = []
+    files = 0
     for compose in compose_files(root):
+        files += 1
         fault = _read(root, compose, groups)
         if fault is not None:
             faults.append(fault)
-    return dict(groups), faults
+    return Walk(files=files, groups=dict(groups), faults=faults)
 
 
-def check(root: Path) -> list[Fault]:
-    """Return every variable under ``root`` whose several spends do not agree, name by name."""
-    groups, faults = group(root)
-    for name, spends in sorted(groups.items()):
+def check(root: Path) -> Scan:
+    """Return what the walk read under ``root``, and every variable whose spends do not agree."""
+    walk = group(root)
+    faults = list(walk.faults)
+    compared = 0
+    for name, spends in sorted(walk.groups.items()):
         if len(spends) < MIN_SPENDS:
             continue
+        compared += 1
         fault = disagreement(name, spends)
         if fault is not None:
             faults.append(fault)
-    return faults
+    return Scan(files=walk.files, variables=len(walk.groups), compared=compared, faults=faults)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -195,10 +228,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"defaultcheck: root {given} is not a directory", file=sys.stderr)
         return 2
     try:
-        faults = check(given.resolve())
+        scanned = check(given.resolve())
     except ComposeSearchError as err:
         print(f"defaultcheck: {err}", file=sys.stderr)
         return 2
+    faults = scanned.faults
     for fault in faults:
         print(f"{fault.subject}: {fault.detail}")
     if faults:
@@ -209,7 +243,11 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
         return 1
-    print(f"defaultcheck OK: every variable spelled twice or more under {given} carries one value")
+    print(
+        f"defaultcheck OK: {scanned.compared} variable(s) spelled twice or more under {given} "
+        f"carry one value, over {scanned.files} compose file(s) and {scanned.variables} "
+        f"variable(s) read"
+    )
     return 0
 
 
