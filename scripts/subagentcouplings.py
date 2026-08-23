@@ -11,6 +11,7 @@ SUBAGENTS_SCHEDULER = "brain/packages/core/src/cortex_core/scheduler.py"
 SUBAGENTS_RUNBOOK = "docs/runbooks/subagents-cpu.md"
 TOOLS_RUNBOOK = "docs/runbooks/tools-mcp.md"
 CORE_DOC = "docs/modules/brain-core.md"
+INFERENCE_DOC = "docs/modules/brain-inference.md"
 ORCHESTRATOR_DOC = "docs/modules/brain-orchestrator.md"
 
 SUBAGENT_COUPLINGS: tuple[Constant, ...] = (
@@ -37,6 +38,35 @@ SUBAGENT_COUPLINGS: tuple[Constant, ...] = (
                 spelling=Spelling.WHOLE,
             ),
             Mention(ORCHESTRATOR_DOC, "`run_timeout_s: float = {value}`"),
+        ),
+    ),
+    Constant(
+        label="the stall ceiling's shipped default",
+        why=(
+            "the bound on how long a delegated stream may send nothing is declared in the "
+            "config module the adapter builds its read timeout from, quoted to an operator by "
+            "the delegation runbook as the gap a spawn is failed on, restated in the "
+            "orchestrator contract as the field's own default, cited by the inference contract "
+            "as the CPU pool's half of the two stall ceilings that adapter carries, and asserted "
+            "as the lower end of an ordering by the core module declaring the run deadline that "
+            "has to clear it, so retuning the declaration alone would leave three documents and "
+            "one comment quoting a ceiling no stream is held to (ADR-0005 stall-ceiling "
+            "addendum, ADR-0009 ordering addendum)"
+        ),
+        sites=(Site(SUBAGENTS_CONFIG, "DEFAULT_STALL_TIMEOUT_S"),),
+        mentions=(
+            Mention(
+                SUBAGENTS_RUNBOOK,
+                "`CORTEX_SUBAGENTS_STALL_TIMEOUT_S` (default {value} s)",
+                spelling=Spelling.WHOLE,
+            ),
+            Mention(
+                INFERENCE_DOC,
+                "`CORTEX_SUBAGENTS_STALL_TIMEOUT_S` {value} s for the CPU pool",
+                spelling=Spelling.WHOLE,
+            ),
+            Mention(SUBAGENTS_CORE, "the pool's {value} s", spelling=Spelling.WHOLE),
+            Mention(ORCHESTRATOR_DOC, "`stall_timeout_s: float = {value}`"),
         ),
     ),
     Constant(

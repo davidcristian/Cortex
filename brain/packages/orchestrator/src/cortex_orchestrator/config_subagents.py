@@ -30,6 +30,8 @@ DEFAULT_VRAM_GB = 3.5
 DEFAULT_CPUS = 2.0
 DEFAULT_MEMORY_GB = 3.0
 
+DEFAULT_STALL_TIMEOUT_S = 600.0
+
 
 class SubagentRosterEntry(BaseModel):
     """One alternate subagent model: a ``CORTEX_SUBAGENTS_ROSTER__<name>`` JSON value (ADR-0018)."""
@@ -58,7 +60,7 @@ class SubagentsConfig(BaseSettings):
     cpu_budget: float = Field(default=DEFAULT_CPU_BUDGET, gt=0)
     mem_budget_gb: float = Field(default=DEFAULT_MEM_BUDGET_GB, gt=0)
     roster: dict[str, SubagentRosterEntry] = {}
-    stall_timeout_s: float = Field(default=600.0, gt=0)
+    stall_timeout_s: float = Field(default=DEFAULT_STALL_TIMEOUT_S, gt=0)
     admission_wait_s: float = Field(default=DEFAULT_ADMISSION_WAIT_S, ge=0)
     max_tokens: int = Field(default=DEFAULT_SUBAGENT_MAX_TOKENS, ge=1)
     run_timeout_s: float = Field(default=DEFAULT_SUBAGENT_RUN_TIMEOUT_S, gt=0)

@@ -668,6 +668,16 @@ that last question to have an answer.
   records out: [index.md](../index.md)'s catalogue entry, which says what a dated addendum decided
   and stays true after the default moves. Out on the suite rule: the two unit tests asserting the
   default, which run on every commit.
+- **The stall ceiling followed the admission wait** (ADR-0029 stall-ceiling addendum), taking the
+  third number in that ordering sentence to one site and four mentions. Its entry named three far
+  sides and the tree carries four, the miss being
+  [brain-inference.md](brain-inference.md)'s "600 s for the CPU pool". The hoist landed in
+  `config_subagents.py` beside `DEFAULT_MEM_BUDGET_GB` rather than in `cortex_core` beside the run
+  deadline: the pure core never spends this number, and moving it there to suit a scan would put a
+  constant in the core that nothing in the core reads. Out because it states no number: the compose
+  override's knob list, which documents the env var and leaves the value to the brain. Out on the
+  suite rule: the unit test asserting the default. The resident tier's `stall_timeout_s` is a
+  different constant sharing the field name (120.0 in `config.py`) and ran as the control.
 - **And a copy the compiler can reach is an import, not a row**, which the registry's own suite
   enforces: `test_every_registered_constant_spans_more_than_one_language` refuses an entry whose
   places are all one suffix, on the ground that it proves nothing about a seam. The same headroom
