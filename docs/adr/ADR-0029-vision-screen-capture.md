@@ -4376,3 +4376,89 @@ The record is the task file
 declined, [docs/refinements/index.md](../refinements/index.md), which is regenerated from it,
 [modules/repo-gates.md](../modules/repo-gates.md), which carries the method and both numbers, and
 this addendum. No code changed, which is the point of it.
+
+## Addendum (2026-08-23): the stall ceiling, and the fourth place nobody counted
+
+The admission-wait sort left the third number in the same ordering sentence loose: one comment now
+carried two held bounds and one free one
+([R-402](../refinements/tasks/402-the-stall-ceiling-is-ordered-against-two-held-bounds.md)). This
+is that ceiling hoisted and registered, on the rulings already settled.
+
+### The count was low again, and the hoist went somewhere else than the entry said
+
+The entry names three far sides, "what a first reading finds", and warns that every entry in this
+area for the last day has been low. It was low. Counted off the tree there are **four**, and the
+one it missed is [modules/brain-inference.md](../modules/brain-inference.md), which states
+"`CORTEX_SUBAGENTS_STALL_TIMEOUT_S` 600 s for the CPU pool" while explaining the order of magnitude
+between the adapter's two stall ceilings. That is the fourth entry in a row in this area whose own
+account of the tree was short.
+
+The entry also proposed hoisting the default "to a constant beside the deadline it is ordered
+against", which would have put it in `cortex_core`. It is declared in
+`brain/packages/orchestrator/src/cortex_orchestrator/config_subagents.py` instead, beside
+`DEFAULT_MEM_BUDGET_GB`, which is in that module for exactly this reason already. The core never
+reads this number: it is the adapter's httpx read timeout, and moving it to `cortex_core` to sit
+near the run deadline would have put a constant in the pure core that nothing in the pure core
+spends, to satisfy a scan. The local precedent is the better one, and it is two constants old.
+
+### The sort, which needed no new rule
+
+| kind of sentence | example | side |
+|---|---|---|
+| a runbook's stated env default | "`CORTEX_SUBAGENTS_STALL_TIMEOUT_S` (default 600 s)" | far side |
+| a module contract restating the field | "`stall_timeout_s: float = 600.0`" | far side |
+| a contract citing the pool's own ceiling | "600 s for the CPU pool" | far side |
+| the sibling module's ordering comment | "the pool's 600 s stall ceiling" | far side |
+| a compose knob list naming the env var | "Left to the brain's own default here" | states no number |
+| a unit suite asserting the default | `assert config.stall_timeout_s == 600.0` | holds itself |
+
+The compose row is the one worth naming. `docker/docker-compose.subagents.yml` documents this knob
+and deliberately sets no value, saying the brain's own default is sized for this tier, so there is
+nothing there for a needle to hold: a far side has to spell the value, and declining to spell it is
+what that file does on purpose.
+
+**The resident tier's `stall_timeout_s` is a different constant that shares the field name**,
+defaulting to 120.0 in `config.py`, which is why this entry is written by name and not by number,
+and why it ran as the control below.
+
+### Proved able to fail, five times, over the crosscheck registry
+
+Each place was planted with a real disagreement one at a time on the real tree, the gate run, the
+file restored from a copy taken beforehand, and the gate re-run green. The counts are over the
+crosscheck registry as it stands after this change, 62 entries over 72 sites and 180 mentions, and
+not over any test suite: a suite's numbers say nothing about the collection this table is about.
+This entry is 1 of those entries, 1 of those sites and 4 of those mentions.
+
+| planted drift | what the gate said |
+|---|---|
+| the declaration alone is retuned to 900.0 | 4 faults, one per mention, each naming its own file |
+| the delegation runbook states another ceiling | 1 fault naming the runbook |
+| the inference contract states another | 1 fault naming the contract |
+| the orchestrator contract's field default moves | 1 fault naming the contract |
+| the core module's ordering comment names another | 1 fault naming the core module |
+
+All five exited 1 and all five restorations returned the gate to green. One **control** ran the
+other way and stayed green: the resident tier's own `stall_timeout_s` moved from 120.0, a different
+constant under the same field name in the sibling config module.
+
+The needle over the ordering comment was **corrected by the new fault text** rather than by hand,
+which is the first use of it in anger. Written as "the pool's `{value}` s stall ceiling", it was
+unfound, and the fault said the file carried no more of it than "the pool's 600 s" while still
+spelling 600 elsewhere: the comment wraps between "600 s" and "stall ceiling", so the needle spanned
+a line break. It is registered as the part of the sentence that fits on one line.
+
+### What this opened
+
+The three bounds are now three registry entries, and the sentence asserting they are **ordered** is
+held only as three independent values; the boot-time check covers one of the two orderings it
+claims
+([R-407](../refinements/tasks/407-three-held-bounds-and-an-unheld-ordering.md)).
+
+### Records
+
+The record is the task file
+[R-402](../refinements/tasks/402-the-stall-ceiling-is-ordered-against-two-held-bounds.md), which
+closes, [docs/refinements/index.md](../refinements/index.md), which is regenerated from it,
+`brain/packages/orchestrator/src/cortex_orchestrator/config_subagents.py`, which carries the hoist,
+`scripts/subagentcouplings.py`, which carries the row, and
+[modules/repo-gates.md](../modules/repo-gates.md), and this addendum.

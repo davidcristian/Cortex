@@ -60,6 +60,17 @@ DEFAULT_VRAM_GB = 3.5
 DEFAULT_CPUS = 2.0
 DEFAULT_MEMORY_GB = 3.0
 
+# How long a delegated stream may send nothing before the adapter gives up on it, and the lowest
+# of the three bounds a delegated run stands between: this ceiling, then the run deadline, then
+# the admission wait. Loose where the resident tier's is tight, because this one covers a CPU
+# server decoding at about 0.35 tok/s, and it is twice the longest whole subtask measured on the
+# shipped default entry, so it fires on a wedge and not on slowness. A module constant rather than
+# a literal inside `Field(...)` for the reason the budget above is one: the constant scan reads a
+# declaration at column 0, and this number is stated in three places outside this module, one of
+# them the ordering comment in `cortex_core.subagents` that names all three bounds at once. It is
+# also what `run_timeout_s` is refused for failing to clear, below.
+DEFAULT_STALL_TIMEOUT_S = 600.0
+
 
 class SubagentRosterEntry(BaseModel):
     """One alternate subagent model: a ``CORTEX_SUBAGENTS_ROSTER__<name>`` JSON value (ADR-0018).
@@ -124,10 +135,9 @@ class SubagentsConfig(BaseSettings):
     roster: dict[str, SubagentRosterEntry] = {}
     # env CORTEX_SUBAGENTS_STALL_TIMEOUT_S is how long a delegated stream may send nothing before
     # the adapter gives up on it (ADR-0005 stall-ceiling addendum), bounding the gap between
-    # chunks and never the generation. Loose where the resident tier's is tight, because this one
-    # covers a CPU server decoding at about 0.35 tok/s: the default is twice the longest whole
-    # subtask measured on the shipped default entry, so it fires on a wedge and not on slowness.
-    stall_timeout_s: float = Field(default=600.0, gt=0)
+    # chunks and never the generation. The default and why it is the size it is are on
+    # `DEFAULT_STALL_TIMEOUT_S` above, which is also what holds the places that state it.
+    stall_timeout_s: float = Field(default=DEFAULT_STALL_TIMEOUT_S, gt=0)
     # env CORTEX_SUBAGENTS_ADMISSION_WAIT_S is how long a spawn may sit in the admission queue
     # before it is refused instead of waiting for room forever (ADR-0012 bounded-admission-wait
     # addendum). The default is twice the worst wait a full batch can legitimately produce

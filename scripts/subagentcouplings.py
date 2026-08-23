@@ -22,6 +22,7 @@ SUBAGENTS_SCHEDULER = "brain/packages/core/src/cortex_core/scheduler.py"
 SUBAGENTS_RUNBOOK = "docs/runbooks/subagents-cpu.md"
 TOOLS_RUNBOOK = "docs/runbooks/tools-mcp.md"
 CORE_DOC = "docs/modules/brain-core.md"
+INFERENCE_DOC = "docs/modules/brain-inference.md"
 ORCHESTRATOR_DOC = "docs/modules/brain-orchestrator.md"
 
 SUBAGENT_COUPLINGS: tuple[Constant, ...] = (
@@ -52,6 +53,47 @@ SUBAGENT_COUPLINGS: tuple[Constant, ...] = (
                 spelling=Spelling.WHOLE,
             ),
             Mention(ORCHESTRATOR_DOC, "`run_timeout_s: float = {value}`"),
+        ),
+    ),
+    Constant(
+        label="the stall ceiling's shipped default",
+        why=(
+            "the bound on how long a delegated stream may send nothing is declared in the "
+            "config module the adapter builds its read timeout from, quoted to an operator by "
+            "the delegation runbook as the gap a spawn is failed on, restated in the "
+            "orchestrator contract as the field's own default, cited by the inference contract "
+            "as the CPU pool's half of the two stall ceilings that adapter carries, and asserted "
+            "as the lower end of an ordering by the core module declaring the run deadline that "
+            "has to clear it, so retuning the declaration alone would leave three documents and "
+            "one comment quoting a ceiling no stream is held to (ADR-0005 stall-ceiling "
+            "addendum, ADR-0009 ordering addendum)"
+        ),
+        sites=(Site(SUBAGENTS_CONFIG, "DEFAULT_STALL_TIMEOUT_S"),),
+        # The two entries above with the numbers changed, and one document more. The runbook, the
+        # inference contract and the ordering comment write the number the way it is said out
+        # loud, a whole count of seconds; the orchestrator contract writes the field's own
+        # declaration, so the point the float is declared with is held once and the entry keeps a
+        # faithful reading beside three lossy ones.
+        #
+        # Two kinds stay out on rules already settled. The compose override names this env var in
+        # its knob list and deliberately states no number, saying the brain's own default is left
+        # alone, so there is nothing there to hold. And the orchestrator unit suite asserts this
+        # default directly, which runs on every commit and holds itself. The resident tier's own
+        # `stall_timeout_s` is a different constant that shares the field name and not the value,
+        # 120.0 in `config.py`, which is why this entry is written by name rather than by number.
+        mentions=(
+            Mention(
+                SUBAGENTS_RUNBOOK,
+                "`CORTEX_SUBAGENTS_STALL_TIMEOUT_S` (default {value} s)",
+                spelling=Spelling.WHOLE,
+            ),
+            Mention(
+                INFERENCE_DOC,
+                "`CORTEX_SUBAGENTS_STALL_TIMEOUT_S` {value} s for the CPU pool",
+                spelling=Spelling.WHOLE,
+            ),
+            Mention(SUBAGENTS_CORE, "the pool's {value} s", spelling=Spelling.WHOLE),
+            Mention(ORCHESTRATOR_DOC, "`stall_timeout_s: float = {value}`"),
         ),
     ),
     Constant(
