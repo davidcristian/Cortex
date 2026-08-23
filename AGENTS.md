@@ -237,12 +237,13 @@ scripts/          repo gates, plus the one module here that gates nothing, contr
                   punctuation), crosscheck.py (one value, spelled in several places, still
                   agreeing) + couplings.py (the vocabulary its registry is written in) +
                   registry.py (the only module naming the parts that registry is written in) +
-                  seamcouplings.py, shippedcouplings.py, capturecouplings.py,
-                  subagentcouplings.py,
+                  seamcouplings.py, endpointcouplings.py, shippedcouplings.py,
+                  capturecouplings.py, subagentcouplings.py,
                   modelhostcouplings.py, emailcouplings.py, fixturecouplings.py and
                   overlaycouplings.py (the registry
-                  itself, in the eight parts it is written in, six split off by the line cap and
-                  two added as subjects: another tree's code, the brain's own shipped
+                  itself, in the nine parts it is written in, seven split off by the line cap and
+                  two added as subjects: another tree's code, the address each side answers
+                  on, the brain's own shipped
                   defaults, one capture's own numbers, the subagent tier's budgets, the model
                   host's tiers, the email
                   sidecar's shipped answers, a measurement fixture against the suite that

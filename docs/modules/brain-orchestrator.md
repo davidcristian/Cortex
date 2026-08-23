@@ -12,8 +12,9 @@ hard rule).
 
 Config (pydantic-settings; explicit constructor arguments beat the environment):
 
-- `SeamServerConfig` uses env prefix `CORTEX_SEAM_`: `host: str = "127.0.0.1"`
-  (`CORTEX_SEAM_HOST`), `port: int = DEFAULT_SEAM_PORT` (50051, `CORTEX_SEAM_PORT`);
+- `SeamServerConfig` uses env prefix `CORTEX_SEAM_`: `host: str = DEFAULT_SEAM_HOST`
+  (`127.0.0.1`, `CORTEX_SEAM_HOST`; the compose stack sets `0.0.0.0` so the published port can
+  reach the server), `port: int = DEFAULT_SEAM_PORT` (50051, `CORTEX_SEAM_PORT`);
   `bind_address` property yields `"host:port"`. The body's live check dials the same endpoint via
   `CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:50051`). The two no longer have to be kept in
   sync by hand: `DEFAULT_SEAM_PORT` is module-level so `scripts/crosscheck.py` can tie it to every

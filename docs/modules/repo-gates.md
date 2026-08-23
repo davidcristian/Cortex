@@ -17,7 +17,8 @@ workflow, `commitlint.py` by the commit-msg pre-commit stage, `contrast.py` by `
 each also exposes a pure, unit-tested core function). Nineteen modules here have no CLI of their
 own, most split out under the line cap and each named for what it holds: `couplings.py` is the
 vocabulary `crosscheck.py`'s registry is written in, `registry.py` names the parts that registry is
-written in, and `seamcouplings.py`, `shippedcouplings.py`, `subagentcouplings.py`,
+written in, and `seamcouplings.py`, `endpointcouplings.py`, `shippedcouplings.py`,
+`subagentcouplings.py`,
 `modelhostcouplings.py`, `emailcouplings.py`, `fixturecouplings.py`, `capturecouplings.py` and
 `overlaycouplings.py` are those parts, `values.py`
 is the value forms that scan compares on and the spellings a mention writes one in, `readings.py`
@@ -63,23 +64,25 @@ that last question to have an answer.
   logic; the `*couplings.py` files are all of the data,
   one entry per value: a
   label, the reason its places must agree (printed with any failure), its `Site`s, an optional
-  `relation`, and optional `mentions`. The registry is written in eight files and read as one.
-  `registry.py` is the only module that names them, so a ninth part is a data file plus one line
+  `relation`, and optional `mentions`. The registry is written in nine files and read as one.
+  `registry.py` is the only module that names them, so a tenth part is a data file plus one line
   there and the scan never learns the registry has parts; `crosscheck.CONSTANTS` is
-  `SEAM_COUPLINGS`, then `SHIPPED_COUPLINGS`, `CAPTURE_COUPLINGS`, `SUBAGENT_COUPLINGS`,
+  `SEAM_COUPLINGS`, then `ENDPOINT_COUPLINGS`, `SHIPPED_COUPLINGS`, `CAPTURE_COUPLINGS`,
+  `SUBAGENT_COUPLINGS`,
   `MODELHOST_COUPLINGS`, `EMAIL_COUPLINGS`, `FIXTURE_COUPLINGS`, then
   `OVERLAY_COUPLINGS`. Each part is named for its subject: couplings whose far side is another
-  tree's code across the language boundary; the brain container's own shipped defaults, restated
+  tree's code across the language boundary; the address and port each side answers on, with every
+  file that dials or states one; the brain container's own shipped defaults, restated
   by a compose default, a runbook row or a module contract; one capture's own edge, byte budget
   and deadlines, which are that same kind narrowed to a single request; the subagent tier's
   admission budgets and the cgroup limits that are their hard twins; the model-host tier settings
   and the
   override that ships them; the email sidecar's three safety answers and the override that spells
   each again; a stack built to be measured against and the suite that measures it, the one subject
-  the repo does not ship; and the overlay's TypeScript against its own stylesheet. Six arrived as
+  the repo does not ship; and the overlay's TypeScript against its own stylesheet. Seven arrived as
   splits under the cap and two as subjects, which is the one-line claim being paid from both
   directions rather than argued.
-  `couplings.py` is the vocabulary all eight are written in, left behind when each part moved out
+  `couplings.py` is the vocabulary all nine are written in, left behind when each part moved out
   under the cap. Nothing in the scan depends on which file an entry sits in. `values.py` and
   `readings.py` are the pieces neither the scan nor the data is: the first reduces a right-hand
   side to a comparable value and says how a mention may spell it, the second says whether a
@@ -603,6 +606,23 @@ that last question to have an answer.
   a rung of the ladder below the edge being a consequence too. Proved both ways on the real tree:
   retuned to 1800, the literal pair fails the case with `left: (1800, 1012)` against
   `right: (2048, 1152)` and the derived one passes.
+- **A value a needle carries as a literal is SHADOWED, not held** (ADR-0023 bind-host addendum).
+  Two dozen templates across the two endpoint entries spell `127.0.0.1`, which reads like the
+  loopback address being tied in two dozen places. It is not tied anywhere by them, for three
+  reasons that compound. The comparison there runs against the registry's own text rather than
+  against a declaration, so the registry is one more uncoupled copy, which is the argument that
+  keeps a proto comment from being a master. It can only fail in the direction where the far side
+  moved: move the declaration and every needle goes on rendering the old digits, green. And when it
+  does fail it names the wrong constant, which was measured, not argued: moving the compose
+  publish's host-side interface, or the body app contract's `CORTEX_BRAIN_ADDR` default, reddens
+  **the brain's seam port**, a value neither of them spells. Worse, a shadow is not even evidence
+  that the value is there. Of those two dozen `127.0.0.1`s exactly one is the brain's bind host;
+  the rest are the body's own bind, the two `CORTEX_*_ADDR` client defaults, the publish's
+  host-side interface and a handful of loopback dials, all of which go on saying `127.0.0.1` after
+  the bind host moves. So the remedy for a shadowed value is to **register** it, never to read the
+  shadow as coverage, and a new entry's needles carry only their own value where the shape allows:
+  the RPC contract writes the host and the port on one line and the two entries pay it once each,
+  from opposite ends.
 - **The admission wait was sorted on those same two rulings** (ADR-0029 admission-wait addendum),
   which took an entry that did not exist to one site and four mentions. The entry's own account of
   the tree named two documents and the tree carries five far sides, one of them a code comment in

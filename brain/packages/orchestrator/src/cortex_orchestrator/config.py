@@ -24,13 +24,15 @@ DEFAULT_VISION_MODE: VisionMode = "auto"
 
 DEFAULT_SEAM_PORT = 50051
 
+DEFAULT_SEAM_HOST = "127.0.0.1"
+
 
 class SeamServerConfig(BaseSettings):
     """Where (and to whom) the brain hosts BrainService."""
 
     model_config = SettingsConfigDict(env_prefix="CORTEX_SEAM_")
 
-    host: str = "127.0.0.1"
+    host: str = DEFAULT_SEAM_HOST
     port: int = DEFAULT_SEAM_PORT
     # env CORTEX_SEAM_TOKEN is the shared secret both sides read from env (never the repo).
     token: str = ""
