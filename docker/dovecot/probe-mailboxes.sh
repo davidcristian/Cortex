@@ -1,5 +1,6 @@
 #!/bin/sh
-# Build the probe's mailbox tree, then become the IMAP server (the container's entrypoint).
+# Put the probe's configuration where dovecot reads it, build its mailbox tree, then become the
+# IMAP server (the container's entrypoint).
 #
 # Six names a LIST returns, five of them mailboxes and one of them deliberately not, all in
 # place before anything connects because the mail store is a tmpfs and starts empty every time.
@@ -51,19 +52,31 @@ MAIL_UID=1000
 MAIL_GID=1000
 ROOT="$CORTEX_IMAP_PROBE_MAIL_ROOT/probe/Mail"
 
-# The mail root is the compose file's, and dovecot resolves the account's home out of the same
-# variable, so the store, this tree and that home are one spelling rather than three. A root that
-# never arrives is already covered: `set -u` above stops the container here rather than building a
-# tree at the filesystem root. This covers the other way it can be wrong, a root the tmpfs is not
-# mounted at. Such a store answers every question the suite asks and keeps what a run leaves
-# behind, which is the one property this fixture claims for itself and the only one whose loss
-# nothing else would say out loud, so it is checked rather than trusted. The image declares a
-# volume at the path the compose file mounts, so an unmounted root is not even the container's own
-# writable layer: docker fills it with an anonymous volume that outlives the container.
-if [ "$(stat -f -c %T "$CORTEX_IMAP_PROBE_MAIL_ROOT")" != tmpfs ]; then
-    echo "the mail root is not the tmpfs the compose file mounts; the store would keep mail" >&2
-    exit 1
-fi
+# Both roots are the compose file's, and a root that never arrives is already covered: `set -u`
+# above stops the container here rather than building a tree at the filesystem root. This covers
+# the other way each can be wrong, a path the tmpfs is not mounted at, which is the failure
+# nothing else says out loud. The image declares a volume at both paths, so an unmounted one is
+# not even the container's own writable layer: docker fills it with an anonymous volume that
+# outlives the container. Under the mail root that is a store which answers every question the
+# suite asks and keeps what a run leaves behind; under the configuration root it is a few
+# kilobytes of the image's own settings left on the host after every single run, which is the
+# promise the compose file makes and the one it could not keep.
+require_tmpfs() {
+    if [ "$(stat -f -c %T "$1")" != tmpfs ]; then
+        echo "$1 is not the tmpfs the compose file mounts; $2" >&2
+        exit 1
+    fi
+}
+
+require_tmpfs "$CORTEX_IMAP_PROBE_MAIL_ROOT" "the store would keep mail"
+require_tmpfs "$CORTEX_IMAP_PROBE_CONFIG_ROOT" "every run would leave a volume behind"
+
+# The configuration is bound in beside this script and put on the tmpfs from here, rather than
+# bound straight onto the path dovecot reads. That is deliberate: dovecot looks in its own
+# compiled-in directory and nothing in the compose file can move it, so a configuration root
+# written as any other path is a server reading the image's own settings, which the live suite
+# fails loudly on, instead of a fixture that measures correctly and leaks a volume every run.
+cp /probe.conf "$CORTEX_IMAP_PROBE_CONFIG_ROOT/dovecot.conf"
 
 mkdir -p "$ROOT/mailboxes/INBOX/dbox-Mails" \
     "$ROOT/mailboxes/Guarded/dbox-Mails" \

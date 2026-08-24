@@ -27,6 +27,16 @@ name: cortex-imap-probe
 # an anchor, aliased into the tmpfs and into the environment the other two files read it from.
 x-mail-root: &mail-root "/srv/mail"
 
+# The probe's configuration directory, which is dovecot's own and not a path this file may
+# choose: the image declares a volume there, so a container with nothing mounted at it gets an
+# anonymous volume docker fills with the image's copy and `down` leaves on the host under a name
+# nobody picked. A tmpfs gives docker nothing to fill. The configuration is bound in beside the
+# entrypoint and copied onto that mount rather than bound straight at the path dovecot reads,
+# which is what keeps this spelling honest: dovecot's compiled-in default is /etc/dovecot and
+# nothing here can move it, so a root written as anything else is a server reading the image's
+# own configuration and a suite that goes red, not a fixture quietly leaking a volume again.
+x-config-root: &config-root "/etc/dovecot"
+
 services:
   imap-probe:
     # Pinned: the whole value of this stack is that the wording it produces was recorded
@@ -43,13 +53,18 @@ services:
       # with `%{env:...}`, which needs the name listed on `import_environment` in probe.conf
       # to reach the processes that expand it.
       CORTEX_IMAP_PROBE_MAIL_ROOT: *mail-root
+      # The configuration directory above, handed to the entrypoint, which checks it is really
+      # the tmpfs this file mounts and then writes the configuration onto it.
+      CORTEX_IMAP_PROBE_CONFIG_ROOT: *config-root
     volumes:
       # The whole configuration, replacing the image's own (which has no ACL plugin and so
-      # cannot produce the refusal this exists for). Only the file is mounted, so the
-      # self-signed cert and key beside it in the image stay where they are.
+      # cannot produce the refusal this exists for). It is mounted beside the entrypoint rather
+      # than at the path dovecot reads, because that path is inside the tmpfs above and the
+      # entrypoint puts it there; the image's `cert.pem` and `key.pem` are symlinks in that same
+      # directory, so the configuration points at the files they name instead.
       - type: bind
         source: ./docker/dovecot/probe.conf
-        target: /etc/dovecot/dovecot.conf
+        target: /probe.conf
         read_only: true
       - type: bind
         source: ./docker/dovecot/probe-mailboxes.sh
@@ -62,6 +77,11 @@ services:
       # that stopped being throwaway is a container that will not start rather than a fixture
       # quietly keeping what the last run left.
       - *mail-root
+      # The configuration directory, mounted for a different reason: not to keep the container
+      # from writing anything durable, but to leave docker's own volume declaration nothing to
+      # anonymise. The entrypoint checks this one too, because a tmpfs that went missing here is
+      # a fixture that still measures correctly and leaves a volume behind every run.
+      - *config-root
     ports:
       # Loopback-only publish so a host-side measurement can reach it. Nothing else may. Whose
       # loopback it lands on is the engine's business rather than this file's: a Docker Desktop

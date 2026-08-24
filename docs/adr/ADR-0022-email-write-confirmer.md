@@ -1703,3 +1703,101 @@ The record is the task file
 [docs/refinements/index.md](../refinements/index.md), which is regenerated from it, the three
 fixture files, `scripts/fixturecouplings.py`, the email module contract, the IMAP runbook, and
 this addendum.
+
+## Addendum (2026-08-24): the fixture's configuration directory is a tmpfs too
+
+The addendum above closed one half of what `dovecot/dovecot:2.3.21` declares and filed the other.
+This closes the other. The image declares `VOLUME /etc/dovecot` beside `VOLUME /srv/mail`, and the
+compose file mounted a single file inside the first, `/etc/dovecot/dovecot.conf`, which leaves the
+directory itself to docker. Docker fills a declared volume path that nothing is mounted at with an
+anonymous volume, seeded from the image's own copy of the directory, and `docker compose down`
+without `--volumes` removes the container and the network and leaves that volume on the host under
+a name nobody chose. So every single run of a fixture whose compose file promises it leaves
+nothing behind left something behind.
+
+**Measured before the change**, on this host, with the recipes an operator runs. `docker volume
+ls` held 37 volumes; `just up-imap-probe` (with the scratch subnet override this host needs)
+brought the stack up, and `docker inspect` showed the container's third mount as
+`volume 95893b6a... -> /etc/dovecot` beside the two binds; `just down-imap-probe` removed the
+container and the network, and `docker volume ls` then held 38. One run, one volume, and the
+volume outlived the fixture.
+
+### Two remedies, and why the blunt one is not the one taken
+
+`--volumes` on the `down` recipe is the obvious fix and it is a worse one. It does not stop the
+volume being made, only sweeps it after a well formed shutdown, so a container killed any other
+way still leaks; it removes whatever named volume this stack ever grows, which is a rule about the
+future written as a flag; and it leaves the compose file's promise resting on a recipe rather than
+on the stack it describes. Mounting a tmpfs at the path gives docker nothing to anonymise in the
+first place, and it is what the mail root already does, so the fixture ends with one rule about
+both of the paths its image declares rather than two rules that happen to agree.
+
+### The cert and the key were never in that directory
+
+The compose file's own comment said the single-file mount was there so that "the self-signed cert
+and key beside it in the image stay where they are". They are not files beside it.
+`ls -la /etc/dovecot` in the image shows `cert.pem` and `key.pem` as symlinks into
+`/etc/ssl/certs/ssl-cert-snakeoil.pem` and `/etc/ssl/private/ssl-cert-snakeoil.key`, which is a
+directory the image declares nothing at. So the argument against covering the directory was an
+argument about two symlinks, and the conf now names the pair the symlinks name. It is the same
+self-signed cert the image ships, verified over the wire rather than by reading the setting back:
+`openssl s_client -starttls imap` inside the container reports `subject=CN = localhost`, valid to
+2033, which is the certificate that was being served before.
+
+### The configuration is copied onto the mount, not bound onto it
+
+The conf is now bound in at `/probe.conf`, beside the entrypoint, and the entrypoint copies it to
+`$CORTEX_IMAP_PROBE_CONFIG_ROOT/dovecot.conf` before becoming the server. Binding it straight onto
+`/etc/dovecot/dovecot.conf` over the tmpfs also works, and was rejected for what it does to the
+next reader who edits the anchor. Dovecot's configuration directory is compiled into the binary
+and nothing in this repo can move it. With the copy, a configuration root written as any other
+path is a tmpfs somewhere nobody reads and a server loading the image's own settings, which has no
+ACL plugin, so the live suite goes red at all seven tests. With the bind, the file would land
+inside whatever docker anonymised at `/etc/dovecot`, the suite would stay green, and the leak
+would be back with nothing saying so. The one spelling is therefore an anchor the fixture cannot
+quietly disagree with, and the tmpfs check in the entrypoint covers the remaining case, a mount
+dropped rather than moved.
+
+### Proved able to fail, four times, over the probe's live suite
+
+The suite every count below is over is the probe's own: **seven `integration`-marked tests** in
+`brain/packages/email/tests/test_imap_probe_live.py`, run with `just email-folder-probe` against
+the running container, excluded from the coverage gate and never run in CI. Each mutation was
+planted in one file, measured after a container recreate, and reverted from a copy taken before
+the first. This host still cannot let compose pick a network (`all predefined address pools have
+been fully subnetted`), so every run added a scratch override pinning an explicit subnet, kept
+outside the repo and deleted afterwards, and changed nothing else.
+
+| # | mutation | expected | observed |
+| --- | --- | --- | --- |
+| 0 | the pre-change files | the leak this closes | 7 passed, and `docker volume ls` went from 37 to 38 across one `up`/`down` cycle, the container holding `volume ... -> /etc/dovecot` |
+| 1 | the configuration root dropped from the `tmpfs` list | the entrypoint refuses | `up --wait` failed, container exit 1, `/etc/dovecot is not the tmpfs the compose file mounts; every run would leave a volume behind`, and one anonymous volume made |
+| 2 | the anchor moved to `/etc/dovecot-probe`, alias and all | the tmpfs lands where nothing reads it and the server loads the image's settings | container healthy, 7 of 7 live red, and the container holding `volume ... -> /etc/dovecot` again |
+| 3 | the conf's `ssl_cert` and `ssl_key` pointed back through the shadowed symlinks | dovecot cannot open them | container exit 89, `Fatal: Error in configuration file /etc/dovecot/dovecot.conf line 58: ssl_cert: Can't open file /etc/dovecot/cert.pem` |
+| 4 | `CORTEX_IMAP_PROBE_CONFIG_ROOT` dropped from the environment | `set -u` stops it | container exit 2, `/probe-mailboxes.sh: 71: CORTEX_IMAP_PROBE_CONFIG_ROOT: parameter not set` |
+| 5 | all reverted | green, and nothing left behind | 7 of 7 live green, no volume made while up, `docker volume ls` identical at 37 before the `up` and after the `down` |
+
+Row 2 is the row the design is for. It is the only mutation that leaves a fixture which still
+starts and still looks like itself, and the copy is what makes it red instead of quiet.
+
+### What this does not check
+
+Nothing in the repo notices when an image the compose files name declares a volume no compose file
+mounts. Both halves of this were found by reading `docker image inspect` by hand, a year of runs
+after the fixture landed, and a bump of the pinned image could add a third. A repo scan cannot ask
+that question, having no images; the live suite could, being the one thing here that already talks
+to docker about this container. Filed as
+[R-425](../refinements/tasks/425-nothing-notices-an-image-volume-nobody-mounts.md).
+
+**Validation.** The live suite was run before anything changed (7 passed), after the change
+(7 passed) and again after the last mutation was reverted (7 passed), each through
+`just email-folder-probe` against the container the compose file describes, with the volume set
+read before and after each cycle. `just check` green.
+
+### Records
+
+The record is the task file
+[R-424](../refinements/tasks/424-every-probe-run-leaves-an-anonymous-volume.md), which closes,
+[R-425](../refinements/tasks/425-nothing-notices-an-image-volume-nobody-mounts.md), which opens,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from both, the three
+fixture files, the email module contract, the IMAP runbook, and this addendum.
