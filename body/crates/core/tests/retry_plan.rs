@@ -1,6 +1,8 @@
 //! Behavioral tests for the retry **gate**: `SeamMethod`, `RetryPlan`, the two `RetryPolicy`
 //! helpers the probe budget is built from (`worst_case_backoff`, `within`), and the per-method
-//! deadline that bounds an attempt rather than the wait before it.
+//! deadline that bounds an attempt rather than the wait before it, plus the gaps that bound a
+//! turn's silence where no deadline may (the decorator's behaviour under those gaps is
+//! `retry_gap.rs`).
 //!
 //! Pure data, so no fakes and no runtime are needed here; the decorator's behavior *under* a
 //! plan is exercised against the `FlakyTransport`/`FakeSleeper` fakes in `retry.rs`. What this
@@ -11,7 +13,7 @@ use std::time::Duration;
 
 use body_core::{
     ANNOUNCED_DEADLINE_GRACE_MS, DEFAULT_CALL_DEADLINE, DEFAULT_PROBE_BUDGET,
-    DEFAULT_PROBE_DEADLINE, RetryPlan, RetryPolicy, SeamMethod, TransportError,
+    DEFAULT_PROBE_DEADLINE, RetryPlan, RetryPolicy, SeamMethod, TransportError, TurnGaps,
 };
 
 /// Every variant, so the invariant below is checked over the whole port rather than a sample.
@@ -333,6 +335,38 @@ fn the_probe_can_never_outlive_the_budget_it_is_trimmed_to() {
             }
         }
     }
+}
+
+#[test]
+fn every_call_is_bounded_by_exactly_one_of_the_two_clocks() {
+    // The invariant the pair exists to make true, checked over the whole port rather than
+    // asserted in prose: a deadline bounds how long a CALL may take and a gap bounds how long a
+    // STREAM may be silent, and each method gets one of them. Before the gaps this read "every
+    // call but the turn", and the turn's exemption was the hole the bound now fills; the two
+    // answers being complementary is what says the hole is closed and that nothing acquired a
+    // second clock on the way.
+    let plan = RetryPlan::default();
+    for method in EVERY_METHOD {
+        assert_ne!(
+            plan.deadline_for(method).is_some(),
+            plan.gaps_for(method).is_some(),
+            "{method:?} is bounded by both clocks or by neither",
+        );
+    }
+    // And the gap half is the turn's alone, carrying the plan's own pair.
+    assert_eq!(
+        plan.gaps_for(SeamMethod::Converse),
+        Some(TurnGaps::default())
+    );
+    let tuned = RetryPlan {
+        turn_gaps: TurnGaps {
+            first: Duration::from_secs(7),
+            idle: Duration::from_secs(11),
+        },
+        ..RetryPlan::default()
+    };
+    assert_eq!(tuned.gaps_for(SeamMethod::Converse), Some(tuned.turn_gaps));
+    assert_eq!(tuned.deadline_for(SeamMethod::Converse), None);
 }
 
 #[test]

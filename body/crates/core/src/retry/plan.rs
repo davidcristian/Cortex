@@ -22,6 +22,7 @@
 
 use std::time::Duration;
 
+use crate::retry::gap::TurnGaps;
 use crate::retry::policy::RetryPolicy;
 
 /// The ceiling a `Health` probe spends by default, backoff **and** attempts together: with the
@@ -181,6 +182,9 @@ pub struct RetryPlan {
     pub probe_deadline: Duration,
     /// How long every other unary attempt may wait for an answer ([`DEFAULT_CALL_DEADLINE`]).
     pub call_deadline: Duration,
+    /// The two silences a `Converse` stream runs under ([`RetryPlan::gaps_for`], which lives in
+    /// [`crate::retry::gap`] with everything else that knows what a gap means).
+    pub turn_gaps: TurnGaps,
 }
 
 impl Default for RetryPlan {
@@ -191,6 +195,7 @@ impl Default for RetryPlan {
             probe_budget: DEFAULT_PROBE_BUDGET,
             probe_deadline: DEFAULT_PROBE_DEADLINE,
             call_deadline: DEFAULT_CALL_DEADLINE,
+            turn_gaps: TurnGaps::default(),
         }
     }
 }
@@ -229,8 +234,9 @@ impl RetryPlan {
     ///
     /// The `None` belongs to `Converse` alone, and it is a decision rather than a gap: a turn
     /// is long by design (a model thinks, tools run, tokens stream), so ending one on a clock
-    /// would be a different feature with a different consumer, and the turn's own stream is
-    /// where that would belong. Everything else gets a duration, the writes included. Nothing
+    /// would be a different feature with a different consumer. That feature now exists, on the
+    /// turn's own stream where it belongs, and it bounds the silence rather than the turn
+    /// ([`RetryPlan::gaps_for`]). Everything else gets a duration, the writes included. Nothing
     /// here consults [`SeamMethod::repeatable`], and deliberately: bounding a call is not
     /// repeating it, so a write the plan refuses to retry still gets an answer or a
     /// [`crate::transport::TransportError::Timeout`] rather than an open-ended wait.

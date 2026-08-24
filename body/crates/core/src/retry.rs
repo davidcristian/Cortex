@@ -37,14 +37,24 @@
 //! longer than the bound enforced here, by [`ANNOUNCED_DEADLINE_GRACE_MS`], because announcing a
 //! deadline arms a clock in the transport too and this one has to win that race by construction
 //! (ADR-0024 courtesy-header addendum).
+//!
+//! **The turn is bounded too, by its silence rather than by its length** ([`gap`]). `Converse` has
+//! no deadline and never will, a working turn being long by design, so what the plan gives it
+//! instead is a pair of gaps: the longest quiet allowed before its first event, and the longest
+//! allowed between two of them. Every delta, tool step and status resets the clock, so the bound
+//! is invisible to a turn that keeps talking and ends one that has stopped
+//! (ADR-0024 idle-gap addendum). Between [`RetryPlan::deadline_for`] and [`RetryPlan::gaps_for`]
+//! every call on the port is now bounded, by one of the two and never by both.
 
 pub mod deadline;
 pub mod effects;
+pub mod gap;
 pub mod plan;
 pub mod policy;
 
 pub use deadline::within_deadline;
 pub use effects::{FullDelay, Randomness, Sleeper};
+pub use gap::{DEFAULT_TURN_FIRST_GAP_MS, DEFAULT_TURN_IDLE_GAP_MS, TurnGaps, within_gaps};
 pub use plan::{
     ANNOUNCED_DEADLINE_GRACE_MS, DEFAULT_CALL_DEADLINE, DEFAULT_PROBE_BUDGET,
     DEFAULT_PROBE_DEADLINE, RetryPlan, SeamMethod,
@@ -100,7 +110,8 @@ where
 /// A [`BrainTransport`] that wraps an inner one and retries its repeatable calls on a transient
 /// failure, backing off per the [`RetryPlan`]'s schedule for that method (jittered through its
 /// [`Randomness`]) and waiting via a [`Sleeper`] (ADR-0024). A method the plan refuses gets
-/// exactly one attempt, and `converse` is forwarded as the stream it is.
+/// exactly one attempt, and `converse` streams its items through untouched under the plan's
+/// gaps, which bound its silence rather than its length.
 pub struct RetryingTransport<T, S, R = FullDelay> {
     inner: T,
     sleeper: S,
@@ -177,10 +188,19 @@ impl<T: BrainTransport, S: Sleeper, R: Randomness> BrainTransport for RetryingTr
         text: &str,
         decisions: impl Stream<Item = ConfirmDecision> + Send + 'static,
     ) -> impl Stream<Item = Result<TurnEvent, TransportError>> + Send {
-        // Pass-through, and the one method that cannot even reach the gate: a stream is not a
-        // future the loop could re-issue. `SeamMethod::Converse` is refused all the same, so
-        // the classification stays exhaustive over the port (ADR-0024 decision 2).
-        self.inner.converse(session_id, text, decisions)
+        // The one method that cannot reach the retry gate: a stream is not a future the loop
+        // could re-issue. `SeamMethod::Converse` is refused all the same, so the classification
+        // stays exhaustive over the port (ADR-0024 decision 2).
+        //
+        // Not retried is not unbounded, though, and this is where the difference is spent: the
+        // items pass through untouched and the SILENCE between them is bounded by the plan's
+        // gaps, so a turn that keeps talking is never cut off and one that stops is ended and
+        // reported (ADR-0024 idle-gap addendum).
+        within_gaps(
+            self.plan.gaps_for(SeamMethod::Converse),
+            &self.sleeper,
+            self.inner.converse(session_id, text, decisions),
+        )
     }
 
     async fn list_sessions(&self, limit: i32) -> Result<Vec<SessionSummary>, TransportError> {

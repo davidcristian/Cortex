@@ -196,7 +196,10 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   bounded exponential backoff on the idempotent calls, a `Sleeper` port keeping time injectable
   (real `TokioSleeper` in the shell, a recording fake in tests), and a lazy
   `connect_lazy_with_token` channel so a briefly-down brain reconnects transparently. `converse`
-  is forwarded unchanged (non-idempotent → a failed turn stays terminal).
+  is forwarded unchanged (non-idempotent → a failed turn stays terminal), and every call on the
+  port is bounded by one of two clocks: a per-attempt deadline on the unary ones, and on the turn a
+  pair of gaps that bound its **silence** rather than its length, so a brain that accepts a turn
+  and then stops sending settles the overlay instead of streaming forever.
 - [ADR-0025: Scheduling & reminders](adr/ADR-0025-scheduling-reminders.md): Slice 9.5 adds durable
   schedules behind a new `ScheduleStore` port (Redis adapter, no TTL, versioned records), a pure
   coalescing `next_due`, five cortex-only built-ins (`schedule_task`/`list_scheduled`/

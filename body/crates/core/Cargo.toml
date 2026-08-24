@@ -6,6 +6,10 @@ publish.workspace = true
 description = "Pure, I/O-free core logic for the Cortex body (lib name: body_core)"
 
 [dependencies]
+# The turn's idle-gap decorator is a stream written as a loop (ADR-0024 idle-gap addendum), the
+# same macro the rpc adapter's `converse` is written with. A generator ergonomics crate: pure
+# `futures-core`, no runtime, no I/O, so hexagonal purity holds.
+async-stream.workspace = true
 futures-core.workspace = true
 # The core's first algorithmic dependency (ADR-0029): the screen-capture policy PNG-encodes
 # in pure core, not in the `cfg(windows)` backend, so the coverage gate can see the byte

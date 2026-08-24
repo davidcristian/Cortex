@@ -1169,3 +1169,198 @@ orders of magnitude past that sentence. The direction is the safe one, the brain
 than announced rather than shorter, so no bound is at risk; the sentence is still wrong and the
 shipped plan's own announced values were never measured.
 [R-381](../refinements/tasks/381-the-header-encoding-error-is-larger-than-recorded.md).
+
+## Addendum (2026-08-24): the turn's silence is bounded, where its length still is not
+
+Every unary call on this seam has been bounded since the deadline addendum above, and the eager
+`converse` dial with them. The turn's own stream was left out on purpose, and the exemption above
+says why: a turn is long by design, so a clock on its *length* would end legitimate work. That
+argument is sound about a working turn and silent about a stalled one, which is the gap this
+addendum closes.
+
+### Re-derived from the tree first, and one of the entry's guesses did not hold
+
+The deferral this closes was written on 2026-08-18 and **90 commits have landed since**, eight of
+them under `body/` and two of those inside this decision's own area: the courtesy `grpc-timeout`
+header, and the correction to what tonic's own expiry classifies as. So the entry was read as a
+proposal and every claim in it was checked against today's code rather than taken on trust:
+
+- `RetryPlan::deadline_for` still answers `None` for `Converse` alone
+  (`body/crates/core/src/retry/plan.rs`), and `announced_deadline_for` therefore announces nothing
+  for a turn, which `body/crates/rpc/tests/client.rs` pins over the wire.
+- `RetryingTransport::converse` was a pure pass-through, and the shell's turn path did not even
+  reach it: `body/app/src-tauri/src/converse.rs` dialed a `BrainSeamClient` eagerly and called
+  `converse` on the client itself.
+- The harm is exactly as described, and the overlay is where it is visible. A reply leaves its
+  streaming state on a terminal event or on a transport error and on nothing else
+  (`applyEvent` and `endTurn` in `body/app/src/overlay/turnState.ts`, the `transportError` arm in
+  `overlayState.ts`), and the Tauri bridge only feeds that sink from a channel message, its
+  `invoke(...).catch` firing on a rejection the command never produces
+  (`body/app/src/bridge/tauriBridge.ts`). So a brain that accepts the turn and then stops sending
+  leaves the thinking indicator up for as long as the process lives.
+- The recovery the entry counted on is real: the Stop control ends the turn in place, keeping the
+  partial text and setting no error (`stop` in `overlayState.ts`). That is why this was recorded as
+  recoverable rather than terminal, and why it waited.
+
+One claim in the entry did **not** survive, and it is the interesting one. The entry guessed that
+the silence before a first token would be the longer of the two numbers, a deep model on a cold
+cache being quiet for a while. On this deployment the reverse is true by an order of magnitude, for
+a reason that has nothing to do with inference. See the derivation below.
+
+### The instrument is the gap between events, not a deadline
+
+`retry::gap::within_gaps` wraps the turn's stream and bounds **the silence between its items**.
+Every delta, tool activity, tool outcome, status, confirm request and confirm resolution resets the
+clock, so a turn may run for an hour as long as it keeps arriving, and only quiet is spent. Nothing
+new is asked of the `Sleeper` port: one poll of the stream is a future, and `bounded` already runs
+a future against a duration and reports which won, so the gap decorator composes what the deadline
+path composes.
+
+`RetryPlan::gaps_for(method)` is the door, and it is the mirror of `deadline_for`: `Some` for
+`Converse` alone where the other is `Some` for everything else. Together they carry an invariant
+worth more than either half, asserted over every variant in `retry_plan.rs` rather than left in
+prose: **every call on the port is bounded, by a clock on the call or a clock on its silence, and
+never by both**.
+
+The turn still announces nothing on the wire. A gap is not a deadline the brain could act on, and
+`grpc-timeout` cannot express one, so `announced_deadline_for` is untouched and the sentence in
+`brain/packages/core/src/cortex_core/tool_deadline.py` about a turn announcing no deadline stays
+true.
+
+### Deriving the first-event gap: 600000 ms
+
+What can legitimately pass before a turn's first event is a chain of brain-side waits, and the
+brain bounds each of them itself. Taking those bounds rather than guessing at a first token:
+
+| Bound before the first event | Value | Declared in |
+| --- | --- | --- |
+| the swap's wait for the subagent pool to quiesce | 60 s | `cortex_core/model_host.py`, `DEFAULT_SWAP_DRAIN_TIMEOUT_S` |
+| the swap's wait for the model to report ready | 300 s | `cortex_core/model_host.py`, `DEFAULT_SWAP_LOAD_TIMEOUT_S` |
+| the wait on the first token, per stall ceiling | 120 s | `cortex_orchestrator/config.py`, `stall_timeout_s` |
+
+480 s of waiting that the brain itself ends with a reported failure, and the shipped gap is 600 s,
+the remainder being margin for the stretches no brain-side budget covers: recall, prefill, and a
+first round the brain streams nothing visible for.
+
+The measurement says the same thing with a lot of room to spare. The deep tier loads in **99.6 s**
+against the cortex pick's 38 to 52 s ([ADR-0004](ADR-0004-model-lineup.md) lineup table), and the
+worst time to first token measured on this card is **17.5 s** on a contended cortex, derived at
+**45.5 s** for the deep tier by the load ratio (the stall-ceiling addendum of
+[ADR-0005](ADR-0005-llamacpp-engine.md), measuring
+[docs/runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md)). A screen capture adds 0.6 s
+([ADR-0029](ADR-0029-vision-screen-capture.md)), so vision is noise at this scale. The slowest
+first event anyone here has timed is therefore about 145 s, and the shipped gap is roughly four
+times it.
+
+### Deriving the idle gap: 7200000 ms, and why it is the longer one
+
+The long silences on this deployment can only happen once a turn is under way, and the longest of
+them is a delegated subtask. `spawn_subagents` emits one `StatusUpdate` naming the batch and then
+waits (`cortex_core/spawn.py`), and while a subagent runs the only thing that reaches the seam is
+an audited tool step of its own (`cortex_core/subagent_attempt.py`). A subtask that writes prose
+and calls nothing is therefore **silent at the seam for its whole run**, and its run is bounded by
+two numbers the brain ships:
+
+| Bound on one delegated subtask | Value | Declared in |
+| --- | --- | --- |
+| the wait for the CPU budget to admit it | 3600 s | `cortex_core/scheduler.py`, `DEFAULT_ADMISSION_WAIT_S` |
+| the run once admitted | 2400 s | `cortex_core/subagents.py`, `DEFAULT_SUBAGENT_RUN_TIMEOUT_S` |
+
+6000 s of legitimate silence, and the shipped gap is 7200 s, a fifth of it as margin. That is a
+long time to hold an indicator, and it is the honest number rather than a comfortable one: a bound
+under it would turn a slow success into a failure, which is the argument the admission wait's own
+declaration makes about itself ("worse than the unbounded wait it replaces"). What this removes is
+"forever", not "slow", the same sentence the resident tier's stall ceiling was sized by.
+
+**The obvious tightening is refused, and the reason is not caution.** The delegation announces
+itself, so the body could widen the gap only on seeing that status and hold every other turn to
+something tight. Progress rides a best-effort sink that **drops an event on a saturated buffer** by
+design (`cortex_core/progress.py`), so the announcement may never arrive, and a decision that ends
+a turn must not rest on having received one. The change that would let this number come down is a
+heartbeat the brain owes on a long silent stretch, filed below.
+
+Neither number is a measurement of a stall, because nobody here has observed one: the trigger this
+entry carried never fired. They are argued from budgets the repo ships and measurements it holds,
+and the mechanism is what is being landed. A deployment that runs without the delegating sidecars
+can turn the idle gap down to the first-event figure, and
+[docs/runbooks/body-overlay.md](../runbooks/body-overlay.md) says so.
+
+### What the body does when a gap fires, and why it is an error
+
+The stream yields one final `Err(TransportError::Timeout { after })` carrying the gap that expired
+and then ends, dropping the inner stream, which for the gRPC adapter resets the turn so a stall
+nobody is waiting for stops costing the brain.
+
+The alternative was to end the stream silently, which would read as the cancel the user could have
+performed themselves, and it is **not available**: the overlay leaves a reply streaming until a
+terminal event or an error reaches it, so a stream that merely stopped would leave the indicator
+exactly where the stall did. Delivering the timeout is also the truer of the two. The user's own
+Stop is a decision they made and records no error; a gap that expires is evidence the brain stopped
+serving, and the overlay already has the surface for it: `linkFailed` draws a `timeout` `down`
+rather than `degraded`, because degraded means the brain answered and an expired gap is precisely
+the absence of an answer (`body/app/src/overlay/linkState.ts`). The reply settles on the words that
+did arrive, carrying why it stopped, and the dot goes red. No overlay change was needed for any of
+it, the `timeout` kind having landed with the per-attempt deadline.
+
+### Where it is applied
+
+`RetryingTransport::converse`, so the port's decorator bounds every method it wraps, and the
+shell's turn path was rewired to run through that decorator rather than calling the dialed client
+directly (`body/app/src-tauri/src/converse.rs`). The decorator still refuses to retry a turn, so
+wrapping buys exactly one thing there. One `RetryPlan` is read for both halves of that command, the
+dial's deadline and the stream's gaps, the same "one plan, read once" shape `seam.rs` already uses.
+
+### Distrust green
+
+Twelve mutations, each applied to `body/crates/core/src/retry/gap.rs` alone and each run over the
+**whole `body-core` suite** (`body/crates/core`, 156 tests across ten binaries, 4 ignored as
+integration), then reverted and the file compared against its pre-mutation text:
+
+| Mutation | Reddens |
+| --- | --- |
+| the first-event gap raised to the idle one, making the two numbers one | 1 |
+| the idle gap lowered to the first-event one, the same collapse the other way | 1 |
+| every wait measured against the idle gap | 6 |
+| every wait measured against the first-event gap | 4 |
+| an arriving event no longer ends the first-event window | 4 |
+| an expired gap ends the stream silently instead of reporting | 5 |
+| an expired gap does not end the stream, so the wait repeats | **hangs**, 240 s with no completion |
+| a stream that ended on its own reported as a stall | 4 |
+| the plan answers no gaps for the turn | 4 |
+| the plan answers gaps for every method | 1 |
+| the absent bound spelled as zero rather than as forever | 1 |
+| the caller's gaps ignored for the shipped ones | 5 |
+
+The two rows that redden one test each are the ones that should: the constants have exactly one
+reader, the test that pins them and their ordering.
+
+**The first run of this table was wrong, and the reason is worth keeping.** It was run without
+`--no-fail-fast`, so cargo stopped at the first test binary that failed and the counts were counts
+of `retry.rs` alone: three rows read 1 where they redden 4 or 6, and the row that hangs read as a
+**survivor**, because the binary that hangs is never reached when an earlier one fails. A mutation
+count taken from a fail-fast run measures the alphabet, not the suite.
+
+### Consequences
+
+- A turn that stops arriving now ends, is reported, and settles the overlay's indicator, at the
+  cost of the silence the two gaps allow. Nothing bounds a turn's length, and nothing here can:
+  the bound is on quiet alone.
+- `CORTEX_BRAIN_TURN_FIRST_GAP_MS` (default 600000) and `CORTEX_BRAIN_TURN_IDLE_GAP_MS` (default
+  7200000) join the retry knobs in the shell, parsed by the same `env_millis`.
+- `RetryPlan` gains a `turn_gaps` field. Every existing construction spreads `..Default::default()`
+  and is unaffected.
+- `body_core` gains `async-stream`, which the rpc adapter's own `converse` already uses. It is a
+  generator ergonomics macro over `futures-core`, so the crate stays free of runtimes and I/O.
+- A brain that legitimately goes quiet for longer than a gap now fails a turn where it used to hang
+  it. On the shipped numbers that means a delegated batch past two hours, and the knob is the
+  answer.
+
+### What this opens
+
+One, and it is the bound that would make the idle gap a useful number rather than a backstop.
+Nothing crosses the seam while a turn waits on delegated work, so the body cannot tell a brain
+thinking from a brain gone, and the only bound it can honestly draw is above the longest legitimate
+silence. A heartbeat the brain owes on a long silent stretch, or a status the delegation refreshes
+rather than emits once, would let the gap come down from hours to minutes and would say something
+the overlay could show while it waits.
+[R-421](../refinements/tasks/421-a-silent-turn-owes-the-body-a-heartbeat.md).

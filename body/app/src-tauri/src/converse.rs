@@ -8,11 +8,19 @@
 //! non-idempotent turn has not begun, while a turn that fails after its first
 //! event stays terminal (decision 2). Each of those dials is also bounded by the
 //! plan's call deadline (ADR-0024 deadline addendum), since a dial that hangs
-//! hangs the turn; the turn's own stream is deliberately left unbounded, because
-//! a model thinking for a minute is not a failure.
+//! hangs the turn.
+//!
+//! The turn itself carries no deadline, because a model thinking for a minute is not a
+//! failure, and the dialed client is handed to the `RetryingTransport` all the same so its
+//! SILENCE is bounded (ADR-0024 idle-gap addendum). That decorator refuses to retry a turn
+//! exactly as the plan says, so what wrapping buys here is one thing only: a brain that accepts
+//! the turn and then stops sending ends as a reported timeout instead of a reply that streams
+//! for as long as the process lives. One plan is read for both halves, the dial's deadline and
+//! the stream's gaps, so the two cannot drift.
 
 use body_core::{
-    BrainTransport, ConfirmDecision, TransportError, TurnEvent, retry_with, within_deadline,
+    BrainTransport, ConfirmDecision, RetryingTransport, TransportError, TurnEvent, retry_with,
+    within_deadline,
 };
 use body_rpc::BrainSeamClient;
 use futures_util::{StreamExt, pin_mut};
@@ -198,7 +206,8 @@ pub async fn converse(
     // The effects are bound to locals because the retry future borrows them for its whole run.
     let sleeper = TokioSleeper;
     let randomness = ShellRandomness::from_env();
-    let deadline = Some(plan_from_env().call_deadline);
+    let plan = plan_from_env();
+    let deadline = Some(plan.call_deadline);
     let dial = retry_with(policy_from_env(), &sleeper, &randomness, || {
         within_deadline(
             deadline,
@@ -213,9 +222,13 @@ pub async fn converse(
             return Ok(());
         }
     };
+    // The dialed client, under the plan. Only `converse` is ever called on it, and the decorator
+    // neither retries nor announces anything for a turn; what it adds is the gap bound on the
+    // stream's silence.
+    let transport = RetryingTransport::new(client, TokioSleeper, plan);
     let (sender, receiver) = tokio::sync::mpsc::unbounded_channel::<ConfirmDecision>();
     let generation = route.set(sender);
-    let stream = client.converse(&session_id, &text, UnboundedReceiverStream::new(receiver));
+    let stream = transport.converse(&session_id, &text, UnboundedReceiverStream::new(receiver));
     pin_mut!(stream);
     while let Some(item) = stream.next().await {
         let message = match item {

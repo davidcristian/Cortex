@@ -39,6 +39,9 @@ TOOLS_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config_tools
 BODY_CORE_DOC = "docs/modules/body-core.md"
 BODY_RPC_DOC = "docs/modules/body-rpc.md"
 RETRY_PLAN = "body/crates/core/src/retry/plan.rs"
+RETRY_GAP = "body/crates/core/src/retry/gap.rs"
+BODY_APP_DOC = "docs/modules/body-app.md"
+OVERLAY_RUNBOOK = "docs/runbooks/body-overlay.md"
 SCHEDULING_RUNBOOK = "docs/runbooks/scheduling.md"
 TOOLS_RUNBOOK = "docs/runbooks/tools-mcp.md"
 SUBAGENTS_RUNBOOK = "docs/runbooks/subagents-cpu.md"
@@ -106,6 +109,41 @@ SHIPPED_COUPLINGS: tuple[Constant, ...] = (
                 spelling=Spelling.WHOLE,
             ),
             Mention(TOOLS_CORE_DOC, "`DEFAULT_TOOL_CALL_TIMEOUT_S = {value}`"),
+        ),
+    ),
+    Constant(
+        label="the longest a turn may be silent before its first event",
+        why=(
+            "two module contracts and the overlay runbook quote this as the number a reader acts "
+            "on, one telling a future agent what the plan ships and the other telling an operator "
+            "how long a turn that never starts will hang before it settles, so retuning the "
+            "constant alone would leave all three describing a bound the body no longer holds "
+            "(ADR-0024 idle-gap addendum)"
+        ),
+        sites=(Site(RETRY_GAP, "DEFAULT_TURN_FIRST_GAP_MS"),),
+        # Each far side spells it the way its own sentence needs. The two contracts name the
+        # constant they are reading out; the runbook names the env knob and gives the value a
+        # reader would type, so its template carries the unit word beside it, a bare 600000 being
+        # a number the retune line at the end of the same paragraph also spells.
+        mentions=(
+            Mention(BODY_CORE_DOC, "`DEFAULT_TURN_FIRST_GAP_MS = {value}`"),
+            Mention(BODY_APP_DOC, "`DEFAULT_TURN_FIRST_GAP_MS = {value}`"),
+            Mention(OVERLAY_RUNBOOK, "(default {value}, ten minutes)"),
+        ),
+    ),
+    Constant(
+        label="the longest a turn may be silent between two of its events",
+        why=(
+            "the same three readers carry this one, and it is the number that decides whether a "
+            "delegated batch is allowed to finish: a contract or a runbook still quoting the old "
+            "one would tell a reader a turn survives a silence the body now ends "
+            "(ADR-0024 idle-gap addendum)"
+        ),
+        sites=(Site(RETRY_GAP, "DEFAULT_TURN_IDLE_GAP_MS"),),
+        mentions=(
+            Mention(BODY_CORE_DOC, "`DEFAULT_TURN_IDLE_GAP_MS = {value}`"),
+            Mention(BODY_APP_DOC, "`DEFAULT_TURN_IDLE_GAP_MS = {value}`"),
+            Mention(OVERLAY_RUNBOOK, "(default {value}, two hours)"),
         ),
     ),
     Constant(

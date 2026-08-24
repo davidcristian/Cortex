@@ -788,7 +788,13 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   reason }` and the brain closing it unanswered is `{ kind: "confirmResolved", confirmId,
   outcome }`, ADR-0022). A `TransportError` carries its own `kind` on the same wire
   (`connection` | `rpc` | `protocol` | `timeout`, the TS `TransportErrorKind`), which the
-  reducer classifies into the link exactly as `body_core::link` classifies a probe's failure. For the turn's duration it parks a decision sender in the managed
+  reducer classifies into the link exactly as `body_core::link` classifies a probe's failure. The
+  eagerly dialed client is handed to a `RetryingTransport` before the turn runs on it (ADR-0024
+  idle-gap addendum): that decorator refuses to retry a turn exactly as the plan says, so the one
+  thing wrapping buys is the bound on the stream's **silence**, which turns a brain that accepts
+  the turn and then stops sending into a reported `timeout` instead of a reply that streams for as
+  long as the process lives. One `RetryPlan` is read for the dial's deadline and the stream's gaps
+  together, so the two cannot drift. For the turn's duration it parks a decision sender in the managed
   `ConfirmRoute` state (`src-tauri/src/confirm.rs`, one slot, as at most one turn runs at a time);
   the matching receiver stream feeds `BrainTransport::converse`'s `decisions` parameter and is
   cleared when the event loop ends.
@@ -830,7 +836,9 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   `RetryPolicy` builder) is `pub` so `converse` reuses it for its dial, and `plan_from_env()`
   wraps it in the `RetryPlan` `connect()` passes: the same read schedule, plus
   `CORTEX_BRAIN_PROBE_BUDGET_MS` as the ceiling on a `Health` probe's whole run and the two
-  per-attempt deadlines, `CORTEX_BRAIN_PROBE_DEADLINE_MS` and `CORTEX_BRAIN_CALL_DEADLINE_MS`
+  per-attempt deadlines, `CORTEX_BRAIN_PROBE_DEADLINE_MS` and `CORTEX_BRAIN_CALL_DEADLINE_MS`,
+  plus the turn's two silences, `CORTEX_BRAIN_TURN_FIRST_GAP_MS` and
+  `CORTEX_BRAIN_TURN_IDLE_GAP_MS`
   (`env_millis` parses every duration knob here, since all of them are spelled in ms). Which
   calls may be retried at all is *not* configurable here and deliberately so; that is the gated
   `RetryPlan` gate, decided by what each seam method does. `connect()` reads that plan **once**
@@ -845,9 +853,12 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   the lazy constructor as a synchronous config gate, so a bad URI or non-ASCII token fails fast
   instead of being retried for the whole budget, and each dial is wrapped in `within_deadline`
   at the plan's call deadline, so a dial that hangs cannot hang the turn behind it. The turn's
-  own stream is deliberately unbounded: a model thinking is not a failure. The turn's client is
+  own **length** is deliberately unbounded, a model thinking not being a failure, and its
+  **silence** is not: the dialed client goes into a `RetryingTransport` carrying the same plan, so
+  the stream runs under `turn_gaps` (ADR-0024 idle-gap addendum). The turn's client is
   the one that announces nothing, and needs no `announcing`: `Converse` has no deadline in the
-  plan, so there is none to tell the brain about.
+  plan, so there is none to tell the brain about, and a gap is not a deadline the wire could
+  carry.
 - **The `body_server` module** (`src-tauri/src/body_server.rs`, ADR-0023/0025): `start()` (`cfg(windows)`)
   binds `CORTEX_BODY_ADDR` (default `127.0.0.1:50151`, the port declared once as
   `DEFAULT_BODY_PORT` and tied by `scripts/crosscheck.py` to every other place that states it:
@@ -875,7 +886,13 @@ Two halves meet at one seam. That seam is the typed `BrainBridge` port:
   indicator's verdict, and the two per-attempt deadlines (ADR-0024 deadline addendum)
   `CORTEX_BRAIN_PROBE_DEADLINE_MS` (250) and `CORTEX_BRAIN_CALL_DEADLINE_MS` (5000). At the
   defaults the budget leaves the probe two of the reads' three attempts, so the dot resolves
-  inside 700 ms worst case and still spends one real retry on a restarting brain.
+  inside 700 ms worst case and still spends one real retry on a restarting brain. The turn's own
+  two knobs are the odd pair out, bounding silence rather than a call (ADR-0024 idle-gap
+  addendum): `CORTEX_BRAIN_TURN_FIRST_GAP_MS` (`DEFAULT_TURN_FIRST_GAP_MS = 600000`) is the
+  longest a turn may say nothing before its first event, and `CORTEX_BRAIN_TURN_IDLE_GAP_MS`
+  (`DEFAULT_TURN_IDLE_GAP_MS = 7200000`) the longest between two of them. The second is the larger
+  because a delegated subtask, which can only happen once a turn is under way, may wait an hour for
+  admission and then run for forty minutes without the seam seeing anything.
 
 **Invariants.**
 

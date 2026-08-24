@@ -19,7 +19,7 @@ use std::future::Future;
 use std::hash::{BuildHasher, Hasher};
 use std::time::Duration;
 
-use body_core::{Randomness, RetryPlan, RetryPolicy, RetryingTransport, Sleeper};
+use body_core::{Randomness, RetryPlan, RetryPolicy, RetryingTransport, Sleeper, TurnGaps};
 use body_rpc::BrainSeamClient;
 
 /// Default brain seam address (matches `body_rpc`); override with `CORTEX_BRAIN_ADDR`.
@@ -119,15 +119,23 @@ pub fn connect() -> Result<ResilientTransport, String> {
 }
 
 /// The per-method retry plan: the read schedule from `CORTEX_BRAIN_RETRY_*`, the ceiling on a
-/// `Health` probe's whole run from `CORTEX_BRAIN_PROBE_BUDGET_MS` (default 1 s), and the two
+/// `Health` probe's whole run from `CORTEX_BRAIN_PROBE_BUDGET_MS` (default 1 s), the two
 /// per-attempt deadlines, `CORTEX_BRAIN_PROBE_DEADLINE_MS` (default 250 ms) and
-/// `CORTEX_BRAIN_CALL_DEADLINE_MS` (default 5 s).
+/// `CORTEX_BRAIN_CALL_DEADLINE_MS` (default 5 s), and the two gaps a turn's stream may be silent
+/// for, `CORTEX_BRAIN_TURN_FIRST_GAP_MS` (default 10 min) and `CORTEX_BRAIN_TURN_IDLE_GAP_MS`
+/// (default 2 h).
 ///
 /// The probe is separate because the connection indicator renders its answer: patience there
 /// is time the dot spends claiming a state the seam has stopped proving. Turning the read
 /// knobs up therefore buys a session read more patience without ever buying the indicator a
 /// longer lie. The deadlines split for a different reason: a probe that waits a second has
 /// already outlived its usefulness, while a store read may honestly take longer than that.
+///
+/// The gaps are a third kind and are the turn's alone. They bound how long the stream may say
+/// NOTHING, never how long the turn may take, so a deployment that runs without the delegating
+/// sidecars can turn the idle one down a long way: the shipped value is sized by a subagent batch
+/// waiting for admission and then running, which a stack without them never produces
+/// (ADR-0024 idle-gap addendum).
 pub fn plan_from_env() -> RetryPlan {
     let default = RetryPlan::default();
     RetryPlan {
@@ -136,6 +144,10 @@ pub fn plan_from_env() -> RetryPlan {
         probe_deadline: env_millis("CORTEX_BRAIN_PROBE_DEADLINE_MS")
             .unwrap_or(default.probe_deadline),
         call_deadline: env_millis("CORTEX_BRAIN_CALL_DEADLINE_MS").unwrap_or(default.call_deadline),
+        turn_gaps: TurnGaps {
+            first: env_millis("CORTEX_BRAIN_TURN_FIRST_GAP_MS").unwrap_or(default.turn_gaps.first),
+            idle: env_millis("CORTEX_BRAIN_TURN_IDLE_GAP_MS").unwrap_or(default.turn_gaps.idle),
+        },
     }
 }
 

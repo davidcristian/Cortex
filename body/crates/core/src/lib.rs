@@ -7,7 +7,9 @@
 //! turn yielding typed [`TurnEvent`]s (Slice 8, ADR-0011), along with the
 //! [`RetryingTransport`] decorator + [`Sleeper`] port that add bounded-retry
 //! resilience over it (ADR-0024), gated by the per-method [`RetryPlan`] that decides
-//! which calls may be repeated at all, the [`LinkStatus`] classification the overlay's
+//! which calls may be repeated at all and which clock bounds each, a deadline on a
+//! call or a pair of [`TurnGaps`] on a turn's silence, the [`LinkStatus`]
+//! classification the overlay's
 //! connection indicator shows (`link`, ADR-0011 addendum), plus the reminder pull reads
 //! the overlay surfaces when it opens (Slice 9.5, ADR-0025); and the OS-capability ports (`os`): the
 //! [`Hotkey`] backend seam (Slice 8), the [`AudioControl`] volume seam the
@@ -36,8 +38,9 @@ pub use os::{
 };
 pub use retry::{
     ANNOUNCED_DEADLINE_GRACE_MS, DEFAULT_CALL_DEADLINE, DEFAULT_PROBE_BUDGET,
-    DEFAULT_PROBE_DEADLINE, FullDelay, Randomness, RetryPlan, RetryPolicy, RetryingTransport,
-    SeamMethod, Sleeper, is_transient, retry_with, within_deadline,
+    DEFAULT_PROBE_DEADLINE, DEFAULT_TURN_FIRST_GAP_MS, DEFAULT_TURN_IDLE_GAP_MS, FullDelay,
+    Randomness, RetryPlan, RetryPolicy, RetryingTransport, SeamMethod, Sleeper, TurnGaps,
+    is_transient, retry_with, within_deadline, within_gaps,
 };
 pub use session_types::{DueReminder, SessionMessage, SessionSummary};
 pub use transport::{BrainTransport, ConfirmDecision, SeamHealth, TransportError, TurnEvent};

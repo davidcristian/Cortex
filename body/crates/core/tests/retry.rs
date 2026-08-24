@@ -21,8 +21,8 @@ use std::time::Duration;
 
 use body_core::{
     BrainTransport, ConfirmDecision, DueReminder, Randomness, RetryPlan, RetryPolicy,
-    RetryingTransport, SeamHealth, SessionMessage, SessionSummary, Sleeper, TransportError,
-    TurnEvent, is_transient, retry_with, within_deadline,
+    RetryingTransport, SeamHealth, SeamMethod, SessionMessage, SessionSummary, Sleeper,
+    TransportError, TurnEvent, is_transient, retry_with, within_deadline,
 };
 use futures_core::Stream;
 use tokio_stream::StreamExt;
@@ -554,6 +554,11 @@ async fn converse_is_forwarded_verbatim_without_retry() {
     );
     assert_eq!(flaky.call_count(), 0);
     assert!(sleeper.delays().is_empty());
+    // The gaps the items passed under, in the order the stream spent them: the first event is
+    // measured against the first-event gap and everything after it against the idle one, the
+    // fourth wait being the one that found the stream ended (ADR-0024 idle-gap addendum).
+    let gaps = RetryPlan::default().turn_gaps;
+    assert_eq!(sleeper.bounds(), vec![gaps.first, gaps.idle, gaps.idle]);
 }
 
 #[test]
@@ -943,19 +948,25 @@ async fn a_refused_write_is_bounded_even_though_it_is_never_retried() {
 }
 
 #[tokio::test]
-async fn the_turn_is_the_one_call_no_clock_ends() {
-    // `Converse` is exempt by decision (a turn is long by design), and the exemption is real
-    // rather than nominal: even an expiring clock never sees the turn, which streams its
-    // scripted events verbatim.
+async fn the_turn_is_the_one_call_no_deadline_ends_and_its_silence_is_bounded_instead() {
+    // `Converse` is exempt from the per-attempt deadline by decision (a turn is long by design),
+    // and what it gets instead is a bound on its SILENCE (ADR-0024 idle-gap addendum). So the
+    // clock does see the turn, and what reaches it is the plan's first-event gap rather than any
+    // deadline: an expiring one therefore ends the turn on its first wait, before a single
+    // scripted event, with the gap that expired.
     let flaky = FlakyTransport::new(FailKind::Connection, 0);
     let sleeper = FakeSleeper::expiring();
-    let transport = RetryingTransport::new(flaky, sleeper.clone(), RetryPlan::default());
+    let plan = RetryPlan::default();
+    let transport = RetryingTransport::new(flaky, sleeper.clone(), plan);
     let events: Vec<_> = transport
         .converse("s1", "hi", tokio_stream::empty())
         .collect()
         .await;
-    assert_eq!(events.len(), 2);
-    assert!(sleeper.bounds().is_empty());
+    let first = plan.turn_gaps.first;
+    assert_eq!(events, vec![Err(TransportError::Timeout { after: first })]);
+    assert_eq!(sleeper.bounds(), vec![first]);
+    // And it is a gap, not a deadline: no `deadline_for` answer exists to have produced it.
+    assert_eq!(plan.deadline_for(SeamMethod::Converse), None);
 }
 
 #[tokio::test]
