@@ -14,13 +14,13 @@ belongs to neither the brain nor the body and is gated exactly like both. A stan
 recipes, `ci_paths.py`
 by the CI
 workflow, `commitlint.py` by the commit-msg pre-commit stage, `contrast.py` by `just turn-cost`;
-each also exposes a pure, unit-tested core function). Twenty-one modules here have no CLI of their
+each also exposes a pure, unit-tested core function). Twenty-two modules here have no CLI of their
 own, most split out under the line cap and each named for what it holds: `couplings.py` is the
 vocabulary `crosscheck.py`'s registry is written in, `registry.py` names the parts that registry is
 written in, and `seamcouplings.py`, `endpointcouplings.py`, `shippedcouplings.py`,
 `subagentcouplings.py`,
-`modelhostcouplings.py`, `emailcouplings.py`, `fixturecouplings.py`, `capturecouplings.py` and
-`overlaycouplings.py` are those parts, `values.py`
+`modelhostcouplings.py`, `emailcouplings.py`, `fixturecouplings.py`, `capturecouplings.py`,
+`overlaycouplings.py` and `logcouplings.py` are those parts, `values.py`
 is the value forms that scan compares on and the spellings a mention writes one in, `readings.py`
 is how a set of those values must then stand, `needles.py` is how a rendered needle is looked for
 and what a file that lacks one is told, `composemounts.py` is `bindcheck.py`'s mount
@@ -75,8 +75,8 @@ that last question to have an answer.
   there and the scan never learns the registry has parts; `crosscheck.CONSTANTS` is
   `SEAM_COUPLINGS`, then `ENDPOINT_COUPLINGS`, `SHIPPED_COUPLINGS`, `CAPTURE_COUPLINGS`,
   `SUBAGENT_COUPLINGS`,
-  `MODELHOST_COUPLINGS`, `EMAIL_COUPLINGS`, `FIXTURE_COUPLINGS`, then
-  `OVERLAY_COUPLINGS`. Each part is named for its subject: couplings whose far side is another
+  `MODELHOST_COUPLINGS`, `EMAIL_COUPLINGS`, `FIXTURE_COUPLINGS`, `OVERLAY_COUPLINGS`, then
+  `LOG_COUPLINGS`. Each part is named for its subject: couplings whose far side is another
   tree's code across the language boundary; the address and port each side answers on, with every
   file that dials or states one; the brain container's own shipped defaults, restated
   by a compose default, a runbook row or a module contract; one capture's own edge, byte budget
@@ -85,7 +85,10 @@ that last question to have an answer.
   and the
   override that ships them; the email sidecar's three safety answers and the override that spells
   each again; a stack built to be measured against and the suite that measures it, the one subject
-  the repo does not ship; and the overlay's TypeScript against its own stylesheet. Some arrived as
+  the repo does not ship; the overlay's TypeScript against its own stylesheet; and the brain's log
+  vocabulary, the one name each work identity is written under, against every line that spells it
+  and every runbook that tells an operator to grep it, the only part whose subject is a field's
+  name rather than its value (ADR-0009 one-vocabulary addendum). Some arrived as
   splits under the cap and some as subjects added beside them, which is the one-line claim being
   paid from both directions rather than argued.
   `couplings.py` is the vocabulary every part is written in, left behind when each moved out

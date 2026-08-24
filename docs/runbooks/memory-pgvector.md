@@ -161,13 +161,15 @@ when the shipped handler printed no field at all; it no longer does, so a deploy
 lines through some other handler sees the message alone.
 
 Both lines name `pool`, the candidates that went unjudged, and `k`, the width asked of the rank,
-and both name `session`, the conversation the recall was for (ADR-0038 named-recall addendum). That
-last one is spelled the way the recall trail below spells it, so a fallback and the trail line for
-the same recall are joined by `grep "session=<id>"` on one stream; without it a burst of these on a
-brain serving several conversations could not be attributed to any of them. It is an id and
-nothing more, the question and the notes being conversation text that these lines never carry.
-`session=None` means the port was called by something that named no conversation, which nothing in
-the shipped brain does.
+and both name `session_id`, the conversation the recall was for (ADR-0038 named-recall addendum).
+That last one is spelled the way the recall trail below spells it, so a fallback and the trail line
+for the same recall are joined by `grep "session_id=<id>"` on one stream; without it a burst of
+these on a brain serving several conversations could not be attributed to any of them. It is an id
+and nothing more, the question and the notes being conversation text that these lines never carry.
+`session_id=None` means the port was called by something that named no conversation, which nothing
+in the shipped brain does. Both of them and the trail spelled it `session` until the brain settled
+on one name per work identity (ADR-0009 one-vocabulary addendum), so the same grep now also reaches
+the turn's own failure lines and its audited tool calls, which always spelled it this way.
 
 Silence means the rank is working. A pool the model ordered and a pool it read and declined both
 pass without a line, the second showing as the `demur` basis on the trail below, and so does an

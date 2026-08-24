@@ -401,9 +401,12 @@ async def test_both_lines_name_the_recall_they_happened_to(
 ) -> None:
     """A burst of fallbacks is attributable to a conversation (ADR-0038 named-recall addendum).
 
-    Spelled ``session`` because the recall trail spells it that way, and pairing a fallback with
-    the trail line for the same recall is the whole use: on a brain serving several conversations
-    the two lines are next to each other in the stream and nothing else joins them. Asserted
+    Spelled ``session_id`` because the recall trail spells it that way, and pairing a fallback
+    with the trail line for the same recall is the whole use: on a brain serving several
+    conversations the two lines are next to each other in the stream and nothing else joins them.
+    That is also why the two moved together off the trail's older ``session`` spelling and onto
+    the one name the rest of the brain gives a conversation (ADR-0009 one-vocabulary addendum);
+    either surface moving alone would have broken the pairing this case is about. Asserted
     against the rendered line as well as the record, since the field reaches an operator through
     the formatter and not through the record it rides on.
     """
@@ -411,9 +414,9 @@ async def test_both_lines_name_the_recall_they_happened_to(
     unreachable = await _fell_back(caplog, error=True, session_id="conv-7")
     unreadable = await _fell_back(caplog, stop=StopReason.FINISHED, session_id="conv-7")
 
-    assert _extra(unreachable, "session") == _extra(unreadable, "session") == "conv-7"
-    assert "session=conv-7" in PlainFormatter().format(unreachable)
-    assert "session=conv-7" in PlainFormatter().format(unreadable)
+    assert _extra(unreachable, "session_id") == _extra(unreadable, "session_id") == "conv-7"
+    assert "session_id=conv-7" in PlainFormatter().format(unreachable)
+    assert "session_id=conv-7" in PlainFormatter().format(unreadable)
 
 
 async def test_a_recall_that_named_no_session_says_so_rather_than_leaving_the_field_out(
@@ -422,13 +425,13 @@ async def test_a_recall_that_named_no_session_says_so_rather_than_leaving_the_fi
     """An absent field and an unnamed caller are different facts, so the line prints the second.
 
     Every caller the brain ships gives an id, so this is the direct caller of the port: a reader
-    who saw no ``session`` at all would go looking for the deployment that dropped it.
+    who saw no ``session_id`` at all would go looking for the deployment that dropped it.
     """
     caplog.set_level(logging.WARNING, logger=_JUDGE_LOGGER)
     record = await _fell_back(caplog, error=True)
 
-    assert _extra(record, "session") is None
-    assert "session=None" in PlainFormatter().format(record)
+    assert _extra(record, "session_id") is None
+    assert "session_id=None" in PlainFormatter().format(record)
 
 
 async def test_neither_line_carries_the_question_or_what_memory_said_about_it(
@@ -451,7 +454,7 @@ async def test_neither_line_carries_the_question_or_what_memory_said_about_it(
     for line in (unreachable, unreadable):
         assert "where does state live?" not in line  # the question the turn asked
         assert "keep session state in Redis" not in line  # and what memory had to say about it
-        assert "session=conv-7" in line  # what a line may carry: the caller's own handle
+        assert "session_id=conv-7" in line  # what a line may carry: the caller's own handle
 
 
 async def test_a_cut_order_and_a_mangled_one_are_told_apart(

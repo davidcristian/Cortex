@@ -213,9 +213,9 @@ async def test_the_fields_reach_the_line_an_operator_actually_reads(
         await LoggingRecallSink().record(_audit())
     (record,) = caplog.records
     extras: dict[str, object] = vars(record)
-    assert extras["session"] == "s1"
+    assert extras["session_id"] == "s1"
     assert extras["basis"] == "ember"
     line = _rendered(caplog)
     assert line.startswith("INFO:cortex.memory.recall:memory.recall ")
-    assert "session=s1" in line
+    assert "session_id=s1" in line
     assert "basis=ember" in line

@@ -32,6 +32,20 @@ printing a name it does not recognize, and it is deliberately blunt about matchi
 withholds a field called ``max_tokens`` too. Withholding a token count costs a reader one number
 they can recover from the message; printing a bearer token costs the deployment its seam.
 
+**One name per work identity**, written down beside those two lists because it is the same kind
+of fact: what a field *is*, rather than what it holds. A line that says which work it is about
+picks from the fixed vocabulary of five the dispatch stamp carries, the conversation, the turn,
+the delegated task, the fired schedule item and the call itself, each spelled the way that stamp
+and the tool audit already spell it (ADR-0009 one-vocabulary addendum). It is written down because
+it was spelled two ways before it was: the recall trail and the rank's fallbacks named a
+conversation ``session`` where six other modules named it ``session_id``, and the schedule ticker
+named a fired item ``reminder_id`` where the trail named it ``item_id``, so a grep for one spelling
+silently missed every line carrying the other. Only the tool audit spends these names as code,
+being the one place that writes the whole vocabulary out as a list; every other site names one
+identity inside its own ``extra=`` and keeps the literal an operator greps, and
+`scripts/logcouplings.py` is what ties those literals, and the runbooks that quote them, back to
+the declarations here.
+
 **A bound on how much of a value reaches the line** sits here for the same reason the redaction
 does: the size of a field nobody enumerated is not something its call site was asked about, and
 the tool audit already attaches one the model writes (``arguments`` carries a spawn's whole
@@ -127,6 +141,23 @@ RESERVED_ATTRS = frozenset(
         "threadName",
     }
 )
+
+# The one name each of the five work identities is written under, wherever a line names one.
+# Five constants rather than a collection because each is a separate answer that a separate set
+# of places must agree with, and because a collection reduces to no single value the constant
+# scan could tie a far side to. They are the dispatch stamp's own names, which is the choice: the
+# stamp and the audit record are where a work identity is a field rather than a sentence, `_id` is
+# what tells the five apart from the readings printed beside them, and the seam's own
+# `reminder_id` names a message the body is handed rather than the item the brain fired.
+#
+# The five are the dispatch stamp's, so the swap path's own `handoff` and its second spelling of
+# the turn are outside them and remain a second vocabulary for now, which is the same defect one
+# scope further out and is filed rather than fixed here.
+SESSION_FIELD = "session_id"
+TURN_FIELD = "turn_id"
+TASK_FIELD = "task_id"
+ITEM_FIELD = "item_id"
+CALL_FIELD = "call_id"
 
 # Substrings that make a field name too dangerous to print, matched case-insensitively so
 # ``apiKey`` and ``API_KEY`` are the same name. Every concrete secret this deployment holds is

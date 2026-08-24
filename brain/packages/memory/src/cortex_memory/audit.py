@@ -51,12 +51,19 @@ class LoggingRecallSink:
     into the message as well, because the shipped handler was the stdlib's own and printed the
     message alone; with a formatter that renders fields, a second copy is the same line printed
     twice.
+
+    The conversation rides under `session_id`, which is the brain's one name for it and not this
+    trail's own (ADR-0009 one-vocabulary addendum). This sink spelled it `session` for as long as
+    it existed, and the rank's fallbacks copied that spelling to sit beside it, while every other
+    line in the brain spelled the same fact `session_id`; a grep for either therefore returned
+    half the evidence about one conversation. The trail moved because the other name is the one
+    the seam, the stores and the dispatch stamp all carry.
     """
 
     async def record(self, audit: RecallAudit) -> None:
         """Log one recall: the pool, what it was drawn from, the basis, the hits, and the drops."""
         fields: dict[str, object] = {
-            "session": audit.session_id,
+            "session_id": audit.session_id,
             "query_chars": len(audit.query),
             "pool": audit.pool_size,
             "available": audit.available,

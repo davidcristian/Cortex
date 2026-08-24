@@ -4944,3 +4944,105 @@ as landed, [docs/refinements/index.md](../refinements/index.md), which is regene
 `scripts/tests/test_crosscheck.py`, which holds them,
 [modules/repo-gates.md](../modules/repo-gates.md), which states the bound in its new two-part form,
 and this addendum.
+
+## Addendum (2026-08-24): the registry takes a field's name, and the premise for keeping it out was wrong
+
+Two backlog entries described one defect twice: a log field's name spelled two ways with nothing
+tying the spellings together, once for the conversation
+([R-339](../refinements/tasks/339-two-spellings-of-one-conversation.md)) and once for the fired
+schedule item
+([R-394](../refinements/tasks/394-the-fired-item-has-two-spellings-in-the-logs.md)). Both closed
+together under one rule, argued in the ADR-0009 one-vocabulary addendum. Each also asked the same
+question of this scan, and the first answered it in the negative: "it ties values a far side
+declares or spends, and a log field's name is neither, so registering this family would be a new
+kind of entry rather than another row."
+
+### Both halves of that sentence were re-derived and both were wrong
+
+A log field's name **is** spent, and in the most ordinary way this registry knows. Every site
+writes it as a string key opening an `extra=` dict, which is a bare literal a far side spells
+without declaring, the case `couplings.py` already names and the case the 2026-08-08 widening
+added mentions for. What was missing was not a kind of entry, it was a declaring site, and that is
+one line: `cortex_core.log_fields` now declares the five names the dispatch stamp carries, and the
+tool audit sink spends them as code, being the one place that writes the whole vocabulary out as a
+list rather than naming one identity inside a sentence.
+
+Nor is this scan cross-language only, which is the unstated half of the same premise. Its own
+docstring opens on the seam because that is where it started, but `subagentcouplings` already ties
+a docstring in one core module to a constant declared in an orchestrator module, and
+`endpointcouplings` ties a Python live test's env default to a Python server constant. Both are one
+toolchain that could have imported and legibly did not, which is exactly the trade a log line makes
+by keeping the string an operator greps at the place they read it.
+
+### A new part, because every other one ties a value a far side holds
+
+`scripts/logcouplings.py` is the tenth part and the third added as a subject rather than as a split
+under the line cap. The distinction it names is not the topic: capture numbers, shipped defaults
+and stylesheet properties are all values a far side must **hold**, and this one is the **name** a
+far side writes a value under. Nothing about the scan changes for that, a name being a string like
+any other, but the reason the places must agree is different in kind and belongs in a part whose
+docstring can say so. Filing it under `shippedcouplings` on the reading that a field name is
+something the brain ships would make that part's own docstring false.
+
+**The name.** `log` over `field`, which names the mechanism rather than the subject and would read
+as a part about any registry's fields, and over `vocabulary`, which names this entry's argument
+rather than the thing held. The other nine parts are nouns naming what they hold, and the brain's
+log lines are what this one holds.
+
+### The entries, and the two that are counted
+
+Five entries, one per identity, each a site in `log_fields.py` against the modules that spell the
+name as a literal and the runbooks that tell an operator to grep it. The literal mentions all
+render `"{value}":`, the colon being what makes the needle a field name rather than any other use
+of the same word; the runbook mentions carry enough of their own sentence to be a claim about the
+right instruction.
+
+Two mentions pin an exact count. The ticker's three lines are one set, being its whole account of
+one fire, and a fourth arriving under another name is precisely the drift the entry that opened
+this was about; the claim path's two are one set because the scheduling runbook prints one of them
+verbatim and an operator following a corrupt record needs both. Every other mention is the presence
+check, a module free to grow a second line naming the same conversation without reddening a gate
+about a name that never moved.
+
+What is deliberately not tied: the Redis codecs spell four of the five as hash keys of their own
+records, and a record on disk outlives the deployment that wrote it, so a wire format and a log
+field must stay free to move apart. Nor is `NotifyRequest.reminder_id`, the seam's name for the
+message the body is handed, which differing from the brain's name for the item is the decision
+rather than the drift.
+
+### Proved able to fail, twelve times, over the crosscheck registry
+
+Each side of each entry was planted with a real disagreement one at a time on the real tree, the
+gate run, the file restored, and the restoration compared by digest against what it held before.
+The counts are over the crosscheck registry as it stands after this change, **67 entries over 77
+declaring sites and 201 mentions, 19 of them pinned to a count**, and not over any test suite: a
+suite's numbers say nothing about the collection this table is about. This part is 5 of those
+entries, 5 of those sites, 21 of those mentions and 2 of those counts.
+
+| planted drift | what the gate said |
+|---|---|
+| `SESSION_FIELD` reverts to the trail's old `session` | 9 faults, every module and both runbook sentences |
+| the recall trail alone reverts to `session` | 1 fault naming the sink |
+| the memory runbook keeps the old grep | 1 fault naming the runbook |
+| one turn module renames its literal alone | 1 fault naming that module |
+| `TURN_FIELD` becomes the swap path's bare `turn` | 4 faults, three modules and the tools runbook |
+| `TASK_FIELD` is renamed | 2 faults, the runner and the runbook |
+| `ITEM_FIELD` reverts to the ticker's old `reminder_id` | 4 faults, both counts at 0 and both runbooks |
+| the ticker reverts one of its three lines | 1 fault: found 2, pinned 3 |
+| the ticker reverts all three | 1 fault: found 0, pinned 3 |
+| the claim path drops the item off one of its two lines | 1 fault: found 1, pinned 2 |
+| `CALL_FIELD` is renamed | 2 faults, both runbook sentences |
+| the tools runbook renames the fifth id | 1 fault naming the runbook |
+
+All twelve exited 1 and all twelve restorations matched by digest. Rows eight and nine are the pair
+that earns the count: a set that loses one member is caught as precisely as a set that loses all
+three, which a presence check cannot do. Row four is the one that shows the part holds more than
+the two renames it was written for, a module inventing a third spelling being caught by the same
+mention that holds the second.
+
+### Records
+
+The record is this addendum, `scripts/logcouplings.py`, `scripts/registry.py`, which names it,
+[modules/repo-gates.md](../modules/repo-gates.md) and AGENTS.md, which both state what the registry
+is written in, and the two task files that close, whose rule is argued in the ADR-0009
+one-vocabulary addendum.

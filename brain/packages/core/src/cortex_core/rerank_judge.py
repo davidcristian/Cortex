@@ -26,13 +26,16 @@ the model judging and declining, which the recall trail reports as the ``DEMUR``
 other per-recall fact. So a line from here always means the one thing, that the rank a deployment
 configured did not run, and no line means the pool was judged or there was nothing to judge.
 
-**Both warnings name the recall they happened to** (ADR-0038 named-recall addendum). ``session`` is
-the id the port now carries, spelled the way ``LoggingRecallSink`` spells it, because the trail
+**Both warnings name the recall they happened to** (ADR-0038 named-recall addendum). ``session_id``
+is the id the port now carries, spelled the way ``LoggingRecallSink`` spells it, because the trail
 line for the very same recall is what an operator pairs a fallback with; without it a burst of
 fallbacks on a brain serving several conversations could not be attributed to any of them. It is
 the caller's opaque handle and nothing else: the pool and the ``query`` are conversation content,
-and no line here has ever carried either. A caller that gave no id logs ``session=None``, which
+and no line here has ever carried either. A caller that gave no id logs ``session_id=None``, which
 says the recall arrived unnamed rather than leaving a reader to wonder whether the field exists.
+Both this pair and the trail spelled it ``session`` until the brain settled on one name per work
+identity, which is the stamp's (ADR-0009 one-vocabulary addendum); the pairing argument is
+unchanged by the rename, the two surfaces having moved together.
 """
 
 import json
@@ -233,7 +236,7 @@ class JudgeRecallPolicy:
             # cause rides as ``exc_info`` the way every other degraded-turn warning carries it.
             _logger.warning(
                 "the model could not be asked to rank recall; falling back to the unjudged ranking",
-                extra={"session": session_id, "pool": len(hits), "k": k},
+                extra={"session_id": session_id, "pool": len(hits), "k": k},
                 exc_info=True,
             )
             return await self._fallback.select(
@@ -254,7 +257,7 @@ class JudgeRecallPolicy:
             _logger.warning(
                 "the model returned no usable recall order; falling back to the unjudged ranking",
                 extra={
-                    "session": session_id,
+                    "session_id": session_id,
                     "pool": len(hits),
                     "k": k,
                     "capped": stops.capped,

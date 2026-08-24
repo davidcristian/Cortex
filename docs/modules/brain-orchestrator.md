@@ -652,7 +652,13 @@ The service:
   an `ok=False` outcome delivered the same way, so a stale TASK neither crashes nor lease-cycles. `run` wraps each pass in a logged catch-all and
   paces on an `asyncio.Event` (`stop()` wakes it, so the graceful path completes in-flight fires
   and strands no claims); unfinished claims are `release`d best-effort, the lease covering the
-  rest. Every fire failure is logged, never fatal.
+  rest. Every fire failure is logged, never fatal. Its three lines about a fire (the fire that
+  failed, the release that failed, the push that fell back to pull) name the item `item_id`, the
+  same field the audit trail spells, so one grep reaches the fire, the work firing it caused and
+  the ticker's own account of how it went; they spelled it `reminder_id` until the brain settled
+  on one name per work identity (ADR-0009 one-vocabulary addendum), which is a rename of the log
+  field only, `NotifyRequest.reminder_id` still being the seam's name for the message the body is
+  handed.
 - `delegated_call_bounds(tools) -> int` (`bounds.py`, ADR-0009 ordering addendum) is how many whole
   `CORTEX_TOOLS_CALL_TIMEOUT_S` bounds one delegated dispatch can spend, the run's own
   advertisement included: `walks * sidecars + 1`, where `sidecars` is the configured endpoint

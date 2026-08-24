@@ -140,13 +140,17 @@ class ScheduleTicker:
             )
             # Zipped rather than filtered: gather answers in the order it was given, so the
             # claim beside a failure is the item that failed, and a line that names it can be
-            # followed to the reminder it is about.
+            # followed to the reminder it is about. `item_id` and not `reminder_id`, which this
+            # line spelled until the brain settled on one name per work identity (ADR-0009
+            # one-vocabulary addendum): the audit trail names the same fired item `item_id` on
+            # the fire's dispatch and on every dispatch its delegate makes, so one grep now
+            # reaches the fire, the work it caused, and these lines about how it went.
             for claim, result in zip(claims, results, strict=True):
                 if isinstance(result, BaseException):
                     _logger.error(
                         "schedule fire failed; the lease re-fires it",
                         exc_info=result,
-                        extra={"reminder_id": claim.item.id},
+                        extra={"item_id": claim.item.id},
                     )
         finally:
             for claim in pending.values():
@@ -155,7 +159,7 @@ class ScheduleTicker:
                 except ScheduleStoreError:
                     _logger.exception(
                         "release failed; the lease recovers the claim",
-                        extra={"reminder_id": claim.item.id},
+                        extra={"item_id": claim.item.id},
                     )
 
     async def _fire(self, claim: ScheduleClaim) -> None:
@@ -194,6 +198,12 @@ class ScheduleTicker:
         (the one hard rule). A proactive re-push beyond this next-poll-pull is deferred: without a
         per-fire delivery id the body cannot tell a retry from a legitimate re-fire, so a re-push
         would turn the rare at-least-once duplicate into a common one (ADR-0025 retry addendum).
+
+        The two names for one id below are both right and are about different things: the seam
+        field is ``NotifyRequest.reminder_id``, which is what the body is handed and acks with,
+        while the log field is ``item_id``, which is what the brain calls the thing it fired and
+        what its own trail spells (ADR-0009 one-vocabulary addendum). A line is the brain's
+        reading of its own work, so it takes the brain's name.
         """
         if self._body is None:
             return
@@ -204,7 +214,7 @@ class ScheduleTicker:
         except BodyGatewayError as err:
             _logger.info(
                 "push failed; pull will deliver",
-                extra={"reminder_id": item_id, "error": str(err)},
+                extra={"item_id": item_id, "error": str(err)},
             )
             return
         if shown:

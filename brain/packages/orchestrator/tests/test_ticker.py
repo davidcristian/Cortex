@@ -464,10 +464,10 @@ async def test_both_pass_degradation_lines_name_the_item_they_are_about(
         await _ticker(store).run_once()
     formatter = PlainFormatter()
     assert [formatter.format(record).splitlines()[0] for record in caplog.records] == [
-        f"ERROR:{_TICKER_LOGGER}:schedule fire failed; the lease re-fires it reminder_id=r1",
-        f"ERROR:{_TICKER_LOGGER}:release failed; the lease recovers the claim reminder_id=r1",
+        f"ERROR:{_TICKER_LOGGER}:schedule fire failed; the lease re-fires it item_id=r1",
+        f"ERROR:{_TICKER_LOGGER}:release failed; the lease recovers the claim item_id=r1",
     ]
-    assert [record.__dict__["reminder_id"] for record in caplog.records] == ["r1", "r1"]
+    assert [record.__dict__["item_id"] for record in caplog.records] == ["r1", "r1"]
 
 
 class _FlakyClaimStore(InMemoryScheduleStore):

@@ -57,7 +57,10 @@ source of audited, model-callable tools.
   AGENTS.md audit gate). A line also names the work it was for, `session_id`, `turn_id`,
   `task_id` and `item_id` off the dispatch's stamp, under the field names the rest of the brain's
   log lines
-  spell them with, so the trail reads turn by turn, a delegated call names both its task and
+  spell them with, and this is the one sink that takes those five names from
+  `cortex_core.log_fields` rather than writing them out, being the one place that writes the whole
+  vocabulary as a list (ADR-0009 one-vocabulary addendum), so the trail reads turn by turn, a
+  delegated call names both its task and
   the turn that spawned it (ADR-0009 named-work addendum), and a scheduled fire names the item
   that fired (named-call addendum). It names the **call** too, `call_id` off `ToolCall.id`, which
   is what the result and its `Role.TOOL` message are keyed by, so a turn's lines stop being

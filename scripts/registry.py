@@ -30,6 +30,8 @@ directory beside it and to the order the tuple reads them in by
 - `fixturecouplings` ties a stack built to be measured against to the suite that measures it, the
   only part whose subject the repo does not ship.
 - `overlaycouplings` ties the overlay's TypeScript to the stylesheet that spends what it declares.
+- `logcouplings` ties the brain's log vocabulary, the one name each work identity is written
+  under, to every line that spells it and every runbook that tells an operator to grep it.
 
 Counting the registry lives here too, beside the tuple the parts are joined into, because the size
 of a collection is a fact about the collection rather than about any scan over it. `shape` is what
@@ -49,6 +51,7 @@ from couplings import Constant
 from emailcouplings import EMAIL_COUPLINGS
 from endpointcouplings import ENDPOINT_COUPLINGS
 from fixturecouplings import FIXTURE_COUPLINGS
+from logcouplings import LOG_COUPLINGS
 from modelhostcouplings import MODELHOST_COUPLINGS
 from overlaycouplings import OVERLAY_COUPLINGS
 from seamcouplings import SEAM_COUPLINGS
@@ -65,6 +68,7 @@ CONSTANTS: tuple[Constant, ...] = (
     *EMAIL_COUPLINGS,
     *FIXTURE_COUPLINGS,
     *OVERLAY_COUPLINGS,
+    *LOG_COUPLINGS,
 )
 
 

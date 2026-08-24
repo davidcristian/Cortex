@@ -239,16 +239,17 @@ scripts/          repo gates, plus the one module here that gates nothing, contr
                   registry.py (the only module naming the parts that registry is written in) +
                   seamcouplings.py, endpointcouplings.py, shippedcouplings.py,
                   capturecouplings.py, subagentcouplings.py,
-                  modelhostcouplings.py, emailcouplings.py, fixturecouplings.py and
-                  overlaycouplings.py (the registry
-                  itself, in the nine parts it is written in, seven split off by the line cap and
-                  two added as subjects: another tree's code, the address each side answers
+                  modelhostcouplings.py, emailcouplings.py, fixturecouplings.py,
+                  overlaycouplings.py and logcouplings.py (the registry
+                  itself, in the ten parts it is written in, seven split off by the line cap and
+                  three added as subjects: another tree's code, the address each side answers
                   on, the brain's own shipped
                   defaults, one capture's own numbers, the subagent tier's budgets, the model
                   host's tiers, the email
                   sidecar's shipped answers, a measurement fixture against the suite that
                   measures it, the overlay's own
-                  stylesheet) + values.py (what a value
+                  stylesheet, the one name each work identity is logged
+                  under) + values.py (what a value
                   reduces to and the spelling a mention writes one in) + readings.py (how a
                   constant's readings must then stand) + needles.py (how a rendered needle is
                   looked for, and which of its literals a file that lacks one is told stopped

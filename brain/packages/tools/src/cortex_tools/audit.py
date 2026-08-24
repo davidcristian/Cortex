@@ -13,6 +13,13 @@ answers "what did this turn do?" and "what did its subagents do?" (ADR-0009 name
 import logging
 
 from cortex_core import ToolInvocation
+from cortex_core.log_fields import (
+    CALL_FIELD,
+    ITEM_FIELD,
+    SESSION_FIELD,
+    TASK_FIELD,
+    TURN_FIELD,
+)
 
 _logger = logging.getLogger("cortex.tools.audit")
 
@@ -44,6 +51,12 @@ class LoggingAuditSink:
         way `tool` and `arguments` are read. The formatter is what makes printing that safe: a
         rendered value carrying whitespace or a quote is quoted and escaped, so no id can forge
         a field boundary, and an over-long one is cut with a marker.
+
+        The five names come from `cortex_core.log_fields` rather than being written here, this
+        being the one sink that writes the whole vocabulary out as a list and so the one place
+        where naming each element costs nothing a reader wanted (ADR-0009 one-vocabulary
+        addendum). Every other line in the brain names one identity inside its own `extra=` and
+        keeps the literal there, where the string an operator greps is what a reader came for.
         """
         fields: dict[str, object] = {
             "tool": invocation.name,
@@ -56,11 +69,11 @@ class LoggingAuditSink:
             {
                 name: identity
                 for name, identity in (
-                    ("call_id", invocation.call_id),
-                    ("session_id", invocation.session_id),
-                    ("turn_id", invocation.turn_id),
-                    ("task_id", invocation.task_id),
-                    ("item_id", invocation.item_id),
+                    (CALL_FIELD, invocation.call_id),
+                    (SESSION_FIELD, invocation.session_id),
+                    (TURN_FIELD, invocation.turn_id),
+                    (TASK_FIELD, invocation.task_id),
+                    (ITEM_FIELD, invocation.item_id),
                 )
                 if identity
             }

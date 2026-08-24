@@ -3246,3 +3246,57 @@ the id down and the one engine behind the factory echoes it, which makes this an
 on an agreement between two files, in the arm that runs on every turn that is not escalated. The
 case added with that change covers the escalating arm only. Filed as
 [R-347](../refinements/tasks/347-a-transparent-turn-keeps-the-inner-id.md).
+
+## One-name addendum (2026-08-24): the trail and the judge take the brain's name for a conversation
+
+The named-recall addendum above gave the rank's two fallbacks the conversation they happened in and
+spelled it `session`, which is what `LoggingRecallSink` had always spelled it, so that a fallback
+and the trail line for the same recall are greppable together. That argument held and still does.
+What it left open was every other line in the brain, which spells the same fact `session_id`, and
+the split was filed as
+[R-339](../refinements/tasks/339-two-spellings-of-one-conversation.md). It closes here, together
+with its twin about the schedule ticker, under one rule argued in full in the ADR-0009
+one-vocabulary addendum: a line names a work identity with the dispatch stamp's own name for it.
+This addendum records only what that costs and buys on this ADR's own two surfaces.
+
+### The count in the entry had already moved, and it moved the way the decision goes
+
+The entry counted five sites under `session_id` against two under `session`, and its own trail
+raised the first to six when the tool audit line landed. Re-derived on the tree today it is seven
+against two: `engine.py`'s unreadable-tool-call warning attaches `session_id` beside `turn_id`, and
+it landed fifteen minutes after the entry was written and was not noticed when the trail was
+updated the next day. Counting lines instead of sites, which the entry does not, it is ten against
+three, `summarizing.py` carrying two of them. Every recount since the entry opened has moved the
+same way, which is itself a reading: the spelling that keeps arriving on new lines is the one the
+rest of the brain already had.
+
+### What the trail and the judge give up, and it is smaller than the entry feared
+
+The entry named the cost precisely and it was real:
+[memory-pgvector.md](../runbooks/memory-pgvector.md) tells an operator to join a fallback to its
+trail line with `grep "session=<id>"`, and reads `session=None` as a recall that arrived unnamed.
+Both sentences are updated with the rename, in the same change, which is the whole of the cost:
+the runbook lives in this repo, and AGENTS.md freezes a key only once something beyond this machine
+depends on it. Nothing outside this tree reads these logs. What the entry called the closest thing
+this repo's logs have to an interface has exactly one consumer, and it is a file two directories
+away.
+
+The pairing the named-recall addendum was built on is untouched, because both surfaces moved in the
+same commit: the two fallbacks and the trail still spell the conversation the same way as each
+other. What changed is that they now also spell it the way the turn's own failure lines and its
+audited tool calls do, so the grep that used to gather two kinds of line gathers five.
+
+### Consequences
+
+- One grep by conversation reaches the recall trail, the rank's fallbacks, the forgone recall, the
+  unrecorded memory, the lost recap, the unreadable tool call, the three mid-turn failures, the
+  ignored client event and every audited tool call. It used to reach either the first two or the
+  other nine.
+- The trail's field names stop being a second vocabulary a reader has to know about.
+- `scripts/logcouplings.py` now ties this ADR's two surfaces and that runbook sentence to one
+  declaration, so the next rename cannot move the code and leave the instruction behind.
+
+### Deferred by this addendum
+
+Nothing new. The bare-noun spellings on the swap path (`handoff`, `turn`, `active_handoff`) are a
+third instance of the same shape and are filed by the ADR-0009 addendum that carries the rule.

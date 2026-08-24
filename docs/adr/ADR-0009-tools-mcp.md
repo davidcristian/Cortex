@@ -2171,3 +2171,164 @@ Nothing new. The one relation these validators still cannot make true along the 
 already
 [R-392](../refinements/tasks/392-a-re-runs-second-deadline-outlasts-the-queue.md), unchanged by
 this.
+
+## One-vocabulary addendum (2026-08-24): one name per work identity, and the two that were spelled twice
+
+The named-work and named-call addenda gave the audit trail four work identities off the dispatch
+stamp and a fifth off the call, and said the five print alike and are read differently, which is
+the field name's job. That is only true if each has one name. Two of them had two, and the two
+splits were filed separately:
+[R-339](../refinements/tasks/339-two-spellings-of-one-conversation.md) for the conversation and
+[R-394](../refinements/tasks/394-the-fired-item-has-two-spellings-in-the-logs.md) for the fired
+schedule item, the second explicitly asking to be read beside the first. They are one decision and
+close together here.
+
+### Re-derived first, and both counts had moved
+
+**The conversation.** R-339 counted five sites under `session_id` against two under `session`, and
+its own trail raised the first to six when the tool audit line landed. It is seven against two:
+`engine.py`'s unreadable-tool-call warning attaches `session_id` beside `turn_id`, and it landed at
+05:40 on 2026-08-20, fifteen minutes after the entry was written at 05:25, and the trail entry added
+the next day did not notice it. Counting lines rather than sites, which neither the entry nor its
+trail does, it is ten against three, `summarizing.py` carrying two of the ten. Every recount since
+the entry opened has moved the same way.
+
+The runbook cost it named is real and was verified on the file rather than taken from the entry:
+[memory-pgvector.md](../runbooks/memory-pgvector.md) tells an operator to join a fallback to its
+trail line with `grep "session=<id>"`, and reads `session=None` as a recall that arrived unnamed.
+
+**The fired item.** R-394's account of the ticker holds exactly: three `_logger` records under
+`extra={"reminder_id": ...}`, the fire that failed, the release that failed, and the push that fell
+back to pull. Its account of the other side is narrower than the tree. Besides the audit trail,
+`cortex_session/schedule_claims.py` names a schedule item `item_id` on two more lines, the
+quarantine of a corrupt record and the undecodable record on the claim path, and
+[scheduling.md](../runbooks/scheduling.md) prints the second of those verbatim. So the split was
+three lines against three and not three against one trail.
+
+**A third surface, which is what R-394 said it was waiting for, and it was already there.** Eleven
+lines on the swap path name their work with a bare noun: `swap_conductor.py` writes
+`extra={"turn": turn_id}` four times, which is a second spelling of an identity in the vocabulary
+below, and seven lines across `swap_settle.py`, `swap_recovery.py` and `brain_phase.py` name a
+handoff `handoff`, which is a sixth identity the stamp does not carry. Neither entry mentions it and
+both are older than none of it. It is filed rather than fixed here, for the reason given under what
+did not change.
+
+### Decision 1: a line names a work identity with the dispatch stamp's own name for it
+
+The vocabulary is the five the stamp and the audit record already carry: `session_id`, `turn_id`,
+`task_id`, `item_id`, `call_id`. Both renames follow from that one rule and neither needed a
+separate argument, which is why the two entries closed together.
+
+For the conversation the rule and the count agree: seven sites to two, and `session_id` is
+additionally what the seam declares (`ClientEvent`, `SessionSummary`, `DueReminder`), what all
+three Redis codecs write, and what sits beside `turn_id` on the same lines. R-339 worried that
+moving the other five to `session` would leave `turn_id` looking odd; that worry is the argument
+for this direction, since the family is uniform only if the suffix stays.
+
+For the fired item the count does not decide it and the rule does. R-394's objection, that
+`item_id` puts a name on the line that does not match the seam message the line is about, answers
+itself on the tree: two of the ticker's three lines are about a fire that never reached the seam,
+one of them being the release of a claim whose fire failed, so there is no `NotifyRequest` for them
+to be named after. A log line is the brain's reading of its own work, and the brain fired an item.
+The seam's `reminder_id` is untouched, and that the two differ is the decision rather than a drift.
+
+The alternative R-394 raised, carrying both fields on those three records, is refused for the
+reason it anticipated: the formatter renders every field a record carries, so both names would
+print on every one of the three lines and a reader would meet two names for one id in the same
+line, which is the defect wearing a bigger hat.
+
+### Decision 2: the runbook cost is payable, because the interface has one consumer
+
+R-339 called a shipped trail's field names the closest thing this repo's logs have to an interface.
+That is true and the interface's whole consumer list is two sentences in a runbook two directories
+away, both updated in this change. AGENTS.md freezes a key once anything beyond the host machine
+depends on it, and nothing outside this tree reads these logs, so the rename is still cheap and
+this is the moment named in that rule for healing a mismatch.
+
+### Decision 3: the vocabulary is declared once, and one sink spends it
+
+`cortex_core.log_fields` declares `SESSION_FIELD`, `TURN_FIELD`, `TASK_FIELD`, `ITEM_FIELD` and
+`CALL_FIELD`, beside `RESERVED_ATTRS` and `SECRET_NAMES`, because a field's name is the same kind
+of fact those two lists hold: what a field is rather than what it holds. Five constants and not a
+collection, because each is a separate answer a separate set of places must agree with, and because
+a collection reduces to no single value the constant scan could tie a far side to.
+
+`LoggingAuditSink` spends all five and nothing else does. That is a line rather than an
+inconsistency: the audit sink is the one place that writes the whole vocabulary out as a list, where
+naming each element costs a reader nothing, and every other site names one identity inside its own
+`extra=` dict, where the literal is the string an operator greps and hiding it behind an identifier
+would take it out of the one place a reader looks for it. The same trade the registry already makes
+for a docstring restating a number rather than importing it.
+
+### Decision 4: the rest is held by the constant scan, and R-339's reason it could not was wrong
+
+R-339 closed by saying a log field's name is neither declared nor spent, so registering the family
+would need a new kind of entry. It is spent, as the string key opening an `extra=` dict, which is
+the bare-literal case the registry vocabulary already covers; what was missing was a declaring
+site, and decision 3 is that one line. `scripts/logcouplings.py` is a tenth registry part with five
+ordinary entries, tying each declaration to every module that spells the name and every runbook
+that tells an operator to grep it. The part, its naming and its two pinned counts are argued in the
+ADR-0029 addendum that adds it.
+
+### What did not change, deliberately
+
+The swap path keeps its bare nouns, filed as
+[R-415](../refinements/tasks/415-the-swap-path-names-its-work-with-bare-nouns.md). Renaming the
+conductor's four is mechanical, but the seven beside them are a sixth identity that would have to
+join the vocabulary first, and one of those lines is printed verbatim in the swap runbook as
+`handoff=<turn id>`, which is a second question about whether that id is a turn's. Doing either
+inside a close about the conversation and the fired item would have buried both.
+
+No line gained or lost an identity, no seam field moved, no record on disk changed: the Redis
+codecs still spell their own hash keys, which outlive the deployment that wrote them and must stay
+free to move apart from a log field. `NotifyRequest.reminder_id` is untouched.
+
+### Distrust green, over the brain suite
+
+Four mutations, each applied to production code alone with the 2,877 tests of `brain/` re-run over
+it (`pytest -q` at the repo's own fixed seed, integration cases deselected), then restored and read
+back off disk. All four restorations matched by digest.
+
+| Mutation | Reddens |
+| --- | --- |
+| the recall trail reverts to the older `session` spelling | 1 |
+| the rank's two fallbacks revert to it | 3 |
+| the ticker's three lines revert to `reminder_id` | 1 |
+| the tool audit writes its own name for the conversation | 2 |
+
+The third row is the one to read. Reverting **all three** ticker lines reddens a single case, and
+that case asserts two of them: no test in this repo has ever pinned the field name on the
+push-that-fell-back-to-pull line, which is the line an operator meets when the body is down. Its
+name is held by the registry mention alone, whose count of 3 is what notices a line leaving the
+set. That is the division of labour the registry part was added for, written down here rather than
+left to be inferred from a small number.
+
+The second row is three because the judge's pair is asserted from three angles, the record, the
+rendered line and the no-content case, which is what the named-recall addendum built. The fourth
+row is two and is the one that proves decision 3 is load-bearing rather than cosmetic: a sink that
+stops spending the vocabulary and writes its own name for the conversation is caught by the audit
+suite, not only by the scan.
+
+### Distrust green, over the crosscheck registry
+
+Twelve planted disagreements, one at a time on the real tree, all twelve exiting 1 and all twelve
+restorations matching by digest. The counts there are over the crosscheck registry rather than over
+any suite, and the table is in the ADR-0029 addendum beside the part it measures.
+
+### Consequences
+
+- One grep by conversation reaches all ten lines that name one, where it used to reach seven or
+  three. One grep by item reaches the fire, the work firing it caused, the ticker's own account of
+  how it went and the claim path's two failures.
+- The five ids the named-work addendum said are told apart by their field names now have one field
+  name each, so that sentence is true rather than nearly true.
+- A rename of any of the five moves the declaration, and the scan then names every place that did
+  not move with it, including the runbook sentences no import could ever have reached.
+
+### Deferred by this addendum
+
+The swap path's bare nouns
+([R-415](../refinements/tasks/415-the-swap-path-names-its-work-with-bare-nouns.md)), and the
+registry's blindness to a module nobody has listed: a new file writing `extra={"chat_id": ...}` is
+spelled in no mention, so every mention still resolves and the gate stays green
+([R-416](../refinements/tasks/416-a-new-log-line-can-name-its-work-anything.md)).
