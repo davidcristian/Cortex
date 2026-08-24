@@ -101,11 +101,17 @@ have noticed is `integration`-marked and runs only when somebody measures.
 The mail store is a tmpfs, so every start builds the tree again from nothing, and the path it sits
 at is written once in `docker/docker-compose.imap-probe.yml` and handed to the container as
 `CORTEX_IMAP_PROBE_MAIL_ROOT`, which the entrypoint reads and dovecot expands with `%{env:...}`
-(ADR-0022 one-mail-root addendum). Two ways this fixture refuses to start, both by design and both
-naming themselves in `docker compose logs`: `the mail root is not the tmpfs the compose file
-mounts` means the store would keep what a run leaves behind, and `parameter not set` means the
-variable never arrived. Neither is a server fault, and `just up-imap-probe` reports both as a
-container that exited rather than as a stack that came up.
+(ADR-0022 one-mail-root addendum). The configuration directory is a tmpfs too, handed over as
+`CORTEX_IMAP_PROBE_CONFIG_ROOT`, because the image declares a volume there as well and a container
+with nothing mounted at it leaves an anonymous volume behind on every single run; the conf is
+bound in at `/probe.conf` and copied onto that mount by the entrypoint (ADR-0022
+configuration-directory addendum). So a full `up` and `down` of this fixture leaves `docker volume
+ls` exactly as it found it, which is worth checking after a Dovecot bump: a new declared volume in
+the image would start leaking again. Two ways this fixture refuses to start, both by design and
+both naming themselves in `docker compose logs`: `is not the tmpfs the compose file mounts` means
+one of the two mounts went missing, and `parameter not set` means the variable behind it never
+arrived. Neither is a server fault, and `just up-imap-probe` reports both as a container that
+exited rather than as a stack that came up.
 The recipe reaches the server at the published port when that answers and at the container's own
 address when it does not, which is what a Docker Desktop engine beside a WSL distro gives; a probe
 that answers at neither is reported rather than waited on. The answers, measured through

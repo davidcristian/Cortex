@@ -5,10 +5,17 @@ MAIL_UID=1000
 MAIL_GID=1000
 ROOT="$CORTEX_IMAP_PROBE_MAIL_ROOT/probe/Mail"
 
-if [ "$(stat -f -c %T "$CORTEX_IMAP_PROBE_MAIL_ROOT")" != tmpfs ]; then
-    echo "the mail root is not the tmpfs the compose file mounts; the store would keep mail" >&2
-    exit 1
-fi
+require_tmpfs() {
+    if [ "$(stat -f -c %T "$1")" != tmpfs ]; then
+        echo "$1 is not the tmpfs the compose file mounts; $2" >&2
+        exit 1
+    fi
+}
+
+require_tmpfs "$CORTEX_IMAP_PROBE_MAIL_ROOT" "the store would keep mail"
+require_tmpfs "$CORTEX_IMAP_PROBE_CONFIG_ROOT" "every run would leave a volume behind"
+
+cp /probe.conf "$CORTEX_IMAP_PROBE_CONFIG_ROOT/dovecot.conf"
 
 mkdir -p "$ROOT/mailboxes/INBOX/dbox-Mails" \
     "$ROOT/mailboxes/Guarded/dbox-Mails" \

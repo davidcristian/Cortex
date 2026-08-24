@@ -101,6 +101,17 @@ denied outright.
   than three. The store must be the tmpfs the compose file mounts and the entrypoint refuses to
   start when it is not, that being the one property of this fixture whose loss nothing else would
   say out loud (ADR-0022 one-mail-root addendum).
+- **The configuration directory is a tmpfs for a different reason, and the conf is copied onto
+  it.** The image declares a volume at `/etc/dovecot` as well, so a container with nothing mounted
+  there gets an anonymous volume `docker compose down` leaves on the host, once per run. The
+  compose file mounts a tmpfs at the path it hands the container as
+  `CORTEX_IMAP_PROBE_CONFIG_ROOT`, binds the conf in at `/probe.conf` beside the entrypoint, and
+  the entrypoint copies it onto the mount, which is what keeps that one spelling honest: dovecot's
+  configuration directory is compiled in, so a root written as anything else is a server reading
+  the image's own settings and seven red tests rather than a leak nothing mentions. The conf names
+  `/etc/ssl/certs/ssl-cert-snakeoil.pem` and `/etc/ssl/private/ssl-cert-snakeoil.key`, the files
+  the image's `cert.pem` and `key.pem` symlinks point at, because those symlinks are under the
+  tmpfs (ADR-0022 configuration-directory addendum).
 - `EmailConfig` holds env-driven settings (`CORTEX_EMAIL_IMAP_*`): host/port/user/password
   (`SecretStr`), `security` (starttls|ssl), and `ca_cert` / `tls_insecure` for the Bridge's
   self-signed cert. Defaults target a local Bridge (127.0.0.1:1143, STARTTLS).
