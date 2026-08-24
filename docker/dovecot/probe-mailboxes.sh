@@ -49,7 +49,21 @@ set -eu
 
 MAIL_UID=1000
 MAIL_GID=1000
-ROOT=/srv/mail/probe/Mail
+ROOT="$CORTEX_IMAP_PROBE_MAIL_ROOT/probe/Mail"
+
+# The mail root is the compose file's, and dovecot resolves the account's home out of the same
+# variable, so the store, this tree and that home are one spelling rather than three. A root that
+# never arrives is already covered: `set -u` above stops the container here rather than building a
+# tree at the filesystem root. This covers the other way it can be wrong, a root the tmpfs is not
+# mounted at. Such a store answers every question the suite asks and keeps what a run leaves
+# behind, which is the one property this fixture claims for itself and the only one whose loss
+# nothing else would say out loud, so it is checked rather than trusted. The image declares a
+# volume at the path the compose file mounts, so an unmounted root is not even the container's own
+# writable layer: docker fills it with an anonymous volume that outlives the container.
+if [ "$(stat -f -c %T "$CORTEX_IMAP_PROBE_MAIL_ROOT")" != tmpfs ]; then
+    echo "the mail root is not the tmpfs the compose file mounts; the store would keep mail" >&2
+    exit 1
+fi
 
 mkdir -p "$ROOT/mailboxes/INBOX/dbox-Mails" \
     "$ROOT/mailboxes/Guarded/dbox-Mails" \
@@ -58,6 +72,6 @@ mkdir -p "$ROOT/mailboxes/INBOX/dbox-Mails" \
     "$ROOT/mailboxes/Feigned/Followed/dbox-Mails"
 printf 'owner l\n' > "$ROOT/mailboxes/Guarded/dbox-Mails/dovecot-acl"
 printf 'V\t2\n\nGhost\nFeigned/Followed\n' > "$ROOT/subscriptions"
-chown -R "$MAIL_UID:$MAIL_GID" /srv/mail/probe
+chown -R "$MAIL_UID:$MAIL_GID" "$CORTEX_IMAP_PROBE_MAIL_ROOT/probe"
 
 exec /usr/sbin/dovecot -F

@@ -94,6 +94,13 @@ denied outright.
   never runs in CI, so the gate is the only thing that would notice the fixture and the suite
   drifting apart; the invented name the suite expects to be refused is deliberately not tied,
   the point of it being that nothing builds it.
+- **The mail root those names live under is the compose file's, handed to the container in
+  `CORTEX_IMAP_PROBE_MAIL_ROOT`.** The script builds the tree under it and dovecot resolves the
+  account's home out of it with `%{env:...}`, which needs the name on `import_environment` to
+  reach the processes that expand it, so the store, the tree and the home are one spelling rather
+  than three. The store must be the tmpfs the compose file mounts and the entrypoint refuses to
+  start when it is not, that being the one property of this fixture whose loss nothing else would
+  say out loud (ADR-0022 one-mail-root addendum).
 - `EmailConfig` holds env-driven settings (`CORTEX_EMAIL_IMAP_*`): host/port/user/password
   (`SecretStr`), `security` (starttls|ssl), and `ca_cert` / `tls_insecure` for the Bridge's
   self-signed cert. Defaults target a local Bridge (127.0.0.1:1143, STARTTLS).

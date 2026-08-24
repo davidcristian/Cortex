@@ -19,6 +19,14 @@
 
 name: cortex-imap-probe
 
+# The probe's mail root, written here and read everywhere else. The store below, the tree the
+# entrypoint builds and the home dovecot resolves are one path, and this file used to spell it
+# once while docker/dovecot/probe-mailboxes.sh spelled it twice and docker/dovecot/probe.conf
+# twice more. Moving the conf alone left dovecot resolving a home nothing built, which is loud;
+# moving this one alone left the store working and no longer throwaway, which is not. So it is
+# an anchor, aliased into the tmpfs and into the environment the other two files read it from.
+x-mail-root: &mail-root "/srv/mail"
+
 services:
   imap-probe:
     # Pinned: the whole value of this stack is that the wording it produces was recorded
@@ -29,6 +37,12 @@ services:
     # server itself. `init` restores the reaping the image's tini was doing.
     entrypoint: ["/bin/sh", "/probe-mailboxes.sh"]
     init: true
+    environment:
+      # The mail root above, handed to the two files that need it. The entrypoint reads it
+      # directly, and `set -u` stops the container if it ever arrives unset; dovecot reads it
+      # with `%{env:...}`, which needs the name listed on `import_environment` in probe.conf
+      # to reach the processes that expand it.
+      CORTEX_IMAP_PROBE_MAIL_ROOT: *mail-root
     volumes:
       # The whole configuration, replacing the image's own (which has no ACL plugin and so
       # cannot produce the refusal this exists for). Only the file is mounted, so the
@@ -43,8 +57,11 @@ services:
         read_only: true
     tmpfs:
       # The mail store, deliberately not a volume: a fixture that starts empty every time
-      # cannot drift from the script that builds it, and `down` leaves nothing behind.
-      - /srv/mail
+      # cannot drift from the script that builds it, and `down` leaves nothing behind. The
+      # entrypoint checks that this mount is really here before it builds anything, so a store
+      # that stopped being throwaway is a container that will not start rather than a fixture
+      # quietly keeping what the last run left.
+      - *mail-root
     ports:
       # Loopback-only publish so a host-side measurement can reach it. Nothing else may. Whose
       # loopback it lands on is the engine's business rather than this file's: a Docker Desktop

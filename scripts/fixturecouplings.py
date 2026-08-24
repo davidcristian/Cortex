@@ -24,14 +24,15 @@ purpose. Nor the login's password, which is the account's own name spent a secon
 expression, `nopassword=y` leaving nothing on the server to agree with it: a value spelled twice in
 one file under one constant is not two places, and the far side here is an absence.
 
-**And the mail root above the account is not here, for a reason worth writing down.** `/srv/mail`
-is spelled in the script, in `docker/dovecot/probe.conf` and in the compose tmpfs that makes the
-store throwaway, and those three really must agree. No tree declares it. This scan compares a
-declaration against the places restating one, and inventing a declaration in a suite that has no
-use for the value would be the gate editing the contract it watches, so the prefix rides along
-inside the account's own template as shape rather than as a value of its own. That leaves the
-compose tmpfs untied, which is the same shape of gap the compose defaults had before a gate of
-their own was written for them.
+**And the mail root above the account is not here, because there is no longer a coupling to hold.**
+It was spelled three times, in the script, in `docker/dovecot/probe.conf` and in the compose tmpfs
+that makes the store throwaway, with no tree declaring it and so nothing this scan could read: it
+compares a declaration against the places restating one, and inventing a declaration in a suite
+with no use for the value would be the gate editing the contract it watches. The fixture answered
+that by spelling the root once, in the compose file, and handing it to the other two files in the
+environment (ADR-0022 one-mail-root addendum). A value with one place is not a coupling, which is
+the same reason the name the suite invents to be refused is not registered here, so the prefix
+still rides inside the account's own template as shape and the registry gained no row.
 """
 
 from couplings import Constant, Mention, Site
@@ -44,19 +45,21 @@ FIXTURE_COUPLINGS: tuple[Constant, ...] = (
         label="the probe's account",
         why=(
             "this server resolves an account's mail home out of the login itself "
-            "(`home=/srv/mail/%Lu` in docker/dovecot/probe.conf), so the segment the script "
-            "builds its tree under IS the account the suite logs in as, and a rename on one side "
-            "alone leaves dovecot looking in an empty home: every mailbox goes missing at once, "
-            "the control among them, and the run reads as a server that lost its mail rather "
-            "than as a fixture built for somebody else (ADR-0022 two-server addendum)"
+            "(`home=%{env:CORTEX_IMAP_PROBE_MAIL_ROOT}/%Lu` in docker/dovecot/probe.conf), so the "
+            "segment the script builds its tree under IS the account the suite logs in as, and a "
+            "rename on one side alone leaves dovecot looking in an empty home: every mailbox goes "
+            "missing at once, the control among them, and the run reads as a server that lost its "
+            "mail rather than as a fixture built for somebody else (ADR-0022 two-server addendum)"
         ),
         sites=(Site(PROBE_SUITE, "PROBE_LOGIN"),),
         # Two occurrences and one set: the home the tree is built under, and the same home handed
-        # to `chown` seven lines later. Unlike the guarded mailbox's pair, a half applied rename
-        # here is not silent, `set -eu` stopping the script on a chown of a directory nothing
-        # made. It is only late: nothing runs this fixture until somebody measures, which is the
-        # whole reason this part exists, so the count moves that failure to the gate that runs.
-        mentions=(Mention(PROBE_SCRIPT, "/srv/mail/{value}", occurrences=2),),
+        # to `chown` further down. The mail root above it is the environment variable the compose
+        # file hands in, which is the fixture's one spelling of that path and no part of this
+        # value. Unlike the guarded mailbox's pair, a half applied rename here is not silent,
+        # `set -eu` stopping the script on a chown of a directory nothing made. It is only late:
+        # nothing runs this fixture until somebody measures, which is the whole reason this part
+        # exists, so the count moves that failure to the gate that runs.
+        mentions=(Mention(PROBE_SCRIPT, "$CORTEX_IMAP_PROBE_MAIL_ROOT/{value}", occurrences=2),),
     ),
     Constant(
         label="the probe mailbox the ACL shuts",

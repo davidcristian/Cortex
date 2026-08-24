@@ -1565,3 +1565,141 @@ integration deselected) is unmoved by all three, which is the point of a fixture
 | the fixture stops building `Feigned` as a mailbox, leaving it a bare node | the plain listing starts calling it unselectable, which is what the second assertion denies | 1 of 7 live red, twice in a row, at the plain-LIST reading, and `crosscheck` red on the parent's mailbox mention |
 | rename the pair in the script alone | the fixture builds a tree the suite is not measuring | 1 of 7 live red, and `crosscheck` red 3 times over 2 couplings |
 | all three reverted | back to green | 7 of 7 live green three runs running, one against a fresh container and two against a warm one |
+
+## Addendum (2026-08-24): one mail root, handed to the fixture out of the environment
+
+The probe's mail store is one path that three files had to agree about: the tmpfs in
+`docker/docker-compose.imap-probe.yml` that makes the store throwaway, the tree
+`docker/dovecot/probe-mailboxes.sh` builds under it, and the home
+`docker/dovecot/probe.conf` resolves for the account. Five spellings, no declaration anywhere,
+and nothing able to hold them together: `crosscheck.py` compares a declaration against the places
+restating it, and inventing one in a suite with no use for the value would be the gate editing the
+contract it watches. That is why the fixture part of the registry could tie the account and not
+the root above it. The two halves failed differently. Move the conf's alone and dovecot resolves a
+home nothing built, every mailbox missing at once, which is loud. Move the tmpfs alone and the
+fixture keeps working while the store stops being throwaway, which is silent, and silence is what
+this closes.
+
+The answer is smaller than a gate. The root is written once, in the compose file, and the other
+two files read it out of the environment.
+
+### Dovecot does take a path from the environment, and the first syntax for it does not work
+
+Measured against `dovecot/dovecot:2.3.21` itself rather than reasoned about, three configurations
+in a row, each a container started from the real conf with the account's home written a different
+way and read back with `doveadm user probe`:
+
+| the conf says | what the server did with it |
+| --- | --- |
+| `home=$ENV:PROBE_MAIL_ROOT/%Lu` | not expanded at all; the userdb lookup answered with no fields, so nothing resolved |
+| `home=%{env:PROBE_MAIL_ROOT}/%Lu` | expanded, and expanded to nothing: `doveadm user probe` reported `home /probe` |
+| the same, plus the name on `import_environment` | `doveadm user probe` reported `home /srv/mail/probe` |
+
+The second row is the one worth keeping. `%{env:...}` is a variable this server knows, and the
+variable is empty because the master process passes its children a named subset of its own
+environment; `import_environment` is the list, and the name has to be on it before the auth and
+mail processes that do the expanding can see anything. A configuration that reads the environment
+without that line fails in exactly the shape a wrong path fails in, so the line is not a detail
+and the conf says so beside it. `$ENV:` is not dovecot's spelling here at all: the parser does
+expand `$name` references to settings, `mail_plugins = $mail_plugins acl` reaching `doveconf` as
+` acl`, which is what makes the first row a measurement rather than a typo.
+
+### The one spelling is an anchor, not a substitution
+
+The compose file declares `x-mail-root: &mail-root "/srv/mail"` and aliases it twice, into the
+tmpfs and into `CORTEX_IMAP_PROBE_MAIL_ROOT` in the service's environment. An anchor rather than
+`${CORTEX_IMAP_PROBE_MAIL_ROOT:-/srv/mail}` for two reasons. A substitution would spell the
+default once per use, which is two spellings in one file and the same drift one file smaller. And
+a substitution reads the shell that ran `docker compose`, so a variable of that name left in an
+operator's environment would move a fixture whose whole value is that it is the same fixture every
+time. The anchor is YAML, resolved before compose interpolates anything, and nothing outside the
+file can reach it.
+
+### What the trade actually is
+
+The path had five spellings across three files and one of the drifts was silent. It now has one,
+and what is spelled in several places is the variable's NAME: once in the compose file, three
+times in the script, twice in the conf. Every drift of a name is loud, and each fails in its own
+way rather than in a way that has to be recognised. Misspell it in the script and `set -u` stops
+the container before it builds anything, `parameter not set` naming the line. Drop it from
+`import_environment` and the expansion is empty, so every home resolves under the filesystem root
+and all seven live tests go red at once. Rename it in the compose file and both of those happen
+together. None of them is a fixture that quietly measures something else.
+
+### The count included a setting that did nothing
+
+The conf spelled the root twice, as the static userdb's `home=` and again as `mail_home`. Only the
+first was ever read: a userdb that answers with a home is what `~` in `mail_location` expands to,
+and `mail_home` is the fallback for a userdb that does not. Measured by misspelling the variable in
+`mail_home` alone, which changed nothing, `doveadm user probe` still reporting
+`home /srv/mail/probe` and all seven live tests still green. So one of the five spellings this
+entry counted was dead configuration, and it is gone rather than carried forward under a new
+spelling.
+
+### The store is now checked rather than claimed
+
+The compose file's own comment says the store is a tmpfs so that every start is empty and `down`
+leaves nothing behind. Nothing enforced that, which is what made the silent half silent. The
+entrypoint now asks the kernel before it builds anything: if the mail root is not a tmpfs mount it
+prints one line and exits, so a store that stopped being throwaway is a container that will not
+start.
+
+That check is worth more than it looks, because of what the image does with the path. This image
+declares `VOLUME /srv/mail` (and `/etc/dovecot`), so a tmpfs that moves off the mail root does not
+leave the store on the container's writable layer: docker fills the path with an anonymous volume.
+Measured on the pre-change fixture with the tmpfs moved alone, the store was an anonymous volume
+docker had named for itself, a file written into it survived a container restart, and the volume
+outlived `docker rm -f`. The old silent failure was therefore not only a store that keeps mail; it
+was one that keeps mail on the host, under a name nobody chose, after the fixture is gone.
+
+The same declaration has a residue this did not fix: `/etc/dovecot` is a volume too, and the
+compose file binds only the single file inside it, so every probe run leaves an anonymous volume
+behind that `down` does not remove, against the same comment's promise. Filed as
+[R-424](../refinements/tasks/424-every-probe-run-leaves-an-anonymous-volume.md).
+
+### The registry gained no row, and its subject did not move
+
+The other option the entry offered was to ask whether `crosscheck.py` could hold a coupling whose
+places are all far sides, with no declaration anywhere. It is not needed and is not taken: a value
+with one place is not a coupling. The fixture part of the registry keeps the account row it
+already had, whose mention now renders the account under the variable rather than under the
+literal path (`$CORTEX_IMAP_PROBE_MAIL_ROOT/{value}`, still pinned at two occurrences, the tree
+and the `chown`), and the paragraph that explained why the root could not be a row now explains
+why there is nothing left to tie. The origin line on the entry named the constant scan's decision
+record, which is where the gap was written down; the fixture is this record's, and that is where
+this went.
+
+### Proved able to fail, six times, over the probe's live suite
+
+The suite every count below is over is the probe's own: **seven `integration`-marked tests** in
+`brain/packages/email/tests/test_imap_probe_live.py`, run with `just email-folder-probe` against
+the running container, excluded from the coverage gate and never run in CI. Each mutation was
+planted in one file, measured after a container recreate, and reverted from a copy taken before
+the first. This host still cannot let compose pick a network (`all predefined address pools have
+been fully subnetted`, the split default route recorded in the addendum above), so every run added
+a scratch override pinning an explicit subnet and changed nothing else in the file.
+
+| # | mutation | expected | observed |
+| --- | --- | --- | --- |
+| 0 | the pre-change files, tmpfs moved alone | the silent failure this closes | 7 passed; the store an anonymous volume that kept a written file across a restart and outlived the container |
+| 1 | the one spelling moved, anchor and all | everything moves together | 7 passed, `home /srv/probe-mail/probe`, the tmpfs there too |
+| 2 | the tmpfs re-spelled to another path, alias dropped | the entrypoint refuses | `up --wait` failed, container exit 1, `the mail root is not the tmpfs the compose file mounts` |
+| 3 | the name dropped from `import_environment` | the expansion empties and the homes go | 7 failed, `home /probe` |
+| 4 | the name misspelled in the script's `ROOT` alone | `set -u` stops it, and the account row reddens | container exit 2, `CORTEX_IMAP_PROBE_MAILROOT: parameter not set`; `check-crosscheck` red, found 1 pinned 2 |
+| 5 | the tmpfs dropped entirely | the entrypoint refuses | `up --wait` failed, container exit 1, same line |
+| 6 | the name misspelled in `mail_home` alone, before it was removed | unknown, and the reason it was measured | 7 passed, home unchanged: the setting was inert, which is why it is gone |
+
+Row 6 is the one that changed the shape of the fix rather than confirming it. Row 0 is the only
+row that cannot be re-run from the tree, the files it needs being the ones this replaced.
+
+**Validation.** The live suite was run before anything changed (7 passed), after the change
+(7 passed) and again after the last mutation was reverted (7 passed), each through
+`just email-folder-probe` against the container the compose file describes. `just check` green.
+
+### Records
+
+The record is the task file
+[R-390](../refinements/tasks/390-the-probes-mail-root-is-spelled-in-three-files.md), which closes,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from it, the three
+fixture files, `scripts/fixturecouplings.py`, the email module contract, the IMAP runbook, and
+this addendum.
