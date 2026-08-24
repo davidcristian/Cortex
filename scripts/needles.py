@@ -52,10 +52,12 @@ chosen rather than cheapest:
   needle has no run at all, and the first occurrence is what the message then names.
 - **The line, and the words on it.** A line number alone turns the grep into a jump, which is
   worth having and is not enough in a log nobody can jump from: the reading that dismissed the
-  case that opened this (`~11 GB` in a paragraph about VRAM, a hundred lines from the grace it
-  was read against) is the sentence and not the number. So the line's own text comes with it,
-  windowed around the match, because a runbook table row is several hundred characters and a
-  fault is one sentence.
+  case that opened this (`~11 GB` in a paragraph about VRAM) is the sentence and not the number.
+  Nor could proximity have dismissed it. That homonym is seventy one lines from the needle's own
+  line and sits one line above a sentence that does name the constant, which is why the nearest
+  occurrence is only a tie break between matches and the words are the verdict. So the line's own
+  text comes with it, windowed around the match, because a runbook table row is several hundred
+  characters and a fault is one sentence.
 - **How many places spell it.** "Spelled in eleven places" is itself the answer that the reading
   proves nothing, and it costs one number.
 
