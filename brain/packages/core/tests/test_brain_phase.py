@@ -21,7 +21,10 @@ Distrust-green proofs (each mutation reddened the named test, then was restored)
 - fencing under a fresh nonce instead of the record's reddens
   ``test_the_deep_phase_fences_under_the_record_s_own_nonce``;
 - dropping the phase's own ``aclose`` on its event stream reddens
-  ``test_closing_the_deep_phase_mid_stream_tears_its_loop_down``.
+  ``test_closing_the_deep_phase_mid_stream_tears_its_loop_down``;
+- reverting both cadence spellings of the work field to the bare ``handoff`` they used to write
+  reddens **2** (measured 2026-08-24 over ``brain/``), the spilled case and the no-reading one,
+  which is one case per spelling and is why both are asserted (ADR-0009 sixth-name addendum).
 """
 
 import logging
@@ -509,6 +512,11 @@ async def test_a_deep_phase_under_the_declared_floor_warns_once_naming_both_numb
     assert records[0].levelno == logging.WARNING
     assert _extra(records[0], "tokens_per_second") == 17.29  # pyright: ignore[reportAttributeAccessIssue]
     assert _extra(records[0], "floor_tokens_per_second") == 22.0  # pyright: ignore[reportAttributeAccessIssue]
+    # And which work was slow, under the name the rest of the brain names a turn with: the phase
+    # is handed a handoff id, which is the escalating turn's own (ADR-0009 sixth-name
+    # addendum), so a spill joins that turn's other lines rather than sitting in a vocabulary
+    # of its own.
+    assert _extra(records[0], "turn_id") == harness.TURN  # pyright: ignore[reportAttributeAccessIssue]
     assert records[0].getMessage() == SPILLED_LOG_MSG
 
 
@@ -547,6 +555,9 @@ async def test_a_backend_that_reports_no_timings_is_not_reported_as_healthy(
     assert len(records) == 1
     assert records[0].levelno == logging.INFO
     assert "nothing was checked" in records[0].getMessage()
+    # The other of the phase's two cadence spellings, named the same way: silence about a turn is
+    # still about that turn (ADR-0009 sixth-name addendum).
+    assert _extra(records[0], "turn_id") == harness.TURN  # pyright: ignore[reportAttributeAccessIssue]
 
 
 async def test_one_slow_round_of_a_tool_loop_does_not_convict_the_tier(

@@ -18,6 +18,11 @@ because each covers the other's failure. It goes onto the record, where it outli
 and is the only thing a later reader of a ``FAILED`` record has. It goes into one line of this
 brain's own log, where an operator correlating a failure while a user waits will actually look,
 and where it still lands when the store is the thing that broke and the record cannot carry it.
+
+Every line here names its work ``turn_id`` and not ``handoff``, a handoff id being the escalating
+turn's id (``handoff.py``), so one grep by turn reaches the settle, the turn's own failures and
+every tool call it made (ADR-0009 sixth-name addendum). The record's field keeps its own name,
+being a wire format that outlives the deployment.
 """
 
 import logging
@@ -76,7 +81,7 @@ class HandoffSettler:
         """
         _logger.warning(
             "a handoff ended failed",
-            extra={"handoff": record.handoff_id, "reason": reason},
+            extra={"turn_id": record.handoff_id, "reason": reason},
         )
         await self._settle(record.handoff_id, HandoffState.FAILED, reason)
 
@@ -93,7 +98,7 @@ class HandoffSettler:
         except HandoffStoreError:
             _logger.exception(
                 "could not record the handoff's state",
-                extra={"handoff": handoff_id, "state": state.value},
+                extra={"turn_id": handoff_id, "state": state.value},
             )
             return False
         return True
@@ -107,5 +112,5 @@ class HandoffSettler:
             # escalation stays refused until then, which is the failure the log has to name.
             _logger.exception(
                 "could not release the finished handoff; escalation stays refused until a restart",
-                extra={"handoff": handoff_id},
+                extra={"turn_id": handoff_id},
             )

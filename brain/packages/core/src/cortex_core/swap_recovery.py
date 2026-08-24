@@ -74,7 +74,9 @@ async def _fail_stranded_handoff(handoffs: HandoffStore) -> None:
     record afterwards and has only it. A record settled by this path is the one case where the
     process that ran the handoff is definitely gone, so the log line below and the record's own
     reason are not two copies for one reader; they are one sentence for two, and this is the
-    boot that can still say it.
+    boot that can still say it. It names the stranded work ``turn_id``, a handoff id being the
+    escalating turn's id (``handoff.py``), which is what lets a reader carry the id off this line
+    into the previous boot's own record of that turn (ADR-0009 sixth-name addendum).
     """
     try:
         record = await handoffs.active()
@@ -82,7 +84,7 @@ async def _fail_stranded_handoff(handoffs: HandoffStore) -> None:
             return
         _logger.warning(
             "a handoff did not survive the restart; marking it failed",
-            extra={"handoff": record.handoff_id, "state": record.state.value},
+            extra={"turn_id": record.handoff_id, "state": record.state.value},
         )
         await handoffs.transition(record.handoff_id, HandoffState.FAILED, failure=STRANDED_REASON)
     except HandoffStoreError:

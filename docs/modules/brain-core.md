@@ -350,7 +350,10 @@ under "Use-case" is what snapshots it and runs the swap):
   values); `terminal` is `True` for the last two, the store-facing distinction (a terminal
   record stops being `active()` and may expire). Boot recovery marks any non-terminal record
   `FAILED`; the full transition sequence belongs to the conductor, not a store.
-- `HandoffRecord` is a frozen dataclass: `handoff_id` (= the escalating `turn_id`),
+- `HandoffRecord` is a frozen dataclass: `handoff_id` (= the escalating `turn_id`, which is why
+  every log line on this path names its work `turn_id` and not `handoff`, ADR-0009 sixth-name
+  addendum; the field, the codec's hash key and the Redis key keep the word, being a record's own
+  schema and address),
   `session_id`, `requested_at` (tz-aware, rejects naive), `state`, `brief` (the cortex's
   escalation ask), `nonce` (the turn's fence id, so the tail's fenced blocks stay explained),
   `tainted` / `opaque` / `sources` / `untrusted_urls: frozenset[str]` (the whole serialized
@@ -1302,7 +1305,9 @@ Use-case:
   `run_handoff(slot, *, session_id, turn_id)` takes the residency `handoff_claim` **first**, so
   a concurrent handoff is refused with the honest note before anything is read, written,
   drained, or evicted (the store's `active()` check stays as the second line, for a record the
-  store still holds); **refuses a turn whose ledger is `opaque`** with `OPAQUE_TURN_NOTE`
+  store still holds, and its line is the one place in the brain that names two of one identity:
+  the refused turn is `turn_id` and the one the store is holding is `active_turn_id`, the
+  qualifier in front so the family grep still reaches both, ADR-0009 sixth-name addendum); **refuses a turn whose ledger is `opaque`** with `OPAQUE_TURN_NOTE`
   (ADR-0029: pixels are turn-local, so the deep model would get a tool message promising a
   picture with none attached, and the capture may have happened *after* the handoff was approved,
   which is why this refusal is here and not in the tool); **refuses a deployment whose model host
@@ -1328,7 +1333,8 @@ Use-case:
   no reason (`BRAIN_ACTIVE`, `DONE`), and `fail(record, reason)` for the one that does, so no path
   can settle a handoff failed without saying why. `fail` writes the reason to two places, each
   covering the other's failure: onto the record, where it outlives the process, and into one
-  `WARNING` (`a handoff ended failed`, with the reason in a `reason` field), which still lands
+  `WARNING` (`a handoff ended failed`, with the reason in a `reason` field and the turn in
+  `turn_id`), which still lands
   when the store is the thing that broke and the record has to be dropped instead. The level is
   a statement about the machine: every path that reaches it has converged back to a serving
   cortex, and the louder levels are already spent on the failures somebody must act on.
@@ -1361,7 +1367,9 @@ Use-case:
   watches decode cadence** (ADR-0030 spill-watch addendum): it puts a `CadenceWatch` on the loop
   context and, after the stream and before it persists, logs the tier's rate once, at WARNING with
   the shortfall when the tier never reached `cadence.floor_tps` and at INFO otherwise, including
-  when the watch has no reading at all, which is never reported as a pass. It then hands the same
+  when the watch has no reading at all, which is never reported as a pass. Both arms name the work
+  `turn_id`, the handoff id they are handed being the escalating turn's own, so a slow deep tier
+  joins that turn's other lines. It then hands the same
   verdict to `cadence.sink` (ADR-0030 spill-note addendum), which is how a spill reaches an
   operator who is not tailing a container; a reading that judged nothing, and a phase with no
   reading at all, publish **nothing**, since a "no" for want of an opinion would clear a standing
@@ -1400,7 +1408,8 @@ Use-case:
 - `recover_handoffs(handoffs, host, plan, tiers, *, clock, sleeper) -> bool` and
   `converge_residency(host, plan, tiers, *, clock, sleeper) -> bool` (`swap_recovery.py`) are boot
   recovery: the composition root calls the first once at startup, and it marks any non-terminal
-  record `FAILED`, with `STRANDED_REASON` on it
+  record `FAILED`, saying so in one `WARNING` naming the stranded turn (`turn_id`) and the state
+  it was left in, with `STRANDED_REASON` on it
   (a handoff cannot outlive its process; a live record would otherwise refuse every later
   escalation, and this is the one settle whose writer is certainly not the process that ran the
   handoff, so the record is the only place the reason can still be said) and converges the GPU
@@ -2236,7 +2245,12 @@ Log rendering (ADR-0038 rendered-fields addendum; `log_fields.py` + `log_format.
   `item_id`, so a grep for either returned half the evidence. Only `LoggingAuditSink` spends them
   as code, being the one sink that writes the whole vocabulary out as a list; every other line
   keeps the literal an operator greps, and `scripts/logcouplings.py` is what ties those literals
-  and the runbooks quoting them back to here.
+  and the runbooks quoting them back to here. **Five and not six**: the swap path's `handoff`
+  looked like an identity the stamp does not carry until the mint was read, and a handoff id is
+  the escalating turn's id, so those lines name a turn (ADR-0009 sixth-name addendum). A line
+  naming a **second** instance of one identity qualifies the name in front and keeps the family
+  word (`active_turn_id` for the turn already holding the swap), so the two are told apart on the
+  line and one grep still reaches both.
 - **Secrets are withheld by the formatter, not by its callers** (AGENTS.md gate 5). A field whose
   name contains any of `SECRET_NAMES` (`token`, `password`, `passwd`, `secret`, `credential`,
   `apikey`, `api_key`, `authorization`, `cookie`, case-insensitively) renders `REDACTED`

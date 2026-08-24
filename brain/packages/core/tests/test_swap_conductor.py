@@ -49,6 +49,20 @@ Distrust-green proofs (each mutation reddened the named test, then was restored)
   asserting an empty log, so the prologue's cost is pinned wherever it was ever cared about.
   The last two are the two ways this could have been built wrongly, and each reddens the case
   written for it plus the port's own three-answer case in ``test_residency.py``.
+
+The log-vocabulary mutations, all measured 2026-08-24 over ``brain/`` (ADR-0009 sixth-name
+addendum, where the whole table is):
+
+- naming the refused turn and the one the store still holds the other way round, and dropping
+  the qualifier so both are named alike, each reddens **1**,
+  ``test_a_second_concurrent_handoff_is_refused_without_evicting_anything``;
+- reverting all four of the conductor's refusals to the bare ``turn`` reddens that same **1**
+  case and no other: three of the four are pinned by no test here, and their names are held by
+  ``scripts/logcouplings.py``'s count of four instead;
+- reverting the settler's failure line to the bare ``handoff`` reddens **2**, both parametrized
+  cases of ``test_a_swap_that_broke_writes_the_model_hosts_own_sentence_down``, and reverting all
+  three of the settler's lines reddens exactly those same two, the other two lines being the
+  registry's to hold.
 """
 
 import asyncio
@@ -237,7 +251,14 @@ async def test_the_deep_phase_resumes_the_carried_budget_and_taint() -> None:
 async def test_a_second_concurrent_handoff_is_refused_without_evicting_anything(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """One GPU means one handoff: the second is told so and nothing is unloaded."""
+    """One GPU means one handoff: the second is told so, nothing is unloaded, and both are named.
+
+    The only line in the brain that names two of one identity, so it is the only one where the
+    names have to tell them apart: the turn being refused is the line's own work and keeps the
+    plain ``turn_id``, while the turn the store is still holding takes the qualified spelling
+    (ADR-0009 sixth-name addendum). Getting these two the same way round is the difference
+    between an operator restarting the wedged handoff and restarting the turn that asked.
+    """
     live = build_harness()
     await live.seed_session()
     await live.handoffs.put(
@@ -250,8 +271,11 @@ async def test_a_second_concurrent_handoff_is_refused_without_evicting_anything(
     assert _texts(events) == ALREADY_ACTIVE_NOTE
     assert live.host.calls == harness.PREFLIGHT_CALLS  # nothing stopped, the cortex still serves
     assert live.backend.calls == 0
-    assert [record.message for record in caplog.records] == [
-        "refusing a handoff while the store still has one in flight"
+    assert [(record.message, record_fields(record)) for record in caplog.records] == [
+        (
+            "refusing a handoff while the store still has one in flight",
+            {"active_turn_id": "t-other", "turn_id": harness.TURN},
+        )
     ]
 
 
@@ -486,7 +510,13 @@ async def test_a_swap_that_broke_writes_the_model_hosts_own_sentence_down(
     logged = [
         record for record in caplog.records if record.getMessage() == "a handoff ended failed"
     ]
-    assert [record_fields(entry)["reason"] for entry in logged] == [settled.failure]
+    # The whole line, since this is the one the swap runbook prints verbatim: the reason, and the
+    # turn it failed for under the name every other line about that turn spells (ADR-0009
+    # sixth-name addendum). It said `handoff` here until a handoff id was read at its mint
+    # and turned out to be the escalating turn's own.
+    assert [record_fields(entry) for entry in logged] == [
+        {"turn_id": harness.TURN, "reason": settled.failure}
+    ]
 
 
 async def test_a_deep_model_that_never_becomes_ready_ends_the_turn_honestly() -> None:

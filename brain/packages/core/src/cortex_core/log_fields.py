@@ -150,9 +150,11 @@ RESERVED_ATTRS = frozenset(
 # what tells the five apart from the readings printed beside them, and the seam's own
 # `reminder_id` names a message the body is handed rather than the item the brain fired.
 #
-# The five are the dispatch stamp's, so the swap path's own `handoff` and its second spelling of
-# the turn are outside them and remain a second vocabulary for now, which is the same defect one
-# scope further out and is filed rather than fixed here.
+# Five and not six: the swap path's `handoff` looked like a sixth identity and was not one, a
+# handoff id being the escalating turn's id at the only place that mints one (`handoff.py`), so
+# those lines name a turn and say so. A line naming a SECOND instance of one identity qualifies
+# the name in front and keeps the family word, `active_turn_id` for the turn already holding the
+# swap, so the two are told apart on the line and a grep for the family still reaches both.
 SESSION_FIELD = "session_id"
 TURN_FIELD = "turn_id"
 TASK_FIELD = "task_id"

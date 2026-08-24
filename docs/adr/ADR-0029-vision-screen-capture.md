@@ -5046,3 +5046,68 @@ The record is this addendum, `scripts/logcouplings.py`, `scripts/registry.py`, w
 [modules/repo-gates.md](../modules/repo-gates.md) and AGENTS.md, which both state what the registry
 is written in, and the two task files that close, whose rule is argued in the ADR-0009
 one-vocabulary addendum.
+
+## Addendum (2026-08-24): the log part takes the swap path, qualified spelling and all
+
+The addendum above added `logcouplings.py` as the tenth registry part and tied five declarations to
+the modules that spell them. It listed the swap path under what is deliberately not there, on the
+reading that a handoff was a sixth identity with no declaration to be tied to. That reading was
+wrong about the code: a handoff id is the escalating turn's id at the only place one is minted, so
+those lines name a turn (ADR-0009 sixth-name addendum) and belong to the turn entry like any other.
+They are registered here now.
+
+### What the part gained
+
+Seven mentions and two pinned counts, all on the turn entry, which goes from four mentions to
+eleven: `swap_conductor.py` at an exact **4**, `swap_settle.py` at an exact **3**,
+`swap_recovery.py` and `brain_phase.py` as presence checks, the qualified spelling, and the swap
+runbook's two sentences, the pasted failure line and the grep instruction beside it. The registry
+is now **67 entries over 77 declaring sites and 208 mentions, 21 of them pinned to a count**, of
+which this part is 5 entries, 5 sites, 28 mentions and 4 counts.
+
+The two new counts follow the rule the part was written with rather than widening it. The
+conductor's four are its whole account of a handoff that never started and the settler's three are
+its whole account of settling one, so in each case a line leaving the set is the drift the entry
+that opened this was about. The other two modules are free to grow a line.
+
+### A qualified name is the same constant under a longer key
+
+One line names two turns, the one being refused and the one whose handoff the store is still
+holding, and the second is spelled `active_turn_id`. The obvious readings are both wrong: it is not
+an unregistered literal, and it is not a constant of its own. It is `TURN_FIELD` written under a
+qualifier, so it is registered as a second mention of the same entry with a template that renders
+the qualifier in front of the value (`ACTIVE_FIELD_KEY = '"active_{value}":'`). A rename of the
+family therefore moves the qualified spelling with it, which the first row of the table below
+shows: renaming the declaration reports the qualified mention unfound alongside the ten plain ones.
+
+This is the vocabulary's own `{value}`-in-a-shape mechanism doing exactly what it was built for,
+and it is written down here because the shape is reusable: the next line that names two of one
+identity needs no new kind of entry either.
+
+### Proved able to fail, ten times, over the crosscheck registry
+
+Each planted one at a time on the real tree, the gate run, the file restored, and the restoration
+compared by digest. All ten exited 1 and all ten restorations matched. The counts are over the
+crosscheck registry as it stands after this change, the shape stated above, and not over any test
+suite.
+
+| planted drift | what the gate said |
+|---|---|
+| `TURN_FIELD` is renamed | 11 faults, every module, the qualified spelling and all three runbook sentences |
+| the conductor reverts one of its four to the bare `turn` | 1 fault: found 3, pinned 4 |
+| the conductor reverts all four | 1 fault: found 0, pinned 4 |
+| the conductor drops the qualifier, naming both turns alike | 2 faults: found 5 against the pinned 4, and the qualified mention unfound |
+| the settler reverts one of its three to `handoff` | 1 fault: found 2, pinned 3 |
+| the settler reverts all three | 1 fault: found 0, pinned 3 |
+| boot recovery reverts its one | 1 fault naming that module |
+| the deep phase reverts both of its cadence spellings | 1 fault naming that module |
+| the swap runbook keeps the old pasted line | 1 fault naming the runbook |
+| the swap runbook's grep instruction is renamed | 1 fault naming the runbook |
+
+The fourth row is the one worth reading. Dropping the qualifier is the mistake this template exists
+to catch, and it is caught **twice**: the plain name is suddenly spent five times where four are
+pinned, and the qualified needle is gone. Either half alone would have been enough, and that the
+count catches it at all is the argument for pinning a count on a module whose lines are one set.
+
+The brain suite's own seven mutations over the same change are tabled in the ADR-0009 sixth-name
+addendum, their counts being over that suite rather than over this registry.

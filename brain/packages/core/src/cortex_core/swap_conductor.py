@@ -135,7 +135,7 @@ class SwapConductor:
                     await run.aclose()
         except HandoffInProgressError:
             _logger.warning(
-                "refusing a handoff while another one holds the swap", extra={"turn": turn_id}
+                "refusing a handoff while another one holds the swap", extra={"turn_id": turn_id}
             )
             yield TextDelta(text=ALREADY_ACTIVE_NOTE)
 
@@ -190,7 +190,7 @@ class SwapConductor:
             # model would get a tool message promising a picture with none attached. Keyed on
             # the ``opaque`` bit, the fact that stays true where the pixels cannot travel.
             _logger.warning(
-                "refusing a handoff for a turn that read the screen", extra={"turn": turn_id}
+                "refusing a handoff for a turn that read the screen", extra={"turn_id": turn_id}
             )
             return OPAQUE_TURN_NOTE
         if await self._residency.unhosted(self._plan.brain_model):
@@ -204,17 +204,20 @@ class SwapConductor:
                 "the handoff was refused with nothing drained and nothing unloaded: name an "
                 "artifact for that tier (CORTEX_MODEL_FILE_BRAIN) or turn escalation off "
                 "(CORTEX_ESCALATION)",
-                extra={"model": self._plan.brain_model, "turn": turn_id},
+                extra={"model": self._plan.brain_model, "turn_id": turn_id},
             )
             return UNHOSTED_TIER_NOTE
         try:
             if (active := await self._handoffs.active()) is not None:
                 # The claim already refused anything racing this turn in this process, so a
                 # record still live here is one the store kept: a settle that never landed, or
-                # a handoff another process owns. Either way this turn evicts nothing.
+                # a handoff another process owns. Either way this turn evicts nothing. Two turns
+                # are named here, a handoff id being the escalating turn's id (``handoff.py``),
+                # so the one the store is holding takes the qualified spelling and this turn
+                # keeps the plain one (ADR-0009 sixth-name addendum).
                 _logger.warning(
                     "refusing a handoff while the store still has one in flight",
-                    extra={"active_handoff": active.handoff_id, "turn": turn_id},
+                    extra={"active_turn_id": active.handoff_id, "turn_id": turn_id},
                 )
                 return ALREADY_ACTIVE_NOTE
             record = slot.snapshot(

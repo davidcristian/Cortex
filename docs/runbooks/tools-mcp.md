@@ -104,7 +104,9 @@ formatter the process entry installs (ADR-0038 rendered-fields addendum). The wo
 ids (ADR-0009 named-work and named-call addenda): `session_id`, `turn_id`, `task_id` and
 `item_id`, each printed only when
 the dispatch had it, so `grep turn_id=t-...` gathers a turn's own tool calls, the tool calls its
-subagents made, and the line a failed turn wrote, while a subagent's `task_id` selects one
+subagents made, the line a failed turn wrote, and every line about a handoff that turn asked for
+(a handoff id is the escalating turn's id, and the swap path spells it under this same name,
+ADR-0009 sixth-name addendum), while a subagent's `task_id` selects one
 delegate's work out of a batch. A schedule fire carries the chat that scheduled the item, the
 `item_id` of the item that fired, and no
 turn, because nothing conversational is waiting on it.

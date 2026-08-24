@@ -3907,3 +3907,31 @@ nothing else, which is what proves the shared check is really running against bo
 - **It does not stop `advance` from accepting `FAILED` at the type level.** Nothing calls it that
   way, every call site is in one file, and a second enum for the two states `advance` may write
   would be machinery for a fact one grep settles.
+
+## Log-vocabulary addendum (2026-08-24): the swap path's lines name a turn
+
+Every log line on this path used to name its work with a bare noun: the conductor's four refusals
+said `turn`, and the settler's three, boot recovery's one and the deep phase's two cadence
+spellings said `handoff`. The brain has since settled on one name per work identity, the dispatch
+stamp's own five (ADR-0009 one-vocabulary addendum), and this path was the last surface outside it.
+All eleven records now name the work `turn_id`.
+
+They can, because a handoff id **is** a turn id. `EscalationSlot.snapshot` writes
+`handoff_id=turn_id` and is the only place a record is minted, which is decision 4's one handoff
+per turn read back out of the code. So the swap path never had an identity of its own to name; it
+had a second name for the turn, and an operator greping a turn's failures was silently missing
+every line about the handoff that turn asked for. The full argument, including why the record's own
+`handoff_id`, the codec's hash key and the Redis key `cortex:handoff:<turn id>` deliberately do not
+move, is in the ADR-0009 sixth-name addendum.
+
+Two things here are this ADR's own to record. The conductor's refusal-while-the-store-holds-one
+line names **two** turns, the one being refused and the one whose handoff the store is still
+holding, so the second takes the qualified spelling `active_turn_id` after the `active()` verb that
+produced it; getting those two the wrong way round would send an operator to restart the turn that
+asked rather than the handoff that is wedged, and a case now pins them. And
+[model-swap.md](../runbooks/model-swap.md) printed the failed-handoff line verbatim, so the pasted
+line moves with the field and gains the sentence saying why a handoff's id and a turn's are one
+number.
+
+Nothing about the sequence, the states, the claim or the failed reason changes. This is the field
+name a line writes its work under, and the same eleven lines say the same eleven things.

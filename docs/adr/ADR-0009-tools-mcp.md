@@ -2332,3 +2332,156 @@ The swap path's bare nouns
 registry's blindness to a module nobody has listed: a new file writing `extra={"chat_id": ...}` is
 spelled in no mention, so every mention still resolves and the gate stays green
 ([R-416](../refinements/tasks/416-a-new-log-line-can-name-its-work-anything.md)).
+
+## Sixth-name addendum (2026-08-24): the swap path names a turn, because a handoff id is one
+
+The one-vocabulary addendum above settled that a brain log line names its work with the dispatch
+stamp's own name for it, and left the swap path's eleven bare-noun records outside that rule,
+filed as [R-415](../refinements/tasks/415-the-swap-path-names-its-work-with-bare-nouns.md). It
+left them because seven of them looked like a **sixth** identity, one the stamp does not carry, and
+admitting a sixth name is a bigger decision than repeating a rename. This closes that entry, and
+the sixth name is not needed.
+
+### Re-derived first, and the counts hold
+
+Four records in `swap_conductor.py` write `extra={"turn": turn_id}`: the claim already held, the
+opaque turn, the unrostered deep tier, and the store that still has a record in flight. Seven name
+a handoff `handoff`: three in `swap_settle.py`, one in `swap_recovery.py`, and two spellings in
+`brain_phase.py` serving three lines, the reading and the no-reading arms of the cadence report.
+Eleven records, as filed. One of the conductor's four also carries `active_handoff`, which is the
+second question below.
+
+### The question the entry could not answer: what is a handoff id?
+
+It is the escalating turn's id, and the proof is at the mint rather than at any site that logs one.
+`EscalationSlot.snapshot(turn_id=..., session_id=..., requested_at=...)` returns
+`HandoffRecord(handoff_id=turn_id, ...)` and is the only production construction of a record other
+than the codec that reads one back off Redis under the key it was written to. `HandoffRecord`'s own
+docstring has said so since the record existed (*"``handoff_id`` is the escalating ``turn_id`` (one
+handoff per turn at most)"*), the conductor is handed `turn_id` and passes it straight through, and
+`EscalatingTurnEngine` names the handoff it claims by the `turn_id` it was handed rather than by
+anything the inner runner produced. The runbook was already saying it out loud in the one place a
+reader meets the field, printing `handoff=<turn id>`.
+
+So there is no sixth identity. Seven records were **misnamed**, in exactly the way the conductor's
+four were: a second name for something the vocabulary already names.
+
+### Decision 1: all eleven name the turn, and the vocabulary stays at five
+
+`turn_id` on every one of them. What this buys is the reading the entry named: `grep turn_id=t-...`
+now returns a turn's failures, its tool calls, the tool calls its subagents made, **and** every
+line about the handoff that turn asked for, which is the set an operator wants at the one moment
+they are reading any of it. The alternative, a sixth `handoff_id` name, would have been a second
+number to grep for a fact that is one number, and the runbook would have had to explain that the
+two ids are equal, which is a sentence no reader should need.
+
+`HandoffRecord.handoff_id` itself does **not** move, nor does the codec's hash key, nor the Redis
+key `cortex:handoff:<turn id>`. Those are a record's own schema and address: they outlive the
+deployment that wrote them, and the store is genuinely keyed by handoff, one per turn being a fact
+about the escalation and not about the record's identity. Renaming the field would also make the
+store's port read as though it took the turn store's key. The log field and the wire field are
+free to differ, which is the same line the one-vocabulary addendum drew against the seam's
+`reminder_id`.
+
+### Decision 2: a line naming two of one identity qualifies the name in front
+
+The conductor's refusal-while-the-store-holds-one line carries two ids that are now both turns:
+the turn being refused, and the turn whose handoff the store is still holding. Naming both
+`turn_id` is impossible (one dict, one key) and would be wrong if it were possible. The rule: the
+line's own work keeps the plain name, and the other instance takes a qualifier **in front of the
+family word**, here `active_turn_id`, after the store's own `active()` verb that produced it.
+
+In front rather than behind, because that is what keeps `grep turn_id=` reaching both: the
+qualified name ends in the family's own token, so the family grep finds the qualified line too,
+which is exactly the property the whole vocabulary exists for. `turn_id_active` or `handoff_turn`
+would each hide the line from the grep that should find it. This is written down as the rule for
+the next line that names two of anything, and it is currently the only such line in the brain.
+
+### Decision 3: the runbook moves with the field, and says what it now means
+
+[model-swap.md](../runbooks/model-swap.md) printed the failed-handoff line verbatim as the thing to
+look for while somebody is waiting. It now prints `turn_id=<turn id>` and says in one sentence why
+the two words are one number, and that the Redis key below is the one place the id still wears the
+word `handoff`, being the record's address. [tools-mcp.md](../runbooks/tools-mcp.md)'s sentence
+about what `grep turn_id=t-...` gathers gains the swap path, which is the consequence rather than a
+second instruction.
+
+### Decision 4: the registry holds them, including the qualified spelling
+
+`scripts/logcouplings.py`'s turn entry grows from four mentions to eleven: the four swap modules,
+the qualified spelling, and the swap runbook's two sentences. Two of the module mentions pin an
+exact count, the conductor's four and the settler's three, each being one module's whole account of
+one thing. The qualified name is tied to the **same** declaration through a template that renders
+the qualifier in front of it (`"active_{value}":`), so a rename of `TURN_FIELD` moves the qualified
+spelling with it and cannot leave it behind. That template is the part of this change worth reusing:
+a qualified name is not a second constant, it is the same constant written under a longer key.
+
+### Distrust green, over the brain suite
+
+Seven mutations, each planted in production code alone with the 2,877 tests of `brain/` re-run over
+it (`uv run pytest -q --no-cov`, the repo's own fixed seed, the 82 integration cases deselected as
+always), then restored and compared by digest. All seven restorations matched.
+
+| Mutation | Reddens |
+| --- | --- |
+| the settler's failure line reverts to the bare `handoff` | 2 |
+| all three of the settler's lines revert to it | 2 |
+| the conductor's two-turn refusal names them the other way round | 1 |
+| the conductor's four revert to the bare `turn` | 1 |
+| the conductor drops the qualifier, naming both turns alike | 1 |
+| the deep phase's two cadence lines revert to `handoff` | 2 |
+| boot recovery's stranded line reverts to `handoff` | 1 |
+
+The second row is this change's version of the reading the one-vocabulary addendum recorded about
+the ticker: reverting **all three** of the settler's lines reddens the same two cases as reverting
+one, because the only settler line any test names is the one the runbook prints, and it is named by
+a parametrized case that runs twice. Before this change **no test in the repo pinned any of the
+eleven field names**; after it six records are pinned by a test (the failed settle, the two-turn
+refusal, and the deep phase's three, which two spellings and two cases cover) and five are held by
+the registry's counts and presence checks alone: the settler's other two, and three of the
+conductor's four. That division is deliberate and is the reason the two counts are pinned rather
+than left as presence checks. Reverting the conductor's four reddens exactly the one case that
+reads a whole line, which is what the count of four is there to catch instead.
+
+The fifth row is the one that proves decision 2 is load-bearing: a conductor that names both turns
+`turn_id` loses one of them to the dict, and the case that reads the whole line catches it. The
+third row is the same case catching the two ids swapped, which is the failure that would send an
+operator to restart the turn that asked rather than the handoff that is wedged.
+
+### Distrust green, over the crosscheck registry
+
+Ten planted disagreements over the registry, one at a time on the real tree, tabled in the
+ADR-0029 addendum beside the part they measure, since their counts are over the registry rather
+than over any suite.
+
+### Consequences
+
+- The five names stay five. A sixth was proposed by the shape of the code and refused by what the
+  code actually does, which is the kind of question a re-derivation answers and a count does not.
+- One grep by turn now reaches the swap path. The refusals a turn met, the settle that ended its
+  handoff, the deep tier's decode rate for it, and the boot that found it stranded all carry the
+  same id under the same name as its tool calls.
+- The one line that names two turns says which is which, and both are still reachable by the
+  family grep.
+- A future line naming a second instance of any identity has a rule to follow and a template in
+  the registry to be held by.
+
+### Deferred by this addendum
+
+The record's own `handoff_id` and the store keyed by it are deliberately untouched, and nothing
+ties the log field to them; that is the decision above rather than a deferral.
+
+**The swap path names a turn and never the conversation**
+([R-417](../refinements/tasks/417-the-swap-path-never-names-the-conversation.md)), which reading
+every one of the eleven records is what turned up. Seven other modules attach `session_id` and the
+audit sink writes it on every call, and none of these do, so a grep by conversation reaches a
+chat's recalls, summaries, mid-turn failures and
+tool calls and nothing about the handoff it asked for. It is the opposite shape to this addendum's
+defect, no line being wrong and every line missing a field, and it is a change to what those
+records carry rather than to what they call it, so it wants its own argument, particularly on the
+cadence lines where a tier's throughput is arguably not about a chat at all.
+
+The other deferral is unchanged from the one-vocabulary addendum: a new module writing a work
+identity under a name nobody has registered is still invisible to the scan
+([R-416](../refinements/tasks/416-a-new-log-line-can-name-its-work-anything.md)), and this change
+adds four more registered modules to the set that entry is about.

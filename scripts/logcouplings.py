@@ -29,16 +29,22 @@ each telling an operator to grep a field by name, which is the cost the deferred
 record on disk outlives the deployment that wrote it, so the two answers are free to move apart and
 must not be tied to each other. Nor is `NotifyRequest.reminder_id`, the seam's name for the message
 the body is handed: the ticker's line is the brain's reading of its own work and takes the brain's
-name for it, and that the two differ is the decision rather than a drift. Nor, yet, is the swap
-path, whose lines name a handoff `handoff` and a turn `turn`, which is the same defect one scope
-out and is filed rather than registered here: a sixth identity would have to join the vocabulary
-first, and a bare noun is not a name this part could tie to `TURN_FIELD` in any case.
+name for it, and that the two differ is the decision rather than a drift.
+
+**The swap path is here now, and it needed no sixth name.** Its eleven lines spelled a handoff
+`handoff` and a turn `turn`, and the first of those looked like an identity the stamp does not
+carry until the mint was read: `EscalationSlot.snapshot` writes `handoff_id=turn_id`, so a handoff
+id is the escalating turn's id and those lines were naming a turn all along. They are tied to
+`TURN_FIELD` like any other, and the one line that names two turns at once spends the qualified
+spelling `active_turn_id`, tied to the same declaration through a template that renders the
+qualifier in front of it, so a rename of the family moves the qualified name with it.
 """
 
 from couplings import Constant, Mention, Site
 
 LOG_FIELDS = "brain/packages/core/src/cortex_core/log_fields.py"
 
+BRAIN_PHASE = "brain/packages/core/src/cortex_core/brain_phase.py"
 CONVERSE_STREAM = "brain/packages/orchestrator/src/cortex_orchestrator/converse_stream.py"
 ENGINE = "brain/packages/core/src/cortex_core/engine.py"
 RECALL_AUDIT = "brain/packages/memory/src/cortex_memory/audit.py"
@@ -46,18 +52,27 @@ RERANK_JUDGE = "brain/packages/core/src/cortex_core/rerank_judge.py"
 RUNNER = "brain/packages/core/src/cortex_core/runner.py"
 SCHEDULE_CLAIMS = "brain/packages/session/src/cortex_session/schedule_claims.py"
 SUMMARIZING = "brain/packages/core/src/cortex_core/summarizing.py"
+SWAP_CONDUCTOR = "brain/packages/core/src/cortex_core/swap_conductor.py"
+SWAP_RECOVERY = "brain/packages/core/src/cortex_core/swap_recovery.py"
+SWAP_SETTLE = "brain/packages/core/src/cortex_core/swap_settle.py"
 TICKER = "brain/packages/orchestrator/src/cortex_orchestrator/ticker.py"
 TURN_CONTEXT = "brain/packages/core/src/cortex_core/turn_context.py"
 TURN_OUTPUT = "brain/packages/core/src/cortex_core/turn_output.py"
 
 MEMORY_RUNBOOK = "docs/runbooks/memory-pgvector.md"
 SCHEDULING_RUNBOOK = "docs/runbooks/scheduling.md"
+SWAP_RUNBOOK = "docs/runbooks/model-swap.md"
 TOOLS_RUNBOOK = "docs/runbooks/tools-mcp.md"
 
 # How a Python log site writes one of these names: a string key opening an ``extra=`` dict. The
 # colon is what keeps the needle a field name rather than any other use of the same word, and it
 # is why the mentions below need no further neighbouring text to be a claim about the right line.
 FIELD_KEY = '"{value}":'
+
+# How a line naming a SECOND instance of one identity writes the qualified spelling: the same key,
+# with the qualifier in front of the family word. Rendered from the same declaration as the plain
+# name, so the qualified one cannot be left behind by a rename of the family it belongs to.
+ACTIVE_FIELD_KEY = '"active_{value}":'
 
 LOG_COUPLINGS: tuple[Constant, ...] = (
     Constant(
@@ -86,17 +101,35 @@ LOG_COUPLINGS: tuple[Constant, ...] = (
     Constant(
         label="the field a brain log line names the turn under",
         why=(
-            "the turn is the id a failed turn's line and the tool calls that preceded it are "
-            "joined by, which the tools runbook states as a grep, so the three modules that "
-            "attach it and that instruction have to keep saying the same word (ADR-0009 "
-            "one-vocabulary addendum)"
+            "the turn is the id a failed turn's line, the tool calls that preceded it and every "
+            "line about the handoff it asked for are joined by, which both runbooks state as a "
+            "grep, so the seven modules that attach it and those instructions have to keep "
+            "saying the same word (ADR-0009 one-vocabulary addendum); the swap path spelled it "
+            "`turn` and `handoff` until the mint was read and a handoff id turned out to be the "
+            "escalating turn's own"
         ),
         sites=(Site(LOG_FIELDS, "TURN_FIELD"),),
         mentions=(
             Mention(ENGINE, FIELD_KEY),
             Mention(TURN_CONTEXT, FIELD_KEY),
             Mention(CONVERSE_STREAM, FIELD_KEY),
+            # The conductor's four are one set: its whole account of a handoff that never
+            # started, each one a refusal an operator reaches for by turn, and this is the
+            # module where the second spelling actually lived. A fifth refusal arriving under
+            # another name is the drift, so the count is pinned.
+            Mention(SWAP_CONDUCTOR, FIELD_KEY, occurrences=4),
+            # The one line that names two turns, the refused one and the one the store is still
+            # holding, tied to this same declaration through the qualified template.
+            Mention(SWAP_CONDUCTOR, ACTIVE_FIELD_KEY),
+            # The settler's three are one set for the same reason: the failure, the state that
+            # could not be written and the record that could not be released are its whole
+            # account of settling one handoff, and the swap runbook prints the first verbatim.
+            Mention(SWAP_SETTLE, FIELD_KEY, occurrences=3),
+            Mention(SWAP_RECOVERY, FIELD_KEY),
+            Mention(BRAIN_PHASE, FIELD_KEY),
             Mention(TOOLS_RUNBOOK, "grep {value}=t-"),
+            Mention(SWAP_RUNBOOK, "a handoff ended failed {value}=<turn id>"),
+            Mention(SWAP_RUNBOOK, "`grep {value}=t-"),
         ),
     ),
     Constant(

@@ -66,6 +66,12 @@ sharing a ``try``, each applied to production code alone with the whole brain wo
   **not** the cortex one, which is why they are the pair that has to exist: a cortex that fails
   last is the model a collapsed arm happens to name, so a suite holding only the new case would
   let the collapse back in.
+
+One more, measured 2026-08-24 over ``brain/``: reverting the stranded line's work field to the
+bare ``handoff`` it used to spell reddens **1**,
+``..._a_stranded_record_is_failed_so_the_next_handoff_is_not_refused``, whose assertion moved
+from the message alone to the whole record when the swap path joined the log vocabulary (ADR-0009
+sixth-name addendum).
 """
 
 import logging
@@ -138,7 +144,12 @@ async def test_a_clean_boot_touches_nothing(caplog: pytest.LogCaptureFixture) ->
 async def test_a_stranded_record_is_failed_so_the_next_handoff_is_not_refused(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A live record would make ``active()`` refuse every later escalation forever."""
+    """A live record would make ``active()`` refuse every later escalation forever.
+
+    The line names the stranded work as a turn, which is what it is: a handoff id is the
+    escalating turn's id (ADR-0009 sixth-name addendum), and this boot is the one reader who
+    can still carry that id back to the previous process's own lines about the same turn.
+    """
     host = ScriptedModelHost(running=["cortex"])
     handoffs = RecordingHandoffStore()
     await handoffs.put(_stranded())  # pyright: ignore[reportArgumentType]
@@ -148,8 +159,11 @@ async def test_a_stranded_record_is_failed_so_the_next_handoff_is_not_refused(
     failed = await handoffs.get(harness.TURN)
     assert failed is not None
     assert failed.state is HandoffState.FAILED  # kept, not deleted: it is the diagnosis
-    assert [record.message for record in caplog.records] == [
-        "a handoff did not survive the restart; marking it failed"
+    assert _said(caplog) == [
+        (
+            "a handoff did not survive the restart; marking it failed",
+            {"turn_id": harness.TURN, "state": HandoffState.READY.value},
+        )
     ]
 
 

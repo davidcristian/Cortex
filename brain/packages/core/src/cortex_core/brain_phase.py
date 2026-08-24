@@ -206,14 +206,16 @@ class BrainPhase:
         Placed after the stream rather than inside it so the whole handoff's completions are in
         hand: a tool loop runs several, and the question is about the tier across all of them.
         Placed before ``_persist`` so a failed phase, which re-raises after persisting, still
-        reports what it managed to observe.
+        reports what it managed to observe. Both lines name the work ``turn_id``, the handoff id
+        they are handed being the escalating turn's own (ADR-0009 sixth-name addendum), so a
+        slow deep tier is joined to that turn's other lines by the field they all share.
         """
         if reading is None:
-            _logger.info(_NO_READING_LOG_MSG, extra={"model": self._model, "handoff": handoff_id})
+            _logger.info(_NO_READING_LOG_MSG, extra={"model": self._model, "turn_id": handoff_id})
             return
         extra = {
             "model": self._model,
-            "handoff": handoff_id,
+            "turn_id": handoff_id,
             "tokens_per_second": reading.observed.tokens_per_second,
             "tokens": reading.observed.tokens,
             "floor_tokens_per_second": reading.floor,
