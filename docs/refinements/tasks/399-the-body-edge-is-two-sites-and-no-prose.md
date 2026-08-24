@@ -1,6 +1,6 @@
 # The body's own default edge is stated in prose that nothing reaches
 
-**Status:** open, actionable
+**Status:** landed 2026-08-25
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -44,3 +44,29 @@ recorded ([R-397](397-nothing-counts-what-the-registry-does-not-name.md)).
   [R-388](388-the-headroom-suite-spells-its-own-constant.md), which found this constant copied into
   the headroom suite while reading that file for the halved numbers, replaced the copy with an
   import, and left the seventy prose spellings for a survey of their own.
+- 2026-08-25: landed as one entry, one site and **seventeen mentions across eleven files**.
+  **The count was exact and the list was half of what is there.** `1600` really is spelled 70
+  times outside the decision records and the backlog, in **thirty** files rather than twenty nine,
+  and it was thirty on the day this was written. But the entry's likely far sides top out at
+  eleven places and the tree carries seventeen, with **five files it never names** carrying six of
+  them: `capture_bytes.rs`'s two prose sentences, `images.py`'s byte comment, `test_config.py`'s
+  comment, the body override's compose comment and
+  [modules/brain-orchestrator.md](../../modules/brain-orchestrator.md). Of the GPU runbook's six,
+  four are this edge and two are a `max_tokens` budget. Two rules were sharpened rather than
+  invented. **The tense test**, for a number quoted as often as it is measured at: naming this
+  edge as what the body ANSWERS WITH is a far side, naming it as the size a measurement was TAKEN
+  AT is history, which holds four of the GPU runbook's sentences and leaves the vision runbook's
+  dated reading, the two byte readings at 1600x900 and the shrink ladder's arithmetic out. **The
+  suite rule**, which this is the first case to test at its edge: a suite CI runs holds what it
+  ASSERTS, so `screen.rs` and `body_server.rs` stay out and `test_config.py`'s comment, which no
+  assertion reaches and no Python can import, comes in. Thirty one of the seventy are a fixture's
+  own choice of size and twelve are another value entirely. One more was **removed** instead of
+  held: `crosscheck.py`'s docstring said this edge "is already spelled in four places", which is
+  a census the gate had no business quoting and which was false by sixty six. Eighteen planted
+  drifts each reddened the gate, seventeen of them one fault each and the site seventeen at once,
+  with nine controls green and three Rust plantings failing in the two suites that assert the
+  number; tabled in the ADR-0029 body-edge addendum. Two residues filed: the injection corpus
+  calls its render size the body's own output and nothing holds it to one
+  ([R-427](427-the-injection-corpus-claims-a-size-nothing-holds.md)), and the proto comment now
+  held has a generated twin nothing compares against the proto
+  ([R-428](428-nothing-compares-the-committed-stubs-with-the-proto.md)).
