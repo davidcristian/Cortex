@@ -14,7 +14,7 @@ belongs to neither the brain nor the body and is gated exactly like both. A stan
 recipes, `ci_paths.py`
 by the CI
 workflow, `commitlint.py` by the commit-msg pre-commit stage, `contrast.py` by `just turn-cost`;
-each also exposes a pure, unit-tested core function). Twenty-three modules here have no CLI of their
+each also exposes a pure, unit-tested core function). Twenty-four modules here have no CLI of their
 own, most split out under the line cap and each named for what it holds: `couplings.py` is the
 vocabulary `crosscheck.py`'s registry is written in, `registry.py` names the parts that registry is
 written in, and `seamcouplings.py`, `endpointcouplings.py`, `shippedcouplings.py`,
@@ -27,7 +27,8 @@ and what a file that lacks one is told, `composemounts.py` is `bindcheck.py`'s m
 reader, `composedefaults.py` is `defaultcheck.py`'s substitution reader, `composefiles.py` is
 which files the two of them walk, answered once so they cannot drift apart about it,
 `gitenv.py` is the environment every git call in this tree runs with, held in one place because
-a caller that forgets it is wrong in silence rather than red, and
+a caller that forgets it is wrong in silence rather than red, `skippeddirs.py` is the directory
+components no walk here enters, held in one place for the same reason, and
 `backlog.py`, `backlogindex.py`, `backloganchors.py` and `headingshapes.py` are the four
 `backlogcheck.py` reads a backlog through: the task-file grammar, the index renderer, the anchors a
 document offers with every pointer in the repo aimed at one, and what a heading may look like for
@@ -37,8 +38,8 @@ that last question to have an answer.
   `*.py`/`*.rs`/`*.ts`/`*.tsx` under `--root` (default `.`), all three gated toolchains
   since the ADR-0011 line-cap addendum, counting ALL lines (code, comments, blanks; cap
   default 300). Stylesheets, markup and `proto/body.proto` are outside the cap by that same
-  addendum. Skips dir components `.git`, `.venv`, `.claude`, `target`, `node_modules`,
-  `__pycache__`, `.pytest_cache`, `.ruff_cache`, `dist`, `coverage`, `tests`, `_generated`
+  addendum. Skips `skippeddirs.SKIPPED_DIRS`, the ten directory components no walk in this
+  tree enters, plus two of its own that no other walk skips, `tests` and `_generated`
   (the generated-code marker), and test-named files (`test_*.py`, `*_test.py`,
   `conftest.py`, `*_test.rs`, `*.test.ts`, `*.test.tsx`, `test-setup.ts`, the last three
   being what `body/app/vite.config.ts` collects and sets up). `*.d.ts` is NOT exempt.
@@ -63,13 +64,11 @@ that last question to have an answer.
   spaced or not, since a range takes a plain ASCII hyphen. Deliberately silent on U+2212
   MINUS SIGN (arithmetic), and on ASCII `--` (the repo's inline-reason idiom, which the gate-2
   escape-hatch rule effectively requires; commit messages are stricter and `commitlint.py`
-  bans it there). Skips the same directory components as `linecap.py` minus `tests` and
-  `_generated`, since prose in a test or a generated stub is still prose, and
-  `test_skipped_dirs_match_dashcheck_plus_tests_and_generated` holds the two lists to that
-  sentence rather than leaving it to be believed. That list is now partly redundant with the
-  ignore answer and stays anyway: `.git` is the one name git does not call ignored, and
-  `linecap.py` and `backloganchors.py` both read the same list, so three walks skip one set of
-  names rather than three. Binary files are
+  bans it there). Skips `skippeddirs.SKIPPED_DIRS`, which is what `linecap.py` skips minus
+  `tests` and `_generated`, since prose in a test or a generated stub is still prose; the two
+  lists cannot drift, the cap composing its own from this one. That list is partly redundant
+  with the ignore answer and stays anyway, on two names out of ten: `.git`, which git does not
+  call ignored, and `coverage`, which the repo ignores only under `body/app/`. Binary files are
   detected and skipped. A line carrying `dashcheck: allow` plus a reason is exempt, for a
   dash that means rather than punctuates. Exit 0 with a summary **stating the text it read**,
   files and lines with the binaries and the ignored in neither; exit 1 printing
@@ -363,9 +362,20 @@ that last question to have an answer.
   `.yml`/`.yaml`), skipping the vendored directory components, and raises `ComposeSearchError`
   on none, a scan whose glob matched nothing being one that reports success forever. It is one
   module rather than a copy in each gate because a second walk is a gate that learns about a new
-  override while its sibling does not, in silence. It deliberately does not join the per-gate
-  `SKIPPED_DIRS` lists in `linecap.py` and `dashcheck.py`, which differ from each other because
-  each answers to its own rule.
+  override while its sibling does not, in silence. The components it skips are
+  `skippeddirs.SKIPPED_DIRS`, shared with every other walk here; it carried a shorter list of its
+  own until that module landed, and joining changed neither compose gate's reading.
+- `skippeddirs.py` is the directory components no walk here enters and has no CLI: ten names,
+  read by all four walks (`dashcheck.py`, `linecap.py`, which composes its own list from it,
+  `backloganchors.py` and `composefiles.py`). **It is deliberately not `.gitignore`**, and the
+  overlap is measured rather than believed: eight of the ten are names git ignores wherever they
+  appear, `.git` is never reported ignored (it is not part of the work tree), and `coverage` is
+  ignored only under `body/app/`, by that tree's own file. Collapsing the list to `.git` and
+  asking git for the rest would make the line cap, the anchor scan and the compose walk refuse a
+  root git cannot answer about, which is `just check` refusing to run outside a git working tree;
+  only the dash ban has a rule whose collection is git's answer. `test_skippeddirs.py` holds both
+  claims: every walking module reads this list rather than a copy, and the eight-two partition
+  against git's own answer for this repo, which reddens from either side.
 - `composemounts.py` is `bindcheck.py`'s mount reader and has no CLI. `read_mounts(text)` returns one
   `Mount(line, source)` per bind mount a compose file declares, skipping named volumes (long-form
   `type:` in `NON_BIND_TYPES`, short-form sources without a `PATH_PREFIXES` prefix) and the

@@ -2,10 +2,7 @@
 
 from pathlib import Path
 
-# Directory components no gate reads. Vendored trees, build output and tool caches.
-SKIPPED_DIRS = frozenset(
-    {".git", ".venv", ".claude", "target", "node_modules", "__pycache__", "dist", "coverage"}
-)
+from skippeddirs import SKIPPED_DIRS
 
 # What a compose file is called. Both stems and both suffixes, because a scan that silently
 # missed a new override file is the defect the gates reading this exist to prevent.

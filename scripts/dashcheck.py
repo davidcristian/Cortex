@@ -8,25 +8,11 @@ from pathlib import Path
 from typing import NamedTuple
 
 from gitenv import git_env
+from skippeddirs import SKIPPED_DIRS
 
 ALLOW_PRAGMA = "dashcheck: allow"
 EM_DASH = "\u2014"
 EN_DASH = "\u2013"
-
-SKIPPED_DIRS = frozenset(
-    {
-        ".git",
-        ".venv",
-        ".claude",
-        "target",
-        "node_modules",
-        "__pycache__",
-        ".pytest_cache",
-        ".ruff_cache",
-        "dist",
-        "coverage",
-    }
-)
 
 MIN_FILES = 1
 

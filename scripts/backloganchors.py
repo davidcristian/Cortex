@@ -7,6 +7,7 @@ from typing import NamedTuple
 
 from headingshapes import headings
 from headingshapes import problems as shape_problems
+from skippeddirs import SKIPPED_DIRS
 
 LINK = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
 DROPPED = re.compile(r"[^\w \-]")
@@ -19,21 +20,6 @@ MARKDOWN = ".md"
 UNREAD = (
     "aims at a document this scan does not read, so nothing here can say which headings it "
     "offers: it is missing, outside the tree, or inside a vendored or built one"
-)
-
-SKIPPED_DIRS = frozenset(
-    {
-        ".git",
-        ".venv",
-        ".claude",
-        "target",
-        "node_modules",
-        "__pycache__",
-        ".pytest_cache",
-        ".ruff_cache",
-        "dist",
-        "coverage",
-    }
 )
 
 
