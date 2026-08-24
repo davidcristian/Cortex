@@ -8,11 +8,30 @@ from couplings import PLACEHOLDER, Mention
 # itself made of one. A needle edged by punctuation (`var(--ceiling,`) needs no such guard.
 WORD_CHARACTER = re.compile(r"\w")
 
+DIGIT = re.compile(r"\d")
+
+# The lookarounds each edge may take, in the order they are applied: the word guard both kinds of
+# word edge need, then the decimal guard only a digit edge does.
+LEAD_GUARDS = (r"(?<!\w)", r"(?<!\d\.)")
+TRAIL_GUARDS = (r"(?!\w)", r"(?!\.\d)")
+
+
+def _guard(edge: str, guards: tuple[str, str]) -> str:
+    """The lookaround one edge of a needle needs: none, the word one, or that and the decimal."""
+    word, decimal = guards
+    if not WORD_CHARACTER.match(edge):
+        return ""
+    return f"{word}{decimal}" if DIGIT.match(edge) else word
+
 
 def bounded(needle: str) -> re.Pattern[str]:
-    """The needle as a pattern no longer token can contain: a word edge may not touch a word."""
-    lead = r"(?<!\w)" if WORD_CHARACTER.match(needle[:1]) else ""
-    trail = r"(?!\w)" if WORD_CHARACTER.match(needle[-1:]) else ""
+    """The needle as a pattern no longer token can contain: a word edge may not touch a word.
+
+    A digit edge may not touch a point with a digit past it either, that point being a decimal
+    one rather than a sentence's.
+    """
+    lead = _guard(needle[:1], LEAD_GUARDS)
+    trail = _guard(needle[-1:], TRAIL_GUARDS)
     return re.compile(f"{lead}{re.escape(needle)}{trail}")
 
 
