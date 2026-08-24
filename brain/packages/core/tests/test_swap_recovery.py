@@ -75,8 +75,11 @@ async def test_a_stranded_record_is_failed_so_the_next_handoff_is_not_refused(
     failed = await handoffs.get(harness.TURN)
     assert failed is not None
     assert failed.state is HandoffState.FAILED  # kept, not deleted: it is the diagnosis
-    assert [record.message for record in caplog.records] == [
-        "a handoff did not survive the restart; marking it failed"
+    assert _said(caplog) == [
+        (
+            "a handoff did not survive the restart; marking it failed",
+            {"turn_id": harness.TURN, "state": HandoffState.READY.value},
+        )
     ]
 
 

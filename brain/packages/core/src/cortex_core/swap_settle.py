@@ -23,7 +23,7 @@ class HandoffSettler:
         """Settle the record ``FAILED``, saying why, in the log and on the record alike."""
         _logger.warning(
             "a handoff ended failed",
-            extra={"handoff": record.handoff_id, "reason": reason},
+            extra={"turn_id": record.handoff_id, "reason": reason},
         )
         await self._settle(record.handoff_id, HandoffState.FAILED, reason)
 
@@ -40,7 +40,7 @@ class HandoffSettler:
         except HandoffStoreError:
             _logger.exception(
                 "could not record the handoff's state",
-                extra={"handoff": handoff_id, "state": state.value},
+                extra={"turn_id": handoff_id, "state": state.value},
             )
             return False
         return True
@@ -54,5 +54,5 @@ class HandoffSettler:
             # escalation stays refused until then, which is the failure the log has to name.
             _logger.exception(
                 "could not release the finished handoff; escalation stays refused until a restart",
-                extra={"handoff": handoff_id},
+                extra={"turn_id": handoff_id},
             )

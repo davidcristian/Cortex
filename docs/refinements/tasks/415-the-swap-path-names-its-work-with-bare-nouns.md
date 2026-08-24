@@ -1,6 +1,6 @@
 # The swap path names its work with bare nouns while the rest of the brain suffixes them
 
-**Status:** open, actionable
+**Status:** landed 2026-08-24
 **Area:** cross-cutting
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
 
@@ -49,3 +49,19 @@ number under two names, which is the question the rename would answer or retire.
   [R-394](394-the-fired-item-has-two-spellings-in-the-logs.md), whose re-derivation found the
   third surface the second of them was explicitly waiting for, already in the tree and older than
   either entry. Recorded in the ADR-0009 one-vocabulary addendum.
+- 2026-08-24: landed. Re-derived first, and the counts held: four `turn` records in the
+  conductor, seven `handoff` ones across the settler, boot recovery and the deep phase. The
+  question this entry left open was answered at the mint rather than at any site that logs one:
+  `EscalationSlot.snapshot` writes `handoff_id=turn_id` and is the only production construction of
+  a record, so a handoff id **is** the escalating turn's id and there is no sixth identity. All
+  eleven now name the work `turn_id`, the one line that names two turns spells the second
+  `active_turn_id` with the qualifier in front so the family grep still reaches it, and the swap
+  runbook's pasted line follows with a sentence saying why the two words are one number. The
+  registry's turn entry grew from four mentions to eleven, two of them pinned to a count, and it
+  holds the qualified spelling through a template rendering the same declared value. Proved able to
+  fail seven ways over the brain suite and ten over the crosscheck registry, both tabled. Six of
+  the eleven records are pinned by a test and five are held by the registry alone. Argued in the
+  ADR-0009 sixth-name addendum, with the surface recorded at ADR-0030 and the registry part at
+  ADR-0029. Opened
+  [R-417](417-the-swap-path-never-names-the-conversation.md), which is the same reading one
+  identity over.

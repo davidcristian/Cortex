@@ -442,6 +442,7 @@ async def test_a_deep_phase_under_the_declared_floor_warns_once_naming_both_numb
     assert records[0].levelno == logging.WARNING
     assert _extra(records[0], "tokens_per_second") == 17.29  # pyright: ignore[reportAttributeAccessIssue]
     assert _extra(records[0], "floor_tokens_per_second") == 22.0  # pyright: ignore[reportAttributeAccessIssue]
+    assert _extra(records[0], "turn_id") == harness.TURN  # pyright: ignore[reportAttributeAccessIssue]
     assert records[0].getMessage() == SPILLED_LOG_MSG
 
 
@@ -480,6 +481,9 @@ async def test_a_backend_that_reports_no_timings_is_not_reported_as_healthy(
     assert len(records) == 1
     assert records[0].levelno == logging.INFO
     assert "nothing was checked" in records[0].getMessage()
+    # The other of the phase's two cadence spellings, named the same way: silence about a turn is
+    # still about that turn (ADR-0009 sixth-name addendum).
+    assert _extra(records[0], "turn_id") == harness.TURN  # pyright: ignore[reportAttributeAccessIssue]
 
 
 async def test_one_slow_round_of_a_tool_loop_does_not_convict_the_tier(

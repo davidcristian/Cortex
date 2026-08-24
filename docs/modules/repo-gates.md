@@ -88,7 +88,10 @@ that last question to have an answer.
   the repo does not ship; the overlay's TypeScript against its own stylesheet; and the brain's log
   vocabulary, the one name each work identity is written under, against every line that spells it
   and every runbook that tells an operator to grep it, the only part whose subject is a field's
-  name rather than its value (ADR-0009 one-vocabulary addendum). Some arrived as
+  name rather than its value (ADR-0009 one-vocabulary addendum). Its turn entry also holds the one
+  qualified spelling in the brain, the second turn named on a single line, through a template that
+  renders the qualifier in front of the same declared value, so a rename of the family cannot leave
+  the qualified name behind (sixth-name addendum). Some arrived as
   splits under the cap and some as subjects added beside them, which is the one-line claim being
   paid from both directions rather than argued.
   `couplings.py` is the vocabulary every part is written in, left behind when each moved out

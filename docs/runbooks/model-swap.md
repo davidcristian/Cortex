@@ -495,8 +495,14 @@ in two places instead, and either is enough
 ends failed writes one `WARNING` from `cortex_core.swap_settle`:
 
 ```
-WARNING:cortex_core.swap_settle:a handoff ended failed handoff=<turn id> reason="<what happened>"
+WARNING:cortex_core.swap_settle:a handoff ended failed turn_id=<turn id> reason="<what happened>"
 ```
+
+`turn_id` is the escalating turn's id, which is also the handoff's: one turn escalates at most
+once, so the two are one number and the brain's log spells it the way every other line about that
+turn does (ADR-0009 sixth-name addendum). That is what makes `grep turn_id=t-...` return the
+whole of it, this line beside the turn's own failures and every tool call it made. The Redis key
+below is the one place that id still wears the word `handoff`, being the record's own address.
 
 The `reason` field is the whole sentence. On a swap that broke it is the model host's own words,
 carried out of the adapter that built them: the method, the route, the tier, the HTTP status and

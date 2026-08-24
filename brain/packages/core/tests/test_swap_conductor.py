@@ -181,7 +181,7 @@ async def test_the_deep_phase_resumes_the_carried_budget_and_taint() -> None:
 async def test_a_second_concurrent_handoff_is_refused_without_evicting_anything(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """One GPU means one handoff: the second is told so and nothing is unloaded."""
+    """One GPU means one handoff: the second is told so, nothing is unloaded, and both are named."""
     live = build_harness()
     await live.seed_session()
     await live.handoffs.put(
@@ -194,8 +194,11 @@ async def test_a_second_concurrent_handoff_is_refused_without_evicting_anything(
     assert _texts(events) == ALREADY_ACTIVE_NOTE
     assert live.host.calls == harness.PREFLIGHT_CALLS  # nothing stopped, the cortex still serves
     assert live.backend.calls == 0
-    assert [record.message for record in caplog.records] == [
-        "refusing a handoff while the store still has one in flight"
+    assert [(record.message, record_fields(record)) for record in caplog.records] == [
+        (
+            "refusing a handoff while the store still has one in flight",
+            {"active_turn_id": "t-other", "turn_id": harness.TURN},
+        )
     ]
 
 
@@ -376,7 +379,9 @@ async def test_a_swap_that_broke_writes_the_model_hosts_own_sentence_down(
     logged = [
         record for record in caplog.records if record.getMessage() == "a handoff ended failed"
     ]
-    assert [record_fields(entry)["reason"] for entry in logged] == [settled.failure]
+    assert [record_fields(entry) for entry in logged] == [
+        {"turn_id": harness.TURN, "reason": settled.failure}
+    ]
 
 
 async def test_a_deep_model_that_never_becomes_ready_ends_the_turn_honestly() -> None:
