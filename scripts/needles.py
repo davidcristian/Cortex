@@ -10,6 +10,15 @@ to prove it, a value that is a prefix of the one written down (`5005` inside `50
 published `host:container` pair whose host half alone carried the needle, so a rendered needle has
 to appear as a token of its own and not merely somewhere inside a longer one.
 
+**A point flanked by digits is inside a number**, which is the one thing a word edge cannot see.
+A point is not a word character, so `10` used to be found in `10.09` and in `0.10` alike: the word
+guard saw a space on one side and a point on the other, and both passed. The rule that tells those
+from a number ending at a sentence's full stop reads the far side of the point rather than the
+point itself, and it is one sentence read from both ends, so a digit edge takes a second guard
+beside the word one. `2048.` closing a sentence still matches, the character past the point being
+a space; `2048.5` does not. An edge that is a word but not a digit takes no such guard, `grpc.`
+before a needle opening with a letter being attribute access and not a decimal.
+
 **A needle is a value plus shape, and the shape is other people's text.** A template carries
 enough neighbouring text to be a claim about the right sentence, and some of that text is another
 constant's value: the compose publish's ``"{value}:{value}"`` opens with the host-side interface,
@@ -47,11 +56,34 @@ from couplings import PLACEHOLDER, Mention
 # itself made of one. A needle edged by punctuation (`var(--ceiling,`) needs no such guard.
 WORD_CHARACTER = re.compile(r"\w")
 
+# The narrower edge, and the only one a point can continue: a digit. The point is read from the
+# needle outwards, so each guard asks for a digit on the FAR side of it, the near side being the
+# needle's own edge. That is what keeps `2048.` at a full stop found and `2048.5` unfound, and it
+# is why the two guards below are the same rule written twice rather than two rules.
+DIGIT = re.compile(r"\d")
+
+# The lookarounds each edge may take, in the order they are applied: the word guard both kinds of
+# word edge need, then the decimal guard only a digit edge does.
+LEAD_GUARDS = (r"(?<!\w)", r"(?<!\d\.)")
+TRAIL_GUARDS = (r"(?!\w)", r"(?!\.\d)")
+
+
+def _guard(edge: str, guards: tuple[str, str]) -> str:
+    """The lookaround one edge of a needle needs: none, the word one, or that and the decimal."""
+    word, decimal = guards
+    if not WORD_CHARACTER.match(edge):
+        return ""
+    return f"{word}{decimal}" if DIGIT.match(edge) else word
+
 
 def bounded(needle: str) -> re.Pattern[str]:
-    """The needle as a pattern no longer token can contain: a word edge may not touch a word."""
-    lead = r"(?<!\w)" if WORD_CHARACTER.match(needle[:1]) else ""
-    trail = r"(?!\w)" if WORD_CHARACTER.match(needle[-1:]) else ""
+    """The needle as a pattern no longer token can contain: a word edge may not touch a word.
+
+    A digit edge may not touch a point with a digit past it either, that point being a decimal
+    one rather than a sentence's.
+    """
+    lead = _guard(needle[:1], LEAD_GUARDS)
+    trail = _guard(needle[-1:], TRAIL_GUARDS)
     return re.compile(f"{lead}{re.escape(needle)}{trail}")
 
 

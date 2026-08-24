@@ -4814,3 +4814,133 @@ list is the answer, `scripts/capturecouplings.py`, `scripts/emailcouplings.py` a
 `scripts/tests/test_crosscheck.py`, which holds the list to the directory,
 [modules/repo-gates.md](../modules/repo-gates.md), which states what the shape does not count and
 why, and this addendum.
+
+## Addendum (2026-08-24): a point flanked by digits, and the full stop that is not one
+
+`needles.bounded` reads one character at each end of a rendered needle and asks whether it is a
+word character, guarding the ones that are so no longer token can contain the needle. A point is
+not a word character, so a needle rendering `10` was a token of its own inside `10.09`: the lead
+guard saw a space and the trail guard saw a point, and both passed. This closes that, and the
+close is one sentence rather than a special case. **A point flanked by digits is inside a number.**
+
+### Re-derived first, and the entry was right about the defect and wrong about the obstacle
+
+The defect reproduces exactly where the entry said it does. `bounded("10")` over
+[runbooks/model-swap.md](../runbooks/model-swap.md) found **eight** occurrences before this change
+and finds **four** after. The four it keeps are the four sentences that state the grace: lines 87,
+95, 202 and 226, each a `10 s` or a `10` inside the documented sum. The four it drops are `10.89 s`
+on line 96, `10.09 s` and `10.90 s` on line 202, and `0.10 s` on line 205. The entry named the
+first three. The fourth is the symmetric case it asked about and did not measure, a needle sitting
+just **after** a point rather than just before one, and it is in the same file three lines below.
+
+The obstacle the entry named does not exist. Rendering all 180 mentions the registry holds and
+reading what actually sits at each edge of each match in each file: **zero** needles end at a point
+of any kind, so "the registry has several needles that legitimately end at a full stop" was true of
+no needle in the tree. What the registry does have is the mirror image, **three** needles that
+begin just after a point, all three the `grpc.insecure_channel(...)` dial in
+[docker-compose.yml](../../docker/docker-compose.yml) and the WSL runbook. Those three are why the
+guard reads the far side of the point instead of the point itself: `grpc.` is attribute access, and
+a rule that refused any needle touching a point would have unfound all three on the day it landed.
+
+The cheap alternative the entry offered as a legitimate outcome is not available either. It
+proposed writing down that every template carries something after the value, backed by a registry
+invariant refusing a template that renders a value at its very end. **27 of the 180 mentions render
+the value at the very end of their template**, from `EXPOSE 50051` in the brain image to
+`CORTEX_IMAGE_MAX_TOKENS=1024` in four documents. That invariant would refuse a seventh of the
+registry and force a rewording of every one of them, which is the gate editing what it watches.
+
+### The rule, which is one sentence read from both ends
+
+A digit edge takes a second guard beside the word one, and the guard asks for a digit on the far
+side of the point, the near side being the needle's own edge:
+
+- lead, when the needle opens with a digit: `(?<!\d\.)` beside `(?<!\w)`.
+- trail, when the needle closes with one: `(?!\.\d)` beside `(?!\w)`.
+- an edge that is a word but not a digit takes no decimal guard at all.
+
+What stops being found: `10.09`, `0.10`, `2048.5`, `0.2048`. What stays found: `2048.` ending a
+sentence, the character past the point being a space; `` `1..6291456` `` in the vision runbook,
+where the far side of the adjacent point is another point rather than a digit, so a Rust range is
+not read as a decimal; `grpc.insecure_channel(`; and a dotted key indexed by a number, `tiers.2`
+and `tiers.2.auto` alike.
+
+That last pair is what the digit test earns. Taking the decimal guard at every word edge rather
+than only a digit one is behaviourally identical on almost all text and is still wrong, because it
+asks about a point that only one digit flanks. A config key numbered in the middle is the ordinary
+shape where that happens, and the mutation table below has the row where this was found out: with
+the digit test removed the whole suite still passed, and the two rows that now kill it were written
+because of it.
+
+The guard reads the point and nothing else. A comma-grouped number would slip the same way, and
+none is written next to a registered value: over the same 180 mentions, **zero** matches sit at a
+comma with a digit past it.
+
+### The verdict does not move, and a reading does
+
+On the live tree this changes no gate outcome. Before and after, `just check-crosscheck` exits 0
+and prints the same line, `62 cross-tree constant(s) under .. agree, over 72 declaring site(s) and
+180 mention(s), 17 of them pinned to a count`. Every one of the tree's needles carries a variable
+name, a unit or a table wall, which is what the entry said and it holds.
+
+What moves is the reading an unfound needle carries, which is the ADR-0023 misattributed-fault
+reading: whether the file **still spells this constant's own value** as a token of its own, the
+evidence that what moved is shape and the entry named is not the entry to change. That reading
+searches the bare value, unguarded by any template, and it is where a decimal is most likely to sit
+next to a number. Measured on the live tree by retuning `DEFAULT_STOP_GRACE_S` from `10.0` to
+`11.0` in `supervisor.py` and reading the fault the swap runbook gets:
+
+| | fault on [runbooks/model-swap.md](../runbooks/model-swap.md) |
+| --- | --- |
+| before | `the file does still spell '11' as a token of its own, so what moved is likely shape this needle carries rather than this value, and the constant to change may not be the one named here` |
+| after | `the file does not spell '11' as a token of its own either` |
+
+The only `11` in that runbook is `11.3 s`, the measured time for the cortex to come back after a
+swap. It is not the grace, it is not a spelling of anything registered, and the old reading sent
+the reader off to hunt a neighbour's literal that never moved. That is the exact failure mode the
+misattribution addendum was written to remove, arriving through the one door it left open.
+
+### Proved able to fail, five times over the scripts suite and once over the live tree
+
+Five planted mutations over `scripts/needles.py`, each run against the `scripts/tests` suite, **844
+tests**, which is the collection every count below is out of. Each was restored from a copy taken
+before the first, with `__pycache__` purged between runs, and the 844 baseline was re-established
+after the last.
+
+| # | mutation | expected | observed |
+| --- | --- | --- | --- |
+| 1 | the trail decimal guard dropped, leaving the word one | `2048.5` and `10.09` are found again, and the unfound reading misattributes | 3 failed, 841 passed |
+| 2 | the lead decimal guard dropped, leaving the word one | `0.2048` and `0.10` are found again | 2 failed, 842 passed |
+| 3 | the trail guard refuses every point, `(?!\.)` | `2048.` ending a sentence is lost | 1 failed, 843 passed |
+| 4 | the lead guard refuses every point, `(?<!\.)` | the range `1..6291456` is lost | 1 failed, 843 passed |
+| 5 | the decimal guard taken at every word edge, not only a digit one | the two dotted-key rows fail | 2 failed, 842 passed |
+
+Row 5 is recorded honestly: on the first pass it **survived**, 844 passed, because the suite as
+first written distinguished the digit test nowhere. The rows for `tiers.2` and `tiers.2.auto` were
+added to kill it, and they are the two realistic shapes where a point has a digit on one side and a
+word on the other. A mutation that survives is a test that was missing, and finding one is the
+table doing its job rather than a reason to omit the row.
+
+The live row is the retune above: `DEFAULT_STOP_GRACE_S` moved to `11.0`, the gate exits 1 on all
+three of that entry's mentions either way, and the sentence the swap runbook's fault carries flips
+from the misattribution to the truth. The supervisor was restored and the gate returned to the
+success line quoted above.
+
+### What this opened
+
+The decimal case of a wrong "still spells this value" reading is gone and the homonym case cannot
+be. The same live retune has
+[modules/brain-model-manager.md](../modules/brain-model-manager.md) reporting that it still spells
+`11`, on the strength of `~11 GB` in a sentence about VRAM headroom a hundred lines from the grace.
+That reading is honest by its own docstring, which calls the conclusion a maybe, but it does not
+say **where** it read the value, so the reader confirms or dismisses it with a grep
+([R-414](../refinements/tasks/414-the-still-spelled-reading-does-not-say-where.md)).
+
+### Records
+
+The record is the task file
+[R-398](../refinements/tasks/398-a-rendered-integer-is-a-token-inside-a-decimal.md), which closes
+as landed, [docs/refinements/index.md](../refinements/index.md), which is regenerated from it,
+`scripts/needles.py`, which carries the rule and the two guards,
+`scripts/tests/test_crosscheck.py`, which holds them,
+[modules/repo-gates.md](../modules/repo-gates.md), which states the bound in its new two-part form,
+and this addendum.

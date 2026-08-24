@@ -115,7 +115,7 @@ that last question to have an answer.
   rather than the objection to it. **A `Mention` spends it without declaring it** (a path plus a template
   carrying `{value}`): the scan renders the agreed value into the template and requires the result
   to appear in the file **as a token of its own**, `bounded()` guarding whichever of the needle's
-  two edges is itself a word character. That is not circular, since the template carries the shape
+  two edges is itself a word character, and guarding a digit edge twice. That is not circular, since the template carries the shape
   and the site carries the value, and it is what lets the gate reach a key spelled inside a shell
   string, a custom property a stylesheet reads back with `var(...)`, and a bare literal a component
   compares against, with no promotion to a named constant first.
@@ -135,6 +135,15 @@ that last question to have an answer.
   needle, which is a template question rather than a matcher one, so the compose publish is
   registered as `"127.0.0.1:{value}:{value}"` and the healthcheck dial beside it as its own
   mention.
+  **A point flanked by digits is inside a number** (ADR-0029 decimal-edge addendum), which is the
+  one continuation a word edge cannot see: a point is not a word character, so `10` was a token of
+  its own inside both `10.09` and `0.10`. A digit edge therefore takes a second guard beside the
+  word one, reading the FAR side of the point rather than the point itself, so `2048.` ending a
+  sentence stays found and `2048.5` does not. An edge that is a word but not a digit takes no such
+  guard, `grpc.` before a needle opening with a letter being attribute access and a key numbered in
+  the middle (`tiers.2.auto`) being neither half of a decimal. The verdict on the live tree does
+  not move, every needle in it carrying a name, a unit or a table wall; what moves is the value
+  reading below, which searches the bare number and so sits next to every decimal in the file.
   **An unfound needle says whose literal stopped matching** (ADR-0023 misattributed-fault
   addendum). A needle is a value plus shape and the shape is other people's text, so moving a
   neighbour's value out of a template reddens the entry beside it: the compose publish's host-side
@@ -629,7 +638,8 @@ that last question to have an answer.
   bounded occurrences left over on each line it matched: eleven readings over nine lines, of which
   six were artefacts of the reading (an identifier that happens to spell a string value, two lines
   held jointly by two needles each and so counted twice, and a decimal whose whole part sits
-  inside a measured latency), leaving five real ones. **One of those five is deliberately not a far side**, the vision runbook's second `auto`,
+  inside a measured latency, an artefact the decimal-edge close above has since removed from the
+  matcher), leaving five real ones. **One of those five is deliberately not a far side**, the vision runbook's second `auto`,
   which says what that mode DOES beside what `on` and `off` do and stays true after another mode
   becomes the shipped answer. That single case is what refused a mechanism: counting a value's
   occurrences per line, whether as a field or as a rule, would manufacture a coupling the tense

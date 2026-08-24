@@ -439,6 +439,30 @@ def test_a_moved_value_is_reported_as_absent_and_blames_no_neighbour(tmp_path: P
     assert "the file does not spell '50052' as a token of its own either" in fault.detail
 
 
+def test_a_value_left_only_inside_a_decimal_is_not_read_as_still_being_spelled(
+    tmp_path: Path,
+) -> None:
+    """The misattribution the decimal guard removes, in the reading that would have made it.
+
+    The swap runbook states the `10 s` grace on the same line as a `10.09 s` latency. Take the
+    grace out and the needle is unfound either way; what changes is what the fault then says.
+    Reading the whole part of that latency as the value still being spelled would send the reader
+    off to hunt a neighbour's literal that never moved, which is what this reading prevents.
+    """
+    (tmp_path / "config.py").write_text("DEFAULT_STOP_GRACE_S = 10\n", encoding="utf-8")
+    (tmp_path / "swap.md").write_text("answered in **10.09 s**, so the\n", encoding="utf-8")
+    graced = crosscheck.Constant(
+        label="the grace a child gets before it is killed",
+        why="an eviction pays this whole grace when the child has a request in flight",
+        sites=(crosscheck.Site("config.py", "DEFAULT_STOP_GRACE_S"),),
+        mentions=(crosscheck.Mention("swap.md", "{value} s"),),
+    )
+    (fault,) = crosscheck.check_constant(tmp_path, graced)
+    assert "does not spell '10 s' as a token of its own" in fault.detail
+    assert "carrying no more of it than '10'" in fault.detail
+    assert "the file does not spell '10' as a token of its own either" in fault.detail
+
+
 def test_a_file_carrying_no_part_of_the_needle_has_no_run_to_report(tmp_path: Path) -> None:
     """A needle whose opening character is absent: there is nothing of it to quote back."""
     (tmp_path / "budget.ts").write_text('const CEILING_PROPERTY = "--ceiling";\n', encoding="utf-8")
@@ -475,6 +499,35 @@ def test_a_needle_is_bounded_at_whichever_edge_is_a_word(
     needle: str, text: str, *, found: bool
 ) -> None:
     """Only a word edge needs a guard; `var(--ceiling,` bounds itself with its own punctuation."""
+    assert bool(crosscheck.bounded(needle).search(text)) is found
+
+
+@pytest.mark.parametrize(
+    ("needle", "text", "found"),
+    [
+        ("2048", "the shipped edge is 2048.", True),  # a full stop ends a sentence, not a number
+        ("2048", "resampled to 2048.5 px", False),  # a digit past the point continues the number
+        ("2048", "measured at 0.2048 of the edge", False),  # the same rule read from the far end
+        ("2048", "the ceiling. 2048 is the edge", True),  # a full stop before it, and a space
+        ("6291456", "outside `1..6291456`", True),  # a range's second point is not a decimal one
+        ("10", "the full grace (10 s) was paid", True),  # the swap runbook's real reading
+        ("10", "answered in **10.09 s**", False),  # the latency it was mistaken for
+        ("10", "stop answered in **0.10 s**", False),  # and the one three lines below it
+        ("insecure_channel(", "grpc.insecure_channel(", True),  # a letter past a point is a name
+        ("auto", "tiers.2.auto is the shipped mode", True),  # a dotted key indexed by a number
+        ("tiers", "tiers.2 is the deep one", True),  # the same key read from its other end
+        ("--ease: linear", "0.--ease: linear;", True),  # punctuation edges take no guard at all
+    ],
+)
+def test_a_point_between_two_digits_is_inside_a_number_and_not_a_full_stop(
+    needle: str, text: str, *, found: bool
+) -> None:
+    """The edge a word guard cannot see: a point is a word character at neither of its ends.
+
+    So the guard a digit edge takes reads the FAR side of the point, which is the one reading that
+    tells a sentence ending on a number from a number that goes on past its point. An edge that is
+    a word but not a digit takes no such guard: `grpc.` is attribute access.
+    """
     assert bool(crosscheck.bounded(needle).search(text)) is found
 
 
