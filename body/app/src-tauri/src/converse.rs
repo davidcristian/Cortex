@@ -1,7 +1,8 @@
 //! The `converse` IPC command: run one brain turn and stream it to the webview.
 
 use body_core::{
-    BrainTransport, ConfirmDecision, TransportError, TurnEvent, retry_with, within_deadline,
+    BrainTransport, ConfirmDecision, RetryingTransport, TransportError, TurnEvent, retry_with,
+    within_deadline,
 };
 use body_rpc::BrainSeamClient;
 use futures_util::{StreamExt, pin_mut};
@@ -13,12 +14,12 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use crate::confirm::ConfirmRoute;
 use crate::seam::{ShellRandomness, TokioSleeper, plan_from_env, policy_from_env};
 
-/// Default brain seam address (matches `body_rpc`); override with `CORTEX_BRAIN_ADDR`.
+/// The default brain address, the same one `body_rpc` uses; override with `CORTEX_BRAIN_ADDR`.
 const DEFAULT_ADDR: &str = "http://127.0.0.1:50051";
 
-/// One streamed message to the overlay: exactly one field is set (serde skips the
-/// `None`), so the wire is `{ "event": … }` or `{ "error": … }`, matching the `WireMessage`
-/// union in `bridge/tauriBridge.ts`.
+/// One streamed message to the overlay: exactly one field is set (serde skips the `None`), so the
+/// wire is `{ "event": … }` or `{ "error": … }`, matching the `WireMessage` union in
+/// `bridge/tauriBridge.ts`.
 #[derive(Serialize)]
 pub struct WireMessage {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -148,7 +149,8 @@ impl WireMessage {
     }
 }
 
-/// Runs one conversational turn and streams it to `channel`.
+/// Runs one conversational turn and streams it to `channel`. Connection and turn failures are
+/// delivered on the channel rather than as a command error.
 #[tauri::command]
 pub async fn converse(
     session_id: String,
@@ -157,17 +159,19 @@ pub async fn converse(
     route: State<'_, ConfirmRoute>,
 ) -> Result<(), String> {
     let addr = std::env::var("CORTEX_BRAIN_ADDR").unwrap_or_else(|_| DEFAULT_ADDR.to_owned());
-    // The shared seam secret (ADR-0016): same env var the brain reads; empty = auth off.
     let token = std::env::var("CORTEX_SEAM_TOKEN")
         .ok()
         .filter(|token| !token.is_empty());
+    // Fail fast on a bad address or token, which no retry can fix, before spending the budget.
     if let Err(error) = BrainSeamClient::connect_lazy_with_token(&addr, token.as_deref()) {
         let _ = channel.send(WireMessage::error(error));
         return Ok(());
     }
+    // Retrying the dial is safe: the turn itself has not started, so nothing is repeated.
     let sleeper = TokioSleeper;
     let randomness = ShellRandomness::from_env();
-    let deadline = Some(plan_from_env().call_deadline);
+    let plan = plan_from_env();
+    let deadline = Some(plan.call_deadline);
     let dial = retry_with(policy_from_env(), &sleeper, &randomness, || {
         within_deadline(
             deadline,
@@ -182,9 +186,10 @@ pub async fn converse(
             return Ok(());
         }
     };
+    let transport = RetryingTransport::new(client, TokioSleeper, plan);
     let (sender, receiver) = tokio::sync::mpsc::unbounded_channel::<ConfirmDecision>();
     let generation = route.set(sender);
-    let stream = client.converse(&session_id, &text, UnboundedReceiverStream::new(receiver));
+    let stream = transport.converse(&session_id, &text, UnboundedReceiverStream::new(receiver));
     pin_mut!(stream);
     while let Some(item) = stream.next().await {
         let message = match item {

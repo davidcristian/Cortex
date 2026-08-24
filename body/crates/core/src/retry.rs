@@ -2,11 +2,13 @@
 
 pub mod deadline;
 pub mod effects;
+pub mod gap;
 pub mod plan;
 pub mod policy;
 
 pub use deadline::within_deadline;
 pub use effects::{FullDelay, Randomness, Sleeper};
+pub use gap::{DEFAULT_TURN_FIRST_GAP_MS, DEFAULT_TURN_IDLE_GAP_MS, TurnGaps, within_gaps};
 pub use plan::{
     ANNOUNCED_DEADLINE_GRACE_MS, DEFAULT_CALL_DEADLINE, DEFAULT_PROBE_BUDGET,
     DEFAULT_PROBE_DEADLINE, RetryPlan, SeamMethod,
@@ -118,10 +120,11 @@ impl<T: BrainTransport, S: Sleeper, R: Randomness> BrainTransport for RetryingTr
         text: &str,
         decisions: impl Stream<Item = ConfirmDecision> + Send + 'static,
     ) -> impl Stream<Item = Result<TurnEvent, TransportError>> + Send {
-        // Pass-through, and the one method that cannot even reach the gate: a stream is not a
-        // future the loop could re-issue. `SeamMethod::Converse` is refused all the same, so
-        // the classification stays exhaustive over the port (ADR-0024 decision 2).
-        self.inner.converse(session_id, text, decisions)
+        within_gaps(
+            self.plan.gaps_for(SeamMethod::Converse),
+            &self.sleeper,
+            self.inner.converse(session_id, text, decisions),
+        )
     }
 
     async fn list_sessions(&self, limit: i32) -> Result<Vec<SessionSummary>, TransportError> {

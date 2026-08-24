@@ -6,7 +6,8 @@ Slices 9/9.5; `ScreenCapture` from Slice 10, with `InputControl` still to come).
 the `os_windows`/`os_linux`/`os_macos` crates (`docs/modules/body-os.md`). Currently: the
 typed global-hotkey chord, the `BrainTransport` port to the brain seam (`health` +
 streaming `converse` + the session and reminder reads) with the `RetryingTransport`
-decorator + `Sleeper` port that add bounded-retry resilience over it (ADR-0024), the `link`
+decorator + `Sleeper` port that add bounded-retry resilience over it (ADR-0024) and bound every
+call on it, a deadline on a unary one and a pair of gaps on the turn's silence, the `link`
 classification behind the overlay's connection indicator (ADR-0011 addendum), and the
 `Hotkey` port with the `Accelerator` chord→code mapping.
 
@@ -205,7 +206,8 @@ stays thin and the retry is exercised against a fake with no network or wall-clo
   method runs under: public fields `reads` (the `RetryPolicy` for the repeatable reads),
   `probe_budget` (the ceiling a `Health` probe's whole run is trimmed to, attempts and backoff
   together, `DEFAULT_PROBE_BUDGET` = 1 s), `probe_deadline` (`DEFAULT_PROBE_DEADLINE` = 250 ms)
-  and `call_deadline` (`DEFAULT_CALL_DEADLINE` = 5 s). One constant beside them is not a field
+  and `call_deadline` (`DEFAULT_CALL_DEADLINE` = 5 s), plus `turn_gaps` (the `TurnGaps` a turn's
+  stream runs under, see `gaps_for` below). One constant beside them is not a field
   and not configurable, `ANNOUNCED_DEADLINE_GRACE_MS = 250`: how much longer the deadline the body
   announces is than the one it enforces (see `announced_deadline_for` below).
   `policy_for(method)` is the **one door every retry decision goes through**, and it answers
@@ -222,6 +224,18 @@ stays thin and the retry is exercised against a fake with no network or wall-clo
   different feature. Every other call gets a duration, **the writes included**, since bounding
   a call is not repeating it: repeatability and a deadline are independent questions, so a
   write the plan refuses to retry is still bounded (ADR-0024 deadline addendum).
+- `gaps_for(method)` is the door for the **other** clock, and the mirror image of the one above:
+  `Some` for `Converse` alone, `None` everywhere else. Between the two, **every call on the port is
+  bounded, by a clock on the call or a clock on its silence, and never by both**, which
+  `retry_plan.rs` asserts over every variant. It lives in `retry::gap` rather than beside
+  `deadline_for` because that file owns what a gap means and `plan.rs` is at the line cap.
+- `TurnGaps` (`retry::gap`; `Copy`, `Eq`, `Debug`) is that pair: `first`, the longest silence
+  allowed before a turn's first event (`DEFAULT_TURN_FIRST_GAP_MS = 600000`), and `idle`, the
+  longest between two events (`DEFAULT_TURN_IDLE_GAP_MS = 7200000`). `TurnGaps::UNBOUNDED` is both
+  at `Duration::MAX`, which is what "no bound" means to a clock. **The idle one is the longer, and
+  that is not a typo**: the first is the sum of the brain's own bounds on a swap and a first token,
+  while the mid-stream one has to clear a delegated subtask waiting for admission and then running,
+  which can only happen once a turn is under way (ADR-0024 idle-gap addendum has both derivations).
 - `announced_deadline_for(method)` is the same question asked about the wire (ADR-0024
   courtesy-header addendum): what the body **tells the brain** a call will be waited on, which the
   gRPC adapter sends as `grpc-timeout` so a brain still working on an abandoned call learns it has
@@ -250,6 +264,17 @@ stays thin and the retry is exercised against a fake with no network or wall-clo
   Enforced here it arrives as `Timeout`, which is terminal (ADR-0024 deadline addendum, corrected
   the same day: the first reading claimed a *sourceless* status classified `Rpc`, and running it
   says otherwise; `body/crates/rpc/tests/client.rs` pins the measurement).
+- `within_gaps(gaps, sleeper, stream)` (`retry::gap`) is the same composition for a stream: the
+  items pass through untouched and only the **silence between them** is bounded, so a turn that
+  keeps talking is never cut off. The first item is measured against `gaps.first` and every later
+  one against `gaps.idle`; a `None` for `gaps` is `TurnGaps::UNBOUNDED`, spelled as a duration for
+  the reason `within_deadline` spells its own exemption that way. An expired gap yields one final
+  `TransportError::Timeout { after }` carrying the gap and ends the stream, dropping the inner one,
+  which cancels the turn. Ending silently was the alternative and is not one: the overlay leaves a
+  reply streaming until a terminal event or an error reaches it, so a stream that merely stopped
+  would leave the indicator exactly where the stall did. Every branch that decides anything lives
+  in the file's non-generic `GapClock`, leaving the generic wrapper two whose sides any drained
+  stream takes both of.
 - `retry_with(policy, sleeper, randomness, call)` is the bounded-retry loop over any fallible
   async factory (ADR-0024 addendum): re-issues `call()` each attempt, sleeping the jittered
   delay while `backoff` says so. It is the schedule **executor**, not the gate: it takes the
@@ -264,9 +289,11 @@ stays thin and the retry is exercised against a fake with no network or wall-clo
   **exactly one attempt** and takes no path a permitted one does not. So
   `ack_reminder` is unretried by the gate rather than by bypassing it (ADR-0025), and no error
   code, however transient, can promote a call with an effect into two of them. `converse` is
-  forwarded as the stream it is, the one method that cannot reach the gate at runtime (a
+  the one method that cannot reach the gate at runtime (a
   stream is not a future the loop could re-issue); it is classified all the same so the port's
-  methods are covered exhaustively (ADR-0024 decision 2). `new(inner, sleeper, plan)` (no
+  methods are covered exhaustively (ADR-0024 decision 2). Its items are forwarded verbatim all the
+  same, under the plan's `TurnGaps`: not retried is not unbounded, and what the decorator adds to a
+  turn is a bound on its silence (ADR-0024 idle-gap addendum). `new(inner, sleeper, plan)` (no
   jitter, the v1 default) or `with_randomness(inner, sleeper, randomness, plan)` (jittered);
   both take `impl Into<RetryPlan>`, so a bare `RetryPolicy` still works.
 

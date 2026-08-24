@@ -3,6 +3,7 @@
 
 use std::time::Duration;
 
+use crate::retry::gap::TurnGaps;
 use crate::retry::policy::RetryPolicy;
 
 /// The ceiling a `Health` probe spends by default, backoff **and** attempts together: with the
@@ -87,6 +88,9 @@ pub struct RetryPlan {
     pub probe_deadline: Duration,
     /// How long every other unary attempt may wait for an answer ([`DEFAULT_CALL_DEADLINE`]).
     pub call_deadline: Duration,
+    /// The two silences a `Converse` stream runs under ([`RetryPlan::gaps_for`], which lives in
+    /// [`crate::retry::gap`] with everything else that knows what a gap means).
+    pub turn_gaps: TurnGaps,
 }
 
 impl Default for RetryPlan {
@@ -97,6 +101,7 @@ impl Default for RetryPlan {
             probe_budget: DEFAULT_PROBE_BUDGET,
             probe_deadline: DEFAULT_PROBE_DEADLINE,
             call_deadline: DEFAULT_CALL_DEADLINE,
+            turn_gaps: TurnGaps::default(),
         }
     }
 }

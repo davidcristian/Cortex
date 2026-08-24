@@ -107,6 +107,22 @@ $env:CORTEX_SEAM_TOKEN = "<the same secret the brain serves with>"
   command carrying an approval back into the open turn (ADR-0022), and the `check_link` command
   behind the indicator (its classification is gated in `body_core::link` and checked against a
   real brain by the `body-rpc` live suite, so what Windows adds is the IPC hop).
+- **What a stalled turn looks like, and when the body gives up on one** (ADR-0024 idle-gap
+  addendum). A turn has no time limit: the reply may take as long as the model and its tools take,
+  and the thinking indicator stays up while events keep arriving. What is bounded is **silence**.
+  If the brain accepts the turn and then sends nothing at all for `CORTEX_BRAIN_TURN_FIRST_GAP_MS`
+  (default 600000, ten minutes), or stops sending mid reply for `CORTEX_BRAIN_TURN_IDLE_GAP_MS`
+  (default 7200000, two hours), the body stops waiting: the reply settles on whatever text arrived,
+  carrying `no reply within …`, and the header dot goes **red** with the same line, because nothing
+  answered. That is the same reading a dead brain draws, and it is the honest one: from the body's
+  side a brain that has stopped sending and a brain that is gone are indistinguishable. The user
+  never has to wait for either bound, the Stop control ending a turn in place at any time, keeping
+  the partial text and recording no error.
+  The mid-stream default is long because it has to clear a **delegated subtask**, which may wait an
+  hour for the CPU budget and then run for forty minutes without the seam seeing anything. A stack
+  composed without the subagent sidecars never produces that silence, so turn it down:
+  `CORTEX_BRAIN_TURN_IDLE_GAP_MS=600000` matches the first-event bound and settles a wedged turn in
+  ten minutes instead of two hours.
 - **v1 window behaviour.** A fixed 640×720 frameless **opaque** always-on-top window; the hotkey
   **toggles** it (no hide-on-blur, so validation is predictable). Deferred to a later overlay-polish
   pass (all together): a **transparent** window so only the panel floats (a first attempt bled

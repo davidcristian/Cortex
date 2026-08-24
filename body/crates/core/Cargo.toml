@@ -6,16 +6,18 @@ publish.workspace = true
 description = "Pure, I/O-free core logic for the Cortex body (lib name: body_core)"
 
 [dependencies]
+# The turn's idle-gap decorator is a stream written as a loop (ADR-0024 decision 18), the
+# same macro the rpc adapter's `converse` is written with: pure `futures-core`, no runtime, no I/O.
+async-stream.workspace = true
 futures-core.workspace = true
-# The core's first algorithmic dependency (ADR-0029): the screen-capture policy PNG-encodes
-# in pure core, not in the `cfg(windows)` backend, so the coverage gate can see the byte
-# ceiling. Pure data in, data out; no I/O, no OS API, so hexagonal purity holds.
+# The screen-capture policy PNG-encodes here rather than in the `cfg(windows)` backend, so the
+# byte limit is covered by tests. Pure data in, data out: no I/O and no OS API.
 png.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
-# The capture tests decode the PNGs the policy produces, so a size claim is read back out
-# of the bytes that cross the seam rather than out of the value that wrote them.
+# The capture tests decode the PNGs the policy produces, so a size claim is read back out of the
+# bytes themselves rather than out of the value that wrote them.
 png.workspace = true
 tokio = { workspace = true, features = ["macros", "rt"] }
 # The converse contract test builds a fake TurnEvent stream and drains it.

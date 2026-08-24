@@ -1,18 +1,19 @@
-//! Shared brain-seam connection for the read IPC commands: a resilient transport.
+//! The shared brain connection the read IPC commands use: a transport that retries.
+//!
+//! It dials a lazy channel, so construction never fails on reachability and a brain that is
+//! briefly away is retried with bounded backoff instead of failing the read at once.
 
 use std::future::Future;
 use std::hash::{BuildHasher, Hasher};
 use std::time::Duration;
 
-use body_core::{Randomness, RetryPlan, RetryPolicy, RetryingTransport, Sleeper};
+use body_core::{Randomness, RetryPlan, RetryPolicy, RetryingTransport, Sleeper, TurnGaps};
 use body_rpc::BrainSeamClient;
 
-/// Default brain seam address (matches `body_rpc`); override with `CORTEX_BRAIN_ADDR`.
+/// The default brain address, the same one `body_rpc` uses; override with `CORTEX_BRAIN_ADDR`.
 const DEFAULT_ADDR: &str = "http://127.0.0.1:50051";
 
-/// The real [`Sleeper`]: `tokio::time`, for both questions the clock is asked. Kept here in the
-/// ungated shell so the timer effect stays out of the gated crates (ADR-0024 decision 5); a
-/// zero-sized unit.
+/// The real [`Sleeper`]: `tokio::time`, for both questions the clock is asked.
 pub struct TokioSleeper;
 
 impl Sleeper for TokioSleeper {
@@ -20,7 +21,7 @@ impl Sleeper for TokioSleeper {
         tokio::time::sleep(duration)
     }
 
-    /// The per-attempt deadline (ADR-0024 deadline addendum).
+    /// The per-attempt deadline.
     async fn bounded<F>(&self, deadline: Duration, call: F) -> Option<F::Output>
     where
         F: Future + Send,
@@ -30,7 +31,7 @@ impl Sleeper for TokioSleeper {
     }
 }
 
-/// The real [`Randomness`] (ADR-0024 addendum): unit draws from std's per-instance `RandomState`
+/// The real [`Randomness`]: unit draws from std's per-instance `RandomState`
 /// seed, which is jitter-grade spread without a new dependency.
 pub struct ShellRandomness {
     enabled: bool,
@@ -51,13 +52,11 @@ impl Randomness for ShellRandomness {
         if !self.enabled {
             return 1.0;
         }
-        // A fresh RandomState per draw: std seeds each instance randomly, and finishing an
-        // empty hasher yields 64 of those bits. Scale to [0, 1] (both casts round to 2^64 at
-        // the top, so the max bit pattern yields exactly 1.0, which the port permits).
+        // A fresh `RandomState` per draw: std seeds each instance randomly, and finishing an
+        // empty hasher yields 64 of those bits.
         let bits = std::collections::hash_map::RandomState::new()
             .build_hasher()
             .finish();
-        // Precision loss is fine: this feeds a jitter scale, not arithmetic that must be exact.
         #[allow(clippy::cast_precision_loss)]
         {
             bits as f64 / (u64::MAX as f64 + 1.0)
@@ -69,9 +68,9 @@ impl Randomness for ShellRandomness {
 /// [`RetryingTransport`] with the [`TokioSleeper`] and the [`ShellRandomness`] jitter.
 pub type ResilientTransport = RetryingTransport<BrainSeamClient, TokioSleeper, ShellRandomness>;
 
-/// Builds the resilient read transport, reading the address + optional seam token (ADR-0016)
-/// and the retry knobs from env. Fails only on a bad URI / non-ASCII token. The lazy channel
-/// never dials at construction, so an unreachable brain is a retry, not a connect error.
+/// Builds the read transport, reading the address, the optional token and the retry settings
+/// from the environment. One `RetryPlan` is read once and handed to both the decorator that
+/// enforces it and the client that announces it, so the two cannot disagree.
 pub fn connect() -> Result<ResilientTransport, String> {
     let addr = std::env::var("CORTEX_BRAIN_ADDR").unwrap_or_else(|_| DEFAULT_ADDR.to_owned());
     let token = std::env::var("CORTEX_SEAM_TOKEN")
@@ -89,9 +88,9 @@ pub fn connect() -> Result<ResilientTransport, String> {
     ))
 }
 
-/// The per-method retry plan: the read schedule from `CORTEX_BRAIN_RETRY_*`, the ceiling on a
-/// `Health` probe's whole run from `CORTEX_BRAIN_PROBE_BUDGET_MS` (default 1 s), and the two
-/// per-attempt deadlines, `CORTEX_BRAIN_PROBE_DEADLINE_MS` (default 250 ms) and
+/// The per-method retry plan, from `CORTEX_BRAIN_RETRY_*`, `CORTEX_BRAIN_PROBE_BUDGET_MS` (1 s),
+/// `CORTEX_BRAIN_PROBE_DEADLINE_MS` (250 ms), `CORTEX_BRAIN_CALL_DEADLINE_MS` (5 s) and the two
+/// turn gaps, `CORTEX_BRAIN_TURN_FIRST_GAP_MS` (10 min) and `CORTEX_BRAIN_TURN_IDLE_GAP_MS` (4 h).
 pub fn plan_from_env() -> RetryPlan {
     let default = RetryPlan::default();
     RetryPlan {
@@ -100,11 +99,15 @@ pub fn plan_from_env() -> RetryPlan {
         probe_deadline: env_millis("CORTEX_BRAIN_PROBE_DEADLINE_MS")
             .unwrap_or(default.probe_deadline),
         call_deadline: env_millis("CORTEX_BRAIN_CALL_DEADLINE_MS").unwrap_or(default.call_deadline),
+        turn_gaps: TurnGaps {
+            first: env_millis("CORTEX_BRAIN_TURN_FIRST_GAP_MS").unwrap_or(default.turn_gaps.first),
+            idle: env_millis("CORTEX_BRAIN_TURN_IDLE_GAP_MS").unwrap_or(default.turn_gaps.idle),
+        },
     }
 }
 
-/// The retry policy for the reads, each field overridable via `CORTEX_BRAIN_RETRY_*`; the ADR-0024
-/// defaults (3 attempts / 200 ms base / ×2 / 2 s cap) otherwise.
+/// The retry policy for the reads, each field overridable via `CORTEX_BRAIN_RETRY_*`, and
+/// otherwise 3 attempts, 200 ms base, doubling, 2 s cap.
 pub fn policy_from_env() -> RetryPolicy {
     let default = RetryPolicy::default();
     RetryPolicy {
@@ -120,8 +123,7 @@ fn env_parse<T: std::str::FromStr>(key: &str) -> Option<T> {
     std::env::var(key).ok().and_then(|value| value.parse().ok())
 }
 
-/// Parses an env var as a count of milliseconds. Every duration knob on this seam is spelled
-/// that way, so the conversion is written once.
+/// Parses an env var as a count of milliseconds.
 fn env_millis(key: &str) -> Option<Duration> {
     env_parse(key).map(Duration::from_millis)
 }

@@ -124,6 +124,7 @@ dependencies = [
 name = "body-core"
 version = "0.1.0"
 dependencies = [
+ "async-stream",
  "futures-core",
  "png",
  "thiserror",
