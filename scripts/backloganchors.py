@@ -52,6 +52,7 @@ from typing import NamedTuple
 
 from headingshapes import headings
 from headingshapes import problems as shape_problems
+from skippeddirs import SKIPPED_DIRS
 
 LINK = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
 DROPPED = re.compile(r"[^\w \-]")
@@ -64,25 +65,6 @@ MARKDOWN = ".md"
 UNREAD = (
     "aims at a document this scan does not read, so nothing here can say which headings it "
     "offers: it is missing, outside the tree, or inside a vendored or built one"
-)
-
-# The vendored and built trees, skipped so the scan reads the repo's own prose and not a
-# dependency's. This is the list `dashcheck.py` walks with rather than the line cap's,
-# for the reason that gate gives: prose in a test or a generated tree is still prose, and a
-# pointer written there rots exactly like one written in a decision record.
-SKIPPED_DIRS = frozenset(
-    {
-        ".git",
-        ".venv",
-        ".claude",
-        "target",
-        "node_modules",
-        "__pycache__",
-        ".pytest_cache",
-        ".ruff_cache",
-        "dist",
-        "coverage",
-    }
 )
 
 
@@ -153,7 +135,12 @@ def anchors(text: str) -> frozenset[str]:
 
 
 def markdown_files(root: Path) -> list[Path]:
-    """Return every markdown file under ``root``, in walk order, vendored trees skipped."""
+    """Return every markdown file under ``root``, in walk order, vendored trees skipped.
+
+    The skips are the shared list rather than the line cap's, which adds `tests` and
+    `_generated`: prose in a test or a generated tree is still prose, and a pointer written
+    there rots exactly like one written in a decision record.
+    """
     found: list[Path] = []
     for directory, dirnames, filenames in root.walk():
         dirnames[:] = sorted(name for name in dirnames if name not in SKIPPED_DIRS)

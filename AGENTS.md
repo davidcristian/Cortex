@@ -268,7 +268,9 @@ scripts/          repo gates, plus the one module here that gates nothing, contr
                   branches), ci_paths.py (CI path
                   classifier), commitlint.py (commit-message style), gitenv.py (the environment
                   every git call here runs with, so a hook's own GIT_DIR cannot outrank the
-                  repository a gate names)
+                  repository a gate names), skippeddirs.py (the directory components every walk
+                  here prunes, deliberately not .gitignore: two of its ten names are trees git
+                  ignores nowhere or almost nowhere)
 .github/          GPU-less CI running the same `just` recipes as local dev: ci.yml is the gate
                   mirror, shuffle.yml the weekly test-order sweep that gates nothing (ADR-0002)
 justfile          `just check` + check-*; proto, up/down, brain-serve, seam-health, turn-cost,

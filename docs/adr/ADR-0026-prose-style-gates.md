@@ -876,3 +876,90 @@ The record is the task file
 [docs/refinements/index.md](../refinements/index.md), which is regenerated from it,
 `scripts/gitenv.py` and `scripts/tests/test_gitenv.py`, the three gates and the three suites that
 now read it, [modules/repo-gates.md](../modules/repo-gates.md), and this addendum.
+
+## Addendum (2026-08-24, later still): the skip list is not `.gitignore`, and now has one home
+
+Teaching the dash ban to ask git what it ignores left a hand-written list of directory names
+beside the answer, most of which git already knew. The question was whether the list should
+survive. It should, for two names out of ten, and the four copies of it were the real defect.
+
+### Re-derived first, and two of the three claims had moved
+
+- **The overlap is eight of ten, not nine.** Measured today with the machine's own excludes file
+  taken out of the question, git ignores `.venv`, `.claude`, `target`, `node_modules`,
+  `__pycache__`, `.pytest_cache`, `.ruff_cache` and `dist` wherever they appear. `.git` it never
+  calls ignored, not being part of the work tree, and **`coverage` is ignored only under
+  `body/app/`**, by that tree's own `.gitignore`. A `coverage/` at the root or under `brain/` is
+  ignored by nothing, so the list has two real entries and eight restatements.
+- **The anchor scan did not import the list; it carried a copy.** The record that opened this said
+  `backloganchors.py` reads the dash ban's list directly, and the addendum above says the same. It
+  did not: it had a hand-written twin of the same ten names, held to nothing. The drift this entry
+  was opened to prevent was already in the tree on the day it was written.
+- **Four walks, not three, and four lists.** `composefiles.py` prunes with a list of its own, eight
+  names, missing the two tool caches, and its docstring argued for staying independent.
+
+### The fork, decided: the other three walks do not learn to ask git
+
+Collapsing the list to `.git` and letting `.gitignore` name every skipped tree loses two things,
+and the first is not the redundancy anybody assumed. **`coverage` is not a restatement.** The name
+joined this list as the overlay's own build output (the ADR-0011 line-cap addendum), and the repo
+ignores it in exactly one place, `body/app/`, where that build output lands. A walk that skipped
+only what git ignores would read a `coverage/` anywhere else, and a generated report is the kind
+of file whose banned dash is a red with no remedy but deleting it, which is the red the dash ban's
+collection change was made to remove.
+
+**And it would narrow who can run `just check`.** The dash ban already refuses a root git cannot
+answer about, and that is right for it, because its rule is about the text this repo owns and its
+collection is git's answer. The line cap, the anchor scan and the compose walk have no rule that
+mentions the repository: a cap on file length, a heading a pointer aims at, and a compose file's
+binds are all true of a tree somebody unpacked from an archive. Making three more gates refuse a
+directory that is not a git working tree is a real cost, paid to remove eight names that cost
+nothing and are pruned before any question is asked, which is also what keeps a walk out of an
+ignored bind target rather than merely quiet about it.
+
+### What landed instead, which is the other close this entry offered
+
+`scripts/skippeddirs.py` holds the ten names and the argument above, and all four walks read it.
+`linecap.py` composes its own list from it, `SHARED_SKIPS | {"tests", "_generated"}`, so the
+relationship a test used to hold is now one the code states; that test is deleted rather than kept
+as a tautology, the twelve names being pinned by behaviour anyway in the walk test beside it.
+`composefiles.py` joins as well, its eight names having no argument for being eight: the two
+caches it lacked are trees no gate reads either way, and the two compose gates' readings are
+identical across the change, 11 binds over 10 compose files and 22 landings, 8 variables over the
+same 10 files and 59 read.
+
+The claim the list makes about `.gitignore` is now measured rather than believed. A test asks git
+about each of the ten, in a directory git tracks and under the repo's own ignore rules alone, and
+holds the partition: eight restatements, and `.git` and `coverage` outside them. It reddens in
+both directions, which is the point of comparing two things nothing compared before.
+
+### Proved able to fail, six times, over the scripts suite
+
+Six planted mutations over `scripts/skippeddirs.py`, its readers and the repo's own `.gitignore`
+(the `scripts/tests` suite, 860 tests after this change, which is the collection every count below
+is out of). Each was restored from a copy taken before the first, with `__pycache__` purged
+between runs, and the 860-passed baseline was re-established after the last.
+
+| # | mutation | expected | observed |
+| --- | --- | --- | --- |
+| 1 | `coverage` dropped as redundant, the assumption this entry arrived with | the overlap test fails, and the cap's walk with it | 2 failed, 858 passed |
+| 2 | `.git` dropped, the entry's one acknowledged real name | the overlap test and the walks that would then read a repository | 9 failed, 851 passed |
+| 3 | the list collapsed to `.git` alone, the branch declined above | the walks stop skipping anything else | 17 failed, 843 passed |
+| 4 | the anchor scan keeps a correct copy of its own again | only the one-home test fails | 1 failed, 859 passed |
+| 5 | the cap loses its two extra names | the four cases that are the cap's alone fail | 4 failed, 856 passed |
+| 6 | `coverage/` added to the repo's own `.gitignore` | the overlap test fails from the other side | 1 failed, 859 passed |
+
+Row 4 is the historical defect replayed: a copy that agrees with the original is invisible to
+every behaviour test in the tree, which is how the anchor scan's twin lived here unnoticed, and
+only an obligation on the walk itself catches it. Row 6 is the row that proves the overlap test
+reads git rather than a second copy of the answer: adding a rule this repo does not have turns
+`coverage` into a restatement and the partition reddens on the spot.
+
+### Records
+
+The record is the task file
+[R-420](../refinements/tasks/420-the-skipped-dirs-list-restates-what-git-ignores.md),
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from it,
+`scripts/skippeddirs.py` and `scripts/tests/test_skippeddirs.py`, the four walks that read it,
+[modules/repo-gates.md](../modules/repo-gates.md), which states the relationship the deleted test
+used to, and this addendum.

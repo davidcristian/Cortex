@@ -24,24 +24,14 @@ from fnmatch import fnmatch
 from pathlib import Path
 from typing import NamedTuple
 
+from skippeddirs import SKIPPED_DIRS as SHARED_SKIPS
+
 DEFAULT_MAX_LINES = 300
 SOURCE_SUFFIXES = frozenset({".py", ".rs", ".ts", ".tsx"})
-SKIPPED_DIRS = frozenset(
-    {
-        ".git",
-        ".venv",
-        ".claude",
-        "target",
-        "node_modules",
-        "__pycache__",
-        ".pytest_cache",
-        ".ruff_cache",
-        "dist",
-        "coverage",
-        "tests",
-        "_generated",
-    }
-)
+# The trees no walk here enters, plus the two only this one skips: a 400-line test is not the
+# cap's problem, and generated code is exempt from every quality gate. Neither is true of prose,
+# which is why the dash ban and the anchor scan read the shared list without them.
+SKIPPED_DIRS = SHARED_SKIPS | {"tests", "_generated"}
 # One naming rule per toolchain, each matching what that toolchain's runner already calls a
 # test: pytest's `test_*.py`/`*_test.py`/`conftest.py`, Rust's `tests/` plus `*_test.rs`, and
 # Vitest's `src/**/*.test.{ts,tsx}` from `body/app/vite.config.ts` with `test-setup.ts`, its

@@ -8,9 +8,9 @@ question lives here, and neither gate spells it twice.
 
 The directory skips are shared for the same reason the names are: a compose file inside a
 vendored tree or a build output belongs to something this repo did not write, and that is true
-of it whichever gate is asking. This deliberately does not join the per-gate `SKIPPED_DIRS`
-lists in `linecap.py` and `dashcheck.py`, which differ from each other because each answers to
-its own rule (prose in a test is still prose; a 400-line test is not the cap's problem).
+of it whichever gate is asking. They are `skippeddirs.py`'s, the list every walk here reads;
+what a gate may add to that list is its own, the line cap's two names being the only addition
+in the tree.
 
 Finding nothing is a failure rather than an empty pass, which is the one rule this module
 carries of its own: a scan whose glob matched nothing would report success forever.
@@ -18,10 +18,7 @@ carries of its own: a scan whose glob matched nothing would report success forev
 
 from pathlib import Path
 
-# Directory components no gate reads. Vendored trees, build output and tool caches.
-SKIPPED_DIRS = frozenset(
-    {".git", ".venv", ".claude", "target", "node_modules", "__pycache__", "dist", "coverage"}
-)
+from skippeddirs import SKIPPED_DIRS
 
 # What a compose file is called. Both stems and both suffixes, because a scan that silently
 # missed a new override file is the defect the gates reading this exist to prevent.

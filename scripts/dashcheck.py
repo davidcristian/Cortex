@@ -50,29 +50,11 @@ from pathlib import Path
 from typing import NamedTuple
 
 from gitenv import git_env
+from skippeddirs import SKIPPED_DIRS
 
 ALLOW_PRAGMA = "dashcheck: allow"
 EM_DASH = "\u2014"
 EN_DASH = "\u2013"
-
-# Pruned before git is consulted. `.git` is the one entry git does not call ignored, and it is
-# the reason this list cannot become the ignore answer alone; the rest are trees this repo's own
-# `.gitignore` covers too, kept here because `linecap.py` is held to this list and
-# `backloganchors.py` reads it, so the three walks skip one set of names rather than three.
-SKIPPED_DIRS = frozenset(
-    {
-        ".git",
-        ".venv",
-        ".claude",
-        "target",
-        "node_modules",
-        "__pycache__",
-        ".pytest_cache",
-        ".ruff_cache",
-        "dist",
-        "coverage",
-    }
-)
 
 # The floor under the reading below, and the same one `linecap.py` carries: a walk that read a
 # single text file has entered the tree, and a walk that read none cannot fail on anything. It

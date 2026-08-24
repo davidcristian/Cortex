@@ -2,7 +2,6 @@ from pathlib import Path
 
 import pytest
 
-import dashcheck
 import linecap
 
 
@@ -113,14 +112,6 @@ def test_scan_skips_exempt_directories(tmp_path: Path, directory: str) -> None:
     write_file(tmp_path / directory / "big.py", 50)
     write_file(tmp_path / directory / "big.ts", 50)
     assert linecap.scan(tmp_path, cap=10).violations == []
-
-
-def test_skipped_dirs_match_dashcheck_plus_tests_and_generated() -> None:
-    """docs/modules/repo-gates.md states this relationship; a drift here falsifies that doc."""
-    only_linecap = linecap.SKIPPED_DIRS - dashcheck.SKIPPED_DIRS
-    only_dashcheck = dashcheck.SKIPPED_DIRS - linecap.SKIPPED_DIRS
-    assert only_linecap == {"tests", "_generated"}
-    assert only_dashcheck == set()
 
 
 def test_scan_skips_exempt_directory_components_at_any_depth(tmp_path: Path) -> None:
