@@ -1,3 +1,5 @@
+import os
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -15,6 +17,31 @@ def _write(root: Path, name: str, text: str) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
     return path
+
+
+def _env() -> dict[str, str]:
+    """The ambient environment without git's own variables, for the reason the gate strips them."""
+    return {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+
+
+def _git(root: Path, *args: str) -> None:
+    subprocess.run(  # noqa: S603 -- fixed argv, no shell
+        ["git", "-C", str(root), *args],  # noqa: S607 -- git on PATH
+        check=True,
+        capture_output=True,
+        env=_env(),
+    )
+
+
+@pytest.fixture
+def repo(tmp_path: Path) -> Path:
+    """A real git working tree, because what the walk reads is now git's own answer.
+
+    The gate asks git which paths it ignores, so a fake answer would test the fixture rather than
+    the rule; `test_bindcheck.py` inits a repository for the same reason.
+    """
+    _git(tmp_path, "init", "-q")
+    return tmp_path
 
 
 # ── what counts as punctuation ─────────────────────────────────────────────────
@@ -100,71 +127,143 @@ def test_read_text_raises_on_an_unreadable_file(tmp_path: Path) -> None:
 # ── walking a tree ─────────────────────────────────────────────────────────────
 
 
-def test_scan_finds_violations_across_file_types(tmp_path: Path) -> None:
-    _write(tmp_path, "doc.md", f"prose {EM} here\n")
-    _write(tmp_path, "src/app.ts", f"// comment {EM} here\n")
-    _write(tmp_path, "clean.py", "x = 1\n")
-    found = {v.path.name for v in dashcheck.scan(tmp_path).violations}
+def test_scan_finds_violations_across_file_types(repo: Path) -> None:
+    _write(repo, "doc.md", f"prose {EM} here\n")
+    _write(repo, "src/app.ts", f"// comment {EM} here\n")
+    _write(repo, "clean.py", "x = 1\n")
+    found = {v.path.name for v in dashcheck.scan(repo).violations}
     assert found == {"doc.md", "app.ts"}
 
 
-def test_scan_skips_excluded_directories(tmp_path: Path) -> None:
-    _write(tmp_path, "node_modules/pkg/index.js", f"a {EM} b\n")
-    _write(tmp_path, "target/debug/out.rs", f"a {EM} b\n")
-    _write(tmp_path, ".git/COMMIT_EDITMSG", f"a {EM} b\n")
-    assert dashcheck.scan(tmp_path).violations == []
+def test_scan_skips_excluded_directories(repo: Path) -> None:
+    _write(repo, "node_modules/pkg/index.js", f"a {EM} b\n")
+    _write(repo, "target/debug/out.rs", f"a {EM} b\n")
+    _write(repo, ".git/COMMIT_EDITMSG", f"a {EM} b\n")
+    assert dashcheck.scan(repo).violations == []
 
 
-def test_scan_skips_binary_files(tmp_path: Path) -> None:
-    (tmp_path / "logo.png").write_bytes(b"\x89PNG\x00\xff")
-    assert dashcheck.scan(tmp_path).violations == []
+def test_scan_skips_binary_files(repo: Path) -> None:
+    (repo / "logo.png").write_bytes(b"\x89PNG\x00\xff")
+    assert dashcheck.scan(repo).violations == []
 
 
-def test_scan_skips_non_regular_files(tmp_path: Path) -> None:
-    (tmp_path / "dangling").symlink_to(tmp_path / "nowhere")
-    assert dashcheck.scan(tmp_path).violations == []
+def test_scan_skips_non_regular_files(repo: Path) -> None:
+    (repo / "dangling").symlink_to(repo / "nowhere")
+    assert dashcheck.scan(repo).violations == []
+
+
+# ── the collection: the working tree minus what git ignores ────────────────────
+
+
+def test_scan_skips_a_file_git_ignores(repo: Path) -> None:
+    """Generated output is nobody's prose, so a dash in it is a file to delete, not a sentence."""
+    _write(repo, ".gitignore", "coverage.json\n")
+    _write(repo, "coverage.json", f'{{"note": "a {EM} b"}}\n')
+    scanned = dashcheck.scan(repo)
+    assert scanned.violations == []
+    assert scanned.files == 1  # the .gitignore itself, which git does not ignore
+
+
+def test_scan_never_descends_into_a_directory_git_ignores(repo: Path) -> None:
+    """A wholly ignored tree is pruned rather than read, which is what keeps a models dir cheap."""
+    _write(repo, ".gitignore", "blobs/\n")
+    _write(repo, "blobs/deep/note.md", f"a {EM} b\n")
+    scanned = dashcheck.scan(repo)
+    assert scanned.violations == []
+    assert scanned.files == 1
+
+
+@pytest.mark.parametrize("staged", [False, True])
+def test_a_file_the_repo_does_not_ship_yet_is_still_read(repo: Path, staged: bool) -> None:  # noqa: FBT001 -- a parametrized case, not a flag
+    """Why the walk is a walk: both are prose this repo is about to own, and neither is committed.
+
+    A gate reading `git ls-files` would miss the first outright and catch the second only once
+    somebody staged it, which is after the sentence was written and usually after it was read.
+    """
+    _write(repo, "doc.md", f"fresh {EM} prose\n")
+    if staged:
+        _git(repo, "add", "doc.md")
+    (violation,) = dashcheck.scan(repo).violations
+    assert violation.path == Path("doc.md")
+
+
+def test_a_root_git_cannot_answer_about_is_a_failure(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """No repository, no collection: scanning everything instead would be a different rule."""
+    _write(tmp_path, "doc.md", "clean prose\n")
+    assert dashcheck.main(["--root", str(tmp_path)]) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert f"git cannot say what {tmp_path} ignores" in captured.err
+
+
+def test_a_git_that_cannot_be_run_is_a_failure(
+    repo: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The other half of the same refusal, for a box with no git on its PATH at all."""
+
+    def boom(*_args: object, **_kwargs: object) -> object:
+        message = "no such executable"
+        raise OSError(message)
+
+    monkeypatch.setattr(dashcheck.subprocess, "run", boom)
+    assert dashcheck.main(["--root", str(repo)]) == 2
+    assert "cannot run git: no such executable" in capsys.readouterr().err
 
 
 # ── the CLI ────────────────────────────────────────────────────────────────────
 
 
-def test_main_passes_a_clean_tree(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_main_passes_a_clean_tree(repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """Two different numbers, so a summary that printed one of them twice would show here."""
-    _write(tmp_path, "doc.md", "clean prose\n")
-    _write(tmp_path, "src/app.ts", "// one\n// two\n")
-    assert dashcheck.main(["--root", str(tmp_path)]) == 0
+    _write(repo, "doc.md", "clean prose\n")
+    _write(repo, "src/app.ts", "// one\n// two\n")
+    assert dashcheck.main(["--root", str(repo)]) == 0
     assert capsys.readouterr().out == (
-        f"dashcheck OK: 2 text file(s) under {tmp_path} use no banned dash, over 3 line(s) read\n"
+        f"dashcheck OK: 2 text file(s) under {repo} use no banned dash, over 3 line(s) read\n"
     )
 
 
-def test_scan_counts_the_text_it_read_and_not_what_it_skipped(tmp_path: Path) -> None:
-    """The count after the skips: a binary file and an excluded tree are in neither number."""
-    _write(tmp_path, "doc.md", "one\ntwo\n")
-    _write(tmp_path, "src/app.ts", "// three\n")
-    (tmp_path / "logo.png").write_bytes(b"\x89PNG\x00\xff")
-    _write(tmp_path, "node_modules/pkg/index.js", "four\nfive\nsix\n")
-    scanned = dashcheck.scan(tmp_path)
-    assert (scanned.files, scanned.lines) == (2, 3)
+def test_scan_counts_the_text_it_read_and_not_what_it_skipped(repo: Path) -> None:
+    """The count after the skips: a binary, an excluded tree and an ignored file are in neither."""
+    _write(repo, ".gitignore", "notes/\n")
+    _write(repo, "doc.md", "one\ntwo\n")
+    _write(repo, "src/app.ts", "// three\n")
+    (repo / "logo.png").write_bytes(b"\x89PNG\x00\xff")
+    _write(repo, "node_modules/pkg/index.js", "four\nfive\nsix\n")
+    _write(repo, "notes/scratch.md", "seven\neight\n")
+    scanned = dashcheck.scan(repo)
+    assert (scanned.files, scanned.lines) == (3, 4)  # the two above plus the .gitignore
     assert scanned.violations == []
 
 
 def test_a_tree_with_no_text_file_is_a_failure_not_a_pass(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    repo: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """A walk that read nothing cannot fail, so reporting OK over one is the fail-open case."""
-    (tmp_path / "logo.png").write_bytes(b"\x89PNG\x00\xff")
-    assert dashcheck.main(["--root", str(tmp_path)]) == 2
+    (repo / "logo.png").write_bytes(b"\x89PNG\x00\xff")
+    assert dashcheck.main(["--root", str(repo)]) == 2
     captured = capsys.readouterr()
     assert captured.out == ""
     assert captured.err == (
-        f"dashcheck: no text file under {tmp_path}; a scan that read nothing cannot fail\n"
+        f"dashcheck: no text file under {repo}; a scan that read nothing cannot fail\n"
     )
 
 
-def test_main_fails_and_names_the_line(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    _write(tmp_path, "doc.md", f"bad {EM} line\n")
-    assert dashcheck.main(["--root", str(tmp_path)]) == 1
+def test_a_tree_git_ignores_entirely_meets_the_same_floor(
+    repo: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The floor's second road, opened by narrowing the walk: text present, collection empty."""
+    _write(repo, ".gitignore", ".gitignore\ndoc.md\n")
+    _write(repo, "doc.md", f"an ignored {EM} line\n")
+    assert dashcheck.main(["--root", str(repo)]) == 2
+    assert "a scan that read nothing cannot fail" in capsys.readouterr().err
+
+
+def test_main_fails_and_names_the_line(repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _write(repo, "doc.md", f"bad {EM} line\n")
+    assert dashcheck.main(["--root", str(repo)]) == 1
     captured = capsys.readouterr()
     assert f"doc.md:1: em dash: bad {EM} line" in captured.out
     assert dashcheck.ALLOW_PRAGMA in captured.err
@@ -179,22 +278,22 @@ def test_main_rejects_a_root_that_is_not_a_directory(
 
 
 def test_main_reports_an_unreadable_file(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+    repo: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    _write(tmp_path, "doc.md", "x\n")
+    _write(repo, "doc.md", "x\n")
 
     def boom(_path: Path) -> str:
         message = "cannot read doc.md: nope"
         raise dashcheck.UnreadableFileError(message)
 
     monkeypatch.setattr(dashcheck, "read_text", boom)
-    assert dashcheck.main(["--root", str(tmp_path)]) == 2
+    assert dashcheck.main(["--root", str(repo)]) == 2
     assert "cannot read doc.md" in capsys.readouterr().err
 
 
 def test_main_defaults_to_the_current_directory(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    repo: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    _write(tmp_path, "doc.md", "clean\n")
-    monkeypatch.chdir(tmp_path)
+    _write(repo, "doc.md", "clean\n")
+    monkeypatch.chdir(repo)
     assert dashcheck.main([]) == 0

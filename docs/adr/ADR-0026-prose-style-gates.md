@@ -688,3 +688,113 @@ The record is the task file
 [R-391](../refinements/tasks/391-a-fault-that-names-one-line-twice.md), which closes,
 [docs/refinements/index.md](../refinements/index.md), which is regenerated from it,
 `scripts/defaultcheck.py`, which carries the hint, and this addendum.
+
+## Addendum (2026-08-24): what the dash ban's collection is, now that it has to say
+
+Printing how many text files the scan read made the difference between that number and the repo
+visible for the first time, and the difference was not nothing. The walk read files git does not
+track, all of them generated or local output, and skipped files git does track, all of them binary
+assets. This decides what the collection is rather than leaving the print to imply one.
+
+### Re-derived first, and the numbers had moved
+
+Measured today, before anything changed, against a tree that has taken commits since the reading
+that opened this. The old walk read **1262** text files over 242539 lines; git tracks **1278**
+paths. The two sets are not nested, and the shape of the difference is exactly what was recorded:
+**ten** files read that git does not track, the five generated Tauri schemas under
+`body/app/src-tauri/gen/`, `body/coverage.json`, the three `measurements/*.json` blocks a live
+measurement leaves behind and `sandbox/hello.txt`; and **twenty six** files tracked and never read,
+every one a binary asset (the Tauri icon set, the logo, the overlay screenshots and the turn GIF)
+that the binary skip is right to pass over. The earlier reading of 1252 and 1268 was over the same
+ten and the same twenty six.
+
+### The collection is the working tree minus what git ignores
+
+Three candidates were weighed: the working tree, the index, and `git ls-files`.
+
+`git ls-files` is what the repo ships, it is what the rule is about, and it is the only candidate
+whose printed count is reproducible between this machine and CI. It loses anyway, on the case that
+made the walk a walk. A file an agent wrote a minute ago is prose this repo is about to own, and
+under `ls-files` the gate goes green on the document being written in front of it and reddens only
+once somebody stages it, which is after the sentence is written and usually after it has been read.
+The index is the same argument one step later: it covers the staged file and still not the new one.
+An unstaged new file is the single most common way prose enters this repo, an agent writing an ADR
+or a task file, and a style gate that cannot see it is a gate that arrives after the fact.
+
+So the working tree stays, and the fix is the smaller one: **skip what git ignores.** That removes
+all ten of the untracked files, none of which anybody wrote as prose, and touches no file a person
+wrote. It also removes the consequence that was latent rather than theoretical: a banned dash
+inside generated output was a red whose only remedy is deleting a file the repo does not ship,
+which is a gate telling the truth about the wrong collection.
+
+Git is asked **once**, `git ls-files --others --ignored --exclude-standard --directory -z`, which
+costs about three milliseconds and collapses a wholly ignored directory into a single entry the
+walk prunes rather than descends. That prune is worth more than the count: `models/` and `pgdata/`
+are ignored bind targets that a compose run fills with GGUFs and database dumps, and the old walk
+read every byte of them into memory to decide they were binary.
+
+**A git that cannot answer is exit 2**, not a quieter scan over everything. The collection is now
+defined by git's answer, so without one the printed count is over nothing anybody named, and this
+is the posture `bindcheck.py` already takes toward the same dependency. The cost is real and worth
+stating: `--root` must now name a git working tree, where before it named any directory.
+
+### What this does to the two numbers, and to the floor
+
+The walk now reads **1252** text files over 234483 lines, which is 10 files and 8056 lines of
+output nobody wrote. On a clean tree that set is exactly the tracked text: 1278 tracked paths minus
+the 26 binary assets is 1252, and the reading matches it to the file. The count is therefore
+reproducible between this machine and CI for a clean checkout, and differs from it by exactly the
+files not yet committed, which is the difference the walk exists to have.
+
+The floor stays at one file and keeps its meaning, but the meaning now has a second road to it. It
+said "a walk that read no text file cannot fail"; narrowing the walk adds a way to read none that
+has nothing to do with entering the tree, which is a root where git ignores everything under it.
+Both are the same fact about the collection being empty, so one floor covers both and a test now
+pins the new road.
+
+`SKIPPED_DIRS` stays as it is, and is now partly redundant on purpose. `.git` is the one entry git
+does not call ignored, so the list cannot become git's answer alone; the rest name trees this
+repo's own `.gitignore` also covers. They stay because two other modules read that list,
+`linecap.py` through the suite that holds the two to each other and `backloganchors.py` directly,
+so the three walks skip one set of names rather than three.
+
+### Proved able to fail, five times, over the scripts suite
+
+Five planted mutations over `scripts/dashcheck.py` (the `scripts/tests` suite, 852 tests after this
+change, which is the collection every count below is out of). Each was restored from a copy taken
+before the first, with `__pycache__` purged between runs, and the 852-passed baseline was
+re-established after the last.
+
+| # | mutation | expected | observed |
+| --- | --- | --- | --- |
+| 1 | the ignore consult dropped, the walk reading everything again | the collection tests fail | 6 failed, 846 passed |
+| 2 | ignored files skipped, ignored directories still descended into | the prune test fails | 2 failed, 850 passed |
+| 3 | a git that cannot answer treated as nothing ignored | both refusals fail | 2 failed, 850 passed |
+| 4 | the trailing slash left on, so a directory entry never matches a name | the prune test fails | 2 failed, 850 passed |
+| 5 | the floor lowered to zero | both floor tests fail, the new road included | 2 failed, 850 passed |
+
+Row 3 is the row the fail-closed decision needed: reading everything on a git failure is the
+tempting alternative, it hides no violation, and it silently restores the exact reds this change
+removes. Row 5 is the check that the floor still means what it meant, its second failure being the
+tree git ignores entirely, which could not have existed before this change.
+
+### What this opened
+
+Two hand-kept things did not notice that git can now be asked. The gates keep the environment strip
+that makes a git call inside a hook answer about the right repository in three separate modules, and
+a fourth caller will write a fourth copy
+([R-419](../refinements/tasks/419-the-git-call-inside-a-hook-is-written-three-times.md)). And
+`SKIPPED_DIRS` is a hand-written list of directory names that `.gitignore` already covers for all
+but one entry, read by three walks
+([R-420](../refinements/tasks/420-the-skipped-dirs-list-restates-what-git-ignores.md)).
+
+### Records
+
+The record is the task file
+[R-411](../refinements/tasks/411-the-dash-ban-reads-a-working-tree-not-a-commit.md), whose origin
+line pointed at the wrong decision record and now points here,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from it,
+`scripts/dashcheck.py`, which asks git and states the collection in its own docstring,
+`scripts/tests/test_dashcheck.py`, which walks a real git working tree for the reason
+`test_bindcheck.py` does, [modules/repo-gates.md](../modules/repo-gates.md), which states what the
+gate now reads and what it now refuses, and this addendum.

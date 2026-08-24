@@ -50,20 +50,34 @@ that last question to have an answer.
   **no** file at all (`MIN_FILES`), a scan that read nothing being one that cannot fail.
 - `dashcheck.py [--root DIR]` implements the no-dash-as-punctuation rule (ADR-0026).
   Scans EVERY text file under `--root` (default `.`), not just `*.py`/`*.rs`, because the
-  rule covers docs and comments alike. Flags U+2014 EM DASH and U+2013 EN DASH anywhere,
+  rule covers docs and comments alike. **Its collection is the working tree minus what git
+  ignores** (ADR-0026 dash-ban-collection addendum): the tree rather than `git ls-files`, so a
+  file staged but not committed and a file an agent wrote a minute ago are both read, that being
+  the prose this repo is about to own; minus what git ignores, so generated schemas, a coverage
+  export and a live measurement's JSON blocks are not reds whose remedy is deleting a file. Git is
+  asked once for the paths it ignores and a wholly ignored directory is pruned rather than
+  descended, which is what keeps an unignored walk out of the GGUFs under a bind target. `--root`
+  must therefore name a git working tree. Flags U+2014 EM DASH and U+2013 EN DASH anywhere,
   spaced or not, since a range takes a plain ASCII hyphen. Deliberately silent on U+2212
   MINUS SIGN (arithmetic), and on ASCII `--` (the repo's inline-reason idiom, which the gate-2
   escape-hatch rule effectively requires; commit messages are stricter and `commitlint.py`
   bans it there). Skips the same directory components as `linecap.py` minus `tests` and
   `_generated`, since prose in a test or a generated stub is still prose, and
   `test_skipped_dirs_match_dashcheck_plus_tests_and_generated` holds the two lists to that
-  sentence rather than leaving it to be believed; binary files are
+  sentence rather than leaving it to be believed. That list is now partly redundant with the
+  ignore answer and stays anyway: `.git` is the one name git does not call ignored, and
+  `linecap.py` and `backloganchors.py` both read the same list, so three walks skip one set of
+  names rather than three. Binary files are
   detected and skipped. A line carrying `dashcheck: allow` plus a reason is exempt, for a
   dash that means rather than punctuates. Exit 0 with a summary **stating the text it read**,
-  files and lines with the binaries in neither; exit 1 printing
-  `path:line: kind: text` per violation; exit 2 if `--root` is not a directory, a file
+  files and lines with the binaries and the ignored in neither; exit 1 printing
+  `path:line: kind: text` per violation; exit 2 if `--root` is not a directory, git cannot say
+  what it ignores there (fail closed, as `bindcheck.py` does about the same dependency, since the
+  collection would otherwise be undefined), a file
   cannot be read, or no text file was read at all (`MIN_FILES`, the same floor `linecap.py`
-  carries and the one `composefiles.py` has always given the two compose gates).
+  carries and the one `composefiles.py` has always given the two compose gates). That floor now
+  has a second road to it, a root git ignores entirely, which is the same empty collection
+  arriving a different way.
 - `crosscheck.py [--root DIR]` ties the values this repo spells in more than one place, because
   both sides of a seam must hold the same one and neither toolchain can import the other's
   (ADR-0029 cross-language-constant addendum and its 2026-08-08 widening). The scan is all of the
