@@ -1,6 +1,6 @@
 # The reading that says a file still spells a value does not say where it read one
 
-**Status:** open, actionable
+**Status:** landed 2026-08-25
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -42,3 +42,19 @@ reading proves nothing.
 - 2026-08-24: opened by the close of
   [R-398](398-a-rendered-integer-is-a-token-inside-a-decimal.md), whose live proof of the decimal
   guard turned up a second file answering yes for a reason no matcher can rule out.
+- 2026-08-25: landed as all three parts, the third option among them. A yes now says **how many
+  places** spell the value, **which one** it read, and **what that line says**: the occurrence
+  nearest where the carried run stops, by line number, read back windowed to a hundred characters
+  and marked at whichever end it was cut. **The entry's own case is sharper than it recorded.**
+  Replayed live, the `~11 GB` in [modules/brain-model-manager.md](../../modules/brain-model-manager.md)
+  is 71 lines from the needle's own line rather than a hundred, and it sits **one line above** a
+  sentence that names `stop_grace_s`, so proximity was never going to settle that case and the
+  line's own words had to be quoted. That is what decided the shape: nearest is a tie break between
+  matches and the quote is the verdict. Two degenerate cases are recorded rather than fixed, a
+  needle opening with its own value having no shape in front of it to be nearer to and a file
+  carrying no part of the needle having no run at all, and each falls back to the first occurrence
+  by name. Six planted mutations, each caught, over 868 tests in the scripts suite; tabled in the
+  ADR-0029 still-spelled addendum, with the live replay of the case that opened this beside it.
+  One residue: the run's own line is still never named, though the choice between matches is made
+  by computing it
+  ([R-426](426-the-run-is-reported-without-a-line-of-its-own.md)).

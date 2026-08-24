@@ -31,12 +31,33 @@ bind-host addendum, which measured that misattribution).
 
 So an unfound needle now says two things it can read rather than guess.
 
-**Whether the value is still there.** If the file goes on spelling this constant's value as a
-token of its own, then whatever stopped matching is shape, and the entry the fault names is
-probably not the entry to change. That is the misattribution said out loud. It is a reading and
-not a proof: a file may spell the same digits under two meanings, which is the same reason a
-survey by number cannot be trusted, so the sentence says what was read and calls the conclusion a
-maybe. A mention that renders only a name spells no value at all, and is told so instead.
+**Whether the value is still there, and where it read one.** If the file goes on spelling this
+constant's value as a token of its own, then whatever stopped matching is shape, and the entry the
+fault names is probably not the entry to change. That is the misattribution said out loud. It is a
+reading and not a proof: a file may spell the same digits under two meanings, which is the same
+reason a survey by number cannot be trusted, so the sentence says what was read and calls the
+conclusion a maybe. A mention that renders only a name spells no value at all, and is told so
+instead.
+
+A maybe a reader cannot check is a grep, which is the work this reading exists to save, so the
+yes carries the line it was read on and the words around it. Three things are said, and each is
+chosen rather than cheapest:
+
+- **Which occurrence**, when the file spells the value more than once: the one nearest where the
+  run below stops. The two readings a fault carries are about the same divergence, so aiming them
+  at one place makes the message one sentence instead of two, and it is the only choice that
+  spends what the run already computed. A needle opening with its own value degenerates to the
+  first occurrence, the run then starting where the value does, and that is honest rather than a
+  failure: there is no shape in front of the value to be nearer to. A file carrying no part of the
+  needle has no run at all, and the first occurrence is what the message then names.
+- **The line, and the words on it.** A line number alone turns the grep into a jump, which is
+  worth having and is not enough in a log nobody can jump from: the reading that dismissed the
+  case that opened this (`~11 GB` in a paragraph about VRAM, a hundred lines from the grace it
+  was read against) is the sentence and not the number. So the line's own text comes with it,
+  windowed around the match, because a runbook table row is several hundred characters and a
+  fault is one sentence.
+- **How many places spell it.** "Spelled in eleven places" is itself the answer that the reading
+  proves nothing, and it costs one number.
 
 **Where the file stops carrying the needle**, as the longest opening run of it the file contains.
 That run pinpoints the divergence when the needle's shape is unique to it, and it is deliberately
@@ -66,6 +87,16 @@ DIGIT = re.compile(r"\d")
 # word edge need, then the decimal guard only a digit edge does.
 LEAD_GUARDS = (r"(?<!\w)", r"(?<!\d\.)")
 TRAIL_GUARDS = (r"(?!\w)", r"(?!\.\d)")
+
+# How many characters of the line a still-spelled value sits on are quoted back with it. Wide
+# enough to carry the sentence the value is spent in, which is what tells a homonym from the real
+# thing, and bounded because the widest line this gate reads is over a thousand characters of
+# runbook table row and a fault is one sentence.
+QUOTED_WIDTH = 100
+
+# What marks a quote that starts or stops inside its line, so a reader reads a window rather than
+# a sentence the file does not have.
+TRIMMED = "..."
 
 
 def _guard(edge: str, guards: tuple[str, str]) -> str:
@@ -101,6 +132,50 @@ def carried(needle: str, text: str) -> str:
     return needle[:length]
 
 
+def nearest(text: str, run: str, matches: list[re.Match[str]]) -> re.Match[str]:
+    """The match closest to anywhere ``text`` carries ``run``, or the first when it carries none.
+
+    Distance is in characters rather than in lines, which needs no line index and orders two
+    matches on one line the way a reader would. Every occurrence of the run is an anchor, because
+    a run is a prefix and a file may satisfy it on a line the reader does not mean; the nearest
+    value to any of them is still the best guess this fault can make about which line diverged.
+    """
+    anchors = [found.start() for found in re.finditer(re.escape(run), text)] if run else []
+    if not anchors:
+        return matches[0]
+    return min(matches, key=lambda match: min(abs(match.start() - at) for at in anchors))
+
+
+def quote(line: str, start: int, end: int) -> str:
+    """``line`` around the match at ``start``..``end``, trimmed to a width a fault can carry."""
+    if len(line.strip()) <= QUOTED_WIDTH:
+        return line.strip()
+    margin = max(QUOTED_WIDTH - (end - start), 0) // 2
+    opened = max(start - margin, 0)
+    closed = min(end + margin, len(line))
+    lead = "" if opened == 0 else TRIMMED
+    trail = "" if closed == len(line) else TRIMMED
+    return f"{lead}{line[opened:closed].strip()}{trail}"
+
+
+def where(text: str, run: str, matches: list[re.Match[str]]) -> str:
+    """Where ``text`` goes on spelling the value: how many places, and the words at the one meant.
+
+    Worded to follow "spells it as a token of its own", so the sentence the reader gets names a
+    line to open and reads back what is on it.
+    """
+    match = nearest(text, run, matches)
+    number = text.count("\n", 0, match.start()) + 1
+    opened = text.rfind("\n", 0, match.start()) + 1
+    ends = text.find("\n", match.start())
+    closed = len(text) if ends < 0 else ends
+    read = quote(text[opened:closed], match.start() - opened, match.end() - opened)
+    if len(matches) == 1:
+        return f", once on line {number}, which reads {read!r}"
+    which = "the nearest to that run" if run else "the first"
+    return f", in {len(matches)} places, {which} on line {number}, which reads {read!r}"
+
+
 def unfound(mention: Mention, needle: str, text: str, spelled: str) -> str:
     """Why ``text`` does not spend ``needle``, said as what of it the file does still carry.
 
@@ -115,10 +190,11 @@ def unfound(mention: Mention, needle: str, text: str, spelled: str) -> str:
     held = f"carrying no more of it than {run!r}" if run else "carrying no part of it"
     if PLACEHOLDER not in mention.template:
         return f"{stem}, {held}; this needle renders no value, so the whole of it is shape"
-    if bounded(spelled).search(text):
-        return (
-            f"{stem}, {held}; the file does still spell {spelled!r} as a token of its own, so "
-            "what moved is likely shape this needle carries rather than this value, and the "
-            "constant to change may not be the one named here"
-        )
-    return f"{stem}, {held}; the file does not spell {spelled!r} as a token of its own either"
+    matches = list(bounded(spelled).finditer(text))
+    if not matches:
+        return f"{stem}, {held}; the file does not spell {spelled!r} as a token of its own either"
+    return (
+        f"{stem}, {held}; the file does still spell {spelled!r} as a token of its own"
+        f"{where(text, run, matches)}, so what moved is likely shape this needle carries rather "
+        "than this value, and the constant to change may not be the one named here"
+    )

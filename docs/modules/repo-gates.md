@@ -174,7 +174,15 @@ that last question to have an answer.
   seam port*, which neither of them spells. `needles.py` now answers the fault with two readings.
   The first is whether the file **still spells this constant's own value** as a token of its own,
   which is the evidence that what moved is shape and that the entry named is probably not the entry
-  to change; a mention rendering only a name spells no value at all and is told so instead. The
+  to change; a mention rendering only a name spells no value at all and is told so instead. **A
+  yes says where it read one** (ADR-0029 still-spelled addendum): how many places spell the value,
+  and of those the one nearest where the run below stops, named by line number and read back with
+  the line's own words, windowed to `needles.QUOTED_WIDTH` because the widest line this gate reads
+  is a runbook table row. A maybe a reader has to grep is the work the reading exists to save, and
+  the case that opened it was a `~11 GB` in a paragraph about VRAM answering yes for a stop grace
+  retuned to `11.0`. A needle opening with its own value has no shape in front of it to be nearer
+  to and degenerates to the first occurrence; a file carrying no part of the needle names the first
+  for want of a run. The
   second is the **longest opening run of the needle the file carries**, which pinpoints the
   divergence where the shape is unique to the needle. That run is measured over the whole file
   rather than one line, because a mention names a file, so a prefix satisfied on another line makes

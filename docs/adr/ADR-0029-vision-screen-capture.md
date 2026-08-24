@@ -5208,3 +5208,110 @@ The record is the task file
 `scripts/tests/test_crosscheck.py`, which carries the equality, the once test and the convention
 assertion, [modules/repo-gates.md](../modules/repo-gates.md), which states what the suite now holds,
 and this addendum.
+
+## Addendum (2026-08-25): the still-spelled reading names its line, reads it back, and counts
+
+The decimal-edge addendum above left one residue. When a rendered needle goes unfound,
+`needles.unfound` decides who the fault is about by asking whether the file **still spells this
+constant's own value** as a token of its own, which is the evidence that what moved is shape
+(ADR-0023 misattributed-fault addendum). It searched the bare value over the whole file and
+answered yes or no. It never said where the yes came from, so a reader told a value is still
+somewhere in a file confirmed or dismissed it with a grep, which is the work the fault exists to
+save.
+
+### Re-derived first, and the entry's own case is sharper than it recorded
+
+The mechanism was as the entry described it: one `bounded(spelled).search(text)`, a boolean, and a
+sentence that calls its own conclusion a maybe. What had moved is the case. Replaying the entry's
+measurement, `DEFAULT_STOP_GRACE_S` retuned to `11.0`,
+[modules/brain-model-manager.md](../modules/brain-model-manager.md) does answer yes on a `~11 GB`
+about VRAM, and that `~11 GB` is **71 lines** from the needle's own line rather than the hundred
+the entry recorded, and sits **one line above** a sentence that names `stop_grace_s`. So the
+neighbourhood was never going to settle it. Proximity is a tie break and not a verdict, and what
+dismisses that case on sight is the line's own words. That reading is what decided the shape below.
+
+### What a yes now says, and why each of the three parts is chosen
+
+**Which occurrence, when there are several: the one nearest where the carried run stops.** This is
+the entry's third option and the only one that spends what the fault already computed. The two
+readings a fault carries, the run and the value, are about one divergence, so aiming them at one
+place makes the message one sentence instead of two. Distance is counted in characters over the
+whole text, which needs no line index and orders two matches on one line the way a reader would,
+and every occurrence of the run is an anchor because a run is a prefix and a file may satisfy it on
+a line the reader does not mean. Two degenerate cases are honest rather than failures: a needle
+opening with its own value has no shape in front of the value to be nearer to, so the run starts
+where the value does and the reading falls back to the first occurrence; and a file carrying no
+part of the needle has no run at all, which the message says by naming the first.
+
+**The line, and the words on it.** A line number alone turns the grep into a jump, which is the
+entry's cheap version and is worth having. It is not enough in a CI log nobody can jump from, and
+the case above is the argument: the number 186 says nothing, and `a still-dying cortex holding ~11
+GB` ends the question. So the line's own text comes back with it, windowed to
+`needles.QUOTED_WIDTH` characters around the match and marked at whichever end it was cut, because
+the widest line this gate reads is 1150 characters of runbook table row, measured over every file
+the registry mentions, and a fault is one sentence.
+
+**How many places spell it.** The entry asked whether a yes with many matches should say how many,
+and it should: "spelled in eleven places" is itself the answer that the reading proves nothing, and
+it costs one number. It is written as `once` for a single match, which is the reading that a
+homonym is the only one there is.
+
+`needles.py` gains `nearest`, `quote` and `where` for those three, and `unfound` now takes the
+match list it already had to compute. The value search runs once rather than twice, the branch that
+used to call `search` and then say nothing about it now calling `finditer` and reading it.
+
+### The case that opened it, replayed on the live tree
+
+With `DEFAULT_STOP_GRACE_S` retuned to `11.0` in `supervisor.py` and nothing else touched, the
+third of the three faults now reads:
+
+```text
+the grace a child gets before it is killed: docs/modules/brain-model-manager.md does not spell
+'`DEFAULT_STOP_GRACE_S` (11 s)' as a token of its own, carrying no more of it than
+'`DEFAULT_STOP_GRACE_S` (1'; the file does still spell '11' as a token of its own, once on line
+186, which reads 'starts the deep model with nothing in between, so a still-dying cortex holding
+~11 GB would', so what moved is likely shape this needle carries rather than this value, and the
+constant to change may not be the one named here
+```
+
+The other two faults in that run are the `no` branch and are unchanged, which is the control: a
+value that really did move says so and names no line, there being none to name.
+
+### Proved able to fail, six times, over the scripts suite
+
+Six planted mutations in `scripts/needles.py`, each restored before the next. The counts are over
+`scripts/tests` (868 tests after this change, which is the collection every number below is out
+of), run as `uv run pytest -q --cov-fail-under=0`, and the 868-passed baseline was re-established
+after the last.
+
+| # | mutation | expected | observed |
+| --- | --- | --- | --- |
+| 1 | `nearest` never seeks an anchor and always takes the first match | the several-places case names the wrong line | 1 failed, 867 passed |
+| 2 | `where` says `in several places` instead of the count | both several-places cases lose their number | 2 failed, 866 passed |
+| 3 | `quote` returns the whole line, never a window | the three long-line cases stop being bounded | 3 failed, 865 passed |
+| 4 | `quote` never marks a window opened inside its line | the two cases cut at the front read as whole lines | 2 failed, 866 passed |
+| 5 | `where` numbers lines from zero | every line number in the section is off by one | 4 failed, 864 passed |
+| 6 | `where` reads a missing final newline as the line's end | the unterminated last line quotes back empty | 1 failed, 867 passed |
+
+Mutation 5 is the widest because a line number is the one part of this reading every new case
+asserts, which is the shape a reading of this kind should have: the cheap half of it is pinned
+everywhere and the two judgements, which occurrence and how much of the line, are pinned where they
+are made.
+
+### What this opened
+
+The message now names the line the **value** sits on and still says nothing about where the
+**run** stops, though `nearest` computes exactly that to choose between matches and throws it away.
+Naming both would make the distance between them visible, which is the evidence a reader is
+actually weighing
+([R-426](../refinements/tasks/426-the-run-is-reported-without-a-line-of-its-own.md)).
+
+### Records
+
+The record is the task file
+[R-414](../refinements/tasks/414-the-still-spelled-reading-does-not-say-where.md), which closes,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from it,
+`scripts/needles.py`, which carries the reading and the argument for its three parts,
+`scripts/tests/test_crosscheck.py`, which pins them,
+[modules/repo-gates.md](../modules/repo-gates.md), which states what an unfound needle now says,
+and this addendum.

@@ -8,6 +8,7 @@ import pytest
 
 import couplings
 import crosscheck
+import needles
 import registry
 import values
 
@@ -471,6 +472,109 @@ def test_a_file_carrying_no_part_of_the_needle_has_no_run_to_report(tmp_path: Pa
     (fault,) = crosscheck.check_constant(tmp_path, MENTIONED)
     assert "carrying no part of it" in fault.detail
     assert "does not spell '--ceiling' as a token of its own either" in fault.detail
+
+
+# ── and where it read the value it says is still there ─────────────────────────
+#
+# A maybe nobody can check is a grep, which is the work this reading exists to save. So a yes
+# names the line, reads it back, and says how many lines spell the value: `needles.where`.
+
+
+_GRACED = crosscheck.Constant(
+    label="the grace a child gets before it is killed",
+    why="an eviction pays this whole grace when the child has a request in flight",
+    sites=(crosscheck.Site("config.py", "DEFAULT_STOP_GRACE_S"),),
+    mentions=(crosscheck.Mention("swap.md", "the full grace ({value} s)"),),
+)
+
+
+def _graced(root: Path, swap: str) -> None:
+    """The grace retuned past what the runbook states, over a runbook of the caller's writing."""
+    (root / "config.py").write_text("DEFAULT_STOP_GRACE_S = 11\n", encoding="utf-8")
+    (root / "swap.md").write_text(swap, encoding="utf-8")
+
+
+def test_a_yes_reads_back_the_line_it_read_the_value_on(tmp_path: Path) -> None:
+    """The homonym that opened this, in miniature: one `11`, and it is about VRAM.
+
+    The reading is not lying and cannot be made to stop saying maybe, a document being free to
+    spell two digits under two meanings. What it can do is hand the reader the sentence, which is
+    what settles this one on sight instead of on a grep.
+    """
+    _graced(
+        tmp_path,
+        "the full grace (10 s) is paid when a request is in flight\n"
+        "\n"
+        "the cortex still holds ~11 GB of it while it dies\n",
+    )
+    (fault,) = crosscheck.check_constant(tmp_path, _GRACED)
+    assert "the file does still spell '11' as a token of its own, once on line 3" in fault.detail
+    assert "which reads 'the cortex still holds ~11 GB of it while it dies'" in fault.detail
+
+
+def test_a_last_line_with_no_newline_is_still_read_back_whole(tmp_path: Path) -> None:
+    """The line the file ends on has no closing newline to find, and is a line all the same."""
+    _graced(tmp_path, "the full grace (10 s) is paid\n\nthe cortex holds ~11 GB")
+    (fault,) = crosscheck.check_constant(tmp_path, _GRACED)
+    assert "once on line 3, which reads 'the cortex holds ~11 GB'" in fault.detail
+
+
+def test_a_value_in_several_places_is_counted_and_read_nearest_the_run(tmp_path: Path) -> None:
+    """Which of several: the one nearest where the file stopped carrying the needle.
+
+    The two readings a fault carries are about one divergence, so they name one place. Here the
+    publish's own interface is what moved, the run stops inside it, and the port is spelled both
+    on that line and in a comment seven lines above that has nothing to do with it.
+    """
+    (tmp_path / "config.py").write_text("PORT = 50051\n", encoding="utf-8")
+    (tmp_path / "stack.yml").write_text(
+        "# the brain answered on 50051 before the move\n\n\n\n\n\n\n"
+        '      - "127.0.0.2:50051:50051"\n',
+        encoding="utf-8",
+    )
+    (fault,) = crosscheck.check_constant(tmp_path, _ported("127.0.0.1:{value}:{value}"))
+    assert "carrying no more of it than '127.0.0.'" in fault.detail
+    assert "in 3 places, the nearest to that run on line 8" in fault.detail
+    assert "which reads '- \"127.0.0.2:50051:50051\"'" in fault.detail
+
+
+def test_a_value_in_several_places_with_no_run_at_all_is_read_at_the_first(tmp_path: Path) -> None:
+    """No run means no place to be nearest to, so the first spelling is the one named."""
+    (tmp_path / "budget.ts").write_text('const CEILING_PROPERTY = "--ceiling";\n', encoding="utf-8")
+    (tmp_path / "overlay.css").write_text(
+        ".panel { height: --ceiling; }\n.rail { width: --ceiling; }\n", encoding="utf-8"
+    )
+    (fault,) = crosscheck.check_constant(tmp_path, MENTIONED)
+    assert "carrying no part of it" in fault.detail
+    assert "in 2 places, the first on line 1" in fault.detail
+    assert "which reads '.panel { height: --ceiling; }'" in fault.detail
+
+
+def _row(before: int, after: int) -> tuple[str, int, int]:
+    """A table row of a chosen width with `2048` at a chosen depth into it, and where that sits."""
+    line = f"| {'w' * before} | 2048 | {'x' * after} |"
+    return line, line.index("2048"), line.index("2048") + len("2048")
+
+
+@pytest.mark.parametrize(
+    ("before", "after", "opens", "closes"),
+    [
+        (2, 2, False, False),  # a line inside the width is quoted whole
+        (200, 200, True, True),  # a runbook row, windowed at both ends
+        (2, 400, False, True),  # the value near the line's start: nothing to trim in front
+        (400, 2, True, False),  # and near its end: nothing to trim after
+    ],
+)
+def test_a_quote_is_windowed_only_where_the_line_runs_past_it(
+    before: int, after: int, *, opens: bool, closes: bool
+) -> None:
+    """A fault is one sentence, so the widest line this gate reads is quoted around the match."""
+    line, start, end = _row(before, after)
+    read = needles.quote(line, start, end)
+    assert "2048" in read
+    assert len(read) <= needles.QUOTED_WIDTH + 2 * len(needles.TRIMMED)
+    assert read.startswith(needles.TRIMMED) is opens
+    assert read.endswith(needles.TRIMMED) is closes
 
 
 def test_a_needle_that_renders_only_a_name_is_shape_all_through(tmp_path: Path) -> None:
