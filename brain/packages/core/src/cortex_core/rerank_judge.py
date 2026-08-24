@@ -135,7 +135,7 @@ class JudgeRecallPolicy:
             # cause rides as ``exc_info`` the way every other degraded-turn warning carries it.
             _logger.warning(
                 "the model could not be asked to rank recall; falling back to the unjudged ranking",
-                extra={"session": session_id, "pool": len(hits), "k": k},
+                extra={"session_id": session_id, "pool": len(hits), "k": k},
                 exc_info=True,
             )
             return await self._fallback.select(
@@ -146,7 +146,7 @@ class JudgeRecallPolicy:
             _logger.warning(
                 "the model returned no usable recall order; falling back to the unjudged ranking",
                 extra={
-                    "session": session_id,
+                    "session_id": session_id,
                     "pool": len(hits),
                     "k": k,
                     "capped": stops.capped,

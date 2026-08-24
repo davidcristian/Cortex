@@ -1711,17 +1711,19 @@ Use-case:
   reply's length is known before it is asked for; a truncated constrained reply is not JSON, so
   running into the cap degrades to that same fallback rather than to a shortened order. **A
   fallback it takes because something broke is logged where it happens** (ADR-0038 unjudged-rank
-  addendum), the module's own `logging` warning naming the `session` the recall was for, the pool
-  and the `k`: one line for a backend
+  addendum), the module's own `logging` warning naming the `session_id` the recall was for, the
+  pool and the `k`: one line for a backend
   that could not be asked (the error as `exc_info`) and one for a reply no order could be read out
   of, that one carrying `capped` from a `StopLedger` it hands `drain_text` and `chars`, the reply's
   length, since a rank the bound cut and a model that ended in the wrong shape arrive as the same
   text and want opposite fixes. Both ride the record alone, the process entry's formatter being
   what renders them onto the line (ADR-0038 rendered-fields addendum); they used to be spelled
-  into the message too, back when the shipped handler printed no `extra`. `session` is spelled the
-  way `LoggingRecallSink` spells it, because the trail line for the same recall is what a fallback
-  is paired with (ADR-0038 named-recall addendum), and a caller that named none logs
-  `session=None`. The other two
+  into the message too, back when the shipped handler printed no `extra`. `session_id` is spelled
+  the way `LoggingRecallSink` spells it, because the trail line for the same recall is what a
+  fallback is paired with (ADR-0038 named-recall addendum), and a caller that named none logs
+  `session_id=None`. Both of them and the trail spelled it `session` until the brain settled on one
+  name per work identity, which is the dispatch stamp's (ADR-0009 one-vocabulary addendum). The
+  other two
   verdict-less exits are silent on purpose: an empty
   pool is a no-op, and a refusal is a judgement that the trail already reports as `demur`, so every
   line from the module means the configured rank did not run. Selected at the composition root via `CORTEX_MEMORY_RECALL`
@@ -2225,6 +2227,16 @@ Log rendering (ADR-0038 rendered-fields addendum; `log_fields.py` + `log_format.
   can shadow the other three.
 - `record_fields(record)` is what both read: every attribute not in `RESERVED_ATTRS`, which is the
   stdlib's own set plus the `message`/`asctime` pair a `Formatter` adds while it runs.
+- `SESSION_FIELD`, `TURN_FIELD`, `TASK_FIELD`, `ITEM_FIELD` and `CALL_FIELD` (`"session_id"`,
+  `"turn_id"`, `"task_id"`, `"item_id"`, `"call_id"`) are the one name each work identity is
+  written under wherever a brain line names one (ADR-0009 one-vocabulary addendum). They are the
+  dispatch stamp's own names, and they are written down here because two of them were spelled two
+  ways at once: the recall trail and the rank's fallbacks said `session` where six other modules
+  said `session_id`, and the schedule ticker said `reminder_id` where the audit trail said
+  `item_id`, so a grep for either returned half the evidence. Only `LoggingAuditSink` spends them
+  as code, being the one sink that writes the whole vocabulary out as a list; every other line
+  keeps the literal an operator greps, and `scripts/logcouplings.py` is what ties those literals
+  and the runbooks quoting them back to here.
 - **Secrets are withheld by the formatter, not by its callers** (AGENTS.md gate 5). A field whose
   name contains any of `SECRET_NAMES` (`token`, `password`, `passwd`, `secret`, `credential`,
   `apikey`, `api_key`, `authorization`, `cookie`, case-insensitively) renders `REDACTED`

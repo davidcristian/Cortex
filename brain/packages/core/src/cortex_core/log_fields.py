@@ -42,6 +42,12 @@ RESERVED_ATTRS = frozenset(
     }
 )
 
+SESSION_FIELD = "session_id"
+TURN_FIELD = "turn_id"
+TASK_FIELD = "task_id"
+ITEM_FIELD = "item_id"
+CALL_FIELD = "call_id"
+
 # Substrings that make a field name too dangerous to print, matched case-insensitively so
 # ``apiKey`` and ``API_KEY`` are the same name. Every concrete secret this deployment holds is
 # named for what it is: the seam token, the mail bridge's password, a model host's credential.

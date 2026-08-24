@@ -3,6 +3,13 @@
 import logging
 
 from cortex_core import ToolInvocation
+from cortex_core.log_fields import (
+    CALL_FIELD,
+    ITEM_FIELD,
+    SESSION_FIELD,
+    TASK_FIELD,
+    TURN_FIELD,
+)
 
 _logger = logging.getLogger("cortex.tools.audit")
 
@@ -23,11 +30,11 @@ class LoggingAuditSink:
             {
                 name: identity
                 for name, identity in (
-                    ("call_id", invocation.call_id),
-                    ("session_id", invocation.session_id),
-                    ("turn_id", invocation.turn_id),
-                    ("task_id", invocation.task_id),
-                    ("item_id", invocation.item_id),
+                    (CALL_FIELD, invocation.call_id),
+                    (SESSION_FIELD, invocation.session_id),
+                    (TURN_FIELD, invocation.turn_id),
+                    (TASK_FIELD, invocation.task_id),
+                    (ITEM_FIELD, invocation.item_id),
                 )
                 if identity
             }
