@@ -15,6 +15,12 @@ DIGIT = re.compile(r"\d")
 LEAD_GUARDS = (r"(?<!\w)", r"(?<!\d\.)")
 TRAIL_GUARDS = (r"(?!\w)", r"(?!\.\d)")
 
+QUOTED_WIDTH = 100
+
+# What marks a quote that starts or stops inside its line, so a reader reads a window rather than
+# a sentence the file does not have.
+TRIMMED = "..."
+
 
 def _guard(edge: str, guards: tuple[str, str]) -> str:
     """The lookaround one edge of a needle needs: none, the word one, or that and the decimal."""
@@ -43,6 +49,44 @@ def carried(needle: str, text: str) -> str:
     return needle[:length]
 
 
+def nearest(text: str, run: str, matches: list[re.Match[str]]) -> re.Match[str]:
+    """The match closest to anywhere ``text`` carries ``run``, or the first when it carries none."""
+    anchors = [found.start() for found in re.finditer(re.escape(run), text)] if run else []
+    if not anchors:
+        return matches[0]
+    return min(matches, key=lambda match: min(abs(match.start() - at) for at in anchors))
+
+
+def quote(line: str, start: int, end: int) -> str:
+    """``line`` around the match at ``start``..``end``, trimmed to a width a fault can carry."""
+    if len(line.strip()) <= QUOTED_WIDTH:
+        return line.strip()
+    margin = max(QUOTED_WIDTH - (end - start), 0) // 2
+    opened = max(start - margin, 0)
+    closed = min(end + margin, len(line))
+    lead = "" if opened == 0 else TRIMMED
+    trail = "" if closed == len(line) else TRIMMED
+    return f"{lead}{line[opened:closed].strip()}{trail}"
+
+
+def where(text: str, run: str, matches: list[re.Match[str]]) -> str:
+    """Where ``text`` goes on spelling the value: how many places, and the words at the one meant.
+
+    Worded to follow "spells it as a token of its own", so the sentence the reader gets names a
+    line to open and reads back what is on it.
+    """
+    match = nearest(text, run, matches)
+    number = text.count("\n", 0, match.start()) + 1
+    opened = text.rfind("\n", 0, match.start()) + 1
+    ends = text.find("\n", match.start())
+    closed = len(text) if ends < 0 else ends
+    read = quote(text[opened:closed], match.start() - opened, match.end() - opened)
+    if len(matches) == 1:
+        return f", once on line {number}, which reads {read!r}"
+    which = "the nearest to that run" if run else "the first"
+    return f", in {len(matches)} places, {which} on line {number}, which reads {read!r}"
+
+
 def unfound(mention: Mention, needle: str, text: str, spelled: str) -> str:
     """Why ``text`` does not spend ``needle``, said as what of it the file does still carry."""
     run = carried(needle, text)
@@ -52,10 +96,11 @@ def unfound(mention: Mention, needle: str, text: str, spelled: str) -> str:
     held = f"carrying no more of it than {run!r}" if run else "carrying no part of it"
     if PLACEHOLDER not in mention.template:
         return f"{stem}, {held}; this needle renders no value, so the whole of it is shape"
-    if bounded(spelled).search(text):
-        return (
-            f"{stem}, {held}; the file does still spell {spelled!r} as a token of its own, so "
-            "what moved is likely shape this needle carries rather than this value, and the "
-            "constant to change may not be the one named here"
-        )
-    return f"{stem}, {held}; the file does not spell {spelled!r} as a token of its own either"
+    matches = list(bounded(spelled).finditer(text))
+    if not matches:
+        return f"{stem}, {held}; the file does not spell {spelled!r} as a token of its own either"
+    return (
+        f"{stem}, {held}; the file does still spell {spelled!r} as a token of its own"
+        f"{where(text, run, matches)}, so what moved is likely shape this needle carries rather "
+        "than this value, and the constant to change may not be the one named here"
+    )
