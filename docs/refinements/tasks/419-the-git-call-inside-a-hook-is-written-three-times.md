@@ -50,4 +50,6 @@ environment by hand can drift from the gate it tests.
   here spelling a git argv also spells the call that hands it an environment. Six planted
   mutations, tabled in the ADR-0026 git-environment addendum; the last of them is a gate writing
   a correct copy of the strip again, which every behaviour test passes and only that obligation
-  catches.
+  catches. One residue, shared with the close that landed the same shape of obligation over the
+  tree walks: [R-423](423-an-obligation-test-knows-a-caller-by-its-spelling.md), the test finding
+  its callers by how they are spelled.
