@@ -1,10 +1,10 @@
-import os
 import subprocess
 from pathlib import Path
 
 import pytest
 
 import commitlint
+from gitenv import git_env
 
 # Built from escapes, not literals, so this file passes the dash gate.
 EM = "\u2014"
@@ -167,17 +167,13 @@ def test_non_volatile_text_passes(line: str) -> None:
 # ── commit hashes ──────────────────────────────────────────────────────────────
 
 
-def _clean_env() -> dict[str, str]:
-    """The ambient environment with git's own variables stripped out."""
-    return {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
-
-
 def _git(repo: Path, *args: str) -> None:
+    """Drive git against the fixture's own tree, with the environment the gate itself uses."""
     subprocess.run(  # noqa: S603 -- fixed argv into a tmp repo, no shell
         ["git", "-C", str(repo), *args],  # noqa: S607 -- git on PATH
         check=True,
         capture_output=True,
-        env=_clean_env(),
+        env=git_env(),
     )
 
 
@@ -192,21 +188,34 @@ def repo(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def test_a_resolving_commit_hash_is_flagged(repo: Path) -> None:
-    sha = subprocess.run(  # noqa: S603 -- fixed argv, no shell
+def _head_sha(repo: Path) -> str:
+    """The fixture repository's own HEAD, abbreviated the way a person would paste it."""
+    return subprocess.run(  # noqa: S603 -- fixed argv, no shell
         ["git", "-C", str(repo), "rev-parse", "--short", "HEAD"],  # noqa: S607 -- git on PATH
         capture_output=True,
         text=True,
         check=True,
-        env=_clean_env(),
+        env=git_env(),
     ).stdout.strip()
-    (problem,) = commitlint.check_body_lines([f"revises {sha} for longevity"], repo)
+
+
+def test_a_resolving_commit_hash_is_flagged(repo: Path) -> None:
+    (problem,) = commitlint.check_body_lines([f"revises {_head_sha(repo)} for longevity"], repo)
     assert "a rewrite invalidates it" in problem
 
 
 def test_a_hex_string_that_is_not_a_commit_passes(repo: Path) -> None:
     # Action SHAs, colour codes, and digests are legal: only a real, breakable ref is not.
     assert commitlint.check_body_lines(["pin to deadbeefcafe1234"], repo) == []
+
+
+def test_an_exported_git_dir_does_not_decide_which_repository_answers(
+    repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The strip is what makes `-C` the answer, and without it this hook is silently wrong."""
+    sha = _head_sha(repo)
+    monkeypatch.setenv("GIT_DIR", str(repo / "no-such-git-dir"))
+    assert commitlint.commit_exists(sha, repo) is True
 
 
 def test_commit_exists_is_false_when_git_is_missing(
@@ -437,14 +446,7 @@ def test_a_volatile_reference_inside_a_paste_is_still_flagged() -> None:
 
 
 def test_a_resolving_hash_inside_a_paste_is_still_flagged(repo: Path) -> None:
-    sha = subprocess.run(  # noqa: S603 -- fixed argv, no shell
-        ["git", "-C", str(repo), "rev-parse", "--short", "HEAD"],  # noqa: S607 -- git on PATH
-        capture_output=True,
-        text=True,
-        check=True,
-        env=_clean_env(),
-    ).stdout.strip()
-    lines = ["docs: quote the record", "```", f"git show {sha}", "```"]
+    lines = ["docs: quote the record", "```", f"git show {_head_sha(repo)}", "```"]
     (problem,) = commitlint.check_body_lines(lines, repo)
     assert "a rewrite invalidates it" in problem
 

@@ -7,6 +7,8 @@ import sys
 from pathlib import Path
 from typing import NamedTuple
 
+from gitenv import git_env
+
 ALLOW_PRAGMA = "dashcheck: allow"
 EM_DASH = "\u2014"
 EN_DASH = "\u2013"
@@ -104,14 +106,13 @@ def read_text(path: Path) -> str | None:
 
 def ignored_paths(root: Path) -> frozenset[str]:
     """Return every path under ``root`` that git ignores, as root-relative posix strings."""
-    env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
     listing = ("ls-files", "--others", "--ignored", "--exclude-standard", "--directory", "-z")
     try:
         result = subprocess.run(  # noqa: S603 -- fixed argv, no shell
             ["git", "-C", str(root), *listing],  # noqa: S607 -- git resolves on PATH; a pinned path is not portable
             capture_output=True,
             check=False,
-            env=env,
+            env=git_env(),
         )
     except OSError as err:
         msg = f"cannot run git: {err}"

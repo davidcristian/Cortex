@@ -1,12 +1,12 @@
 """Behaviour of the compose bind-mount gate, over real git repositories."""
 
-import os
 import subprocess
 from pathlib import Path
 
 import pytest
 
 import bindcheck
+from gitenv import git_env
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -20,17 +20,17 @@ services:
 """
 
 
-def _env() -> dict[str, str]:
-    """The ambient environment without git's own variables."""
-    return {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
-
-
 def _git(repo: Path, *args: str) -> None:
+    """Drive git against the fixture's own tree, with the environment the gate itself uses.
+
+    `gitenv.git_env()` rather than a strip of its own: an inherited `GIT_DIR` outranks `-C`, so
+    a fixture that forgot the strip would stage into the real repository this test lives in.
+    """
     subprocess.run(  # noqa: S603 -- fixed argv, no shell
         ["git", "-C", str(repo), *args],  # noqa: S607 -- git on PATH
         check=True,
         capture_output=True,
-        env=_env(),
+        env=git_env(),
     )
 
 
@@ -230,6 +230,15 @@ def test_a_git_that_answers_neither_yes_nor_no_is_a_failure(
         bindcheck.is_tracked(repo, "models")
     with pytest.raises(bindcheck.BindCheckError, match="git check-ignore failed"):
         bindcheck.is_ignored(repo, "models")
+
+
+def test_an_exported_git_dir_does_not_decide_which_repository_answers(
+    repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The strip is what makes `-C` the answer, and both questions here depend on it."""
+    monkeypatch.setenv("GIT_DIR", str(repo / "no-such-git-dir"))
+    assert bindcheck.is_tracked(repo, "docker/seed.sql") is True
+    assert bindcheck.is_ignored(repo, "cache") is True
 
 
 # ── which files are scanned ────────────────────────────────────────────────────
