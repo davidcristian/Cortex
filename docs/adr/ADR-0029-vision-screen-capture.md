@@ -5315,3 +5315,164 @@ The record is the task file
 `scripts/tests/test_crosscheck.py`, which pins them,
 [modules/repo-gates.md](../modules/repo-gates.md), which states what an unfound needle now says,
 and this addendum.
+
+## Addendum (2026-08-25): the body's own default edge, sorted out of seventy spellings
+
+The headroom-suite addendum above closed one half of `DEFAULT_MAX_EDGE` with an import and
+deferred the other. `body/crates/core/src/os/screen_policy.rs` declares the edge a capture is
+downscaled to when the caller asks for no particular size, and it was in no registry entry at all,
+while every document that states the brain's own 2048 states it as a departure from this number.
+This addendum sorts the seventy spellings that survey named.
+
+### Re-derived first: the count was exact and the list of far sides was half of what is there
+
+`1600` is spelled **119 times in 37 files** repo-wide. Outside the decision records and the
+backlog it is spelled **70 times in 30 files**, which is the population this survey read. The
+occurrence count both the deferral and the addendum above recorded is exactly right, which is rare
+in this backlog; the file count is one short, and was one short on the day it was written, the file
+list at that commit being the same thirty it is now.
+
+**The entry's list of likely far sides was not.** It named at most eleven places, five by name plus
+"whatever `llamacpp-gpu.md`'s six turn out to be". The tree carries seventeen, and **five files it
+never mentions** carry six of them: `capture_bytes.rs`'s two prose sentences, `images.py`'s byte
+comment, `test_config.py`'s comment, the body override's compose comment, and
+[modules/brain-orchestrator.md](../modules/brain-orchestrator.md). Two of the files it did name
+carry two far sides each rather than one. And of the GPU runbook's six, **four are this edge and
+two are a token budget**, `max_tokens` at 1600 in the injection matrix, which is the survey's whole
+point restated: a number this common cannot be sorted by grepping it.
+
+### The sort, all seventy of them
+
+One site and **seventeen mentions across eleven files**: the constant's own two doc sentences, the
+headroom suite's two, `images.py`'s prose, `config_body.py`'s two, `test_config.py`'s comment, the
+body override's comment, the proto comment on `max_edge`, two module contracts and five
+runbook sentences. The remaining fifty two are out. Fifty one of them fall into five
+populations rather than being read one at a time:
+
+- **Thirty one are a fixture's own choice of edge.** `screen.rs` alone builds ten
+  `CaptureRequest::new(1600)`s, and `test_gateway.py`, `test_screen_tool.py`, `test_fakes_body.py`,
+  `test_images.py`, `test_backend.py`, `test_tool_loop.py`, `test_tool_round.py` and
+  `rendered_screens.py` build 1600x900 pictures. A picture needs a size. None of these becomes
+  wrong when the default moves, and this is the population that made the survey a survey.
+- **Twelve are not this value at all**: a Cargo lockfile checksum, three retry backoffs of 1600 ms,
+  a corpus window's coordinate, the GPU runbook's and the injection suite's `max_tokens` of 1600,
+  and the memory stack's `21600` second sync interval in three places.
+- **Five are measurements that stay true.** `screen_policy.rs`'s `4.33 MB at 1600x900`, its
+  content-cost illustration and the same one in [modules/body-core.md](../modules/body-core.md),
+  and the vision runbook's dated illegibility reading. Each is true of the size it was taken at
+  after the default moves, which is the same ruling the comment addendum made for the 2048 side.
+  `MAX_SHRINK_ATTEMPTS`'s `a 1600 px request degrades through 800 to 400` joins them: it is
+  arithmetic about a request rather than a claim about the default, and holding it would tie one
+  constant's doc comment to another constant.
+- **Two are assertions a suite CI runs already holds**, `screen.rs`'s zero-edge case and
+  `body_server.rs`'s pass-through.
+- **One is generated**, the tonic stub's copy of the proto comment, which regenerates from the
+  file that is now held.
+
+The fifty second is `crosscheck.py`'s own docstring, which said "the 1600 px default edge is already
+spelled in four places, one of them a proto comment" as the illustration for why there is no
+master. That census was true when it was written and is now false twice over, seventy being the
+count and the proto comment being about to stop being uncoupled. It is **removed** rather than
+held: the sentence's argument needs no number, and a gate that quotes a stale census in the file
+that watches for stale censuses is the wrong kind of joke.
+
+### The two rules this needed, both sharpened rather than invented
+
+**The tense test, for a number quoted as often as it is measured at.** A sentence naming this edge
+as **what the body answers with** is a far side; one naming it as the size a measurement was
+**taken at** is history. That is what puts the GPU runbook's refund sentence, its two arms about
+what the body sends when only the budget is raised, and its ladder floor **in**, while the vision
+runbook's `Downscaled to 1600 px ... measured 2026-08-06` stays out. The distinction is not the
+presence of a measurement in the sentence: the first arm carries a score of 24 to 26 of 47 and is
+still a claim about what the body does today.
+
+**The suite rule, which this is the first case to test at its edge.** The seam-port sort settled
+that a suite CI runs holds itself, so a test asserting a default is out. `test_config.py` was the
+case that settled it and it is the case that sharpens it: **a suite holds what it asserts**, and
+that file asserts `2048, 6291456, 10.0, 5.0` while only explaining the body's 1600 in the comment
+above. No assertion reaches it, and no Python could import it if one tried, so a retune leaves the
+comment lying with every test in that file green. It is **in**. `screen.rs`'s `1600` is the mirror
+and stays out: it is asserted, on the line above the same value read from `DEFAULT_MAX_EDGE`, and
+cargo says so.
+
+Both halves of that were measured rather than argued, below.
+
+### Proved able to fail, eighteen times over the registry and twice over the Rust suite
+
+The counts are over the crosscheck registry as it stands after this change, **70 entries over 80
+sites and 231 mentions, 21 of them pinned to a count**, and not over any test suite. This entry
+adds 1 entry, 1 site and 17 mentions. Each planting retuned the `1600` on one line to `1500`, ran
+`uv run python crosscheck.py --root ..`, and was restored before the next; the green baseline was
+re-established at the start and after the last.
+
+| planted drift | what the gate said |
+| --- | --- |
+| `DEFAULT_MAX_EDGE` retuned alone | exit 1, **17 faults**, one per far side |
+| each of the seventeen far sides retuned alone | exit 1, 1 fault each, seventeen runs |
+
+The nine **controls** ran the other way and every one stayed green at exit 0: `screen.rs`'s
+zero-edge assertion, the three readings in `screen_policy.rs` (the byte reading, the ladder
+arithmetic and the content-cost illustration), the same illustration in the body contract, the
+vision runbook's dated reading, the GPU runbook's `max_tokens`, a fixture's own edge in
+`test_gateway.py`, and the injection corpus's render width.
+
+The Rust rows are the suite rule measured from both ends, over the two cases that assert this
+default: `cargo test -p body-core --test screen a_zero_max_edge`, one case, and
+`cargo test -p body-rpc --test body_server`, 39 cases of which one asserts it.
+
+| planted drift | what cargo said |
+| --- | --- |
+| `DEFAULT_MAX_EDGE` retuned to 1500, `screen.rs` left alone | FAILED, `left: 1500` against `right: 1600` |
+| `screen.rs`'s own literal retuned to 1500, the constant left alone | FAILED, `left: 1600` against `right: 1500` |
+| `DEFAULT_MAX_EDGE` retuned to 1500, the rpc suite left alone | FAILED, 38 passed 1 failed, `left: 1500` against `right: 1600` |
+
+All three restore green, 39 passed in the rpc suite. That is why those assertions need no registry
+row and why the comment beside one of them, in a language no compiler here reaches across, does.
+
+### The new entry as the first live subject of the reading beside it
+
+The still-spelled addendum above gave an unfound needle a line and the words on it, and this entry
+is the population that reading was written for: seventeen far sides, all prose, in a file where the
+same digits mean other things. It paid for itself while this entry was being written. The first
+run of the new rows reported a needle unfound on the GPU runbook and read the line back, which
+showed at once that the sentence wraps between `sending` and `a 1600 px picture` and that the
+template had to be written to the second half. That is the fault doing the work the grep used to.
+Deliberately planted afterwards, rewording the vision runbook's `default` to `fallback` with the
+number left alone gives:
+
+```text
+docs/runbooks/vision.md does not spell "body's own default (1600)" as a token of its own, carrying
+no more of it than "body's own "; the file does still spell '1600' as a token of its own, in 2
+places, the nearest to that run on line 53, which reads "...hands the edge back to the body's own
+fallback (1600) and holds the reply to the 8192 px domain ceil...", so what moved is likely shape
+this needle carries rather than this value
+```
+
+That line is 595 characters of runbook table row, and the window is the reason the fault is still
+one sentence.
+
+### What this opened
+
+`rendered_screens.py` declares `WIDTH = 1600` and its docstring says "the size is the body's own
+output, 1600x900". Both are out of this entry as a fixture's own choice, and the docstring's claim
+is the loose one: the brain has asked for 2048 since the legibility pair landed, so what a shipped
+deployment captures is not 1600x900 at all, and the corpus the injection defence is measured on may
+be describing itself by a number no live capture uses
+([R-427](../refinements/tasks/427-the-injection-corpus-claims-a-size-nothing-holds.md)).
+
+And the proto comment this entry now holds has a generated twin. `tonic` copies proto comments
+verbatim, so `body/crates/rpc/src/_generated/cortex.seam.v1.rs` states the same default in the
+file a Rust reader actually opens, and regeneration is env-gated in `build.rs` with nothing in
+CI comparing the committed stubs against the proto they came from. A proto edit without a
+regeneration is silent, and a comment is the one case a wrong stub does not fail to compile
+([R-428](../refinements/tasks/428-nothing-compares-the-committed-stubs-with-the-proto.md)).
+
+### Records
+
+The record is the task file
+[R-399](../refinements/tasks/399-the-body-edge-is-two-sites-and-no-prose.md), which closes,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from it,
+`scripts/capturecouplings.py`, which carries the entry and the two rules it was sorted by,
+`scripts/crosscheck.py`, whose docstring no longer quotes a census of this value,
+[modules/repo-gates.md](../modules/repo-gates.md), which states what the survey settled, and this
+addendum.

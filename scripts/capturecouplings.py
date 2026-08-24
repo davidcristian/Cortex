@@ -13,6 +13,11 @@ holds whatever default the brain container ships; these hold the ones that descr
 capture**, which is why the edge below has a site in the other tree and the others do not: the body
 encodes the picture, so the body's own suite has to size itself on the edge the brain asks for.
 
+The same reading is why the body's own default edge sits here beside the brain's. It is not a
+shipped default at all, it is what a caller that asks for nothing gets, and it is here because
+every document that states the brain's edge states it as a departure from this one. The two are
+one capture's question asked from both ends.
+
 The same tense test settles every far side here as everywhere else (ADR-0029's compose-default
 survey addendum): a sentence that becomes **wrong** when the value moves is a far side, and one
 that becomes **history** is not. Two of the entries below now hold both spellings a runbook row
@@ -28,6 +33,9 @@ IMAGES = "brain/packages/core/src/cortex_core/images.py"
 BODY_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config_body.py"
 INFERENCE_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config.py"
 BODY_GATEWAY = "brain/packages/body_client/src/cortex_body_client/gateway.py"
+BODY_CONFIG_TEST = "brain/packages/orchestrator/tests/test_config.py"
+SCREEN_POLICY = "body/crates/core/src/os/screen_policy.rs"
+SEAM_PROTO = "proto/body.proto"
 BODY_CLIENT_DOC = "docs/modules/brain-body-client.md"
 BODY_CORE_DOC = "docs/modules/body-core.md"
 CAPTURE_BYTES = "body/crates/core/tests/capture_bytes.rs"
@@ -140,6 +148,58 @@ CAPTURE_COUPLINGS: tuple[Constant, ...] = (
             Mention(ORCHESTRATOR_DOC, "DEFAULT_CAPTURE_MAX_EDGE` ({value})"),
             Mention(BODY_CORE_DOC, "{value} px edge"),
             Mention(CAPTURE_CHECK, "at {value} px"),
+        ),
+    ),
+    # The other edge, and the one the brain's is written against. `DEFAULT_MAX_EDGE` is what a
+    # caller that names no size gets, so every sentence above that explains the brain's edge as
+    # being "rather than the body's own 1600" is a claim about THIS constant. The two places a
+    # compiler reaches are deliberately not here: the headroom suite imports the constant, and two
+    # crates' cases assert the number beside that import, so cargo says so on a retune. The places
+    # below have nothing but this scan, being prose, YAML and a proto comment.
+    #
+    # Sorted by the same tense test, sharpened for a value that is quoted as often as it is
+    # measured at: a sentence NAMING this number as what the body answers with is a far side, and
+    # one naming it only as the size a measurement was taken at is history. So the GPU runbook's
+    # refund, its two arms that say what the body sends when only the budget is raised, and its
+    # ladder floor are held, while the vision runbook's dated illegibility reading is not; the byte
+    # readings in the policy module and the body contract are not, each true of 1600x900 whatever
+    # the default becomes; and the shrink ladder's `1600 px request degrades through 800 to 400`
+    # is not, its arithmetic staying true of a request nobody defaults to.
+    #
+    # Two whole populations are out and neither is a judgement call. A fixture's own choice of edge
+    # is a fixture: `screen.rs`, `test_gateway.py`, `test_screen_tool.py` and six more build a
+    # 1600x900 picture because a picture needs a size. And the two assertions that a zero edge
+    # means this number, in `screen.rs` and `body_server.rs`, are suites CI runs holding
+    # themselves. `test_config.py`'s comment is the case that sharpens that second rule: a suite
+    # holds what it ASSERTS, and this number it only explains, in a language that cannot reach the
+    # constant, so a retune leaves the comment lying with every test in that file green.
+    Constant(
+        label="the body's own default edge",
+        why=(
+            "a caller that names no size gets this edge, and every place that states the brain's "
+            "own default states it as a departure from this one, in both trees and in the proto, "
+            "so retuning the body alone would leave all of them explaining a choice against a "
+            "number nothing answers with any more (ADR-0029)"
+        ),
+        sites=(Site(SCREEN_POLICY, "DEFAULT_MAX_EDGE"),),
+        mentions=(
+            Mention(SCREEN_POLICY, "{value} is chosen from measurement"),
+            Mention(SCREEN_POLICY, "{value} keeps a little"),
+            Mention(CAPTURE_BYTES, "than the {value} px view"),
+            Mention(CAPTURE_BYTES, "than a {value} px one"),
+            Mention(IMAGES, "the body's {value} px default edge"),
+            Mention(BODY_CONFIG, "the body's own {value}**"),
+            Mention(BODY_CONFIG, "its own conservative {value}"),
+            Mention(BODY_CONFIG_TEST, "body's own default is {value}"),
+            Mention(BODY_COMPOSE, "the body's own {value}, which"),
+            Mention(SEAM_PROTO, 'default" ({value})'),
+            Mention(BODY_CORE_DOC, "`DEFAULT_MAX_EDGE` ({value})"),
+            Mention(ORCHESTRATOR_DOC, "own {value} because the pixels"),
+            Mention(VISION_RUNBOOK, "body's own default ({value})"),
+            Mention(GPU_RUNBOOK, "to its own {value} px default"),
+            Mention(GPU_RUNBOOK, "a {value} px picture"),
+            Mention(GPU_RUNBOOK, "{value} px default)."),
+            Mention(GPU_RUNBOOK, "below even the {value} px view"),
         ),
     ),
     Constant(

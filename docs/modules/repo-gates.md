@@ -824,6 +824,20 @@ that last question to have an answer.
   at **reach** rather than importance: both are numbers the suite must follow rather than choose,
   one is declared where a compiler can hold it, and only the other has nothing but this scan. It is
   the same reason the brain's own unit test on the seam port stays out.
+- **The prose around that same edge is the survey the import left** (ADR-0029 body-edge addendum),
+  and it is the first sort where the number is spelled more often in fixtures than in claims.
+  `DEFAULT_MAX_EDGE` is now one site and seventeen mentions across eleven files: its own two doc
+  sentences, the headroom suite's two, `images.py`'s prose, `config_body.py`'s two,
+  `test_config.py`'s comment, the body override's, the proto comment on `max_edge`, two module
+  contracts and five runbook sentences. The tense test needed sharpening for a number quoted as
+  often as it is measured at: a sentence naming this edge as **what the body answers with** is a
+  far side, one naming it as the size a measurement was **taken at** is history. Out on that: the
+  vision runbook's dated illegibility reading, the two byte readings at `1600x900`, and the shrink
+  ladder's arithmetic. Out because a picture needs a size: the thirty one spellings in nine
+  fixtures that build a 1600x900 frame. And out on the suite rule, which this sharpened too: a
+  suite CI runs holds what it **asserts**, so `screen.rs` and `body_server.rs` pinning the default
+  are out while `test_config.py`'s comment, which no assertion reaches and no Python can import,
+  is in.
 - **A host file is a live instruction, not a record**, which is the reading both sorts needed.
   `docs/host/` holds work that is built and unrun, its prerequisites exist so a sitting does not die
   on setup, and a completed item's file shrinks to a heading, its status and a pointer, so the

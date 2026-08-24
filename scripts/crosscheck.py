@@ -10,7 +10,8 @@ written in the vocabulary `couplings.py` holds.
 
 **No master.** proto/body.proto is the source of truth for the seam's *shape*, but protobuf has
 no constant, so a value could only live there as a comment, and a comment is one more uncoupled
-copy: the 1600 px default edge is already spelled in four places, one of them a proto comment.
+copy: the body's own default edge is spelled in a comment there and in prose all through both
+trees, which is why each of those places is a row in this registry and none of them is a master.
 So this gate compares the sites with each other rather than against a designated original, which
 is what keeps it symmetric. A designated original would leave that one file editable alone, which
 is the same drift with the roles reversed.
