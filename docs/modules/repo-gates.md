@@ -89,7 +89,11 @@ that last question to have an answer.
   splits under the cap and some as subjects added beside them, which is the one-line claim being
   paid from both directions rather than argued.
   `couplings.py` is the vocabulary every part is written in, left behind when each moved out
-  under the cap. Nothing in the scan depends on which file an entry sits in. `values.py` and
+  under the cap. Nothing in the scan depends on which file an entry sits in, and no number counts
+  the parts: the list in `registry.py`'s docstring is the whole answer to what the registry is
+  written in, and the suite holds it to the directory beside it and to the order the tuple reads
+  them in, so it cannot fall short of the files on disk (ADR-0029 registry-parts addendum).
+  `values.py` and
   `readings.py` are the pieces neither the scan nor the data is: the first reduces a right-hand
   side to a comparable value and says how a mention may spell it, the second says whether a
   constant's readings hold together, so the scan finds declarations and those two judge them.
@@ -252,7 +256,10 @@ that last question to have an answer.
   the registry's own shape**, `registry.shape` counting entries, declaring sites, mentions and
   mentions pinned to a count over the same tuple the scan walks. That is the collection every
   mutation table in this repo opens by naming, and it is a reading rather than a gate: see the
-  census bullet below for why nothing asserts it.
+  census bullet below for why nothing asserts it. It counts places and **not parts**, declined
+  rather than overlooked (ADR-0029 registry-parts addendum): nothing the scan does depends on how
+  many files the data sits in, a part that never reached the tuple is caught by the suite reading
+  the directory, and a whole part gone missing already moves the entry count.
 - `bindcheck.py [--root DIR]` holds every compose bind mount to landing somewhere git
   accounts for (ADR-0026 bind addendum). The rule, stated in the module's own docstring: a
   bind source must resolve **outside** the repo (an absolute path, or an expansion with no
@@ -558,6 +565,11 @@ that last question to have an answer.
   answers to. `test_every_registry_part_on_disk_is_read` guards the split itself: it globs the
   `*couplings.py` files rather than reading the same import list that would be wrong, so a part
   nobody added to `registry.py` fails instead of gating nothing in silence.
+  `test_registry_names_every_part_in_the_order_it_reads_them` guards the other half of a split, the
+  prose (ADR-0029 registry-parts addendum): the parts are named in `registry.py`'s docstring and
+  nowhere else, so the bullet names are read back out of `registry.__doc__` and required to be the
+  files on disk, in the order `CONSTANTS` joins them. A part read but unnamed passes the glob and
+  fails this, which is the one shape a directory listing cannot see.
 - **Which far sides a compose default gets registered against** was settled by reading every
   `${CORTEX_*:-default}` under `docker/` (ADR-0029's compose-default survey addendum). A
   substitution is registrable only when some tree **declares** the same value, which is why the
@@ -666,7 +678,15 @@ that last question to have an answer.
   document to the registry would tie the gate's own prose to the gate's own data, which is the
   exclusion the legibility sort wrote down and which a document describing the gate has always had.
   So the hand-counted tallies left this document instead: the counts above are the scan's to print
-  and this doc's job is which mentions are counted and why.
+  and this doc's job is which mentions are counted and why. **The one number that stayed uncounted
+  is the parts** (ADR-0029 registry-parts addendum), and a fifth integer beside the four, or a
+  named mapping from part to its own `Shape`, were both weighed and declined. Nothing in the scan
+  depends on how many files the data sits in; a lost part already moves the entry count, and the
+  thing that **fails** on one is the suite reading the directory rather than any number; and the
+  mapping's second benefit, a fault naming the part its entry came from, costs the scan's blindness
+  to which file an entry sits in to save a reader one grep, every label being distinct. What the
+  parts get instead is the named list in `registry.py`'s docstring, held complete and in read
+  order by the suite, which answers the count and says what each part is for in the same place.
 - **Every cross-tree scan states the collection its verdict is over** (ADR-0029 addendum on the
   other four gates), which generalised the reading above to all six. The rule is that a success
   line naming no collection is equally true of a scan that read nothing, so each gate prints what

@@ -1,9 +1,10 @@
 """The couplings around the email sidecar's shipped answers: the two hatches and the switch.
 
-One of the data files `crosscheck.py` reads as a single registry, and the sixth part, added the
-way `registry.py` was built to take one: a data file plus one line there, with the scan never
-learning the registry grew. The subject is the one env surface no other part holds, the read-only
-IMAP sidecar's own, and the three variables in it whose default is an answer rather than a number.
+One of the data files `crosscheck.py` reads as a single registry, and the sixth part to arrive,
+added the way `registry.py` was built to take one: a data file plus one line there, with the scan
+never learning the registry grew. The subject is the one env surface no other part holds, the
+read-only IMAP sidecar's own, and the three variables in it whose default is an answer rather than a
+number.
 
 **Why these three are worth a gate of their own.** Each is off, and each is off for a safety
 reason rather than a tuning one: two are the TLS escape hatches that accept a self-signed

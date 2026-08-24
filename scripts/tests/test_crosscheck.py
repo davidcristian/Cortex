@@ -1,3 +1,4 @@
+import re
 from collections.abc import Callable
 from importlib import import_module
 from pathlib import Path
@@ -893,6 +894,23 @@ def test_the_repo_itself_is_tied() -> None:
     assert crosscheck.check(REPO_ROOT) == []
 
 
+def _parts_on_disk() -> list[str]:
+    """The registry's data files, read off the directory rather than off any list under test."""
+    return sorted(
+        path.stem
+        for path in (REPO_ROOT / "scripts").glob("*couplings.py")
+        if path.stem != "couplings"
+    )
+
+
+def _entries(part: str) -> tuple[couplings.Constant, ...]:
+    """One part's own tuple, found by the naming convention every part is written under."""
+    exported: tuple[couplings.Constant, ...] = getattr(
+        import_module(part), part.removesuffix("couplings").upper() + "_COUPLINGS"
+    )
+    return exported
+
+
 def test_every_registry_part_on_disk_is_read() -> None:
     """A data file nobody added to `registry.py` is a set of couplings that gate nothing.
 
@@ -901,18 +919,33 @@ def test_every_registry_part_on_disk_is_read() -> None:
     silence, which is the failure mode this scan exists to refuse, so the parts are discovered
     from disk rather than from the same list that would be wrong.
     """
-    parts = sorted(
-        path.stem
-        for path in (REPO_ROOT / "scripts").glob("*couplings.py")
-        if path.stem != "couplings"
-    )
+    parts = _parts_on_disk()
     assert parts, "the registry has no data files, which cannot be right"
     read = set(crosscheck.CONSTANTS)
     for part in parts:
-        name = part.removesuffix("couplings").upper() + "_COUPLINGS"
-        entries: tuple[couplings.Constant, ...] = getattr(import_module(part), name)
+        entries = _entries(part)
         assert entries, f"{part} holds no entries"
         assert set(entries) <= read, f"{part} is not read by registry.py"
+
+
+def test_registry_names_every_part_in_the_order_it_reads_them() -> None:
+    """The parts are named in prose and nowhere else, so the prose is held to the directory.
+
+    `registry.shape` counts places and not parts on purpose, which leaves the list in
+    `registry.py`'s docstring as the whole answer to what the registry is written in. A list that
+    is the answer has to be complete, or the next part lands unnamed and the answer is short by
+    one without saying so; and its order has to be the order the same docstring claims for it,
+    which is the order the tuple joins the parts in and so the order faults are reported in.
+    """
+    named = re.findall(r"^- `(\w+)` ", registry.__doc__ or "", re.MULTILINE)
+    assert named, "registry.py names no part, so nothing says what the registry is written in"
+    # A part whose entries never reached the tuple sorts last rather than raising, so the test
+    # above stays the one that reports it and this one reports the list instead of a traceback.
+    position = {constant: index for index, constant in enumerate(crosscheck.CONSTANTS)}
+    read_in_order = sorted(
+        _parts_on_disk(), key=lambda part: position.get(_entries(part)[0], len(position))
+    )
+    assert named == read_in_order
 
 
 def test_every_registered_site_is_in_a_language_the_scan_knows() -> None:

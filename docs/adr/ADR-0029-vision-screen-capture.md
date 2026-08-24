@@ -4687,3 +4687,130 @@ The record is the task file
 `scripts/defaultcheck.py`, which carry the readings and the two floors, their four suites, which
 drive them, [modules/repo-gates.md](../modules/repo-gates.md), which states what each gate now
 prints, and this addendum.
+
+## Addendum (2026-08-24): the part count is declined, and the list that answers it is held instead
+
+The registry-shape addendum above left one number uncounted. `registry.shape` counts entries,
+declaring sites, mentions and pinned counts, and it counts them over a flat tuple, so how many
+data files the registry is written in is not in it. The question that opened this was whether to
+put it there, either as a fifth integer or as a named mapping from part to its own `Shape`, and
+the answer is neither. What was wrong was not the missing number; it was that `registry.py`'s own
+docstring answered the question in a running prose tally, "the sixth part arrived as a subject",
+down to a ninth, which is the same hand-maintained count the registry-shape close removed from
+[modules/repo-gates.md](../modules/repo-gates.md).
+
+### Re-derived first, and every claim the entry made survived
+
+Measured over the tree before anything was changed. The registry is written in nine
+`*couplings.py` files holding 62 entries between them: `seamcouplings` 8, `endpointcouplings` 3,
+`shippedcouplings` 7, `capturecouplings` 5, `subagentcouplings` 8, `modelhostcouplings` 14,
+`emailcouplings` 2, `fixturecouplings` 8, `overlaycouplings` 7. The three claims the entry rests
+on each hold:
+
+- **Nothing in the scan depends on the part count.** `crosscheck.py` imports exactly `CONSTANTS`
+  and `shape` from `registry.py` and nothing else in `scripts/` imports the registry at all. No
+  code path asks which file an entry came from.
+- **An unimported part is already caught.** `test_every_registry_part_on_disk_is_read` globs the
+  directory rather than reading the import list that would be wrong, and dropping
+  `modelhostcouplings` from both the imports and the tuple failed it (row 5 below).
+- **The narrative is history rather than a tally.** Each ordinal in the removed sentences is the
+  order a part arrived in, not its position in the tuple: email was sixth to arrive and reads
+  seventh, capture eighth to arrive and reads fourth.
+
+One thing the entry did not say, and it is the argument the decision turns on: with a whole part
+dropped, `crosscheck` still exits 0 and prints `48 cross-tree constant(s)` where it printed 62. A
+part count beside that would have moved from 9 to 8 and changed nothing about the verdict. The
+number that notices a lost part is already printed, and the thing that **fails** on one is the
+suite, not any number.
+
+### Why a per-part mapping is declined, including the half that is not about counting
+
+The bare integer answers a question nothing asks. The named mapping is the more interesting
+proposal, because its second benefit is not a count: a fault could say which part its entry came
+from. That was weighed on evidence rather than on taste, and it lost on two readings.
+
+The first is that the cost of not having it is one grep. All 62 labels are distinct, a fault
+prints its label, and `grep "the screen-capture byte ceiling" scripts/*.py` returns exactly one
+line in exactly one part. A reader who needs the part is one command from it, and a fault's real
+subject is usually the far side that moved rather than the registry line about it.
+
+The second is that attributing a fault to a part is the scan learning that the registry has parts,
+which is a property this repo built on purpose and has paid for four times: "the scan never asks
+which file an entry came from, so a coupling moves house without the gate noticing". Today a
+coupling moving between parts changes nothing anywhere. With part-attributed faults it changes the
+gate's output, which turns an editorial decision into a behavioural one and gives a reviewer one
+more thing that can be wrong in a diff that fixed nothing. That is a real cost paid for a
+convenience a grep already provides.
+
+### What was built instead: the prose is held to the directory
+
+The part count is answered by the list of parts in `registry.py`'s docstring, which names each
+part and what it holds, so counting the list counts the parts and a reader who counts it also
+learns what each one is for. That list was prose nobody checked, which is the same defect one
+level up: a tenth part could land and leave the list at nine in silence.
+`test_registry_names_every_part_in_the_order_it_reads_them` closes that. It reads the bullet names
+out of `registry.__doc__` and requires them to be exactly the `*couplings.py` files on disk, in
+the order `CONSTANTS` joins them, which is the order the same docstring claims for them and the
+order faults are reported in.
+
+This is a gate over prose and the registry-shape addendum declined one, so the difference is worth
+stating. What it declined was gating [modules/repo-gates.md](../modules/repo-gates.md) against the
+registry's **numbers**, on the ground that a document describing the registry is not a far side of
+it and that a tally goes stale on the next row. This holds a module's own docstring to the module's
+own directory, and it holds **names** rather than counts: the list is not a restatement of the data
+elsewhere, it is the only place the parts are named, and it goes stale only when somebody adds a
+part, which is exactly when it should redden.
+
+The ordinals came out of `registry.py`. The three parts that state their own arrival ordinal keep
+it, because a part saying it was the sixth to arrive is a fact fixed on the day it arrived and
+never edited again, unlike a list in the joining module that grew a sentence per part. Each of the
+three now says "the sixth part to arrive" rather than "the sixth part", since the list they sit
+under is ordered by read order and email reading seventh while calling itself sixth is a
+contradiction a reader should not have to resolve.
+
+### Proved able to fail, five times, over the scripts suite
+
+Five planted mutations over `scripts/` (the `scripts/tests` suite, 831 tests, which is the
+collection every count below is out of). Each was restored from a copy taken before the first,
+with `__pycache__` purged between runs, and the baseline of 831 passed was re-established after
+every row.
+
+| # | mutation | expected | observed |
+| --- | --- | --- | --- |
+| 1 | one bullet (`emailcouplings`) deleted from `registry.py`'s docstring list | the list test fails | 1 failed, 830 passed |
+| 2 | two bullets swapped, so the list names every part in the wrong order | the list test fails | 1 failed, 830 passed |
+| 3 | a tenth part planted on disk, imported and spliced into `CONSTANTS`, named nowhere in the docstring | the list test fails and the older glob test does not | 1 failed, 830 passed, the failure being the list test |
+| 4 | the whole bullet list deleted from the docstring | the floor inside the list test fails, naming the loss rather than diffing two empty lists | 1 failed, 830 passed, `registry.py names no part` |
+| 5 | `modelhostcouplings` dropped from both the imports and the tuple | the glob test fails, and so does the list test | 3 failed, 828 passed |
+
+Row 3 is the row the new test exists for: it is the one shape the directory glob cannot see,
+because every part on disk is still read and the only thing missing is the name. Row 5's third
+failure is collateral and worth naming: `modelhostcouplings` holds the registry's only signed
+integer, so `test_the_registry_reduces_every_form_the_reducer_was_widened_for` goes down with it.
+The same mutation left the gate itself green on exit 0, printing `crosscheck OK: 48 cross-tree
+constant(s) under .. agree, over 57 declaring site(s) and 139 mention(s), 13 of them pinned to a
+count`, which is the reading moving and the verdict not, and the evidence that a part count in
+that line would have been one more number nobody compares.
+
+### What this opened
+
+The glob test asks that every part's entries are read, and nothing asks the other direction: an
+entry declared outside every part, in `registry.py` itself, would gate normally and sit under no
+name in the list this close just made authoritative
+([R-412](../refinements/tasks/412-nothing-holds-the-registry-to-its-parts.md)). And
+[modules/repo-gates.md](../modules/repo-gates.md) names the nine parts twice, in prose held by
+nobody, which is the gap this close just closed one file over
+([R-413](../refinements/tasks/413-the-module-contracts-part-list-is-held-by-nobody.md)).
+
+### Records
+
+The record is the task file
+[R-408](../refinements/tasks/408-the-registry-shape-counts-places-not-parts.md), which closes as
+declined in its counting half and landed in its prose half,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from it,
+`scripts/registry.py`, whose docstring loses the running tally and gains the sentence that the
+list is the answer, `scripts/capturecouplings.py`, `scripts/emailcouplings.py` and
+`scripts/fixturecouplings.py`, whose arrival ordinals now say so,
+`scripts/tests/test_crosscheck.py`, which holds the list to the directory,
+[modules/repo-gates.md](../modules/repo-gates.md), which states what the shape does not count and
+why, and this addendum.

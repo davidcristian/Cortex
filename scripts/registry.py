@@ -2,19 +2,19 @@
 
 The scan is all of the logic and the `*couplings.py` files beside this one are all of the data,
 written in the vocabulary `couplings.py` holds. This module is the only place that names them,
-which is its whole job: the 300-line cap has split the registry five times now, and each split
-used to edit the scan itself to add an import and a name. It does not any more. A new part is a
-new data file plus one line here, and `crosscheck.py` never learns that the registry has parts.
-The sixth part arrived as a subject rather than as a split, which was the first time that claim
-was paid rather than argued, and the seventh arrived the same way, which is the second. The eighth
-went back to being a split, and paid the claim a third time from the other direction: the cap moved
-five entries into a file of their own and nothing outside this line changed. So did the ninth,
-which took the two endpoint entries out on the day a third joined them.
+which is its whole job: a part used to arrive by editing the scan itself to add an import and a
+name, and it does not any more. A part arrives two ways, as a split when the 300-line cap outgrows
+a file and as a subject when a coupling belongs under none of the ones already here, and either
+way it is a new data file plus one line below. `crosscheck.py` never learns that the registry has
+parts.
 
 The order is the order faults are reported in, and nothing depends on it beyond that: the scan
 never asks which file an entry came from, so a coupling moves house without the gate noticing.
 Each part is named for the subject it holds rather than for when it was written, which is what
-keeps a move an editorial decision instead of an archaeological one:
+keeps a move an editorial decision instead of an archaeological one. This list is the whole answer
+to what the registry is written in, so counting it counts the parts, and it is held to the
+directory beside it and to the order the tuple reads them in by
+`test_registry_names_every_part_in_the_order_it_reads_them` rather than left to be believed:
 
 - `seamcouplings` ties one tree's code to another's, where neither toolchain can import the other.
 - `endpointcouplings` ties each side's own endpoint, the address it answers on and its port, to
@@ -34,6 +34,12 @@ keeps a move an editorial decision instead of an archaeological one:
 Counting the registry lives here too, beside the tuple the parts are joined into, because the size
 of a collection is a fact about the collection rather than about any scan over it. `shape` is what
 `crosscheck.py` prints on success and what every mutation table in this repo opens by stating.
+
+It counts places and not parts, which is a decision rather than a limit of where it sits. Nothing
+the scan does depends on how many files the data sits in; a part that never reached the tuple is
+caught by the suite reading this directory rather than by any number; and a whole part gone missing
+already moves the entry count without a second one beside it. So the part count is answered by the
+list above, in the one place a reader also learns what each part is for.
 """
 
 from typing import NamedTuple

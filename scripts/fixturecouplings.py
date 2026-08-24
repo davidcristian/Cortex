@@ -1,12 +1,12 @@
 """The couplings inside a measurement fixture: what a stack is built to hold, and what names it.
 
-One of the data files `crosscheck.py` reads as a single registry, and the seventh part. Like
-`emailcouplings.py` before it, it arrived as a subject rather than as a split under the 300-line
-cap: a new part is a data file plus one line in `registry.py`, and the scan never learns the
-registry grew. The subject is the one no other part holds. Every other part ties something the
-repo **ships**, a default a container boots on or a value one tree's code hands another's. These
-tie something the repo **measures with**: a stack that exists only so a suite can watch a real
-server answer, and the suite that names what the stack was built to contain.
+One of the data files `crosscheck.py` reads as a single registry, and the seventh part to arrive.
+Like `emailcouplings.py` before it, it arrived as a subject rather than as a split under the
+300-line cap: a new part is a data file plus one line in `registry.py`, and the scan never learns
+the registry grew. The subject is the one no other part holds. Every other part ties something the
+repo **ships**, a default a container boots on or a value one tree's code hands another's. These tie
+something the repo **measures with**: a stack that exists only so a suite can watch a real server
+answer, and the suite that names what the stack was built to contain.
 
 **Why a fixture needs a gate more than a shipped value does, not less.** A shipped default has a
 suite that runs on every commit and would notice. The suite here is `integration`-marked, so it

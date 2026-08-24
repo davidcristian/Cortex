@@ -1,12 +1,12 @@
 """The couplings around one capture: what the brain asks for, holds the reply to, and waits.
 
-One of the data files `crosscheck.py` reads as a single registry, and the eighth part. It was split
-off `shippedcouplings.py` when the second spellings on already held lines brought that file to the
-300-line cap, on a seam its own text had been drawing in a comment for as long as these entries had
-been in it: `# The two capture bounds that ride with a request`. Everything here is one request's
-worth of shipped numbers, the pair of deadlines it runs under, and the answer to whether the tool
-that sends it is offered at all (ADR-0029). Nothing in the scan asks which file an entry sits in,
-so the move costs the gate nothing.
+One of the data files `crosscheck.py` reads as a single registry, and the eighth part to arrive. It
+was split off `shippedcouplings.py` when the second spellings on already held lines brought that
+file to the 300-line cap, on a seam its own text had been drawing in a comment for as long as these
+entries had been in it: `# The two capture bounds that ride with a request`. Everything here is one
+request's worth of shipped numbers, the pair of deadlines it runs under, and the answer to whether
+the tool that sends it is offered at all (ADR-0029). Nothing in the scan asks which file an entry
+sits in, so the move costs the gate nothing.
 
 The subject is narrower than the one it left, and that is the point of naming it. `shippedcouplings`
 holds whatever default the brain container ships; these hold the ones that describe a **single
