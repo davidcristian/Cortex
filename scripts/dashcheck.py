@@ -49,6 +49,8 @@ import sys
 from pathlib import Path
 from typing import NamedTuple
 
+from gitenv import git_env
+
 ALLOW_PRAGMA = "dashcheck: allow"
 EM_DASH = "\u2014"
 EN_DASH = "\u2013"
@@ -161,17 +163,15 @@ def ignored_paths(root: Path) -> frozenset[str]:
     listed file by file. The trailing slash comes off so one set answers for files and
     directories alike, a path being one or the other and never both.
 
-    Git's own hook variables are stripped for the reason `bindcheck.py` strips them: these gates
-    run inside hooks, where git exports `GIT_DIR`, and that variable outranks the `-C` below.
+    Git's own hook variables are stripped, `gitenv.py` holding the one reason every caller has.
     """
-    env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
     listing = ("ls-files", "--others", "--ignored", "--exclude-standard", "--directory", "-z")
     try:
         result = subprocess.run(  # noqa: S603 -- fixed argv, no shell
             ["git", "-C", str(root), *listing],  # noqa: S607 -- git resolves on PATH; a pinned path is not portable
             capture_output=True,
             check=False,
-            env=env,
+            env=git_env(),
         )
     except OSError as err:
         msg = f"cannot run git: {err}"

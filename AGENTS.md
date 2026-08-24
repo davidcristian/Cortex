@@ -266,7 +266,9 @@ scripts/          repo gates, plus the one module here that gates nothing, contr
                   heading may look like for that question to have an answer, and the six
                   shapes the slug rule refuses rather than guesses at), coverage_gate.py (Rust
                   branches), ci_paths.py (CI path
-                  classifier), commitlint.py (commit-message style)
+                  classifier), commitlint.py (commit-message style), gitenv.py (the environment
+                  every git call here runs with, so a hook's own GIT_DIR cannot outrank the
+                  repository a gate names)
 .github/          GPU-less CI running the same `just` recipes as local dev: ci.yml is the gate
                   mirror, shuffle.yml the weekly test-order sweep that gates nothing (ADR-0002)
 justfile          `just check` + check-*; proto, up/down, brain-serve, seam-health, turn-cost,

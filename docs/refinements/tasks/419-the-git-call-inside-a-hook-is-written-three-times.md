@@ -1,9 +1,6 @@
 # The environment strip that makes a git call inside a hook honest is written out three times
 
-**Status:** open, fix when it bites
-**Trigger:** a fourth module needs to ask git something, or one of the three is edited by somebody
-who does not know why the environment is rebuilt, which is the first time the copies cost more than
-the lines they occupy.
+**Status:** landed 2026-08-24
 **Area:** repo-gates
 **Origin:** [ADR-0026](../../adr/ADR-0026-prose-style-gates.md)
 
@@ -32,3 +29,25 @@ three ask different questions. The call is more tempting and worse: the three wa
 code handling, `check-ignore` answering with 1 for a legitimate no, so a shared runner would grow a
 parameter per caller. If a module lands, it takes the fixtures too, since a test that rebuilds the
 environment by hand can drift from the gate it tests.
+
+## Trail
+
+- 2026-08-24: opened by the close of
+  [R-411](411-the-dash-ban-reads-a-working-tree-not-a-commit.md), which made `dashcheck.py` the
+  third module here to run a git command.
+- 2026-08-24: landed as `scripts/gitenv.py`, one constant and one function, read by the three
+  gates and by the three suites. **The count above was low**: the strip was written out six times,
+  not five, `test_bindcheck.py`, `test_commitlint.py` and `test_dashcheck.py` each carrying a
+  fixture of its own. The decide-first question went the way this entry argued, and reading the
+  three call sites is what settled it: they agree on nothing but the environment, since
+  `check-ignore` answers 1 for a legitimate no, the two walking gates raise their own exception
+  types, and `commitlint.py` answers a missing git with False rather than an exception, because a
+  commit-msg hook that cannot run git must not block the commit. A shared runner would have taken
+  an allowed-codes set, an exception factory and an `OSError` policy, one parameter per caller.
+  A helper nobody is obliged to call being no fix, each gate is now held to calling it by a test
+  that exports a `GIT_DIR` naming no repository over a real git and demands the right answer
+  anyway, and the trigger this entry carried, a fourth caller, is held by a test that any file
+  here spelling a git argv also spells the call that hands it an environment. Six planted
+  mutations, tabled in the ADR-0026 git-environment addendum; the last of them is a gate writing
+  a correct copy of the strip again, which every behaviour test passes and only that obligation
+  catches.

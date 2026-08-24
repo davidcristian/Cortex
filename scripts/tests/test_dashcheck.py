@@ -1,10 +1,10 @@
-import os
 import subprocess
 from pathlib import Path
 
 import pytest
 
 import dashcheck
+from gitenv import git_env
 
 # Built from escapes, not literals, so this file passes the gate it tests.
 EM = "\u2014"
@@ -19,17 +19,17 @@ def _write(root: Path, name: str, text: str) -> Path:
     return path
 
 
-def _env() -> dict[str, str]:
-    """The ambient environment without git's own variables, for the reason the gate strips them."""
-    return {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
-
-
 def _git(root: Path, *args: str) -> None:
+    """Drive git against the fixture's own tree, with the environment the gate itself uses.
+
+    `gitenv.git_env()` rather than a strip of its own: a fixture that rebuilt it by hand could
+    drift from the gate it tests, and would then be wrong in the same silent way.
+    """
     subprocess.run(  # noqa: S603 -- fixed argv, no shell
         ["git", "-C", str(root), *args],  # noqa: S607 -- git on PATH
         check=True,
         capture_output=True,
-        env=_env(),
+        env=git_env(),
     )
 
 
@@ -185,6 +185,23 @@ def test_a_file_the_repo_does_not_ship_yet_is_still_read(repo: Path, staged: boo
         _git(repo, "add", "doc.md")
     (violation,) = dashcheck.scan(repo).violations
     assert violation.path == Path("doc.md")
+
+
+def test_an_exported_git_dir_does_not_decide_which_repository_answers(
+    repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The strip is what makes `-C` the answer, and the collection is git's answer now.
+
+    Git exports GIT_DIR to every hook it runs, and `just check` runs this gate from one.
+    Pointed at anything that is not a repository, an inherited GIT_DIR makes the ignore consult
+    fatal, and this gate fails closed on that, so a clean tree exits 2. Every gate that asks git
+    anything has this test.
+    """
+    _write(repo, ".gitignore", "out/\n")
+    _write(repo, "out/generated.md", f"generated {EM} prose\n")
+    _write(repo, "doc.md", "clean prose\n")
+    monkeypatch.setenv("GIT_DIR", str(repo / "no-such-git-dir"))
+    assert dashcheck.main(["--root", str(repo)]) == 0
 
 
 def test_a_root_git_cannot_answer_about_is_a_failure(

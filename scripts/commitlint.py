@@ -38,12 +38,13 @@ Beyond the header, the whole message must satisfy three rules that apply to the 
 """
 
 import argparse
-import os
 import re
 import subprocess
 import sys
 from pathlib import Path
 from typing import NamedTuple
+
+from gitenv import git_env
 
 MAX_HEADER_LENGTH = 72
 
@@ -111,16 +112,15 @@ def check_header(header: str) -> list[str]:
 
 def commit_exists(token: str, repo: Path) -> bool:
     """Return True when ``token`` resolves to a commit in ``repo``'s object database."""
-    # This runs as a commit-msg hook, and git exports GIT_DIR to its hooks. That variable
-    # outranks the -C below, so inheriting it would answer for whatever repository git is
-    # mid-commit in rather than the ``repo`` asked about. Strip git's variables entirely.
-    env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+    # This runs as a commit-msg hook, where git exports GIT_DIR and it outranks the -C below.
+    # `gitenv.py` carries that reason for every gate here that asks git anything; what stays
+    # this module's own is the policy below, a git it cannot run leaving the commit unblocked.
     try:
         result = subprocess.run(  # noqa: S603 -- fixed argv, no shell; token is [0-9a-f]+
             ["git", "-C", str(repo), "cat-file", "-e", f"{token}^{{commit}}"],  # noqa: S607 -- git resolves on PATH; a pinned path is not portable
             capture_output=True,
             check=False,
-            env=env,
+            env=git_env(),
         )
     except OSError:  # git missing: cannot disprove the hash, so do not block the commit
         return False

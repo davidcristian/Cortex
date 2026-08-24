@@ -46,6 +46,7 @@ from typing import NamedTuple
 
 from composefiles import ComposeSearchError, compose_files
 from composemounts import ComposeReadError, Mount, read_mounts, strip_quotes
+from gitenv import git_env
 
 _DEFAULTED = re.compile(r"\$\{[A-Za-z_]\w*:?-(?P<default>[^{}]*)\}")
 _UNDEFAULTED = re.compile(r"^(?:\$\{[A-Za-z_]\w*\}|\$[A-Za-z_]\w*)$")
@@ -105,16 +106,18 @@ def landings(root: Path, compose: Path, path: str) -> list[str]:
 
 
 def _git(root: Path, *args: str) -> subprocess.CompletedProcess[bytes]:
-    """Run one git command against ``root`` with git's own hook variables stripped."""
-    # These gates run inside hooks, where git exports GIT_DIR, and that variable outranks the
-    # -C below: inheriting it would answer about whatever repository git is mid-commit in.
-    env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+    """Run one git command against ``root`` with git's own hook variables stripped.
+
+    The strip is `gitenv.py`'s, which holds the reason for every gate that asks git anything.
+    The exit codes stay here: this gate reads two of them differently, and that is the argument
+    for sharing the environment and not the call.
+    """
     try:
         return subprocess.run(  # noqa: S603 -- fixed argv, no shell
             ["git", "-C", str(root), *args],  # noqa: S607 -- git resolves on PATH; a pinned path is not portable
             capture_output=True,
             check=False,
-            env=env,
+            env=git_env(),
         )
     except OSError as err:
         msg = f"cannot run git: {err}"

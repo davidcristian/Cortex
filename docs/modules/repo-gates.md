@@ -14,7 +14,7 @@ belongs to neither the brain nor the body and is gated exactly like both. A stan
 recipes, `ci_paths.py`
 by the CI
 workflow, `commitlint.py` by the commit-msg pre-commit stage, `contrast.py` by `just turn-cost`;
-each also exposes a pure, unit-tested core function). Twenty-two modules here have no CLI of their
+each also exposes a pure, unit-tested core function). Twenty-three modules here have no CLI of their
 own, most split out under the line cap and each named for what it holds: `couplings.py` is the
 vocabulary `crosscheck.py`'s registry is written in, `registry.py` names the parts that registry is
 written in, and `seamcouplings.py`, `endpointcouplings.py`, `shippedcouplings.py`,
@@ -25,7 +25,9 @@ is the value forms that scan compares on and the spellings a mention writes one 
 is how a set of those values must then stand, `needles.py` is how a rendered needle is looked for
 and what a file that lacks one is told, `composemounts.py` is `bindcheck.py`'s mount
 reader, `composedefaults.py` is `defaultcheck.py`'s substitution reader, `composefiles.py` is
-which files the two of them walk, answered once so they cannot drift apart about it, and
+which files the two of them walk, answered once so they cannot drift apart about it,
+`gitenv.py` is the environment every git call in this tree runs with, held in one place because
+a caller that forgets it is wrong in silence rather than red, and
 `backlog.py`, `backlogindex.py`, `backloganchors.py` and `headingshapes.py` are the four
 `backlogcheck.py` reads a backlog through: the task-file grammar, the index renderer, the anchors a
 document offers with every pointer in the repo aimed at one, and what a heading may look like for
@@ -532,7 +534,9 @@ that last question to have an answer.
   from the environment: these gates execute inside hooks, where git exports `GIT_DIR`, and
   that variable OUTRANKS `-C`. Inheriting it silently retargets the call at the repository
   git is mid-commit in, which answered the hash question about the wrong object database
-  and, in the tests, staged a fixture file into the in-flight commit's own index.
+  and, in the tests, staged a fixture file into the in-flight commit's own index. That
+  strip is `gitenv.py`'s and no longer this module's, along with the reason for it; what
+  stays here is the policy above, a git this gate cannot run leaving the commit unblocked.
 
 - `contrast.py SAMPLE [SAMPLE ...] [--resamples N] [--seed S]` is the one module here that gates
   nothing: it is the reporting half of a live measurement, and it lives in this tree because it

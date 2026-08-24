@@ -798,3 +798,81 @@ line pointed at the wrong decision record and now points here,
 `scripts/tests/test_dashcheck.py`, which walks a real git working tree for the reason
 `test_bindcheck.py` does, [modules/repo-gates.md](../modules/repo-gates.md), which states what the
 gate now reads and what it now refuses, and this addendum.
+
+## Addendum (2026-08-24, later): the environment a gate's git call runs with has one home
+
+Three gates here ask git something and each rebuilt the same environment before doing it. The
+copies were correct, which is the problem: the fourth caller writes a fifth, and the one that
+forgets is not red anywhere.
+
+### Re-derived first, and the count was low
+
+The strip was written out **six** times, not the five the record that opened this counted: three
+gates (`bindcheck.py` asking whether a path is tracked and whether it is ignored, `commitlint.py`
+whether a token resolves to a commit, `dashcheck.py` which paths git ignores) and **three** suites,
+`test_bindcheck.py`, `test_commitlint.py` and `test_dashcheck.py`, each with a fixture that drives
+a real git against a temporary repository. Every one of the six carried its own comment saying why,
+in its own words.
+
+### The environment is shared and the call is not
+
+The record that opened this argued the environment alone, and reading the three call sites confirms
+it. They disagree about every part of a call except the environment: `check-ignore` answers 1 for a
+legitimate no while a non-zero from `ls-files` is a failure; `bindcheck.py` raises `BindCheckError`
+and `dashcheck.py` raises `IgnoreQueryError`, each named for the question it could not answer;
+and `commitlint.py` answers an `OSError` with False rather than an exception, because a box with no
+git cannot disprove a hash and blocking a commit over that would be the wrong trade in a commit-msg
+hook. A shared runner would therefore take an allowed-codes set, an exception factory and an
+`OSError` policy, which is one parameter per caller and a switch statement wearing a function's
+clothes. The environment is one fact with one reason, so `scripts/gitenv.py` is one constant and
+one function, and each gate keeps its own argv and its own reading of the answer.
+
+`GIT_PREFIX` ends in its underscore on purpose. Dropping everything that starts `GIT` would take
+`GITHUB_ACTIONS` and the rest of a runner's environment with it, which is a different bug in the
+same line.
+
+### The fixtures read it too
+
+A fixture that rebuilds the environment by hand can drift from the gate it tests, and the drift is
+invisible in exactly the way the original defect is: the fixture's `add` lands in the in-flight
+commit's index rather than the temporary repository's, and the suite reports a failure about
+something else entirely. So the three suites import the same function. What stays written out in
+each of them is the literal `GIT_` in the assertion that the strip happened, because a test that
+read the prefix from the module would agree with whatever the module now means.
+
+### Proved able to fail, six times, over the scripts suite
+
+Six planted mutations over `scripts/gitenv.py` and its three call sites (the `scripts/tests`
+suite, 859 tests after this change, which is the collection every count below is out of). Each was
+restored from a copy taken before the first, with `__pycache__` purged between runs, and the
+859-passed baseline was re-established after the last.
+
+| # | mutation | expected | observed |
+| --- | --- | --- | --- |
+| 1 | the strip removed, the helper returning the environment whole | every end-to-end test fails, and the drop test with them | 4 failed, 855 passed |
+| 2 | the prefix widened to `GIT`, taking a runner's own variables | the survival test fails | 1 failed, 858 passed |
+| 3 | `dashcheck.py` alone forgets the helper, inheriting the ambient environment | its end-to-end test fails, and the obligation test with it | 2 failed, 857 passed |
+| 4 | `bindcheck.py` alone forgets it | the same pair, for that gate | 2 failed, 857 passed |
+| 5 | `commitlint.py` alone forgets it | the same pair, for that gate | 2 failed, 857 passed |
+| 6 | `bindcheck.py` writes the strip out again itself, correctly | only the obligation test fails | 1 failed, 858 passed |
+
+Rows 3 to 5 are the rows this close needed, and they are why the three end-to-end tests exist at
+all. A helper nobody is obliged to call is not a fix, so each gate is held to calling it by a test
+that exports a `GIT_DIR` naming no repository at all over a real `git` and demands the right answer
+anyway: without the strip, `bindcheck.py` reddens on a clean tree, `dashcheck.py` exits 2 on one,
+and `commitlint.py` stops reporting a hash that really resolves. Row 1 is the same three tests plus
+the unit one, which is the shape a shared fact should fail in.
+
+Row 6 is the one that pays for the last test, and it is the trigger this entry was opened with: a
+caller that writes a correct copy is invisible to every behaviour test here, since the behaviour is
+identical, and it is the copy that goes stale. So a file in this tree spelling a git argv is held
+to spelling the call that hands it an environment, which is the obligation a fourth caller inherits
+without being told.
+
+### Records
+
+The record is the task file
+[R-419](../refinements/tasks/419-the-git-call-inside-a-hook-is-written-three-times.md),
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from it,
+`scripts/gitenv.py` and `scripts/tests/test_gitenv.py`, the three gates and the three suites that
+now read it, [modules/repo-gates.md](../modules/repo-gates.md), and this addendum.
