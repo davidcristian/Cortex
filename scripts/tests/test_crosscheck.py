@@ -1,4 +1,5 @@
 import re
+from collections import Counter
 from collections.abc import Callable
 from importlib import import_module
 from pathlib import Path
@@ -957,28 +958,64 @@ def _parts_on_disk() -> list[str]:
 
 
 def _entries(part: str) -> tuple[couplings.Constant, ...]:
-    """One part's own tuple, found by the naming convention every part is written under."""
-    exported: tuple[couplings.Constant, ...] = getattr(
-        import_module(part), part.removesuffix("couplings").upper() + "_COUPLINGS"
+    """One part's own tuple, found by the naming convention every part is written under.
+
+    The convention is asserted rather than assumed, because it is how a part is found at all and
+    it is written down nowhere a `getattr` failure would send a reader: an export under another
+    name raises `AttributeError: module 'foocouplings' has no attribute 'FOO_COUPLINGS'`, which
+    names the attribute that is missing but neither says a rule was broken nor which half of it
+    (the file's name, the tuple's) is the wrong one. Every caller here gets the sentence instead.
+    """
+    name = part.removesuffix("couplings").upper() + "_COUPLINGS"
+    module = import_module(part)
+    assert hasattr(module, name), (
+        f"{part}.py exports no {name}: a registry part is a `<subject>couplings.py` holding a "
+        f"`<SUBJECT>_COUPLINGS` tuple, which is how this suite finds one on disk"
     )
+    exported: tuple[couplings.Constant, ...] = getattr(module, name)
     return exported
 
 
-def test_every_registry_part_on_disk_is_read() -> None:
-    """A data file nobody added to `registry.py` is a set of couplings that gate nothing.
+def test_the_parts_on_disk_are_exactly_what_the_registry_reads() -> None:
+    """A data file nobody added to `registry.py` gates nothing; an entry in no part is unnamed.
 
     The registry lives in several files because the line cap keeps splitting it, and the only
     thing joining them is one import list. Forgetting a line there empties a whole subject in
     silence, which is the failure mode this scan exists to refuse, so the parts are discovered
     from disk rather than from the same list that would be wrong.
+
+    The other direction is the one the list of parts made load-bearing. That list is the whole
+    answer to what the registry is written in, so it is only an answer while every entry lives in
+    a part: a `Constant` written inline in `registry.py`, or left in a module the glob above does
+    not match, would be scanned exactly like the rest and sit under none of the names the
+    docstring gives. The two sets are therefore equal and not nested.
     """
     parts = _parts_on_disk()
     assert parts, "the registry has no data files, which cannot be right"
     read = set(crosscheck.CONSTANTS)
+    held: set[couplings.Constant] = set()
     for part in parts:
         entries = _entries(part)
         assert entries, f"{part} holds no entries"
         assert set(entries) <= read, f"{part} is not read by registry.py"
+        held |= set(entries)
+    stray = sorted(constant.label for constant in read - held)
+    assert not stray, f"registry.py reads entries that live in no part: {stray}"
+
+
+def test_the_registry_holds_each_coupling_once() -> None:
+    """A coupling in two parts is checked twice, counted twice, and reported twice.
+
+    The verdict survives that, the scan being the same question asked twice, so what breaks is
+    the reading: `shape.entries` is what every mutation table in this repo opens by stating, and
+    a number that double counts names a collection the registry does not have. Labels carry the
+    check because the argument for not attributing a fault to its part rests on them being
+    distinct, one label finding one line under one grep, and because an entry copied rather than
+    moved between two parts repeats its label whether or not the copy stayed identical.
+    """
+    seen = Counter(constant.label for constant in crosscheck.CONSTANTS)
+    repeated = sorted(label for label, count in seen.items() if count > 1)
+    assert not repeated, f"the registry holds these labels more than once: {repeated}"
 
 
 def test_registry_names_every_part_in_the_order_it_reads_them() -> None:

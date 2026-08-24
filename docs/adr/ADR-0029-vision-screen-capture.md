@@ -5111,3 +5111,100 @@ count catches it at all is the argument for pinning a count on a module whose li
 
 The brain suite's own seven mutations over the same change are tabled in the ADR-0009 sixth-name
 addendum, their counts being over that suite rather than over this registry.
+
+## Addendum (2026-08-24): the registry is held to its parts in both directions, and a label is a count
+
+The registry-parts addendum above made the list in `registry.py`'s docstring the whole answer to
+what the registry is written in, and held that list to the `*couplings.py` files on disk. It left
+the tuple those files are joined into held only one way.
+`test_every_registry_part_on_disk_is_read` asserted `set(entries) <= read` per part: every coupling
+a data file holds reaches `CONSTANTS`. Nothing asserted that everything in `CONSTANTS` comes from a
+part. A `Constant` written inline in `registry.py`, or left in a module the glob does not match,
+would be scanned exactly like the rest and sit under none of the names the list gives, so the
+answer would be short by one entry without saying so.
+
+### Re-derived first, and the numbers moved
+
+Measured over the tree before anything was changed, and both of the entry's numbers had moved since
+it was filed. The registry is written in **ten** parts holding **67** entries, not nine holding 62:
+`seamcouplings` 8, `endpointcouplings` 3, `shippedcouplings` 7, `capturecouplings` 5,
+`subagentcouplings` 8, `modelhostcouplings` 14, `emailcouplings` 2, `fixturecouplings` 8,
+`overlaycouplings` 7, `logcouplings` 5. The claim the entry rests on survives the move: the union of
+the parts is exactly `set(CONSTANTS)`, 67 either way, and the sum of the part lengths is 67 too, so
+this was a hole rather than a defect on the day it was filed and still is.
+
+### The equality, and the two questions it was filed with
+
+The subset is now an equality. Each part still reaches the tuple, with the same per-part message
+naming the file that nobody imported, and the union of the parts is now required to be everything
+the registry reads, with a message naming the stray entry's label. The test is renamed for what it
+now says, `test_the_parts_on_disk_are_exactly_what_the_registry_reads`.
+
+**The count has to match too, and a label is how it is counted.** An entry held by two parts is
+checked twice by a scan that asks the same question both times, so the verdict survives it: with one
+coupling copied from `seamcouplings` into `emailcouplings`, `crosscheck` still exits 0 and prints
+`68 cross-tree constant(s)` over a registry holding 67 distinct ones. What breaks is the reading.
+`shape.entries` is the number every mutation table in this repo opens by stating, and one that
+double counts names a collection the registry does not have, which is the same defect the shape was
+printed to remove one level up. So `test_the_registry_holds_each_coupling_once` asserts that no
+label appears twice in `CONSTANTS`. Labels rather than whole entries, for two reasons. The decline
+recorded in the registry-parts addendum rests on every label being distinct, one label finding one
+line under one grep, and nothing asserted that; and an entry copied rather than moved repeats its
+label whether or not the copy stayed identical. Asserting it over `CONSTANTS` also makes the
+part-level count implied: `CONSTANTS` is the parts spliced, so an entry in two parts, a part spliced
+twice, or a part holding its own duplicate each repeat a label there.
+
+**The naming convention is asserted, and the evidence is what its absence prints.** A part is a
+`<subject>couplings.py` holding a `<SUBJECT>_COUPLINGS` tuple, which is how the suite finds one at
+all, and it was written down in no docstring. A part exporting under another name printed
+`AttributeError: module 'probecouplings' has no attribute 'PROBE_COUPLINGS'`, planted and read
+rather than imagined. That names the attribute that is missing, and it says neither that a rule was
+broken nor which half of it is the wrong one: a file named `probecouplings.py` exporting `PROBE` is
+fixable from either end, and a reader who does not know the rule can as easily "fix" the `getattr`
+in the suite. It also arrives twice, both tests that walk the parts raising the same traceback and
+neither one being about the convention. The assertion therefore sits in the helper every caller goes
+through, so all of them get one sentence, and `registry.py`'s docstring now states the convention
+and states that `CONSTANTS` holds nothing of its own.
+
+### Proved able to fail, four times, over the scripts suite
+
+Four planted mutations over `scripts/` (the `scripts/tests` suite, 845 tests after this change,
+which is the collection every count below is out of). Each was restored from a copy taken before the
+first, with `__pycache__` purged between runs, and the 845-passed baseline was re-established after
+the last.
+
+| # | mutation | expected | observed |
+| --- | --- | --- | --- |
+| 1 | a `Constant` written inline in `registry.py` and spliced into `CONSTANTS`, in no part | the equality fails naming it | 1 failed, 844 passed, `reads entries that live in no part: ['an inline coupling']` |
+| 2 | one coupling copied from `seamcouplings` into `emailcouplings` | the once test fails naming the label | 2 failed, 843 passed, `holds these labels more than once: ['the screen-capture byte ceiling']` |
+| 3 | `logcouplings` exporting its tuple as `LOG_TIES` | a sentence at both callers, not an `AttributeError` | 2 failed, 843 passed, both carrying `logcouplings.py exports no LOG_COUPLINGS` |
+| 4 | `emailcouplings` dropped from the imports and the tuple | the older direction still fires | 4 failed, 841 passed, `emailcouplings is not read by registry.py` |
+
+Rows 1 and 2 are the ones this close exists for, and both left the gate itself **green**: row 1
+printed `68 cross-tree constant(s)` for a registry with one entry nobody could name the home of, row
+2 printed the same 68 for 67 distinct couplings. That is the whole argument for asserting a reading
+that nothing else compares.
+
+Two rows have collateral worth naming. Row 2 also fails the order test, because the position map it
+builds takes the later index of a repeated entry and sorts `seamcouplings` last; the duplicate is
+reported by both, and only one of them says what it is. Row 4's extra two failures are the same
+shape as the registry-parts addendum's row 5: `emailcouplings` holds the registry's only `LOWERED`
+spelling, so the tests holding `Spelling` and the reducer's boolean form go down with it.
+
+### What this opened
+
+The count is held by labels, so a coupling copied into a second part **and relabelled** is two
+entries checking one thing under two names, and nothing sees it: the equality passes, both labels
+are distinct, and `shape.entries` counts two
+([R-418](../refinements/tasks/418-a-relabelled-copy-of-a-coupling-is-invisible.md)). No two entries
+share a places tuple today, measured, so this is a hole of the same kind the one just closed was.
+
+### Records
+
+The record is the task file
+[R-412](../refinements/tasks/412-nothing-holds-the-registry-to-its-parts.md),
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from it,
+`scripts/registry.py`, whose docstring now states the convention and what `CONSTANTS` holds,
+`scripts/tests/test_crosscheck.py`, which carries the equality, the once test and the convention
+assertion, [modules/repo-gates.md](../modules/repo-gates.md), which states what the suite now holds,
+and this addendum.
