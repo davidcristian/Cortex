@@ -8,6 +8,12 @@ a file and as a subject when a coupling belongs under none of the ones already h
 way it is a new data file plus one line below. `crosscheck.py` never learns that the registry has
 parts.
 
+A part is a `<subject>couplings.py` holding a `<SUBJECT>_COUPLINGS` tuple, which is the convention
+the suite finds one on disk by, and every entry lives in exactly one part: `CONSTANTS` is the parts
+joined and holds nothing of its own, so a coupling written inline here would gate normally and sit
+under none of the names below. Both halves are asserted rather than left to hold, an export under
+another name and an entry outside every part each failing with a sentence.
+
 The order is the order faults are reported in, and nothing depends on it beyond that: the scan
 never asks which file an entry came from, so a coupling moves house without the gate noticing.
 Each part is named for the subject it holds rather than for when it was written, which is what

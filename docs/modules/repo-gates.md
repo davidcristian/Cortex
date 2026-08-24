@@ -98,7 +98,9 @@ that last question to have an answer.
   under the cap. Nothing in the scan depends on which file an entry sits in, and no number counts
   the parts: the list in `registry.py`'s docstring is the whole answer to what the registry is
   written in, and the suite holds it to the directory beside it and to the order the tuple reads
-  them in, so it cannot fall short of the files on disk (ADR-0029 registry-parts addendum).
+  them in, so it cannot fall short of the files on disk (ADR-0029 registry-parts addendum). Every
+  entry lives in exactly one part and `CONSTANTS` holds nothing of its own, which the suite holds
+  too (ADR-0029 registry-equality addendum).
   `values.py` and
   `readings.py` are the pieces neither the scan nor the data is: the first reduces a right-hand
   side to a comparable value and says how a mention may spell it, the second says whether a
@@ -577,9 +579,19 @@ that last question to have an answer.
   and the signed integer to it, a form the
   real tree never spells being unexercised in exactly the same way, and
   `test_the_registry_exercises_every_spelling` holds `Spelling` to the rule `Relation` already
-  answers to. `test_every_registry_part_on_disk_is_read` guards the split itself: it globs the
+  answers to. `test_the_parts_on_disk_are_exactly_what_the_registry_reads` guards the split itself:
+  it globs the
   `*couplings.py` files rather than reading the same import list that would be wrong, so a part
-  nobody added to `registry.py` fails instead of gating nothing in silence.
+  nobody added to `registry.py` fails instead of gating nothing in silence. It runs **both
+  directions** (ADR-0029 registry-equality addendum): the union of the parts must also be everything
+  `CONSTANTS` holds, so a `Constant` written inline in `registry.py` fails naming its label rather
+  than gating normally under none of the names the docstring lists. Beside it,
+  `test_the_registry_holds_each_coupling_once` asserts that no label appears twice, which is how the
+  count is held: an entry in two parts leaves the verdict alone, the scan asking one question twice,
+  and makes `shape.entries` count a collection the registry does not have. The convention a part is
+  found by, a `<subject>couplings.py` holding a `<SUBJECT>_COUPLINGS` tuple, is asserted in the
+  helper both tests go through, so an export under another name is a sentence rather than an
+  `AttributeError`.
   `test_registry_names_every_part_in_the_order_it_reads_them` guards the other half of a split, the
   prose (ADR-0029 registry-parts addendum): the parts are named in `registry.py`'s docstring and
   nowhere else, so the bullet names are read back out of `registry.__doc__` and required to be the

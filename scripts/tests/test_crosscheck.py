@@ -1,4 +1,5 @@
 import re
+from collections import Counter
 from collections.abc import Callable
 from importlib import import_module
 from pathlib import Path
@@ -933,21 +934,36 @@ def _parts_on_disk() -> list[str]:
 
 def _entries(part: str) -> tuple[couplings.Constant, ...]:
     """One part's own tuple, found by the naming convention every part is written under."""
-    exported: tuple[couplings.Constant, ...] = getattr(
-        import_module(part), part.removesuffix("couplings").upper() + "_COUPLINGS"
+    name = part.removesuffix("couplings").upper() + "_COUPLINGS"
+    module = import_module(part)
+    assert hasattr(module, name), (
+        f"{part}.py exports no {name}: a registry part is a `<subject>couplings.py` holding a "
+        f"`<SUBJECT>_COUPLINGS` tuple, which is how this suite finds one on disk"
     )
+    exported: tuple[couplings.Constant, ...] = getattr(module, name)
     return exported
 
 
-def test_every_registry_part_on_disk_is_read() -> None:
-    """A data file nobody added to `registry.py` is a set of couplings that gate nothing."""
+def test_the_parts_on_disk_are_exactly_what_the_registry_reads() -> None:
+    """A data file nobody added to `registry.py` gates nothing; an entry in no part is unnamed."""
     parts = _parts_on_disk()
     assert parts, "the registry has no data files, which cannot be right"
     read = set(crosscheck.CONSTANTS)
+    held: set[couplings.Constant] = set()
     for part in parts:
         entries = _entries(part)
         assert entries, f"{part} holds no entries"
         assert set(entries) <= read, f"{part} is not read by registry.py"
+        held |= set(entries)
+    stray = sorted(constant.label for constant in read - held)
+    assert not stray, f"registry.py reads entries that live in no part: {stray}"
+
+
+def test_the_registry_holds_each_coupling_once() -> None:
+    """A coupling in two parts is checked twice, counted twice, and reported twice."""
+    seen = Counter(constant.label for constant in crosscheck.CONSTANTS)
+    repeated = sorted(label for label, count in seen.items() if count > 1)
+    assert not repeated, f"the registry holds these labels more than once: {repeated}"
 
 
 def test_registry_names_every_part_in_the_order_it_reads_them() -> None:
