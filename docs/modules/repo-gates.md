@@ -220,7 +220,11 @@ that last question to have an answer.
   rename that moved only the first leaves the ACL somewhere dovecot never reads and the mailbox
   opens like any other), and the probe account's mail home in that same script at 2 (the tree is
   built under it and chowned by it, and `set -eu` stops the script when one of the two moves
-  alone, which is loud and arrives only when somebody next measures), and the ones the prose sorts
+  alone, which is loud and arrives only when somebody next measures; the root above that home is
+  the environment variable the compose file hands in, spelled once there and read by the script
+  and the conf, so the needle renders the account under the variable and there is no second
+  spelling of the path for a row to hold, ADR-0022 one-mail-root addendum), and the ones the
+  prose sorts
   added, every one of them a file stating one shipped value twice where losing one leaves it
   naming two different answers at once: the volume runbook's endpoint pair and its export pair,
   the body app contract's two stated binds, the GPU runbook's two recipe lines, the vision

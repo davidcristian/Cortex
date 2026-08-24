@@ -1,6 +1,8 @@
 
 name: cortex-imap-probe
 
+x-mail-root: &mail-root "/srv/mail"
+
 services:
   imap-probe:
     # Pinned: the whole value of this stack is that the wording it produces was recorded
@@ -11,6 +13,8 @@ services:
     # server itself. `init` restores the reaping the image's tini was doing.
     entrypoint: ["/bin/sh", "/probe-mailboxes.sh"]
     init: true
+    environment:
+      CORTEX_IMAP_PROBE_MAIL_ROOT: *mail-root
     volumes:
       # The whole configuration, replacing the image's own (which has no ACL plugin and so
       # cannot produce the refusal this exists for). Only the file is mounted, so the
@@ -24,9 +28,7 @@ services:
         target: /probe-mailboxes.sh
         read_only: true
     tmpfs:
-      # The mail store, deliberately not a volume: a fixture that starts empty every time
-      # cannot drift from the script that builds it, and `down` leaves nothing behind.
-      - /srv/mail
+      - *mail-root
     ports:
       - "127.0.0.1:11143:143"
     healthcheck:

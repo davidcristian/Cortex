@@ -1,10 +1,8 @@
 # The probe's mail root is spelled in three files and nothing can hold them together
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-08-24
 **Area:** repo-gates
-**Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
-**Trigger:** the first edit that moves `/srv/mail`, or a fourth place spelling it, meaning somebody
-changing the probe's mail store and having to find the other two by reading.
+**Origin:** [ADR-0022](../../adr/ADR-0022-email-write-confirmer.md)
 
 Opened 2026-08-23 by the close of
 [R-384](384-the-probe-account-is-spelled-twice.md), which registered the account under that root
@@ -40,3 +38,26 @@ sides, which is a change to `crosscheck.py`'s stated subject and wants an ADR ra
 - 2026-08-23: filed by the close of [R-384](384-the-probe-account-is-spelled-twice.md), which
   registered the account name spelled under this root and recorded that the root above it has no
   declaration a scan could read.
+- 2026-08-24: landed. **The origin line was wrong and is corrected.** It named the constant scan's
+  decision record, which is where the gap was written down; the fixture whose files spell the root
+  belongs to the email record, and that is where the addendum went. **Re-derived first and the
+  count held**, five spellings across the three files named above, none of them moved, and the
+  live suite has grown from six tests to seven. **Dovecot does take the path from the environment**,
+  measured against `dovecot/dovecot:2.3.21` in three containers rather than argued: `$ENV:NAME` is
+  not expanded at all, `%{env:NAME}` is expanded and empties unless the name is on
+  `import_environment`, and with that line the account's home resolved to the handed-in root. So
+  the root is written once, as a YAML anchor in the compose file, aliased into the tmpfs and into
+  `CORTEX_IMAP_PROBE_MAIL_ROOT`, which the script and the conf both read. An anchor rather than a
+  `${NAME:-default}` substitution, which would spell the default once per use and would let a
+  variable in an operator's shell move the fixture. **One of the five spellings was dead**:
+  `mail_home` is only ever the fallback for a userdb that answers with no home, and this one always
+  does, so misspelling it alone changed nothing and it is removed rather than carried forward.
+  **The silent half is now loud**: the entrypoint checks that the mail root really is a tmpfs
+  before it builds anything, which also covers what the image does with that path, since it
+  declares a volume there and docker fills an unmounted one with an anonymous volume that outlives
+  the container. Six planted mutations over the probe's live suite, tabled in the one-mail-root
+  addendum. The registry gained no row and `crosscheck.py`'s subject did not move: a value with one
+  place is not a coupling, and the second option this entry offered, a registry over far sides
+  only, is declined rather than deferred. One residue filed: the image declares `/etc/dovecot` a
+  volume too, and the compose file binds one file inside it, so every run leaves an anonymous
+  volume behind ([R-424](424-every-probe-run-leaves-an-anonymous-volume.md)).
