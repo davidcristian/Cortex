@@ -75,6 +75,8 @@ jobs:
       - run: just check-crosscheck
       - run: just check-bindcheck
       - run: just check-defaultcheck
+      - run: just check-volumecheck
+      - run: just check-stubcheck
       - run: just check-backlog
 
   python:

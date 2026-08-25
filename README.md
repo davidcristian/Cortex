@@ -264,11 +264,12 @@ GPU. The full working agreement is [AGENTS.md](AGENTS.md).
 
 | Command | What it does |
 | ------- | ------------ |
-| `just check` | The whole gate: six cross-tree scans, then the four trees in parallel |
+| `just check` | The whole gate: eight cross-tree scans, then the four trees in parallel |
 | `just up` / `just down` | The brain in Compose, with the scripted inference backend |
 | `just up-gpu` | The brain plus a llama.cpp model host on the GPU |
 | `just brain-serve` | The brain natively, no Docker |
 | `just proto` | Regenerate the committed seam stubs from `proto/body.proto` |
+| `just image-volumes` | Ask docker what the pinned images declare, against the recorded answer |
 | `just seam-health` | Live seam check, dialed from the body side |
 | `just turn-cost` | The A/B/A live measurement of what a change costs a real turn |
 

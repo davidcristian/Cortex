@@ -318,6 +318,15 @@ CORTEX_DB_DIR=/srv/pgdata \
 ls /srv/pgdata   # cortex.dump appears after the first tick; watch: docker compose logs pg-backup
 ```
 
+The sidecar runs the same `pgvector/pgvector:pg16` image as the server so that `pg_dump` matches
+the major version, and that image declares `VOLUME /var/lib/postgresql/data`. The sidecar never
+opens a data directory (it dumps over the network and the compose file overrides the entrypoint),
+but docker keeps the declaration regardless, so until 2026-08-25 every start of this stack left a
+fresh anonymous volume on the host. It now mounts a `tmpfs` there, which leaves docker's
+declaration nothing to fill. `just image-volumes` is what re-derives that class of fact from a
+running docker; `just check` reads the record it writes, so a newly pinned image with a new
+declared path fails the gate rather than quietly collecting volumes.
+
 Restore with `pg_restore -U cortex -d cortex /path/to/cortex.dump`. A one-off manual dump
 remains available (`docker compose ... exec postgres pg_dump -U cortex -d cortex -Fc -f
 /tmp/cortex.dump`, then copy it out) but the guarantee no longer depends on remembering it.

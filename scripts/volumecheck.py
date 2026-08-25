@@ -1,0 +1,227 @@
+"""Repo gate: fail when an image a compose file names declares a volume the service leaves open."""
+
+import argparse
+import sys
+from collections.abc import Iterable, Mapping
+from pathlib import Path
+from typing import NamedTuple
+
+from composefiles import COMPOSE_STEMS, ComposeSearchError, compose_files
+from composeservices import ComposeFile, ComposeServiceError, Service, read_services
+from imagevolumes import IMAGE_VOLUMES, RECORD_PATH, Inspector, docker_volumes, rederive
+
+_UNCOVERED = (
+    "service {service!r} runs {reference!r}, which declares VOLUME {path!r}, and mounts nothing "
+    "there; docker gives the container an anonymous volume at that path and a `down` without "
+    "--volumes leaves it on the host. Mount something at it, a tmpfs where the container writes "
+    "nothing worth keeping."
+)
+_UNRECORDED = (
+    "service {service!r} runs {reference!r}, which " + RECORD_PATH + " has no row for; an "
+    "unrecorded image is an unasked question. Run `just image-volumes` to record what it declares."
+)
+_STALE = (
+    "the record has a row for {reference!r}, which no compose file names; a row nothing names is a "
+    "claim nothing can check. Drop the row, or name the image where it belongs."
+)
+_SUBSTITUTED = (
+    "service {service!r} names its image as {reference!r}, and the record is keyed on the image a "
+    "container really runs, which a substitution does not spell. Write the image out."
+)
+_UNPROJECTED = (
+    "service {service!r} builds its image and names none, so compose runs it as "
+    "`<project>-{service}`, and no base compose file pins one project name for that to resolve to."
+)
+
+
+class Fault(NamedTuple):
+    """One image declaration nothing covers, one record row out of step, or one unreadable file."""
+
+    path: str
+    line: int
+    detail: str
+
+
+class Scan(NamedTuple):
+    """One walk of the compose files: what it read, then what it could not account for."""
+
+    files: int
+    definitions: int
+    declared: int
+    names: tuple[str, ...]
+    faults: list[Fault]
+
+
+class Read(NamedTuple):
+    """One compose file as the walk found it: what it declares, or why it could not be read."""
+
+    path: Path
+    name: str
+    found: ComposeFile | None
+    faults: list[Fault]
+
+
+def read_file(root: Path, compose: Path) -> Read:
+    """Read one compose file, turning every refusal into a fault on the file rather than a raise."""
+    name = compose.relative_to(root).as_posix()
+    try:
+        found = read_services(compose.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, ComposeServiceError) as err:
+        return Read(path=compose, name=name, found=None, faults=[Fault(name, 0, str(err))])
+    return Read(path=compose, name=name, found=found, faults=[])
+
+
+def base_project(reads: Iterable[Read]) -> str | None:
+    """The project name an override with none of its own inherits, taken from the base file."""
+    pinned = [
+        read.found.project
+        for read in reads
+        if read.found is not None
+        and read.found.project is not None
+        and read.path.stem in COMPOSE_STEMS
+    ]
+    return pinned[0] if len(pinned) == 1 else None
+
+
+def uncovered(name: str, service: Service, reference: str, declared: Iterable[str]) -> list[Fault]:
+    """Every path this image declares that the service running it mounts nothing at."""
+    return [
+        Fault(
+            name,
+            service.line,
+            _UNCOVERED.format(service=service.name, reference=reference, path=path),
+        )
+        for path in declared
+        if path not in service.covered
+    ]
+
+
+def check_file(read: Read, base: str | None, records: Mapping[str, tuple[str, ...]]) -> Scan:
+    """Return what one compose file offered the gate, and every declaration left open in it."""
+    if read.found is None:
+        return Scan(files=1, definitions=0, declared=0, names=(), faults=read.faults)
+    project = read.found.project or base
+    definitions = declared = 0
+    names: list[str] = []
+    faults: list[Fault] = []
+    for service in read.found.services:
+        if not service.defines:
+            continue  # a fragment layered onto the file that names the image; it asks nothing here
+        definitions += 1
+        if service.image is None and project is None:
+            faults.append(Fault(read.name, service.line, _UNPROJECTED.format(service=service.name)))
+            continue
+        reference = service.image if service.image is not None else f"{project}-{service.name}"
+        if "$" in reference:
+            faults.append(
+                Fault(
+                    read.name,
+                    service.line,
+                    _SUBSTITUTED.format(service=service.name, reference=reference),
+                )
+            )
+            continue
+        names.append(reference)
+        row = records.get(reference)
+        if row is None:
+            faults.append(
+                Fault(
+                    read.name,
+                    service.line,
+                    _UNRECORDED.format(service=service.name, reference=reference),
+                )
+            )
+            continue
+        declared += len(row)
+        faults.extend(uncovered(read.name, service, reference, row))
+    return Scan(1, definitions, declared, tuple(names), faults)
+
+
+def check(root: Path, records: Mapping[str, tuple[str, ...]] = IMAGE_VOLUMES) -> Scan:
+    """Check every compose file under ``root``, then every recorded row against what they named."""
+    reads = [read_file(root, compose) for compose in compose_files(root)]
+    scans = [check_file(read, base_project(reads), records) for read in reads]
+    named = {name for scan in scans for name in scan.names}
+    faults = [fault for scan in scans for fault in scan.faults]
+    faults.extend(
+        Fault(RECORD_PATH, 0, _STALE.format(reference=reference))
+        for reference in sorted(records)
+        if reference not in named
+    )
+    return Scan(
+        files=len(scans),
+        definitions=sum(scan.definitions for scan in scans),
+        declared=sum(scan.declared for scan in scans),
+        names=tuple(sorted(named)),
+        faults=faults,
+    )
+
+
+def report_drift(
+    names: tuple[str, ...], records: Mapping[str, tuple[str, ...]], inspect: Inspector
+) -> int:
+    """Ask a real docker about the record, print every row that has drifted, and exit on it."""
+    report = rederive(names, records, inspect)
+    for line in report:
+        print(line)
+    if report:
+        print(
+            f"\nvolumecheck: {len(report)} recorded row(s) disagree with docker. Edit the table in "
+            f"{RECORD_PATH} to what docker says, and cover any newly declared path in the compose "
+            "file whose service runs that image.",
+            file=sys.stderr,
+        )
+        return 1
+    print(f"volumecheck: the record agrees with docker on all {len({*names, *records})} image(s)")
+    return 0
+
+
+def main(argv: list[str] | None = None, inspect: Inspector = docker_volumes) -> int:
+    """Run the gate; print any faults and return the process exit code."""
+    parser = argparse.ArgumentParser(
+        description="Fail when an image a compose file names declares a volume nothing covers.",
+    )
+    parser.add_argument(
+        "--root",
+        type=Path,
+        default=Path(),
+        help="repo root holding the compose files (default: current directory)",
+    )
+    parser.add_argument(
+        "--rederive",
+        action="store_true",
+        help="ask a real docker instead, and report every recorded row that has drifted",
+    )
+    args = parser.parse_args(argv)
+    given: Path = args.root
+    rederiving: bool = args.rederive
+    if not given.is_dir():
+        print(f"volumecheck: root {given} is not a directory", file=sys.stderr)
+        return 2
+    try:
+        scanned = check(given.resolve())
+    except ComposeSearchError as err:
+        print(f"volumecheck: {err}", file=sys.stderr)
+        return 2
+    if rederiving:
+        return report_drift(scanned.names, IMAGE_VOLUMES, inspect)
+    for fault in scanned.faults:
+        print(f"{fault.path}:{fault.line}: {fault.detail}")
+    if scanned.faults:
+        print(
+            f"\nvolumecheck: {len(scanned.faults)} image volume declaration(s) go uncovered or "
+            f"unrecorded. Mount something at the path, or bring {RECORD_PATH} back in step with "
+            "the tree by running `just image-volumes`.",
+            file=sys.stderr,
+        )
+        return 1
+    print(
+        f"volumecheck OK: {scanned.declared} declared volume path(s) under {given} are covered, "
+        f"over {scanned.files} compose file(s), {scanned.definitions} service definition(s) and "
+        f"{len(scanned.names)} image(s)"
+    )
+    return 0
+
+
+if __name__ == "__main__":  # pragma: no cover -- CLI entry point; main() is unit-tested
+    sys.exit(main())

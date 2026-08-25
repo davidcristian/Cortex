@@ -103,7 +103,7 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    config via env only.
 6. **`just check` is the single gate**, running ruff, pyright, pytest + coverage,
    `cargo fmt --check`, clippy, `cargo test`, `cargo llvm-cov`, the overlay's typecheck and
-   Vitest coverage, and the six cross-tree scans: the line cap, which reaches all three
+   Vitest coverage, and the eight cross-tree scans: the line cap, which reaches all three
    toolchains; `dashcheck.py`, which bans a dash used as punctuation in any text file
    (ADR-0026); `crosscheck.py`, which ties every value this repo spells in more than one place,
    whether the far side declares it, orders itself against it, carries it among the several it
@@ -115,18 +115,30 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    materializes a container-written directory the index would take (ADR-0026 bind addendum);
    `defaultcheck.py`, which holds one variable spelled in several compose files to one default
    in all of them, compared as a value rather than as text so the one re-spelling docker's own
-   syntax forces stays green (ADR-0026 defaults addendum);
+   syntax forces stays green (ADR-0026 defaults addendum); `volumecheck.py`, which holds every
+   volume an image declares to a mount or a tmpfs in each compose service that runs it, so no
+   container collects an anonymous volume `down` then leaves on the host, and which reads a
+   recorded answer because a running docker is exactly what the gate cannot have (ADR-0011
+   out-of-reach-evidence addendum, and `just image-volumes` re-derives that record);
+   `stubcheck.py`, which holds the committed Rust seam stub to the comments
+   [proto/body.proto](proto/body.proto) carries, the one half of a skipped regeneration no
+   compiler would notice, as a text comparison running no codegen (ADR-0003 stub-fidelity
+   addendum);
    and `backlogcheck.py`, which holds each backlog index to the task files it describes and
    every link in them to resolving, so a status can be written in exactly one place, and holds
    every `#fragment` written anywhere in the repo to naming a heading the document it aims at
    really offers, a backlog index answering out of the rendering the gate is about to require
    and every other document out of the file on disk
-   (ADR-0039). All six run unconditionally, in CI too. Pre-commit mirrors it. Run it
+   (ADR-0039). All eight run unconditionally, in CI too. Pre-commit mirrors it. Run it
    before declaring anything done. **One recipe is deliberately outside it**, `check-shell`
    (clippy on the Tauri shell), which CI schedules and `just check` does not run: it is the only
    check needing system libraries, the Linux GTK/webkit/dbus dev packages a clean dev box need
    not have, and requiring them would make the single gate unrunnable rather than strict. The
-   divergence is argued in the ADR-0011 shell-clippy addendum; nothing else may join it.
+   divergence is argued in the ADR-0011 shell-clippy addendum; nothing else may join it. A check
+   whose *evidence* is out of reach rather than its toolchain (what an image declares, what a
+   codegen run produces) does not become a second exception either: it records the far answer in
+   the tree, gates the record, and re-derives it with a hand-run recipe, per the ADR-0011
+   out-of-reach-evidence addendum.
 
 ## Commits
 
@@ -257,9 +269,17 @@ scripts/          repo gates, plus the one module here that gates nothing, contr
                   bindcheck.py (no compose bind
                   default lands unignored in the tree) + composemounts.py (its mount
                   reader), defaultcheck.py (one variable, one default in every compose file
-                  that spells it) + composedefaults.py (its substitution reader) +
-                  composefiles.py (which files both compose gates walk, answered once so the
-                  two cannot drift apart), backlogcheck.py (each backlog index still matches its task files,
+                  that spells it) + composedefaults.py (its substitution reader),
+                  volumecheck.py (every volume an image declares is covered by a mount or a
+                  tmpfs in each service that runs it) + composeservices.py (its reader of what
+                  a service runs and covers) + imagevolumes.py (the recorded answer it reads,
+                  because a running docker is what the gate cannot have, re-derived by
+                  `just image-volumes`), stubcheck.py (every comment the proto carries still
+                  appears in the committed Rust stub) + protocomments.py (what a comment is on
+                  each side and how the two spellings are made comparable),
+                  composefiles.py (which files all three compose gates walk, answered once so
+                  they cannot drift apart), backlogcheck.py (each backlog index still matches
+                  its task files,
                   ADR-0039) + backlog.py (task-file grammar), backlogindex.py (what the
                   index renders), backloganchors.py (the anchors a document offers and
                   every pointer in the repo aimed at one) and headingshapes.py (what a
@@ -277,9 +297,10 @@ justfile          `just check` + check-*; proto, up/down, brain-serve, seam-heal
                   backlog (regenerate each backlog index from its task files), shuffle (every
                   suite at one chosen seed, the sweep the gate's own fixed seed never draws,
                   ADR-0002)
-                  (`just check` runs the six cross-tree scans before the per-tree ones;
+                  (`just check` runs the eight cross-tree scans before the per-tree ones;
                   `turn-cost` is the A/B/A live measurement, where the container restarts
-                  between arms live, ADR-0038)
+                  between arms live, ADR-0038; `image-volumes` is the hand-run docker
+                  re-derivation of the record `check-volumecheck` reads, ADR-0011)
 docker/           Compose stack (run via `just up`/`up-gpu`, or `docker compose --project-directory .
                   -f docker/docker-compose.yml …`): docker-compose.yml (brain + redis, loopback-only)
                   + overrides: gpu (the model-host supervisor sidecar, one llama-server child per

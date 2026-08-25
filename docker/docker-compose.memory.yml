@@ -68,6 +68,8 @@ services:
         source: ./docker/postgres/backup.sh
         target: /backup.sh
         read_only: true
+    tmpfs:
+      - /var/lib/postgresql/data
     depends_on:
       postgres:
         condition: service_healthy
