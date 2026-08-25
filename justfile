@@ -131,6 +131,43 @@ shuffle seed="":
     (cd body/app && npm ci && npx vitest run --coverage --sequence.seed="$seed")
     (cd body && cargo +nightly test --locked --workspace -- -Z unstable-options --shuffle-seed="$seed")
 
+replay seed="" since="" count="5" window="25":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    seed="{{ seed }}"
+    [ -n "$seed" ] || seed=$(( (RANDOM << 15) | RANDOM ))
+    case "$seed" in
+        *[!0-9]*)
+            echo "a seed must be digits only, got '$seed'" >&2
+            exit 1
+            ;;
+    esac
+    if command -v sha256sum >/dev/null 2>&1; then
+        digest() { sha256sum; }
+    elif command -v shasum >/dev/null 2>&1; then
+        digest() { shasum -a 256; }
+    else
+        echo "the draw needs sha256sum or shasum on PATH to be reproducible" >&2
+        exit 1
+    fi
+    vocabulary=(-i -E --grep='redden' --grep='mutant' --grep='mutation' --grep='prove[a-z]* able to fail')
+    since="{{ since }}"
+    if [ -n "$since" ]; then
+        pool="$(git log --since="$since" "${vocabulary[@]}" --format='%H%x09%s')"
+        echo "=== replay draw: seed $seed, over the tables landed since $since ==="
+        echo "=== reproduce this draw with: just replay $seed $since ==="
+    else
+        pool="$(git log --max-count={{ window }} "${vocabulary[@]}" --format='%H%x09%s')"
+        echo "=== replay draw: seed $seed, over the {{ window }} most recent tables ==="
+        echo "=== reproduce this draw with: just replay $seed ==="
+    fi
+    candidates="$(printf '%s' "$pool" | grep -c . || true)"
+    echo "=== $candidates candidate bodies, drawing {{ count }} ==="
+    printf '%s\n' "$pool" | while IFS="$(printf '\t')" read -r sha subject; do
+        [ -n "$sha" ] || continue
+        printf '%s\t%s\t%s\n' "$(printf '%s:%s' "$seed" "$sha" | digest | cut -c1-16)" "$sha" "$subject"
+    done | sort | sed -n '1,{{ count }}p' | cut -f2-
+
 # Regenerate the committed seam stubs from proto/body.proto (needs local protoc; ADR-0003).
 proto:
     mkdir -p /tmp/protostage/cortex_seam/_generated

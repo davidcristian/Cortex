@@ -539,6 +539,9 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
   and how to gate or disable it.
 - [runbooks/body-overlay.md](runbooks/body-overlay.md) covers Slice 8: run the overlay in a browser
   (fake bridge) or as the real Tauri app on Windows (hotkey → overlay → live brain).
+- [runbooks/mutation-replay.md](runbooks/mutation-replay.md) covers the replay pass over the
+  record's mutation tables: when one is due, how the five it replays are drawn blind at a printed
+  seed, what to do with a row that does not reproduce, and the ledger every pass writes into.
 - [runbooks/model-swap.md](runbooks/model-swap.md) covers the brain handoff's manual-recovery
   half: what `ResidencyRestoreError` means with today's scripted model host, and the compose
   steps that put residency back. The live-swap procedure and its timings arrive with the real

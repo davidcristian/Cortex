@@ -1,6 +1,6 @@
 # The record was replayed once, by a pass nothing schedules and nothing samples
 
-**Status:** open, actionable
+**Status:** landed 2026-08-25
 **Area:** cross-cutting
 **Origin:** [ADR-0002](../../adr/ADR-0002-toolchain-gates.md)
 
@@ -29,3 +29,25 @@ one this pass never had to exercise, because nothing failed. A row that does not
 either a wrong count, a wording nobody can replay, or a tree that moved under the claim, and those
 three want different answers: the first corrects the record, the second is a wording defect the
 close's own AGENTS.md clause now names, and the third is not a defect at all.
+
+## Trail
+
+- 2026-08-21: opened by the close of [R-349](349-a-mutation-table-nobody-replayed.md), which
+  replayed five tables and settled affordability without deciding when a second pass runs.
+- 2026-08-25: **landed**, as the [ADR-0002 replay-cadence
+  addendum](../../adr/ADR-0002-toolchain-gates.md), a `replay` recipe in the `justfile`, and
+  [docs/runbooks/mutation-replay.md](../../runbooks/mutation-replay.md), which carries the
+  procedure and the ledger a pass writes its result into. The three numbers: a pass is due once
+  twenty five candidate bodies have landed since the last ledgered pass, it replays five of them,
+  and the draw is a digest of a printed seed rather than anybody's choice. **One claim here did not
+  survive re-derivation.** The census this entry proposed drawing from does not exist: the close
+  that reported its numbers declined the script that produced them in the same addendum, so it was
+  thirty uncommitted lines. Re-taken over 624 commits, 138 bodies carry the vocabulary and 115 of
+  them name no tracked path, which holds the close's proportion. What the entry could not have
+  known is that the cadence's unit had to be tables rather than days: candidates arrive in bursts,
+  1, 29, 1, 3, 24, 19 and 46 over consecutive weeks, and thirty nine had landed in the four days
+  since the pass that opened this. The rule for a non-reproducing row is written off this week's
+  evidence rather than from first principles, its first clause being to distrust the replay, since
+  a stale `__pycache__` produced phantom failures in three runs of one sweep here. Opened by this
+  close: [R-439](439-nothing-counts-the-record-between-passes.md) and
+  [R-440](440-the-replay-sample-is-spelled-in-three-places.md).
