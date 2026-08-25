@@ -50,3 +50,10 @@ its blind spot.
   [R-394](394-the-fired-item-has-two-spellings-in-the-logs.md), whose registry part holds every
   place that spells the vocabulary today and no place that has not been written down yet. Recorded
   in the ADR-0029 addendum that added the part.
+- 2026-08-25: the arithmetic above has moved and the argument has not. Two scans landed together,
+  one holding every volume an image declares to a mount some compose service makes and one
+  holding the committed Rust seam stub to the comments the proto carries, so AGENTS.md now names
+  eight and the gate this entry weighs would be the ninth. What that changes is only the number:
+  adding a scan is still a change to the contract rather than to a data file, and the harder half
+  of this entry, what "looks like an identity" means when the Redis codecs spell four of the five
+  as hash keys of their own, is untouched by either.

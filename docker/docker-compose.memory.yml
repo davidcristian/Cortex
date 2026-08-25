@@ -110,6 +110,16 @@ services:
         source: ./docker/postgres/backup.sh
         target: /backup.sh
         read_only: true
+    tmpfs:
+      # Postgres' own data directory, which this sidecar never fills: it runs backup.sh and
+      # pg_dumps the server over the network, so it holds no database of its own. The image
+      # declares a volume there all the same, and a container with nothing mounted at it gets an
+      # anonymous volume docker fills from the image and `down` leaves on the host under a name
+      # nobody picked, one per start. A tmpfs gives that declaration nothing to anonymise. The
+      # probe stack covers dovecot's two declarations the same way and for the same reason
+      # (docker-compose.imap-probe.yml); scripts/volumecheck.py is what now checks that every
+      # such declaration is covered, rather than leaving it to whoever remembers.
+      - /var/lib/postgresql/data
     depends_on:
       postgres:
         condition: service_healthy

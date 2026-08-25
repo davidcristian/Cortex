@@ -704,3 +704,79 @@ the classifier suite. The shell's current 978 lines in 12 files are clippy-clean
 this lands green and the check earns its place by what it catches next, not by what it caught
 today. It still LINTS the shell rather than running it, which wants a real Win32 desktop session
 ([host/](../host/index.md)).
+
+## Addendum (2026-08-25): where a check goes when its evidence, not its toolchain, is out of reach
+
+Two deferrals arrived a day apart wearing different subjects and asking one question, so the
+answer is written here rather than twice, beside the single divergence this repo has already
+accepted. The first: an image that declares a `VOLUME` gets an anonymous volume on every start
+of any container mounting nothing at that path, `docker compose down` leaves it on the host under
+a name nobody chose, and nothing here asks which paths the images it pins declare. The second:
+both stacks commit their generated seam stubs and regenerate them by hand, so a proto edit that
+skips `just proto` leaves the committed files disagreeing with [proto/body.proto](../../proto/body.proto),
+which is the seam's single source of truth, with every gate green.
+
+Both are checks this repo genuinely wants, and in both the evidence sits somewhere `just check`
+cannot go. What an image declares is a fact about a registry that only a pull can answer, and CI
+has neither a docker daemon nor the images. What a codegen run produces needs `grpcio-tools` on
+one side, which is already a brain dev dependency and bundles its own `protoc`, and a system
+`protoc` binary on the other, which is exactly the toolchain the committed-stub decision
+(ADR-0003) exists so nobody needs.
+
+The tempting move in both cases is a second CI-scheduled recipe sitting next to `check-shell`.
+It is refused. `check-shell` is outside the single gate because its *toolchain* cannot be assumed
+on a clean dev box, and that argument does not transfer: a gate whose evidence is missing is not
+the same shape of problem as a gate whose compiler is missing, and it has cheaper answers.
+Letting the exception generalize would turn "one recipe is deliberately outside `just check`"
+into a category, and a category is how a single gate stops being single.
+
+**Decision: three answers, tried in this order, and the exception list stays at one.**
+
+1. **Bring the evidence into the tree.** Write the out-of-reach fact down as a file the gate can
+   read, gate that record against the tree it describes, and give the re-derivation its own
+   hand-run recipe that fails when the record has gone stale. The gate then runs everywhere,
+   including on a machine with no docker at all, and the recipe is what keeps the record honest.
+   The shape is already here and proven: [docs/refinements/index.md](../refinements/index.md) is
+   a generated artifact, `backlogcheck.py` holds it to the task files, and `just backlog`
+   rewrites it. `scripts/imagevolumes.py` plus `just image-volumes` is the same arrangement with
+   a docker daemon where the task files were. The honest cost is named rather than hidden: a
+   recorded fact can go stale between re-derivations, so the record is only as good as the
+   discipline of running the recipe when a pin moves, and that instruction belongs on the recipe
+   and in the runbook rather than in anybody's head.
+2. **Ask a cheaper question the tree can already answer.** Sometimes the expensive check has a
+   text-only shadow that catches the same class of defect, and measuring which defects each one
+   actually catches is what tells them apart. The stub case turned on exactly that measurement:
+   regenerating the Python stubs is free and reproduces byte for byte, and it does not notice a
+   comment at all, while a comment is the only part of a skipped regeneration that no compiler
+   would catch. So the check that earns its place is a text comparison running no codegen, and
+   the regenerate-and-diff is declined on evidence rather than on cost (ADR-0003 stub-fidelity
+   addendum).
+3. **A hand-run recipe that gates nothing.** Last, and only when neither of the above can be
+   built. Its record here is poor and should be quoted whenever it is proposed: the probe image's
+   two declared volumes were each found by reading `docker image inspect` by hand, months of runs
+   apart, each time after the leak had been happening on every start. A check nobody is made to
+   run is a check that runs after the damage, if at all. `just image-volumes` is deliberately not
+   this: it is tier one's second half, and what it guards is a record a gate reads on every
+   commit.
+
+The first application found a defect that had been live the whole time and that neither deferral
+knew about. `pg-backup` in [docker/docker-compose.memory.yml](../../docker/docker-compose.memory.yml)
+runs the same `pgvector/pgvector:pg16` image as the server, mounts only its dump directory and its
+script, and therefore collected an anonymous volume at `/var/lib/postgresql/data` on every start
+of the memory stack, seeded from the image's own empty data directory that the sidecar never
+touches. Reproduced before the fix by creating a container with exactly that mount set:
+
+```
+$ id=$(docker create --network none -v "$PWD/docker/postgres/backup.sh:/backup.sh:ro" \
+    -v "$PWD/pgdata:/backup" --entrypoint /bin/sh pgvector/pgvector:pg16 /backup.sh)
+$ docker inspect "$id" --format '{{range .Mounts}}TYPE={{.Type}} NAME={{.Name}} DST={{.Destination}}
+{{end}}'
+TYPE=bind NAME= DST=/backup.sh
+TYPE=bind NAME= DST=/backup
+TYPE=volume NAME=aa9c20129d789ac62a5484c4be308368b5c5630c5ebb30291dc7f9a51a376179 DST=/var/lib/postgresql/data
+```
+
+It takes the same fix the probe's fixture already uses, a `tmpfs` at the declared path, which
+leaves docker's declaration nothing to anonymise. That is the argument for tier one stated as a
+measurement rather than as a preference: the question had been askable by hand for months and
+nobody asked it, and the first run of a gate that asks it on every commit answered no.

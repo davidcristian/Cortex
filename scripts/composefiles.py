@@ -1,10 +1,11 @@
 """Which files in this tree are compose files, answered once for the gates that ask.
 
-Two gates walk the repo for compose files and must walk to the same answer: `bindcheck.py`
-reads the bind mounts they declare, `defaultcheck.py` reads the substitutions they spend. A
-second copy of this walk is a gate that learns about a new override file while its sibling
-does not, in silence, which is the shape of defect both of them exist to remove. So the
-question lives here, and neither gate spells it twice.
+Three gates walk the repo for compose files and must walk to the same answer: `bindcheck.py`
+reads the bind mounts they declare, `defaultcheck.py` reads the substitutions they spend, and
+`volumecheck.py` reads what each service runs against the volume paths its image declares. A
+second copy of this walk is a gate that learns about a new override file while its siblings
+do not, in silence, which is the shape of defect all three exist to remove. So the
+question lives here, and no gate spells it twice.
 
 The directory skips are shared for the same reason the names are: a compose file inside a
 vendored tree or a build output belongs to something this repo did not write, and that is true

@@ -503,7 +503,8 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
     host-native Tauri shell (`cortex-body`).
   - [repo-gates.md](modules/repo-gates.md) covers `scripts/`: linecap, dashcheck, crosscheck
     (with its `couplings` vocabulary and the two registry halves written in it), bindcheck
-    (with its `composemounts` reader), the
+    (with its `composemounts` reader), volumecheck (with the `imagevolumes` record of what each
+    pinned image declares), stubcheck (with its `protocomments` reader), the
     coverage gate, the CI path classifier, and the commit-message CLI.
 
 ## Runbooks

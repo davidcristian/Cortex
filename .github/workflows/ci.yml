@@ -4,7 +4,8 @@
 # ADR-0006): unknown paths run every toolchain job, and if the diff range cannot be
 # determined we run them all too. The cross-tree scans (the 300-line cap, the
 # punctuating-dash ban, the cross-language constant check, the compose bind check, the
-# compose defaults check, and the backlog check) are exempt from the filter and always
+# compose defaults check, the image-volume check, the seam-stub comment check, and the
+# backlog check) are exempt from the filter and always
 # run. Every action is pinned to a full commit SHA
 # with a version comment; dependabot (.github/dependabot.yml) keeps the pins fresh.
 name: CI
@@ -78,8 +79,13 @@ jobs:
   # reads docker/'s bind defaults against .gitignore, which belongs to no toolchain either;
   # defaultcheck.py holds one variable's several compose defaults to one value, which
   # belongs to no toolchain either and spans the override files a single job never sees;
-  # and backlogcheck.py holds each backlog index to its task files (ADR-0039), which is
-  # docs-only and so would otherwise never run.
+  # volumecheck.py holds every volume an image declares to a mount some compose service
+  # makes, reading a recorded answer because this runner has no docker daemon and no
+  # images, which is the whole reason the answer is recorded (ADR-0011 addendum on
+  # evidence out of the gate's reach); stubcheck.py holds the committed Rust seam stub to
+  # the comments proto/body.proto carries, which spans two trees and so belongs to
+  # neither job; and backlogcheck.py holds each backlog index to its task files
+  # (ADR-0039), which is docs-only and so would otherwise never run.
   cross-tree:
     runs-on: ubuntu-latest
     steps:
@@ -95,6 +101,8 @@ jobs:
       - run: just check-crosscheck
       - run: just check-bindcheck
       - run: just check-defaultcheck
+      - run: just check-volumecheck
+      - run: just check-stubcheck
       - run: just check-backlog
 
   python:

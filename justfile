@@ -3,7 +3,7 @@
 
 default: check
 
-# All gates: the six cross-tree scans first (fast), then the four tree checks in
+# All gates: the eight cross-tree scans first (fast), then the four tree checks in
 # PARALLEL (ADR-0006), so wall time ≈ the slowest tree. Output is buffered per tree
 # and printed in a fixed order so logs stay readable; any failure fails the gate.
 # Kept bash-3.2 compatible (no `declare -A` etc.) for macOS system bash.
@@ -15,6 +15,8 @@ check:
     just check-crosscheck
     just check-bindcheck
     just check-defaultcheck
+    just check-volumecheck
+    just check-stubcheck
     just check-backlog
     tmp=$(mktemp -d)
     trap 'rm -rf "$tmp"' EXIT
@@ -68,6 +70,33 @@ check-bindcheck:
 check-defaultcheck:
     cd scripts && uv sync --locked
     cd scripts && uv run python defaultcheck.py --root ..
+
+# Every volume an image declares is covered by a mount or a tmpfs in every compose service
+# that runs it, so no container quietly collects an anonymous volume `down` then leaves on
+# the host. What an image declares is a fact about a registry rather than about this tree,
+# so it is recorded in scripts/imagevolumes.py and this scan reads the record; `just
+# image-volumes` is what re-derives that record from docker and fails when it has gone
+# stale (ADR-0011 addendum on evidence out of the gate's reach).
+check-volumecheck:
+    cd scripts && uv sync --locked
+    cd scripts && uv run python volumecheck.py --root ..
+
+# Every comment proto/body.proto carries still appears in the committed Rust seam stub,
+# which is the one part of a stale regeneration nothing else would notice: a renamed field
+# breaks the compile, while a retuned number stated in a comment goes on being read. It is
+# a text comparison and runs no codegen, so it needs neither protoc nor a GPU. Regenerate
+# with `just proto`.
+check-stubcheck:
+    cd scripts && uv sync --locked
+    cd scripts && uv run python stubcheck.py --root ..
+
+# Hand-run, needs docker: ask the daemon what every image this repo's compose files name
+# actually declares, and fail when scripts/imagevolumes.py disagrees. Run it after pinning
+# a new image or bumping a pinned one, since that record is the only thing check-volumecheck
+# can see and a bump is exactly when a third declared path arrives unannounced.
+image-volumes:
+    cd scripts && uv sync --locked
+    cd scripts && uv run python volumecheck.py --root .. --rederive
 
 # Each backlog index still matches the task files it describes (ADR-0039). A task's
 # status lives on its own Status line and nowhere else, so this is the only thing

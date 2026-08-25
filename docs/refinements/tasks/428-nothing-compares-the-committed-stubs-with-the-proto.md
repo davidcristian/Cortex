@@ -1,6 +1,6 @@
 # Nothing compares the committed seam stubs with the proto they were generated from
 
-**Status:** open, actionable
+**Status:** landed 2026-08-25
 **Area:** seam-transport
 **Origin:** [ADR-0003](../../adr/ADR-0003-seam-codegen.md)
 
@@ -42,3 +42,24 @@ which is the argument that the only silent case is exactly this one, a comment.
 - 2026-08-25: opened by the close of
   [R-399](399-the-body-edge-is-two-sites-and-no-prose.md), which registered the proto comment
   stating the body's default edge and left the generated copy of that comment unreachable.
+- 2026-08-25: landed, and **the entry's two options came out ranked the opposite way round once
+  measured**. The narrow one, "hold only what a reader reads", is the one that ships, and the
+  regenerate-and-diff is declined on evidence rather than on cost. Regenerating the Python stubs
+  turns out to be free (`grpcio-tools` is already a brain dev dependency and bundles its own
+  `protoc`) and to reproduce byte for byte, so the toolchain worry this entry recorded does not
+  apply to that half at all. It was declined because editing the proto comment that states the
+  body's default capture edge by one digit and regenerating left all three Python files byte
+  identical: the `.pyi` carries no comments and the descriptor is stripped of its source info, so
+  the check would have seen only structural drift, which pyright and the Rust compile already
+  make loud. The entry's other claim held exactly: the Rust stub does carry that sentence
+  verbatim, among 338 doc comment lines. So `scripts/stubcheck.py` plus `scripts/protocomments.py`
+  hold every comment the proto body carries to still appearing in that stub, as a text comparison
+  running no codegen, past the three re-spellings prost applies on the way into `///`. It lands
+  green over 208 proto comments, 177 leading and 31 trailing. **Fourteen mutations over the gate
+  against the real proto and the real stub, all as designed, and fourteen mutants over the gate's
+  own 54 tests, all killed**, tabled in the ADR-0003 stub-fidelity addendum. Where a check like
+  this may live, and why the Rust regenerate-and-diff does not become a second recipe outside
+  `just check`, is answered once in the ADR-0011 addendum on evidence out of the gate's reach.
+  One residue filed, covering the three things this gate deliberately does not hold, including a
+  doubled service banner the mutation table found rather than anybody designing for
+  ([R-434](434-the-stub-check-reads-one-direction-and-one-stub.md)).

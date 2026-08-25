@@ -2,7 +2,8 @@
 
 **Purpose.** The repo's own tooling, in the tree neither shipped artifact contains: the cross-tree
 line cap, the punctuating-dash ban, the cross-language constant check, the compose bind-mount
-check, the compose defaults check, the backlog gate, the Rust coverage threshold, the CI path
+check, the compose defaults check, the image-volume check, the seam-stub comment check, the
+backlog gate, the Rust coverage threshold, the CI path
 classifier, the commit-message style hook,
 and, since 2026-08-09, the one module here that gates nothing, the interval a live measurement
 reports. What they have in common is not that each is a gate; it is that each is pure Python that
@@ -10,11 +11,12 @@ belongs to neither the brain nor the body and is gated exactly like both. A stan
 (not a brain workspace member, per ADR-0002).
 
 **Public contract** (all are CLIs, with `linecap.py`, `dashcheck.py`, `crosscheck.py`,
-`bindcheck.py`, `defaultcheck.py`, `backlogcheck.py` and `coverage_gate.py` invoked by `just`
+`bindcheck.py`, `defaultcheck.py`, `volumecheck.py`, `stubcheck.py`, `backlogcheck.py` and
+`coverage_gate.py` invoked by `just`
 recipes, `ci_paths.py`
 by the CI
 workflow, `commitlint.py` by the commit-msg pre-commit stage, `contrast.py` by `just turn-cost`;
-each also exposes a pure, unit-tested core function). Twenty-four modules here have no CLI of their
+each also exposes a pure, unit-tested core function). Twenty-seven modules here have no CLI of their
 own, most split out under the line cap and each named for what it holds: `couplings.py` is the
 vocabulary `crosscheck.py`'s registry is written in, `registry.py` names the parts that registry is
 written in, and `seamcouplings.py`, `endpointcouplings.py`, `shippedcouplings.py`,
@@ -24,8 +26,11 @@ written in, and `seamcouplings.py`, `endpointcouplings.py`, `shippedcouplings.py
 is the value forms that scan compares on and the spellings a mention writes one in, `readings.py`
 is how a set of those values must then stand, `needles.py` is how a rendered needle is looked for
 and what a file that lacks one is told, `composemounts.py` is `bindcheck.py`'s mount
-reader, `composedefaults.py` is `defaultcheck.py`'s substitution reader, `composefiles.py` is
-which files the two of them walk, answered once so they cannot drift apart about it,
+reader, `composedefaults.py` is `defaultcheck.py`'s substitution reader, `composeservices.py` is
+`volumecheck.py`'s reader of what each service runs and covers, `imagevolumes.py` is the recorded
+answer that gate reads, `protocomments.py` is what a proto comment is and how it normalizes into
+the Rust stub's spelling, `composefiles.py` is
+which files the three compose gates walk, answered once so they cannot drift apart about it,
 `gitenv.py` is the environment every git call in this tree runs with, held in one place because
 a caller that forgets it is wrong in silence rather than red, `skippeddirs.py` is the directory
 components no walk here enters, held in one place for the same reason, and
@@ -409,6 +414,86 @@ that last question to have an answer.
   `redis-data:/data`. The second is that a sequence may be written **flush**, its items at the
   indent of the key they belong to, which compose accepts and this reader now walks: a block ends
   at a line shallower than its key, or at one beside the key that is not a list item.
+- `volumecheck.py [--root DIR] [--rederive]` holds every volume an image declares to a mount or a
+  tmpfs in each compose service that runs it (ADR-0011 out-of-reach-evidence addendum). A `VOLUME`
+  in an image is a promise docker keeps whether or not a compose file asked for it: a container
+  with nothing at that path gets an **anonymous** volume, filled from the image, which the
+  `docker compose down` that did not say `--volumes` leaves on the host under a generated name,
+  one per start. **What an image declares is recorded rather than read**, in `imagevolumes.py`,
+  because `just check` runs on a clean dev box and in CI, where there is no daemon and no image
+  pulled, and one recipe is already deliberately outside the single gate for needing system
+  libraries. `--rederive` is the other half and what `just image-volumes` runs: it asks a real
+  docker about every image and reports each row that has drifted, in **both** directions, since a
+  stale row and an unrecorded image are one drift arriving from opposite sides. The cover may be a
+  bind, a named volume or a tmpfs, and it must sit at **exactly** the declared path, a mount over
+  the parent leaving docker's declaration standing. **The rule is per file rather than per
+  layered stack**, because `just up` runs the base file alone, so a base service whose declared
+  path were covered only by an override really would leak and a reader that merged first could not
+  say so, which is also why a service naming neither an image nor a build is read as a fragment
+  and asked nothing. Six things fail it: a declared path no service covers, an image the record
+  has no row for, a row no compose file names, an image spelled through a substitution the record
+  cannot be keyed on, a service that only builds where no base file pins the project half of its
+  image name, and a compose file the reader will not guess at. Under all six sits
+  `composefiles.py`'s floor, shared with the other two compose gates, where finding no compose
+  file at all is a failure rather than an empty pass. **A build-only service's image is derived**
+  as `{project}-{service}`, the project read from the file's own `name:` and otherwise from the
+  single bare-stemmed base file, which is why `cortex-brain` and `cortex-mcp-email` are rows and
+  why `cortex` is not spelled a second time. Exit
+  0 with a summary stating the coverings checked over the files, services and images read; exit 1
+  printing `path:line: detail` per fault; exit 2 if `--root` is not a directory or the scan could
+  not run.
+- `imagevolumes.py` is `volumecheck.py`'s record and has no CLI of its own. `IMAGE_VOLUMES` maps
+  each image reference a compose file names to the paths it declares, an empty tuple being a
+  measured answer rather than a missing one, which is what lets the gate tell a silence somebody
+  measured from an image nobody has asked about. Its docstring carries the measurement: the
+  `docker image inspect --format` line, the date, and why the three built rows are spelled the way
+  compose tags them with no row for the bases they inherit from. `docker_volumes` is the only
+  part needing a real daemon and is the module's one `pragma: no cover`; `rederive` decides
+  everything and takes any inspector, so the comparison is tested against a fake.
+- `composeservices.py` is `volumecheck.py`'s reader and has no CLI. It answers what each service
+  runs and which container paths it already covers, which `composemounts.py` cannot: that reader
+  takes a mount's **source**, the host path a bind would materialize, and drops every entry naming
+  none, while this one takes a mount's **target** and must keep named volumes and tmpfs entries
+  too, since all three cover a declared path equally well. It also reads `image:`, `build:` and
+  `tmpfs:`, which the other has no reason to look at. Like its two siblings it is a line reader
+  rather than a YAML parse, these gates being stdlib-only, and it refuses every shape it was not
+  taught rather than walking past it. **It resolves anchors**, because this tree writes one: the
+  probe file names its mail root as `x-mail-root: &mail-root "/srv/mail"` and spends it inside
+  `tmpfs:`, and a reader taking the alias for a path would report a leak on the one file that
+  already got this right. A service naming neither an image nor a build is read as a fragment, an
+  override re-opening a base service, and the rule asks it nothing.
+- `stubcheck.py [--root DIR]` ties the committed Rust seam stub back to the proto it was
+  generated from (ADR-0003 stub-fidelity addendum). Both trees commit their generated stubs and
+  regenerate them by hand with `just proto`, so a proto edit followed by no regeneration leaves
+  the stub stating the old thing with every gate green, generated code sitting outside every
+  other scan here. One rule: every comment `proto/body.proto`'s body carries, whether it stands
+  on its own line or trails a field, must still appear as a doc comment in
+  `body/crates/rpc/src/_generated/cortex.seam.v1.rs`. It is a pure text comparison running no
+  codegen, which is what lets it live inside `just check` at all, since regenerating the Rust
+  half needs a system `protoc` that a clean dev box need not have. The comparison is over
+  normalized text, `protocomments.py` undoing the three things prost does to a comment on its way
+  into `///`: it escapes `[` and `]` so rustdoc does not read them as intra-doc links, it
+  re-spells a setext heading as an ATX one so a service banner arrives carrying `##` markers, and
+  it collapses a rule line of any length. **One direction only**, because the stub also carries
+  doc comments tonic wrote about its own client and server, so the reverse containment is false
+  by construction. **What it does not hold** is worth naming beside what it does: it is not a
+  regeneration check, it sees no structural drift, which pyright and the Rust compile already
+  make loud, and it reaches only the Rust half, the Python stubs carrying no comments at all to
+  compare. That leaves the comment as the one silent case, and a real one, the proto's sentence
+  about the body's default longest edge being copied verbatim into the file a Rust reader opens.
+  **Fails closed**: a missing or unreadable input, a proto whose header cannot be told from its
+  body, a comment shape the reader will not guess at, and either side coming back empty are each
+  a failure rather than a quiet pass. Exit 0 with a summary stating what the comparison was over,
+  the proto comments split by leading and trailing and the stub doc lines they were sought in;
+  exit 1 printing `proto/body.proto:LINE: detail` per miss; exit 2 if `--root` is not a directory
+  or an input could not be read.
+- `protocomments.py` is `stubcheck.py`'s reader and has no CLI. It answers what a comment is on
+  either side of the comparison and how the two spellings are made comparable. On the proto side
+  it skips everything above `syntax = `, that header attaching to no declaration and prost not
+  copying it, then collects leading and trailing comments while tracking string literals so a
+  `//` inside one opens nothing, and refuses a block comment rather than guessing at it. On the
+  stub side it collects `///` lines and nothing else. `normalize` is the three-part undo above,
+  applied to both sides so the rule is stated once.
 - `backlogcheck.py [--root DIR] [--write]` holds each backlog index to the task files it
   describes (ADR-0039). Without `--write` it checks, which is what `just check-backlog` runs;
   with `--write` it regenerates each index, which is what `just backlog` runs. That split is the

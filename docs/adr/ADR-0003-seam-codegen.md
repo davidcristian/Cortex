@@ -69,3 +69,95 @@ calls may be repeated at all, plus a bounded `Health` probe), each behind the sa
 port; see that ADR's addenda. What remains open from this deferral is `converse` resilience,
 which is the one part no decorator over this port can deliver: reconnecting a turn before its
 first event needs a replayable request and so a different signature.
+
+## Addendum (2026-08-25): the committed stubs are held to the proto's comments, and to nothing else
+
+Nothing compared the committed stubs with the proto they came from, so this measured what each
+candidate check would actually catch before choosing one. The result reverses the obvious answer:
+the expensive check is the one worth declining, and the cheap one catches the only defect that is
+silent.
+
+**Regenerating the Python stubs is free and reproduces exactly.** `grpcio-tools` is already a
+brain dev dependency and ships its own `protoc`, so no new toolchain is involved. Regenerated
+into a temporary directory and compared against the committed copies, all three files came out
+byte identical (`body_pb2.py`, `body_pb2.pyi`, `body_pb2_grpc.py`). A regenerate-and-diff step
+inside `check-brain` would therefore have worked, and it was still declined, for the next reason.
+
+**It does not see a comment.** Editing the proto comment that states the body's default capture
+edge by a single digit and regenerating left all three Python files byte identical again. The
+generated `.pyi` carries no comments at all, and `body_pb2.py` embeds a descriptor whose source
+info is stripped. So the check would have covered structural drift only, and structural drift is
+already loud: a renamed or removed field fails pyright and fails the Rust compile, and a field
+added to the proto that nobody regenerated for is a field nobody uses yet. The genuinely silent
+case is the one the check would have missed.
+
+**The silent case is real and it is in the Rust stub.** `prost` copies proto comments verbatim
+into `body/crates/rpc/src/_generated/cortex.seam.v1.rs`, 338 doc-comment lines of them, and that
+file is what a Rust reader actually opens. The comment stating the body's default edge is a
+registered far side of a cross-language constant in `crosscheck.py`'s registry; its generated
+copy is not, generated code being outside every scan here. Retune the edge and the gate names the
+proto, regenerate and the stub follows, forget to regenerate and the stub goes on stating the old
+number in the file being read. Meanwhile the Rust half of a regenerate-and-diff cannot join
+`just check` at all, because `tonic-prost-build` needs a system `protoc` binary that a clean dev
+box need not have, which is the toolchain the committed-stub decision above exists to avoid
+requiring.
+
+**Decision: `scripts/stubcheck.py` holds every comment the proto's body carries to the committed
+Rust stub, as a text comparison running no codegen, and the regenerate-and-diff is declined.**
+The comparison skips the file header above `syntax = `, which attaches to no declaration and which
+`prost` does not copy, and normalizes three mechanical things `prost` does on the way out: it
+escapes `[` and `]` so rustdoc does not read them as intra-doc links, it markdown-ifies a
+service-level block so a line following a rule comes out with heading markers, and it collapses a
+rule of any length. Measured against the tree as it stands, the proto's body carries 208 comment
+lines, 177 leading and 31 trailing, and all 208 are present in the stub under exactly those three
+normalizations and no others. The gate runs in every environment including CI, needs no `protoc`,
+no docker and no GPU, and it is the second of the three answers in the ADR-0011 addendum on
+evidence out of the gate's reach: a cheaper question the tree can already answer, chosen because
+measuring showed it catches strictly more of what matters than the expensive one does.
+
+What it deliberately does not hold is stated plainly so nobody reads it as more than it is. It is
+not a regeneration check. It cannot see a field added to the proto and missing from either stub,
+and it cannot see the Python stubs at all. The argument for accepting that line is above, and if
+it ever stops holding, the thing to build is the Python regenerate-and-diff, which is known to
+work and known to be free.
+
+### Proven able to fail, at both levels
+
+**Suite: `scripts/stubcheck.py --root ..` run against the real `proto/body.proto` and the real
+`body/crates/rpc/src/_generated/cortex.seam.v1.rs`**, one temporary edit at a time, each reverted
+with `git checkout --` and the revert asserted before the next. Fourteen rows, all as designed.
+
+| # | mutation | expected | got |
+|---|---|---|---|
+| 00 | none, the tree as committed | 0 | 0 |
+| 01 | the proto comment's stated default edge retuned, stub not regenerated | 1 | 1 |
+| 02 | the bracketed range doc line deleted from the stub | 1 | 1 |
+| 03 | a comment added to the proto only | 1 | 1 |
+| 04 | a service banner reworded in the proto only | 1 | 1 |
+| 05 | the bracketed comment reworded in the proto only | 1 | 1 |
+| 06 | a service banner reworded in the stub, both copies | 1 | 1 |
+| 07 | a service banner reworded in the stub, one of its two copies | 0 | 0 |
+| 08 | the file header above `syntax` reworded (must stay green) | 0 | 0 |
+| 09 | a proto rule line shortened (must stay green) | 0 | 0 |
+| 10 | a doc comment the proto never wrote added to the stub (must stay green) | 0 | 0 |
+| 11 | the proto emptied | 2 | 2 |
+| 12 | the proto removed | 2 | 2 |
+| 13 | the stub emptied | 2 | 2 |
+
+Row 01 is the whole reason this exists and row 07 is a limitation the measurement found rather
+than one anybody designed: tonic emits each service banner twice, once for the client module and
+once for the server, so rewording one copy leaves the other answering for it. It is recorded in
+[R-434](../refinements/tasks/434-the-stub-check-reads-one-direction-and-one-stub.md) with the
+other two gaps rather than papered over here.
+
+**Suite: `scripts/tests/test_stubcheck.py` and `scripts/tests/test_protocomments.py`, 54 tests**,
+run against a mutated gate and restored after each. Baseline 54 passed. Fourteen mutants planted
+and fourteen killed: bracket unescape dropped (11 failed), heading strip dropped (5), rule
+collapse dropped (6), header read as body (5), string awareness dropped so a `//` inside a literal
+opens a comment (3), a block comment walked past instead of refused (1), trailing comments not
+collected (6), every comment recorded as leading (4), a plain `//` line counted as a doc comment
+(4), the empty-proto floor dropped (1), the empty-stub floor dropped (1), no miss ever reported
+(6), the CLI exiting 0 with misses on the page (1), and an unreadable input swallowed (4).
+
+The gate lands green, over 208 proto comments (177 leading, 31 trailing) sought among 338 doc
+comment lines, so it earns its place by what it catches next rather than by what it caught today.

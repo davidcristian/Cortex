@@ -1801,3 +1801,107 @@ The record is the task file
 [R-425](../refinements/tasks/425-nothing-notices-an-image-volume-nobody-mounts.md), which opens,
 [docs/refinements/index.md](../refinements/index.md), which is regenerated from both, the three
 fixture files, the email module contract, the IMAP runbook, and this addendum.
+
+## Addendum (2026-08-25): the question the last two addenda answered by hand is now a gate
+
+Both of the paths `dovecot/dovecot:2.3.21` declares were found the same way, by reading
+`docker image inspect` by hand, months of runs apart, each time after the leak had already been
+happening on every start. The remaining deferral was to make something ask the question. It is
+asked now, and the first thing it answered was that this fixture was never the only offender.
+
+**A survey of every image any compose file here names, run before writing anything.** Inspected
+with `docker image inspect --format '{{.Config.Volumes}}'` on this host today, and the three
+images this repo builds were asked as built images rather than as Dockerfiles, since a built
+image's answer already carries whatever its bases declared. Six declare nothing:
+`ghcr.io/ggml-org/llama.cpp:server`, `node:22-bookworm-slim`, `redis:8-alpine`, and
+`cortex-brain`, `cortex-model-host` and `cortex-mcp-email`, none of whose Dockerfiles here
+carries a `VOLUME` line either. Two declare something.
+`dovecot/dovecot:2.3.21` declares `/etc/dovecot` and `/srv/mail`, and both are covered by the
+tmpfs mounts the two addenda above put there, so this fixture is clean as it stands.
+`pgvector/pgvector:pg16` declares `/var/lib/postgresql/data`, and it is run by two services.
+
+**The second one was leaking, and had been all along.** `pg-backup` in
+[docker/docker-compose.memory.yml](../../docker/docker-compose.memory.yml) runs the same image as
+the server so that `pg_dump` matches the major version, and mounts only its dump directory and
+its script. It never opens a data directory of its own: `docker/postgres/backup.sh` dumps over the
+network from the `postgres` service, and the compose file overrides the image's entrypoint, so
+none of the upstream `PGDATA` bootstrap runs either. Docker does not care. The declaration is on
+the image, the path had nothing mounted at it, and the sidecar therefore collected a fresh
+anonymous volume on every start of the memory stack. Reproduced with exactly that mount set and
+no others before the fix, and the third mount is the one nobody asked for:
+
+```
+$ docker inspect "$id" --format '{{range .Mounts}}TYPE={{.Type}} NAME={{.Name}} DST={{.Destination}}
+{{end}}'
+TYPE=bind NAME= DST=/backup.sh
+TYPE=bind NAME= DST=/backup
+TYPE=volume NAME=aa9c20129d789ac62a5484c4be308368b5c5630c5ebb30291dc7f9a51a376179 DST=/var/lib/postgresql/data
+```
+
+It takes the fix the fixture above already uses, a `tmpfs` at the declared path, which leaves
+docker's declaration nothing to fill. Nothing else changes: the sidecar reads its source over the
+network and writes its output to a bind. Confirmed by creating the same container again with
+`--tmpfs /var/lib/postgresql/data` added and nothing else altered, where the same `docker inspect`
+now reports two mounts rather than three:
+
+```
+TYPE=bind NAME= DST=/backup.sh
+TYPE=bind NAME= DST=/backup
+```
+
+**The check itself is not in this suite, and that is the reasoned part.** The deferral proposed an
+assertion in the probe's live suite asking docker for the running container's mounts, with a
+`just` recipe as the alternative. Both were reconsidered and both were passed over, for the same
+reason: they only ever ask about a container somebody is already running, and the leak found today
+was in a stack the probe's suite never starts. The wide question, every image against what every
+compose file mounts, is the one worth asking, and it is asked by `scripts/volumecheck.py` reading
+a recorded answer rather than a docker daemon, with `just image-volumes` re-deriving that record
+from docker by hand. Why a recorded answer rather than a live one, and why this does not become a
+second recipe outside `just check`, is argued once in the ADR-0011 addendum on evidence that is
+out of the gate's reach, which both of the deferrals that produced it point at.
+
+### Proven able to fail
+
+**Suite: the `scripts` pytest suite (`cd scripts && uv run pytest`), 1008 tests, 1 deselected**,
+with `gate=` the exit code of `volumecheck.py --root ..` over the real tree beside it. Each
+mutation applied alone and reverted. Nineteen rows, seventeen of them expected red and two
+expected green.
+
+| # | mutation | expected | result |
+|---|---|---|---|
+| T1 | the `pg-backup` tmpfs dropped, so a declared volume is uncovered | red | caught (gate=1 suite=1) |
+| T2 | the pgvector pin bumped a major, so the image is unrecorded | red | caught (gate=1 suite=1) |
+| T3 | a row added for an image no compose file names | red | caught (gate=1 suite=1) |
+| T4 | the pgvector row emptied, so the record stops matching docker | red | caught (gate=0 suite=1) |
+| T5 | the probe's anchored configuration tmpfs dropped | red | caught (gate=1 suite=1) |
+| T6 | the mail-root anchor spent as its literal path (must stay green) | green | green (gate=0 suite=0) |
+| T7 | a covering tmpfs written with a trailing slash (must stay green) | green | green (gate=0 suite=0) |
+| C1 | the coverage rule never fires | red | caught (suite=1) |
+| C2 | stale rows not reported | red | caught (suite=1) |
+| C3 | an unrecorded image read as declaring nothing | red | caught (suite=1) |
+| C4 | anchors no longer resolved | red | caught (gate=1 suite=1) |
+| C5 | a tmpfs stops counting as cover | red | caught (gate=1 suite=1) |
+| C6 | a fragment read as a definition | red | caught (suite=1) |
+| C7 | the exact-path rule relaxed to accept a parent mount | red | caught (suite=1) |
+| C8 | an empty compose walk becomes an empty pass | red | caught (suite=1) |
+| C9 | a trailing slash becomes a second spelling | red | caught (suite=1) |
+| C10 | an inspect failure skipped instead of reported | red | caught (suite=1) |
+| C11 | an unreadable compose file becomes a silent skip | red | caught (suite=1) |
+| C12 | the reader walks past a shape it was not taught | red | caught (suite=1) |
+
+**The first pass was 18 of 19, and the miss is the useful row.** C6, a service fragment read as a
+definition, produced no fault, because the fixture's fragment was named `brain` and `tree-brain`
+happened to be a recorded row, so the mutant asked a question that had an answer. The fixture's
+fragment is now named for nothing in the record and the definition count is pinned, and C6
+reddens. The real tree cannot catch C6 either, both of its build-only services being recorded, so
+that one test is the only thing holding the guard: worth saying plainly, since a row that reddens
+only in a fixture is exactly the row a later reader is tempted to delete.
+
+The rederive half was proved against a real daemon rather than a fake: with the pgvector row
+emptied, `just image-volumes` exits 1 saying `pgvector/pgvector:pg16: recorded nothing, docker
+says /var/lib/postgresql/data`, and with the row restored it reports the record agreeing with
+docker on all eight images. One thing could not be shown at compose level: `docker compose ... up
+--no-start` was refused by this host's daemon with `all predefined address pools have been fully
+subnetted`, which is an environment condition unrelated to any of this, so the container-level
+`docker create` above stands in for it and `docker compose config` was used to confirm the tmpfs
+reaches the service.
