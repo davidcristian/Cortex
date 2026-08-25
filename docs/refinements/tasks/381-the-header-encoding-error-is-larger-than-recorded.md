@@ -1,6 +1,6 @@
 # The grace margin's sizing cites a header error two orders of magnitude smaller than one measured
 
-**Status:** open, actionable
+**Status:** landed 2026-08-25
 **Area:** seam-transport
 **Origin:** [ADR-0024](../../adr/ADR-0024-transport-retry.md)
 
@@ -39,3 +39,19 @@ about the numbers a probe happened to pick.
 
 - 2026-08-22: opened by the close of the three abandonment reading entries. Recorded in the
   ADR-0024 addendum dated the same day.
+- 2026-08-25: landed as the ADR-0024 encoding addendum, which measured both halves and corrected
+  the sentence rather than the number. **One claim above did not hold.** The shipped plan's
+  announced values were not "never among the three measured": `body/crates/rpc/tests/client.rs`
+  has read both back off the wire since the slice landed, parsed as durations, and asserts they
+  equal `announced_deadline_for`. What had never been measured is the pairing that ships, those
+  headers against a grpc-python brain, and it now is: 500 ms and 5.25 s cross as `500ms` and
+  `5250ms`, and the brain's window at handler entry is 0.16 ms to 1.16 ms **shorter** than the
+  announcement, never longer, in 39 warm calls. The mechanism behind the entry's readings is
+  grpc-python's own client, which rounds a `timeout=` up onto a coarse unit ladder before encoding
+  it (`timeout=10.0` reaches the server as `10100ms`, read off the wire under `GRPC_TRACE=all`);
+  the server's receipt time stamping only ever subtracts transit. tonic truncates instead, under a
+  microsecond below 100 s, so the excess cannot happen in the body's direction at all. The margin
+  stays 250 ms: the term that sizes it is the scheduler stall, unchanged, and the two terms this
+  entry doubted are a millisecond and a microsecond. The measurement opened
+  [R-436](436-an-announcement-past-the-millisecond-ladder-loses-the-race.md), the one range where
+  tonic's ladder really can outrun the margin.

@@ -578,13 +578,16 @@ announce. That ordering is what makes the race deterministic rather than lucky. 
 on the same runtime, ours strictly first (the `bounded` timer is armed before the call future is
 polled, and tonic's `GrpcTimeout` layer only sees the request after that), so a strictly longer
 announcement cannot fire first. The margin pays for three things, in ascending order of size: a
-loopback round trip plus the brain's own header parse, which is tens of microseconds; the header
-encoding's truncation to whole units, at most a millisecond and exactly zero for every value the
-shipped plan produces; and, the one that actually sizes it, the scheduler slack the ordering has to
-survive, since a runtime stalled past *both* deadlines would find them both due in one poll and
-`tokio::time::timeout` polls the call before the clock. A quarter second is far beyond any stall
-this runtime should have, and it is bounded above by its own purpose: the brain works at most that
-long past the moment the body stopped waiting.
+loopback round trip plus the brain's own header parse, which is about a millisecond; the header
+encoding's truncation to whole units, which on tonic's ladder is under a microsecond for any
+announcement below 100 s and exactly zero for both values the shipped plan produces; and, the one
+that actually sizes it, the scheduler slack the ordering has to survive, since a runtime stalled
+past *both* deadlines would find them both due in one poll and `tokio::time::timeout` polls the
+call before the clock. A quarter second is far beyond any stall this runtime should have, and it
+is bounded above by its own purpose: the brain works at most that long past the moment the body
+stopped waiting. (The first two of those three were sized by reading rather than by measuring, and
+the encoding addendum below measured both; the margin is unchanged and the sentence is not what it
+was.)
 
 **Where the per-call value enters.** The interceptor is the only place every outgoing request
 passes through, and it is built once per client, so the client had to gain a way to carry a
@@ -1104,11 +1107,13 @@ that addendum already declined once.
 
 **A reading above the announced window was really observed.** 41 of the 200 caller stops early
 replays read *higher* than the 10 s the client announced, the widest 10.0993 s. This is not a
-clock going backwards: the server's window is the one the header encoded, measured from when the
-server received it, and that is not the client's number measured from when the client sent it. A
-separate probe on a bare `grpc.aio` server read the server side window at handler entry as
-0.200092 s for an announced 0.2 s, 1.05897 s for 1.05 s, and 3.008877 s for 3.0 s, all above the
-announcement. The new case therefore asserts a lower bound only. An upper bound at the
+clock going backwards: the server's window is the one the header encoded, and what the header
+encoded is not what this client asked for. grpc-python rounds a timeout **up** onto a coarse unit
+ladder, so a `timeout=10.0` reaches the server as `10100ms`; the encoding addendum below reads the
+ladder off the wire. A separate probe on a bare `grpc.aio` server read the server side window at
+handler entry as 0.200092 s for an announced 0.2 s, 1.05897 s for 1.05 s, and 3.008877 s for
+3.0 s, all above the announcement. The new case therefore asserts a lower bound only. An upper
+bound at the
 announcement would read as obviously safe and would be asserting something grpc does not promise,
 which is the exact defect these three entries exist to correct.
 
@@ -1364,3 +1369,123 @@ silence. A heartbeat the brain owes on a long silent stretch, or a status the de
 rather than emits once, would let the gap come down from hours to minutes and would say something
 the overlay could show while it waits.
 [R-421](../refinements/tasks/421-a-silent-turn-owes-the-body-a-heartbeat.md).
+
+## Encoding addendum (2026-08-25): the header error is the other client's, and the margin stands
+
+The grace margin addendum above sizes its 250 ms on three things and the middle one, "the header
+encoding's truncation to whole units, at most a millisecond and exactly zero for every value the
+shipped plan produces", was written by reading tonic's encoder rather than by measuring anything.
+The abandonment measurement then read server side windows running about 9 ms above a 1.05 s
+announcement and about 100 ms above a 10 s one, which is two orders past that sentence, and the
+deferral this closes recorded the gap without naming its cause. Both halves are now measured: what
+produces the excess, and what the shipped plan's own announcements actually do on this seam.
+
+### Re-derived first, and the entry was wrong about the tree in the half that mattered
+
+The entry says the shipped plan's announced values "were never among the three measured". They are
+measured, over a real wire, and have been since the slice landed:
+`an_announcing_client_tells_the_brain_each_call_s_own_deadline`
+(`body/crates/rpc/tests/client.rs`) reads `grpc-timeout` back off the request a tonic fake brain
+received, parses it as a duration rather than as a string, and asserts it equals
+`announced_deadline_for` for a probe and for a read. That test is in the gated suite and green
+here. What had never been measured is the other end of the same call: what a **grpc-python** brain
+makes of those headers, which is the pairing that actually ships.
+
+The entry is right that the mechanism was never traced, and right that the direction is safe.
+
+### The mechanism: grpc-python's client rounds up, and the server's stamping only subtracts transit
+
+A loopback `grpc.aio` `BrainService` was driven from grpc-python's own client with `timeout=`, with
+the server run under `GRPC_TRACE=all` so its HPACK parser prints each header as received. The
+header is not what the client asked for:
+
+| `timeout=` | `grpc-timeout` as the server received it | excess |
+| --- | --- | --- |
+| 0.2 s | `201ms` | 1 ms |
+| 0.25 s | `251ms` | 1 ms |
+| 0.5 s | `501ms` | 1 ms |
+| 1.05 s | `1060ms` | 10 ms |
+| 3.0 s | `3010ms` | 10 ms |
+| 5.25 s | `5260ms` | 10 ms |
+| 10 s | `10100ms` | 100 ms |
+| 30 s | `30100ms` | 100 ms |
+| 99 s | `99100ms` | 100 ms |
+| 120 s | `121000ms` | 1000 ms |
+
+That is a unit ladder with a step of 1 ms below a second, 10 ms up to ten seconds, 100 ms up to a
+hundred, and a second beyond, and grpc-python rounds **up** onto it. The excess is bounded by one
+step and is not constant: a call whose deadline had already run down past the step boundary by
+encode time lands exactly on the request instead, which is why the same 1.05 s announcement read
+`1060ms` on an idle run and `1050ms` on a traced one, and why the 60 s warm up call, which pays for
+the connection before its header is written, arrived as `60000ms` while a warm 30 s call arrived as
+`30100ms`. The server's own contribution runs the other way: `context.time_remaining()` at handler
+entry was consistently a fraction of a millisecond below the header, never above it. So the
+readings the abandonment addendum recorded, 1.05897 s against 1.05 s and 10.0993 s against 10 s,
+are the client's encoder rounding up minus the server's transit, and the server's receipt time
+stamping never adds anything at all.
+
+**None of this is tonic.** tonic truncates rather than rounds, and picks the most precise unit that
+fits in eight digits (`duration_to_grpc_timeout`, `tonic-0.14.6/src/request.rs`): nanoseconds below
+0.1 s, microseconds below 100 s, milliseconds below about 27.8 hours, whole seconds past that. So
+the loss on the body's own announcements is under a microsecond for anything this seam plausibly
+announces, and the two clients differ in direction as well as in size.
+
+### The shipped plan's announced values, measured against a real grpc-python brain
+
+A throwaway probe put the loopback `grpc.aio` server back up and dialed it with the repo's own
+`BrainSeamClient` announcing `RetryPlan::default()`, so the numbers under test are the plan's, not
+a probe's pick: `announced_deadline_for(Health)` is 500 ms and `announced_deadline_for` for a read
+is 5.25 s. Twenty warm rounds of a probe and a read, idle box:
+
+| Announced | Header the brain received | Window at handler entry | Readings above the announcement |
+| --- | --- | --- | --- |
+| 500 ms | `500ms` | 0.498910 s to 0.499821 s | 0 of 20 |
+| 5.25 s | `5250ms` | 5.248842 s to 5.249842 s | 0 of 19 |
+
+The encoding is exactly lossless for both, which is what the sentence claimed and what had not been
+checked in the pairing that ships. The brain's window is 0.16 ms to 1.16 ms **shorter** than the
+announcement, that difference being the loopback round trip plus the brain's header parse, and it
+is never longer. The phenomenon the deferral was opened over does not occur on this seam in either
+size or direction; it occurs when grpc-python is the client, which the body never is and which the
+brain's own test suite always is.
+
+### Decision: correct the sentence, keep the number
+
+Two of the three sizing terms were wrong, and neither in a direction that moves 250 ms.
+
+- The loopback round trip plus header parse was recorded as "tens of microseconds" and measures
+  about a millisecond, taken at the brain's handler entry rather than argued from a socket.
+- The encoding truncation was recorded as "at most a millisecond". On tonic's ladder it is under a
+  microsecond below 100 s, and exactly zero for both shipped announcements, so the sentence was
+  pessimistic in the range that matters and silent about the one range where it fails: past about
+  27.8 hours the ladder steps to whole seconds, and three announcements in four would then arm
+  tonic's clock **shorter** than the bound the core enforces.
+- The scheduler stall is untouched and is still the term that sizes the margin. The widest racing
+  sliver measured on this machine, under twice oversubscribed load, is 0.0107 s (the 2026-08-22
+  addendum above), so a quarter second is about twenty three times the worst stall ever observed
+  here.
+
+So `ANNOUNCED_DEADLINE_GRACE_MS` stays 250 ms, now for measured reasons rather than read ones, and
+the sentence in the grace margin addendum and in `plan.rs` says what was measured. The one regime
+where the encoding really can outrun the margin needs an absurd knob to reach and is filed rather
+than guarded, below.
+
+### Distrust green
+
+No gate and no assertion changed here, so there is no mutation table to record: the corrections are
+prose, in the addendum above, in `ANNOUNCED_DEADLINE_GRACE_MS`'s own doc comment, in
+`docs/modules/brain-orchestrator.md`, and in one comment in `test_abandon.py` that explained the
+above-the-announcement reading by the server's stamping instead of by the client's encoder. The
+claim the corrected sentence now makes about the shipped values is already guarded, by
+`an_announcing_client_tells_the_brain_each_call_s_own_deadline`, which fails if either announcement
+stops crossing the wire as the duration the plan computed.
+
+### What this opens
+
+One, and it is the range the measurement turned up rather than the one it was aimed at. tonic
+spells an announcement in whole seconds once it passes about 27.8 hours, so an announcement whose
+millisecond remainder exceeds the margin arms tonic's own clock short of the bound the core
+enforces, handing the race to the timer this design exists to make lose. It takes
+`CORTEX_BRAIN_CALL_DEADLINE_MS` near a hundred million to reach, and `MAX_ANNOUNCED_DEADLINE`
+currently filters only what the header cannot spell at all, eleven thousand years out.
+[R-436](../refinements/tasks/436-an-announcement-past-the-millisecond-ladder-loses-the-race.md).

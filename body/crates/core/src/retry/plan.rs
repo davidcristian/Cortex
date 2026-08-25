@@ -60,10 +60,15 @@ pub const DEFAULT_CALL_DEADLINE: Duration = Duration::from_secs(5);
 /// bound win deterministically instead, leaving tonic's timer armed but never first.
 ///
 /// **Why a quarter second.** It pays for three things, in ascending order of size. A loopback
-/// round trip plus the brain's own header parse costs tens of microseconds. The header's encoding
-/// truncates to whole units of whichever unit it picks, which costs at most a millisecond and
-/// costs exactly nothing for every value the shipped plan produces. And the two clocks are
-/// ordered by their deadlines only while the runtime is scheduling: were the body's runtime to
+/// round trip plus the brain's own header parse costs about a millisecond, read at the handler
+/// entry of a real `grpc.aio` brain told these very announcements. The header's encoding
+/// truncates to whole units of whichever unit tonic picks, and tonic picks the most precise unit
+/// that fits in eight digits, so that costs under a microsecond for any announcement below 100 s
+/// and exactly nothing for the two this plan ships, which reach the brain as `500000u` and
+/// `5250000u` and are enforced there as 500 ms and 5250 ms. Only an announcement past about
+/// 27.8 hours, where the ladder's next unit is whole seconds, loses more than this margin covers.
+/// And the two clocks are ordered by their deadlines only while the runtime is scheduling: were
+/// the body's runtime to
 /// stall past both, one poll would find both due and tonic's would answer first, since a
 /// `bounded` call polls the call before the clock. So the margin is sized by the longest stall
 /// the ordering must survive, and a quarter second is far beyond any this runtime should have.

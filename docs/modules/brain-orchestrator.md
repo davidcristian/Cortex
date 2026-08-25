@@ -559,8 +559,11 @@ The service:
   a hair before the deadline is a positive sliver rather than the floor; that case is bounded
   under half the announced window rather than pinned, and measured slivers run to 0.0107 s against
   a 0.2 s window. The reading is **not** bounded above by what the caller announced: the server's
-  window is the one the header encoded, measured from when the server received it, and readings
-  above the announcement are measured and normal. The cancellation is always
+  window is the one the header encoded, and grpc-python rounds a `timeout=` **up** onto a coarse
+  unit ladder before encoding it, so a 10 s announcement from that client arrives as `10100ms` and
+  readings above the announcement are measured and normal. The body announces through tonic, which
+  truncates instead and spells its two shipped announcements exactly, so a reading above the
+  announcement is a python caller's, never the body's. The cancellation is always
   re-raised. A handler with no unary-unary behavior is passed through untouched, which is how
   `Converse` stays unwatched: a turn is long by design and announces no deadline, so a stream
   reporting an abandonment against one would be the first half of a bound this seam does not

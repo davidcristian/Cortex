@@ -295,9 +295,10 @@ async def test_a_caller_that_stopped_early_leaves_most_of_the_window_on_the_line
     assert remaining > _WIDE_ANNOUNCED_S / 2
     # No upper bound, deliberately, and this is the surprise worth writing down: 41 of those 200
     # readings were *above* the 10 s announced, the widest 10.0993 s. The server's window is the
-    # one the header encoded, measured from when the server received it, and that is not the
-    # client's number measured from when the client sent it. A case demanding the reading stay
-    # under the announcement would be asserting something grpc does not promise.
+    # one the header encoded, and grpc-python rounds a `timeout=` up onto a coarse unit ladder
+    # before encoding it, so this client's 10 s reaches the server as `10100ms` (read off the wire
+    # in ADR-0024's encoding addendum). A case demanding the reading stay under the announcement
+    # would be asserting something grpc does not promise.
 
 
 async def test_a_deadline_the_brain_outlasts_alone_reads_as_the_integer_floor(
