@@ -468,7 +468,13 @@ that last question to have an answer.
   the stub stating the old thing with every gate green, generated code sitting outside every
   other scan here. One rule: every comment `proto/body.proto`'s body carries, whether it stands
   on its own line or trails a field, must still appear as a doc comment in
-  `body/crates/rpc/src/_generated/cortex.seam.v1.rs`. It is a pure text comparison running no
+  `body/crates/rpc/src/_generated/cortex.seam.v1.rs`, **in as many copies as the stub holds it**.
+  Tonic writes each service into a client module and a server module and documents both from the
+  one declaration, so a service comment stands in the stub twice and a reader opens whichever
+  module they are working in; containment is satisfied by either copy, which is how rewording one
+  of the two used to pass. The one text whose tally is pinned rather than counted is a rule line,
+  which carries no words and whose surviving copies are not a function of the written ones, prost
+  absorbing a banner's closing rule into the heading above it; its floor stays at one. It is a pure text comparison running no
   codegen, which is what lets it live inside `just check` at all, since regenerating the Rust
   half needs a system `protoc` that a clean dev box need not have. The comparison is over
   normalized text, `protocomments.py` undoing the three things prost does to a comment on its way
@@ -484,14 +490,18 @@ that last question to have an answer.
   **Fails closed**: a missing or unreadable input, a proto whose header cannot be told from its
   body, a comment shape the reader will not guess at, and either side coming back empty are each
   a failure rather than a quiet pass. Exit 0 with a summary stating what the comparison was over,
-  the proto comments split by leading and trailing and the stub doc lines they were sought in;
-  exit 1 printing `proto/body.proto:LINE: detail` per miss; exit 2 if `--root` is not a directory
-  or an input could not be read.
+  the proto comments split by leading and trailing, how many of them a service claims two copies
+  of, and the stub doc lines they were sought in; exit 1 printing `proto/body.proto:LINE: detail`
+  per miss, each naming the copies found and the copies owed; exit 2 if `--root` is not a
+  directory or an input could not be read.
 - `protocomments.py` is `stubcheck.py`'s reader and has no CLI. It answers what a comment is on
   either side of the comparison and how the two spellings are made comparable. On the proto side
   it skips everything above `syntax = `, that header attaching to no declaration and prost not
   copying it, then collects leading and trailing comments while tracking string literals so a
-  `//` inside one opens nothing, and refuses a block comment rather than guessing at it. On the
+  `//` inside one opens nothing, and refuses a block comment rather than guessing at it. It also
+  records which comments a `service` claims, meaning those inside its block and the unbroken run
+  standing directly above the `service` line, a blank line between the two detaching the run the
+  way protoc does; those are the comments the stub owes two copies of. On the
   stub side it collects `///` lines and nothing else. `normalize` is the three-part undo above,
   applied to both sides so the rule is stated once.
 - `backlogcheck.py [--root DIR] [--write]` holds each backlog index to the task files it

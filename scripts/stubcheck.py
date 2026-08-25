@@ -2,10 +2,20 @@
 
 import argparse
 import sys
+from collections import Counter
+from collections.abc import Iterable
 from pathlib import Path
 from typing import NamedTuple
 
-from protocomments import ProtoReadError, normalize, proto_comments, rust_docs
+from protocomments import (
+    COPIES,
+    RULE,
+    Comment,
+    ProtoReadError,
+    normalize,
+    proto_comments,
+    rust_docs,
+)
 
 # The two files this gate ties together, relative to the repo root: the source of truth for the
 # seam, and the generated half that copies its prose verbatim.
@@ -23,10 +33,12 @@ class StubCheckError(Exception):
 
 
 class Miss(NamedTuple):
-    """One proto comment the committed stub no longer carries."""
+    """One proto comment the committed stub carries fewer copies of than it is owed."""
 
     line: int
     text: str
+    wanted: int
+    found: int
 
 
 class Scan(NamedTuple):
@@ -34,6 +46,7 @@ class Scan(NamedTuple):
 
     leading: int
     trailing: int
+    doubled: int
     docs: int
     misses: list[Miss]
 
@@ -45,6 +58,39 @@ def _read(root: Path, relative: Path) -> str:
     except (OSError, UnicodeDecodeError) as err:
         msg = f"cannot read {relative.as_posix()}: {err}"
         raise StubCheckError(msg) from err
+
+
+def owed(comments: Iterable[Comment]) -> Counter[str]:
+    """How many copies of each normalized text the stub owes, a service comment owing two."""
+    tally: Counter[str] = Counter()
+    for comment in comments:
+        text = normalize(comment.text)
+        if text == RULE:
+            tally[text] = MIN_DOCS
+            continue
+        tally[text] += COPIES if comment.service else 1
+    return tally
+
+
+def shortfalls(comments: Iterable[Comment], said: Counter[str]) -> list[Miss]:
+    """Every text the stub holds fewer copies of than it owes, reported at its first proto line."""
+    wanted = owed(comments)
+    seen: set[str] = set()
+    misses: list[Miss] = []
+    for comment in comments:
+        text = normalize(comment.text)
+        if text in seen or said[text] >= wanted[text]:
+            continue
+        seen.add(text)
+        misses.append(
+            Miss(
+                line=comment.line,
+                text=comment.text.strip(),
+                wanted=wanted[text],
+                found=said[text],
+            )
+        )
+    return misses
 
 
 def check(root: Path) -> Scan:
@@ -63,16 +109,12 @@ def check(root: Path) -> Scan:
     if len(docs) < MIN_DOCS:
         msg = f"no doc comment in {STUB.as_posix()}; a comparison over nothing cannot fail"
         raise StubCheckError(msg)
-    said = {normalize(doc) for doc in docs}
     return Scan(
         leading=sum(1 for comment in comments if comment.leading),
         trailing=sum(1 for comment in comments if not comment.leading),
+        doubled=sum(1 for comment in comments if comment.service),
         docs=len(docs),
-        misses=[
-            Miss(line=comment.line, text=comment.text.strip())
-            for comment in comments
-            if normalize(comment.text) not in said
-        ],
+        misses=shortfalls(comments, Counter(normalize(doc) for doc in docs)),
     )
 
 
@@ -99,19 +141,24 @@ def main(argv: list[str] | None = None) -> int:
         print(f"stubcheck: {err}", file=sys.stderr)
         return 2
     for miss in scanned.misses:
-        print(f"{PROTO.as_posix()}:{miss.line}: the stub carries no comment saying {miss.text!r}")
+        print(
+            f"{PROTO.as_posix()}:{miss.line}: the stub says {miss.text!r} {miss.found} time(s), "
+            f"and this comment is owed {miss.wanted}"
+        )
     if scanned.misses:
         print(
             f"\nstubcheck: {len(scanned.misses)} proto comment(s) are missing from "
-            f"{STUB.as_posix()}. Regenerate the committed stubs with `just proto` and commit "
-            f"them; a stub nobody regenerated goes on stating what the proto used to say.",
+            f"{STUB.as_posix()}, or stand there in fewer copies than it holds; a comment on a "
+            "service is written into both the client and the server module. Regenerate the "
+            "committed stubs with `just proto` and commit them; a stub nobody regenerated goes "
+            "on stating what the proto used to say.",
             file=sys.stderr,
         )
         return 1
     print(
         f"stubcheck OK: {scanned.leading + scanned.trailing} proto comment(s) under {given} "
-        f"({scanned.leading} leading, {scanned.trailing} trailing) appear in the committed Rust "
-        f"stub, over {scanned.docs} doc line(s) read"
+        f"({scanned.leading} leading, {scanned.trailing} trailing, {scanned.doubled} owed two "
+        f"copies) appear in the committed Rust stub, over {scanned.docs} doc line(s) read"
     )
     return 0
 

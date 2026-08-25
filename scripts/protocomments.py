@@ -7,6 +7,10 @@ from typing import NamedTuple
 # it would attach to the syntax statement, which generates no item for prost to document.
 SYNTAX = "syntax = "
 
+# The declaration tonic documents twice, and how many copies of its comments the stub then holds.
+SERVICE = "service "
+COPIES = 2
+
 # What a doc comment looks like in the generated stub, and what a rule line reduces to.
 DOC = "///"
 RULE = "---"
@@ -22,11 +26,12 @@ class ProtoReadError(Exception):
 
 
 class Comment(NamedTuple):
-    """One comment in the proto body: where it sits, what it says, whether it stands alone."""
+    """One comment in the proto body: where it sits, what it says, and how it comes out."""
 
     line: int
     text: str
     leading: bool
+    service: bool = False
 
 
 def split_comment(number: int, line: str) -> tuple[str, str | None]:
@@ -53,20 +58,39 @@ def split_comment(number: int, line: str) -> tuple[str, str | None]:
 
 def proto_comments(text: str) -> list[Comment]:
     """Return every comment in the proto body, in file order, refusing a file with no body."""
-    found: list[Comment] = []
+    rows: list[tuple[int, str, bool]] = []
+    claimed: set[int] = set()
     started = False
+    depth = 0
+    inside = False
+    run: list[int] = []
     for number, raw in enumerate(text.splitlines(), start=1):
         line = raw.strip()
         if not started:
             started = line.startswith(SYNTAX)
             continue
         code, comment = split_comment(number, line)
+        bare = code.strip()
+        opens = depth == 0 and bare.startswith(SERVICE)
         if comment is not None:
-            found.append(Comment(line=number, text=comment, leading=not code.strip()))
+            rows.append((number, comment, not bare))
+            if inside or opens:
+                claimed.add(len(rows) - 1)
+        if not bare:
+            run = [*run, len(rows) - 1] if comment is not None else []
+            continue
+        if opens:
+            claimed.update(run)
+        depth += bare.count("{") - bare.count("}")
+        inside = (inside or opens) and depth > 0
+        run = []
     if not started:
         msg = f"no {SYNTAX!r} line, so the file header cannot be told from the body"
         raise ProtoReadError(msg)
-    return found
+    return [
+        Comment(line=number, text=said, leading=leading, service=index in claimed)
+        for index, (number, said, leading) in enumerate(rows)
+    ]
 
 
 def rust_docs(text: str) -> list[str]:
