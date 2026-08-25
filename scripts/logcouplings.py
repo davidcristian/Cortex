@@ -38,12 +38,12 @@ LOG_COUPLINGS: tuple[Constant, ...] = (
     Constant(
         label="the field a brain log line names the conversation under",
         why=(
-            "seven modules attach the conversation a line is about and the recall trail is read "
-            "beside the turn failures for the same chat, so a name that moved in one of them "
-            "would split one investigation's evidence in two without any suite noticing, which "
-            "is what happened for as long as the trail spelled it `session` (ADR-0009 "
-            "one-vocabulary addendum); the memory runbook is the far side no import could reach, "
-            "telling an operator to grep the field by name"
+            "eleven modules attach the conversation a line is about and the recall trail is read "
+            "beside the turn failures and the handoff for the same chat, so a name that moved in "
+            "one of them would split one investigation's evidence in two without any suite "
+            "noticing, which is what happened for as long as the trail spelled it `session` "
+            "(ADR-0009 one-vocabulary addendum); the two runbooks are the far side no import "
+            "could reach, telling an operator to grep the field by name"
         ),
         sites=(Site(LOG_FIELDS, "SESSION_FIELD"),),
         mentions=(
@@ -54,8 +54,17 @@ LOG_COUPLINGS: tuple[Constant, ...] = (
             Mention(RERANK_JUDGE, FIELD_KEY),
             Mention(CONVERSE_STREAM, FIELD_KEY),
             Mention(RECALL_AUDIT, FIELD_KEY),
+            Mention(SWAP_CONDUCTOR, FIELD_KEY, occurrences=4),
+            Mention(SWAP_SETTLE, FIELD_KEY, occurrences=3),
+            Mention(SWAP_RECOVERY, FIELD_KEY),
+            # The deep phase's two cadence spellings, the reading and the no-reading arms. Pinned
+            # at two because they are the only lines a handoff that WORKED ever writes, so losing
+            # either leaves a chat that escalated successfully with no evidence it ever did.
+            Mention(BRAIN_PHASE, FIELD_KEY, occurrences=2),
             Mention(MEMORY_RUNBOOK, 'grep "{value}=<id>"'),
             Mention(MEMORY_RUNBOOK, "`{value}=None`"),
+            Mention(SWAP_RUNBOOK, "{value}=<chat id>"),
+            Mention(SWAP_RUNBOOK, "`grep {value}=`"),
         ),
     ),
     Constant(
@@ -84,7 +93,7 @@ LOG_COUPLINGS: tuple[Constant, ...] = (
             Mention(SWAP_RECOVERY, FIELD_KEY),
             Mention(BRAIN_PHASE, FIELD_KEY),
             Mention(TOOLS_RUNBOOK, "grep {value}=t-"),
-            Mention(SWAP_RUNBOOK, "a handoff ended failed {value}=<turn id>"),
+            Mention(SWAP_RUNBOOK, "{value}=<turn id>"),
             Mention(SWAP_RUNBOOK, "`grep {value}=t-"),
         ),
     ),

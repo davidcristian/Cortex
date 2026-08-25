@@ -36,7 +36,11 @@ async def _fail_stranded_handoff(handoffs: HandoffStore) -> None:
             return
         _logger.warning(
             "a handoff did not survive the restart; marking it failed",
-            extra={"turn_id": record.handoff_id, "state": record.state.value},
+            extra={
+                "session_id": record.session_id,
+                "turn_id": record.handoff_id,
+                "state": record.state.value,
+            },
         )
         await handoffs.transition(record.handoff_id, HandoffState.FAILED, failure=STRANDED_REASON)
     except HandoffStoreError:

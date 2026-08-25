@@ -1,4 +1,4 @@
-"""Settling a handoff record, and the store claim each write does or does not release (ADR-0030)."""
+"""Settling a handoff record, and the store claim each write does or does not release."""
 
 import logging
 
@@ -17,42 +17,55 @@ class HandoffSettler:
 
     async def advance(self, record: HandoffRecord, state: HandoffState) -> None:
         """Move the record to ``state``, and free the store's claim once it is settled."""
-        await self._settle(record.handoff_id, state, None)
+        await self._settle(record, state, None)
 
     async def fail(self, record: HandoffRecord, reason: str) -> None:
         """Settle the record ``FAILED``, saying why, in the log and on the record alike."""
         _logger.warning(
             "a handoff ended failed",
-            extra={"turn_id": record.handoff_id, "reason": reason},
+            extra={
+                "session_id": record.session_id,
+                "turn_id": record.handoff_id,
+                "reason": reason,
+            },
         )
-        await self._settle(record.handoff_id, HandoffState.FAILED, reason)
+        await self._settle(record, HandoffState.FAILED, reason)
 
-    async def _settle(self, handoff_id: str, state: HandoffState, failure: str | None) -> None:
+    async def _settle(
+        self, record: HandoffRecord, state: HandoffState, failure: str | None
+    ) -> None:
         """Write one state, then release the claim if this write is what owed it."""
-        written = await self._write_state(handoff_id, state, failure)
+        written = await self._write_state(record, state, failure)
+        # The store's active pointer is released only by a settling write or a delete, so a
+        # terminal state it refused is followed by deleting the record: a finished handoff left
+        # holding the pointer would refuse every later escalation until the next restart.
         if state is HandoffState.DONE or (state.terminal and not written):
-            await self._release_claim(handoff_id)
+            await self._release_claim(record)
 
-    async def _write_state(self, handoff_id: str, state: HandoffState, failure: str | None) -> bool:
+    async def _write_state(
+        self, record: HandoffRecord, state: HandoffState, failure: str | None
+    ) -> bool:
         """Write one state onto the record; False when the store refused it."""
         try:
-            await self._handoffs.transition(handoff_id, state, failure=failure)
+            await self._handoffs.transition(record.handoff_id, state, failure=failure)
         except HandoffStoreError:
             _logger.exception(
                 "could not record the handoff's state",
-                extra={"turn_id": handoff_id, "state": state.value},
+                extra={
+                    "session_id": record.session_id,
+                    "turn_id": record.handoff_id,
+                    "state": state.value,
+                },
             )
             return False
         return True
 
-    async def _release_claim(self, handoff_id: str) -> None:
+    async def _release_claim(self, record: HandoffRecord) -> None:
         """Delete the finished record, so nothing later reads it as a handoff in flight."""
         try:
-            await self._handoffs.delete(handoff_id)
+            await self._handoffs.delete(record.handoff_id)
         except HandoffStoreError:
-            # Nothing else this process can do: the record stays live until boot recovery, and
-            # escalation stays refused until then, which is the failure the log has to name.
             _logger.exception(
                 "could not release the finished handoff; escalation stays refused until a restart",
-                extra={"turn_id": handoff_id},
+                extra={"session_id": record.session_id, "turn_id": record.handoff_id},
             )

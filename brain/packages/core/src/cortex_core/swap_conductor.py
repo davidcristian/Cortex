@@ -74,7 +74,8 @@ class SwapConductor:
                     await run.aclose()
         except HandoffInProgressError:
             _logger.warning(
-                "refusing a handoff while another one holds the swap", extra={"turn_id": turn_id}
+                "refusing a handoff while another one holds the swap",
+                extra={"session_id": session_id, "turn_id": turn_id},
             )
             yield TextDelta(text=ALREADY_ACTIVE_NOTE)
 
@@ -119,23 +120,26 @@ class SwapConductor:
             # model would get a tool message promising a picture with none attached. Keyed on
             # the ``opaque`` bit, the fact that stays true where the pixels cannot travel.
             _logger.warning(
-                "refusing a handoff for a turn that read the screen", extra={"turn_id": turn_id}
+                "refusing a handoff for a turn that read the screen",
+                extra={"session_id": session_id, "turn_id": turn_id},
             )
             return OPAQUE_TURN_NOTE
-        if await self._residency.unhosted(self._plan.brain_model):
+        deep = self._plan.brain_model
+        if await self._residency.unhosted(deep):
             _logger.error(
                 "escalation was asked for but the model host does not serve the deep model, so "
                 "the handoff was refused with nothing drained and nothing unloaded: name an "
                 "artifact for that tier (CORTEX_MODEL_FILE_BRAIN) or turn escalation off "
                 "(CORTEX_ESCALATION)",
-                extra={"model": self._plan.brain_model, "turn_id": turn_id},
+                extra={"model": deep, "session_id": session_id, "turn_id": turn_id},
             )
             return UNHOSTED_TIER_NOTE
         try:
             if (active := await self._handoffs.active()) is not None:
+                held = active.handoff_id
                 _logger.warning(
                     "refusing a handoff while the store still has one in flight",
-                    extra={"active_turn_id": active.handoff_id, "turn_id": turn_id},
+                    extra={"active_turn_id": held, "session_id": session_id, "turn_id": turn_id},
                 )
                 return ALREADY_ACTIVE_NOTE
             record = slot.snapshot(

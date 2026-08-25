@@ -1,6 +1,3 @@
-"""The swap sequence, step by step: what a handoff does when nothing goes wrong, and when it does.
-"""
-
 import asyncio
 import logging
 from collections.abc import Mapping, Sequence
@@ -73,7 +70,7 @@ def _states(events: Sequence[TurnEvent]) -> list[str]:
 
 
 def _reading_registry() -> InMemoryToolRegistry:
-    """One tool the deep model can spend its carried budget on."""
+    """One tool the deep model can spend the turn's remaining budget on."""
 
     async def handler(arguments: Mapping[str, object]) -> str:
         del arguments
@@ -85,7 +82,6 @@ def _reading_registry() -> InMemoryToolRegistry:
 
 
 async def test_a_clean_handoff_walks_the_record_through_its_states() -> None:
-    """The whole sequence: snapshot READY, swap, BRAIN_ACTIVE, answer, swap back, DONE, delete."""
     live = build_harness()
     await live.seed_session()
     events = await harness.run_handoff(live, harness.armed_slot())
@@ -96,9 +92,6 @@ async def test_a_clean_handoff_walks_the_record_through_its_states() -> None:
     ]
     assert live.handoffs.deleted == [harness.TURN]
     assert await live.handoffs.active() is None
-    # BRAIN_ACTIVE is written only after the health gate passed, never on a start call alone. The
-    # sequence opens by asking which daemon is answering, before anything is evicted, so a swap
-    # never spends its evictions on beliefs formed against a sidecar that has since restarted.
     assert live.host.calls == [
         ("status", "brain"),
         ("boot_id", ""),
@@ -112,24 +105,15 @@ async def test_a_clean_handoff_walks_the_record_through_its_states() -> None:
     assert live.host.running == {"cortex"}
     assert _texts(events) == "a deep answer"
     assert {event.state for event in events if isinstance(event, StatusUpdate)} == {SWAPPING_STATE}
-    # The user is told what the machine is doing through the whole window, in order, and the
-    # strings themselves are the assertion: a count cannot tell a reordered or mislabelled
-    # window from a truthful one, and these four are the only thing the user sees for minutes.
     assert _states(events) == [DRAINING_DETAIL, LOADING_DETAIL, WORKING_DETAIL, RESTORING_DETAIL]
-    # And each of them was true when it crossed. An order among the four strings is satisfied
-    # by four strings emitted at any four moments, so the work each one announces is what
-    # actually pins it (the harness holds that contract, and the chaos suite runs it too).
     assert_the_window_announced_real_progress(live)
 
 
 async def test_the_deep_model_answers_from_the_store_and_persists_a_second_message() -> None:
-    """The one hard rule, end to end: the deep phase's context comes back out of the stores."""
     live = build_harness()
     await live.seed_session()
     await harness.run_handoff(live, harness.armed_slot())
     assert live.backend.models == ["brain"]
-    # It read the conversation back rather than being handed it: the user message and the
-    # cortex's wrap-up are both in what the deep model saw.
     seen = [message.text for message in live.backend.seen]
     assert harness.USER_TEXT in seen
     assert harness.CORTEX_TEXT in seen
@@ -140,14 +124,13 @@ async def test_the_deep_model_answers_from_the_store_and_persists_a_second_messa
     assert history == [
         ("user", harness.USER_TEXT),
         ("assistant", harness.CORTEX_TEXT),
-        ("assistant", "a deep answer"),  # a SECOND assistant message under the same turn id
+        ("assistant", "a deep answer"),
     ]
 
 
 async def test_the_deep_phase_resumes_the_carried_budget_and_taint() -> None:
-    """A swap must not refill the turn's allowance, nor forget what it read."""
     spent = DispatchBudget(limit=4)
-    assert spent.charge(3) is True  # one dispatch left when the cortex escalated
+    assert spent.charge(3) is True
     ledger = TaintLedger()
     ledger.ingest_untrusted("see http://evil.test/x", source=None)
     audit = RecordingAuditSink()
@@ -168,20 +151,15 @@ async def test_the_deep_phase_resumes_the_carried_budget_and_taint() -> None:
     )
     await live.seed_session()
     events = await harness.run_handoff(live, harness.armed_slot(taint=ledger, budget=spent))
-    # The carried position bound the deep phase: the first call fits the one remaining
-    # allowance and the second is refused, which a refilled pool would have granted.
     assert [invocation.ok for invocation in audit.records] == [True, False]
     assert audit.records[-1].detail == BUDGET_EXHAUSTED_MSG
-    # And the ledger arrived tainted with its evidence, so the guardrail still scrubs the URL
-    # the cortex laundered into the turn before the swap.
     assert "http://evil.test/x" not in _texts(events)
-    assert await live.handoffs.get(harness.TURN) is None  # a clean handoff deletes the record
+    assert await live.handoffs.get(harness.TURN) is None
 
 
 async def test_a_second_concurrent_handoff_is_refused_without_evicting_anything(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """One GPU means one handoff: the second is told so, nothing is unloaded, and both are named."""
     live = build_harness()
     await live.seed_session()
     await live.handoffs.put(
@@ -192,12 +170,16 @@ async def test_a_second_concurrent_handoff_is_refused_without_evicting_anything(
     with caplog.at_level(logging.WARNING, logger="cortex_core.swap_conductor"):
         events = await harness.run_handoff(live, harness.armed_slot())
     assert _texts(events) == ALREADY_ACTIVE_NOTE
-    assert live.host.calls == harness.PREFLIGHT_CALLS  # nothing stopped, the cortex still serves
+    assert live.host.calls == harness.PREFLIGHT_CALLS
     assert live.backend.calls == 0
     assert [(record.message, record_fields(record)) for record in caplog.records] == [
         (
             "refusing a handoff while the store still has one in flight",
-            {"active_turn_id": "t-other", "turn_id": harness.TURN},
+            {
+                "active_turn_id": "t-other",
+                "session_id": harness.SESSION,
+                "turn_id": harness.TURN,
+            },
         )
     ]
 
@@ -205,72 +187,64 @@ async def test_a_second_concurrent_handoff_is_refused_without_evicting_anything(
 async def test_a_deployment_whose_host_has_no_deep_tier_is_refused_before_the_drain(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Escalation onto a host that carries no such tier costs one status call and nothing else."""
     live = build_harness(Fakes(host=ScriptedModelHost(running=["cortex"], unhosted=["brain"])))
     await live.seed_session()
     with caplog.at_level(logging.ERROR, logger="cortex_core.swap_conductor"):
         events = await harness.run_handoff(live, harness.armed_slot())
     assert _texts(events) == UNHOSTED_TIER_NOTE
-    assert _states(events) == []  # not even the draining chip: there is no window to announce
-    assert live.host.calls == harness.PREFLIGHT_CALLS  # asked once, and asked nothing else
-    assert live.scheduler.drains == 0  # the pool never stopped admitting
-    assert live.host.running == {"cortex"}  # the cortex was never unloaded, so never reloaded
-    assert live.handoffs.states == []  # no record was written, so none has to be settled
+    assert _states(events) == []
+    assert live.host.calls == harness.PREFLIGHT_CALLS
+    assert live.scheduler.drains == 0
+    assert live.host.running == {"cortex"}
+    assert live.handoffs.states == []
     assert live.backend.calls == 0
-    # The operator's half: the deployment is misconfigured and nothing else says so. The two env
-    # names are prose and are read off the message; the tier's own name rides the record, so it is
-    # read off the line the entry point's formatter renders, which is where it now prints.
     assert "CORTEX_MODEL_FILE_BRAIN" in caplog.text
     assert "CORTEX_ESCALATION" in caplog.text
     assert "model=brain" in " ".join(PlainFormatter().format(r) for r in caplog.records)
 
 
 async def test_a_host_that_gains_the_deep_tier_stops_refusing_the_handoff() -> None:
-    """The verdict is re-derived per attempt, so a roster that grows works at the next attempt."""
     host = ScriptedModelHost(running=["cortex"], unhosted=["brain"])
     live = build_harness(Fakes(host=host))
     await live.seed_session()
     assert _texts(await harness.run_handoff(live, harness.armed_slot())) == UNHOSTED_TIER_NOTE
-    host.unhosted.discard("brain")  # the artifact is named and the daemon came back with it
+    host.unhosted.discard("brain")
     events = await harness.run_handoff(live, harness.armed_slot())
     assert _texts(events) == "a deep answer"
     assert ("start", "brain") in host.calls
-    assert host.running == {"cortex"}  # and it converged back, as every handoff does
+    assert host.running == {"cortex"}
 
 
 async def test_a_host_that_cannot_be_asked_is_not_read_as_one_with_no_deep_tier(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """An unanswered question is not a refusal, which is the direction that matters most here."""
     host = ScriptedModelHost(running=["cortex"], fail={("status", "brain"): "the socket is gone"})
     live = build_harness(Fakes(host=host))
     await live.seed_session()
     with caplog.at_level(logging.WARNING, logger="cortex_core.residency_moves"):
         events = await harness.run_handoff(live, harness.armed_slot())
     assert _texts(events) == SWAP_FAILED_NOTE
-    assert ("stop", "cortex") in host.calls  # it went ahead and really tried, which is the point
-    assert host.running == {"cortex"}  # and the scope's finally brought the cortex back
+    assert ("stop", "cortex") in host.calls
+    assert host.running == {"cortex"}
     assert "could not be asked whether it serves" in caplog.text
 
 
 async def test_a_swap_that_finds_the_gpu_already_handed_over_says_so_and_not_that_it_broke() -> (
     None
 ):
-    """The scope's backstop refusal is not a swap failure, and the user must not be told it is."""
     live = build_harness()
     await live.seed_session()
     async with live.manager.swap_scope(live.residency.brain_model):
-        assert live.host.running == {"brain"}  # the GPU really is somebody else's
+        assert live.host.running == {"brain"}
         events = await harness.run_handoff(live, harness.armed_slot())
     assert _texts(events) == ALREADY_ACTIVE_NOTE
     assert live.handoffs.states == [HandoffState.READY, HandoffState.FAILED]
-    assert live.backend.calls == 0  # it never reached the deep model
-    assert live.host.calls.count(("start", "brain")) == 1  # and never swapped a second time
-    assert live.host.running == {"cortex"}  # the scope it lost to put the cortex back
+    assert live.backend.calls == 0
+    assert live.host.calls.count(("start", "brain")) == 1
+    assert live.host.running == {"cortex"}
 
 
 async def test_a_handoff_store_that_cannot_record_the_snapshot_changes_nothing() -> None:
-    """A failure before anything is evicted costs the handoff and nothing else."""
     live = build_harness(
         Fakes(handoffs=RecordingHandoffStore(fail=HandoffStoreError("redis is gone")))
     )
@@ -282,8 +256,6 @@ async def test_a_handoff_store_that_cannot_record_the_snapshot_changes_nothing()
 
 
 async def test_a_handoff_store_that_cannot_be_read_refuses_the_handoff_the_same_way() -> None:
-    """The precondition read fails closed too: no record, no eviction, an honest note."""
-
     class _Unreadable(RecordingHandoffStore):
         async def active(self) -> None:
             msg = "redis is gone"
@@ -294,11 +266,10 @@ async def test_a_handoff_store_that_cannot_be_read_refuses_the_handoff_the_same_
     events = await harness.run_handoff(live, harness.armed_slot())
     assert _texts(events) == STORE_FAILED_NOTE
     assert live.host.calls == harness.PREFLIGHT_CALLS
-    assert live.handoffs.states == []  # nothing was even written
+    assert live.handoffs.states == []
 
 
 async def test_a_drain_that_times_out_aborts_before_anything_is_evicted() -> None:
-    """The straggler rule: v1 kills nothing, so the swap does not happen at all."""
     live = build_harness(residency=harness.plan(drain_timeout_s=0.0))
     await live.seed_session()
     held = asyncio.Event()
@@ -314,23 +285,19 @@ async def test_a_drain_that_times_out_aborts_before_anything_is_evicted() -> Non
         await held.wait()
     events = await harness.run_handoff(live, harness.armed_slot())
     assert _texts(events) == DRAIN_TIMEOUT_NOTE
-    assert live.host.calls == harness.PREFLIGHT_CALLS  # nothing evicted, the cortex still serves
+    assert live.host.calls == harness.PREFLIGHT_CALLS
     assert live.handoffs.states == [HandoffState.READY, HandoffState.FAILED]
-    # The record says which failure this was, and the abort is the one that has to be told apart
-    # from a swap that broke: nothing refused anything and nothing left the card.
     aborted = await live.handoffs.get(harness.TURN)
     assert aborted is not None
     assert aborted.failure == DRAIN_TIMEOUT_REASON
     assert not task.done()
     release.set()
     await task
-    # The window was released even though the handoff aborted, so delegation resumes.
     async with live.scheduler.admit(harness.request()):
         pass
 
 
 async def test_a_deployment_without_a_subagent_pool_has_nothing_to_drain() -> None:
-    """No pool, no drain step: the handoff runs with the scheduler simply absent."""
     live = build_harness(with_scheduler=False)
     await live.seed_session()
     events = await harness.run_handoff(live, harness.armed_slot())
@@ -341,7 +308,6 @@ async def test_a_deployment_without_a_subagent_pool_has_nothing_to_drain() -> No
 
 
 async def test_a_deep_model_that_will_not_load_ends_the_turn_honestly() -> None:
-    """The swap-in failure direction: the cortex is back and the user is told plainly."""
     live = build_harness(
         Fakes(host=ScriptedModelHost(running=["cortex"], fail={("start", "brain"): "CUDA OOM"}))
     )
@@ -350,7 +316,7 @@ async def test_a_deep_model_that_will_not_load_ends_the_turn_honestly() -> None:
     assert _texts(events) == SWAP_FAILED_NOTE
     assert live.host.running == {"cortex"}
     assert live.handoffs.states == [HandoffState.READY, HandoffState.FAILED]
-    assert live.backend.calls == 0  # the deep model never ran, so nothing half-ran
+    assert live.backend.calls == 0
 
 
 @pytest.mark.parametrize(
@@ -363,24 +329,23 @@ async def test_a_deep_model_that_will_not_load_ends_the_turn_honestly() -> None:
 async def test_a_swap_that_broke_writes_the_model_hosts_own_sentence_down(
     failing_call: tuple[str, str], sentence: str, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """What the model host said reaches the brain's own side, on the record and in one line."""
     host = ScriptedModelHost(running=["cortex"], fail={failing_call: sentence})
     live = build_harness(Fakes(host=host))
     await live.seed_session()
     with caplog.at_level(logging.WARNING, logger="cortex_core.swap_settle"):
         events = await harness.run_handoff(live, harness.armed_slot())
-    assert _texts(events) == SWAP_FAILED_NOTE  # the user is told about the GPU, as before
+    assert _texts(events) == SWAP_FAILED_NOTE
     settled = await live.handoffs.get(harness.TURN)
     assert settled is not None
     assert settled.state is HandoffState.FAILED
     assert settled.failure is not None
-    assert sentence in settled.failure  # the daemon's words, not a category
-    assert "swapping in 'brain'" in settled.failure  # and which move was being made
+    assert sentence in settled.failure
+    assert "swapping in 'brain'" in settled.failure
     logged = [
         record for record in caplog.records if record.getMessage() == "a handoff ended failed"
     ]
     assert [record_fields(entry) for entry in logged] == [
-        {"turn_id": harness.TURN, "reason": settled.failure}
+        {"session_id": harness.SESSION, "turn_id": harness.TURN, "reason": settled.failure}
     ]
 
 
@@ -400,7 +365,6 @@ async def test_a_deep_model_that_never_becomes_ready_ends_the_turn_honestly() ->
 
 
 async def test_a_deep_model_that_dies_mid_answer_keeps_its_partial_text_with_a_note() -> None:
-    """The parts-so-far discipline: what it produced is persisted, and the note says why."""
     live = build_harness(
         Fakes(backend=ScriptedBrainBackend(chunks=("half an ", "never streamed"), fail_after=1))
     )
@@ -414,16 +378,13 @@ async def test_a_deep_model_that_dies_mid_answer_keeps_its_partial_text_with_a_n
         HandoffState.BRAIN_ACTIVE,
         HandoffState.FAILED,
     ]
-    # The note above tells the user the answer is unfinished; the record keeps what the deep
-    # model's own server said, which is the half no reader of the reply can get to.
     died = await live.handoffs.get(harness.TURN)
     assert died is not None
     assert died.failure == "the deep model's server died mid-stream"
-    assert live.host.running == {"cortex"}  # and the cortex is serving again
+    assert live.host.running == {"cortex"}
 
 
 async def test_a_cortex_that_cannot_be_restored_says_so_on_the_stream() -> None:
-    """The gravest failure: the deep answer stands, and the note warns about the next turn."""
     live = build_harness(
         Fakes(
             host=ScriptedModelHost(running=["cortex"], fail={("start", "cortex"): "no such device"})
@@ -433,9 +394,7 @@ async def test_a_cortex_that_cannot_be_restored_says_so_on_the_stream() -> None:
     events = await harness.run_handoff(live, harness.armed_slot())
     assert _texts(events) == "a deep answer" + RESTORE_FAILED_NOTE
     assert live.handoffs.states[-1] is HandoffState.FAILED
-    assert live.host.calls.count(("start", "cortex")) == 2  # it tried, then retried
-    # The gravest failure names the tier it gave up on, on the record as well as in the log the
-    # runbook sends an operator to: this is the one a later reader most needs to tell apart.
+    assert live.host.calls.count(("start", "cortex")) == 2
     gave_up = await live.handoffs.get(harness.TURN)
     assert gave_up is not None
     assert gave_up.failure is not None
@@ -443,7 +402,7 @@ async def test_a_cortex_that_cannot_be_restored_says_so_on_the_stream() -> None:
 
 
 class _FailsLate(RecordingHandoffStore):
-    """A store that goes away after the snapshot: every state written from then on is refused."""
+    """A store that fails after the snapshot: every state written from then on is refused."""
 
     async def transition(
         self, handoff_id: str, state: HandoffState, *, failure: str | None = None
@@ -456,7 +415,6 @@ class _FailsLate(RecordingHandoffStore):
 async def test_a_store_that_fails_while_settling_the_record_does_not_fail_the_turn(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A store that dies late costs the record, never the turn, and never the NEXT handoff."""
     live = build_harness(Fakes(handoffs=_FailsLate()))
     await live.seed_session()
     with caplog.at_level(logging.ERROR, logger="cortex_core.swap_conductor"):
@@ -467,14 +425,13 @@ async def test_a_store_that_fails_while_settling_the_record_does_not_fail_the_tu
         "could not record the handoff's state",
         "could not record the handoff's state",
     ]
-    assert live.handoffs.deleted == [harness.TURN]  # the claim is released by dropping it
-    assert await live.handoffs.active() is None  # so nothing reads a finished handoff as live
+    assert live.handoffs.deleted == [harness.TURN]
+    assert await live.handoffs.active() is None
 
 
 async def test_the_reason_reaches_the_log_even_when_the_store_cannot_keep_it(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The two places the reason goes are not a duplicate: one of them is the store."""
     live = build_harness(
         Fakes(
             handoffs=_FailsLate(),
@@ -485,7 +442,7 @@ async def test_the_reason_reaches_the_log_even_when_the_store_cannot_keep_it(
     with caplog.at_level(logging.WARNING, logger="cortex_core.swap_settle"):
         events = await harness.run_handoff(live, harness.armed_slot())
     assert _texts(events) == SWAP_FAILED_NOTE
-    assert await live.handoffs.get(harness.TURN) is None  # dropped, so it carries nothing at all
+    assert await live.handoffs.get(harness.TURN) is None
     logged = [
         record for record in caplog.records if record.getMessage() == "a handoff ended failed"
     ]
@@ -496,8 +453,6 @@ async def test_the_reason_reaches_the_log_even_when_the_store_cannot_keep_it(
 async def test_a_store_that_cannot_even_drop_the_record_says_what_is_now_stuck(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The end of the line: the release fails too, so the log has to name what that costs."""
-
     class _AlsoRefusesTheDelete(_FailsLate):
         async def delete(self, handoff_id: str) -> None:
             del handoff_id
@@ -516,13 +471,12 @@ async def test_a_store_that_cannot_even_drop_the_record_says_what_is_now_stuck(
 
 
 async def test_a_turn_that_looked_at_the_screen_after_escalating_ends_with_a_note() -> None:
-    """The ordering the escalation tool cannot see, driven through the real loop end to end."""
     audit = RecordingAuditSink()
     dispatcher = ToolDispatcher(
         CompositeToolRegistry([EscalateToBrainTool(), CaptureScreenTool(InMemoryBodyGateway())]),
         audit,
         SystemClock(),
-        confirmer=RecordingConfirmer(answer=True),  # the user approved the handoff
+        confirmer=RecordingConfirmer(answer=True),
     )
     slot = harness.armed_slot(brief=None)
     assert slot.refs is not None
@@ -560,23 +514,18 @@ async def test_a_turn_that_looked_at_the_screen_after_escalating_ends_with_a_not
         "still want the deep model.)"
     )
     assert _states(events) == [], "nothing was announced, because nothing was done"
-    # And no record was written at all, which is what makes the record's own ``opaque`` field
-    # defence in depth rather than a live path: the refusal is upstream of the store.
     assert live.handoffs.states == []
-    assert live.host.calls == []  # the cortex never stopped serving
-    assert live.backend.calls == 0  # the deep model was never asked anything
-    assert live.handoffs.states == []  # and no record was written to be settled
+    assert live.host.calls == []
+    assert live.backend.calls == 0
+    assert live.handoffs.states == []
 
 
 async def test_the_deep_phase_cannot_escalate_to_itself() -> None:
-    """No slot rides the deep phase's dispatches, so a second handoff cannot be queued."""
     audit = RecordingAuditSink()
     dispatcher = ToolDispatcher(
         CompositeToolRegistry([EscalateToBrainTool()], remote=InMemoryToolRegistry({})),
         audit,
         SystemClock(),
-        # An approving confirmer, as a live stream's dispatcher has: the gate is not what stops
-        # the deep model here, the missing slot is.
         confirmer=RecordingConfirmer(answer=True),
     )
     stowaway = EscalationSlot()
@@ -598,12 +547,12 @@ async def test_the_deep_phase_cannot_escalate_to_itself() -> None:
     (invocation,) = audit.records
     assert invocation.ok is False
     assert "escalation is not available for this turn" in invocation.detail
-    assert stowaway.brief is None  # nothing was queued behind the running handoff
+    assert stowaway.brief is None
     assert _texts(events) == "thinking"
 
 
 def _coresident_harness(gate: Gate, *, coresident: bool) -> harness.Harness:
-    """The one deployment shape this pair of tests differs on, everything else identical."""
+    """The one setting this pair of tests differs on; everything else is identical."""
     return build_harness(
         Fakes(
             host=ScriptedModelHost(running=["cortex", "subagent-gpu"]),
@@ -614,41 +563,34 @@ def _coresident_harness(gate: Gate, *, coresident: bool) -> harness.Harness:
 
 
 async def _paused_mid_phase(live: harness.Harness, gate: Gate) -> asyncio.Task[list[TurnEvent]]:
-    """Drive a handoff until the deep model's stream is mid-flight, and hold it there."""
+    """Run a handoff until the deep model's stream is in progress, and hold it there."""
     task = asyncio.create_task(harness.run_handoff(live, harness.armed_slot()))
     await gate.arrived()
     return task
 
 
 async def test_a_coresident_handoff_keeps_its_peers_and_keeps_delegating() -> None:
-    """The opt-in reversal of brain-runs-alone, asserted where it is observable: mid-phase."""
     gate = Gate()
     live = _coresident_harness(gate, coresident=True)
     await live.seed_session()
     task = await _paused_mid_phase(live, gate)
-    # Mid-phase: the deep model holds the card and the peer tier never left it.
     assert live.host.running == {"brain", "subagent-gpu"}
     async with live.scheduler.admit(harness.request()):
-        pass  # a quiesced pool raises SubagentAdmissionError here instead
+        pass
     gate.release.set()
     events = await task
-    assert live.scheduler.drains == 0  # the window was never entered, not merely left early
+    assert live.scheduler.drains == 0
     assert ("stop", "subagent-gpu") not in live.host.calls
     assert live.handoffs.states[-1] is HandoffState.DONE
     assert _texts(events) == "a deep answer"
 
 
 async def test_the_shipped_default_still_evicts_its_peers_and_refuses_a_spawn() -> None:
-    """The same shape with the opt-in off, which is what makes the case above non-vacuous.
-
-    Read at the identical instant: the tier is stopped rather than serving, and the admission
-    the co-resident deployment takes is refused with the drain window's own message.
-    """
     gate = Gate()
     live = _coresident_harness(gate, coresident=False)
     await live.seed_session()
     task = await _paused_mid_phase(live, gate)
-    assert live.host.running == {"brain"}  # the peer was evicted for the deep model
+    assert live.host.running == {"brain"}
     with pytest.raises(SubagentAdmissionError, match=POOL_DRAINING_MSG):
         async with live.scheduler.admit(harness.request()):
             pass  # pragma: no cover - admit raises before the block is ever entered
@@ -656,11 +598,10 @@ async def test_the_shipped_default_still_evicts_its_peers_and_refuses_a_spawn() 
     await task
     assert live.scheduler.drains == 1
     assert ("stop", "subagent-gpu") in live.host.calls
-    assert live.host.running == {"cortex", "subagent-gpu"}  # and it is restarted at the end
+    assert live.host.running == {"cortex", "subagent-gpu"}
 
 
 async def test_a_coresident_handoff_does_not_announce_a_drain_it_never_performs() -> None:
-    """The window's first status is dropped rather than lied about (the other three stand)."""
     live = build_harness(residency=harness.plan(coresident=True))
     await live.seed_session()
     events = await harness.run_handoff(live, harness.armed_slot())
