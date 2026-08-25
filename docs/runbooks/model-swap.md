@@ -503,9 +503,11 @@ site wrote them in (ADR-0038 rendered-fields addendum), so that is the order you
 
 `turn_id` is the escalating turn's id, which is also the handoff's: one turn escalates at most
 once, so the two are one number and the brain's log spells it the way every other line about that
-turn does (ADR-0009 sixth-name addendum). That is what makes `grep turn_id=t-...` return the
-whole of it, this line beside the turn's own failures and every tool call it made. The Redis key
-below is the one place that id still wears the word `handoff`, being the record's own address.
+turn does (ADR-0009 sixth-name addendum). That is what makes `grep turn_id=` on that id return
+the whole of it, this line beside the turn's own failures and every tool call it made. Grep the
+field name with an id you already have and never a prefix: a turn id is a bare `uuid4` and wears
+no shape you could search for (ADR-0009 bare-id addendum). The Redis key below is the one place
+that id still wears the word `handoff`, being the record's own address.
 
 `session_id` is the chat that turn belongs to, and it is on **every** swap-path line rather than
 on this one alone (ADR-0009 named-conversation addendum). The rule is worth knowing before you
