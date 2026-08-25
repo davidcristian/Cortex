@@ -119,7 +119,10 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    volume an image declares to a mount or a tmpfs in each compose service that runs it, so no
    container collects an anonymous volume `down` then leaves on the host, and which reads a
    recorded answer because a running docker is exactly what the gate cannot have (ADR-0011
-   out-of-reach-evidence addendum, and `just image-volumes` re-derives that record);
+   out-of-reach-evidence addendum, and `just image-volumes` re-derives that record), and which
+   holds that same record to every `VOLUME` a Dockerfile here declares, following each build to
+   its file through the compose stanza that names it, so the record cannot move under the gate
+   from inside the tree either;
    `stubcheck.py`, which holds the committed Rust seam stub to the comments
    [proto/body.proto](proto/body.proto) carries, the one half of a skipped regeneration no
    compiler would notice, as a text comparison running no codegen (ADR-0003 stub-fidelity
@@ -271,10 +274,15 @@ scripts/          repo gates, plus the one module here that gates nothing, contr
                   reader), defaultcheck.py (one variable, one default in every compose file
                   that spells it) + composedefaults.py (its substitution reader),
                   volumecheck.py (every volume an image declares is covered by a mount or a
-                  tmpfs in each service that runs it) + composeservices.py (its reader of what
-                  a service runs and covers) + imagevolumes.py (the recorded answer it reads,
+                  tmpfs in each service that runs it, and every VOLUME a Dockerfile here declares
+                  appears in the row for the image built from it) + composeservices.py (its reader
+                  of what a service runs, covers and is built from) + composetargets.py (the
+                  container path one mount entry names, in all four spellings) +
+                  imagevolumes.py (the recorded answer it reads,
                   because a running docker is what the gate cannot have, re-derived by
-                  `just image-volumes`), stubcheck.py (every comment the proto carries still
+                  `just image-volumes`) + dockerfilevolumes.py (the tree's own side of that
+                  record, read from the Dockerfile each build stanza points at),
+                  stubcheck.py (every comment the proto carries still
                   appears in the committed Rust stub) + protocomments.py (what a comment is on
                   each side and how the two spellings are made comparable),
                   composefiles.py (which files all three compose gates walk, answered once so

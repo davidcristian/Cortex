@@ -859,3 +859,90 @@ than answering any of them from the cache. Re-run with a working docker config i
 eight images, five pulled and three built. With the pull removed and nothing else changed, the same
 broken-credential shell exits 0 and prints that the record agrees with docker, which is exactly the
 green this addendum exists to stop being possible.
+
+## Addendum (2026-08-26): the record is held to the Dockerfiles this tree builds from
+
+The arrangement above brings an out-of-reach fact into the tree and gates the record. The residue
+it left is the same record moving under the gate from the other side. Three of its eight rows are
+images this repo builds, `cortex-brain`, `cortex-mcp-email` and `cortex-model-host`, and each is
+built from a Dockerfile sitting right here. Add `VOLUME /var/cache/thing` to
+[brain/Dockerfile](../../brain/Dockerfile) and the built image declares a path, every container of
+it collects an anonymous volume, and the row goes on saying the image declares nothing. `just
+check` stays green, and only a hand-run `just image-volumes` on a machine that has rebuilt the
+image would notice. Neither Dockerfile carries a `VOLUME` today, which is why this was a hole
+rather than a defect.
+
+That is the second answer above applied a second time: a cheaper question the tree can already
+answer, asked on every commit, with no daemon anywhere near it.
+
+**Decision: every `VOLUME` path a Dockerfile in this tree declares must appear in the row for the
+image built from it, and the check runs inside `volumecheck.py`'s existing walk.** The rule is
+one-directional, and that is what makes it cheap. A recorded path the Dockerfile does not declare
+is fine, being inherited from the base image, and the record deliberately holds no row for a base:
+only docker can say what `python:3.12-slim-trixie` declares. The half the tree can answer is the
+half this asks. `ONBUILD VOLUME` is deliberately not read, declaring a volume in an image built
+from this one rather than in this one.
+
+**Decision: which Dockerfile builds which row is read from each compose service's `build:` stanza,
+never recorded beside the row.** The alternative was cheaper by every measure except the one that
+matters: writing `brain/Dockerfile` next to `cortex-brain` in the record spells one fact in a
+second place, and nothing would then derive it to compare, so a `build:` repointed at another
+context would leave the record naming a file that builds nothing, silently, on the same day. That
+is the defect this addendum exists to close, re-created one level down. The gate already derives
+the image *name* from compose and holds the record to it in both directions, an unrecorded image
+and a row nothing names each being a fault; the Dockerfile is the same kind of fact and gets the
+same treatment. A relative context is resolved against **both** project directories compose can
+pick, the repo root that the `just` recipes pass and the compose file's own directory that a bare
+`docker compose -f docker/...` uses, exactly as `bindcheck.py` resolves a bind source, and a
+Dockerfile landing under neither is a fault rather than a silent pass.
+
+**What it cost, which the deferral had understated.** The mapping could not be read at all:
+`composeservices.py` set its `builds` flag to a bare `True` on meeting the key and never looked
+inside the stanza, so the long form's `context:` and `dockerfile:` in
+[docker/docker-compose.gpu.yml](../../docker/docker-compose.gpu.yml) arrived as service keys the
+walk did not recognize and were stepped over in silence, which is the one thing that reader is
+written never to do. `Service.build` now carries where the image is built from, in both spellings,
+and the walk refuses a build key it was not taught rather than skipping it. Teaching it that put
+the file over the line cap, so the mount-entry half moved out to `composetargets.py`, which owns
+the one question a mount entry answers, the container path it names, in all four spellings compose
+accepts. That is the sibling of `composemounts.py` the module docstrings already contrast: one
+reads a mount's source, the other its target.
+
+What stays open is the base image, and it is not a new exposure: if a base ever declares a path,
+the built image inherits it, the record carries it after the next re-derivation, and this check
+says nothing about it either way. That is the one-directional rule working as written.
+
+### Proven able to fail
+
+**Suite: `scripts/tests/test_volumecheck.py`, `scripts/tests/test_dockerfilevolumes.py` and
+`scripts/tests/test_composeservices.py`, 130 tests** (86 before this change), run against a mutated
+gate and restored from a copy after each. Baseline 130 passed, 0 failed. Ten mutants planted, all
+ten killed, none of them by a crash: each mutant leaves a gate that runs and answers wrongly.
+
+| mutant planted in the gate | tests killed |
+|---|---|
+| a VOLUME instruction is never recognized | 23 |
+| a relative VOLUME path is accepted instead of refused | 1 |
+| continuation lines are not joined onto their instruction | 3 |
+| a declared path no row carries is not reported | 4 |
+| a build reaching no Dockerfile is a silent pass | 2 |
+| only the repo root is tried as a project directory | 2 |
+| one file reached from both project directories is read twice | 1 |
+| the block form's dockerfile key is stepped over | 5 |
+| the short form's context is not recorded | 1 |
+| the gate never asks a build what its Dockerfile declares | 7 |
+
+The live proof beside it, which is the one the deferral described in words. With
+`VOLUME /var/cache/thing` appended to [brain/Dockerfile](../../brain/Dockerfile) and nothing else
+changed, `volumecheck.py --root ..` exits 1 and reddens both rows that file builds, naming each
+image separately, because each is a container of its own collecting a volume of its own:
+
+```
+$ cd scripts && uv run python volumecheck.py --root ..
+docker/docker-compose.email.yml:37: brain/Dockerfile declares VOLUME '/var/cache/thing', and the row for 'cortex-mcp-email' in scripts/imagevolumes.py does not carry it; ...
+docker/docker-compose.yml:15: brain/Dockerfile declares VOLUME '/var/cache/thing', and the row for 'cortex-brain' in scripts/imagevolumes.py does not carry it; ...
+```
+
+With the line removed the same command exits 0 and states the reading behind it, four declared
+paths covered over ten compose files, eleven service definitions, eight images, and two Dockerfiles
+here declaring nothing their rows do not carry.

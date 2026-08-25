@@ -49,6 +49,7 @@ image, which is the thing a container actually runs and the thing measured above
 """
 
 import subprocess
+import sys
 from collections.abc import Iterable, Mapping
 from typing import Protocol
 
@@ -162,3 +163,34 @@ def rederive(
         elif tuple(sorted(recorded)) != found:
             report.append(f"{reference}: recorded {render(recorded)}, docker says {render(found)}")
     return report
+
+
+def report_drift(
+    names: Iterable[str],
+    built: Iterable[str],
+    records: Mapping[str, tuple[str, ...]],
+    inspect: Inspector,
+) -> int:
+    """Ask a real docker about the record, print every row that has drifted, and exit on it.
+
+    The re-derivation's other half, and it lives beside the record rather than beside the rule it
+    keeps honest: every name it touches is this module's, and the gate above it answers a
+    different question entirely.
+    """
+    references, local = list(names), list(built)
+    report = rederive(references, records, inspect, local)
+    for line in report:
+        print(line)
+    if report:
+        print(
+            f"\nvolumecheck: {len(report)} recorded row(s) disagree with docker. Edit the table in "
+            f"{RECORD_PATH} to what docker says, and cover any newly declared path in the compose "
+            "file whose service runs that image.",
+            file=sys.stderr,
+        )
+        return 1
+    print(
+        f"volumecheck: the record agrees with docker on all {len({*references, *records})} "
+        f"image(s), {len(local)} of them built here and the rest pulled before they were asked"
+    )
+    return 0

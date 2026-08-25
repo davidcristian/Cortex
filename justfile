@@ -76,7 +76,10 @@ check-defaultcheck:
 # the host. What an image declares is a fact about a registry rather than about this tree,
 # so it is recorded in scripts/imagevolumes.py and this scan reads the record; `just
 # image-volumes` is what re-derives that record from docker and fails when it has gone
-# stale (ADR-0011 addendum on evidence out of the gate's reach).
+# stale (ADR-0011 addendum on evidence out of the gate's reach). Three of those rows are
+# built here, and for those the same scan reads the Dockerfile each build stanza points at
+# and fails when it declares a path its row does not carry, which is the half of the
+# question the tree can answer with no daemon at all.
 check-volumecheck:
     cd scripts && uv sync --locked
     cd scripts && uv run python volumecheck.py --root ..

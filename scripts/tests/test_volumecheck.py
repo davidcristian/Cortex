@@ -51,8 +51,10 @@ def _answering(answers: Mapping[str, tuple[str, ...]]) -> Inspector:
 
 @pytest.fixture
 def tree(tmp_path: Path) -> Path:
-    """A tree holding only the base file, which pins the project every override inherits."""
+    """A tree holding the base file, which pins the project every override inherits, beside the
+    Dockerfile its one build stanza points at: a build reaching no file is a fault of its own."""
     _write(tmp_path, "docker/docker-compose.yml", BASE)
+    _write(tmp_path, "brain/Dockerfile", "FROM scratch\n")
     return tmp_path
 
 
@@ -156,6 +158,53 @@ def test_a_file_pinning_its_own_project_keys_its_builds_under_that_one(tree: Pat
     assert "probe-sidecar" in volumecheck.check(tree, RECORDS).names
 
 
+# ── the second rule: what a Dockerfile here declares ───────────────────────────
+
+
+def test_a_dockerfile_here_declaring_a_path_its_row_denies_is_reported(tree: Path) -> None:
+    """The record moving under the gate from inside the tree, which is the reason this rule
+    exists: nothing else here would notice until somebody rebuilt and re-derived by hand."""
+    _write(tree, "brain/Dockerfile", "FROM scratch\nVOLUME /var/cache/thing\n")
+    faults = _faults(tree)
+    assert len(faults) == 1
+    assert (faults[0].path, faults[0].line) == ("docker/docker-compose.yml", 3)
+    assert "brain/Dockerfile declares VOLUME '/var/cache/thing'" in faults[0].detail
+    assert "'tree-brain'" in faults[0].detail
+
+
+def test_one_dockerfile_is_asked_once_per_row_it_builds(tree: Path) -> None:
+    """`brain/Dockerfile` builds two of this repo's rows, and a path it declares goes uncarried by
+    each of them separately: two images, two records, two containers collecting a volume."""
+    _write(tree, "docker/docker-compose.email.yml", _service("    build: ./brain\n", "mail"))
+    _write(tree, "brain/Dockerfile", "FROM scratch\nVOLUME /var/cache/thing\n")
+    records = {**RECORDS, "tree-mail": ()}
+    faults = [fault for fault in volumecheck.check(tree, records).faults if fault.line]
+    assert [fault.path for fault in faults] == [
+        "docker/docker-compose.email.yml",
+        "docker/docker-compose.yml",
+    ]
+
+
+def test_a_build_reaching_no_dockerfile_is_a_fault_not_a_silent_pass(tree: Path) -> None:
+    _write(tree, "docker/docker-compose.g.yml", _service("    build: ./gone\n", "brain"))
+    faults = [fault for fault in _faults(tree) if fault.path.endswith("compose.g.yml")]
+    assert len(faults) == 1
+    assert "where no Dockerfile lands" in faults[0].detail
+
+
+def test_the_walk_names_the_dockerfiles_it_followed_the_builds_to(tree: Path) -> None:
+    """The reading behind the rule: a build the walk never resolved would check nothing."""
+    assert volumecheck.check(tree, RECORDS).dockerfiles == ("brain/Dockerfile",)
+
+
+def test_an_unrecorded_image_is_not_asked_what_its_dockerfile_declares(tree: Path) -> None:
+    """There is no row to compare against yet, and the unrecorded fault already says so once."""
+    _write(tree, "docker/docker-compose.n.yml", _service("    build: .\n", "fresh"))
+    scanned = volumecheck.check(tree, RECORDS)
+    assert scanned.dockerfiles == ("brain/Dockerfile",)
+    assert [fault.line for fault in _faults(tree)] == [2]
+
+
 # ── failing closed ─────────────────────────────────────────────────────────────
 
 
@@ -255,6 +304,14 @@ def test_the_repo_really_declares_volumes_for_this_gate_to_have_checked() -> Non
     assert set(scanned.names) == set(IMAGE_VOLUMES), scanned.names
 
 
+def test_the_repo_really_builds_from_dockerfiles_for_the_second_rule_to_have_read() -> None:
+    """The other guard on the guard: three rows are built here, from these two files, and a walk
+    that resolved neither would pass the tree while a `VOLUME` sat in one of them."""
+    scanned = volumecheck.check(REPO_ROOT)
+    assert scanned.dockerfiles == ("brain/Dockerfile", "brain/Dockerfile.modelhost")
+    assert len(scanned.built) == 3, scanned.built
+
+
 # ── the CLI ────────────────────────────────────────────────────────────────────
 
 
@@ -269,6 +326,7 @@ def test_main_states_what_it_read_beside_the_verdict(capsys: pytest.CaptureFixtu
     assert "declared volume path(s)" in out
     assert "compose file(s), " in out
     assert "service definition(s) and " in out
+    assert "2 Dockerfile(s) here declare nothing their row does not carry" in out
 
 
 def test_main_reports_each_fault_and_exits_one(

@@ -10,7 +10,8 @@ from pathlib import Path
 
 import pytest
 
-from composeservices import ComposeServiceError, normalize, read_services
+from composeservices import DEFAULT_DOCKERFILE, Build, ComposeServiceError, read_services
+from composetargets import normalize
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -63,11 +64,6 @@ def test_a_service_that_only_builds_names_no_image_but_still_defines_one() -> No
     assert (service.image, service.builds, service.defines) == (None, True, True)
 
 
-def test_a_build_written_as_a_block_still_counts_as_building() -> None:
-    text = "services:\n  host:\n    build:\n      context: ./brain\n      dockerfile: D\n"
-    assert _one(text).builds is True
-
-
 def test_a_service_naming_neither_an_image_nor_a_build_is_a_fragment() -> None:
     """Every override here re-opens `brain:` to add environment; the container is the base's."""
     service = _one("services:\n  brain:\n    environment:\n      A: b\n    depends_on:\n      x:\n")
@@ -81,6 +77,59 @@ def test_a_service_records_the_line_it_opens_on() -> None:
 def test_every_service_in_a_file_is_read_in_order() -> None:
     text = "services:\n  a:\n    image: one\n  b:\n    image: two\n"
     assert [service.name for service in read_services(text).services] == ["a", "b"]
+
+
+# ── where a service is built from ──────────────────────────────────────────────
+
+
+def test_a_short_build_names_its_context_and_takes_the_default_dockerfile() -> None:
+    """`build: ./brain` is what the base file and the email override both write."""
+    assert _one("services:\n  brain:\n    build: ./brain\n").build == Build(
+        "./brain", DEFAULT_DOCKERFILE
+    )
+
+
+def test_a_build_block_names_both_halves() -> None:
+    """The GPU override's shape: a second Dockerfile in the context the brain image builds from."""
+    text = "services:\n  host:\n    build:\n      context: ./brain\n      dockerfile: D.model\n"
+    assert _one(text).build == Build("./brain", "D.model")
+
+
+def test_a_build_block_naming_only_a_context_takes_the_default_dockerfile() -> None:
+    text = "services:\n  host:\n    build:\n      context: ./brain\n"
+    assert _one(text).build == Build("./brain", DEFAULT_DOCKERFILE)
+
+
+def test_both_halves_of_a_build_are_read_with_their_quotes_dropped() -> None:
+    text = 'services:\n  h:\n    build:\n      context: "./b"\n      dockerfile: "D"\n'
+    assert _one(text).build == Build("./b", "D")
+
+
+def test_a_nested_block_inside_a_build_names_no_dockerfile() -> None:
+    """`args:` and its like sit inside the stanza and say nothing about which file builds it."""
+    text = "services:\n  h:\n    build:\n      context: ./b\n      args:\n        TAG: '1'\n"
+    assert _one(text).build == Build("./b", DEFAULT_DOCKERFILE)
+
+
+def test_a_build_key_this_reader_takes_no_answer_from_changes_nothing() -> None:
+    text = "services:\n  h:\n    build:\n      context: ./b\n      target: builder\n"
+    assert _one(text).build == Build("./b", DEFAULT_DOCKERFILE)
+
+
+def test_a_key_after_a_build_block_ends_it() -> None:
+    """A service key at its own indent closes the stanza, so `image:` is not read as a build key."""
+    text = "services:\n  h:\n    build:\n      context: ./b\n    image: pinned:1\n"
+    service = _one(text)
+    assert (service.build, service.image) == (Build("./b", DEFAULT_DOCKERFILE), "pinned:1")
+
+
+def test_a_comment_beside_the_build_key_still_opens_the_block() -> None:
+    text = "services:\n  h:\n    build: # the workspace\n      context: ./b\n"
+    assert _one(text).build == Build("./b", DEFAULT_DOCKERFILE)
+
+
+def test_a_service_that_does_not_build_carries_no_build_at_all() -> None:
+    assert _one("services:\n  r:\n    image: r\n").build is None
 
 
 # ── what a service covers ──────────────────────────────────────────────────────
@@ -200,6 +249,9 @@ def test_a_bare_name_key_pins_nothing() -> None:
         ("services:\n  r:\n    tmpfs:\n      - relative/path\n", "is not an absolute container"),
         ("services:\n  r:\n    tmpfs:\n      - *nowhere\n", "names no anchor"),
         ("services:\n    r:\n      image: x\n  s:\n", "is indented under no service"),
+        ("services:\n  r:\n    build: {context: ./b}\n", "inline build"),
+        ("services:\n  r:\n    build:\n      - ./b\n", "is not a build key"),
+        ("services:\n  r:\n    build:\n      args:\n        A: b\n", "build names no context"),
     ],
 )
 def test_a_shape_the_reader_was_not_taught_is_refused(text: str, message: str) -> None:
@@ -248,6 +300,24 @@ def test_the_real_compose_files_are_all_readable() -> None:
     services = [service for found in read.values() for service in found.services]
     assert sum(service.defines for service in services) >= 8, services
     assert sum(len(service.covered) for service in services) >= 12, services
+
+
+def test_the_real_build_stanzas_are_read_in_both_spellings() -> None:
+    """The mapping the record is checked against, and the tree writes it both ways: the base and
+    the email override with a short `build:`, the GPU override with a block naming a second file."""
+    files = sorted((REPO_ROOT / "docker").glob("docker-compose*.yml"))
+    read = {path.name: read_services(path.read_text(encoding="utf-8")) for path in files}
+    builds = {
+        f"{name}:{service.name}": service.build
+        for name, found in read.items()
+        for service in found.services
+        if service.build is not None
+    }
+    assert builds == {
+        "docker-compose.yml:brain": Build("./brain", DEFAULT_DOCKERFILE),
+        "docker-compose.email.yml:mcp-email": Build("./brain", DEFAULT_DOCKERFILE),
+        "docker-compose.gpu.yml:model-host": Build("./brain", "Dockerfile.modelhost"),
+    }
 
 
 def test_the_probe_file_really_covers_dovecots_two_declarations_through_its_anchors() -> None:

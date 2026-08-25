@@ -1,6 +1,6 @@
 # A VOLUME added to a Dockerfile here moves the same record, from inside the tree
 
-**Status:** open, actionable
+**Status:** landed 2026-08-26
 **Area:** repo-gates
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md)
 
@@ -53,3 +53,24 @@ recorded beside the row, which is one more thing to keep in step.
   alternative, recording the Dockerfile beside the row, buys its cheapness by writing the same
   fact in a second place, which is the shape `crosscheck.py` exists to catch and would then have
   to hold.
+- **2026-08-26, closed.** Landed as a second rule inside `volumecheck.py`, argued in the ADR-0011
+  addendum on holding the record to the Dockerfiles this tree builds from: every `VOLUME` path a
+  Dockerfile here declares must appear in the row for the image built from it, one-directional, so
+  a recorded path the file does not declare stays fine as a base image's inheritance. The mapping
+  is read from each compose service's `build:` stanza, which is the option this entry preferred,
+  and the alternative is declined for the reason the entry was opened: writing `brain/Dockerfile`
+  beside `cortex-brain` in the record spells one fact twice with nothing deriving it to compare, so
+  a repointed `build:` would leave the record naming a file that builds nothing, silently. The cost
+  estimate above held. `composeservices.py` could not answer the question at all and now carries
+  `Service.build` in both spellings, refusing a build key it was not taught instead of stepping
+  over the block form's two keys in silence; the mount-entry half moved to `composetargets.py` to
+  make room under the line cap, and `report_drift` moved from `volumecheck.py` to
+  `imagevolumes.py`, where every name it touches already lived. `dockerfilevolumes.py` is the new
+  reader and the rule over it, resolving a relative context against both project directories
+  compose can pick, exactly as the bind gate does. **Nine mutants over the three suites the change
+  is measured by, all nine killed**, tabled in that addendum, and the live proof is in it too: a
+  `VOLUME /var/cache/thing` appended to `brain/Dockerfile` reddens both rows that file builds.
+  One residue filed, the last way a built row can still be wrong: those three references are asked
+  without a pull by design, so the answer is whatever this machine last built, and what a
+  republished base contributes goes unseen between builds
+  ([R-443](443-a-built-rows-answer-comes-from-whatever-this-machine-last-built.md)).
