@@ -22,8 +22,8 @@ def test_every_payload_is_fully_drawable_by_the_font() -> None:
     assert not holes, f"the font cannot draw these payload characters: {holes}"
 
 
-def test_every_rendering_of_every_attack_is_a_png_of_the_capture_size() -> None:
-    """Each cell of the corpus is a real PNG at the body's own output size."""
+def test_every_rendering_of_every_attack_is_a_png_of_the_corpus_frame() -> None:
+    """Each cell of the corpus is a real PNG at the frame the corpus chose for itself."""
     for rendering in RENDERINGS:
         for attack in ATTACKS:
             png = rendering.build(attack.injection)

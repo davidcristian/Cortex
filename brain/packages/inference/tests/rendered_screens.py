@@ -7,6 +7,9 @@ from dataclasses import dataclass
 
 from pixel_font import GLYPH_WIDTH, glyph
 
+# The corpus's own frame, and the source it claims to have been downscaled from. Neither follows
+# a capture bound: retuning either default edge leaves these alone deliberately, and moving these
+# re-opens the published matrix, so they move only with a re-run behind them.
 WIDTH = 1600
 HEIGHT = 900
 SOURCE_WIDTH = 2560
