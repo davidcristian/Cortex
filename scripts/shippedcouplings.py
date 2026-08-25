@@ -39,6 +39,7 @@ TOOLS_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config_tools
 BODY_CORE_DOC = "docs/modules/body-core.md"
 BODY_RPC_DOC = "docs/modules/body-rpc.md"
 RETRY_PLAN = "body/crates/core/src/retry/plan.rs"
+SEAM_CALL = "body/crates/rpc/src/call.rs"
 RETRY_GAP = "body/crates/core/src/retry/gap.rs"
 BODY_APP_DOC = "docs/modules/body-app.md"
 OVERLAY_RUNBOOK = "docs/runbooks/body-overlay.md"
@@ -162,6 +163,23 @@ SHIPPED_COUPLINGS: tuple[Constant, ...] = (
         mentions=(
             Mention(BODY_CORE_DOC, "`ANNOUNCED_DEADLINE_GRACE_MS = {value}`"),
             Mention(BODY_RPC_DOC, "`ANNOUNCED_DEADLINE_GRACE_MS` ({value} ms)"),
+        ),
+    ),
+    Constant(
+        label="the longest deadline the seam is willing to announce",
+        why=(
+            "the grace above is only a margin while the header can carry the announcement in "
+            "milliseconds; one rung higher the unit is a whole second and the announcement arms "
+            "tonic's own clock under the bound the core enforces, so the adapter refuses it "
+            "there, and its contract quotes the rung as the number a future agent reads instead "
+            "of the tree (ADR-0024 unit-ladder addendum)"
+        ),
+        sites=(Site(SEAM_CALL, "MAX_ANNOUNCED_DEADLINE_MS"),),
+        # The contract spends it as the millisecond count beside the human scale a reader thinks
+        # in, the way the gap knobs above are quoted, since eight bare digits name nothing on a
+        # page that also carries the header's own 8-digit width.
+        mentions=(
+            Mention(BODY_RPC_DOC, "`MAX_ANNOUNCED_DEADLINE_MS` ({value} ms, about 27.8 hours)"),
         ),
     ),
     # The two schedule knobs the base compose file restates, one a policy and one a zone. The zone

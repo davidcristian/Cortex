@@ -1489,3 +1489,108 @@ enforces, handing the race to the timer this design exists to make lose. It take
 `CORTEX_BRAIN_CALL_DEADLINE_MS` near a hundred million to reach, and `MAX_ANNOUNCED_DEADLINE`
 currently filters only what the header cannot spell at all, eleven thousand years out.
 [R-436](../refinements/tasks/436-an-announcement-past-the-millisecond-ladder-loses-the-race.md).
+
+## Unit-ladder addendum (2026-08-25): the announcement filter moves down to the rung that keeps order
+
+The encoding addendum above closed by naming one regime it had not guarded: past about 27.8 hours
+`grpc-timeout`'s unit ladder steps from milliseconds to whole seconds, and an announcement
+truncated onto that step arms tonic's clock under the bound the core enforces. This is the
+decision about that regime.
+
+### What the tree actually does, re-derived
+
+Four readings, each taken here rather than carried over.
+
+- **The ladder.** `duration_to_grpc_timeout` (`tonic-0.14.6/src/request.rs`) walks nanoseconds,
+  microseconds, milliseconds, seconds, minutes, hours, takes the first unit whose count is at most
+  99,999,999, and **truncates** onto it. So the millisecond rung ends at 99,999,999 ms, which is
+  99,999.999 s, and everything above it is spelled in whole seconds.
+- **Announcing is arming.** `Request::set_timeout` writes the header and nothing else, and the
+  channel's `GrpcTimeout` layer (`tonic/src/transport/service/grpc_timeout.rs`) parses the header
+  back off the outgoing request and sleeps on what it decoded. The interceptor in
+  `body/crates/rpc/src/call.rs` calls exactly that.
+- **The arithmetic.** With `announced = enforced + 250 ms`, write `r` for the enforced bound's
+  millisecond remainder. Above the rung the decoded value is `enforced - r` when `r` is 1 to 749,
+  so it falls **below** the enforced bound for 749 of every 1000 values of `r`, by `r` ms, up to
+  749 ms. For `r` of 750 to 999 it stays above but the margin shrinks to `1000 - r` ms, as little
+  as 1 ms, which is three orders of magnitude under the stall the margin is sized for. Only `r` of
+  0 keeps the full quarter second. So the entry's "three in four" and "up to 749 ms" both hold,
+  and understate it: only one remainder in a thousand leaves the margin intact.
+- **The consequence.** tonic's own expiry classifies `TransportError::Connection`
+  (`body/crates/rpc/src/status.rs`, and `tonics_own_expired_timeout_classifies_as_a_retryable_connection_failure`
+  asserts `is_transient` on a real one), so a tonic timer that won the race turns one abandoned
+  call into three. That is the amplifier this whole margin exists to prevent, confirmed rather
+  than assumed.
+
+The regime is reachable, not merely conceivable: `plan_from_env` (`body/app/src-tauri/src/seam.rs`)
+parses `CORTEX_BRAIN_CALL_DEADLINE_MS` as a `u64` of milliseconds with no ceiling, and `RetryPlan`'s
+fields are public besides.
+
+### Decision: `MAX_ANNOUNCED_DEADLINE_MS` is the millisecond rung, and past it we announce nothing
+
+The filter now sits at 99,999,999 ms instead of at 99,999,999 hours. It stops being a guard
+against tonic's panic and becomes what it was always doing badly: the bound below which the
+header can carry an announcement without reordering the two clocks. The panic is still on the far
+side of it, four rungs up.
+
+Four alternatives were weighed and rejected.
+
+- **Clamp the announcement onto the ladder.** Announcing something shorter than the enforced bound
+  is the race run deliberately, which is the answer this ADR already refused when the header
+  arrived.
+- **Round the announcement up onto the ladder ourselves.** This preserves both the courtesy and
+  the order, and it is the only alternative that is not simply worse. It loses on coupling: the
+  ladder is private to tonic, the rungs above seconds are minutes and hours, and reimplementing an
+  encoder that is free to move under a version bump buys a configuration nobody wants at the price
+  of a silent breakage nobody would notice.
+- **Cap `CORTEX_BRAIN_CALL_DEADLINE_MS` in the shell.** It would leave `RetryPlan`'s public fields
+  open, and it would quietly change a bound the operator configured, where the drop changes only
+  what the brain is told.
+- **Decline as unreachable.** It is not unreachable. It is one env var away, with no ceiling on the
+  parse, and "nobody would write that" is a statement about intent rather than about the system.
+
+What the drop costs is one hint: the brain stops learning that a 27.8-hour call has been
+abandoned. What it never costs is the call, which the core's own bound still ends, and that is the
+rule this adapter already followed for an unspellable deadline.
+
+The comparison is against whole milliseconds, so it also refuses the sliver between the rung's
+ceiling and the next whole millisecond, which tonic would still spell in milliseconds. No plan can
+land there: every knob the shell parses is a count of milliseconds and the grace added to it is
+another.
+
+`scripts/crosscheck.py` learns the bound, which is the question the deferral asked to have
+answered. The adapter's contract quotes the number a future agent reads instead of the tree, so
+`MAX_ANNOUNCED_DEADLINE_MS` joins `ANNOUNCED_DEADLINE_GRACE_MS` in `shippedcouplings.py` with
+`docs/modules/body-rpc.md` as its far side. It is declared as a count of milliseconds rather than
+a `Duration` for the reason the grace is: the scan reads an integer declaration and cannot read a
+constructor call.
+
+### Distrust green
+
+The new wire case is `an_announcement_off_the_millisecond_rung_is_dropped_and_one_on_it_is_sent`
+(`body/crates/rpc/tests/client.rs`), beside the existing
+`a_deadline_the_header_cannot_spell_is_dropped_rather_than_sent`, which is kept: the two pin two
+different facts about one drop, a duration the header cannot spell at all and one it spells in a
+unit that reorders the clocks. The new case reads the truncation off `Request::set_timeout` itself
+rather than off tonic's source, so a ladder that moves under a version bump reddens the case that
+rests on it.
+
+Mutation table, counts over `cargo test -p body-rpc --test client` (40 tests, all passing
+unmutated):
+
+| Mutation | Result |
+| --- | --- |
+| Ceiling raised back to the panic rung (`99_999_999 * 3_600_000`) | 39 passed, 1 failed: the seconds-band announcement is sent |
+| Ceiling one millisecond low (`99_999_998`) | 39 passed, 1 failed: the announcement on the rung is dropped |
+| Filter removed entirely | 38 passed, 2 failed: the seconds-band case, and the older case panics inside tonic's encoder |
+| Boundary made exclusive (`<` for `<=`) | 39 passed, 1 failed: the announcement exactly on the rung is dropped |
+
+The registry entry was mutated separately, over `just check-crosscheck` (71 constants, 81 sites,
+238 mentions, green unmutated). Renaming the constant in `call.rs` alone failed with
+"body/crates/rpc/src/call.rs declares no MAX_ANNOUNCED_DEADLINE_MS"; moving its value alone failed
+naming `docs/modules/body-rpc.md` as the file that no longer spells the rendered needle, and
+printing how far into it the match got.
+
+### What this opens
+
+Nothing new. The regime the encoding addendum filed is closed here.

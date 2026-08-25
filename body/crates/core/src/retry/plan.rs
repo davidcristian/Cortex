@@ -66,7 +66,9 @@ pub const DEFAULT_CALL_DEADLINE: Duration = Duration::from_secs(5);
 /// that fits in eight digits, so that costs under a microsecond for any announcement below 100 s
 /// and exactly nothing for the two this plan ships, which reach the brain as `500000u` and
 /// `5250000u` and are enforced there as 500 ms and 5250 ms. Only an announcement past about
-/// 27.8 hours, where the ladder's next unit is whole seconds, loses more than this margin covers.
+/// 27.8 hours, where the ladder's next unit is whole seconds, loses more than this margin covers,
+/// and the adapter announces nothing at all past that rung rather than spend a margin that would
+/// not cover it (ADR-0024 unit-ladder addendum).
 /// And the two clocks are ordered by their deadlines only while the runtime is scheduling: were
 /// the body's runtime to
 /// stall past both, one poll would find both due and tonic's would answer first, since a

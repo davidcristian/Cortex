@@ -65,9 +65,13 @@ interceptor, and the `SEAM_TOKEN_HEADER` declaration it attaches).
     this on announces nothing at all, which is what every constructor returns. `plan` must be the
     **same plan the decorator above the client enforces**: `seam::connect()` reads
     `plan_from_env()` once and hands the one value to both, which is what makes the ordering
-    between the two clocks structural rather than a convention. An announcement the header cannot
-    spell (past its 8-digit ceiling, which tonic's encoder panics on) is dropped rather than
-    clamped, a shorter announcement being the one thing that would lose the race on purpose.
+    between the two clocks structural rather than a convention. An announcement past
+    `MAX_ANNOUNCED_DEADLINE_MS` (99999999 ms, about 27.8 hours) is dropped rather than clamped or
+    rounded, a shorter announcement being the one thing that would lose the race on purpose. That
+    bound is the top of `grpc-timeout`'s millisecond rung and not the 8-digit ceiling tonic's
+    encoder panics on, which is four rungs higher: one step above it the unit is a whole second,
+    the truncation onto it is four times the grace, and the clock tonic arms from the decoded
+    header would then run **under** the bound the core enforces (ADR-0024 unit-ladder addendum).
   - `impl BrainTransport`: `health()` calls `BrainService.Health`; an Ok reply maps to
     `SeamHealth { ready, detail }`. A non-OK gRPC status splits by origin: a status
     tonic *synthesized* from a client-local transport failure (detected by a
@@ -270,9 +274,13 @@ Being ignored, they never run in CI and never count toward coverage.
 - The courtesy deadline is contract-tested off the **request the fake brain received**, since no
   reply echoes a header: the fake records every call's `grpc-timeout`, and the checks assert the
   per-method value (a probe and a read announce differently), silence from a client with no plan
-  and from every turn, silence rather than a panic for a deadline the header cannot spell, that a
+  and from every turn, silence rather than a panic for a deadline the header cannot spell, silence
+  for one it spells only in whole seconds and a header still sent for the last bound below that
+  rung, that a
   hanging brain still ends as `Timeout` with the announcement armed (the ordering, measured rather
-  than asserted), and that a brain-sent `DEADLINE_EXCEEDED` arrives as the same `Timeout`.
+  than asserted), and that a brain-sent `DEADLINE_EXCEEDED` arrives as the same `Timeout`. The
+  rung case reads the truncation off `tonic::Request::set_timeout` itself rather than off tonic's
+  source, so a ladder that moves under a version bump reddens the case that rests on it.
 - Contract tests exercise a scripted in-process fake `BrainService` over loopback
   (`127.0.0.1:0`) only, which is CI-safe, with no real network. They cover both sides of the
   status-origin split, including brain death after a successful connect (graceful

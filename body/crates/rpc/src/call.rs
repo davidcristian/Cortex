@@ -16,7 +16,8 @@
 //! enforced being one event seen from two ends.
 //!
 //! Nothing here decides how long a call may take. That is the core's
-//! `RetryPlan::announced_deadline_for`, and this module only refuses what the wire cannot spell.
+//! `RetryPlan::announced_deadline_for`, and this module only refuses what the wire cannot carry
+//! without reordering the two clocks.
 
 use std::time::Duration;
 
@@ -72,16 +73,34 @@ impl Interceptor for SeamTokenInterceptor {
     }
 }
 
-/// The longest deadline `grpc-timeout` can carry, and the reason this adapter filters at all.
+/// The longest deadline this transport will announce, and the reason this adapter filters at all.
+/// About 27.8 hours, which is the top of `grpc-timeout`'s millisecond rung.
 ///
-/// The header's value is at most 8 digits plus a unit, so tonic walks nanoseconds up to hours
-/// looking for a unit that fits and **panics** past the last one (`duration_to_grpc_timeout`,
-/// tonic 0.14). 99,999,999 hours is the coarsest unit's ceiling, about 11,415 years. No plan the
-/// shell's millisecond knobs can build gets near it, but `RetryPlan`'s fields are public and a
-/// courtesy that panics the call it is a courtesy to would be a poor trade, so an announcement
-/// past this is dropped rather than clamped: clamping would announce a deadline *shorter* than
-/// the one the core enforces, which is exactly the race the grace margin exists to prevent.
-const MAX_ANNOUNCED_DEADLINE: Duration = Duration::from_hours(99_999_999);
+/// The header's value is at most 8 digits plus a unit, so tonic walks a ladder of units looking
+/// for the most precise one that fits and **truncates** onto it (`duration_to_grpc_timeout`,
+/// tonic 0.14): nanoseconds below 0.1 s, microseconds below 100 s, milliseconds up to this
+/// bound, whole seconds above it, and a panic past the coarsest rung some 11,415 years out.
+///
+/// **The filter sits at the millisecond rung and not at the panic**, because a panic is not the
+/// only way a courtesy can cost the call it is a courtesy to. Announcing arms tonic's own clock
+/// from what the header **decodes** to, so the truncation is grace margin spent: under this
+/// bound it costs less than a millisecond and `ANNOUNCED_DEADLINE_GRACE_MS` swallows it, and over
+/// it the step is a whole second, four times that margin. With `announced = enforced + 250 ms`
+/// the decoded value then falls *below* the enforced bound for 749 of every 1000 millisecond
+/// values a deadline can take, by as much as 749 ms, and tonic's timer wins the race the margin
+/// exists to make it lose. Its expiry classifies `Connection` (`crate::status`), which is
+/// retryable, so one abandoned call would become three.
+///
+/// An announcement past this is dropped rather than clamped or rounded. Clamping would announce a
+/// deadline *shorter* than the one the core enforces, which is that same race run on purpose;
+/// rounding up onto the ladder ourselves would re-implement a private encoder free to move under
+/// a version bump. Dropping costs the brain a hint and costs the call nothing, the core's own
+/// bound being what actually ends it (ADR-0024 unit-ladder addendum).
+///
+/// A count of milliseconds rather than a [`Duration`] for the reason `ANNOUNCED_DEADLINE_GRACE_MS`
+/// is one: `scripts/crosscheck.py` ties this to the contract that quotes it by reading this
+/// declaration, which it can do for an integer and cannot for a constructor call.
+const MAX_ANNOUNCED_DEADLINE_MS: u64 = 99_999_999;
 
 /// One unary call in flight: the client that carries its announcement, and the announcement.
 pub(crate) struct SeamCall {
@@ -124,7 +143,13 @@ impl SeamCall {
 }
 
 /// The part of `deadline` this transport may actually announce: itself, or nothing when the
-/// header cannot spell it ([`MAX_ANNOUNCED_DEADLINE`]).
+/// header cannot carry it in an order-preserving unit ([`MAX_ANNOUNCED_DEADLINE_MS`]).
+///
+/// The comparison is against whole milliseconds, so it also refuses the sliver between the rung's
+/// ceiling and the next whole millisecond, which tonic would still spell in milliseconds. That
+/// sliver is unreachable from a plan: every knob the shell parses is a count of milliseconds and
+/// the grace added to it is another, so an announcement always lands on a millisecond.
 fn announceable(deadline: Option<Duration>) -> Option<Duration> {
-    deadline.filter(|announced| *announced <= MAX_ANNOUNCED_DEADLINE)
+    let ceiling = Duration::from_millis(MAX_ANNOUNCED_DEADLINE_MS);
+    deadline.filter(|announced| *announced <= ceiling)
 }
