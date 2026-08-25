@@ -47,8 +47,9 @@ impl Interceptor for SeamTokenInterceptor {
     }
 }
 
-/// The longest deadline `grpc-timeout` can carry, and the reason this adapter filters at all.
-const MAX_ANNOUNCED_DEADLINE: Duration = Duration::from_hours(99_999_999);
+/// The longest deadline this transport will announce, and the reason this adapter filters at all.
+/// About 27.8 hours, which is the top of `grpc-timeout`'s millisecond rung.
+const MAX_ANNOUNCED_DEADLINE_MS: u64 = 99_999_999;
 
 /// One unary call in flight: the client that carries its announcement, and the announcement.
 pub(crate) struct SeamCall {
@@ -89,7 +90,8 @@ impl SeamCall {
 }
 
 /// The part of `deadline` this transport may actually announce: itself, or nothing when the
-/// header cannot spell it ([`MAX_ANNOUNCED_DEADLINE`]).
+/// header cannot carry it in an order-preserving unit ([`MAX_ANNOUNCED_DEADLINE_MS`]).
 fn announceable(deadline: Option<Duration>) -> Option<Duration> {
-    deadline.filter(|announced| *announced <= MAX_ANNOUNCED_DEADLINE)
+    let ceiling = Duration::from_millis(MAX_ANNOUNCED_DEADLINE_MS);
+    deadline.filter(|announced| *announced <= ceiling)
 }

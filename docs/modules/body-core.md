@@ -244,8 +244,10 @@ stays thin and the retry is exercised against a fake with no network or wall-clo
   a deadline arms the transport's own clock from the same header, and an expiry the transport
   enforces classifies `Connection`, which is *retryable*, so the announcement has to be the later
   of the two clocks by construction. Its size is argued at the constant: a loopback round trip and
-  the brain's header parse cost microseconds, the header's encoding truncates by at most a
-  millisecond, and what actually sizes it is the scheduler stall the ordering must survive, since
+  the brain's header parse cost about a millisecond, measured at a real brain's handler entry; the
+  header's encoding truncates by under a millisecond for every announcement the gRPC adapter is
+  willing to send, and it refuses the ones past that rather than widen this margin for them; and
+  what actually sizes it is the scheduler stall the ordering must survive, since
   a runtime stopped past both deadlines finds them both due in one poll and the call is polled
   before the clock. `retry_plan.rs` holds the ordering over every method and several plans, the
   saturating edge included.

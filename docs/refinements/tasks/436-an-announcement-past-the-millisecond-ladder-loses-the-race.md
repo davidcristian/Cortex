@@ -1,6 +1,6 @@
 # An announcement past the millisecond ladder arms tonic's clock short of our own bound
 
-**Status:** open, actionable
+**Status:** landed 2026-08-25
 **Area:** seam-transport
 **Origin:** [ADR-0024](../../adr/ADR-0024-transport-retry.md)
 
@@ -55,3 +55,19 @@ one value; check whether the registry should learn it.
 - 2026-08-25: opened by the close of
   [R-381](381-the-header-encoding-error-is-larger-than-recorded.md). Recorded in the ADR-0024
   encoding addendum dated the same day.
+- 2026-08-25: landed as the candidate above, in the ADR-0024 unit-ladder addendum.
+  `MAX_ANNOUNCED_DEADLINE` became `MAX_ANNOUNCED_DEADLINE_MS`, a count of milliseconds at the
+  header's millisecond rung (99,999,999 ms) rather than a `Duration` at the panic rung, and an
+  announcement past it is dropped exactly as an unspellable one already was. Every number in the
+  entry re-derived and held, with one correction in the entry's own favour: below the rung the
+  margin is not merely intact for the other quarter of remainders, it is intact only for a
+  remainder of zero, since a remainder of 750 to 999 keeps the ordering but shrinks the margin to
+  as little as 1 ms. The classification claim was confirmed against
+  `body/crates/rpc/src/status.rs` and the live case that asserts `is_transient` on a real tonic
+  expiry, not assumed. The registry question the entry raised is answered yes: the constant is now
+  a `crosscheck.py` site in `scripts/shippedcouplings.py` with `docs/modules/body-rpc.md` as its
+  far side. The wire case is
+  `an_announcement_off_the_millisecond_rung_is_dropped_and_one_on_it_is_sent`
+  (`body/crates/rpc/tests/client.rs`), which reads tonic's truncation off `Request::set_timeout`
+  itself rather than off its source; the mutation table is in the addendum. Nothing deferred, so
+  no new task file.

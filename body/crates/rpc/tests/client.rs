@@ -1122,6 +1122,73 @@ async fn a_deadline_the_header_cannot_spell_is_dropped_rather_than_sent() {
 }
 
 #[tokio::test]
+async fn an_announcement_off_the_millisecond_rung_is_dropped_and_one_on_it_is_sent() {
+    let enforced = Duration::from_millis(100_000_749);
+    let mut request = Request::new(());
+    request.set_timeout(Duration::from_millis(100_000_999));
+    let armed = announced_deadline(
+        request
+            .metadata()
+            .get("grpc-timeout")
+            .expect("set_timeout writes the header")
+            .to_str()
+            .expect("a grpc-timeout value is ascii"),
+    );
+    assert_eq!(armed, Duration::from_secs(100_000));
+    assert_eq!(
+        enforced
+            .checked_sub(armed)
+            .expect("tonic truncates, so the armed clock is the shorter one"),
+        Duration::from_millis(749)
+    );
+
+    // Second, the drop, over the wire: a plan holding exactly that bound announces NOTHING, and
+    // the call it would have been a courtesy to still succeeds.
+    let fake = FakeBrain::new(Script::Ready);
+    let heard = Arc::clone(&fake.timeouts);
+    let addr = spawn_fake_brain(fake).await.unwrap();
+    let over = BrainSeamClient::connect(&format!("http://{addr}"))
+        .await
+        .unwrap()
+        .announcing(RetryPlan {
+            call_deadline: enforced,
+            ..RetryPlan::default()
+        });
+    assert_eq!(over.list_sessions(1).await.unwrap().len(), 2);
+
+    // Third, the edge itself, one millisecond lower: the last bound whose announcement lands on
+    // the rung is still sent, decodes to exactly what was announced, and so still stands above
+    // the bound the core enforces. A filter one step too low would silence this call too.
+    let plan = RetryPlan {
+        call_deadline: Duration::from_millis(99_999_749),
+        ..RetryPlan::default()
+    };
+    let under = BrainSeamClient::connect(&format!("http://{addr}"))
+        .await
+        .unwrap()
+        .announcing(plan);
+    assert_eq!(under.list_sessions(1).await.unwrap().len(), 2);
+    let recorded = heard
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone();
+    let [dropped, sent] = recorded.as_slice() else {
+        panic!("two calls were served, got: {recorded:?}");
+    };
+    assert_eq!(*dropped, None, "an announcement off the rung is not sent");
+    let sent = announced_deadline(sent.as_deref().expect("the one on the rung is"));
+    assert_eq!(
+        sent,
+        plan.announced_deadline_for(SeamMethod::ListSessions)
+            .unwrap()
+    );
+    assert!(
+        sent > plan.deadline_for(SeamMethod::ListSessions).unwrap(),
+        "announced {sent:?}, which no longer stands above what the core enforces"
+    );
+}
+
+#[tokio::test]
 async fn the_core_s_own_bound_wins_the_race_the_announcement_starts() {
     let addr = spawn_fake_brain(FakeBrain::new(Script::Hanging))
         .await
