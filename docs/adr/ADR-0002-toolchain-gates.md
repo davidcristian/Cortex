@@ -1001,3 +1001,97 @@ Filed by this close: the replay has no cadence
 synthesis ([R-358](../refinements/tasks/358-the-widest-value-was-never-a-real-line.md)), and the
 refused gate keeps its trigger
 ([R-359](../refinements/tasks/359-the-table-detector-is-refused-not-impossible.md)).
+
+## Addendum (2026-08-25): the replay pass gets a cadence, a sample, and a rule for a row that fails
+
+The addendum above replayed five tables and settled affordability. What it left undecided is
+everything about a second pass: how often one runs, what it draws from, and where its result goes
+([R-357](../refinements/tasks/357-a-replay-pass-has-no-cadence.md)). All three are decided here,
+and the third one, what a pass does when a row does not reproduce, is the one with teeth, since the
+one pass this practice has had never had to exercise it.
+
+**The census the entry wanted to draw from does not exist.** That entry proposes reusing "the
+census that supported the close", which "already sorts every body in the record by which vocabulary
+it uses and whether it names a path". The addendum above declined the script that produced it in
+the same breath as reporting its numbers, so the census was thirty ad hoc lines that were never
+committed and are gone. It was re-taken here rather than cited, over the same vocabulary the recipe below
+greps for: of 624 commits, 138 bodies carry it and **115 of the 138 name no tracked path**, which
+is 83% against the close's 88 of 100. The proportion holds; the artifact does not, so a fair draw has to be built rather than
+recovered.
+
+**The record grows in bursts, which decides the cadence's unit.** Candidate bodies per ISO week:
+1, 29, 1, 3, 24, 19, 46, and 15 in the partial week this was written in. A weekly clock, the shape
+this repo already uses for the shuffle sweep, would fire on a week holding one table and sit still
+through a week holding forty six. **So the cadence is counted in tables and not in days: a pass is
+due once twenty five candidate bodies have landed since the last one.** Thirty nine have landed
+since the 2026-08-21 pass, so the practice is already a window and a half behind four days after it
+started, which no calendar rule would have said.
+
+**The sample is five bodies, drawn from the twenty five most recent.** Five is what the one pass
+measured: five tables, thirty two rows, about fifty five minutes including setup, which is the unit
+this is affordable in. Twenty five is roughly one overnight session's output, so the window is the
+work between passes, and one row in five gets replayed. A wider window was rejected on what it
+buys: the further back a table sits, the likelier its subject has moved, and an expired row costs
+the reconstruction and yields nothing. The one case that widens it is a pass that is late, where
+the recipe's dated arm draws out of everything since the last pass, because the gap is what went
+unsampled.
+
+**The draw is blind, and that is the half the entry correctly identified as weak.** An agent
+choosing five tables by hand chooses what it already understands, and the tables most worth
+replaying are the ones whose wording nobody can reconstruct. `just replay [seed] [since]` keys each
+candidate on a digest of the seed and the commit hash and takes the five smallest, so the sample is
+a function of the seed alone. A digest rather than `shuf --random-source`, because that stream is a
+property of the local coreutils and this one reproduces off this machine; the digits-only seed
+validation is the sweep workflow's, for the same reason it has one.
+
+**The rule for a row that does not reproduce, which is what the entry actually asked for.** The
+first answer is to distrust the replay rather than the record, because the harness has failure
+modes of its own and one of them was observed in this repo this week: a mutation planted in
+`scripts/` and reverted inside the same second leaves stale bytecode behind, mtime having
+one-second granularity and the reverted file being the same size, and three runs of one sweep
+reported a count from a mutation that was no longer on disk. A row is re-run from a clean state
+before it counts as failing at all. Then it is one of three things.
+
+*A wrong count* corrects the record: a dated note at the addendum carrying the table, saying what
+was observed and when. Two shapes of it are defects rather than corrections. **A count of zero**
+means the mutant survives, so the row's claim that the suite would catch something is false and the
+answer is an assertion rather than an edited number; this is not hypothetical, a boundary arm
+landed here this week because a sweep's second row came back zero and showed a rule's strictness
+enforced by nothing. **A count of zero on a line only a live run reaches**, behind a
+`pragma: no cover` adapter, is honest and out of a replay's reach, and the pass records it as
+live-only; one table in this record has that shape, seven mutants killed by the suite and an eighth
+by the live run.
+
+*A wording nobody can replay* stops rather than invents. Rebuilding an edit the body and the diff
+do not identify means guessing one, and a guessed edit that produces a different number
+manufactures a false correction to a record that may be perfectly true, which is worse than
+leaving the row unreplayed. The budget is what the cheap tables cost, about five minutes, after
+which the row is recorded unreplayable and the wording that defeated it is named.
+
+*A tree that moved under the claim* corrects nothing. The claim was true of a tree that is gone,
+and rewriting it to match today's would be a fabrication about what was measured.
+
+**Where a result goes, and why not a workflow.** [docs/runbooks/mutation-replay.md](../runbooks/mutation-replay.md)
+carries the procedure and a ledger with one row per pass, seeded with the 2026-08-21 one, and the
+ledger is what the next pass counts from, so a pass that finds nothing still writes a row. It is
+deliberately not `.github/workflows/shuffle.yml` and not a sibling beside it. That workflow works
+because the thing it schedules is a committed recipe a runner can execute end to end; a replay is a
+reader rebuilding an edit from a sentence and deciding which of the three kinds above it hit, which
+no runner does. A workflow that only drew the sample would post five commit hashes into a summary
+nobody is obliged to open, and it would have to keep a calendar the decision above just rejected.
+
+**Measured rather than reasoned about**, this being a draw rather than a check and so carrying
+measurements rather than a mutation table. Seed 1 twice draws the same five bodies; seed 2 draws
+five that share none of them; over 100 seeds the draw reaches all 25 members of the pool in 500
+draws, so nothing in the window is unreachable. `just replay abc` exits 1 with `a seed must be
+digits only`. The `since` arm over `2026-08-21` reports the 39 above. The recipe was run rather
+than read, which is how its first version was caught exiting 141: `git log | head` under
+`pipefail` dies of the pipe it wrote into, so the window is `--max-count` and the cut is `sed`.
+
+**What this leaves open.** Nothing counts the record between passes: the recipe answers the cadence
+question only when somebody runs it, and no gate holds the ledger's last row against how far the
+record has moved since, so a pass that is due can go unnoticed exactly as the first one did
+([R-439](../refinements/tasks/439-nothing-counts-the-record-between-passes.md)). And the sample and
+the window are written in the recipe's defaults and in prose in two documents, with no coupling
+registered to hold the copies together
+([R-440](../refinements/tasks/440-the-replay-sample-is-spelled-in-three-places.md)).

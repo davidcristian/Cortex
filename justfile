@@ -239,6 +239,56 @@ shuffle seed="":
     (cd body/app && npm ci && npx vitest run --coverage --sequence.seed="$seed")
     (cd body && cargo +nightly test --locked --workspace -- -Z unstable-options --shuffle-seed="$seed")
 
+# The replay pass's draw (ADR-0002 replay-cadence addendum). A mutation table is a self report
+# until somebody other than its author re-runs it, so a pass replays a SAMPLE of the record:
+# five commit bodies out of the twenty five most recent that carry a table. The draw is the half
+# that has to be blind. An agent choosing by hand chooses what it already understands, and the
+# tables most worth replaying are exactly the ones nobody can reconstruct, so the sample is drawn
+# by seed and the seed is printed: `just replay <seed>` draws the same five on any machine, the
+# key being a digest of the seed and the commit rather than a shuffler whose stream is a property
+# of the local coreutils. Hand a date as the second argument to ask the OTHER question this pass
+# needs answered, how many tables have landed since the last one, which is what says whether a
+# pass is due: the cadence is counted in tables and not in days, because this record grows in
+# bursts. Procedure, the rule for a row that does not reproduce, and the ledger of passes:
+# docs/runbooks/mutation-replay.md. This gates nothing and runs on no clock; a replay needs the
+# judgement to rebuild an edit from a sentence, which is why it is not a workflow.
+replay seed="" since="" count="5" window="25":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    seed="{{ seed }}"
+    [ -n "$seed" ] || seed=$(( (RANDOM << 15) | RANDOM ))
+    case "$seed" in
+        *[!0-9]*)
+            echo "a seed must be digits only, got '$seed'" >&2
+            exit 1
+            ;;
+    esac
+    if command -v sha256sum >/dev/null 2>&1; then
+        digest() { sha256sum; }
+    elif command -v shasum >/dev/null 2>&1; then
+        digest() { shasum -a 256; }
+    else
+        echo "the draw needs sha256sum or shasum on PATH to be reproducible" >&2
+        exit 1
+    fi
+    vocabulary=(-i -E --grep='redden' --grep='mutant' --grep='mutation' --grep='prove[a-z]* able to fail')
+    since="{{ since }}"
+    if [ -n "$since" ]; then
+        pool="$(git log --since="$since" "${vocabulary[@]}" --format='%H%x09%s')"
+        echo "=== replay draw: seed $seed, over the tables landed since $since ==="
+        echo "=== reproduce this draw with: just replay $seed $since ==="
+    else
+        pool="$(git log --max-count={{ window }} "${vocabulary[@]}" --format='%H%x09%s')"
+        echo "=== replay draw: seed $seed, over the {{ window }} most recent tables ==="
+        echo "=== reproduce this draw with: just replay $seed ==="
+    fi
+    candidates="$(printf '%s' "$pool" | grep -c . || true)"
+    echo "=== $candidates candidate bodies, drawing {{ count }} ==="
+    printf '%s\n' "$pool" | while IFS="$(printf '\t')" read -r sha subject; do
+        [ -n "$sha" ] || continue
+        printf '%s\t%s\t%s\n' "$(printf '%s:%s' "$seed" "$sha" | digest | cut -c1-16)" "$sha" "$subject"
+    done | sort | sed -n '1,{{ count }}p' | cut -f2-
+
 # Regenerate the committed seam stubs from proto/body.proto (needs local protoc; ADR-0003).
 proto:
     mkdir -p /tmp/protostage/cortex_seam/_generated
