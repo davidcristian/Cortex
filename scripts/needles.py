@@ -69,6 +69,24 @@ the line the reader means: the compose publish's own interface moving still leav
 carried, by the redis publish two dozen lines below. That is why the run is worded as the most of
 the needle the file carries anywhere, which is exactly what it is, and why it is the second half
 of the message rather than the first.
+
+**The run is told the same three things the value is**, and by one rule rather than two. A run
+quoted as text alone left a reader with the one thing the message was for: the *distance* between
+where the file stopped agreeing and where the value still sits. A value on the line the run stops
+on is the strong form of "what moved is shape"; a value seventy lines away, which is the case this
+reading was written on, is the weak form, and nothing but opening the file told them apart. So the
+run now names its line and, where it is carried more than once, how many places carry it.
+
+Which occurrence it names falls out of the value reading rather than being a second choice. The
+two readings are the two ends of one distance, so the pair is picked once, and each half names the
+other's: the value is the spelling nearest where the run stops, and the run is the stop nearest
+that spelling. Where one of them is missing there is nothing to be nearest to, and both fall back
+the same way, to the first occurrence, said in the message so a reader is never left guessing
+which rule produced the line. The distance itself is deliberately **not** computed for the reader.
+Two line numbers side by side are the comparison, subtracting them is arithmetic a reader can do,
+and a stated gap would be a second metric: the pair is chosen by distance in characters, which is
+what orders two matches on one line correctly, and a gap in lines would occasionally disagree with
+the choice that produced it.
 """
 
 import re
@@ -134,18 +152,35 @@ def carried(needle: str, text: str) -> str:
     return needle[:length]
 
 
-def nearest(text: str, run: str, matches: list[re.Match[str]]) -> re.Match[str]:
-    """The match closest to anywhere ``text`` carries ``run``, or the first when it carries none.
+def anchors(text: str, run: str) -> list[int]:
+    """Every offset ``text`` stops carrying ``run`` at, and none at all when it carries none.
+
+    The stop rather than the start, because that is what both readings are about: the run stops
+    where the file stopped agreeing with the needle, and the value nearest it is the one the fault
+    means. Measuring from the start put the whole length of the run into every distance.
+    """
+    return [found.end() for found in re.finditer(re.escape(run), text)] if run else []
+
+
+def nearest(ends: list[int], matches: list[re.Match[str]]) -> tuple[re.Match[str], int | None]:
+    """The closest value and run stop, or the first value and no stop when there is no run.
 
     Distance is in characters rather than in lines, which needs no line index and orders two
     matches on one line the way a reader would. Every occurrence of the run is an anchor, because
     a run is a prefix and a file may satisfy it on a line the reader does not mean; the nearest
     value to any of them is still the best guess this fault can make about which line diverged.
+    The pair is chosen once and both halves of it are reported, so the two lines the message names
+    are the two ends of one distance rather than two picks that may not be about the same place.
     """
-    anchors = [found.start() for found in re.finditer(re.escape(run), text)] if run else []
-    if not anchors:
-        return matches[0]
-    return min(matches, key=lambda match: min(abs(match.start() - at) for at in anchors))
+    if not ends:
+        return matches[0], None
+    pairs = ((match, at) for match in matches for at in ends)
+    return min(pairs, key=lambda pair: abs(pair[0].start() - pair[1]))
+
+
+def line_of(text: str, at: int) -> int:
+    """The one-based line the offset ``at`` falls on."""
+    return text.count("\n", 0, at) + 1
 
 
 def quote(line: str, start: int, end: int) -> str:
@@ -160,22 +195,38 @@ def quote(line: str, start: int, end: int) -> str:
     return f"{lead}{line[opened:closed].strip()}{trail}"
 
 
-def where(text: str, run: str, matches: list[re.Match[str]]) -> str:
+def where(text: str, match: re.Match[str], places: int, *, anchored: bool) -> str:
     """Where ``text`` goes on spelling the value: how many places, and the words at the one meant.
 
     Worded to follow "spells it as a token of its own", so the sentence the reader gets names a
     line to open and reads back what is on it.
     """
-    match = nearest(text, run, matches)
-    number = text.count("\n", 0, match.start()) + 1
+    number = line_of(text, match.start())
     opened = text.rfind("\n", 0, match.start()) + 1
     ends = text.find("\n", match.start())
     closed = len(text) if ends < 0 else ends
     read = quote(text[opened:closed], match.start() - opened, match.end() - opened)
-    if len(matches) == 1:
+    if places == 1:
         return f", once on line {number}, which reads {read!r}"
-    which = "the nearest to that run" if run else "the first"
-    return f", in {len(matches)} places, {which} on line {number}, which reads {read!r}"
+    which = "the nearest to that run" if anchored else "the first"
+    return f", in {places} places, {which} on line {number}, which reads {read!r}"
+
+
+def stops(text: str, run: str, ends: list[int], at: int | None) -> str:
+    """How much of the needle ``text`` carries, and where the occurrence meant stops.
+
+    ``at`` is the stop the value reading was measured against, when there is a value reading.
+    Without one there is nothing for a run to be nearest to, so the first is named and said to be
+    the first, which is the same fallback the value reading makes when there is no run.
+    """
+    if not run:
+        return "carrying no part of it"
+    held = f"carrying no more of it than {run!r}"
+    line = line_of(text, (ends[0] if at is None else at) - 1)
+    if len(ends) == 1:
+        return f"{held}, which stops on line {line}"
+    which = "the first" if at is None else "the nearest to that spelling"
+    return f"{held}, which stops in {len(ends)} places, {which} on line {line}"
 
 
 def unfound(mention: Mention, needle: str, text: str, spelled: str) -> str:
@@ -189,14 +240,18 @@ def unfound(mention: Mention, needle: str, text: str, spelled: str) -> str:
     stem = f"{mention.path} does not spell {needle!r} as a token of its own"
     if run == needle:
         return f"{stem}, carrying it only inside a longer token"
-    held = f"carrying no more of it than {run!r}" if run else "carrying no part of it"
+    ends = anchors(text, run)
     if PLACEHOLDER not in mention.template:
+        held = stops(text, run, ends, None)
         return f"{stem}, {held}; this needle renders no value, so the whole of it is shape"
     matches = list(bounded(spelled).finditer(text))
     if not matches:
+        held = stops(text, run, ends, None)
         return f"{stem}, {held}; the file does not spell {spelled!r} as a token of its own either"
+    match, at = nearest(ends, matches)
     return (
-        f"{stem}, {held}; the file does still spell {spelled!r} as a token of its own"
-        f"{where(text, run, matches)}, so what moved is likely shape this needle carries rather "
-        "than this value, and the constant to change may not be the one named here"
+        f"{stem}, {stops(text, run, ends, at)}; the file does still spell {spelled!r} as a token "
+        f"of its own{where(text, match, len(matches), anchored=bool(ends))}, so what moved is "
+        "likely shape this needle carries rather than this value, and the constant to change may "
+        "not be the one named here"
     )

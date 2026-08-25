@@ -428,7 +428,7 @@ def test_a_moved_neighbour_is_reported_as_shape_and_not_as_this_value(tmp_path: 
     """The misattribution measured on the real tree: the publish's interface is not the port."""
     _publish_on(tmp_path, "127.0.0.2")
     (fault,) = crosscheck.check_constant(tmp_path, _ported("127.0.0.1:{value}:{value}"))
-    assert "carrying no more of it than '127.0.0.'" in fault.detail
+    assert "carrying no more of it than '127.0.0.', which stops on line 1" in fault.detail
     assert "the file does still spell '50051' as a token of its own" in fault.detail
     assert "the constant to change may not be the one named here" in fault.detail
 
@@ -461,7 +461,7 @@ def test_a_value_left_only_inside_a_decimal_is_not_read_as_still_being_spelled(
     )
     (fault,) = crosscheck.check_constant(tmp_path, graced)
     assert "does not spell '10 s' as a token of its own" in fault.detail
-    assert "carrying no more of it than '10'" in fault.detail
+    assert "carrying no more of it than '10', which stops on line 1" in fault.detail
     assert "the file does not spell '10' as a token of its own either" in fault.detail
 
 
@@ -477,7 +477,10 @@ def test_a_file_carrying_no_part_of_the_needle_has_no_run_to_report(tmp_path: Pa
 # ── and where it read the value it says is still there ─────────────────────────
 #
 # A maybe nobody can check is a grep, which is the work this reading exists to save. So a yes
-# names the line, reads it back, and says how many lines spell the value: `needles.where`.
+# names the line, reads it back, and says how many lines spell the value: `needles.where`. The
+# run says the same three things about itself (`needles.stops`), because the evidence a reader
+# weighs is the distance between the two: a value on the line the run stops on is the strong form
+# of "what moved is shape", and one two lines below it, as here, is the weak form.
 
 
 _GRACED = crosscheck.Constant(
@@ -508,6 +511,7 @@ def test_a_yes_reads_back_the_line_it_read_the_value_on(tmp_path: Path) -> None:
         "the cortex still holds ~11 GB of it while it dies\n",
     )
     (fault,) = crosscheck.check_constant(tmp_path, _GRACED)
+    assert "which stops on line 1" in fault.detail
     assert "the file does still spell '11' as a token of its own, once on line 3" in fault.detail
     assert "which reads 'the cortex still holds ~11 GB of it while it dies'" in fault.detail
 
@@ -517,6 +521,24 @@ def test_a_last_line_with_no_newline_is_still_read_back_whole(tmp_path: Path) ->
     _graced(tmp_path, "the full grace (10 s) is paid\n\nthe cortex holds ~11 GB")
     (fault,) = crosscheck.check_constant(tmp_path, _GRACED)
     assert "once on line 3, which reads 'the cortex holds ~11 GB'" in fault.detail
+
+
+def test_the_run_is_measured_where_it_stops_and_not_where_it_starts(tmp_path: Path) -> None:
+    """A value on either side of a long run, which is what tells the two ends of it apart.
+
+    The run is what the file stopped agreeing at, so the spelling that matters is the one nearest
+    its stop. Reading from its start instead would put the whole length of the run into every
+    distance and name the line above, which here is a paragraph the divergence has nothing to do
+    with.
+    """
+    _graced(
+        tmp_path,
+        "11 GB of it is still held\nand the full grace (10 s) is paid\nwhich leaves 11 free\n",
+    )
+    (fault,) = crosscheck.check_constant(tmp_path, _GRACED)
+    assert "carrying no more of it than 'the full grace (1', which stops on line 2" in fault.detail
+    assert "in 2 places, the nearest to that run on line 3" in fault.detail
+    assert "which reads 'which leaves 11 free'" in fault.detail
 
 
 def test_a_value_in_several_places_is_counted_and_read_nearest_the_run(tmp_path: Path) -> None:
@@ -533,9 +555,29 @@ def test_a_value_in_several_places_is_counted_and_read_nearest_the_run(tmp_path:
         encoding="utf-8",
     )
     (fault,) = crosscheck.check_constant(tmp_path, _ported("127.0.0.1:{value}:{value}"))
-    assert "carrying no more of it than '127.0.0.'" in fault.detail
+    assert "carrying no more of it than '127.0.0.', which stops on line 8" in fault.detail
     assert "in 3 places, the nearest to that run on line 8" in fault.detail
     assert "which reads '- \"127.0.0.2:50051:50051\"'" in fault.detail
+
+
+def test_a_run_carried_in_several_places_names_the_stop_nearest_the_spelling(
+    tmp_path: Path,
+) -> None:
+    """The other end of the same distance, where the run is what the file carries twice.
+
+    A run is a prefix, so another publish satisfies it on a line the reader does not mean: here
+    the brain's host port moved and the redis publish seven lines above goes on carrying the
+    interface the needle opens with. The two readings name one place, so the stop the message
+    gives is the one the quoted spelling was measured against and not the first in the file.
+    """
+    (tmp_path / "config.py").write_text("PORT = 50051\n", encoding="utf-8")
+    (tmp_path / "stack.yml").write_text(
+        '      - "127.0.0.1:6379:6379"\n\n\n\n\n\n\n      - "127.0.0.1:9090:50051"\n',
+        encoding="utf-8",
+    )
+    (fault,) = crosscheck.check_constant(tmp_path, _ported("127.0.0.1:{value}:{value}"))
+    assert "which stops in 2 places, the nearest to that spelling on line 8" in fault.detail
+    assert "still spell '50051' as a token of its own, once on line 8" in fault.detail
 
 
 def test_a_value_in_several_places_with_no_run_at_all_is_read_at_the_first(tmp_path: Path) -> None:
@@ -586,6 +628,7 @@ def test_a_needle_that_renders_only_a_name_is_shape_all_through(tmp_path: Path) 
     (fault,) = crosscheck.check_constant(tmp_path, spent)
     assert "does not spell 'var(--roll)' as a token of its own" in fault.detail
     assert "carrying no more of it than 'var(--'" in fault.detail
+    assert "which stops in 2 places, the first on line 2" in fault.detail
     assert "this needle renders no value, so the whole of it is shape" in fault.detail
 
 

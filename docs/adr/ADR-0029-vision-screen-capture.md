@@ -5476,3 +5476,91 @@ The record is the task file
 `scripts/crosscheck.py`, whose docstring no longer quotes a census of this value,
 [modules/repo-gates.md](../modules/repo-gates.md), which states what the survey settled, and this
 addendum.
+
+## Addendum (2026-08-25): the run gets a line too, from the pair the value reading already picked
+
+The still-spelled addendum above gave the value reading a line, the words on it and a count, and
+left the other reading of the same fault quoted as text alone: *carrying no more of it than
+`body's own `*, with nowhere in the file to put it. That is the reading the entry
+[R-426](../refinements/tasks/426-the-run-is-reported-without-a-line-of-its-own.md) was opened on,
+and its premise held up. The distance between the two lines is the evidence a reader weighs. A
+value spelled on the line the run stops on is the strong form of "what moved is shape"; a value
+seventy lines away is the weak form; and nothing but opening the file told them apart.
+
+### One rule, not a second one
+
+The entry left three candidates for which occurrence a line should name, since a run is a prefix
+and a file may carry it in several places: the last, the nearest to the quoted value, or a count
+the way the value reading carries one. **The answer is that it is not a separate choice at all.**
+The two readings are the two ends of one distance, so `needles.nearest` now picks the *pair* and
+both halves are reported: the value is the spelling nearest where the run stops, and the run is
+the stop nearest that spelling. Where one of them is missing there is nothing to be nearest to,
+and both fall back the same way, to the first occurrence, **said in the message** so no reader has
+to guess which rule produced a line. So the run is told the same three things the value is, in the
+same words: how many places, which of them, and where.
+
+Two smaller decisions fell out of that.
+
+**The distance is not computed for the reader.** Two line numbers side by side are the comparison,
+and subtracting them is arithmetic a reader can do. Stating a gap would also introduce a second
+metric: the pair is chosen by distance in **characters**, which is what orders two matches on one
+line correctly, so a gap stated in lines would sometimes disagree with the choice that produced
+it. The message says where each reading is and stops there.
+
+**No second quoted line.** The fault already carries a stem, two readings, one quoted line and the
+entry's `why`, and the run's own text is in the message already. Only its place was missing, so
+only its place was added. Measured on the planting below, the run's clause costs **66 characters**
+of a fault that was already 788 without it.
+
+### The correction underneath it
+
+Reading the run's positions out for the first time found the anchor was measured at the wrong end.
+`needles.py` documented the value as "the one nearest where the run below stops" and the code
+anchored on where the run **starts**, which puts the whole length of the run into every distance
+and biases every choice towards the text above it. On the tree as it stands no fault changes, both
+ends of a run sitting on one line in every current case, which is exactly the shape of a gate that
+cannot fail; `test_the_run_is_measured_where_it_stops_and_not_where_it_starts` is the case that
+tells the two apart, with one spelling of the value on either side of a long run, and it fails on
+the old anchor.
+
+### Proved able to fail, four times over the gate's own suite
+
+The counts are over `scripts/tests/test_crosscheck.py`, **144 cases** after this change, and not
+over the crosscheck registry, which is unchanged at 70 entries over 80 sites and 231 mentions.
+Each mutation was planted in `scripts/needles.py` alone and restored before the next; the suite
+was green at 144 before the first and after the last.
+
+| planted mutation | what the suite said |
+| --- | --- |
+| the run always names the first of its stops | 1 failed, 143 passed |
+| the run keeps no line at all, as before this entry | 7 failed, 137 passed |
+| the run is anchored where it starts rather than where it stops | 2 failed, 142 passed |
+| the count is dropped and every run is reported as carried once | 2 failed, 142 passed |
+
+And the reading was watched working on the real tree, by the same planting the still-spelled
+addendum used: rewording the vision runbook's `default` to `fallback` with the number left alone.
+
+```text
+docs/runbooks/vision.md does not spell "body's own default (1600)" as a token of its own, carrying
+no more of it than "body's own ", which stops in 3 places, the nearest to that spelling on line
+53; the file does still spell '1600' as a token of its own, in 2 places, the nearest to that run
+on line 53, which reads "...hands the edge back to the body's own fallback (1600) and holds the
+reply to the 8192 px domain ceil...", so what moved is likely shape this needle carries rather
+than this value
+```
+
+That is the strong form printed rather than inferred: the run stops on line 53 and the value is on
+line 53, so the shape and the value are the same sentence and the entry named is the wrong one to
+open. The `3 places` is the prefix ambiguity the entry worried about, measured: that runbook says
+`body's own` three times, and without the count a reader would have taken line 53 for the only
+one.
+
+### Records
+
+The record is the task file
+[R-426](../refinements/tasks/426-the-run-is-reported-without-a-line-of-its-own.md), which closes,
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from it,
+`scripts/needles.py`, which carries the rule and the correction,
+`scripts/tests/test_crosscheck.py`, which carries the cases,
+[modules/repo-gates.md](../modules/repo-gates.md), which states what a fault now says, and this
+addendum.
