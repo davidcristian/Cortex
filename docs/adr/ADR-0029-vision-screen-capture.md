@@ -5564,3 +5564,65 @@ The record is the task file
 `scripts/tests/test_crosscheck.py`, which carries the cases,
 [modules/repo-gates.md](../modules/repo-gates.md), which states what a fault now says, and this
 addendum.
+
+## Addendum (2026-08-25): the injection corpus is sized on itself, and says so
+
+The survey of the body's own default edge above left one spelling deliberately unsorted and opened
+[R-427](../refinements/tasks/427-the-injection-corpus-claims-a-size-nothing-holds.md) on it.
+`brain/packages/inference/tests/rendered_screens.py` declared `WIDTH = 1600` and its docstring said
+"The size is the body's own output, 1600x900". The literal is a fixture's own choice, which the
+survey settled and proved green as one of its nine controls. The sentence is the loose half, and it
+is loose in the way the tense test catches: it names this number as **what the body answers with**,
+which is a claim about a constant and not a record of a measurement.
+
+**The claim was wrong before the constant could move it.** A capture naming no edge comes back at
+the body's own default, and the brain names an edge of its own
+(`DEFAULT_CAPTURE_MAX_EDGE` in `config_body.py`), so no capture the shipped stack takes is this
+size. The corpus was describing itself by a number nothing in the running system produces.
+
+### The corpus is sized on itself, and the registry gets no row
+
+The entry weighed three shapes: track the shipped ask and tie `WIDTH` to it, track the body's own
+default and register the sentence, or declare the size the fixture's own and say why. **The third
+is the one that is true**, and the other two are worse for the same reason from opposite ends.
+
+Registering the docstring against the body's own default would freeze a sentence about a number
+the fixture beside it is free to leave, and would cement the corpus to the one edge no shipped
+deployment asks for. Tying `WIDTH` to the brain's ask instead would make the corpus follow a live
+number, which sounds right until it is priced: re-sizing the corpus re-renders every cell, and the
+published resistance matrix in the image-arm addendum above was measured on the old frame, so the
+next run would be incomparable with it and nobody would be told. A gate whose green costs a silent
+loss of comparability is not a gate worth having.
+
+**What replaces the claim is the real argument for the frame**, which two things already carried
+and neither was written down. The published matrix was measured in it. And a payload drawn at a
+fixed glyph size fills more of a small frame than of a large one, so this frame is the legible end
+of what a screen can arrive at, which is the end a *defence* measurement should err on. That last
+is measured rather than asserted: the Chromium control in the image-arm addendum redrew one of
+these screens at real UI scale at this same size and the cortex read it **worse** than it reads
+the corpus's own glyphs, so the corpus is attacker-favourable already. The docstring says all of
+that now, and a comment on the constants says they move only with a re-run behind them.
+`test_image_arm.py`'s own copy of the old claim, which the entry did not mention, is corrected
+with it: its case is now named for the corpus's frame rather than for the body's output size.
+
+### What stays open, and what this deliberately did not measure
+
+Whether the measured resistance depends on the picture's size **at all** is unknown, and this
+close does not pretend otherwise. It is one live run of the image arm at two edges, which is a GPU
+measurement rather than a prose question, and it is filed as
+[R-432](../refinements/tasks/432-the-image-arm-has-never-run-at-two-sizes.md). Until it runs, the
+honest statement is the one the file now makes: the frame is the corpus's own, chosen for
+comparability and for the attacker's benefit, and derived from no live bound.
+
+No gate changed here, so there is no mutation table: the decision was to add no registry row, and
+the nine controls the survey above already ran include this file's render width staying green
+while the body's default moves.
+
+### Records
+
+The record is the task file
+[R-427](../refinements/tasks/427-the-injection-corpus-claims-a-size-nothing-holds.md), which
+closes, [docs/refinements/index.md](../refinements/index.md), which is regenerated from it,
+`brain/packages/inference/tests/rendered_screens.py`, which carries the argument for its own
+frame, `brain/packages/inference/tests/test_image_arm.py`, which no longer restates the old claim,
+and this addendum.

@@ -1,6 +1,6 @@
 # The injection corpus calls its size the body's own output and nothing holds it to one
 
-**Status:** open, actionable
+**Status:** landed 2026-08-25
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -42,3 +42,17 @@ change the result, which is one live run of the image arm at both sizes to find 
 - 2026-08-25: opened by the close of
   [R-399](399-the-body-edge-is-two-sites-and-no-prose.md), which read this file's `1600`s out as a
   fixture's own choice and found the docstring claiming they were not.
+- 2026-08-25: **landed as the third shape, with no registry row.** Both numbers the entry names are
+  what it said they are at HEAD, and the docstring's claim is wrong before either can move it: a
+  capture naming no edge comes back at the body's own default and the brain names an edge of its
+  own, so no capture the shipped stack takes is the corpus's size. Tracking either number was
+  refused. Registering the sentence would freeze it against a literal beside it that is free to
+  leave, and tying the frame to the shipped ask would re-render every cell and silently break
+  comparability with the published resistance matrix. What replaces the claim is the argument that
+  was already true and unwritten: the matrix was measured in this frame, and a payload at a fixed
+  glyph size fills more of a small frame, so this is the legible end and the end a defence
+  measurement should err on, which the image arm's own Chromium control already measured.
+  `test_image_arm.py` carried a second copy of the old claim that this entry did not mention, and
+  it is corrected too. Whether the size changes the result is unmeasured and is now
+  [R-432](432-the-image-arm-has-never-run-at-two-sizes.md). The decision is the
+  [ADR-0029 corpus-frame addendum](../../adr/ADR-0029-vision-screen-capture.md).

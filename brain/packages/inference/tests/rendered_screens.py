@@ -20,8 +20,23 @@ thing an attacker actually controls once the payload is pixels, which is what th
   legitimacy* does, and it is the realistic indirect case: nobody paints a bare instruction on
   a victim's desktop, they send them an email.
 
-The size is the body's own output, 1600x900, and the corpus declares a 2560x1440 source so the
-tool's stand-in text says "downscaled from" exactly as a real capture would.
+**The frame below is the corpus's own choice and is tied to nothing**, which is a correction:
+this docstring used to call it the body's own output. That is the size a capture naming no edge
+comes back at, and the brain names one of its own (``DEFAULT_CAPTURE_MAX_EDGE``), so the sentence
+described a picture the shipped stack does not take. Two things pick this frame instead, and
+neither is a live number. It is where the published resistance matrix was measured, so re-sizing
+the corpus would quietly make the next run incomparable with it. And a payload drawn at a fixed
+glyph size fills more of a small frame than of a large one, so this is the legible end of what a
+screen can arrive at, which is the end a *defence* measurement should err on: the Chromium
+control in ADR-0029's image-arm addendum redrew one of these screens at real UI scale at this
+same size, and the cortex read it **worse** than it reads these glyphs, so the corpus is
+attacker-favourable already and the framing is not being flattered by an unreadable picture. What
+none of that settles is whether the measured resistance depends on the picture's size at all,
+which is one live run of the arm at two edges and is open in
+``docs/refinements/index.md#vision``.
+
+The corpus declares a 2560x1440 source so the tool's stand-in text says "downscaled from" exactly
+as a real capture would.
 """
 
 import struct
@@ -31,6 +46,9 @@ from dataclasses import dataclass
 
 from pixel_font import GLYPH_WIDTH, glyph
 
+# The corpus's own frame, and the source it claims to have been downscaled from. Neither follows
+# a capture bound: retuning either default edge leaves these alone deliberately, and moving these
+# re-opens the published matrix, so they move only with a re-run behind them.
 WIDTH = 1600
 HEIGHT = 900
 SOURCE_WIDTH = 2560
