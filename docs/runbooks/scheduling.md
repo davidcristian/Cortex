@@ -137,7 +137,9 @@ cd brain && uv run pytest -m integration --no-cov \
 - `test_schedule_live_seam.py` proves the loop end to end: it seeds a due reminder into
   the store, waits for the brain's ticker to fire it, reads it back over
   `ListDueReminders`, acks it over `AckReminder` (second ack: a no-op), and cleans up.
-- `just seam-health` confirms the rewired turn path still converses.
+- `just seam-health` confirms the rewired turn path still converses. It needs the brain served
+  with a seam token and the same value in its own environment, and refuses to start without one
+  ([local-dev-wsl.md](local-dev-wsl.md) says why).
 
 ## Host-only half on Windows
 

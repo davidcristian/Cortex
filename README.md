@@ -270,7 +270,7 @@ GPU. The full working agreement is [AGENTS.md](AGENTS.md).
 | `just brain-serve` | The brain natively, no Docker |
 | `just proto` | Regenerate the committed seam stubs from `proto/body.proto` |
 | `just image-volumes` | Ask docker what the pinned images declare, against the recorded answer |
-| `just seam-health` | Live seam check, dialed from the body side |
+| `just seam-health` | Live seam check, dialed from the body side (needs a brain served with a seam token) |
 | `just turn-cost` | The A/B/A live measurement of what a change costs a real turn |
 
 ## Repository layout

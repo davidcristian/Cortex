@@ -231,15 +231,18 @@ cd body && CORTEX_REGEN_PROTO=1 cargo build -p body-rpc
 regenerating with an unchanged proto must leave `git diff` empty.
 
 **Live checks** (AGENTS.md gate 3, the Rust `integration` suite, ADR-0003 decision 3).
-Two `#[ignore]`d tests run against a real brain:
+Eight `#[ignore]`d tests, six of them against a real brain, run by `just seam-health`:
 
 ```sh
 cargo test -p body-rpc --test live -- --ignored
 ```
 
-Both read `CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:50051`, which matches the brain
-server's `CORTEX_SEAM_HOST`/`CORTEX_SEAM_PORT` defaults `127.0.0.1`/`50051`) and, when the
-live brain is token-protected (ADR-0016), `CORTEX_SEAM_TOKEN`:
+They read `CORTEX_BRAIN_ADDR` (default `http://127.0.0.1:50051`, which matches the brain
+server's `CORTEX_SEAM_HOST`/`CORTEX_SEAM_PORT` defaults `127.0.0.1`/`50051`) and
+`CORTEX_SEAM_TOKEN`, which is **a precondition of the suite rather than an option**: one check
+proves a wrong token is refused, and a brain serving without one accepts every token there is,
+so it fails naming what it needs. `just seam-health` refuses to start without the variable for
+that reason (ADR-0016 addendum on the checked precondition).
 
 - `brain_reports_ready_over_the_live_seam` calls `Health` via `BrainSeamClient` and
   asserts `ready`.
@@ -251,16 +254,35 @@ live brain is token-protected (ADR-0016), `CORTEX_SEAM_TOKEN`:
   interleaved `ToolActivity`/`StatusUpdate`, failing on `SeamError`), and asserts at
   least one delta arrived, the concatenated text is non-empty, and `TurnComplete`
   carries a non-empty `turn_id`.
-- `the_link_probe_classifies_the_live_brain_and_a_dead_address` (ADR-0011 addendum) runs what
-  the overlay's connection indicator runs, `body_core::probe_link`, over a **lazy** client: the
-  live brain must classify `Ready` with a non-empty detail, and `http://127.0.0.1:1` must
-  classify `Down` with the dial failure rather than raising. Lazy on both, since an eager
-  connect would fail before the probe could classify anything.
+- `the_link_probe_classifies_the_live_brain_and_a_peer_that_cannot_serve` (ADR-0011 addendum)
+  runs what the overlay's connection indicator runs, `body_core::probe_link`, over a **lazy**
+  client: the live brain must classify `Ready` with a non-empty detail, and a peer that accepts
+  the dial and drops it must classify `Down` with the dial failure rather than raising. Lazy on
+  both, since an eager connect would fail before the probe could classify anything. The peer is
+  the suite's own listener rather than a closed port, because this client carries no deadline
+  and a closed port is not refused everywhere (ADR-0024 host-shape addendum).
 - `session_reads_round_trip_over_the_live_seam` (Slice 8.7, ADR-0021) seeds one turn over
   the raw `Converse` to persist a session, then reads it back over the typed
   `BrainTransport`: `list_sessions(50)` must return the chat with its derived title (the
   first user message) and a real last-activity timestamp, and `session_messages` the user
   turn + assistant reply in order. Needs only brain + Redis (no GPU).
+- `the_ack_write_is_answered_once_against_the_live_brain` (ADR-0025) pins the retry gate's
+  refusal on the wire: `ack_reminder` of an unknown id answers `false` and costs one round
+  trip rather than a backoff.
+- `a_rejected_seam_token_is_answered_at_once_and_never_retried` (ADR-0016) dials the live brain
+  with a deliberately wrong token: the answer must be `Degraded` (the brain answered), the
+  detail must open `Unauthenticated`, and it must arrive with no wait spent, since a terminal
+  status is not retried. This is the check that needs the brain to be serving with a token.
+- `the_probe_budget_bounds_a_down_verdict_against_a_dead_address` (ADR-0024) probes
+  `http://127.0.0.1:1` through `RetryingTransport` on a real `Sleeper` and asserts the verdict
+  is `Down` inside the budget. The bound is all it asserts: what a dial to a closed port costs
+  is the host's fact, not the seam's (refused in microseconds on a Linux stack, dropped where
+  loopback belongs to a Windows host, which spends the attempt's whole deadline instead).
+- `the_probe_trims_its_attempts_where_a_read_spends_them_all` (ADR-0024 host-shape addendum) is
+  the patience proof, and the one check here that needs no brain: against a loopback peer of its
+  own that accepts each dial and drops it, **counting dials on the wire**, the probe must spend
+  exactly 2 attempts with one real 400 ms wait between them while the same schedule leaves the
+  read all 5. A clock cannot count attempts, which is why this one does not try to.
 
 Being ignored, they never run in CI and never count toward coverage.
 

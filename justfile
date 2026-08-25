@@ -196,9 +196,22 @@ up-gpu:
 down-gpu:
     docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.gpu.yml down
 
-# Live seam check from the body side. Needs a running brain (`just up` or `just brain-serve`);
-# this is the Rust integration suite (#[ignore]-marked, never in CI/coverage per ADR-0003).
 seam-health:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ -z "${CORTEX_SEAM_TOKEN:-}" ]; then
+        echo "CORTEX_SEAM_TOKEN is unset, so this suite cannot check that a wrong token is" >&2
+        echo "refused: a brain serving without one accepts every token, and that check would" >&2
+        echo "fail as if the seam had regressed. Serve with a token and present the same value:" >&2
+        echo "    CORTEX_SEAM_TOKEN=<value> just up          # or just brain-serve" >&2
+        echo "    CORTEX_SEAM_TOKEN=<value> just seam-health" >&2
+        echo "A token written in .env reaches compose, which reads that file, and not this" >&2
+        echo "recipe, which does not. To check a token-free brain anyway, run the rest of the" >&2
+        echo "suite by hand and say so in what you report:" >&2
+        echo "    cd body && cargo test -p body-rpc --test live -- --ignored --nocapture \\" >&2
+        echo "        --skip a_rejected_seam_token" >&2
+        exit 1
+    fi
     cd body && cargo test -p body-rpc --test live -- --ignored --nocapture
 
 up-imap-probe:

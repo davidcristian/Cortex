@@ -3,6 +3,8 @@
 //! in CI or count toward coverage.
 
 use std::future::Future;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use body_core::{
@@ -11,6 +13,7 @@ use body_core::{
 use body_rpc::BrainSeamClient;
 use body_rpc::generated::brain_service_client::BrainServiceClient;
 use body_rpc::generated::{ClientEvent, UserTurn, client_event, server_event};
+use tokio::net::TcpListener;
 
 /// The live brain's address: `CORTEX_BRAIN_ADDR`, defaulting to the brain
 /// server's own defaults (ADR-0003 decision 6).
@@ -37,6 +40,28 @@ fn unique_session_id() -> String {
     format!("live-converse-{pid}-{nanos}")
 }
 
+/// A local peer that accepts every dial and drops it without a word: a real TCP connection with no
+/// gRPC behind it, so every attempt fails `Connection` in about a millisecond on any host.
+async fn dial_dropping_peer() -> (String, Arc<AtomicUsize>) {
+    let listener = match TcpListener::bind("127.0.0.1:0").await {
+        Ok(listener) => listener,
+        Err(error) => panic!("cannot bind a loopback listener: {error}"),
+    };
+    let addr = match listener.local_addr() {
+        Ok(addr) => addr,
+        Err(error) => panic!("the loopback listener has no address: {error}"),
+    };
+    let dials = Arc::new(AtomicUsize::new(0));
+    let counted = Arc::clone(&dials);
+    tokio::spawn(async move {
+        while let Ok((stream, _)) = listener.accept().await {
+            counted.fetch_add(1, Ordering::SeqCst);
+            drop(stream);
+        }
+    });
+    (format!("http://{addr}"), dials)
+}
+
 #[tokio::test]
 #[ignore = "live seam check: needs a real brain at CORTEX_BRAIN_ADDR (run with -- --ignored)"]
 async fn brain_reports_ready_over_the_live_seam() {
@@ -59,7 +84,7 @@ async fn brain_reports_ready_over_the_live_seam() {
 
 #[tokio::test]
 #[ignore = "live seam check: needs a real brain at CORTEX_BRAIN_ADDR (run with -- --ignored)"]
-async fn the_link_probe_classifies_the_live_brain_and_a_dead_address() {
+async fn the_link_probe_classifies_the_live_brain_and_a_peer_that_cannot_serve() {
     let addr = brain_addr();
     let token = seam_token();
     let client = match BrainSeamClient::connect_lazy_with_token(&addr, token.as_deref()) {
@@ -79,17 +104,20 @@ async fn the_link_probe_classifies_the_live_brain_and_a_dead_address() {
         "a ready brain should name itself in the probe detail"
     );
 
-    // A loopback port with nothing behind it: the dial is refused, so the probe is Down and
-    // says why. Lazy again, since an eager connect would fail before the probe could classify.
-    let dead = match BrainSeamClient::connect_lazy_with_token("http://127.0.0.1:1", None) {
+    let (unserved, dials) = dial_dropping_peer().await;
+    let dead = match BrainSeamClient::connect_lazy_with_token(&unserved, None) {
         Ok(client) => client,
-        Err(error) => panic!("cannot build a lazy client for the dead address: {error}"),
+        Err(error) => panic!("cannot build a lazy client for {unserved}: {error}"),
     };
     let dead_status = probe_link(&dead).await;
+    assert!(
+        dials.load(Ordering::SeqCst) >= 1,
+        "the probe never dialed the unserving peer at {unserved}"
+    );
     assert_eq!(
         dead_status.state,
         LinkState::Down,
-        "an unreachable address probed {state}: {detail}",
+        "a peer that cannot serve probed {state}: {detail}",
         state = dead_status.state.as_str(),
         detail = dead_status.detail
     );
@@ -130,7 +158,7 @@ fn patient_reads() -> RetryPolicy {
 }
 
 #[tokio::test]
-#[ignore = "live seam check: needs a real brain at CORTEX_BRAIN_ADDR (run with -- --ignored)"]
+#[ignore = "live seam check: dials a dead loopback address on real time (needs no brain)"]
 async fn the_probe_budget_bounds_a_down_verdict_against_a_dead_address() {
     let dead = match BrainSeamClient::connect_lazy_with_token("http://127.0.0.1:1", None) {
         Ok(client) => client,
@@ -157,15 +185,62 @@ async fn the_probe_budget_bounds_a_down_verdict_against_a_dead_address() {
         detail = status.detail
     );
     assert!(
+        probe_took < Duration::from_secs(2),
+        "probe took {probe_took:?}, past anything its 1 s budget can spend"
+    );
+}
+
+#[tokio::test]
+#[ignore = "live seam check: runs entirely against a loopback peer of its own (needs no brain)"]
+async fn the_probe_trims_its_attempts_where_a_read_spends_them_all() {
+    let (unserved, dials) = dial_dropping_peer().await;
+    let client = match BrainSeamClient::connect_lazy_with_token(&unserved, None) {
+        Ok(client) => client,
+        Err(error) => panic!("cannot build a lazy client for {unserved}: {error}"),
+    };
+    let transport = RetryingTransport::new(
+        client,
+        RealSleeper,
+        RetryPlan {
+            reads: patient_reads(),
+            probe_budget: Duration::from_secs(1),
+            ..RetryPlan::default()
+        },
+    );
+
+    let started = Instant::now();
+    let status = probe_link(&transport).await;
+    let probe_took = started.elapsed();
+    let probe_dials = dials.swap(0, Ordering::SeqCst);
+    assert_eq!(
+        status.state,
+        LinkState::Down,
+        "a peer that cannot serve probed {state}: {detail}",
+        state = status.state.as_str(),
+        detail = status.detail
+    );
+    // Two attempts and no more: the first fails `Connection`, which is transient, so the budget
+    // buys the retry it can afford (250 + 400 + 250 fits 1 s) and refuses the third (1.95 s).
+    assert_eq!(
+        probe_dials, 2,
+        "the probe made {probe_dials} attempts on a 5-attempt schedule trimmed to a 1 s budget"
+    );
+    assert!(
         probe_took >= Duration::from_millis(400) && probe_took < Duration::from_secs(2),
-        "probe took {probe_took:?}, outside the one wait its 1 s budget allows"
+        "probe took {probe_took:?}, which is not the one 400 ms wait its budget allows"
     );
 
     let started = Instant::now();
     let read = transport.list_sessions(1).await;
     let read_took = started.elapsed();
-    assert!(read.is_err(), "a dead address should fail the read");
-    // Same transport, same failure, untrimmed schedule: 400 + 800 + 1600 + 3200 ms of waiting.
+    let read_dials = dials.swap(0, Ordering::SeqCst);
+    assert!(read.is_err(), "an unserved peer should fail the read");
+    // Same transport, same failure, untrimmed schedule: all 5 attempts, 400 + 800 + 1600 + 3200
+    // ms of waiting between them.
+    assert_eq!(
+        read_dials, 5,
+        "the read made {read_dials} attempts of the 5 its schedule allows"
+    );
     assert!(
         read_took > probe_took * 2,
         "the read ({read_took:?}) should stay far more patient than the probe ({probe_took:?})"
