@@ -1088,6 +1088,31 @@ digits only`. The `since` arm over `2026-08-21` reports the 39 above. The recipe
 than read, which is how its first version was caught exiting 141: `git log | head` under
 `pipefail` dies of the pipe it wrote into, so the window is `--max-count` and the cut is `sed`.
 
+**The procedure was then run, the same day, under its own rules.** A decision about replaying that
+nobody replays under is the shape this entry is about, so `just replay` drew seed 19269061 over the
+twenty five most recent bodies and the rows were replayed in drawn order until the session ended:
+ten rows over sixteen runs, out of the sixteen that the three opened tables state, each planted in
+a worktree cut at the drawn commit and reverted with a byte for byte comparison. **Every replayed
+row reproduced.** The dash-ban collection table gave 6, 2, 2, 2 and 2 against its claimed 6, 2, 2,
+2 and 2 over the 852 cases it names; the registry-shape table gave 1, 2 and 1 over its 119; and the
+subagent queue table gave 2 and 1 over the 2,878 it names, the second of them failing on exactly
+the boundary arm that table reports adding because its own sweep came back zero. All three suites
+baselined at the sizes their tables claim, which is why the worktree is cut at the commit rather
+than at master, and all three restored byte for byte.
+
+**One row did not reproduce on the first attempt, and it is the most useful thing measured here.**
+The row reading "a git that cannot answer treated as nothing ignored" claims two cases; the plant
+mutated the one refusal that sentence appears to name and the suite reported one. The module has
+two refusal sites, an `OSError` and a non-zero return, and mutating both gives the claimed two.
+**The record was exact and the plant was half of it.** So the rule's first clause, distrust the
+replay, earned its place on the first pass it was applied to, and it gains a second measured
+failure mode beside the stale bytecode: a count lower than claimed is a partial plant until proven
+otherwise, with the expected column, "both refusals fail", being what says so. Had the row been
+believed, the pass would have filed a correction against a table that was right. Two smaller things
+went into the runbook with it: a drawn body often carries no table at all, the table living in the
+addendum that same commit lands, and the two bodies of the five that went unopened are what a
+session-bounded pass looks like, which the ledger row says rather than rounds off.
+
 **What this leaves open.** Nothing counts the record between passes: the recipe answers the cadence
 question only when somebody runs it, and no gate holds the ledger's last row against how far the
 record has moved since, so a pass that is due can go unnoticed exactly as the first one did

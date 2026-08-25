@@ -41,19 +41,28 @@ five smallest, so the sample is a function of the seed alone and reproduces off 
 
 ## Replaying one row
 
-For each drawn commit, read its body and its diff (`git show <sha>`), then per row:
+For each drawn commit, read its body and its diff (`git show <sha>`). **The table is often not in
+the message.** A body is drawn for carrying the vocabulary, and on this repo's larger changes the
+table itself lives in the ADR addendum that same commit lands, so the diff is where to look for it;
+one of the five bodies drawn on 2026-08-25 said only "reddens" in passing and carried a five row
+table in the addendum it added. Then, per row:
 
 1. **Find the line the mutation perturbs.** A mutation is always a perturbation of a line the
    change itself touched, so the file and the edit come off the commit's own diff even when the
    sentence names neither. The suite is the one fact the diff does not carry, which is why
    AGENTS.md requires a table to name it.
-2. **Check that line still exists in the tree.** If the code the row is about has since moved or
-   gone, stop here and record the row as expired. That is not a defect and it is not a failure to
-   reproduce.
-3. **Plant the mutation in a scratch worktree**, run the suite the table names, then revert with
-   `git checkout` and compare the file byte for byte against its pre-mutation copy before planting
-   the next one.
-4. **Compare the count** with what the row claims.
+2. **Cut a scratch worktree at the drawn commit**, `git worktree add --detach <path> <sha>`, and
+   not at master. The collection a table names is a historical fact, and a worktree at the commit
+   reproduces it: the three tables replayed on 2026-08-25 baselined at exactly the 852, 119 and
+   2,878 cases they claim.
+3. **Ask whether the line still exists at master.** If it does not, the row is expired. Replaying
+   it at its own commit still validates the record, and it says nothing about the suite that runs
+   today, so spend the budget on the rows that say both.
+4. **Plant the mutation**, confirm it is really on disk, run the suite the table names, then revert
+   with `git checkout` or a copy taken before the first plant and compare byte for byte before
+   planting the next one. Clear `__pycache__` between plants, for the reason the next section
+   gives.
+5. **Compare the count** with what the row claims.
 
 ## When a row does not reproduce
 
@@ -64,7 +73,12 @@ source mtime has one-second granularity and the reverted file is the same size, 
 goes on running the mutation off bytecode. Three runs of one sweep reported a count from a
 mutation that was no longer on disk. **Re-run a non-reproducing row from a clean state, clearing
 `__pycache__` and confirming the plant is really on disk, before it counts as non-reproducing at
-all.** Only then does it fall into one of three kinds, which want three different answers.
+all.** The other harness failure, measured on the pass of 2026-08-25, is an incomplete
+reconstruction: a row reading "a git that cannot answer treated as nothing ignored" claimed two
+cases, the plant mutated the one refusal the sentence seems to name, and the suite reported one.
+The record was right and the plant was half of it, the module having two refusal sites. **A count
+that comes back lower than claimed is a partial plant until proven otherwise**, and the expected
+column, "both refusals fail", is what says so. Only then does it fall into one of three kinds, which want three different answers.
 
 **A wrong count.** The line is there, the edit applies, the suite runs, and the number differs.
 Correct the record where the claim lives, which is the ADR addendum carrying the table, with a
@@ -109,3 +123,4 @@ Two places, and both are required for the next pass to work.
 | Date | Seed | Window | Rows | Result |
 | --- | --- | --- | --- | --- |
 | 2026-08-21 | none, chosen by hand | one week of the record, five tables | 32 rows over 49 runs | every row reproduced; cost four minutes per table where the file, the edit and the suite were named and fifteen where none of the three was |
+| 2026-08-25 | 19269061 | the 25 most recent bodies, five drawn | 10 rows over 16 runs, out of the 16 those tables state | every replayed row reproduced, one of them only after the plant was corrected; three of the five drawn bodies were opened and the pass was bounded by the session rather than by the record |

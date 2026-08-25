@@ -51,3 +51,9 @@ close's own AGENTS.md clause now names, and the third is not a defect at all.
   a stale `__pycache__` produced phantom failures in three runs of one sweep here. Opened by this
   close: [R-439](439-nothing-counts-the-record-between-passes.md) and
   [R-440](440-the-replay-sample-is-spelled-in-three-places.md).
+- 2026-08-25, later the same day: **the procedure was run under its own rules**, seed 19269061 over
+  the twenty five most recent bodies, ten rows over sixteen runs, every replayed row reproducing.
+  One row took two attempts and the second attempt was the plant's fault rather than the record's,
+  which is the rule's first clause paying for itself immediately; the runbook and the ADR addendum
+  carry what it taught, and the ledger carries the pass.
+
