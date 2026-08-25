@@ -16,7 +16,7 @@ belongs to neither the brain nor the body and is gated exactly like both. A stan
 recipes, `ci_paths.py`
 by the CI
 workflow, `commitlint.py` by the commit-msg pre-commit stage, `contrast.py` by `just turn-cost`;
-each also exposes a pure, unit-tested core function). Twenty-seven modules here have no CLI of their
+each also exposes a pure, unit-tested core function). Twenty-nine modules here have no CLI of their
 own, most split out under the line cap and each named for what it holds: `couplings.py` is the
 vocabulary `crosscheck.py`'s registry is written in, `registry.py` names the parts that registry is
 written in, and `seamcouplings.py`, `endpointcouplings.py`, `shippedcouplings.py`,
@@ -27,8 +27,11 @@ is the value forms that scan compares on and the spellings a mention writes one 
 is how a set of those values must then stand, `needles.py` is how a rendered needle is looked for
 and what a file that lacks one is told, `composemounts.py` is `bindcheck.py`'s mount
 reader, `composedefaults.py` is `defaultcheck.py`'s substitution reader, `composeservices.py` is
-`volumecheck.py`'s reader of what each service runs and covers, `imagevolumes.py` is the recorded
-answer that gate reads, `protocomments.py` is what a proto comment is and how it normalizes into
+`volumecheck.py`'s reader of what each service runs, covers and is built from, with
+`composetargets.py` split out of it again for the container path one mount entry names,
+`imagevolumes.py` is the recorded
+answer that gate reads and the drift report over it, `dockerfilevolumes.py` is what a Dockerfile
+in this tree declares against the row for the image built from it, `protocomments.py` is what a proto comment is and how it normalizes into
 the Rust stub's spelling, `composefiles.py` is
 which files the three compose gates walk, answered once so they cannot drift apart about it,
 `gitenv.py` is the environment every git call in this tree runs with, held in one place because
@@ -435,16 +438,24 @@ that last question to have an answer.
   layered stack**, because `just up` runs the base file alone, so a base service whose declared
   path were covered only by an override really would leak and a reader that merged first could not
   say so, which is also why a service naming neither an image nor a build is read as a fragment
-  and asked nothing. Six things fail it: a declared path no service covers, an image the record
+  and asked nothing. **A second rule covers the three rows this repo builds**, where the record can
+  move under the gate from inside the tree rather than from a registry: every path a Dockerfile
+  here declares must appear in the row for the image built from it (`dockerfilevolumes.py`). It is
+  one-directional, a recorded path the Dockerfile does not declare being inherited from a base
+  image the record deliberately holds no row for. Nine things fail it: a declared path no service
+  covers, an image the record
   has no row for, a row no compose file names, an image spelled through a substitution the record
   cannot be keyed on, a service that only builds where no base file pins the project half of its
-  image name, and a compose file the reader will not guess at. Under all six sits
+  image name, a compose file the reader will not guess at, a Dockerfile declaring a path its row
+  denies, a build stanza reaching no Dockerfile under either project directory, and a build path
+  spelled through a substitution. Under all nine sits
   `composefiles.py`'s floor, shared with the other two compose gates, where finding no compose
   file at all is a failure rather than an empty pass. **A build-only service's image is derived**
   as `{project}-{service}`, the project read from the file's own `name:` and otherwise from the
   single bare-stemmed base file, which is why `cortex-brain` and `cortex-mcp-email` are rows and
   why `cortex` is not spelled a second time. Exit
-  0 with a summary stating the coverings checked over the files, services and images read; exit 1
+  0 with a summary stating the coverings checked over the files, services and images read and the
+  Dockerfiles the builds were followed to; exit 1
   printing `path:line: detail` per fault; exit 2 if `--root` is not a directory or the scan could
   not run.
 - `imagevolumes.py` is `volumecheck.py`'s record and has no CLI of its own. `IMAGE_VOLUMES` maps
@@ -456,18 +467,45 @@ that last question to have an answer.
   part needing a real daemon and is the module's one `pragma: no cover`, and it is where the pull
   lives; `rederive` decides everything, including which references are refreshed and which are
   local builds, and takes any inspector, so the comparison is tested against a fake.
+  `report_drift` prints that comparison and returns the exit code behind `--rederive`, and it lives
+  here rather than beside the rule because every name it touches is this module's.
+- `dockerfilevolumes.py` is the tree's own side of that record and has no CLI. `read_volumes(text)`
+  returns every container path one Dockerfile declares, in both spellings docker accepts, the JSON
+  array and the plain list, joined across continuation lines and matched however the instruction is
+  cased. `ONBUILD VOLUME` is deliberately not one: it declares a volume in an image built *from*
+  this one. Everything else raises `DockerfileError` rather than being walked past, since a skipped
+  `VOLUME` is a declared path the record would go on denying: an argument carrying a build argument
+  or an environment variable, a path that is not absolute, a JSON container that is not an array of
+  paths, a `VOLUME` naming nothing, and an `escape=` parser directive, which would change what a
+  continuation means. `undeclared(...)` is the rule over it and reports what no row carries, taking
+  the Dockerfile from the compose service's `build:` rather than from a record of its own, since a
+  second spelling of that mapping is the same defect one level down. `landings(...)` resolves a
+  relative context against **both** project directories compose can pick, exactly as `bindcheck.py`
+  resolves a bind source, and an absolute one lands once rather than twice.
+- `composetargets.py` is the container path one mount entry names and has no CLI. It is the half of
+  `composeservices.py` that answers what `composemounts.py` deliberately does not: that reader takes
+  a mount's source and drops every entry naming none, this one takes its **target**, where a named
+  volume, a tmpfs and a bind cover a declared path equally well. Four spellings reach it and all
+  four mean one path: the short `source:target[:mode]`, the long block with a `target:` key, a whole
+  path under `tmpfs:`, and any of those written through a YAML anchor. **It resolves anchors**,
+  because this tree writes one: the probe file names its mail root as
+  `x-mail-root: &mail-root "/srv/mail"` and spends it inside `tmpfs:`, and a reader taking the alias
+  for a path would report a leak on the one file that already got this right.
+  `ComposeServiceError` is defined here, one refusal for both halves of the reader, since a caller
+  catching it should not have to know which half raised.
 - `composeservices.py` is `volumecheck.py`'s reader and has no CLI. It answers what each service
-  runs and which container paths it already covers, which `composemounts.py` cannot: that reader
-  takes a mount's **source**, the host path a bind would materialize, and drops every entry naming
-  none, while this one takes a mount's **target** and must keep named volumes and tmpfs entries
-  too, since all three cover a declared path equally well. It also reads `image:`, `build:` and
-  `tmpfs:`, which the other has no reason to look at. Like its two siblings it is a line reader
-  rather than a YAML parse, these gates being stdlib-only, and it refuses every shape it was not
-  taught rather than walking past it. **It resolves anchors**, because this tree writes one: the
-  probe file names its mail root as `x-mail-root: &mail-root "/srv/mail"` and spends it inside
-  `tmpfs:`, and a reader taking the alias for a path would report a leak on the one file that
-  already got this right. A service naming neither an image nor a build is read as a fragment, an
-  override re-opening a base service, and the rule asks it nothing.
+  runs, where it is built from, and which container paths it already covers; that last question is
+  `composetargets.py`'s, split out of it under the line cap. It reads `image:`, `build:`,
+  `volumes:` and `tmpfs:`, and groups everything by the service it belongs to. **`build:` is read
+  in both spellings**, the short `build: ./brain` and the block carrying `context:` and
+  `dockerfile:`, and `Service.build` carries the answer, because the row a built image is recorded
+  under is only checkable against the file that builds it, and that mapping lives here and nowhere
+  else. It used to be a bare flag set on meeting the key, so the block form's two keys arrived as
+  service keys the walk did not recognize and were stepped over in silence. Like its two siblings
+  it is a line reader rather than a YAML parse, these gates being stdlib-only, and it refuses every
+  shape it was not taught rather than walking past it, a build key it has no answer for and a build
+  block naming no context included. A service naming neither an image nor a build is read as a
+  fragment, an override re-opening a base service, and the rule asks it nothing.
 - `stubcheck.py [--root DIR]` ties the committed Rust seam stub back to the proto it was
   generated from (ADR-0003 stub-fidelity addendum). Both trees commit their generated stubs and
   regenerate them by hand with `just proto`, so a proto edit followed by no regeneration leaves

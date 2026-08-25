@@ -8,7 +8,8 @@ from typing import NamedTuple
 
 from composefiles import COMPOSE_STEMS, ComposeSearchError, compose_files
 from composeservices import ComposeFile, ComposeServiceError, Service, read_services
-from imagevolumes import IMAGE_VOLUMES, RECORD_PATH, Inspector, docker_volumes, rederive
+from dockerfilevolumes import undeclared
+from imagevolumes import IMAGE_VOLUMES, RECORD_PATH, Inspector, docker_volumes, report_drift
 
 _UNCOVERED = (
     "service {service!r} runs {reference!r}, which declares VOLUME {path!r}, and mounts nothing "
@@ -50,6 +51,7 @@ class Scan(NamedTuple):
     declared: int
     names: tuple[str, ...]
     built: tuple[str, ...]
+    dockerfiles: tuple[str, ...]
     faults: list[Fault]
 
 
@@ -97,14 +99,17 @@ def uncovered(name: str, service: Service, reference: str, declared: Iterable[st
     ]
 
 
-def check_file(read: Read, base: str | None, records: Mapping[str, tuple[str, ...]]) -> Scan:
+def check_file(
+    root: Path, read: Read, base: str | None, records: Mapping[str, tuple[str, ...]]
+) -> Scan:
     """Return what one compose file offered the gate, and every declaration left open in it."""
     if read.found is None:
-        return Scan(files=1, definitions=0, declared=0, names=(), built=(), faults=read.faults)
+        return Scan(1, 0, 0, (), (), (), read.faults)
     project = read.found.project or base
-    definitions = declared = 0
+    definitions = paths = 0
     names: list[str] = []
     built: list[str] = []
+    dockerfiles: list[str] = []
     faults: list[Fault] = []
     for service in read.found.services:
         if not service.defines:
@@ -124,7 +129,7 @@ def check_file(read: Read, base: str | None, records: Mapping[str, tuple[str, ..
             )
             continue
         names.append(reference)
-        if service.builds:
+        if service.build is not None:
             built.append(reference)
         row = records.get(reference)
         if row is None:
@@ -136,15 +141,19 @@ def check_file(read: Read, base: str | None, records: Mapping[str, tuple[str, ..
                 )
             )
             continue
-        declared += len(row)
+        paths += len(row)
         faults.extend(uncovered(read.name, service, reference, row))
-    return Scan(1, definitions, declared, tuple(names), tuple(built), faults)
+        if service.build is not None:
+            here = undeclared(root, read.path, service.build, reference, row)
+            dockerfiles.extend(here.dockerfiles)
+            faults.extend(Fault(read.name, service.line, detail) for detail in here.faults)
+    return Scan(1, definitions, paths, tuple(names), tuple(built), tuple(dockerfiles), faults)
 
 
 def check(root: Path, records: Mapping[str, tuple[str, ...]] = IMAGE_VOLUMES) -> Scan:
     """Check every compose file under ``root``, then every recorded row against what they named."""
     reads = [read_file(root, compose) for compose in compose_files(root)]
-    scans = [check_file(read, base_project(reads), records) for read in reads]
+    scans = [check_file(root, read, base_project(reads), records) for read in reads]
     named = {name for scan in scans for name in scan.names}
     faults = [fault for scan in scans for fault in scan.faults]
     faults.extend(
@@ -158,33 +167,9 @@ def check(root: Path, records: Mapping[str, tuple[str, ...]] = IMAGE_VOLUMES) ->
         declared=sum(scan.declared for scan in scans),
         names=tuple(sorted(named)),
         built=tuple(sorted({name for scan in scans for name in scan.built})),
+        dockerfiles=tuple(sorted({name for scan in scans for name in scan.dockerfiles})),
         faults=faults,
     )
-
-
-def report_drift(
-    names: tuple[str, ...],
-    built: tuple[str, ...],
-    records: Mapping[str, tuple[str, ...]],
-    inspect: Inspector,
-) -> int:
-    """Ask a real docker about the record, print every row that has drifted, and exit on it."""
-    report = rederive(names, records, inspect, built)
-    for line in report:
-        print(line)
-    if report:
-        print(
-            f"\nvolumecheck: {len(report)} recorded row(s) disagree with docker. Edit the table in "
-            f"{RECORD_PATH} to what docker says, and cover any newly declared path in the compose "
-            "file whose service runs that image.",
-            file=sys.stderr,
-        )
-        return 1
-    print(
-        f"volumecheck: the record agrees with docker on all {len({*names, *records})} image(s), "
-        f"{len(built)} of them built here and the rest pulled before they were asked"
-    )
-    return 0
 
 
 def main(argv: list[str] | None = None, inspect: Inspector = docker_volumes) -> int:
@@ -229,7 +214,8 @@ def main(argv: list[str] | None = None, inspect: Inspector = docker_volumes) -> 
     print(
         f"volumecheck OK: {scanned.declared} declared volume path(s) under {given} are covered, "
         f"over {scanned.files} compose file(s), {scanned.definitions} service definition(s) and "
-        f"{len(scanned.names)} image(s)"
+        f"{len(scanned.names)} image(s), and {len(scanned.dockerfiles)} Dockerfile(s) here declare "
+        "nothing their row does not carry"
     )
     return 0
 

@@ -504,7 +504,8 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
   - [repo-gates.md](modules/repo-gates.md) covers `scripts/`: linecap, dashcheck, crosscheck
     (with its `couplings` vocabulary and the two registry halves written in it), bindcheck
     (with its `composemounts` reader), volumecheck (with the `imagevolumes` record of what each
-    pinned image declares), stubcheck (with its `protocomments` reader), the
+    pinned image declares and the `dockerfilevolumes` reading of what a Dockerfile here declares),
+    stubcheck (with its `protocomments` reader), the
     coverage gate, the CI path classifier, and the commit-message CLI.
 
 ## Runbooks
