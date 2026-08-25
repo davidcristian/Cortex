@@ -1,6 +1,6 @@
 # A runbook prints a log line in an order the formatter never renders
 
-**Status:** open, actionable
+**Status:** landed 2026-08-25
 **Area:** repo-gates
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
 
@@ -57,3 +57,14 @@ and that `logcouplings.py` already knows which files quote these lines.
   [R-417](417-the-swap-path-never-names-the-conversation.md), whose edit to that same sample is
   what turned up the wrong order. Recorded under what the ADR-0009 named-conversation addendum
   defers.
+- 2026-08-25: landed as the ADR-0009 bare-id addendum. Re-derivation found the headline defect
+  already closed: the swap runbook prints the failed-settle line in name order at HEAD, corrected
+  by the same close that filed this entry. What was live was the prefix fiction and the gate
+  question. Both greps in both runbooks lost `t-`, each runbook now states that an id is a bare
+  `uuid4` or `crypto.randomUUID` where a reader meets the grep, and the two registry needles that
+  had been holding the fiction in place moved onto the corrected sentences. The gate question was
+  answered against all three shapes the entry offered, in favour of a fourth that costs one line:
+  the conversation's needle for that sample is now anchored on the message plus the field that
+  sorts in front of it, which pins the whole three-field order through the scan that already runs.
+  Membership stays unpinned and is filed as
+  [R-438](438-a-documented-log-sample-can-still-print-the-wrong-fields.md).

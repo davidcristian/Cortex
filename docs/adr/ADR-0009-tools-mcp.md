@@ -2812,3 +2812,125 @@ module writing a work identity under a name nobody has registered is still invis
 ([R-416](../refinements/tasks/416-a-new-log-line-can-name-its-work-anything.md)), and both of the
 first two registry entries now name the same four swap modules, so an unregistered twelfth line
 would be missed by both.
+
+## Bare-id addendum (2026-08-25): the ids the runbooks tell an operator to grep carry no prefix
+
+The named-conversation addendum above found a third instance of one class while it was fixing the
+second, and left it: both runbooks told an operator to run `grep turn_id=t-...`, and no id this
+brain has ever minted carries a prefix. That was filed as
+[R-435](../refinements/tasks/435-a-runbook-prints-a-log-line-the-formatter-never-renders.md),
+together with the open question the class raises, which is that nothing compares a documented log
+sample against what the shipped formatter would render. This addendum answers both.
+
+### Re-derived first, and one half of the entry was already closed
+
+The entry's headline defect is not in the tree. `docs/runbooks/model-swap.md` prints the
+failed-settle line in name order at HEAD (`reason`, `session_id`, `turn_id`), and says in the
+sentence under it that name order is what the formatter emits. That correction landed with the
+named-conversation addendum, hours before the entry was filed, and the entry says so in its own
+second paragraph. What was left is the prefix fiction and the gate question.
+
+The fiction re-derives exactly as filed. `new_turn_id` in `cortex_core/conversation.py` returns
+`str(uuid4())`; `_uuid4_task_id` in `spawn.py` and `_uuid4_id` in `schedule_tools.py` do the same
+for a delegated task and a scheduled item; the overlay mints a chat with `crypto.randomUUID()` in
+`useOverlay.ts`. The `t-` and `s-` are `brain/packages/core/tests/swap_harness.py`, which sets
+`SESSION = "s-handoff"` and `TURN = "t-handoff"` so its assertions read, and those two tokens
+walked out of the suite into prose. The one id that really can wear a prefix is the fifth,
+`call_id`, and only when the ticker mints it: `ticker.py` writes `id=f"schedule-{item.id}"`, which
+the tools runbook already reads correctly as what was asked for rather than as what the brain
+knows.
+
+### Decision 1: the sentences are corrected, and each runbook says what an id looks like
+
+Both greps lose the prefix and gain the id the reader actually holds: `grep turn_id=` on that id
+in the swap runbook, `grep turn_id=` on one id in the tools runbook. The correction alone would
+leave the next writer free to invent the shape again, so each runbook now states the fact at the
+place a reader meets it. The tools runbook states it for the whole vocabulary, beside the
+enumeration of the four work ids, and names the harness fixtures as fixtures so a reader who meets
+`t-handoff` in a test knows what they are looking at. The swap runbook states it in one clause on
+the line that tells you to grep, because that is the only id it hands you.
+
+The fiction is worth naming precisely, because it is cheaper than it looks and more expensive than
+it reads. `grep turn_id=t-` returns nothing on a real stream, which is a fast failure. The cost is
+that an operator who runs it and gets nothing concludes the line is not there, which is the wrong
+conclusion at the one moment the runbook is open.
+
+### Decision 2: the registry moves onto the corrected sentences rather than off them
+
+Two needles in `scripts/logcouplings.py` spelled the prefix, `"grep {value}=t-"` for the tools
+runbook and "`` `grep {value}=t- ``" for the swap one, so the scan was holding the fiction in
+place: correcting the prose alone would have reddened the gate, and reddening a gate is how a
+correction gets reverted. They now carry the corrected sentence around the field rather than the
+field plus the invented shape. A needle that quotes prose is the house style here already, the
+task and call entries both doing it, and it buys exactly what is wanted: the prefix cannot come
+back without the scan noticing.
+
+### Decision 3: no re-rendering gate, and the sample's order is pinned by an anchor instead
+
+The entry offered three shapes and asked for one to be argued. None of the three is built.
+
+A scripts-side gate that parses fenced log samples and re-renders them through `PlainFormatter`
+is the precise one, and it wants the brain importable from `scripts/`, which imports nothing today
+and is the reason every scan there reads Python as text. That seam would be opened for one live
+runbook sample. It also cannot render what the runbook actually prints: the sample's values are
+placeholders, and `<what happened>` and `<chat id>` carry spaces, so the real formatter quotes
+both and the doc quotes one, correctly, because `reason` is a sentence and an id is a token. A
+re-rendering gate would have to be taught which placeholders stand for what before it could agree
+with a sample that is already right.
+
+A brain-side test asserting the runbook's text is the cheap one, and it puts a doc assertion in a
+code suite where a reader of that suite will not expect one, for the same single sample.
+
+Generated samples remove the question and cost a build step, which is a larger bill than the
+exposure: two live samples exist, this one and the audit transcript this ADR records.
+
+What is built instead is a third thing the entry did not list, and it is free. The conversation
+entry's needle for that sample was `"{value}=<chat id>"`, the field alone. It is now
+`'failed reason="<what happened>" {value}=<chat id>'`, anchored on the end of the message and on
+the field that sorts in front of this one. Because the line has three fields and `reason` sorts
+first, that anchor plus the turn entry's existing `"{value}=<turn id>"` pins the whole order: no
+permutation of the three satisfies both, and a fourth field sorting anywhere before `session_id`
+breaks the anchor too. The exact defect this entry is named for, a documented order the formatter
+never renders, is now caught by the scan that already runs, with no new gate, no new import and no
+build step. What it does not catch is filed below.
+
+### Distrust green, over the constant scan
+
+Seven mutations, each planted alone and `cd scripts && uv run python crosscheck.py --root ..` run
+over the whole tree with `scripts/__pycache__` cleared between plants, then restored and compared
+by digest. All seven restorations matched. The count is the untied readings the scan reports.
+
+| Mutation | Reddens |
+| --- | --- |
+| the swap runbook's grep reverts to the `t-` prefix | 1 |
+| the tools runbook's grep reverts to the `t-` prefix | 1 |
+| the sample prints the fields in the order the call site writes them | 1 |
+| the sample moves the conversation to the end of the line | 1 |
+| the sample gains a field the call site never attaches | 1 |
+| the conversation field is renamed at its declaration | 15 |
+| the turn field is renamed at its declaration | 11 |
+
+The three middle rows are the new property and the reason this addendum claims the order is held:
+none of them was catchable before it, all three being rearrangements of a sample whose field names
+were all still present and correct. Rows six and seven are the sweep's sanity check, a rename at
+the declaration failing every reading of that constant across both trees, and a first row of 1
+beside a sixth of 15 is what says the new anchor is narrow rather than absent.
+
+### Consequences
+
+- Both greps in both runbooks now work when typed. The one that did not was in the runbook a
+  reader opens while a user is waiting.
+- The order of the one verbatim log sample this repo prints is held by the gate that already runs,
+  rather than by whoever last edited the line.
+- A needle can pin a rendering's shape and not only its vocabulary. The anchor is a neighbouring
+  field plus the fixed text in front of it, which costs one line of registry and no new machinery,
+  and it is the pattern to reuse the next time a doc prints a line the code renders.
+
+### Deferred by this addendum
+
+The anchor pins one sample's order and not its membership. A field the call site stopped attaching
+would leave the sample printing something the code never emits, and a field it started attaching
+that sorts after `session_id` would be missing from the sample, and neither is visible to the scan
+([R-438](../refinements/tasks/438-a-documented-log-sample-can-still-print-the-wrong-fields.md)).
+The audit transcript this ADR records and the redaction sample in ADR-0038 are pinned by nothing
+at all, being evidence of a live run rather than instructions.

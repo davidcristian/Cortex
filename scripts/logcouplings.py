@@ -111,7 +111,12 @@ LOG_COUPLINGS: tuple[Constant, ...] = (
             Mention(BRAIN_PHASE, FIELD_KEY, occurrences=2),
             Mention(MEMORY_RUNBOOK, 'grep "{value}=<id>"'),
             Mention(MEMORY_RUNBOOK, "`{value}=None`"),
-            Mention(SWAP_RUNBOOK, "{value}=<chat id>"),
+            # The verbatim failed-settle sample, anchored on the end of the message and on the
+            # field that sorts in front of this one. That anchor is what pins the ORDER of the
+            # three fields, which nothing did while the sample printed an order the formatter
+            # never renders: the message is fixed, `reason` sorts first, this one sorts second,
+            # and the turn entry's needle below holds the third (ADR-0009 bare-id addendum).
+            Mention(SWAP_RUNBOOK, 'failed reason="<what happened>" {value}=<chat id>'),
             Mention(SWAP_RUNBOOK, "`grep {value}=`"),
         ),
     ),
@@ -144,13 +149,18 @@ LOG_COUPLINGS: tuple[Constant, ...] = (
             Mention(SWAP_SETTLE, FIELD_KEY, occurrences=3),
             Mention(SWAP_RECOVERY, FIELD_KEY),
             Mention(BRAIN_PHASE, FIELD_KEY),
-            Mention(TOOLS_RUNBOOK, "grep {value}=t-"),
+            # Both greps carry the sentence around the field rather than the field alone, which
+            # is what stops the `t-` prefix coming back: each told an operator to search for a
+            # shape no id has ever worn, and this needle held the fiction in place until the
+            # bare-id addendum corrected both sentences.
+            Mention(TOOLS_RUNBOOK, "`grep {value}=` on one id gathers"),
             # The failed-settle line the swap runbook prints verbatim. The needle is the field
             # rather than the message plus the field, because the fields are printed in NAME
             # order by the formatter and the message no longer touches this one: the conversation
-            # sorts between them (`reason`, `session_id`, `turn_id`).
+            # sorts between them (`reason`, `session_id`, `turn_id`). The conversation entry's
+            # needle above carries that message, so the order is pinned there for both of us.
             Mention(SWAP_RUNBOOK, "{value}=<turn id>"),
-            Mention(SWAP_RUNBOOK, "`grep {value}=t-"),
+            Mention(SWAP_RUNBOOK, "`grep {value}=` on that id"),
         ),
     ),
     Constant(
