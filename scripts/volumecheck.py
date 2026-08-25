@@ -49,6 +49,7 @@ class Scan(NamedTuple):
     definitions: int
     declared: int
     names: tuple[str, ...]
+    built: tuple[str, ...]
     faults: list[Fault]
 
 
@@ -99,10 +100,11 @@ def uncovered(name: str, service: Service, reference: str, declared: Iterable[st
 def check_file(read: Read, base: str | None, records: Mapping[str, tuple[str, ...]]) -> Scan:
     """Return what one compose file offered the gate, and every declaration left open in it."""
     if read.found is None:
-        return Scan(files=1, definitions=0, declared=0, names=(), faults=read.faults)
+        return Scan(files=1, definitions=0, declared=0, names=(), built=(), faults=read.faults)
     project = read.found.project or base
     definitions = declared = 0
     names: list[str] = []
+    built: list[str] = []
     faults: list[Fault] = []
     for service in read.found.services:
         if not service.defines:
@@ -122,6 +124,8 @@ def check_file(read: Read, base: str | None, records: Mapping[str, tuple[str, ..
             )
             continue
         names.append(reference)
+        if service.builds:
+            built.append(reference)
         row = records.get(reference)
         if row is None:
             faults.append(
@@ -134,7 +138,7 @@ def check_file(read: Read, base: str | None, records: Mapping[str, tuple[str, ..
             continue
         declared += len(row)
         faults.extend(uncovered(read.name, service, reference, row))
-    return Scan(1, definitions, declared, tuple(names), faults)
+    return Scan(1, definitions, declared, tuple(names), tuple(built), faults)
 
 
 def check(root: Path, records: Mapping[str, tuple[str, ...]] = IMAGE_VOLUMES) -> Scan:
@@ -153,15 +157,19 @@ def check(root: Path, records: Mapping[str, tuple[str, ...]] = IMAGE_VOLUMES) ->
         definitions=sum(scan.definitions for scan in scans),
         declared=sum(scan.declared for scan in scans),
         names=tuple(sorted(named)),
+        built=tuple(sorted({name for scan in scans for name in scan.built})),
         faults=faults,
     )
 
 
 def report_drift(
-    names: tuple[str, ...], records: Mapping[str, tuple[str, ...]], inspect: Inspector
+    names: tuple[str, ...],
+    built: tuple[str, ...],
+    records: Mapping[str, tuple[str, ...]],
+    inspect: Inspector,
 ) -> int:
     """Ask a real docker about the record, print every row that has drifted, and exit on it."""
-    report = rederive(names, records, inspect)
+    report = rederive(names, records, inspect, built)
     for line in report:
         print(line)
     if report:
@@ -172,7 +180,10 @@ def report_drift(
             file=sys.stderr,
         )
         return 1
-    print(f"volumecheck: the record agrees with docker on all {len({*names, *records})} image(s)")
+    print(
+        f"volumecheck: the record agrees with docker on all {len({*names, *records})} image(s), "
+        f"{len(built)} of them built here and the rest pulled before they were asked"
+    )
     return 0
 
 
@@ -204,7 +215,7 @@ def main(argv: list[str] | None = None, inspect: Inspector = docker_volumes) -> 
         print(f"volumecheck: {err}", file=sys.stderr)
         return 2
     if rederiving:
-        return report_drift(scanned.names, IMAGE_VOLUMES, inspect)
+        return report_drift(scanned.names, scanned.built, IMAGE_VOLUMES, inspect)
     for fault in scanned.faults:
         print(f"{fault.path}:{fault.line}: {fault.detail}")
     if scanned.faults:

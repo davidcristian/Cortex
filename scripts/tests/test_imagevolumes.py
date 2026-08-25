@@ -16,7 +16,7 @@ FAKE: dict[str, tuple[str, ...]] = {
 def _inspector(answers: Mapping[str, tuple[str, ...]]) -> imagevolumes.Inspector:
     """An inspector answering from a dict and refusing anything else, the way docker does."""
 
-    def inspect(reference: str) -> tuple[str, ...]:
+    def inspect(reference: str, *, pull: bool) -> tuple[str, ...]:  # noqa: ARG001
         try:
             return answers[reference]
         except KeyError as err:
@@ -101,10 +101,52 @@ def test_every_disagreement_is_reported_in_one_pass() -> None:
     assert report[1] == "redis:8-alpine: recorded /data, docker says nothing"
 
 
+# The rows compose builds rather than pulls, which are the ones no registry can refresh.
+BUILT = ("cortex-brain", "cortex-mcp-email", "cortex-model-host")
+
+
 # ── the real daemon ────────────────────────────────────────────────────────────
 
 
 @pytest.mark.integration
 def test_the_record_matches_a_real_docker() -> None:
     """What `just image-volumes` runs: every recorded row, asked of the daemon that measured it."""
-    assert rederive(IMAGE_VOLUMES, IMAGE_VOLUMES, docker_volumes) == []
+    assert rederive(IMAGE_VOLUMES, IMAGE_VOLUMES, docker_volumes, built=BUILT) == []
+
+
+# ── asking the registry rather than the cache ──────────────────────────────────
+
+
+def _recording(asked: dict[str, bool]) -> imagevolumes.Inspector:
+    """An inspector that records whether each reference was refreshed before it was asked."""
+
+    def inspect(reference: str, *, pull: bool) -> tuple[str, ...]:
+        asked[reference] = pull
+        return ()
+
+    return inspect
+
+
+def test_a_registry_image_is_refreshed_before_it_is_asked_about() -> None:
+    """`docker image inspect` reads the local cache, so a re-derivation that skipped the pull
+
+    would confirm a month-old copy of a moving tag under a name the registry has republished,
+    which is the one drift this record exists to catch.
+    """
+    asked: dict[str, bool] = {}
+    assert rederive(["redis:8-alpine"], {"redis:8-alpine": ()}, _recording(asked)) == []
+    assert asked == {"redis:8-alpine": True}
+
+
+def test_an_image_this_repo_builds_is_asked_about_without_a_pull() -> None:
+    """There is no registry to refresh it from: the local build is the thing a container runs."""
+    asked: dict[str, bool] = {}
+    rederive(["cortex-brain"], {"cortex-brain": ()}, _recording(asked), built=["cortex-brain"])
+    assert asked == {"cortex-brain": False}
+
+
+def test_a_row_naming_no_image_is_still_refreshed() -> None:
+    """A stale row is asked about like any other, and nothing says the tag it names is local."""
+    asked: dict[str, bool] = {}
+    rederive([], {"gone:1": ()}, _recording(asked), built=["cortex-brain"])
+    assert asked == {"gone:1": True}

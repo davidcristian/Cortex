@@ -1,7 +1,8 @@
 """What each image a compose file names declares as a VOLUME, recorded here so a gate can ask."""
 
 import subprocess
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Iterable, Mapping
+from typing import Protocol
 
 # The answer docker gave, image reference to the volume paths it declares, sorted. An empty tuple
 # is a measured answer and not a missing one. Regenerate with `just image-volumes`.
@@ -26,9 +27,15 @@ RECORD_PATH = "scripts/imagevolumes.py"
 # One path per line, which is the only shape `docker_volumes` has to parse back.
 INSPECT_FORMAT = "{{range $path, $_ := .Config.Volumes}}{{$path}}\n{{end}}"
 
-# How a rederivation asks about one image. The fake in the tests satisfies the same signature,
-# which is what keeps the comparison below testable without a daemon.
-Inspector = Callable[[str], tuple[str, ...]]
+
+class Inspector(Protocol):
+    """How a rederivation asks about one image, and whether to refresh it from its registry first.
+
+    The fake in the tests satisfies the same signature, which is what keeps the comparison below
+    testable without a daemon.
+    """
+
+    def __call__(self, reference: str, *, pull: bool) -> tuple[str, ...]: ...
 
 
 class InspectError(Exception):
@@ -41,13 +48,21 @@ def render(paths: Iterable[str]) -> str:
     return written or "nothing"
 
 
-def docker_volumes(reference: str) -> tuple[str, ...]:  # pragma: no cover -- needs a real docker
-    """Ask the local docker what one image declares, which only a machine holding it can do.
-
-    The thin adapter, and the only part of this module a coverage gate cannot reach. Everything
-    that decides anything is in `rederive`, which takes any inspector and is tested against a fake.
-    """
+def docker_volumes(  # pragma: no cover -- needs a real docker
+    reference: str, *, pull: bool
+) -> tuple[str, ...]:
+    """Ask docker what one image declares, refreshing it from its registry first when it has one."""
     try:
+        if pull:
+            fetched = subprocess.run(  # noqa: S603 -- fixed argv, no shell
+                ["docker", "pull", "--quiet", reference],  # noqa: S607
+                capture_output=True,
+                check=False,
+                text=True,
+            )
+            if fetched.returncode != 0:
+                msg = f"docker pull failed: {fetched.stderr.strip()}"
+                raise InspectError(msg)
         result = subprocess.run(  # noqa: S603 -- fixed argv, no shell
             ["docker", "image", "inspect", "--format", INSPECT_FORMAT, reference],  # noqa: S607
             capture_output=True,
@@ -67,13 +82,15 @@ def rederive(
     references: Iterable[str],
     records: Mapping[str, tuple[str, ...]],
     inspect: Inspector,
+    built: Iterable[str] = (),
 ) -> list[str]:
     """Ask ``inspect`` about every image, and report each row that no longer says what it says."""
     report: list[str] = []
+    local = set(built)
     for reference in sorted({*references, *records}):
         recorded = records.get(reference)
         try:
-            found = inspect(reference)
+            found = inspect(reference, pull=reference not in local)
         except InspectError as err:
             report.append(f"{reference}: {err}")
             continue

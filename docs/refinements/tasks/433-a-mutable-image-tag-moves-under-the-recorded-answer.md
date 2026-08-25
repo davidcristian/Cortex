@@ -1,6 +1,6 @@
 # A mutable image tag can move under the recorded answer and nothing notices
 
-**Status:** open, actionable
+**Status:** landed 2026-08-25
 **Area:** repo-gates
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md)
 
@@ -38,3 +38,27 @@ rare, the symptom is clutter rather than data loss, and the re-derivation recipe
 for anyone who suspects it. If the answer is the scheduled run, note that `shuffle.yml` is the
 precedent for a weekly workflow here that gates nothing, and that this one would need to report
 somewhere a human reads rather than only reddening a job nobody watches.
+
+## Trail
+
+- **2026-08-25, closed.** All three framed answers declined, and a defect found while measuring
+  them landed instead, argued in the ADR-0011 addendum on asking the registry. **The entry
+  understated the exposure.** It read as "the record is only as fresh as the last re-derivation",
+  and the re-derivation could not see a moved tag at all: `docker image inspect` answers out of the
+  local cache and never reaches a registry, so `just image-volumes` on a box holding a month-old
+  copy of a moving tag confirmed the record against the month-old image. The recipe now pulls every
+  reference it did not build before asking what it declares, reports a pull it cannot do rather
+  than answering from the cache, and asks the three images this repo builds without one, the walk
+  handing over the set it already read from each service's `build:`. The digest column is declined
+  as the same problem one level down plus churn on events the record does not care about, the
+  scheduled run as a weekly multi-gigabyte pull into a job nobody watches, and digest pinning as
+  unreadable compose files bought against a rare defect whose symptom is clutter. **Eight mutants
+  over the gate's own 46 tests, seven killed by the suite and the eighth live**, tabled in that
+  addendum, along with the accidental live proof: the first live run could not pull at all on this
+  host and reported five failed pulls instead of five cache answers, and with the pull removed the
+  same shell goes green. What stays open, named on the recipe: between two runs, a republished tag
+  can still add a declared path and nothing here will know. One residue filed, the same record
+  moving under the gate from inside the tree instead: three of its rows are images built from
+  Dockerfiles here, and a `VOLUME` added to one of those would leave the row saying the image
+  declares nothing
+  ([R-437](437-a-volume-added-to-a-dockerfile-here-moves-the-same-record.md)).
