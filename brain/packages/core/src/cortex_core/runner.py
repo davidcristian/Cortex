@@ -156,8 +156,11 @@ class SubagentRunner:
           which is armed fresh per attempt: a re-run handed what a failed attempt left of one
           would be refused before it began, and the failure a re-place exists for is exactly the
           one where nothing was produced to spend a deadline on. A task can therefore hold its
-          admission for two deadlines rather than one, and only along the path a dead backend
-          opens, since neither of the failures a deadline itself produces is re-placed.
+          admission for ``ATTEMPTS_PER_ADMISSION`` deadlines rather than one, and only along the
+          path a dead backend opens, since neither of the failures a deadline itself produces is
+          re-placed. That product is the number a queued peer's patience is ordered against at
+          boot, so the two attempts below are what `SubagentsConfig` compares the admission wait
+          with rather than the single deadline they each get.
         """
         placement = res.placer.place(res.request)
         try:

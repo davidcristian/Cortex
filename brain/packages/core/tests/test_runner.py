@@ -28,6 +28,7 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 
 from cortex_core import (
+    ATTEMPTS_PER_ADMISSION,
     BUDGET_EXHAUSTED_MSG,
     DispatchBudget,
     GenerationBounds,
@@ -755,7 +756,14 @@ async def test_a_gpu_placed_backend_that_did_not_answer_is_re_run_once_on_the_cp
 
 
 async def test_the_cpu_re_run_happens_exactly_once_and_both_failures_are_recorded() -> None:
-    """One re-run, never a loop: the same backend on both targets is asked exactly twice."""
+    """One re-run, never a loop: the same backend on both targets is asked exactly twice.
+
+    The count is also what ties `ATTEMPTS_PER_ADMISSION` to this path rather than to a sentence.
+    That constant is what `SubagentsConfig` multiplies the run deadline by before comparing it with
+    the admission wait, so a third attempt appearing here would silently make that comparison
+    under-protect the queue by a whole deadline. Asserted against the constant and against the
+    literal both, so neither a changed runner nor a changed constant can agree with itself alone.
+    """
     store = InMemoryTaskStore()
     await store.put_task(SubagentTask(id="g", instruction="hi", context="", at=_AT))
     backend = CountingFailure("nothing is serving")
@@ -763,7 +771,7 @@ async def test_the_cpu_re_run_happens_exactly_once_and_both_failures_are_recorde
         store, _roster(_resources(backend, backend, _gpu_placer())), FixedClock()
     )
     result = await runner.run("g")
-    assert backend.calls == 2
+    assert backend.calls == ATTEMPTS_PER_ADMISSION == 2
     assert result.ok is False
     assert result.output == "partial "  # the re-run's own parts-so-far, per the runner's discipline
     assert result.detail == (

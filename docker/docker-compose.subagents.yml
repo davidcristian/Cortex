@@ -38,15 +38,15 @@
 #   CORTEX_SUBAGENTS_ADMISSION_WAIT_S  how long a spawn may QUEUE for room under the budgets
 #                              below before it is refused instead of waiting for room forever
 #                              (ADR-0012 bounded-admission-wait addendum). Also left to the
-#                              brain's own default, an upper bound over both placements: twice
-#                              the wait a full batch's last spawn takes while an entry's
-#                              admitted pair serializes on one target, four times the wait it
-#                              takes while that pair overlaps, which is what these budgets ship
-#                              beside the VRAM ask below. Raising CPU_BUDGET or lowering CPUS
-#                              shortens the real waits and never needs this raised; queuing two
-#                              full batches at once needs it raised only where the GPU path is
-#                              shut, the overlapping placement draining that queue inside the
-#                              default and the serial one not
+#                              brain's own default, an upper bound over both placements: above
+#                              twice the wait a full batch's last spawn was measured taking
+#                              while an entry's admitted pair serializes on one target, and
+#                              above the longest one task can hold the room being queued for,
+#                              which is two whole run deadlines wherever a placed attempt can be
+#                              re-run. Raising CPU_BUDGET or lowering CPUS
+#                              shortens the real waits and never needs this raised; two full
+#                              batches queued at once fit inside the default on either
+#                              placement
 #   CORTEX_SUBAGENTS_MAX_TOKENS  how far any ONE completion of a delegated run may decode, and
 #   CORTEX_SUBAGENTS_RUN_TIMEOUT_S  the deadline on the WHOLE run, its tool dispatches included
 #                              (ADR-0005 total-cap addendum). The bound a stall ceiling cannot

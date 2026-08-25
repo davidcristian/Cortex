@@ -19,6 +19,7 @@ from cortex_core.spawn import SUBAGENT_PROGRESS_STATE, SpawnSubagentsTool
 from cortex_core.spawn_spec import MAX_SPAWN_BATCH, SPAWN_TOOL_NAME
 from cortex_core.stops import StopLedger
 from cortex_core.subagents import (
+    ATTEMPTS_PER_ADMISSION,
     DEFAULT_SUBAGENT_MAX_TOKENS,
     DEFAULT_SUBAGENT_RUN_TIMEOUT_S,
     UNBOUNDED_ATTEMPT,
@@ -29,6 +30,7 @@ from cortex_core.subagents import (
 
 __all__ = [
     "ADMISSION_WAIT_MSG",
+    "ATTEMPTS_PER_ADMISSION",
     "DEFAULT_ADMISSION_WAIT_S",
     "DEFAULT_SUBAGENT_MAX_TOKENS",
     "DEFAULT_SUBAGENT_RUN_TIMEOUT_S",

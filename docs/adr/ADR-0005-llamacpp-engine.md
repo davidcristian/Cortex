@@ -1051,3 +1051,149 @@ simpler-looking arm and it swallows the failure the seam exists to report, which
 control arms for it are the tests that were already there. Dropping the ledger read is the arm
 that looks harmless and hands a user two explanations, one of them about a limit that was never
 reached.
+
+## Batch addendum (2026-08-25): the whole-subtask figure, re-measured from a batch
+
+Two bounds on a delegated run rest on one number: "a whole CPU subtask measures 200 to 300 s". The
+stall ceiling's derivation reads it as an upper bound on any one call's first token, and the
+admission wait's multiplies it out into the queue a full batch produces. The total-cap addendum
+above then measured five single subtasks on the shipped entry and found the figure out by a factor
+of two for a summarization, 623.8 s, and filed the correction rather than making it, because the
+queue's arithmetic is about a **batch's** serialization and five runs taken one at a time say
+nothing about that. This is that batch, and it moves the figure from a point to an interval.
+
+### Re-derived first, and the chain under the figure is shorter than it looks
+
+The 200 to 300 s figure was never measured. The stall-ceiling section derives it: the runbook said
+a three subtask batch runs 10 to 15 minutes, and dividing by three serialized subtasks gives 200 to
+300 s. So a bound rests on an arithmetic step over a rule of thumb, and the 2026-08-11 table is the
+first time anything of that shape was timed at all.
+
+### What was measured
+
+One CPU `llama-server` at the compose file's own shape (`-ngl 0`, `--ctx-size 8192`,
+`--parallel 2`, thinking off, `--cpus 4.0`, `--memory 8g`), the shipped gemma-4-E4B QAT q4_0 entry,
+driven through the real `SpawnSubagentsTool` -> `SubagentRunner` -> `ResourceBudgetScheduler` ->
+`VramBudgetPlacer` -> `LlamaCppBackend` chain at the shipped numbers (`CPU_BUDGET=4.0`,
+`MEM_BUDGET_GB=8.0`, an ask of 2.0/3.0/3.5, the 1024-token cap and the 2400 s deadline). One full
+`MAX_SPAWN_BATCH` of eight, every subtask the summarization shape the table above found longest,
+each over its own report body so no two prompts share a slot's prompt cache. Two regimes, the same
+server both times:
+
+- **serialized**, a zero-headroom placer, which is what a closed GPU tier or an ask that never fits
+  leaves: every spawn lands on the CPU backend, one model lease, one stream at a time;
+- **overlapping**, the shipped placer (14.0 GB soft cap less the 8.6 GiB cortex reservation leaves
+  5.4 GiB, which holds exactly one 3.5 GiB ask): one of the admitted pair is GPU-placed and the
+  other overflows, two backend objects in front of the one server's two slots.
+
+Seconds are from the batch's first admission. `held` is what the run deadline bounds and what a
+queued peer waits out, and it is larger than the subtask itself because an admitted spawn queues on
+the entry's model lease **inside** its admission.
+
+| spawn | placed | admitted | released | held | | spawn | placed | admitted | released | held |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | cpu | 0.0 | 282.6 | 282.6 | | 1 | gpu | 0.0 | 288.1 | 288.1 |
+| 2 | cpu | 0.0 | 553.5 | 553.5 | | 2 | cpu | 0.0 | 317.3 | 317.3 |
+| 3 | cpu | 282.6 | 877.8 | 595.2 | | 3 | gpu | 288.1 | 588.8 | 300.7 |
+| 4 | cpu | 553.5 | 1117.5 | 564.0 | | 4 | cpu | 317.3 | 572.5 | 255.2 |
+| 5 | cpu | 877.8 | 1386.4 | 508.6 | | 5 | cpu | 572.5 | 893.2 | 320.7 |
+| 6 | cpu | 1117.5 | 1624.6 | 507.1 | | 6 | gpu | 588.8 | 858.6 | 269.8 |
+| 7 | cpu | 1386.4 | 1847.4 | 461.0 | | 7 | gpu | 858.6 | 1184.5 | 325.9 |
+| 8 | cpu | 1624.6 | 2096.4 | 471.8 | | 8 | cpu | 893.2 | 1170.2 | 277.0 |
+
+The left half is the serialized regime and the right half the overlapping one. Whole batch:
+**2096.4 s** serialized, **1184.5 s** overlapping. Last spawn admitted: **1624.6 s** serialized,
+**893.2 s** overlapping. Every one of the sixteen subtasks answered; none was cut at the cap or at
+the deadline.
+
+### What the batch says, in four findings
+
+**A whole subtask is 222.8 to 324.3 s here, which is the figure the two bounds were written
+against.** Those are the server's own `total time` readings for the eight serialized runs, plus a
+solo one before the batch at 248.6 s. So the runbook's 200 to 300 s is very nearly right on this
+box today and the 623.8 s reading above is 2.2 times it, on the same box, on the same image, two
+weeks apart. Neither is wrong; the figure is an **interval**, and the record now carries it as one.
+The decode rates are the same story: gemma-4-E4B read 1.26 to 1.35 tok/s through this batch, and
+0.32 tok/s is what 199 tokens in 623.8 s comes to. What puts a reading at one end or the other is
+what else the machine is doing, which the control below measures. A
+bound derived as a multiple of a number with that spread must be sized on the slow end, which both
+of these were, so **neither bound moves on this measurement**.
+
+**A run holds its admission for longer than it runs, and that is what the deadline bounds.** An
+admitted spawn queues on its entry's model lease *inside* its admission, so the serialized regime's
+longest hold is 595.2 s against a 324.3 s subtask. The run deadline is 2400 s, which is four times
+that longest hold almost exactly, so the total-cap addendum's "four times the longest whole
+subtask" and a batch-taken "four times the longest hold" land on the same number by two different
+routes. That is the strongest thing this run says about the deadline: it is confirmed rather than
+retuned.
+
+**The admission wait's own arithmetic is confirmed and slightly conservative.** Its derivation
+predicted "about 1800 s" serialized and "about 900 s" overlapping for the last spawn of a full
+batch; measured, 1624.6 s and 893.2 s. Twice the serial figure is about 3250 s, which the 3600 s
+the bound shipped at already cleared.
+
+**Overlapping is worth almost exactly two, which the derivation only assumed.** The two backend
+objects in front of one `llama-server` running `--parallel 2` finished the same eight subtasks in
+1184.5 s against 2096.4 s, and per-subtask holds *fell* rather than rose (255.2 to 325.9 s against
+282.6 to 595.2 s), because what the serialized regime spends waiting on the model lease the
+overlapping one spends running. The GPU-placed half of each pair executed on the same CPU server
+here, both endpoints resolving to it as the shipped compose leaves them, so this is the overlap the
+brain buys and not the GPU's own speed.
+
+### What this does not do
+
+**It does not re-measure the shapes.** Every subtask in the batch is the summarization shape, the
+longest of the narrow four, chosen because a bound is sized on the slow end. The lookup and
+extraction shapes are unchanged from the table above.
+
+**It does not explain the interval on its own.** The control below does, and it is the more
+important half of this run.
+
+**It leaves the batch measured through an unconstrained run**, and the one constrained run taken
+beside it says that matters. The driver ran with `constrain_output` off, which is the tools-enabled
+shape; the tool-less shipped shape decodes the same reply into the fixed envelope (ADR-0028). The
+grammar costs nothing per token, that run decoding at 1.41 tok/s against the batch's 1.26 to 1.35.
+What it changed was the length: the same subtask ran to **1024 decoded tokens**, hit the shipped
+token cap, and came back as `FAILED: the subtask stopped at a token limit`, in **740.4 s** against
+the 222.8 to 324.3 s the unconstrained shape takes. One sample is not a rate, but it is an
+existence proof that the cap can fire on a narrow subtask on the shape this repo ships by default,
+which is not what the cap's own derivation expects of it. Filed as
+[R-431](../refinements/tasks/431-the-token-cap-fires-on-the-shape-that-ships.md).
+
+### The control: what the interval is an interval of
+
+The batch above ran on an otherwise idle box. The control is the same subtask shape, the same
+container, the same server, run once while the host is saturated: one busy shell worker per core
+against 24 cores, with the container still capped at `--cpus 4.0`, load average near thirty.
+
+| reading | quiet | saturated |
+| --- | --- | --- |
+| prompt eval | 276 tokens in 13.4 s (**20.6 tok/s**) | 275 tokens in 40.8 s (**6.7 tok/s**) |
+| decode | **1.26 to 1.35 tok/s** | **0.18 tok/s** overall, **0.07 tok/s** sustained mid-run |
+| whole subtask | **222.8 to 324.3 s** | **1736.6 s** |
+
+The cleanest line in the run is the recovery. The load was killed while that subtask was still
+decoding, and the server's own three-second rate on the same slot, the same task, went from 0.06 to
+**1.39 tok/s** within seconds. Nothing else about the container changed, so what the arm measures
+is host contention and not the model, the prompt or the image.
+
+**So the cgroup quota does not protect this tier.** `--cpus 4.0` is a quota and not a reservation,
+and llama.cpp starts a thread per host core rather than per quota core, so a saturated host does not
+cost the container a fair share of four, it costs it most of what it had. A factor of seven on
+decode and three on prompt eval is what that comes to here.
+
+**And that is what the interval is.** The 623.8 s reading this addendum was opened to reconcile sits
+between the two arms rather than outside either. Nothing needs a second explanation.
+
+**What it costs the bounds**, said plainly, because it is the finding with a consequence. A whole
+subtask on a saturated box measured **1736.6 s against a 2400 s run deadline**, so a legitimate
+narrow subtask on a busy machine comes within 28% of the bound that exists to cut a runaway. The
+bounds are all sized on the idle end and the machine can be five to eight times slower than that.
+Nothing moves here, because the right answer is a measurement of a real busy deployment rather than
+of a synthetic one, and because a bound raised on this arm alone would be sized on a shell loop.
+Filed as [R-430](../refinements/tasks/430-the-bounds-are-sized-on-an-idle-box.md).
+
+**What the arm is not.** The load is a shell loop that spawns a process per iteration, so it loads
+the kernel as well as the cores, and the numbers above are a direction and an order of magnitude
+rather than a calibration. What it establishes is that the tier is not insulated from its host,
+which is enough to explain the interval and enough to size an entry against.

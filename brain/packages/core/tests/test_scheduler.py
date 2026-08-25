@@ -7,7 +7,9 @@ from contextlib import asynccontextmanager
 import pytest
 
 from cortex_core import (
+    ATTEMPTS_PER_ADMISSION,
     DEFAULT_ADMISSION_WAIT_S,
+    DEFAULT_SUBAGENT_RUN_TIMEOUT_S,
     MAX_SPAWN_BATCH,
     PlacementRequest,
     ResourceBudgetScheduler,
@@ -182,19 +184,29 @@ def test_rejects_a_negative_wait_bound() -> None:
         ResourceBudgetScheduler(4.0, 8.0, wait_timeout_s=-1.0)
 
 
-def test_the_default_bound_clears_the_worst_wait_one_batch_can_legitimately_produce() -> None:
-    """Pinned against its derivation and against the literal (ADR-0012 addendum).
+def test_the_default_bound_clears_both_the_measured_batch_wait_and_the_longest_hold() -> None:
+    """Pinned against both halves of its derivation and against the literal (ADR-0012 addenda).
 
-    A full `MAX_SPAWN_BATCH` against the shipped budget admits two at a time, and how soon those
-    two free their slots is a placement question: one roster entry holds a backend, and so a model
-    lease, per target, so the admitted pair overlaps whenever one spawn is GPU-placed and the other
-    overflows (the shipped ask fits the shipped headroom) and serializes only when both land on the
-    same target. A whole CPU subtask measured 200 to 300 s, so the last of a batch is admitted
-    three subtasks in while the pair overlaps and six subtasks in while it serializes. A bound
-    under either would refuse work that was going to run, which is worse than the unbounded wait it
-    replaces, so the default is twice the serial figure and therefore an upper bound over both.
+    The bound answers two questions and the larger one wins. The first is how long a batch that is
+    working can legitimately keep its last spawn queued: measured on a live full batch of this
+    size, that is 1624.6 s while an entry's admitted pair serializes on one placement target and
+    893.2 s while it overlaps, and a bound under twice the serial figure would refuse work that was
+    going to run. The second is how long one task can hold the room that queue is waiting for,
+    which is `ATTEMPTS_PER_ADMISSION` whole run deadlines, since a GPU-placed inference failure is
+    re-run once on the CPU inside the same admission under a deadline armed fresh. At the shipped
+    deadline the hold is the larger, so the bound is stated in deadlines: three of them, the two a
+    task can spend plus one of margin.
+
+    The measured figures are pinned as the constants they are rather than recomputed, because a
+    measurement is not arithmetic; what is asserted is that the shipped bound still clears both.
+    The batch size is asserted too, since a different cap is a different measurement.
     """
-    serial_wait_s = (MAX_SPAWN_BATCH - 2) * 300.0
-    overlapped_wait_s = (MAX_SPAWN_BATCH // 2 - 1) * 300.0
-    assert (serial_wait_s, overlapped_wait_s) == (1800.0, 900.0)
-    assert DEFAULT_ADMISSION_WAIT_S == 2 * serial_wait_s == 4 * overlapped_wait_s == 3600.0
+    serial_batch_wait_s = 1624.6
+    overlapped_batch_wait_s = 893.2
+    assert MAX_SPAWN_BATCH == 8  # the shape both figures were measured at
+    assert overlapped_batch_wait_s < serial_batch_wait_s  # the placement that binds is the serial
+    hold_s = ATTEMPTS_PER_ADMISSION * DEFAULT_SUBAGENT_RUN_TIMEOUT_S
+    assert hold_s == 4800.0
+    assert 2 * serial_batch_wait_s < DEFAULT_ADMISSION_WAIT_S
+    assert hold_s < DEFAULT_ADMISSION_WAIT_S
+    assert DEFAULT_ADMISSION_WAIT_S == 3 * DEFAULT_SUBAGENT_RUN_TIMEOUT_S == 7200.0

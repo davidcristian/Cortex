@@ -1275,3 +1275,35 @@ gets re-derived from scratch or read as a hidden device. The likely answer, mark
 is, is that WSL projects one node per host adapter plus one that is not an adapter, `1414:008a`
 differing in device id from the pair rather than duplicating it. Nothing here measured that. Filed
 as [R-348](../refinements/tasks/348-three-devices-against-two-adapters.md).
+
+## Addendum (2026-08-25): the admission wait, re-derived from a batch and from the hold
+
+The bounded-admission-wait addendum above derived `DEFAULT_ADMISSION_WAIT_S = 3600.0` from a
+measurement it could not take at the time: "a whole CPU subtask measures 200 to 300 s", which was
+itself arithmetic over a runbook rule of thumb, multiplied out into the queue a full
+`MAX_SPAWN_BATCH` produces. Both halves have now been measured on a live full batch, and the
+number moves for a reason that measurement alone would never have surfaced.
+
+**The batch confirms the arithmetic.** Driven through the real chain at the shipped budgets, the
+last spawn of a full batch of eight is admitted **1624.6 s** in while the entry's admitted pair
+serializes on one placement target and **893.2 s** in while that pair overlaps, against the "about
+1800 s" and "about 900 s" this addendum predicted. Twice the serial figure is about 3250 s, so the
+hour it shipped at cleared its own derivation with a little room. The full record, both tables and
+the four findings, is the [ADR-0005 batch addendum](ADR-0005-llamacpp-engine.md).
+
+**What the batch cannot see is the other thing this bound has to clear.** A queued peer is not only
+waiting out a queue; it is waiting out the run in front of it, and a task holds its admission for
+`ATTEMPTS_PER_ADMISSION` whole run deadlines, because `SubagentRunner._placed` re-runs a GPU-placed
+inference failure once on the CPU inside the same admission under a deadline armed fresh. At the
+shipped deadline that is 4800 s, above twice the measured queue, so the **hold** is what binds this
+bound and always would have been. That is why the default is now **7200 s** and is stated in
+deadlines rather than in measured seconds: three of them, the two a task can spend plus one of
+margin. It stays an upper bound over both placements, about four times the serial batch wait and
+eight times the overlapping one, and it now covers two full batches queued at once on either
+placement rather than only the overlapping one.
+
+The decision, the validator that now refuses a wait under the hold, and the mutation table proving
+it able to fail are all in the [ADR-0009 hold addendum](ADR-0009-tools-mcp.md) of the same date,
+because the comparison lives in `SubagentsConfig` beside its neighbour rather than here. What this
+addendum records is that the derivation above is superseded: this bound is no longer purely a
+measurement, and the term that binds it is a relation over another bound.

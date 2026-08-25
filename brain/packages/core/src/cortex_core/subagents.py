@@ -66,8 +66,9 @@ class AttemptBounds:
     model happens to stop.
 
     Neither replaces the other. The token cap is what bounds a fast tier, where a deadline's worth
-    of decoding is an essay; the deadline is what bounds a slow one, where the pool's own measured
-    0.35 tok/s makes even a small token budget minutes of held admission.
+    of decoding is an essay; the deadline is what bounds a slow one, where the pool decodes at
+    between 0.18 and 1.35 tok/s depending on what else the host is doing, which makes even a small
+    token budget minutes of held admission.
 
     The defaults are ``None`` and ``None``, meaning no cap and no deadline, so an attempt built
     without bounds sends the request this repo has always sent and runs as long as it always did.
@@ -108,10 +109,14 @@ UNBOUNDED_ATTEMPT = AttemptBounds()
 # The subagent server's own per-slot context sits above it, so this fires first and the prompt
 # keeps its half.
 DEFAULT_SUBAGENT_MAX_TOKENS = 1024
-# The deadline is four times the longest whole subtask measured on that tier, 623.8 s, the extra
-# doubling covering a tool-using run whose loop spends that on several rounds where the measurement
-# spent it on one. It also sits strictly between the two bounds either side of it, the pool's 600 s
-# stall ceiling and its 3600 s admission wait, so the three are ordered by the scope of what they
+# The deadline is four times the longest whole subtask measured on that tier, the extra doubling
+# covering a tool-using run whose loop spends that on several rounds where the measurement spent it
+# on one. That subtask figure is an interval rather than a point, two sittings on one box reading
+# 324.3 s and 623.8 s for the same shape, and the number below is four times the upper end. Taken
+# from a full batch instead of from single subtasks it lands in the same place: the longest a spawn
+# was measured holding its admission across a batch of eight is 595.2 s, and this is four times
+# that. It also sits strictly between the two bounds either side of it, the pool's 600 s stall
+# ceiling and its 7200 s admission wait, so the three are ordered by the scope of what they
 # bound: one silent gap, then one whole run, then the queue for a run. ``SubagentsConfig`` refuses
 # to start unless both of those orderings hold for the deployment's own numbers, the second of
 # them skipped at a wait of zero, which is the policy of never queueing at all. Those two
@@ -119,6 +124,16 @@ DEFAULT_SUBAGENT_MAX_TOKENS = 1024
 # construction of that class reads these three declarations, so a retune inverting either
 # relation fails the orchestrator suite on the commit that types it.
 DEFAULT_SUBAGENT_RUN_TIMEOUT_S = 2400.0
+
+# How many attempts at one task fit inside one ``scheduler.admit``, which is what makes the queue
+# ordering above a relation over twice the deadline rather than over the deadline. ``_placed``
+# runs a placed attempt and, when a GPU-placed one comes back an inference failure, re-runs it once
+# on the CPU inside the same admission under a deadline armed fresh (a re-run handed the remains of
+# a spent deadline would be refused before it began). So a task can hold its room for this many
+# whole deadlines, and the wait a peer will spend has to outlast that rather than one of them. The
+# tie to the runner is not prose: ``test_runner.py`` drives the re-run path with a counting backend
+# and asserts the attempts against this number and against the literal both.
+ATTEMPTS_PER_ADMISSION = 2
 
 
 @dataclass(frozen=True, slots=True)

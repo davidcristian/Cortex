@@ -534,11 +534,13 @@ def test_subagents_default_to_disabled() -> None:
     # longest whole subtask measured on the shipped CPU entry, which is what a queued peer can
     # legitimately sit behind; a tighter number would abort slow work instead of wedged work.
     assert config.stall_timeout_s == 600.0
-    # Likewise a literal: one hour is twice the 1800 s the last spawn of a full batch waits when
-    # these budgets admit a pair that serializes on one placement target, and four times the 900 s
-    # it waits when that pair overlaps, which is what the asks above ship. An upper bound over both
-    # placements, so it refuses a pool that is not draining rather than one that is merely slow.
-    assert config.admission_wait_s == 3600.0
+    # Likewise a literal: two hours is three run deadlines, the two a task can spend inside one
+    # admission plus one of margin, and it is also about four times the wait the last spawn of a
+    # full batch was measured taking when these budgets admit a pair that serializes on one
+    # placement target. An upper bound over both placements, so it refuses a pool that is not
+    # draining rather than one that is merely slow, and above the longest hold, so no peer gives
+    # up on a run still inside the time this deployment granted it.
+    assert config.admission_wait_s == 7200.0
 
 
 @pytest.mark.usefixtures("clean_env")
@@ -595,13 +597,13 @@ def test_the_admission_wait_is_settable_including_zero_and_refuses_a_negative(
 ) -> None:
     """Zero is a policy here, unlike the ceiling above: never queue, refuse what does not fit.
 
-    A deployment whose batches are smaller than the shipped cap can tighten the hour, down to the
-    run deadline that has to fit inside it and no further; one that would rather hear "busy" than
+    A deployment whose batches are smaller than the shipped cap can tighten the two hours, down to
+    the hold that has to fit inside it and no further; one that would rather hear "busy" than
     wait at all sets zero. Negative is the only nonsense, and it would read like a generous bound
     while refusing every queued spawn.
     """
-    monkeypatch.setenv("CORTEX_SUBAGENTS_ADMISSION_WAIT_S", "3000")
-    assert SubagentsConfig().admission_wait_s == 3000.0
+    monkeypatch.setenv("CORTEX_SUBAGENTS_ADMISSION_WAIT_S", "6000")
+    assert SubagentsConfig().admission_wait_s == 6000.0
     monkeypatch.setenv("CORTEX_SUBAGENTS_ADMISSION_WAIT_S", "0")
     assert SubagentsConfig().admission_wait_s == 0.0
     monkeypatch.setenv("CORTEX_SUBAGENTS_ADMISSION_WAIT_S", "-1")
@@ -651,7 +653,7 @@ def test_a_run_deadline_that_would_hide_the_stall_ceiling_fails_the_brain_at_boo
 
 
 @pytest.mark.usefixtures("clean_env")
-def test_a_run_deadline_no_queued_peer_would_outlast_fails_the_brain_at_boot(
+def test_a_hold_no_queued_peer_would_outlast_fails_the_brain_at_boot(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The other half of the deadline's place, refused rather than merely written down.
@@ -662,15 +664,38 @@ def test_a_run_deadline_no_queued_peer_would_outlast_fails_the_brain_at_boot(
     that filled it. Equality fails for the neighbour's reason: a peer giving up at the instant the
     room comes back is the race, not the relation holding.
     """
-    monkeypatch.setenv("CORTEX_SUBAGENTS_ADMISSION_WAIT_S", "900")
+    monkeypatch.setenv("CORTEX_SUBAGENTS_ADMISSION_WAIT_S", "1800")
+    # A hold exactly equal to the wait, which is the boundary and the arm the strictness is for.
     monkeypatch.setenv("CORTEX_SUBAGENTS_RUN_TIMEOUT_S", "900")
-    with pytest.raises(ValidationError, match="must be less than"):
+    with pytest.raises(ValidationError, match="which must be less than"):
         SubagentsConfig()
-    monkeypatch.setenv("CORTEX_SUBAGENTS_RUN_TIMEOUT_S", "1200")
-    with pytest.raises(ValidationError, match="must be less than"):
+    monkeypatch.setenv("CORTEX_SUBAGENTS_RUN_TIMEOUT_S", "2400")
+    with pytest.raises(ValidationError, match="which must be less than"):
         SubagentsConfig()
-    monkeypatch.setenv("CORTEX_SUBAGENTS_RUN_TIMEOUT_S", "899")
-    assert SubagentsConfig().run_timeout_s == 899.0
+    # One second under it, which is the tightest pair that boots.
+    monkeypatch.setenv("CORTEX_SUBAGENTS_RUN_TIMEOUT_S", "899.5")
+    assert SubagentsConfig().run_timeout_s == 899.5
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_what_the_wait_is_compared_with_is_the_hold_and_not_one_attempts_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The factor the comparison carries, isolated from the ordering it is part of.
+
+    A deadline strictly under the wait and at or above half of it passes a bare comparison and
+    still lets a task outlast the queue, because a GPU-placed inference failure is re-run once on
+    the CPU inside the same admission under a deadline armed fresh. That is the half this class
+    used to state in prose and not refuse, and the pair below is exactly it: 1000 s is well under
+    the 1800 s wait and two of them are not.
+    """
+    monkeypatch.setenv("CORTEX_SUBAGENTS_ADMISSION_WAIT_S", "1800")
+    monkeypatch.setenv("CORTEX_SUBAGENTS_RUN_TIMEOUT_S", "1000")
+    with pytest.raises(ValidationError, match=r"can hold its room for 2000\.0 s"):
+        SubagentsConfig()
+    # The same pair with the hold brought under the wait, which is the fix the message names.
+    monkeypatch.setenv("CORTEX_SUBAGENTS_ADMISSION_WAIT_S", "2001")
+    assert SubagentsConfig().attempt_bounds.timeout_s == 1000.0
 
 
 @pytest.mark.usefixtures("clean_env")

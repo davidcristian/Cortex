@@ -42,26 +42,35 @@ ADMISSION_WAIT_MSG = (
     "would join the back of the same queue"
 )
 
-# How long an admit may queue before it is refused rather than waiting forever. Derived, not
-# felt (the addendum above carries the arithmetic): one full MAX_SPAWN_BATCH of 8 against the
-# shipped budget admits two at once, and how fast those two free their slots depends on where
-# they land. One roster entry holds a backend, and so a model lease, per placement target, so its
-# pair overlaps whenever one spawn is GPU-placed and the other overflows, and serializes only when
-# both land on the same target, which is what a closed GPU tier leaves. A whole CPU subtask
-# measures 200 to 300 s, so the eighth spawn is admitted three subtasks in while the pair overlaps
-# (about 900 s, the shipped ask against the shipped headroom) and six subtasks in while it
-# serializes (about 1800 s). The bound is twice the serial figure, the same doubling the pool's
-# stall ceiling carries, which makes it an upper bound over both placements rather than the
-# equality on one that it was first written as. Anything under it would refuse work that was going
+# How long an admit may queue before it is refused rather than waiting forever. Derived, not felt,
+# and it has to clear two different things at once (the addendum above carries the arithmetic).
+#
+# The first is the worst wait a batch that is working can legitimately produce. One full
+# MAX_SPAWN_BATCH of 8 against the shipped budget admits two at once, and how fast those two free
+# their slots depends on where they land. One roster entry holds a backend, and so a model lease,
+# per placement target, so its pair overlaps whenever one spawn is GPU-placed and the other
+# overflows, and serializes only when both land on the same target, which is what a closed GPU tier
+# leaves. Measured on a full batch of eight rather than reasoned from single subtasks, the eighth
+# spawn is admitted 1624.6 s in while the entry serializes and 893.2 s in while its pair overlaps,
+# so twice the serial figure is about 3250 s. Anything under that would refuse work that was going
 # to run, which is worse than the unbounded wait it replaces: it turns a slow success into a
 # failure.
+#
+# The second is the longest one task can hold the room that queue is waiting for, which is
+# ATTEMPTS_PER_ADMISSION whole run deadlines, since a GPU-placed inference failure is re-run once
+# on the CPU inside the same admission under a deadline armed fresh. At the shipped deadline that
+# is 4800 s, above the first figure, so the hold is what binds here and the bound is stated in
+# deadlines: three of them, the two a task can spend plus one of margin, which is also about four
+# times the serial batch wait and covers two full batches queued at once on either placement. A
+# peer therefore never gives up on a run that is still inside the time this deployment granted it,
+# which is the relation `SubagentsConfig` refuses at boot rather than merely stating.
 #
 # Four places outside this module state the number rather than derive it: the delegation runbook's
 # env paragraph, the two module contracts, and the sibling module's ordering above the deadline it
 # declares. `scripts/crosscheck.py` holds all four to this declaration. The arithmetic those
-# same paragraphs carry (twice 1800 s, four times 900 s) is deliberately not held: it is a
-# consequence of this bound and of a measurement, not a second spelling of either.
-DEFAULT_ADMISSION_WAIT_S = 3600.0
+# same paragraphs carry is deliberately not held: it is a consequence of this bound and of a
+# measurement, not a second spelling of either.
+DEFAULT_ADMISSION_WAIT_S = 7200.0
 
 
 class ResourceBudgetScheduler:
@@ -113,8 +122,9 @@ class ResourceBudgetScheduler:
         when the drain begins (``drain`` wakes it so it refuses instead of sleeping through the
         swap). And a wait that outlasts ``wait_timeout_s`` refuses rather than queuing forever
         (the bounded-admission-wait addendum), which is the one refusal the caller pays for
-        before it hears it, so the bound is sized above the worst wait the shipped batch cap can
-        legitimately produce.
+        before it hears it, so the bound is sized above both the worst wait the shipped batch cap
+        was measured producing and the longest one admitted task can hold the room being waited
+        for, which is more than one run deadline wherever a placed attempt may be re-run.
 
         Anything else queues: a transient full budget admits seconds later as peers release, and
         depth-1 guarantees the queue itself drains. ``notify_all`` on release wakes every waiter

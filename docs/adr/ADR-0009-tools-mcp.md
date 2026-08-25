@@ -2485,3 +2485,137 @@ The other deferral is unchanged from the one-vocabulary addendum: a new module w
 identity under a name nobody has registered is still invisible to the scan
 ([R-416](../refinements/tasks/416-a-new-log-line-can-name-its-work-anything.md)), and this change
 adds four more registered modules to the set that entry is about.
+
+## Hold addendum (2026-08-25): the queue is ordered against the hold, not against one attempt
+
+The queue addendum above ordered the delegated run's deadline against the wait a queued peer will
+spend, and recorded that what it compares is **one attempt's** deadline while a task can hold its
+admission for two. It listed three answers, took the one that could be taken without a
+re-measurement, and named the other two as things the shipped numbers could not clear. That
+re-measurement has now been taken (the ADR-0005 batch addendum), and this addendum makes the
+comparison the one the invariant actually needs.
+
+### Re-derived first, and one sentence of the record was wrong about the mechanism
+
+Everything structural the entry claimed holds. `SubagentsConfig._the_run_deadline_must_fit_inside_the_queue_for_it`
+compared the bare `run_timeout_s`; `PlacedAttempt.run` arms `asyncio.timeout(self._bounds.timeout_s)`
+per attempt; `SubagentRunner._placed` calls that attempt twice inside one `scheduler.admit`, and
+`_persist` runs inside it as well. Twice the shipped 2400 s deadline is 4800 s and the shipped wait
+was 3600 s, so the shipped pair really did not clear the relation the class states.
+
+One sentence of the entry's own re-derivation was wrong, and it matters because it sized the
+window. It said a stalled stream reaches `AttemptFailure.INFERENCE` through the attempt's
+`TimeoutError` arm, "whenever the timer that fired was not the attempt's own". It does not.
+`CORTEX_SUBAGENTS_STALL_TIMEOUT_S` is httpx's **read** timeout, and `httpx.ReadTimeout` is not a
+subclass of the builtin `TimeoutError`; `LlamaCppBackend` catches `httpx.HTTPError` and
+`_transport_failure` turns it into `InferenceError`, which reaches the attempt's `InferenceError`
+arm instead. The verdict is the same, `INFERENCE` and therefore re-placeable, so the conclusion
+survived a wrong mechanism.
+
+**What the wrong mechanism cost was the size of the window**, and the corrected reading widens it
+rather than narrowing it. The entry reasoned that a stall fires at the ceiling and so the common
+doubled hold is 600 s plus a fresh 2400 s, comfortably inside the wait, leaving only "a backend
+dying late in a stream that never went quiet". But a read timeout bounds **one socket read**, so it
+fires at *the last chunk plus 600 s*, not at 600 s. A GPU-placed stream that produces chunks for
+more than 600 s and then wedges therefore holds its room for more than 1200 s before the re-run's
+fresh deadline even starts, and the batch above measured whole subtasks holding their admission for
+up to 595.2 s serialized. So the window is not exotic: it is any wedge after the first ten minutes
+of a stream, plus every mid-stream transport failure at any elapsed time at all.
+
+### Decision 1: the comparison is over the hold, and the factor is a named constant
+
+`ATTEMPTS_PER_ADMISSION` is declared in `cortex_core.subagents` beside the two bounds it relates,
+and the validator compares `ATTEMPTS_PER_ADMISSION * run_timeout_s` with `admission_wait_s`. Two
+things make that better than a bare `2 *`. The number is the runner's property rather than the
+config's, so it belongs where the runner's other shipped numbers are declared; and it can then be
+**held to the runner** instead of to a sentence, which
+`test_runner.py::test_the_cpu_re_run_happens_exactly_once_and_both_failures_are_recorded` now does,
+asserting the counting backend's calls against the constant and against the literal both. A third
+attempt appearing in `_placed` reddens that case rather than silently making the boot check
+under-protect the queue by a whole deadline.
+
+The refusal names the product it computed, not just the two knobs, because the number an operator
+has to move under is the hold and neither field spells it.
+
+### Decision 2: the wait moves and the deadline does not, which is what the measurement decided
+
+The queue addendum rejected this comparison because clearing it "means retuning a measurement
+rather than correcting an ordering". The batch says which measurement can move. The deadline is
+four times the longest whole subtask **and** four times the longest hold a full serialized batch
+produced, 595.2 s, two independent routes to the same 2400 s, so lowering it would cut work that
+was going to finish on the slow end of a 2.2x interval. The wait's own derivation, twice the
+1624.6 s the last spawn of a serialized batch actually waited, comes to about 3250 s, so the wait
+had roughly 350 s of slack and the hold needs 4800 s: the wait is the number with room to move and
+raising it can never refuse a spawn that the old bound admitted.
+
+`DEFAULT_ADMISSION_WAIT_S` becomes **7200 s**, stated in deadlines rather than in measured seconds:
+three of them, the two a task can spend inside one admission plus one of margin so the relation is
+a margin rather than a race. That is still an upper bound over both placements, about four times
+the serialized batch wait and eight times the overlapping one, and it now covers **two** full
+batches queued at once on either placement (about 3800 s serialized, about 2100 s overlapping),
+where the hour it replaces covered only the overlapping case.
+
+**What raising it costs**, said plainly: a spawn that was never going to be admitted is told so
+after two hours instead of one. That is the only cost, because the bound refuses rather than
+admits, and the case it delays is one where the delegated turn had already failed.
+
+### Decision 3: the derivation stops being purely a measurement
+
+The wait was derived from a measured batch alone, which is why it went stale in the direction that
+mattered: the hold it has to outlast is a **relation** over another bound, and no batch measurement
+would ever have revealed it. It is now derived from both, the larger term winning, and the larger
+term today is the relation. A future retune of the deadline therefore moves the wait with it or
+fails at boot, which is the property the whole series of orderings here exists to have.
+
+### What did not change, deliberately
+
+The run deadline, the stall ceiling, the token cap, the tool call bound and the batch cap are the
+numbers they were. The zero-wait carve-out is untouched and still means never queue. The re-run
+still gets a deadline armed fresh, which is the thing all three of the entry's candidates traded
+against and the one this decision does not touch: a second attempt handed the remains of a spent
+clock is a certain failure, and the fix here is to widen the room the two attempts sit in rather
+than to shrink either of them.
+
+### Distrust green
+
+Five mutations, each applied to production code alone with the 2,878 tests of `brain/` re-run over
+it (`pytest -q`, integration cases deselected), then restored and read back off disk.
+
+| Mutation | Reddens |
+| --- | --- |
+| the hold is not multiplied, so the bare deadline is compared again | 2 |
+| the comparison admits equality | 1 |
+| `ATTEMPTS_PER_ADMISSION` retuned to 3 | 40 |
+| `DEFAULT_ADMISSION_WAIT_S` restored to 3600.0 | 36 |
+| a wait of zero is compared like any other | 3 |
+
+The first row is the defect this addendum closes and it is narrow on purpose: the shipped pair
+clears the bare comparison as easily as the doubled one, so what catches the factor is the case
+written for it plus the ordering case's own boundary arm. The last two rows are the sweep's sanity
+check rather than subtler mutations, both refusing the shipped defaults and failing every bare
+construction of `SubagentsConfig` across the config, bounds, wiring, swap-wiring and vision-wiring
+suites; a first row of 2 beside a third of 40 is what says the gate is narrow rather than absent.
+
+**The second row was 0 on the first sweep, and that is the row worth reporting.** The rewritten
+ordering case tested a hold of twice and of two and two thirds the wait and never a hold exactly
+equal to it, so the strictness the neighbours' rule insists on was enforced by nothing. The
+boundary arm was added because the sweep said so, not because the code changed.
+
+### Consequences
+
+- The relation this class states is the relation it refuses. The runbook's "that half is recorded
+  rather than enforced" is gone, because there is no longer a half that is only recorded.
+- A deployment that pinned both knobs to the old defaults now fails at boot, naming the hold. That
+  is the intended loud failure and the same one the queue addendum accepted for the tightened wait.
+- The delegated tier's own wall clock is on record as an interval rather than a point, so the next
+  agent to retune one of these bounds knows which end to size on.
+
+### Deferred by this addendum
+
+The doubled hold is enforced but not *observed*: nothing counts how often the CPU re-run actually
+fires, so the window this addendum widened its own estimate of is still sized from reasoning about
+`_placed` rather than from a deployment's own numbers
+([R-429](../refinements/tasks/429-nothing-counts-how-often-the-cpu-re-run-fires.md)). And every
+bound in this series is a multiple of a subtask measured on an idle box, where a saturated one runs
+the same subtask five to eight times slower, within 28% of the run deadline
+([R-430](../refinements/tasks/430-the-bounds-are-sized-on-an-idle-box.md)).
