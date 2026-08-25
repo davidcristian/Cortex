@@ -34,3 +34,22 @@ record deliberately holds no row for. It is the ADR-0011 tier-two answer applied
 cheaper question the tree can already answer, and it runs with no daemon. Decide whether the
 mapping is read from each compose service's `build:` stanza, which is where it really lives, or
 recorded beside the row, which is one more thing to keep in step.
+
+## Trail
+
+- 2026-08-25: opened by the close of
+  [R-433](433-a-mutable-image-tag-moves-under-the-recorded-answer.md).
+- 2026-08-25: re-derived and left open, having run out of session rather than out of argument.
+  Every claim above holds at HEAD: neither `brain/Dockerfile` nor `brain/Dockerfile.modelhost`
+  carries a `VOLUME`, the three built rows are still empty tuples, and `scripts/volumecheck.py`
+  stands at 299 of the 300 line cap. The warning about that cap is understated in the way that
+  decides the bill. The mapping this entry prefers, read from each compose service's `build:`
+  stanza, cannot be read at all today: `composeservices.py` sets `Service.builds` to a bare `True`
+  when it meets the key and never looks inside the stanza, so the long form's `context:` and
+  `dockerfile:` arrive as service keys it does not recognize and are walked past in silence. There
+  is no Dockerfile path on `Service` to map a row to. Teaching it both forms and carrying them
+  through grows a file that is itself at 296 lines, so the preferred option is two splits plus a
+  new Dockerfile reader plus the tests both want, rather than the one split named above. The
+  alternative, recording the Dockerfile beside the row, buys its cheapness by writing the same
+  fact in a second place, which is the shape `crosscheck.py` exists to catch and would then have
+  to hold.
