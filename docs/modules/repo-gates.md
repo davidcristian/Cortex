@@ -188,7 +188,16 @@ that last question to have an answer.
   rather than one line, because a mention names a file, so a prefix satisfied on another line makes
   it longer than the divergence a reader is looking at: the compose interface moving still leaves
   `"127.0.0.1:` carried, by the redis publish below it. It is worded as the most of the needle the
-  file carries anywhere, and it is the second half of the message for that reason.
+  file carries anywhere, and it is the second half of the message for that reason. **That run
+  names its line too** (ADR-0029 run-line addendum), and how many places carry it, in the value
+  reading's own three shapes, because the distance between the two lines is the evidence a reader
+  weighs: a value on the line the run stops on is the strong form of "what moved is shape" and one
+  seventy lines away is the weak form. Which occurrence each names is one rule rather than two.
+  `needles.nearest` picks the closest **pair**, so the value is the spelling nearest where the run
+  stops and the run is the stop nearest that spelling, and where one of them is missing both fall
+  back to the first occurrence and the message says which rule it used. The distance itself is
+  deliberately not computed: two line numbers are the comparison, and a gap in lines would
+  sometimes disagree with a pair chosen by distance in characters.
   **Re-spelled where the far side's syntax cannot take the value as written** (ADR-0029 spelling
   addendum). `Mention.spelling` is `Spelling.WRITTEN` by default, which is the site's own text;
   `Spelling.WHOLE` renders the same number with no fractional part, for a syntax that carries none

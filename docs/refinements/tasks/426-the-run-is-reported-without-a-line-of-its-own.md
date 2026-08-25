@@ -1,6 +1,6 @@
 # The run an unfound needle reports has no line, though choosing between matches computes one
 
-**Status:** open, actionable
+**Status:** landed 2026-08-25
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -41,3 +41,16 @@ missing.
 - 2026-08-25: opened by the close of
   [R-414](414-the-still-spelled-reading-does-not-say-where.md), which spent the run's positions to
   choose which value match to quote and never spent them on the run itself.
+- 2026-08-25: **landed.** The three candidates for which occurrence to name turned out not to be a
+  choice: the two readings are the two ends of one distance, so `needles.nearest` picks the pair
+  and both halves are reported, each named as the one nearest the other, with the same fallback to
+  the first occurrence said out loud when one of them is missing. The run's line goes in the clause it
+  already had, with a count when the file carries the run more than once, worded in the value
+  reading's own three shapes. The distance is not computed for the reader: two line numbers are the
+  comparison, and a gap stated in lines would sometimes disagree with a pair chosen by distance in
+  characters. No second quoted line, the entry's own cheapest honest shape, measured at 66
+  characters added to a fault of 788. Reading the positions out found a correction underneath: the
+  code anchored where the run **starts** while the prose said it stopped there, which biases every
+  choice towards the text above the divergence, and no case in the tree could tell the two apart
+  until this entry added one. Four mutations over `scripts/tests/test_crosscheck.py`, 144 cases,
+  in the [ADR-0029 run-line addendum](../../adr/ADR-0029-vision-screen-capture.md).
