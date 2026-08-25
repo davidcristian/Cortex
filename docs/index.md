@@ -97,9 +97,10 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   (`VramBudgetPlacer`, `acquire` untouched), a soft two-dimensional CPU/RAM `SubagentScheduler`
   (`ResourceBudgetScheduler`), composed at `SubagentRunner`; ledgers as live-resource (not durable)
   state; `drain()`/CUDA-OOM re-place deferred to Slice 11. Its 2026-08-09 addendum bounds how long
-  a spawn may queue for room (`CORTEX_SUBAGENTS_ADMISSION_WAIT_S`, 3600 s, derived from the wait a
+  a spawn may queue for room (`CORTEX_SUBAGENTS_ADMISSION_WAIT_S`, derived from the wait a
   full spawn batch legitimately produces) and declines the queue-depth half, the scheduler holding
-  charges and no durations.
+  charges and no durations; a later one re-derives that wait from a measured batch and from the
+  longest a task can hold the room being queued for.
 - [ADR-0013: Untrusted-content boundary](adr/ADR-0013-untrusted-content.md): prompt-injection
   defense behind the tool seams (Slice 6.5) via fail-closed `Trust` on `ToolResult`, a static
   security preamble + nonce-delimited per-result wrap, a turn-local `TaintLedger` in the shared

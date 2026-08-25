@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 
 from cortex_core import (
+    ATTEMPTS_PER_ADMISSION,
     BUDGET_EXHAUSTED_MSG,
     DispatchBudget,
     GenerationBounds,
@@ -722,7 +723,7 @@ async def test_the_cpu_re_run_happens_exactly_once_and_both_failures_are_recorde
         store, _roster(_resources(backend, backend, _gpu_placer())), FixedClock()
     )
     result = await runner.run("g")
-    assert backend.calls == 2
+    assert backend.calls == ATTEMPTS_PER_ADMISSION == 2
     assert result.ok is False
     assert result.output == "partial "  # the re-run's own parts-so-far, per the runner's discipline
     assert result.detail == (

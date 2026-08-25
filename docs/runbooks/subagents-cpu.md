@@ -45,8 +45,12 @@ delegation time (ADR-0012 admission-wall addendum).
 > **nothing** before the spawn fails with a message rather than holding its admission and every
 > queued peer behind it. It bounds the gap between chunks and never the length of a generation,
 > so raising `CORTEX_SUBAGENT_CTX_SIZE` or handing a subagent a long file does not need it
-> raised; a slower CPU than this one might. The default is twice the longest whole subtask
-> measured here, the CPU tier being the slow one on purpose (ADR-0005 stall-ceiling addendum).
+> raised; a slower CPU than this one might. The default is about twice a whole subtask measured
+> here, the CPU tier being the slow one on purpose (ADR-0005 stall-ceiling addendum). That subtask
+> figure is an interval and not a point, and what sets it is what else the host is doing: the same
+> shape read 222.8 to 324.3 s across a full batch on an idle box and 1736.6 s beside a saturated
+> one. The ceiling is comfortable either way, since what it bounds is one silent gap between chunks
+> and not a whole subtask, and even the saturated arm's slowest stretch put a chunk every 14 s.
 
 > **A subagent that keeps talking is bounded too, in both of its units.**
 > `CORTEX_SUBAGENTS_MAX_TOKENS` (default 1024) is how far any one of a run's completions may
@@ -67,16 +71,21 @@ delegation time (ADR-0012 admission-wall addendum).
 > The numbers are this hardware's, measured over five subtask shapes on the shipped entry: the cap
 > is about five times the longest narrow reply (199 tokens, a summarization) and the deadline four
 > times the longest whole subtask (623.8 s, the same one), the extra doubling covering a tool-using
-> run whose loop spends on several rounds what that measurement spent on one completion. The
+> run whose loop spends on several rounds what that measurement spent on one completion. A full
+> batch later put the same shape at 222.8 to 324.3 s a subtask, so the whole-subtask figure is an
+> interval and the deadline is four times its upper end; taken from that batch instead it is four
+> times the longest a spawn was measured holding its admission there, 595.2 s, which lands on the
+> same number. The
 > deadline also lands between the two bounds either side of it, above the stall ceiling and below
 > `CORTEX_SUBAGENTS_ADMISSION_WAIT_S`, and the brain refuses to start on either ordering broken, so
 > a deployment where a run holds its admission for as long as a peer will queue for that admission
 > is one that never boots. A wait of **zero** is the exception and passes beside any deadline, that
 > being the setting where nothing queues and so nothing waits on a run at all. What the boot check
-> compares is **one attempt's** deadline. A GPU-placed run whose backend fails is re-run once on the
-> CPU inside the same admission under a deadline armed fresh, so along that one path a task holds
-> its room for two deadlines, and twice the shipped deadline does not fit inside the shipped wait:
-> that half of the relation is recorded rather than enforced, both numbers being measured ones.
+> compares is the whole **hold** rather than one attempt's deadline: a GPU-placed run whose backend
+> fails is re-run once on the CPU inside the same admission under a deadline armed fresh, so along
+> that one path a task holds its room for two deadlines, and it is twice the deadline the wait has
+> to outlast. The refusal names the hold it computed, so an operator who tightens the wait under it
+> reads the product rather than either number alone.
 > One more bound sits inside it, beside the stall ceiling rather than under it:
 > `CORTEX_TOOLS_CALL_TIMEOUT_S` (default 60 s) bounds one tool dispatch, and a delegated loop
 > dispatches tools between its completions. A dispatch spends that bound several times over, once
@@ -87,26 +96,28 @@ delegation time (ADR-0012 admission-wall addendum).
 > stop talking.
 > What they cut is a model that is talking rather than one that is slow: the sixth shape, an
 > open-ended essay no narrow subtask should ask for, was cut at 577 tokens and 1958 s still writing.
+> **Every number here is an idle-box number**, and a saturated host runs the same subtask five to
+> eight times slower, 1736.6 s against a 2400 s deadline, so a busy machine is the one to watch for
+> a narrow subtask reported as a runaway
+> ([refinements/index.md#resource-governance](../refinements/index.md#resource-governance)).
 
 > **Queuing for room is bounded too, and generously.**
-> `CORTEX_SUBAGENTS_ADMISSION_WAIT_S` (default 3600 s) is how long a spawn may wait for the soft
+> `CORTEX_SUBAGENTS_ADMISSION_WAIT_S` (default 7200 s) is how long a spawn may wait for the soft
 > budget to free room before it comes back refused, with the bound named in the message so the
-> reader lands on this knob. It is deliberately far above any legitimate wait these defaults can
-> produce: a full batch of 8 against `CPU_BUDGET=4.0` and `CPUS=2.0` admits two at a time, a whole
-> subtask measured 200 to 300 s here when this bound was derived, and how soon that admitted pair
-> frees its slots is a placement question (the box below). That figure is an **underestimate**,
-> measured again on 2026-08-11 at 410.5 s for an extraction and 623.8 s for a summarization, so the
-> waits below understate their own inputs; re-deriving the bound wants a batch measured rather than
-> single subtasks and is filed in
-> [refinements/index.md#resource-governance](../refinements/index.md#resource-governance). With the GPU path open the pair overlaps and the last of the
-> batch is admitted about 900 s in, which is what these defaults ship; with it shut the pair
-> serializes and the same spawn waits about 1800 s. The bound is twice the serial figure, so it is
-> an upper bound over both placements rather than the wait either one produces (ADR-0012
+> reader lands on this knob. It has to clear two different things and the larger one is what sets
+> it. The first is any legitimate wait these defaults can produce, which was **measured on a live
+> full batch** rather than reasoned from single subtasks: 8 spawns against `CPU_BUDGET=4.0` and
+> `CPUS=2.0` admit two at a time, and with the GPU path open the pair overlaps and the last of the
+> batch is admitted **893.2 s** in, which is what these defaults ship; with it shut the pair
+> serializes and the same spawn waits **1624.6 s**, so twice the serial figure is about 3250 s. The
+> second is the longest one task can hold the room that queue is waiting for, which is **two whole
+> run deadlines**, since a GPU-placed run whose backend fails is re-run once on the CPU inside the
+> same admission. At the shipped deadline that is 4800 s, above the first figure, so the bound is
+> stated in deadlines: **three of them**, the two a task can spend plus one of margin (ADR-0012
 > bounded-admission-wait addendum). Raising `CPU_BUDGET` or lowering `CPUS` shortens the real waits
-> and never needs this raised. **Queuing two full batches at once needs it raised only where the
-> GPU path is shut:** 16 spawns put the last one about 2100 s in while the pair overlaps, inside
-> the bound, and about 4200 s in while it serializes, past it, so the deployment to size is the one
-> running with the GPU subagent tier down or with a `VRAM_GB` ask that never fits the headroom.
+> and never needs this raised. **Two full batches queued at once now fit on either placement:** 16
+> spawns put the last one about 2100 s in while the pair overlaps and about 3800 s in while it
+> serializes, both inside the bound, where the old hour covered only the overlapping case.
 > Zero is legal and means never queue at all: refuse anything that does not fit the budget right
 > now.
 
@@ -331,10 +342,14 @@ different subagent models") produced one call naming both entries and one served
 server's log, which is what proves the knob reachable before a silence is read as a decision. The
 full record is in the ADR-0018 addendum of that date.
 
-Budget your time by the CPU tier and not by the cortex. gemma-4-E4B generates at about **0.35
-tok/s** under its 4 CPU cap here and Qwen3.5-2B at about **1 tok/s**, the batch runs no faster than
-its slowest member, and nothing bounds a subagent's length (no `max_tokens`, `n_predict: -1`), so a
-three subtask batch on the default entry runs 10 to 15 minutes and a chatty one runs longer. The
+Budget your time by the CPU tier and not by the cortex. gemma-4-E4B generates at between **0.18
+and 1.35 tok/s** under its 4 CPU cap here, the low end being what a saturated host costs it (the
+cap is a quota, not a reservation), and Qwen3.5-2B at about **1 tok/s**; the batch runs no faster
+than its slowest
+member, and a run's length is bounded but generously (`CORTEX_SUBAGENTS_MAX_TOKENS` per completion
+and `CORTEX_SUBAGENTS_RUN_TIMEOUT_S` on the whole run, both sized to cut a model that is talking
+rather than one that is slow), so a three subtask batch on the default entry runs 10 to 15 minutes
+on the low reading and a chatty one runs longer. The
 first request after boot also pays first-touch paging of the GGUF off the models mount. If all you
 want is the **choice**, it is made before the batch is dispatched: intercept `SpawnSubagentsTool`
 and end the turn there, and a sample costs 5 to 8 seconds instead.

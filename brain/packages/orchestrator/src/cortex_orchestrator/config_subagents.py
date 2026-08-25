@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from cortex_core import (
+    ATTEMPTS_PER_ADMISSION,
     DEFAULT_ADMISSION_WAIT_S,
     DEFAULT_SUBAGENT_MAX_TOKENS,
     DEFAULT_SUBAGENT_RUN_TIMEOUT_S,
@@ -118,15 +119,18 @@ class SubagentsConfig(BaseSettings):
 
     @model_validator(mode="after")
     def _the_run_deadline_must_fit_inside_the_queue_for_it(self) -> "SubagentsConfig":
-        """Refuse at boot a deadline no queued peer would still be waiting through."""
-        if self.admission_wait_s > 0 and self.run_timeout_s >= self.admission_wait_s:
+        """Refuse at boot a hold no queued peer would still be waiting through."""
+        hold_s = ATTEMPTS_PER_ADMISSION * self.run_timeout_s
+        if self.admission_wait_s > 0 and hold_s >= self.admission_wait_s:
             msg = (
-                f"CORTEX_SUBAGENTS_RUN_TIMEOUT_S ({self.run_timeout_s}) must be less than "
+                f"CORTEX_SUBAGENTS_RUN_TIMEOUT_S ({self.run_timeout_s}) is spent up to "
+                f"{ATTEMPTS_PER_ADMISSION} times inside one admission, so a task can hold its "
+                f"room for {hold_s} s, which must be less than "
                 f"CORTEX_SUBAGENTS_ADMISSION_WAIT_S ({self.admission_wait_s}); a run allowed to "
                 "hold its admission for at least as long as a peer will queue for that admission "
                 "makes a working pool read as one that refuses spawns under load, and the "
                 "refusal names the queue rather than the deadline that filled it. Lower the run "
-                "deadline, or raise the admission wait above it (docs/runbooks/subagents-cpu.md)"
+                "deadline, or raise the wait above the hold (docs/runbooks/subagents-cpu.md)"
             )
             raise ValueError(msg)
         return self

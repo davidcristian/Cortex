@@ -15,7 +15,7 @@ ADMISSION_WAIT_MSG = (
     "would join the back of the same queue"
 )
 
-DEFAULT_ADMISSION_WAIT_S = 3600.0
+DEFAULT_ADMISSION_WAIT_S = 7200.0
 
 
 class ResourceBudgetScheduler:

@@ -506,7 +506,7 @@ def test_subagents_default_to_disabled() -> None:
     # longest whole subtask measured on the shipped CPU entry, which is what a queued peer can
     # legitimately sit behind; a tighter number would abort slow work instead of wedged work.
     assert config.stall_timeout_s == 600.0
-    assert config.admission_wait_s == 3600.0
+    assert config.admission_wait_s == 7200.0
 
 
 @pytest.mark.usefixtures("clean_env")
@@ -562,8 +562,8 @@ def test_the_admission_wait_is_settable_including_zero_and_refuses_a_negative(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Zero is a policy here, unlike the ceiling above: never queue, refuse what does not fit."""
-    monkeypatch.setenv("CORTEX_SUBAGENTS_ADMISSION_WAIT_S", "3000")
-    assert SubagentsConfig().admission_wait_s == 3000.0
+    monkeypatch.setenv("CORTEX_SUBAGENTS_ADMISSION_WAIT_S", "6000")
+    assert SubagentsConfig().admission_wait_s == 6000.0
     monkeypatch.setenv("CORTEX_SUBAGENTS_ADMISSION_WAIT_S", "0")
     assert SubagentsConfig().admission_wait_s == 0.0
     monkeypatch.setenv("CORTEX_SUBAGENTS_ADMISSION_WAIT_S", "-1")
@@ -607,19 +607,35 @@ def test_a_run_deadline_that_would_hide_the_stall_ceiling_fails_the_brain_at_boo
 
 
 @pytest.mark.usefixtures("clean_env")
-def test_a_run_deadline_no_queued_peer_would_outlast_fails_the_brain_at_boot(
+def test_a_hold_no_queued_peer_would_outlast_fails_the_brain_at_boot(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The other half of the deadline's place, refused rather than merely written down."""
-    monkeypatch.setenv("CORTEX_SUBAGENTS_ADMISSION_WAIT_S", "900")
+    monkeypatch.setenv("CORTEX_SUBAGENTS_ADMISSION_WAIT_S", "1800")
+    # A hold exactly equal to the wait, which is the boundary and the arm the strictness is for.
     monkeypatch.setenv("CORTEX_SUBAGENTS_RUN_TIMEOUT_S", "900")
-    with pytest.raises(ValidationError, match="must be less than"):
+    with pytest.raises(ValidationError, match="which must be less than"):
         SubagentsConfig()
-    monkeypatch.setenv("CORTEX_SUBAGENTS_RUN_TIMEOUT_S", "1200")
-    with pytest.raises(ValidationError, match="must be less than"):
+    monkeypatch.setenv("CORTEX_SUBAGENTS_RUN_TIMEOUT_S", "2400")
+    with pytest.raises(ValidationError, match="which must be less than"):
         SubagentsConfig()
-    monkeypatch.setenv("CORTEX_SUBAGENTS_RUN_TIMEOUT_S", "899")
-    assert SubagentsConfig().run_timeout_s == 899.0
+    # One second under it, which is the tightest pair that boots.
+    monkeypatch.setenv("CORTEX_SUBAGENTS_RUN_TIMEOUT_S", "899.5")
+    assert SubagentsConfig().run_timeout_s == 899.5
+
+
+@pytest.mark.usefixtures("clean_env")
+def test_what_the_wait_is_compared_with_is_the_hold_and_not_one_attempts_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The factor the comparison carries, isolated from the ordering it is part of."""
+    monkeypatch.setenv("CORTEX_SUBAGENTS_ADMISSION_WAIT_S", "1800")
+    monkeypatch.setenv("CORTEX_SUBAGENTS_RUN_TIMEOUT_S", "1000")
+    with pytest.raises(ValidationError, match=r"can hold its room for 2000\.0 s"):
+        SubagentsConfig()
+    # The same pair with the hold brought under the wait, which is the fix the message names.
+    monkeypatch.setenv("CORTEX_SUBAGENTS_ADMISSION_WAIT_S", "2001")
+    assert SubagentsConfig().attempt_bounds.timeout_s == 1000.0
 
 
 @pytest.mark.usefixtures("clean_env")

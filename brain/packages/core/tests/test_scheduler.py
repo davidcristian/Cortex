@@ -7,7 +7,9 @@ from contextlib import asynccontextmanager
 import pytest
 
 from cortex_core import (
+    ATTEMPTS_PER_ADMISSION,
     DEFAULT_ADMISSION_WAIT_S,
+    DEFAULT_SUBAGENT_RUN_TIMEOUT_S,
     MAX_SPAWN_BATCH,
     PlacementRequest,
     ResourceBudgetScheduler,
@@ -176,9 +178,14 @@ def test_rejects_a_negative_wait_bound() -> None:
         ResourceBudgetScheduler(4.0, 8.0, wait_timeout_s=-1.0)
 
 
-def test_the_default_bound_clears_the_worst_wait_one_batch_can_legitimately_produce() -> None:
-    """Pinned against its derivation and against the literal (ADR-0012 addendum)."""
-    serial_wait_s = (MAX_SPAWN_BATCH - 2) * 300.0
-    overlapped_wait_s = (MAX_SPAWN_BATCH // 2 - 1) * 300.0
-    assert (serial_wait_s, overlapped_wait_s) == (1800.0, 900.0)
-    assert DEFAULT_ADMISSION_WAIT_S == 2 * serial_wait_s == 4 * overlapped_wait_s == 3600.0
+def test_the_default_bound_clears_both_the_measured_batch_wait_and_the_longest_hold() -> None:
+    """Pinned against both halves of its derivation and against the literal (ADR-0012 addenda)."""
+    serial_batch_wait_s = 1624.6
+    overlapped_batch_wait_s = 893.2
+    assert MAX_SPAWN_BATCH == 8  # the shape both figures were measured at
+    assert overlapped_batch_wait_s < serial_batch_wait_s  # the placement that binds is the serial
+    hold_s = ATTEMPTS_PER_ADMISSION * DEFAULT_SUBAGENT_RUN_TIMEOUT_S
+    assert hold_s == 4800.0
+    assert 2 * serial_batch_wait_s < DEFAULT_ADMISSION_WAIT_S
+    assert hold_s < DEFAULT_ADMISSION_WAIT_S
+    assert DEFAULT_ADMISSION_WAIT_S == 3 * DEFAULT_SUBAGENT_RUN_TIMEOUT_S == 7200.0

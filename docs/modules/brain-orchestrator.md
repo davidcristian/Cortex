@@ -262,15 +262,18 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   by `docker/docker-compose.subagents-roster.yml`). A key naming the default is rejected.
   `stall_timeout_s: float = 600.0` (`CORTEX_SUBAGENTS_STALL_TIMEOUT_S`, positive) is the pool's
   own version of the resident tier's ceiling and is the loose one of the two: it covers a CPU
-  call's own time to first token at about 0.35 tok/s, twice the longest whole subtask measured
-  on the shipped entry (ADR-0005 stall-ceiling addendum).
-  `admission_wait_s: float = 3600.0` (`CORTEX_SUBAGENTS_ADMISSION_WAIT_S`, non-negative, ADR-0012
+  call's own time to first token on a tier decoding at between 0.18 and 1.35 tok/s depending on
+  what else the host is doing, and it is about twice a whole subtask there on an idle box, which is
+  itself an upper bound on any one call's first token (ADR-0005 stall-ceiling addendum; the subtask
+  figure is an interval, ADR-0005 batch addendum).
+  `admission_wait_s: float = 7200.0` (`CORTEX_SUBAGENTS_ADMISSION_WAIT_S`, non-negative, ADR-0012
   bounded-admission-wait addendum) is how long a spawn may queue for room before it is refused
   instead of waiting for it forever; it reaches the one `ResourceBudgetScheduler` the builder makes,
-  so one budget carries one bound whatever mix of entries queues on it. The default is twice the
-  1800 s the last spawn of a full batch waits when an entry's admitted pair serializes on one
-  placement target and four times the 900 s it waits when that pair overlaps, which is what the
-  asks above ship, making it an upper bound over both placements rather than either wait; zero
+  so one budget carries one bound whatever mix of entries queues on it. The default is three run
+  deadlines, clearing both twice the 1624.6 s the last spawn of a full batch was measured waiting
+  when an entry's admitted pair serializes on one placement target (893.2 s when that pair
+  overlaps, which is what the asks above ship) and the longest a task can hold the room being
+  queued for, making it an upper bound over both placements rather than either wait; zero
   means never queue.
   `max_tokens: int = 1024` (`CORTEX_SUBAGENTS_MAX_TOKENS`, at least 1) and
   `run_timeout_s: float = 2400.0` (`CORTEX_SUBAGENTS_RUN_TIMEOUT_S`, positive) are the total
@@ -287,9 +290,10 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   for exactly that failure. It must equally stay **strictly under** `admission_wait_s`, else
   construction fails again: a run allowed to hold its admission for as long as a peer will queue
   for that admission makes a working pool read as one that refuses spawns under load, under a
-  refusal naming the queue rather than the deadline that filled it. A wait of zero is exempt from
-  that one, being the setting where nothing queues, and what is compared is one attempt's deadline,
-  a task on the CPU re-run path holding its admission for two. It must also stay **strictly above**
+  refusal naming the queue rather than the deadline that filled it. What is compared is the whole
+  **hold**, `ATTEMPTS_PER_ADMISSION` deadlines rather than one, since a task on the CPU re-run path
+  spends the deadline twice inside one admission; a wait of zero is exempt, being the setting where
+  nothing queues. It must also stay **strictly above**
   a whole delegated dispatch, which
   is `CORTEX_TOOLS_CALL_TIMEOUT_S` times `delegated_call_bounds`: a fourth bound on the same run
   that sits beside the stall ceiling rather than under it, and one a dispatch spends several times

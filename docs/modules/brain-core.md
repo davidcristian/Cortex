@@ -2639,11 +2639,14 @@ Reference implementations (pure, shipped in core; the runtime wiring until Slice
   bounded by `asyncio.timeout` on the same condition `drain` bounds, deliberately rather than by the
   `Clock` port: a duration belongs on the loop's monotonic clock, and an already-expired bound
   exercises both of this class's timeout paths without a test sleeping. A negative bound raises
-  `ValueError`; zero is legal and means never queue. `DEFAULT_ADMISSION_WAIT_S` is 3600.0, twice the
-  1800 s the last spawn of a full `MAX_SPAWN_BATCH` waits when an entry's admitted pair serializes
-  on one placement target, and four times the 900 s it waits when that pair overlaps, which is the
-  shipped placement; an upper bound either way, since a bound that refuses a legitimately queued
-  spawn is worse than the unbounded wait it replaced.
+  `ValueError`; zero is legal and means never queue. `DEFAULT_ADMISSION_WAIT_S` is 7200.0, three
+  run deadlines, and it clears two things: twice the 1624.6 s the last spawn of a full
+  `MAX_SPAWN_BATCH` was measured waiting when an entry's admitted pair serializes on one placement
+  target (893.2 s when that pair overlaps, which is the shipped placement), and the longest one
+  task can hold the room being queued for, which is `ATTEMPTS_PER_ADMISSION` whole deadlines
+  because a GPU-placed inference failure is re-run once on the CPU inside the same admission. An
+  upper bound either way, since a bound that refuses a legitimately queued spawn is worse than the
+  unbounded wait it replaced.
   `drain(timeout_s=...)` implements
   the port's swap-time quiesce (ADR-0030): it flags the window, `notify_all`s so budget waiters
   wake and refuse, then waits for the int in-flight count (never the float residue) to reach zero

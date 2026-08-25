@@ -1,6 +1,6 @@
 # A re-run's second deadline outlasts the queue the first was ordered against
 
-**Status:** open, actionable
+**Status:** landed 2026-08-25
 **Area:** subagents
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
 
@@ -58,3 +58,23 @@ both want rewriting with it.
   late in a stream that never went quiet long enough to trip the ceiling. That is narrower than
   twice the deadline and is not a reason to close this, but it is the window a retune should be
   sized against rather than the factor of two.
+- 2026-08-25: Landed, by raising the wait and comparing the hold. Re-derived first, and the
+  mechanism in the entry above is wrong in one load-bearing sentence: a stalled stream does **not**
+  reach `INFERENCE` through the attempt's `TimeoutError` arm, because `httpx.ReadTimeout` is no
+  subclass of the builtin `TimeoutError` and `LlamaCppBackend` turns it into an `InferenceError`
+  first. The verdict survives the wrong route, but the window does not: a read timeout bounds one
+  socket read, so a wedge fires at the last chunk plus the ceiling rather than at the ceiling, and
+  the violating window is every wedge after the first ten minutes of a stream plus every mid-stream
+  transport failure at any elapsed time. Wider than the 2026-08-23 narrowing, not narrower.
+  Of the entry's three candidates the measurement chose the first. A live full batch put the
+  deadline's own derivation on two independent routes to 2400 s, so lowering it would cut work on
+  the slow end of a factor-of-two interval; the wait's derivation had about 350 s of slack over
+  twice its measured batch wait, so the wait is the number with room to move and raising it can
+  never refuse a spawn the old bound admitted. `DEFAULT_ADMISSION_WAIT_S` is 7200 s, three run
+  deadlines, and `SubagentsConfig` now compares `ATTEMPTS_PER_ADMISSION * run_timeout_s` with it,
+  that constant being declared beside the bounds and held to `_placed` by the runner suite's
+  counting backend rather than by a sentence. The runbook's "recorded rather than enforced" half is
+  gone. Recorded in the ADR-0009 hold addendum, with the wait's superseded derivation at ADR-0012
+  and the batch itself at ADR-0005. What it opened is
+  [R-429](429-nothing-counts-how-often-the-cpu-re-run-fires.md): the hold is enforced but nobody
+  counts how often the re-run that produces it fires.

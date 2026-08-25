@@ -53,6 +53,8 @@ UNBOUNDED_ATTEMPT = AttemptBounds()
 DEFAULT_SUBAGENT_MAX_TOKENS = 1024
 DEFAULT_SUBAGENT_RUN_TIMEOUT_S = 2400.0
 
+ATTEMPTS_PER_ADMISSION = 2
+
 
 @dataclass(frozen=True, slots=True)
 class SubagentResult:
