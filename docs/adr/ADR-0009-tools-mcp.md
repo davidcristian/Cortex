@@ -2855,6 +2855,14 @@ it reads. `grep turn_id=t-` returns nothing on a real stream, which is a fast fa
 that an operator who runs it and gets nothing concludes the line is not there, which is the wrong
 conclusion at the one moment the runbook is open.
 
+**This document spells it twice more**, in the sixth-name addendum's first and third decisions,
+each quoting the runbook sentence it was moving at the time. Those stay as written: an addendum
+records what was decided on the day it was decided, and editing one to match a later reading would
+leave a chain of decisions nobody can read back. This paragraph is what supersedes them. The
+sentences those two decisions describe are the corrected ones above, the prefix in them is the
+same fixture leak, and a reader who arrives at either should grep the field with an id rather than
+with a shape.
+
 ### Decision 2: the registry moves onto the corrected sentences rather than off them
 
 Two needles in `scripts/logcouplings.py` spelled the prefix, `"grep {value}=t-"` for the tools
