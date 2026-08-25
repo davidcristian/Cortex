@@ -102,6 +102,54 @@ def test_whether_a_comment_stands_alone_is_recorded() -> None:
     ]
 
 
+# ── which comments the stub holds two copies of ────────────────────────────────
+
+
+def _claimed(body: str) -> list[str]:
+    """The texts a service claims, which is what the stub is then owed two of."""
+    return [comment.text for comment in proto_comments(HEAD + body) if comment.service]
+
+
+def test_a_comment_inside_a_service_block_is_claimed_by_it() -> None:
+    """Tonic writes the service into a client module and a server module and documents both."""
+    assert _claimed("service S {\n  // what this rpc does\n  rpc A(X) returns (Y);\n}\n") == [
+        " what this rpc does"
+    ]
+
+
+def test_the_banner_standing_directly_above_a_service_is_claimed_too() -> None:
+    """It is the service's own leading comment, so it comes out wherever the service does."""
+    banner = "// ---\n// S is hosted here.\nservice S {}\n"
+    assert _claimed(banner) == [" ---", " S is hosted here."]
+
+
+def test_a_trailing_comment_on_the_service_line_is_claimed() -> None:
+    assert _claimed("service S { // the seam's brain half\n}\n") == [" the seam's brain half"]
+
+
+def test_a_blank_line_between_the_banner_and_the_service_detaches_it() -> None:
+    """protoc reads a detached comment as documenting nothing, and claiming a copy too many
+
+    would be a red on a tree that is perfectly in sync. Fewer claims is the safe direction.
+    """
+    assert _claimed("// detached\n\nservice S {}\n") == []
+
+
+def test_a_comment_above_something_that_is_not_a_service_is_not_claimed() -> None:
+    assert _claimed("// about a message\nmessage M {\n  uint32 a = 1; // a field\n}\n") == []
+
+
+def test_a_comment_after_the_service_block_closes_is_not_claimed() -> None:
+    """The depth is what closes the claim, so a message following a service is read plainly."""
+    assert _claimed("service S {}\n// after it\nmessage M {}\n") == []
+
+
+def test_a_service_nested_in_no_braces_claims_only_its_own_block() -> None:
+    """A brace block opened by anything else is not a service, however deep the comment sits."""
+    body = "message M {\n  // inside a message\n}\nservice S {\n  // inside the service\n}\n"
+    assert _claimed(body) == [" inside the service"]
+
+
 # ── what the generated stub says ───────────────────────────────────────────────
 
 

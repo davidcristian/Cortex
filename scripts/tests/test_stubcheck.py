@@ -64,7 +64,15 @@ BANNER_STUB = """\
 ///
 /// ## BodyService is hosted by the body (host-native). The brain is the client.
 pub struct BodyServiceClient {}
+/// ---
+///
+/// ## BodyService is hosted by the body (host-native). The brain is the client.
+pub trait BodyService {}
 """
+
+# The same stub with one of the banner's two copies reworded, which is the half-regenerated shape a
+# containment rule could never see: whichever copy was left still answers for both.
+HALF_STUB = BANNER_STUB.replace("host-native). The brain", "dockerized). The brain", 1)
 
 
 def _tree(root: Path, proto: str = PROTO, stub: str = STUB) -> Path:
@@ -158,6 +166,57 @@ def test_a_banner_whose_words_changed_is_still_reported(tmp_path: Path) -> None:
     ]
 
 
+# ── counted, not merely present ────────────────────────────────────────────────
+
+
+def test_a_banner_reworded_in_one_of_its_two_copies_is_reported(tmp_path: Path) -> None:
+    """The case containment cannot see: tonic writes a service comment into both modules, so one
+
+    surviving copy satisfies "is it in the file" while the module the other copy documents goes on
+    stating what the proto used to say.
+    """
+    _tree(tmp_path, proto=BANNER_PROTO, stub=HALF_STUB)
+    misses = stubcheck.check(tmp_path).misses
+    assert [(miss.wanted, miss.found) for miss in misses] == [(2, 1)]
+    assert misses[0].text.endswith("The brain is the client.")
+
+
+def test_a_comment_the_proto_writes_twice_is_owed_two_copies(tmp_path: Path) -> None:
+    """Outside a service the tally still sums, one copy per field prost documents."""
+    twice = HEAD + "message Pair {\n  uint32 a = 1; // a count\n  uint32 b = 2; // a count\n}\n"
+    _tree(tmp_path, proto=twice, stub="/// a count\npub struct Pair {}\n")
+    assert [(miss.wanted, miss.found) for miss in stubcheck.check(tmp_path).misses] == [(2, 1)]
+
+
+def test_one_text_short_at_several_proto_lines_is_reported_once(tmp_path: Path) -> None:
+    """The miss is per text, named at the first line carrying it, so the count stays a count."""
+    twice = HEAD + "message Pair {\n  uint32 a = 1; // a count\n  uint32 b = 2; // a count\n}\n"
+    _tree(tmp_path, proto=twice, stub="/// something else\npub struct Pair {}\n")
+    assert [(miss.line, miss.wanted, miss.found) for miss in stubcheck.check(tmp_path).misses] == [
+        (5, 2, 0)
+    ]
+
+
+def test_a_rule_line_is_owed_one_copy_however_many_the_proto_writes() -> None:
+    """Prost absorbs a banner's closing rule into the heading, so the copies are not the copies
+
+    written. The floor stays where containment had it, because a red over punctuation would teach
+    everyone to distrust the gate that catches the retuned number.
+    """
+    assert BANNER_PROTO.count("// ---") == 2
+    assert BANNER_STUB.count("/// ---") == 2
+    assert stubcheck.owed([protocomments.Comment(1, " ---", leading=True, service=True)]) == {
+        protocomments.RULE: 1
+    }
+
+
+def test_a_stub_with_no_rule_line_left_at_all_is_still_reported(tmp_path: Path) -> None:
+    """One is the floor, not nothing: the pinned tally is a floor and never an exemption."""
+    _tree(tmp_path, proto=BANNER_PROTO, stub=BANNER_STUB.replace("/// ---\n", ""))
+    misses = stubcheck.check(tmp_path).misses
+    assert [(set(miss.text), miss.wanted, miss.found) for miss in misses] == [({"-"}, 1, 0)]
+
+
 # ── failing closed ─────────────────────────────────────────────────────────────
 
 
@@ -209,7 +268,13 @@ def test_check_counts_the_comments_and_the_doc_lines_it_read(tmp_path: Path) -> 
     """Three numbers, none derivable from another: the stub always says more than the proto."""
     _tree(tmp_path)
     scanned = stubcheck.check(tmp_path)
-    assert (scanned.leading, scanned.trailing, scanned.docs) == (3, 1, 5)
+    assert (scanned.leading, scanned.trailing, scanned.doubled, scanned.docs) == (3, 1, 0, 5)
+
+
+def test_check_counts_the_comments_a_service_claims_two_copies_of(tmp_path: Path) -> None:
+    """A fourth number, overlapping the first two and derivable from neither."""
+    _tree(tmp_path, proto=BANNER_PROTO, stub=BANNER_STUB)
+    assert stubcheck.check(tmp_path).doubled == 3
 
 
 def test_main_states_what_it_read_beside_the_verdict(
@@ -218,8 +283,8 @@ def test_main_states_what_it_read_beside_the_verdict(
     _tree(tmp_path)
     assert stubcheck.main(["--root", str(tmp_path)]) == 0
     assert capsys.readouterr().out == (
-        f"stubcheck OK: 4 proto comment(s) under {tmp_path} (3 leading, 1 trailing) appear in "
-        f"the committed Rust stub, over 5 doc line(s) read\n"
+        f"stubcheck OK: 4 proto comment(s) under {tmp_path} (3 leading, 1 trailing, 0 owed two "
+        f"copies) appear in the committed Rust stub, over 5 doc line(s) read\n"
     )
 
 
@@ -261,6 +326,7 @@ def test_the_repo_really_carries_comments_for_this_gate_to_have_checked() -> Non
     scanned = stubcheck.check(REPO_ROOT)
     assert scanned.leading >= 150
     assert scanned.trailing >= 20
+    assert scanned.doubled >= 60
     assert scanned.docs >= 200
 
 

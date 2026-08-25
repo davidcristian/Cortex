@@ -7,10 +7,27 @@ stub stating the old thing with every gate green, because a stub is generated co
 code sits outside every scan here (ADR-0001 decision 7). This is the one thread back.
 
 **The rule.** Every comment the proto body carries must still appear as a doc comment in
-`body/crates/rpc/src/_generated/cortex.seam.v1.rs`. It is a text comparison and no codegen runs,
-which is what lets it live inside `just check`: regenerating the Rust half needs a system
-`protoc` binary that `tonic-prost-build` shells out to and a clean dev box need not have, and a
-gate requiring one would make the single gate unrunnable rather than strict.
+`body/crates/rpc/src/_generated/cortex.seam.v1.rs`, **as many times as the stub holds it**. It is
+a text comparison and no codegen runs, which is what lets it live inside `just check`:
+regenerating the Rust half needs a system `protoc` binary that `tonic-prost-build` shells out to
+and a clean dev box need not have, and a gate requiring one would make the single gate unrunnable
+rather than strict.
+
+**Counted, not merely present**, which is the difference between this rule and containment. Tonic
+writes every service into a client module and a server module and documents both from the one
+declaration, so a service comment stands in the stub twice, and a reader opens whichever module
+they are working in. Containment asks whether the sentence survives anywhere and is satisfied by
+either copy, so rewording one of the two leaves the other answering for it, which is exactly the
+half-regenerated stub this gate exists to catch. Counting asks the question per copy:
+`protocomments.py` says which comments a service claims, this compares the tally each side holds,
+and a comment short of its copies is a miss naming both numbers.
+
+**One tally is not asserted**, and it is the one that carries no words. A rule line normalizes to
+a single token, and prost absorbs the closing rule of a banner into the setext heading it turns
+the line above into, so the copies that survive are not a function of the copies written. Its
+floor stays at one, which is all containment ever asked of it, because a comparison that reported
+a red over punctuation would be teaching everyone to distrust the gate that catches the retuned
+number.
 
 **One direction only.** The stub carries doc comments the proto never wrote, tonic documenting
 its own generated client and server, so the reverse containment is false by construction and
@@ -42,16 +59,27 @@ the comparison coming back empty are each a failure rather than a quiet pass, be
 comparison over an empty collection would report success forever.
 
 **The success line states what the comparison was over**: the proto comments read, split by
-whether each stands on its own line or trails code, and the stub doc lines they were sought in.
-It is a reading and nothing asserts it. The floor under it is the assertion.
+whether each stands on its own line or trails code, how many of them a service claims two copies
+of, and the stub doc lines they were sought in. It is a reading and nothing asserts it. The floor
+under it is the assertion.
 """
 
 import argparse
 import sys
+from collections import Counter
+from collections.abc import Iterable
 from pathlib import Path
 from typing import NamedTuple
 
-from protocomments import ProtoReadError, normalize, proto_comments, rust_docs
+from protocomments import (
+    COPIES,
+    RULE,
+    Comment,
+    ProtoReadError,
+    normalize,
+    proto_comments,
+    rust_docs,
+)
 
 # The two files this gate ties together, relative to the repo root: the source of truth for the
 # seam, and the generated half that copies its prose verbatim.
@@ -69,22 +97,26 @@ class StubCheckError(Exception):
 
 
 class Miss(NamedTuple):
-    """One proto comment the committed stub no longer carries."""
+    """One proto comment the committed stub carries fewer copies of than it is owed."""
 
     line: int
     text: str
+    wanted: int
+    found: int
 
 
 class Scan(NamedTuple):
     """One comparison: what it was over, then what it could not account for.
 
     ``leading`` and ``trailing`` are counted apart rather than summed, because they are read by
-    different rules and only one of them survives a naive `//` split. ``docs`` is neither of
-    them and not derivable from them: the stub says more than the proto does.
+    different rules and only one of them survives a naive `//` split. ``doubled`` overlaps both
+    and answers a third question, how many comments a service claims two copies of. ``docs`` is
+    none of them and not derivable from them: the stub says more than the proto does.
     """
 
     leading: int
     trailing: int
+    doubled: int
     docs: int
     misses: list[Miss]
 
@@ -96,6 +128,44 @@ def _read(root: Path, relative: Path) -> str:
     except (OSError, UnicodeDecodeError) as err:
         msg = f"cannot read {relative.as_posix()}: {err}"
         raise StubCheckError(msg) from err
+
+
+def owed(comments: Iterable[Comment]) -> Counter[str]:
+    """How many copies of each normalized text the stub owes, a service comment owing two.
+
+    A rule line is the one text whose tally is pinned rather than summed, at the floor containment
+    already held it to: the module docstring says why the copies that survive are not the copies
+    written.
+    """
+    tally: Counter[str] = Counter()
+    for comment in comments:
+        text = normalize(comment.text)
+        if text == RULE:
+            tally[text] = MIN_DOCS
+            continue
+        tally[text] += COPIES if comment.service else 1
+    return tally
+
+
+def shortfalls(comments: Iterable[Comment], said: Counter[str]) -> list[Miss]:
+    """Every text the stub holds fewer copies of than it owes, reported at its first proto line."""
+    wanted = owed(comments)
+    seen: set[str] = set()
+    misses: list[Miss] = []
+    for comment in comments:
+        text = normalize(comment.text)
+        if text in seen or said[text] >= wanted[text]:
+            continue
+        seen.add(text)
+        misses.append(
+            Miss(
+                line=comment.line,
+                text=comment.text.strip(),
+                wanted=wanted[text],
+                found=said[text],
+            )
+        )
+    return misses
 
 
 def check(root: Path) -> Scan:
@@ -114,16 +184,12 @@ def check(root: Path) -> Scan:
     if len(docs) < MIN_DOCS:
         msg = f"no doc comment in {STUB.as_posix()}; a comparison over nothing cannot fail"
         raise StubCheckError(msg)
-    said = {normalize(doc) for doc in docs}
     return Scan(
         leading=sum(1 for comment in comments if comment.leading),
         trailing=sum(1 for comment in comments if not comment.leading),
+        doubled=sum(1 for comment in comments if comment.service),
         docs=len(docs),
-        misses=[
-            Miss(line=comment.line, text=comment.text.strip())
-            for comment in comments
-            if normalize(comment.text) not in said
-        ],
+        misses=shortfalls(comments, Counter(normalize(doc) for doc in docs)),
     )
 
 
@@ -150,19 +216,24 @@ def main(argv: list[str] | None = None) -> int:
         print(f"stubcheck: {err}", file=sys.stderr)
         return 2
     for miss in scanned.misses:
-        print(f"{PROTO.as_posix()}:{miss.line}: the stub carries no comment saying {miss.text!r}")
+        print(
+            f"{PROTO.as_posix()}:{miss.line}: the stub says {miss.text!r} {miss.found} time(s), "
+            f"and this comment is owed {miss.wanted}"
+        )
     if scanned.misses:
         print(
             f"\nstubcheck: {len(scanned.misses)} proto comment(s) are missing from "
-            f"{STUB.as_posix()}. Regenerate the committed stubs with `just proto` and commit "
-            f"them; a stub nobody regenerated goes on stating what the proto used to say.",
+            f"{STUB.as_posix()}, or stand there in fewer copies than it holds; a comment on a "
+            "service is written into both the client and the server module. Regenerate the "
+            "committed stubs with `just proto` and commit them; a stub nobody regenerated goes "
+            "on stating what the proto used to say.",
             file=sys.stderr,
         )
         return 1
     print(
         f"stubcheck OK: {scanned.leading + scanned.trailing} proto comment(s) under {given} "
-        f"({scanned.leading} leading, {scanned.trailing} trailing) appear in the committed Rust "
-        f"stub, over {scanned.docs} doc line(s) read"
+        f"({scanned.leading} leading, {scanned.trailing} trailing, {scanned.doubled} owed two "
+        f"copies) appear in the committed Rust stub, over {scanned.docs} doc line(s) read"
     )
     return 0
 

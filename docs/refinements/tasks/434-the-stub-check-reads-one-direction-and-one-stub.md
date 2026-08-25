@@ -1,6 +1,6 @@
 # The seam-stub check reads one direction, and only one of the two stubs
 
-**Status:** open, actionable
+**Status:** landed 2026-08-25
 **Area:** seam-transport
 **Origin:** [ADR-0003](../../adr/ADR-0003-seam-codegen.md)
 
@@ -49,3 +49,24 @@ and be honest that the list is the risk. For the Python stubs: the regenerate-an
 known to work and known to need no new toolchain, so this is a decision about whether a check
 that only catches the quiet half of structural drift earns a codegen run on every brain change.
 Measure how long that run takes before arguing either way.
+
+## Trail
+
+- **2026-08-25, closed.** All three gaps settled, one closed and two declined, argued in the
+  ADR-0003 addendum on counted copies. **The entry was wrong about the first one's cost**: it
+  said teaching the gate how many copies to expect means teaching it the stub's structure, and
+  the number turned out to come from the **proto's** shape, which the reader already walks. A
+  comment inside a `service` block, or in the unbroken run directly above the `service` line, is
+  owed two copies; every other comment is owed one; the rule moved from set containment to a tally
+  comparison and a miss now names both numbers. Measured against the tree: 208 proto comments, 72
+  of them claimed by a service, all present in at least the copies they are owed. One text is
+  pinned to a floor of one rather than counted, the rule line, because prost absorbs a banner's
+  closing rule into the heading above it, so four written rules come out as four copies and not
+  eight; that was measured, not assumed. The reverse direction is declined because its exception
+  list for prost-synthesized comments is a permanent hiding place, bought against a dead paragraph
+  in generated code nobody hand-edits. The Python regenerate-and-diff is declined again, now with
+  the timing the entry asked for: 0.08s, so cost was never the argument, and what it buys is drift
+  a compiler and pyright already make loud. **Nineteen mutations over the gate against the real
+  proto and the real stub, all as designed, and twelve mutants over the gate's own 67 tests, all
+  killed**, both tabled in that addendum. Row 07, the doubled banner, was green before this and
+  reddens now.

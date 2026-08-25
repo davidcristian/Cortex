@@ -33,6 +33,16 @@ So the comparison is over normalized text: those escapes undone, leading `#` mar
 a line of nothing but dashes reduced to one token. The same function runs over both sides on
 purpose. A normalization that ran on one side only would be a rule about which file the text came
 out of rather than about what the text says, and the proto is free to write either spelling.
+
+**How many copies a comment comes out as**, which is what `service` records. Tonic writes every
+service into two modules, a client and a server, and documents both from the one declaration, so
+a comment the proto attaches to a `service` block arrives in the stub **twice** and every other
+comment arrives once. That count is the whole difference between asking whether the stub still
+says a thing anywhere and asking whether it still says it in both places, which is what a reader
+opening either module actually reads. A comment belongs to a service when it stands inside the
+block or in the unbroken run of comment lines directly above the `service` line; a blank line
+between the run and the declaration detaches it, and a detached comment is claimed for nothing,
+since claiming one copy too many is a red on a tree that is perfectly in sync.
 """
 
 import re
@@ -41,6 +51,10 @@ from typing import NamedTuple
 # The declaration that ends the file header. The line itself is header too: a trailing comment on
 # it would attach to the syntax statement, which generates no item for prost to document.
 SYNTAX = "syntax = "
+
+# The declaration tonic documents twice, and how many copies of its comments the stub then holds.
+SERVICE = "service "
+COPIES = 2
 
 # What a doc comment looks like in the generated stub, and what a rule line reduces to.
 DOC = "///"
@@ -57,11 +71,17 @@ class ProtoReadError(Exception):
 
 
 class Comment(NamedTuple):
-    """One comment in the proto body: where it sits, what it says, whether it stands alone."""
+    """One comment in the proto body: where it sits, what it says, and how it comes out.
+
+    ``service`` says the stub holds ``COPIES`` of it rather than one. It defaults to false because
+    that is the claim every comment starts with and only a `service` block above or around it
+    changes.
+    """
 
     line: int
     text: str
     leading: bool
+    service: bool = False
 
 
 def split_comment(number: int, line: str) -> tuple[str, str | None]:
@@ -87,21 +107,46 @@ def split_comment(number: int, line: str) -> tuple[str, str | None]:
 
 
 def proto_comments(text: str) -> list[Comment]:
-    """Return every comment in the proto body, in file order, refusing a file with no body."""
-    found: list[Comment] = []
+    """Return every comment in the proto body, in file order, refusing a file with no body.
+
+    The walk carries two things past each line: how deep in braces it is, so a comment inside a
+    `service` block is known for one, and the unbroken run of comment-only lines it has just
+    passed, so the banner above a `service` line can be claimed once that line arrives. Any line
+    carrying code ends the run, and so does a blank one, which is how protoc detaches a comment.
+    """
+    rows: list[tuple[int, str, bool]] = []
+    claimed: set[int] = set()
     started = False
+    depth = 0
+    inside = False
+    run: list[int] = []
     for number, raw in enumerate(text.splitlines(), start=1):
         line = raw.strip()
         if not started:
             started = line.startswith(SYNTAX)
             continue
         code, comment = split_comment(number, line)
+        bare = code.strip()
+        opens = depth == 0 and bare.startswith(SERVICE)
         if comment is not None:
-            found.append(Comment(line=number, text=comment, leading=not code.strip()))
+            rows.append((number, comment, not bare))
+            if inside or opens:
+                claimed.add(len(rows) - 1)
+        if not bare:
+            run = [*run, len(rows) - 1] if comment is not None else []
+            continue
+        if opens:
+            claimed.update(run)
+        depth += bare.count("{") - bare.count("}")
+        inside = (inside or opens) and depth > 0
+        run = []
     if not started:
         msg = f"no {SYNTAX!r} line, so the file header cannot be told from the body"
         raise ProtoReadError(msg)
-    return found
+    return [
+        Comment(line=number, text=said, leading=leading, service=index in claimed)
+        for index, (number, said, leading) in enumerate(rows)
+    ]
 
 
 def rust_docs(text: str) -> list[str]:

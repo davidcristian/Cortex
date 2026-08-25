@@ -161,3 +161,97 @@ collected (6), every comment recorded as leading (4), a plain `//` line counted 
 
 The gate lands green, over 208 proto comments (177 leading, 31 trailing) sought among 338 doc
 comment lines, so it earns its place by what it catches next rather than by what it caught today.
+
+## Addendum (2026-08-25): the comparison counts copies, and the other two gaps are declined
+
+The gate above shipped with three gaps written down rather than hidden, and this settles all
+three. One is closed, because it turned out to be cheaper than the note that recorded it
+believed; the other two are declined, with the argument here so nobody re-derives it.
+
+**Closed: a service comment is now owed two copies, not one.** The note framed this as needing to
+teach the gate the stub's structure, which is most of the way to parsing generated Rust. It does
+not. The number comes from the **proto's** own shape, which the reader already walks: tonic writes
+every service into a client module and a server module and documents both from the one
+declaration, so a comment inside a `service` block, or in the unbroken run standing directly above
+the `service` line, arrives in the stub twice, and every other comment arrives once. Measured
+against the tree as it stands, that predicts the stub exactly: of 208 proto comments, 72 are
+claimed by a service, and every distinct text is present in at least the copies it is owed. The
+rule moves from set containment to a tally comparison, and a miss now names both numbers.
+
+One text is pinned rather than counted, and it is the one carrying no words. A rule line
+normalizes to a single token, and prost absorbs the closing rule of a banner into the setext
+heading it makes of the line above, so a banner written as three lines comes out as two: the
+copies that survive are not a function of the copies written. Counting them would have reported a
+red over punctuation on a tree in perfect sync, which is how a gate teaches people to distrust it,
+so the rule line keeps the floor of one that containment always held it to. That was measured
+rather than assumed: the proto body writes four rule lines, all inside service banners, and the
+stub holds four rather than the eight a naive doubling predicts.
+
+**Declined: the reverse direction.** A comment deleted from the proto but still standing in the
+stub stays green, and it stays green deliberately. The stub carries doc comments prost synthesizes
+rather than copies, `Nested message and enum types in ...` among them, so a reverse comparison
+needs a list of exceptions, and a list of exceptions is a place a real staleness hides behind a
+name that looks synthesized. What the deletion case actually costs is a paragraph of prose that
+outlives its declaration in generated code nobody hand-edits, and what the exception list costs is
+a permanent hole in the direction that matters. The trade is not close. Note also what the
+counting rule above already recovers: a comment reworded in the proto is a miss in the direction
+that is checked, and rewording is what a live comment gets, deletion being what a dead one gets.
+
+**Declined: the Python stubs, again and on the same evidence.** The regenerate-and-diff was
+measured before the gate shipped and declined then; the note asked whether the quiet half of
+structural drift earns a codegen run on every brain change, and asked for the run to be timed
+first. Timed on this tree with a warm venv, `grpcio-tools` regenerating all three files into a
+temporary directory took 0.08s and the `.pyi` came out byte identical to the committed one, so
+cost is not the argument and never was. The argument is what it buys. It
+sees no comment at all, and the structural drift it does see is drift a compiler and pyright
+already make loud, except for the one case of a message or field added to the proto and used
+nowhere, which is by construction a thing no code depends on yet. Buying that with a codegen step
+inside the gate, plus a temporary directory and a byte comparison to maintain, is worse than
+writing down that `just proto` regenerates both stacks together. If that ever stops being true,
+this is the thing to build, and it is known to work.
+
+### Proven able to fail, at both levels
+
+**Suite: `scripts/stubcheck.py --root ..` run against the real `proto/body.proto` and the real
+`body/crates/rpc/src/_generated/cortex.seam.v1.rs`**, one temporary edit at a time, each reverted
+with `git checkout --` and the revert asserted before the next. Nineteen rows, all as designed.
+The number is the process exit code.
+
+| # | mutation | expected | got |
+|---|---|---|---|
+| 00 | none, the tree as committed | 0 | 0 |
+| 01 | proto's stated default edge retuned, stub not regenerated | 1 | 1 |
+| 02 | the bracketed range doc line deleted from the stub | 1 | 1 |
+| 03 | a comment added to the proto only | 1 | 1 |
+| 04 | a service banner reworded in the proto only | 1 | 1 |
+| 05 | the bracketed comment reworded in the proto only | 1 | 1 |
+| 06 | a service banner reworded in the stub, both copies | 1 | 1 |
+| 07 | a service banner reworded in the stub, one of its two copies | 1 | 1 |
+| 07b | the other copy of that banner reworded instead | 1 | 1 |
+| 07c | a service method comment reworded in one of its two copies | 1 | 1 |
+| 08 | the file header above `syntax` reworded (must stay green) | 0 | 0 |
+| 09 | a proto rule line shortened (must stay green) | 0 | 0 |
+| 10 | a doc comment the proto never wrote added to the stub (must stay green) | 0 | 0 |
+| 11 | one of the stub's four rule doc lines deleted (must stay green) | 0 | 0 |
+| 12 | every rule doc line deleted from the stub | 1 | 1 |
+| 13 | a message field comment's only copy reworded in the stub | 1 | 1 |
+| 14 | the proto emptied | 2 | 2 |
+| 15 | the proto removed | 2 | 2 |
+| 16 | the stub emptied | 2 | 2 |
+
+Rows 07, 07b and 07c are the whole point: row 07 was green under containment and is the reason
+this addendum exists. Rows 11 and 12 are the pinned tally holding its floor without asserting a
+count, and row 09 is the proof it is a normalization rather than a special case.
+
+**Suite: `scripts/tests/test_stubcheck.py` and `scripts/tests/test_protocomments.py`, 67 tests**
+(54 before this change), run against a mutated gate and restored from a copy after each. Baseline
+67 passed, 0 failed. Twelve mutants planted in the new logic and twelve killed: no comment ever
+claimed by a service (4 failed), the banner above a service line not claimed (3), a blank line no
+longer detaching the run (1), the claim outliving the block that opened it (3), a code line no
+longer ending the run (1), a service comment owed one copy like any other (1), the rule tally
+summed instead of pinned (7), the rule tally exempting instead of flooring (2), the comparison
+reduced to containment again (2), a miss reported per comment rather than per text (3), the two
+numbers a miss names swapped (4), and the doubled reading never counted (2).
+
+Both suites are stdlib-only and need no `protoc`, no docker and no GPU, so the gate still runs
+everywhere `just check` does, CI included.
