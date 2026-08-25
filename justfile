@@ -317,9 +317,31 @@ up-gpu:
 down-gpu:
     docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.gpu.yml down
 
-# Live seam check from the body side. Needs a running brain (`just up` or `just brain-serve`);
-# this is the Rust integration suite (#[ignore]-marked, never in CI/coverage per ADR-0003).
+# Live seam check from the body side: the Rust integration suite (#[ignore]-marked, never in
+# CI/coverage per ADR-0003). It needs two things, and the second one used to go unsaid. A
+# running brain (`just up` or `just brain-serve`), and a seam token (ADR-0016) served by that
+# brain and presented here as the same value, because one check in the suite proves a wrong
+# token is refused at once and a brain serving without one accepts every token there is,
+# including the deliberately wrong one. So the token is checked before the build rather than
+# left to fail deep in a run: a red check meaning "you configured it wrong" is indistinguishable
+# at a glance from one meaning "the seam regressed", and the recipe that gave the instructions
+# is the right place to tell them apart.
 seam-health:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ -z "${CORTEX_SEAM_TOKEN:-}" ]; then
+        echo "CORTEX_SEAM_TOKEN is unset, so this suite cannot check that a wrong token is" >&2
+        echo "refused: a brain serving without one accepts every token, and that check would" >&2
+        echo "fail as if the seam had regressed. Serve with a token and present the same value:" >&2
+        echo "    CORTEX_SEAM_TOKEN=<value> just up          # or just brain-serve" >&2
+        echo "    CORTEX_SEAM_TOKEN=<value> just seam-health" >&2
+        echo "A token written in .env reaches compose, which reads that file, and not this" >&2
+        echo "recipe, which does not. To check a token-free brain anyway, run the rest of the" >&2
+        echo "suite by hand and say so in what you report:" >&2
+        echo "    cd body && cargo test -p body-rpc --test live -- --ignored --nocapture \\" >&2
+        echo "        --skip a_rejected_seam_token" >&2
+        exit 1
+    fi
     cd body && cargo test -p body-rpc --test live -- --ignored --nocapture
 
 # The IMAP probe: a second, local IMAP server that can refuse a SELECT for the other reason,

@@ -1594,3 +1594,134 @@ printing how far into it the match got.
 ### What this opens
 
 Nothing new. The regime the encoding addendum filed is closed here.
+
+## Host-shape addendum (2026-08-25): a dead address is the host's fact, so the retry proof counts attempts
+
+The live check that measures this decision's patience failed on a machine where nothing about the
+seam had changed. `the_probe_budget_bounds_a_down_verdict_against_a_dead_address` asserted
+`probe_took >= 400ms`, the lower bound whose stated job was to prove the probe still retried, and
+measured 251.4 / 251.6 / 251.6 ms against `http://127.0.0.1:1`. The same three digits came back at
+a commit predating the session in a clean worktree, so the check had rotted rather than the code.
+
+### Re-derived from the host before anything was decided
+
+A raw socket, not the seam, answers why. A dial to `127.0.0.1:1` on this machine does not refuse:
+it sits until the caller's own clock ends it (2001.9 / 2000.6 / 2001.5 ms against a 2 s socket
+timeout). It is not every port, though, and the exception is the whole explanation: `45999` refuses
+in 0.3 ms while `1`, `2`, `7`, `9`, `79`, `1023`, `1024`, `1234`, `8099` and `65000` all hang. This
+distro's ephemeral range runs from 44620 to 48715 (`/proc/sys/net/ipv4/ip_local_port_range`), and
+the one port measured inside it is the one that refuses. The reading that fits: under WSL's mirrored
+networking the Linux stack answers for the ports it owns and the Windows host is handed the rest,
+where nothing answers a SYN to a closed port at all.
+
+So the check's own comment, "a refused dial returns long before its deadline, so what the clock
+actually measures here is the one wait", is false on this host. The first attempt reaches its
+250 ms deadline, the expiry is terminal, and the verdict is one attempt old rather than two: 251 ms,
+dead flat, because it is a deadline rather than a network.
+
+**A second check had the same premise and did not fail, it waited.**
+`the_link_probe_classifies_the_live_brain_and_a_dead_address` probed the same address over a
+**bare** client, with no decorator and therefore no deadline over it. libtest reported it running
+past 60 s, and the suite took 133.54 s for what is otherwise about 6 s of work. Nothing in this
+repo bounded that: the wait ended when the kernel stopped retransmitting the SYN.
+
+### The question this had to answer first: is the terminal timeout the defect?
+
+It is not, and the reasoning is worth writing down because the failing check makes it look like
+one. The deadline addendum's three arguments are unmoved by anything measured here. What the new
+evidence adds is a fourth, from the other end of the plan: the same classification governs the
+reads, and making an expired deadline retryable would give a `list_sessions` against a wedged brain
+five attempts of a 5 s deadline, 25 s of attempts and 6 s of waits, which is the load amplifier
+stated in the abstract, now with a number on it.
+
+And the honest account of what the probe loses on a host that drops dials is small. `Down` is true
+at 251 ms and would still be true at 900 ms; what is not spent is one reconnect chance inside a
+single probe. The indicator does not depend on that chance, because the overlay re-checks every 5 s
+while it is visible and not ready (ADR-0011 indicator addendum), so the reconnect window survives
+outside the probe rather than inside it. The bound the dot advertises is unaffected either way:
+`Down` still arrives within `max(probe_budget, probe_deadline)`.
+
+`RetryPolicy::within` is likewise sound as written. It prices an attempt at its full deadline,
+which is an upper bound under both host shapes; where dials are dropped it over-provisions and the
+probe answers early, which is the direction a bound is allowed to be wrong in.
+
+**So no production code changes here.** What changes is what the checks measure.
+
+### Decision 1: patience is proven by counting attempts, off a peer the suite owns
+
+A wall clock cannot tell "two refused dials with a 400 ms wait between them" from "one attempt that
+spent its deadline". Nothing about that is fixable by choosing a better number, because the two
+shapes differ in what happened rather than in how long it took. So the proof moves to a count.
+
+`dial_dropping_peer` (in the live suite) binds `127.0.0.1:0`, accepts every dial, drops it without
+a word, and counts. Every attempt fails `Connection` in about a millisecond on any host, since the
+peer is a socket this process owns rather than a hole in somebody's network stack, and tonic opens
+exactly one TCP connection per attempt, so the counter is the attempt count read off the wire.
+`the_probe_trims_its_attempts_where_a_read_spends_them_all` then asserts the whole promise in one
+place: the probe spends exactly 2 attempts with one real 400 ms wait between them, and the same
+schedule leaves the read all 5. That is strictly more than the assertion it replaces, which could
+only say that some time had passed, and it is the first check anywhere to pin the claim the probe
+budget exists for, that raising the read knobs never drags the probe along with them.
+
+### Decision 2: the dead address keeps the bound and gives up the lower bound
+
+`127.0.0.1:1` stays, because it is the one peer no fixture can imitate: nothing listening at all.
+Its check now asserts `Down` and a verdict inside the budget, and nothing else. The cost is the
+host's to decide, the bound is ours, and a check should assert the half it owns.
+
+### Decision 3: an undecorated probe is never pointed at a peer that can hang
+
+The bare-client check moves to the dropping peer entirely, and its name says so:
+`the_link_probe_classifies_the_live_brain_and_a_peer_that_cannot_serve`. A client with no
+decorator has no
+deadline by design, the clock living in the decorator, so pointing one at a closed port makes the
+suite's own runtime a fact about the host too: two minutes here, milliseconds on a Linux stack, and
+in neither case a measurement of anything this repo wrote. It keeps its claim, that a probe
+classifies rather than raises, and gains an assertion that the peer was really dialed, so it cannot
+pass by never reaching it. The live suite goes from 133.54 s to 6.41 s.
+
+### Distrust green
+
+Mutation table, counts over `cargo test -p body-rpc --test live -- --ignored` (8 checks, all
+passing unmutated against a brain served with a token):
+
+| Mutation | Result |
+| --- | --- |
+| The probe's schedule is not trimmed to its budget | 7 passed, 1 failed: "the probe made 5 attempts on a 5-attempt schedule trimmed to a 1 s budget" |
+| The probe never retries (`RetryPolicy::ONCE` for `Health`) | 7 passed, 1 failed: "the probe made 1 attempts" |
+| The reads are trimmed like the probe | 7 passed, 1 failed: "the read made 2 attempts of the 5 its schedule allows" |
+| A refused dial is terminal (`is_transient(Connection)` false) | 7 passed, 1 failed: "the probe made 1 attempts" |
+| An expired deadline draws `Degraded` | 7 passed, 1 failed: the dead address, which is the shape this host produces |
+| A refused dial draws `Degraded` | 6 passed, 2 failed: both peers that cannot serve |
+
+The fourth and the second are the same failure by two routes, and together they are the answer to
+"does this still fail if the probe stops retrying": it does, in 0.25 s, by count rather than by
+clock. The fifth is the one that says the dead address still bites on this host, where its verdict
+comes from the deadline.
+
+The two clock bounds that remain were then measured under load rather than at idle, since a bound
+read on a quiet box says little about the one a busy box will produce: with 48 spinners on 24 cores
+(1-minute load average 13.97 by the end of the sweep) the counted check passed three times at
+6.46 / 6.45 / 6.45 s against 6.41 s idle. It is dominated by sleeping rather than by working, which
+is why saturating the box barely moves it, and both bounds keep more than a second of slack.
+
+The failure this pass started from was also reproduced at a commit predating it, in a clean
+worktree: 251.637515 ms, against the 400 ms the check demanded. The rot is older than the session
+that found it.
+
+### Consequences
+
+- No production code changed. The retry gate, the transient set, the trimming arithmetic and every
+  deadline are exactly as the deadline addendum left them.
+- The live suite is bounded on every host: no check in it waits on a peer that may never answer.
+- A future reader who measures a probe against a dead address and gets a number below the first
+  backoff has not found a regression. The two shapes are written down here, and the count is where
+  the answer lives.
+
+### What this opens
+
+Nothing in the transport. The one deferral filed alongside this pass is about the record rather
+than the seam: nothing holds the roster of live checks in
+[docs/modules/body-rpc.md](../modules/body-rpc.md) to the checks the file actually carries, and it
+had drifted to "two" while seven were running
+([R-442](../refinements/tasks/442-nothing-holds-the-live-check-roster-to-the-suite.md)).

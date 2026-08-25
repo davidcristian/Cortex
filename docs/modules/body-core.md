@@ -326,7 +326,12 @@ is domain logic:
   point where the answer still matters is the indicator showing a state the seam stopped
   proving, so the probe's schedule is trimmed to fit while the reads keep theirs. The bound is
   arithmetic rather than hope now that an attempt has its own deadline: `Down` arrives within
-  `max(probe_budget, probe_deadline)`, one attempt always surviving.
+  `max(probe_budget, probe_deadline)`, one attempt always surviving. How many attempts fit inside
+  that bound depends on how the dial fails, which is a fact about the host: a refused dial costs
+  microseconds and leaves room for the retry the budget affords, while a dial the host drops
+  instead spends the attempt's whole deadline, and an expired deadline is terminal, so the verdict
+  is one attempt old (ADR-0024 host-shape addendum). The bound holds either way, and it is the
+  bound the indicator renders.
 
 OS-capability ports (`os` module) are the first portability seam (ADR-0011):
 
