@@ -780,3 +780,82 @@ It takes the same fix the probe's fixture already uses, a `tmpfs` at the declare
 leaves docker's declaration nothing to anonymise. That is the argument for tier one stated as a
 measurement rather than as a preference: the question had been askable by hand for months and
 nobody asked it, and the first run of a gate that asks it on every commit answered no.
+
+## Addendum (2026-08-25): the re-derivation asks the registry, and the tag stays a tag
+
+The arrangement above records what each image declares and gives the record a hand-run recipe, and
+the deferral it left open was the obvious one: a pinned tag can be republished under the same name,
+so the record can go stale with no file in this tree changing and no gate able to tell. Three
+answers were framed for it. All three are declined, and the reason is a defect found while
+measuring them rather than an argument about which is prettiest.
+
+**`docker image inspect` never reaches a registry.** It answers out of the local cache, and
+`rederive` was built on it, so the one thing keeping the record honest could only ever confirm
+whatever this machine happened to be holding. On a box carrying a month-old copy of
+`ghcr.io/ggml-org/llama.cpp:server`, running the recipe reported that the record agrees with
+docker about an image the registry stopped serving under that name weeks earlier. That is worse
+than the deferral said. It was not "the record is only as fresh as the last re-derivation"; it was
+that a re-derivation could not see a moved tag at all, which makes it precisely the shape this
+module's own docstring already refuses, a run that "would confirm the record it was run to doubt".
+
+**Decision: `--rederive` pulls every image it did not build before asking what that image
+declares, and a pull it cannot do is reported rather than answered from the cache.** The three
+images this repo builds are asked without a pull, having no registry to be refreshed from: their
+answer is the local build, which is the thing a container here really runs. Which references those
+are is not guessed from the shape of the name; the walk already reads `build:` per service, so the
+gate hands the re-derivation the set it read.
+
+That is the smallest thing that makes the deferral's own subject visible, and it lands in the
+tier-one arrangement rather than beside it. A moving tag republished with a new `VOLUME` now shows
+up the next time anybody runs `just image-volumes`, which is the same day the record was going to
+be wrong either way, and the recipe's instruction gains one more occasion: run it when a pin moves,
+and on any day a moving tag may have been republished.
+
+The three framed answers stay declined against that.
+
+- **Recording the resolved digest beside each tag** would make a moved tag visible only to
+  something that can resolve a digest, which is a docker call and therefore the same problem one
+  level down. It also churns: an upstream rebuild moves the digest without moving a declared path,
+  so the record would be edited for events the record does not care about, and a record edited
+  often is a record nobody reads.
+- **A scheduled workflow running the recipe on a timer** buys the same visibility at the cost of a
+  second scheduled job and a runner pulling multi-gigabyte CUDA images weekly, reporting into a job
+  nobody watches. The tier-three argument above already says why that is the last resort and not
+  the first, and the recipe now answers honestly when it is run, which is the half that was broken.
+- **Pinning every image by digest** would make the whole class impossible and would turn every
+  compose file into unreadable hashes maintained by dependabot churn. The class it closes is a
+  publisher adding a `VOLUME` to an existing tag, which is rare, and whose symptom is clutter on
+  the host rather than lost data. The trade is not worth the compose files.
+
+What remains open is stated plainly: between two runs of the recipe, a republished tag can still
+add a declared path and nothing here will know. That is the residue of choosing a record over a
+daemon, it is named on the recipe and in the runbook, and it is the price of a gate that runs on a
+machine with no docker at all.
+
+### Proven able to fail
+
+**Suite: `scripts/tests/test_volumecheck.py` and `scripts/tests/test_imagevolumes.py`, 46 tests**
+(40 before this change), run against a mutated gate and restored from a copy after each. Baseline
+46 passed, 0 failed. Eight mutants planted, seven killed by the suite and the eighth by the live
+run below.
+
+| mutant planted in the gate | tests killed |
+|---|---|
+| nothing is ever pulled, the cache answers for the registry | 3 |
+| everything is pulled, including the images built here | 2 |
+| the built set never reaches the re-derivation | 2 |
+| no service is recorded as built | 3 |
+| every service is recorded as built | 2 |
+| the walk forgets what one file built | 3 |
+| the drift report is handed the names instead of the built | 1 |
+| a failed pull is answered from the cache instead of raised | 0, see below |
+
+The survivor is the one mutant no unit test can reach: it lives inside `docker_volumes`, the thin
+adapter that shells out to a real daemon, which is this module's one `pragma: no cover` and is
+covered by an `integration`-marked test instead. It was killed live, and by accident first. The
+initial live run of the new recipe on this host could not pull at all, docker's credential helper
+being unavailable in that shell, and it reported five rows as failed pulls and exited 1 rather
+than answering any of them from the cache. Re-run with a working docker config it exits 0 over all
+eight images, five pulled and three built. With the pull removed and nothing else changed, the same
+broken-credential shell exits 0 and prints that the record agrees with docker, which is exactly the
+green this addendum exists to stop being possible.

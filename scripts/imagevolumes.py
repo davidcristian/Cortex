@@ -23,6 +23,17 @@ with the same format string `docker_volumes` below spends, which is `INSPECT_FOR
 
     docker image inspect --format "$INSPECT_FORMAT" <image>
 
+**A re-derivation pulls first, and that is the whole reason it can see anything.** `docker image
+inspect` answers out of the local cache and never reaches a registry, so on a machine holding a
+month-old copy of a moving tag it confirms a month-old image under a name the registry has since
+republished. Half these references are moving tags by design, `ghcr.io/ggml-org/llama.cpp:server`
+most of all, and the failure this record has to survive is exactly a publisher adding a `VOLUME`
+to a tag nobody re-pinned. An inspect of the cache cannot see that, so `rederive` refreshes every
+registry reference before asking about it, and a pull that fails is reported rather than answered
+from whatever was lying around. The three images this repo builds are the exception, having no
+registry to be refreshed from: their answer is the local build, which is the thing a container
+here really runs.
+
 Two of the eight answer with a path. The other six declare nothing, and a row saying so is worth
 as much as a row saying otherwise: it is what lets the gate tell an image whose silence was
 measured from one nobody has asked about yet.
@@ -38,7 +49,8 @@ image, which is the thing a container actually runs and the thing measured above
 """
 
 import subprocess
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Iterable, Mapping
+from typing import Protocol
 
 # The answer docker gave, image reference to the volume paths it declares, sorted. An empty tuple
 # is a measured answer and not a missing one. Regenerate with `just image-volumes`.
@@ -63,9 +75,15 @@ RECORD_PATH = "scripts/imagevolumes.py"
 # One path per line, which is the only shape `docker_volumes` has to parse back.
 INSPECT_FORMAT = "{{range $path, $_ := .Config.Volumes}}{{$path}}\n{{end}}"
 
-# How a rederivation asks about one image. The fake in the tests satisfies the same signature,
-# which is what keeps the comparison below testable without a daemon.
-Inspector = Callable[[str], tuple[str, ...]]
+
+class Inspector(Protocol):
+    """How a rederivation asks about one image, and whether to refresh it from its registry first.
+
+    The fake in the tests satisfies the same signature, which is what keeps the comparison below
+    testable without a daemon.
+    """
+
+    def __call__(self, reference: str, *, pull: bool) -> tuple[str, ...]: ...
 
 
 class InspectError(Exception):
@@ -78,13 +96,28 @@ def render(paths: Iterable[str]) -> str:
     return written or "nothing"
 
 
-def docker_volumes(reference: str) -> tuple[str, ...]:  # pragma: no cover -- needs a real docker
-    """Ask the local docker what one image declares, which only a machine holding it can do.
+def docker_volumes(  # pragma: no cover -- needs a real docker
+    reference: str, *, pull: bool
+) -> tuple[str, ...]:
+    """Ask docker what one image declares, refreshing it from its registry first when it has one.
 
     The thin adapter, and the only part of this module a coverage gate cannot reach. Everything
     that decides anything is in `rederive`, which takes any inspector and is tested against a fake.
+    The pull is what makes the answer a fact about the registry rather than about this machine's
+    cache; the module docstring says why that is the difference between a re-derivation and a
+    confirmation of whatever was already here.
     """
     try:
+        if pull:
+            fetched = subprocess.run(  # noqa: S603 -- fixed argv, no shell
+                ["docker", "pull", "--quiet", reference],  # noqa: S607
+                capture_output=True,
+                check=False,
+                text=True,
+            )
+            if fetched.returncode != 0:
+                msg = f"docker pull failed: {fetched.stderr.strip()}"
+                raise InspectError(msg)
         result = subprocess.run(  # noqa: S603 -- fixed argv, no shell
             ["docker", "image", "inspect", "--format", INSPECT_FORMAT, reference],  # noqa: S607
             capture_output=True,
@@ -104,6 +137,7 @@ def rederive(
     references: Iterable[str],
     records: Mapping[str, tuple[str, ...]],
     inspect: Inspector,
+    built: Iterable[str] = (),
 ) -> list[str]:
     """Ask ``inspect`` about every image, and report each row that no longer says what it says.
 
@@ -111,13 +145,15 @@ def rederive(
     holds, because a row that has gone stale and an image nobody recorded are the same drift
     arriving from opposite sides. An image docker cannot answer about is reported rather than
     skipped: a rederivation that quietly left a row unverified would confirm the record it was run
-    to doubt.
+    to doubt, and asking a stale cache is the same confirmation wearing a green face, which is why
+    every reference outside ``built`` is refreshed before it is asked about.
     """
     report: list[str] = []
+    local = set(built)
     for reference in sorted({*references, *records}):
         recorded = records.get(reference)
         try:
-            found = inspect(reference)
+            found = inspect(reference, pull=reference not in local)
         except InspectError as err:
             report.append(f"{reference}: {err}")
             continue

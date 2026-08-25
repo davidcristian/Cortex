@@ -22,9 +22,12 @@ nor a build is a fragment of one defined elsewhere; it asks nothing here.
 
 **Where the answer comes from.** Docker's, recorded in `imagevolumes.py`, because `just check` runs
 on a clean dev box and in CI where there is neither daemon nor image. `--rederive` is the other
-half, hand-run behind `just image-volumes`: it asks a real docker about every image the compose
-files name and reports each row that has drifted. It answers that one question and not this one,
-so a leak found by the gate is reported by the gate, and running the two is running two commands.
+half, hand-run behind `just image-volumes`: it pulls every image the compose files name, asks a
+real docker what each declares, and reports each row that has drifted. The pull is not a
+convenience: most of these references are moving tags, an inspect answers out of the local cache,
+and reading the cache would confirm a month-old image under a name the registry has republished.
+The images this repo builds are asked without one, having no registry to refresh from. It answers
+that one question and not this one, so a leak found by the gate is reported by the gate.
 
 **Fail closed** in three more directions than the rule itself, because a recorded fact only helps
 while the record and the tree still describe each other. An image no row knows is an unasked
@@ -90,13 +93,16 @@ class Scan(NamedTuple):
     ``check_file`` returns one of these per file, so the whole walk is their sum, except for the
     stale rows, which only the whole walk can know about. ``declared`` counts per definition and
     not per image: two services running one image are two containers, and each gets its own
-    anonymous volume.
+    anonymous volume. ``built`` is the subset of ``names`` a compose file builds here, which the
+    gate itself has no use for and a re-derivation cannot do without: those are the references no
+    registry can be asked to refresh.
     """
 
     files: int
     definitions: int
     declared: int
     names: tuple[str, ...]
+    built: tuple[str, ...]
     faults: list[Fault]
 
 
@@ -155,10 +161,11 @@ def uncovered(name: str, service: Service, reference: str, declared: Iterable[st
 def check_file(read: Read, base: str | None, records: Mapping[str, tuple[str, ...]]) -> Scan:
     """Return what one compose file offered the gate, and every declaration left open in it."""
     if read.found is None:
-        return Scan(files=1, definitions=0, declared=0, names=(), faults=read.faults)
+        return Scan(files=1, definitions=0, declared=0, names=(), built=(), faults=read.faults)
     project = read.found.project or base
     definitions = declared = 0
     names: list[str] = []
+    built: list[str] = []
     faults: list[Fault] = []
     for service in read.found.services:
         if not service.defines:
@@ -178,6 +185,8 @@ def check_file(read: Read, base: str | None, records: Mapping[str, tuple[str, ..
             )
             continue
         names.append(reference)
+        if service.builds:
+            built.append(reference)
         row = records.get(reference)
         if row is None:
             faults.append(
@@ -190,7 +199,7 @@ def check_file(read: Read, base: str | None, records: Mapping[str, tuple[str, ..
             continue
         declared += len(row)
         faults.extend(uncovered(read.name, service, reference, row))
-    return Scan(1, definitions, declared, tuple(names), faults)
+    return Scan(1, definitions, declared, tuple(names), tuple(built), faults)
 
 
 def check(root: Path, records: Mapping[str, tuple[str, ...]] = IMAGE_VOLUMES) -> Scan:
@@ -209,15 +218,19 @@ def check(root: Path, records: Mapping[str, tuple[str, ...]] = IMAGE_VOLUMES) ->
         definitions=sum(scan.definitions for scan in scans),
         declared=sum(scan.declared for scan in scans),
         names=tuple(sorted(named)),
+        built=tuple(sorted({name for scan in scans for name in scan.built})),
         faults=faults,
     )
 
 
 def report_drift(
-    names: tuple[str, ...], records: Mapping[str, tuple[str, ...]], inspect: Inspector
+    names: tuple[str, ...],
+    built: tuple[str, ...],
+    records: Mapping[str, tuple[str, ...]],
+    inspect: Inspector,
 ) -> int:
     """Ask a real docker about the record, print every row that has drifted, and exit on it."""
-    report = rederive(names, records, inspect)
+    report = rederive(names, records, inspect, built)
     for line in report:
         print(line)
     if report:
@@ -228,7 +241,10 @@ def report_drift(
             file=sys.stderr,
         )
         return 1
-    print(f"volumecheck: the record agrees with docker on all {len({*names, *records})} image(s)")
+    print(
+        f"volumecheck: the record agrees with docker on all {len({*names, *records})} image(s), "
+        f"{len(built)} of them built here and the rest pulled before they were asked"
+    )
     return 0
 
 
@@ -260,7 +276,7 @@ def main(argv: list[str] | None = None, inspect: Inspector = docker_volumes) -> 
         print(f"volumecheck: {err}", file=sys.stderr)
         return 2
     if rederiving:
-        return report_drift(scanned.names, IMAGE_VOLUMES, inspect)
+        return report_drift(scanned.names, scanned.built, IMAGE_VOLUMES, inspect)
     for fault in scanned.faults:
         print(f"{fault.path}:{fault.line}: {fault.detail}")
     if scanned.faults:

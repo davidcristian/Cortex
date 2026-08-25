@@ -90,10 +90,12 @@ check-stubcheck:
     cd scripts && uv sync --locked
     cd scripts && uv run python stubcheck.py --root ..
 
-# Hand-run, needs docker: ask the daemon what every image this repo's compose files name
-# actually declares, and fail when scripts/imagevolumes.py disagrees. Run it after pinning
-# a new image or bumping a pinned one, since that record is the only thing check-volumecheck
-# can see and a bump is exactly when a third declared path arrives unannounced.
+# Hand-run, needs docker and the network: pull every image this repo's compose files name,
+# ask the daemon what each actually declares, and fail when scripts/imagevolumes.py
+# disagrees. The pull is the point, since inspect answers out of the local cache and most of
+# these references are moving tags; the three images built here are asked without one. Run
+# it after pinning a new image or bumping a pinned one, and on any day a moving tag may have
+# been republished, since that record is the only thing check-volumecheck can see.
 image-volumes:
     cd scripts && uv sync --locked
     cd scripts && uv run python volumecheck.py --root .. --rederive

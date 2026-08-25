@@ -422,9 +422,14 @@ that last question to have an answer.
   one per start. **What an image declares is recorded rather than read**, in `imagevolumes.py`,
   because `just check` runs on a clean dev box and in CI, where there is no daemon and no image
   pulled, and one recipe is already deliberately outside the single gate for needing system
-  libraries. `--rederive` is the other half and what `just image-volumes` runs: it asks a real
-  docker about every image and reports each row that has drifted, in **both** directions, since a
-  stale row and an unrecorded image are one drift arriving from opposite sides. The cover may be a
+  libraries. `--rederive` is the other half and what `just image-volumes` runs: it **pulls** every image it
+  did not build, asks a real docker what each declares, and reports each row that has drifted, in
+  **both** directions, since a stale row and an unrecorded image are one drift arriving from
+  opposite sides. The pull is what makes it a re-derivation rather than a confirmation: `docker
+  image inspect` answers out of the local cache, most of these references are moving tags, and a
+  cache read would confirm a month-old image under a name the registry has republished. A pull it
+  cannot do is reported rather than answered from the cache; the three images this repo builds are
+  asked without one, having no registry to be refreshed from. The cover may be a
   bind, a named volume or a tmpfs, and it must sit at **exactly** the declared path, a mount over
   the parent leaving docker's declaration standing. **The rule is per file rather than per
   layered stack**, because `just up` runs the base file alone, so a base service whose declared
@@ -448,8 +453,9 @@ that last question to have an answer.
   measured from an image nobody has asked about. Its docstring carries the measurement: the
   `docker image inspect --format` line, the date, and why the three built rows are spelled the way
   compose tags them with no row for the bases they inherit from. `docker_volumes` is the only
-  part needing a real daemon and is the module's one `pragma: no cover`; `rederive` decides
-  everything and takes any inspector, so the comparison is tested against a fake.
+  part needing a real daemon and is the module's one `pragma: no cover`, and it is where the pull
+  lives; `rederive` decides everything, including which references are refreshed and which are
+  local builds, and takes any inspector, so the comparison is tested against a fake.
 - `composeservices.py` is `volumecheck.py`'s reader and has no CLI. It answers what each service
   runs and which container paths it already covers, which `composemounts.py` cannot: that reader
   takes a mount's **source**, the host path a bind would materialize, and drops every entry naming

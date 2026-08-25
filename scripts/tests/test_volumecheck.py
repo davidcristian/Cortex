@@ -39,7 +39,7 @@ def _service(body: str, name: str = "db") -> str:
 def _answering(answers: Mapping[str, tuple[str, ...]]) -> Inspector:
     """An inspector answering from a dict and refusing anything else, the way docker does."""
 
-    def inspect(reference: str) -> tuple[str, ...]:
+    def inspect(reference: str, *, pull: bool) -> tuple[str, ...]:  # noqa: ARG001
         try:
             return answers[reference]
         except KeyError as err:
@@ -296,6 +296,41 @@ def test_main_reports_a_scan_that_could_not_run(
 
 
 # ── rederiving from a real docker ──────────────────────────────────────────────
+
+
+def test_the_walk_names_the_images_this_repo_builds_apart() -> None:
+    """The gate has no use for the distinction and a re-derivation cannot do without it: a built
+
+    image has no registry to be refreshed from before it is asked what it declares.
+    """
+    scanned = volumecheck.check(REPO_ROOT)
+    assert set(scanned.built) <= set(scanned.names)
+    assert scanned.built == ("cortex-brain", "cortex-mcp-email", "cortex-model-host")
+
+
+def test_a_service_that_only_builds_is_named_among_the_built(tree: Path) -> None:
+    """The name compose runs it under, which is the project and the service and no registry."""
+    _write(tree, "docker/docker-compose.extra.yml", _service("    build: ..\n", name="fresh"))
+    assert volumecheck.check(tree, {}).built == ("tree-brain", "tree-fresh")
+
+
+def test_main_rederiving_asks_the_registry_for_everything_it_did_not_build(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The count in the success line is the reading that says which half was refreshed."""
+    asked: dict[str, bool] = {}
+
+    def inspect(reference: str, *, pull: bool) -> tuple[str, ...]:
+        asked[reference] = pull
+        return IMAGE_VOLUMES[reference]
+
+    assert volumecheck.main(["--root", str(REPO_ROOT), "--rederive"], inspect) == 0
+    assert sorted(name for name, pull in asked.items() if not pull) == [
+        "cortex-brain",
+        "cortex-mcp-email",
+        "cortex-model-host",
+    ]
+    assert "3 of them built here and the rest pulled" in capsys.readouterr().out
 
 
 def test_main_rederiving_against_a_docker_that_agrees_reports_nothing(
