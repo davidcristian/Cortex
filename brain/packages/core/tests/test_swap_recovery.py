@@ -162,7 +162,11 @@ async def test_a_stranded_record_is_failed_so_the_next_handoff_is_not_refused(
     assert _said(caplog) == [
         (
             "a handoff did not survive the restart; marking it failed",
-            {"turn_id": harness.TURN, "state": HandoffState.READY.value},
+            {
+                "session_id": harness.SESSION,
+                "turn_id": harness.TURN,
+                "state": HandoffState.READY.value,
+            },
         )
     ]
 

@@ -195,12 +195,12 @@ class BrainPhase:
         if failure is None:
             for event in cap_note(stops, parts):
                 yield event
-        self._report_cadence(watch.reading(), record.handoff_id)
+        self._report_cadence(watch.reading(), record)
         await self._persist(record, query=query, reply="".join(parts), taint=taint)
         if failure is not None:
             raise failure
 
-    def _report_cadence(self, reading: CadenceReading | None, handoff_id: str) -> None:
+    def _report_cadence(self, reading: CadenceReading | None, record: HandoffRecord) -> None:
         """Say what the deep tier's throughput was, once, after the phase and before it persists.
 
         Placed after the stream rather than inside it so the whole handoff's completions are in
@@ -209,13 +209,29 @@ class BrainPhase:
         reports what it managed to observe. Both lines name the work ``turn_id``, the handoff id
         they are handed being the escalating turn's own (ADR-0009 sixth-name addendum), so a
         slow deep tier is joined to that turn's other lines by the field they all share.
+
+        Both name the **conversation** as well, which is the one field here that is arguably about
+        something else: the rate is a fact about the card. It is attached anyway, because these
+        are the only lines a handoff that *worked* ever writes, every refusal and every settle
+        above being a failure path, so without it a chat that escalated successfully and decoded
+        slowly has no swap-path evidence a reader can reach at all (ADR-0009 named-conversation
+        addendum). The deployment-wide reading of the same measurement has its own destination
+        and carries no chat: ``_note_pace`` below publishes it to the residency record.
         """
         if reading is None:
-            _logger.info(_NO_READING_LOG_MSG, extra={"model": self._model, "turn_id": handoff_id})
+            _logger.info(
+                _NO_READING_LOG_MSG,
+                extra={
+                    "model": self._model,
+                    "session_id": record.session_id,
+                    "turn_id": record.handoff_id,
+                },
+            )
             return
         extra = {
             "model": self._model,
-            "turn_id": handoff_id,
+            "session_id": record.session_id,
+            "turn_id": record.handoff_id,
             "tokens_per_second": reading.observed.tokens_per_second,
             "tokens": reading.observed.tokens,
             "floor_tokens_per_second": reading.floor,

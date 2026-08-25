@@ -31,13 +31,16 @@ must not be tied to each other. Nor is `NotifyRequest.reminder_id`, the seam's n
 the body is handed: the ticker's line is the brain's reading of its own work and takes the brain's
 name for it, and that the two differ is the decision rather than a drift.
 
-**The swap path is here now, and it needed no sixth name.** Its eleven lines spelled a handoff
+**The swap path names both a turn and the conversation.** Its eleven lines spelled a handoff
 `handoff` and a turn `turn`, and the first of those looked like an identity the stamp does not
 carry until the mint was read: `EscalationSlot.snapshot` writes `handoff_id=turn_id`, so a handoff
 id is the escalating turn's id and those lines were naming a turn all along. They are tied to
 `TURN_FIELD` like any other, and the one line that names two turns at once spends the qualified
 spelling `active_turn_id`, tied to the same declaration through a template that renders the
-qualifier in front of it, so a rename of the family moves the qualified name with it.
+qualifier in front of it, so a rename of the family moves the qualified name with it. All eleven
+then gained the conversation as well (ADR-0009 named-conversation addendum), so the four swap
+modules appear under both of the first two entries below, and a fifth refusal or a fourth settle
+that named only one of the two is caught by whichever entry's count it broke.
 """
 
 from couplings import Constant, Mention, Site
@@ -78,12 +81,12 @@ LOG_COUPLINGS: tuple[Constant, ...] = (
     Constant(
         label="the field a brain log line names the conversation under",
         why=(
-            "seven modules attach the conversation a line is about and the recall trail is read "
-            "beside the turn failures for the same chat, so a name that moved in one of them "
-            "would split one investigation's evidence in two without any suite noticing, which "
-            "is what happened for as long as the trail spelled it `session` (ADR-0009 "
-            "one-vocabulary addendum); the memory runbook is the far side no import could reach, "
-            "telling an operator to grep the field by name"
+            "eleven modules attach the conversation a line is about and the recall trail is read "
+            "beside the turn failures and the handoff for the same chat, so a name that moved in "
+            "one of them would split one investigation's evidence in two without any suite "
+            "noticing, which is what happened for as long as the trail spelled it `session` "
+            "(ADR-0009 one-vocabulary addendum); the two runbooks are the far side no import "
+            "could reach, telling an operator to grep the field by name"
         ),
         sites=(Site(LOG_FIELDS, "SESSION_FIELD"),),
         mentions=(
@@ -94,8 +97,22 @@ LOG_COUPLINGS: tuple[Constant, ...] = (
             Mention(RERANK_JUDGE, FIELD_KEY),
             Mention(CONVERSE_STREAM, FIELD_KEY),
             Mention(RECALL_AUDIT, FIELD_KEY),
+            # The swap path's four modules, which carry the conversation as of the
+            # named-conversation addendum. The two counts are pinned for the same reason the turn
+            # entry pins them: the conductor's four refusals are its whole account of a handoff
+            # that never started, and the settler's three are its whole account of settling one,
+            # so a fifth or a fourth arriving without the conversation is the drift.
+            Mention(SWAP_CONDUCTOR, FIELD_KEY, occurrences=4),
+            Mention(SWAP_SETTLE, FIELD_KEY, occurrences=3),
+            Mention(SWAP_RECOVERY, FIELD_KEY),
+            # The deep phase's two cadence spellings, the reading and the no-reading arms. Pinned
+            # at two because they are the only lines a handoff that WORKED ever writes, so losing
+            # either leaves a chat that escalated successfully with no evidence it ever did.
+            Mention(BRAIN_PHASE, FIELD_KEY, occurrences=2),
             Mention(MEMORY_RUNBOOK, 'grep "{value}=<id>"'),
             Mention(MEMORY_RUNBOOK, "`{value}=None`"),
+            Mention(SWAP_RUNBOOK, "{value}=<chat id>"),
+            Mention(SWAP_RUNBOOK, "`grep {value}=`"),
         ),
     ),
     Constant(
@@ -128,7 +145,11 @@ LOG_COUPLINGS: tuple[Constant, ...] = (
             Mention(SWAP_RECOVERY, FIELD_KEY),
             Mention(BRAIN_PHASE, FIELD_KEY),
             Mention(TOOLS_RUNBOOK, "grep {value}=t-"),
-            Mention(SWAP_RUNBOOK, "a handoff ended failed {value}=<turn id>"),
+            # The failed-settle line the swap runbook prints verbatim. The needle is the field
+            # rather than the message plus the field, because the fields are printed in NAME
+            # order by the formatter and the message no longer touches this one: the conversation
+            # sorts between them (`reason`, `session_id`, `turn_id`).
+            Mention(SWAP_RUNBOOK, "{value}=<turn id>"),
             Mention(SWAP_RUNBOOK, "`grep {value}=t-"),
         ),
     ),

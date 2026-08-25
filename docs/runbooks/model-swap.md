@@ -495,14 +495,29 @@ in two places instead, and either is enough
 ends failed writes one `WARNING` from `cortex_core.swap_settle`:
 
 ```
-WARNING:cortex_core.swap_settle:a handoff ended failed turn_id=<turn id> reason="<what happened>"
+WARNING:cortex_core.swap_settle:a handoff ended failed reason="<what happened>" session_id=<chat id> turn_id=<turn id>
 ```
+
+The fields are in name order because the formatter prints them that way, whatever order the call
+site wrote them in (ADR-0038 rendered-fields addendum), so that is the order you will see.
 
 `turn_id` is the escalating turn's id, which is also the handoff's: one turn escalates at most
 once, so the two are one number and the brain's log spells it the way every other line about that
 turn does (ADR-0009 sixth-name addendum). That is what makes `grep turn_id=t-...` return the
 whole of it, this line beside the turn's own failures and every tool call it made. The Redis key
 below is the one place that id still wears the word `handoff`, being the record's own address.
+
+`session_id` is the chat that turn belongs to, and it is on **every** swap-path line rather than
+on this one alone (ADR-0009 named-conversation addendum). The rule is worth knowing before you
+grep: a line about one handoff names both ids, so `grep session_id=` on the chat's own id returns
+the refusals that chat met, the settle that ended its handoff, the deep tier's decode rate for it
+and the boot that found it stranded, beside that chat's recalls, summaries and tool calls. A line
+about the **card** rather than about any one handoff names neither, which is every residency line
+boot recovery and the swap back write (stopping a tier, clearing the deep model, settling the
+cortex, a tier that would not restart): those name the `model` and carry no work identity at all,
+because a tier's state is the deployment's rather than one chat's. Start from the
+chat when a user reports something, from the turn when you already have one, and from the model
+when the machine itself is the suspect.
 
 The `reason` field is the whole sentence. On a swap that broke it is the model host's own words,
 carried out of the adapter that built them: the method, the route, the tier, the HTTP status and

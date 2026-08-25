@@ -274,7 +274,11 @@ async def test_a_second_concurrent_handoff_is_refused_without_evicting_anything(
     assert [(record.message, record_fields(record)) for record in caplog.records] == [
         (
             "refusing a handoff while the store still has one in flight",
-            {"active_turn_id": "t-other", "turn_id": harness.TURN},
+            {
+                "active_turn_id": "t-other",
+                "session_id": harness.SESSION,
+                "turn_id": harness.TURN,
+            },
         )
     ]
 
@@ -515,7 +519,7 @@ async def test_a_swap_that_broke_writes_the_model_hosts_own_sentence_down(
     # sixth-name addendum). It said `handoff` here until a handoff id was read at its mint
     # and turned out to be the escalating turn's own.
     assert [record_fields(entry) for entry in logged] == [
-        {"turn_id": harness.TURN, "reason": settled.failure}
+        {"session_id": harness.SESSION, "turn_id": harness.TURN, "reason": settled.failure}
     ]
 
 

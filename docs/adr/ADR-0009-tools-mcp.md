@@ -2619,3 +2619,196 @@ fires, so the window this addendum widened its own estimate of is still sized fr
 bound in this series is a multiple of a subtask measured on an idle box, where a saturated one runs
 the same subtask five to eight times slower, within 28% of the run deadline
 ([R-430](../refinements/tasks/430-the-bounds-are-sized-on-an-idle-box.md)).
+
+## Named-conversation addendum (2026-08-25): which swap-path lines name a chat, and which name neither
+
+The sixth-name addendum above put all eleven of the swap path's log records onto the turn's own
+name and, reading each one, found that not one of them named the **conversation** that turn
+belongs to. Seven other modules attach `session_id` and the tool audit sink writes it on every
+call it records, so a grep by conversation returned a chat's recalls, its rank fallbacks, its
+mid-turn failures, its summaries and every tool call it made, and nothing at all about the handoff
+that chat asked for, which is the most expensive thing that happens in it. That was deferred as
+[R-417](../refinements/tasks/417-the-swap-path-never-names-the-conversation.md), explicitly as a
+question to be answered per line rather than per module. This addendum answers it.
+
+### Re-derived first, and the entry's split holds exactly
+
+The eleven records, at HEAD before this change: `swap_conductor.py` writes four
+(`run_handoff`'s claim refusal at 137, `_prepare`'s opaque turn at 192, its unrostered deep tier
+at 202, its store-still-holds-one at 218), `swap_settle.py` three (`fail` at 82, `_write_state` at
+99, `_release_claim` at 113), `swap_recovery.py` one (`_fail_stranded_handoff` at 85), and
+`brain_phase.py` two spellings serving three lines (`_report_cadence` at 214 and the shared
+`extra` at 216, which the spilled and measured arms both spend). The two `_logger.exception` calls
+in the conductor that carry no `extra` at all are not among the eleven and are not touched here.
+
+The entry's cost claim is the rare one that survived checking. Six of the eleven already had the
+conversation in scope: `run_handoff` and `_prepare` are both handed `session_id` as a parameter,
+which covers four, and `HandoffSettler.fail` and `_fail_stranded_handoff` each hold a
+`HandoffRecord`, whose `session_id` field has existed since the record did. The other five needed
+it plumbed, exactly as filed: `_settle`, `_write_state` and `_release_claim` took a bare
+`handoff_id`, and `_report_cadence` took a bare `handoff_id` too.
+
+### Decision: all eleven name the chat, and the rule is what the line is about
+
+Per line, as the entry asked, and the per-line reading converges on one boundary rather than on a
+scattering:
+
+**The conductor's four refusals: yes.** A refusal is about a turn somebody is waiting on. The
+reader who arrives at one arrives from a chat, because a user said something went wrong, and the
+turn id is precisely what that reader does not have. This includes the unrostered-tier refusal,
+whose sentence is aimed at whoever configured the deployment: it is still one turn being refused,
+and the deployment-wide statement of the same fact is a different line in a different module
+(`_clear_deep`, said once per boot), which is where that reader is served.
+
+**The settler's three: yes, all three.** They are one account of settling one handoff, and the
+registry already pins them as a set for that reason. A conversation on the failure but not on the
+store failures that explain it would hand a reader grepping the chat the symptom and hide both
+causes. This is the plumbing the entry priced: `_settle`, `_write_state` and `_release_claim` now
+take the `HandoffRecord` rather than its id, which both callers already hold.
+
+**Boot recovery's stranded record: yes.** It is the one line here whose turn nobody is holding,
+the process that ran it having died, so the chat is the only handle a reader can arrive with. The
+residency lines beside it in the same module stay as they are and name neither identity, and that
+contrast is the rule stated in code: `_clear_deep`, `_clear_peer` and `_settle_cortex` are about
+the card, they name the `model` and carry no work identity at all, and there is no one turn or
+chat they are about.
+
+`residency_moves.py` is the boundary case worth naming, because it looks like a counterexample and
+is not. Its lines are written during a handoff and one of them says so out loud (*a tier evicted
+for the handoff could not be restarted*), yet they name only the `model`. Their subject is a
+tier's state, which is the deployment's fact and not one chat's: the tier is down for everybody
+who delegates until somebody fixes it, and the place that failure is recorded for a reader is
+`StandingTiers` and the residency report, exactly as the cadence verdict's deployment-wide half
+goes to `PaceSink`. So they stay as they are, by the rule rather than in spite of it.
+
+**The deep phase's cadence lines: yes, and this is the one the entry doubted.** The argument
+against is real: the decode rate is a fact about the machine, the line already carries seven
+fields and eight on a spill, and a conversation is not a variable in the reading. What decides it
+is which reader is left out. Every other swap-path line is a **failure** path; a handoff that
+worked writes none of them. The cadence report is the only record a successful handoff produces at
+all, so a chat that escalated, got its answer, and was slow about it has exactly these lines and
+nothing else, and without the field it is unreachable from the conversation. The deployment-wide
+reading of the same measurement already has its own destination that carries no chat: `_note_pace`
+publishes the verdict to the residency record the seam's readiness report is composed from. The
+two destinations differ in exactly the way they should.
+
+So the rule, written in the swap runbook where a reader of these lines will meet it: **a line
+about one handoff names both the conversation and the turn; a line about the card names neither.**
+The field count is not a constraint here, and it was worth checking rather than assuming: the
+bound in `log_fields.py` is on a rendered *value* and its seven-field headroom is about fields cut
+at 2,048 characters, while every id on these lines is a short token.
+
+### Decision 2: the two-turn line still names one conversation
+
+The conductor's store-still-holds-one refusal names two turns, and both of them have a chat. It
+names only its own. The held handoff's conversation is on the held handoff's own lines, every one
+of which now carries it, and the qualified `active_turn_id` is the pointer that reaches them. A
+second qualified field would put a fourth id on the line to save a reader one grep they can
+already run. The qualified-name rule the sixth-name addendum wrote down is unchanged and still has
+exactly one line following it.
+
+### Decision 3: the registry holds the new half, and the runbook sample is corrected
+
+`scripts/logcouplings.py`'s conversation entry grows from nine mentions to fifteen: the four swap
+modules, and the swap runbook's two new sentences. The two counts are pinned the same way the turn
+entry pins them, the conductor's four and the settler's three, each being one module's whole
+account of one thing. The deep phase's two spellings are pinned at two here where the turn entry
+left them a presence check, because these two are the only lines a successful handoff writes and
+losing either loses a whole class of handoff from the chat's evidence. The four swap modules now
+appear under both of the first two entries, so a refusal or a settle that names one identity and
+forgets the other is caught by whichever count it broke.
+
+The runbook's verbatim sample had a second defect, found while editing it and unrelated to the
+conversation. It printed `turn_id=<turn id> reason="<what happened>"`, the order the call site
+writes, and the shipped formatter prints fields in **name** order (`render_fields` sorts, ADR-0038
+rendered-fields addendum), so what a container emits is `reason=... turn_id=...` and always was.
+The sample is now the line the code really renders, in name order, with the conversation between
+the two, and it says so. Nothing checks that class of claim, which is filed below. The registry's
+needle for that line moved with it: it was anchored on the message plus the field, and the message
+no longer touches either id, so it is anchored on the field alone.
+
+A third instance of the same class was found and deliberately **not** fixed here. Two runbooks
+tell an operator to run `grep turn_id=t-...`, and no id in this system has ever carried a prefix:
+`new_turn_id` returns a bare `str(uuid4())` and the overlay mints a session with
+`crypto.randomUUID()`. The `t-` and `s-` are the swap harness's fixture ids leaking into prose,
+and the registry pins the sentence that spells one, so a gate is holding the fiction in place.
+Fixing it spans two runbooks and two needles and wants its own pass; what this change owes is not
+to add a third, so the sentence it adds writes `grep session_id=` with no prefix at all.
+
+### Distrust green, over the brain suite
+
+Eight mutations, each planted in production code alone, with the 2,878 tests of `brain/` re-run
+over each. `pytest -q --no-cov` from `brain/`, one mutation at a time on the real tree, reverted
+between.
+
+| # | mutation | brain suite | crosscheck |
+| - | -------- | ----------- | ---------- |
+| 1 | the settler's failed line drops `session_id` | 2 failed, 2,876 passed | red |
+| 2 | the settler's failed line swaps the two ids | 2 failed, 2,876 passed | green |
+| 3 | the conductor's two-turn refusal drops `session_id` | 1 failed, 2,877 passed | red |
+| 4 | boot recovery's stranded record drops `session_id` | 1 failed, 2,877 passed | red |
+| 5 | the cadence reading arm drops `session_id` | 1 failed, 2,877 passed | red |
+| 6 | the cadence no-reading arm drops `session_id` | 1 failed, 2,877 passed | red |
+| 7 | the conductor's opaque refusal drops `session_id` | **2,878 passed** | red |
+| 8 | the settler's `_write_state` drops `session_id` | **2,878 passed** | red |
+
+Row 1 fails two cases rather than one for the reason the sixth-name addendum recorded: the only
+settler line any test names is the one the runbook prints, and it is named by a parametrized case
+that runs twice. Row 2 is the row that says what a suite can and cannot see. Swapping the two ids
+leaves both field names in place, so the registry is silent by design and only a test reading the
+whole line catches it, which is the same division the qualified-name decision relies on.
+
+Rows 7 and 8 are the two that stay green, and they are the point of the table. Six of the eleven
+records are pinned by a test (the settler's failed line, the conductor's two-turn refusal, boot
+recovery's stranded record, and the deep phase's three, which its two spellings cover) and five by
+the registry's counts alone: three of the conductor's four refusals, and the settler's other two.
+That is the same six-to-five division the turn entry has, deliberately, and it is why both counts
+are pinned rather than left as presence checks.
+
+### Distrust green, over the crosscheck registry
+
+Five planted disagreements, one at a time on the real tree, `python3 scripts/crosscheck.py` after
+each. Counts here are over the registry rather than over any suite.
+
+| # | planted disagreement | crosscheck |
+| - | -------------------- | ---------- |
+| 1 | the conductor's pinned count claims five where four are written | red, naming the file, `found 4, pinned 5` |
+| 2 | `SESSION_FIELD` is renamed at its declaration | red, naming all eleven modules and both runbooks |
+| 3 | the runbook's sample line loses the conversation | red on that needle, and it says the file still spells the name elsewhere, so the shape moved rather than the value |
+| 4 | the runbook's grep sentence renames the field | red on that needle, with the same distinction drawn |
+| 5 | the runbook's sample renames the turn field | red on the **turn** entry's re-anchored needle, which is what proves the re-anchoring still ties |
+
+One trap is worth writing down for whoever mutates this registry next, because it produced a
+phantom failure in three of these runs before it was noticed. `crosscheck.py` imports the registry
+as a module, so a mutation planted in `scripts/` and reverted within the same second leaves a
+stale `__pycache__` behind: source mtime has one-second granularity and the reverted file is the
+same size, so the interpreter reuses bytecode that still carries the mutation. Three later runs
+reported the count error from a mutation that was no longer on disk. Clear `scripts/__pycache__`
+between plants, or a registry sweep will read its own ghosts.
+
+### Consequences
+
+- One grep by conversation now reaches the swap path. A chat's refusals, the settle that ended its
+  handoff, the deep tier's decode rate for it and the boot that found it stranded carry the same
+  id under the same name as its recalls, its summaries and its tool calls.
+- A handoff that **worked** is visible from the chat for the first time, which is the half of the
+  gap that attaching the field only to the failure paths would have left open.
+- Two writes stopped taking a bare id and started taking the record, which is the shape that made
+  the five plumbed lines cheap and is worth repeating: a line that names its work wants the object
+  the work is, not one of its fields.
+- The residency lines are now the written-down contrast rather than an accident. A future line
+  about the card has a rule saying it names neither identity.
+
+### Deferred by this addendum
+
+Nothing compares a documented log sample against what the formatter would render, which is how
+the swap runbook printed a field order the code never emits for as long as it did
+([R-435](../refinements/tasks/435-a-runbook-prints-a-log-line-the-formatter-never-renders.md)).
+The registry ties the field names in that sample to their declarations and says nothing about
+their order, the message they follow, or whether the line is one the code could produce.
+
+The deferral from the one-vocabulary addendum is unchanged and now covers a wider set: a new
+module writing a work identity under a name nobody has registered is still invisible to the scan
+([R-416](../refinements/tasks/416-a-new-log-line-can-name-its-work-anything.md)), and both of the
+first two registry entries now name the same four swap modules, so an unregistered twelfth line
+would be missed by both.

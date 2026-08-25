@@ -517,6 +517,11 @@ async def test_a_deep_phase_under_the_declared_floor_warns_once_naming_both_numb
     # addendum), so a spill joins that turn's other lines rather than sitting in a vocabulary
     # of its own.
     assert _extra(records[0], "turn_id") == harness.TURN  # pyright: ignore[reportAttributeAccessIssue]
+    # And the chat that turn belongs to. These two lines are the only ones a handoff that WORKED
+    # ever writes, every refusal and every settle on the swap path being a failure path, so
+    # without the conversation a chat that escalated and decoded slowly would have no swap-path
+    # evidence a reader arriving from the chat can reach (ADR-0009 named-conversation addendum).
+    assert _extra(records[0], "session_id") == harness.SESSION  # pyright: ignore[reportAttributeAccessIssue]
     assert records[0].getMessage() == SPILLED_LOG_MSG
 
 
@@ -556,8 +561,10 @@ async def test_a_backend_that_reports_no_timings_is_not_reported_as_healthy(
     assert records[0].levelno == logging.INFO
     assert "nothing was checked" in records[0].getMessage()
     # The other of the phase's two cadence spellings, named the same way: silence about a turn is
-    # still about that turn (ADR-0009 sixth-name addendum).
+    # still about that turn (ADR-0009 sixth-name addendum), and about the chat it belongs to
+    # (named-conversation addendum), so the no-reading arm is reachable by both greps too.
     assert _extra(records[0], "turn_id") == harness.TURN  # pyright: ignore[reportAttributeAccessIssue]
+    assert _extra(records[0], "session_id") == harness.SESSION  # pyright: ignore[reportAttributeAccessIssue]
 
 
 async def test_one_slow_round_of_a_tool_loop_does_not_convict_the_tier(

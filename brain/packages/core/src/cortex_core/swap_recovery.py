@@ -76,7 +76,11 @@ async def _fail_stranded_handoff(handoffs: HandoffStore) -> None:
     reason are not two copies for one reader; they are one sentence for two, and this is the
     boot that can still say it. It names the stranded work ``turn_id``, a handoff id being the
     escalating turn's id (``handoff.py``), which is what lets a reader carry the id off this line
-    into the previous boot's own record of that turn (ADR-0009 sixth-name addendum).
+    into the previous boot's own record of that turn (ADR-0009 sixth-name addendum). It names the
+    conversation too, and that is what makes this line reachable at all by the reader who has one:
+    the turn it strands died with the process that ran it, so nobody is holding its id, while the
+    chat it belonged to is still on somebody's screen (ADR-0009 named-conversation addendum). The
+    residency lines below name neither, being about the card rather than about any one handoff.
     """
     try:
         record = await handoffs.active()
@@ -84,7 +88,11 @@ async def _fail_stranded_handoff(handoffs: HandoffStore) -> None:
             return
         _logger.warning(
             "a handoff did not survive the restart; marking it failed",
-            extra={"turn_id": record.handoff_id, "state": record.state.value},
+            extra={
+                "session_id": record.session_id,
+                "turn_id": record.handoff_id,
+                "state": record.state.value,
+            },
         )
         await handoffs.transition(record.handoff_id, HandoffState.FAILED, failure=STRANDED_REASON)
     except HandoffStoreError:

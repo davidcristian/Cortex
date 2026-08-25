@@ -353,7 +353,11 @@ under "Use-case" is what snapshots it and runs the swap):
 - `HandoffRecord` is a frozen dataclass: `handoff_id` (= the escalating `turn_id`, which is why
   every log line on this path names its work `turn_id` and not `handoff`, ADR-0009 sixth-name
   addendum; the field, the codec's hash key and the Redis key keep the word, being a record's own
-  schema and address),
+  schema and address; every one of those lines also names the chat in `session_id`, ADR-0009
+  named-conversation addendum, which is why `HandoffSettler`'s private writes and
+  `BrainPhase._report_cadence` take the record rather than a bare id: a line about one handoff
+  names both ids, while a line about the card, meaning boot recovery's residency lines, names
+  neither),
   `session_id`, `requested_at` (tz-aware, rejects naive), `state`, `brief` (the cortex's
   escalation ask), `nonce` (the turn's fence id, so the tail's fenced blocks stay explained),
   `tainted` / `opaque` / `sources` / `untrusted_urls: frozenset[str]` (the whole serialized
@@ -1333,8 +1337,8 @@ Use-case:
   no reason (`BRAIN_ACTIVE`, `DONE`), and `fail(record, reason)` for the one that does, so no path
   can settle a handoff failed without saying why. `fail` writes the reason to two places, each
   covering the other's failure: onto the record, where it outlives the process, and into one
-  `WARNING` (`a handoff ended failed`, with the reason in a `reason` field and the turn in
-  `turn_id`), which still lands
+  `WARNING` (`a handoff ended failed`, with the reason in a `reason` field, the turn in
+  `turn_id` and the chat in `session_id`), which still lands
   when the store is the thing that broke and the record has to be dropped instead. The level is
   a statement about the machine: every path that reaches it has converged back to a serving
   cortex, and the louder levels are already spent on the failures somebody must act on.

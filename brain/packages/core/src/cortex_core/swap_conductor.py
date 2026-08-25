@@ -135,7 +135,8 @@ class SwapConductor:
                     await run.aclose()
         except HandoffInProgressError:
             _logger.warning(
-                "refusing a handoff while another one holds the swap", extra={"turn_id": turn_id}
+                "refusing a handoff while another one holds the swap",
+                extra={"session_id": session_id, "turn_id": turn_id},
             )
             yield TextDelta(text=ALREADY_ACTIVE_NOTE)
 
@@ -190,10 +191,12 @@ class SwapConductor:
             # model would get a tool message promising a picture with none attached. Keyed on
             # the ``opaque`` bit, the fact that stays true where the pixels cannot travel.
             _logger.warning(
-                "refusing a handoff for a turn that read the screen", extra={"turn_id": turn_id}
+                "refusing a handoff for a turn that read the screen",
+                extra={"session_id": session_id, "turn_id": turn_id},
             )
             return OPAQUE_TURN_NOTE
-        if await self._residency.unhosted(self._plan.brain_model):
+        deep = self._plan.brain_model
+        if await self._residency.unhosted(deep):
             # Before the store is touched and long before the drain, which is the whole worth of
             # the check: this deployment's host has no such tier, so the start in step 3 would
             # refuse after the cortex was already unloaded. Asked every time rather than
@@ -204,7 +207,7 @@ class SwapConductor:
                 "the handoff was refused with nothing drained and nothing unloaded: name an "
                 "artifact for that tier (CORTEX_MODEL_FILE_BRAIN) or turn escalation off "
                 "(CORTEX_ESCALATION)",
-                extra={"model": self._plan.brain_model, "turn_id": turn_id},
+                extra={"model": deep, "session_id": session_id, "turn_id": turn_id},
             )
             return UNHOSTED_TIER_NOTE
         try:
@@ -214,10 +217,13 @@ class SwapConductor:
                 # a handoff another process owns. Either way this turn evicts nothing. Two turns
                 # are named here, a handoff id being the escalating turn's id (``handoff.py``),
                 # so the one the store is holding takes the qualified spelling and this turn
-                # keeps the plain one (ADR-0009 sixth-name addendum).
+                # keeps the plain one (ADR-0009 sixth-name addendum). One conversation only, this
+                # turn's: the held handoff's chat is on its own lines, reached by the id here
+                # (ADR-0009 named-conversation addendum).
+                held = active.handoff_id
                 _logger.warning(
                     "refusing a handoff while the store still has one in flight",
-                    extra={"active_turn_id": active.handoff_id, "turn_id": turn_id},
+                    extra={"active_turn_id": held, "session_id": session_id, "turn_id": turn_id},
                 )
                 return ALREADY_ACTIVE_NOTE
             record = slot.snapshot(

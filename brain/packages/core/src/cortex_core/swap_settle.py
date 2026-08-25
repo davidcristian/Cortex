@@ -23,6 +23,12 @@ Every line here names its work ``turn_id`` and not ``handoff``, a handoff id bei
 turn's id (``handoff.py``), so one grep by turn reaches the settle, the turn's own failures and
 every tool call it made (ADR-0009 sixth-name addendum). The record's field keeps its own name,
 being a wire format that outlives the deployment.
+
+All three also name the **conversation** (ADR-0009 named-conversation addendum), which is why the
+private writes below take the record rather than the bare id they used to: settling a handoff is
+about a turn somebody is waiting on, and the three lines are one account of settling one handoff,
+so a reader grepping the chat must reach the failure, the state that could not be written and the
+record that could not be released alike, rather than the first of the three.
 """
 
 import logging
@@ -59,7 +65,7 @@ class HandoffSettler:
         handoff's id either way. A failed **intermediate** write keeps the record, because the
         handoff really is still live there and boot recovery is what settles it.
         """
-        await self._settle(record.handoff_id, state, None)
+        await self._settle(record, state, None)
 
     async def fail(self, record: HandoffRecord, reason: str) -> None:
         """Settle the record ``FAILED``, saying why, in the log and on the record alike.
@@ -81,36 +87,48 @@ class HandoffSettler:
         """
         _logger.warning(
             "a handoff ended failed",
-            extra={"turn_id": record.handoff_id, "reason": reason},
+            extra={
+                "session_id": record.session_id,
+                "turn_id": record.handoff_id,
+                "reason": reason,
+            },
         )
-        await self._settle(record.handoff_id, HandoffState.FAILED, reason)
+        await self._settle(record, HandoffState.FAILED, reason)
 
-    async def _settle(self, handoff_id: str, state: HandoffState, failure: str | None) -> None:
+    async def _settle(
+        self, record: HandoffRecord, state: HandoffState, failure: str | None
+    ) -> None:
         """Write one state, then release the claim if this write is what owed it."""
-        written = await self._write_state(handoff_id, state, failure)
+        written = await self._write_state(record, state, failure)
         if state is HandoffState.DONE or (state.terminal and not written):
-            await self._release_claim(handoff_id)
+            await self._release_claim(record)
 
-    async def _write_state(self, handoff_id: str, state: HandoffState, failure: str | None) -> bool:
+    async def _write_state(
+        self, record: HandoffRecord, state: HandoffState, failure: str | None
+    ) -> bool:
         """Write one state onto the record; False when the store refused it."""
         try:
-            await self._handoffs.transition(handoff_id, state, failure=failure)
+            await self._handoffs.transition(record.handoff_id, state, failure=failure)
         except HandoffStoreError:
             _logger.exception(
                 "could not record the handoff's state",
-                extra={"turn_id": handoff_id, "state": state.value},
+                extra={
+                    "session_id": record.session_id,
+                    "turn_id": record.handoff_id,
+                    "state": state.value,
+                },
             )
             return False
         return True
 
-    async def _release_claim(self, handoff_id: str) -> None:
+    async def _release_claim(self, record: HandoffRecord) -> None:
         """Delete the finished record, so nothing later reads it as a handoff in flight."""
         try:
-            await self._handoffs.delete(handoff_id)
+            await self._handoffs.delete(record.handoff_id)
         except HandoffStoreError:
             # Nothing else this process can do: the record stays live until boot recovery, and
             # escalation stays refused until then, which is the failure the log has to name.
             _logger.exception(
                 "could not release the finished handoff; escalation stays refused until a restart",
-                extra={"turn_id": handoff_id},
+                extra={"session_id": record.session_id, "turn_id": record.handoff_id},
             )
