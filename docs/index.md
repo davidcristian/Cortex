@@ -505,7 +505,9 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
     (with its `couplings` vocabulary and the two registry halves written in it), bindcheck
     (with its `composemounts` reader), volumecheck (with the `imagevolumes` record of what each
     pinned image declares and the `dockerfilevolumes` reading of what a Dockerfile here declares),
-    stubcheck (with its `protocomments` reader), the
+    stubcheck (with its `protocomments` reader), samplecheck (with the `logsamples` reading of
+    what a runbook's log line claims and the `logcalls` reading of what the call really
+    attaches), the
     coverage gate, the CI path classifier, and the commit-message CLI.
 
 ## Runbooks

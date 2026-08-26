@@ -1,6 +1,6 @@
 # A documented log sample can still print the wrong fields
 
-**Status:** open, actionable
+**Status:** landed 2026-08-26
 **Area:** repo-gates
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
 
@@ -43,3 +43,23 @@ transcripts explicitly declared evidence rather than contract.
 - 2026-08-25: opened by the close of
   [R-435](435-a-runbook-prints-a-log-line-the-formatter-never-renders.md). Recorded under what the
   ADR-0009 bare-id addendum defers.
+- 2026-08-26: landed as the ADR-0009 sample-membership addendum, which built a scan of its own,
+  `scripts/samplecheck.py`, with `scripts/logsamples.py` reading what a page claims and
+  `scripts/logcalls.py` reading what the call attaches. Re-derivation confirmed the defect exactly
+  as filed and corrected the entry's own premise about its size: a sweep for a rendered line
+  returns **three** samples in `docs/runbooks/`, not one. The failed settle, the seam server's boot
+  line in the WSL runbook, and the quarantine pair in the scheduling runbook are all instructions
+  to an operator, so the bill this entry priced against one sample was being paid for three. The
+  scan holds the level, the logger, the message and the field list, compared as a sequence, which
+  says everything a set comparison would and holds the order besides. It holds field NAMES and
+  never values, which is what keeps it compatible with the constant registry's standing decision
+  that the WSL runbook's captured port is a dated reading rather than a coupling. Samples are
+  found rather than registered, so a fourth is held the day it is written. The two ADR transcripts
+  this entry named are declared **evidence rather than contract** in writing, which is the entry's
+  own second option taken deliberately: an addendum records what was decided when it was decided,
+  and a dated transcript held to today's code would have to be edited to stay green. What the
+  close opened is filed as
+  [R-444](444-nothing-says-which-log-lines-a-runbook-should-print.md), the coverage question the
+  agreement question leaves untouched, and
+  [R-445](445-three-gates-each-spell-the-markdown-fence-for-themselves.md), the third copy of the
+  markdown fence this work added.
