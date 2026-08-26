@@ -17,6 +17,10 @@ never to another sentence about the tree.
   command line exactly when it carries a `if __name__ == "__main__":` guard at the top level.
   Sorting a module into the wrong half tells a reader it is something it is not, and until the
   split the sentence was held whole, so either half could be wrong and the paragraph still pass.
+- **the cross-tree scans** are the one set here that is not a listing of anything. A scan is not a
+  file: what makes a module one is that the single gate runs it before the trees and CI's
+  `cross-tree` job runs it too, which `scanrecipes.py` reads out of the two files that run them
+  and refuses to answer while they disagree.
 - **the registry's parts** are the tuples `crosscheck.CONSTANTS` is joined from, named by the
   convention `registry.py` declares: a `<subject>couplings.py` holds a `<SUBJECT>_COUPLINGS`. The
   convention is asserted by the constant suite rather than assumed here, and `couplings.py` itself
@@ -30,6 +34,9 @@ success forever, so each leaves by the same door an unreadable file does.
 import re
 from collections.abc import Iterable
 from pathlib import Path
+
+import scanrecipes
+from scanrecipes import ScanReadError
 
 # The body's live suite, and the tree this repo's own gates live in.
 LIVE_SEAM = Path("body/crates/rpc/tests/live.rs")
@@ -135,6 +142,15 @@ def cli_gate_modules(root: Path) -> frozenset[str]:
 def library_gate_modules(root: Path) -> frozenset[str]:
     """Every module in `scripts/` that another module reads rather than a shell runs."""
     return _floored(_with_a_cli(root, wanted=False), f"the modules in {GATES} with no CLI")
+
+
+def cross_tree_scans(root: Path) -> frozenset[str]:
+    """Every module the single gate and CI both run as a cross-tree scan."""
+    try:
+        found = scanrecipes.scan_modules(root)
+    except ScanReadError as err:
+        raise MemberError(str(err)) from err
+    return _floored(found, "the cross-tree scans the gate runs")
 
 
 def registry_tuples(root: Path) -> frozenset[str]:

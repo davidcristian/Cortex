@@ -56,6 +56,16 @@ PART = re.compile(r"[A-Z][A-Z_]*_COUPLINGS")
 # rosters, closing the one over the modules a shell can run and opening the one over the rest.
 NO_CLI = "**The rest have no CLI of their own**"
 
+# Why the same three sentences are written down three times below. The list of cross-tree scans is
+# spelled in more places than any other set here, and the copies are not one kind of thing: four of
+# them carry a tally or a run of descriptions and are left alone, since a document's numbers are its
+# own business and a roster written in descriptions has no names to hold. These three spell the
+# names, and one of them was found short two scans while this was being registered.
+SCANS = (
+    "a reader learns from this list which gates run on every change, and a scan missing from it "
+    "is a gate they do not know exists"
+)
+
 
 class Roster(NamedTuple):
     """One list of names a document keeps for a set the tree really holds."""
@@ -113,6 +123,39 @@ ROSTERS: tuple[Roster, ...] = (
         ),
         members=rostermembers.library_gate_modules,
         refers_to=rostermembers.cli_gate_modules,
+    ),
+    Roster(
+        label="the cross-tree scans in the engineering contract",
+        document=Path("AGENTS.md"),
+        opens="**the cross-tree scans**",
+        closes="runs unconditionally, in CI too",
+        written=Spelled(pattern=MODULE),
+        subject="a cross-tree scan the gate and CI both run",
+        why=SCANS,
+        members=rostermembers.cross_tree_scans,
+    ),
+    Roster(
+        label="the cross-tree scans in the workflow's own comment",
+        document=Path(".github/workflows/ci.yml"),
+        opens="# The cross-tree scans are repo-wide and exempt from the path filter",
+        closes="  cross-tree:",
+        written=Bare(pattern=MODULE),
+        subject="a cross-tree scan the gate and CI both run",
+        why=(
+            "this comment says why each scan is exempt from the path filter, which is the "
+            "argument for the job below it, and it is read beside the steps it explains"
+        ),
+        members=rostermembers.cross_tree_scans,
+    ),
+    Roster(
+        label="the cross-tree scans in the documentation index",
+        document=Path("docs/index.md"),
+        opens="whose **cross-tree scans** are",
+        closes="**Beside them**",
+        written=Spelled(pattern=MODULE),
+        subject="a cross-tree scan the gate and CI both run",
+        why=SCANS,
+        members=rostermembers.cross_tree_scans,
     ),
     Roster(
         label="the gate tree in the repo map",

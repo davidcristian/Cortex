@@ -452,8 +452,9 @@ Start here. Rules for working in this repo: [AGENTS.md](../AGENTS.md).
   restatements do. The layout removes the restatements rather than checking them: one task is one
   file under `tasks/`, its `**Status:**` line is the only place its state is written, numbers are
   stable identities (`R-042`, `H-007`) that are never reused, and the index's open set and roll
-  call are rendered from the files by `just backlog`. `backlogcheck.py` is the fifth cross-tree
-  scan and fails on a stale index, a status outside the grammar, a title restating one, a waiting
+  call are rendered from the files by `just backlog`. `backlogcheck.py` is the cross-tree scan
+  over that layout and fails on a stale index, a status outside the grammar, a title restating one,
+  a waiting
   state that does not name its trigger, a relative link that no longer resolves, or, since the
   2026-08-16 addendum, a fragment aimed at a heading one of those indexes does not render.
 
@@ -501,16 +502,22 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
     backends (the `Hotkey` seam; real Windows, cfg-gated stubs elsewhere).
   - [body-app.md](modules/body-app.md) covers `body/app`: the React overlay (gated 100%) + its
     host-native Tauri shell (`cortex-body`).
-  - [repo-gates.md](modules/repo-gates.md) covers `scripts/`: linecap, dashcheck, crosscheck
-    (with its `couplings` vocabulary and the two registry halves written in it), bindcheck
-    (with its `composemounts` reader), volumecheck (with the `imagevolumes` record of what each
+  - [repo-gates.md](modules/repo-gates.md) covers `scripts/`, whose **cross-tree scans** are
+    `linecap.py`, `dashcheck.py`, `crosscheck.py`
+    (with its `couplings` vocabulary and the two registry halves written in it), `bindcheck.py`
+    (with its `composemounts` reader), `defaultcheck.py` (with its `composedefaults` reader),
+    `volumecheck.py` (with the `imagevolumes` record of what each
     pinned image declares and the `dockerfilevolumes` reading of what a Dockerfile here declares),
-    stubcheck (with its `protocomments` reader), samplecheck (with the `logsamples` reading of
+    `stubcheck.py` (with its `protocomments` reader), `samplecheck.py` (with the `logsamples`
+    reading of
     what a runbook's log line claims and the `logcalls` reading of what the call really
-    attaches), rostercheck (with the `rosters` registry of which lists a document keeps, the
-    `rosternames` reading of what a page names and the `rostermembers` reading of what the tree
-    holds), the
-    coverage gate, the CI path classifier, and the commit-message CLI.
+    attaches), `rostercheck.py` (with the `rosters` registry of which lists a document keeps, the
+    `rosternames` reading of what a page names, the `rostermembers` reading of what the tree
+    holds and the `scanrecipes` reading of which scans this repo actually runs) and
+    `backlogcheck.py` (with the `backlog` grammar, the `backlogindex` renderer, the
+    `backloganchors` pointer reader and the `headingshapes` refusals under it). **Beside them**
+    sit the coverage gate, the CI path classifier, the commit-message CLI, and the contrast
+    reading `just turn-cost` prints.
 
 ## Runbooks
 

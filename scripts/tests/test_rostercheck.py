@@ -372,6 +372,21 @@ def test_the_repos_own_rosters_hold() -> None:
     assert check(REPO_ROOT).faults == []
 
 
+def test_the_scan_roster_is_registered_in_more_than_one_shape() -> None:
+    """One set spelled in three documents, which is the entry this registration answers.
+
+    A comment inside a workflow is a roster when it names its members, and the bare shape is what
+    reaches it, so dropping that registration would leave the copy nobody was holding unheld
+    again while the two prose copies went on passing.
+    """
+    scans = [
+        roster for roster in rosters.ROSTERS if roster.members is rostermembers.cross_tree_scans
+    ]
+    assert len(scans) > 2
+    assert len({roster.document for roster in scans}) == len(scans)
+    assert len({type(roster.written) for roster in scans}) > 1
+
+
 def test_the_repos_own_rosters_are_over_something() -> None:
     """The floor under the test above: three empty comparisons would also report no fault."""
     scanned = check(REPO_ROOT)

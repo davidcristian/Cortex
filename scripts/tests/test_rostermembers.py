@@ -11,9 +11,11 @@ from pathlib import Path
 import pytest
 
 import rostermembers
+import scanrecipes
 from rostermembers import (
     MemberError,
     cli_gate_modules,
+    cross_tree_scans,
     gate_modules,
     ignored_tests,
     library_gate_modules,
@@ -199,6 +201,37 @@ def test_a_module_that_cannot_be_read_is_named_rather_than_sorted(tmp_path: Path
     (root / rostermembers.GATES / "values.py").write_bytes(b"\xff\xfe not text at all")
     with pytest.raises(MemberError, match=r"cannot read scripts/values\.py"):
         library_gate_modules(root)
+
+
+# ── the scans the single gate runs, which are no directory's listing ───────────
+
+
+def test_a_disagreement_between_the_two_files_arrives_as_a_member_failure(tmp_path: Path) -> None:
+    """The reader next door refuses to answer, and a roster's far side has one way to fail."""
+    (tmp_path / scanrecipes.JUSTFILE).write_text(
+        "check:\n    just check-linecap\n", encoding="utf-8"
+    )
+    workflow = tmp_path / scanrecipes.WORKFLOW
+    workflow.parent.mkdir(parents=True, exist_ok=True)
+    workflow.write_text(
+        "jobs:\n  cross-tree:\n    steps:\n      - run: just check-backlog\n", encoding="utf-8"
+    )
+    with pytest.raises(MemberError, match="neither list is the answer while they disagree"):
+        cross_tree_scans(tmp_path)
+
+
+def test_a_gate_that_runs_no_scan_at_all_is_a_failure(tmp_path: Path) -> None:
+    """Two files agreeing that there are no scans is the empty pass every floor here refuses."""
+    (tmp_path / scanrecipes.JUSTFILE).write_text("check:\n    echo nothing\n", encoding="utf-8")
+    workflow = tmp_path / scanrecipes.WORKFLOW
+    workflow.parent.mkdir(parents=True, exist_ok=True)
+    workflow.write_text("jobs:\n  cross-tree:\n    steps:\n      - uses: a@b\n", encoding="utf-8")
+    with pytest.raises(MemberError, match="came back empty"):
+        cross_tree_scans(tmp_path)
+
+
+def test_the_real_gate_runs_the_scans_this_repo_documents() -> None:
+    assert "rostercheck.py" in cross_tree_scans(REPO_ROOT)
 
 
 # ── the tuples the constant registry is joined from ────────────────────────────

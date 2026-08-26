@@ -395,3 +395,158 @@ roster loses its tally and gains the sentence saying what holds it,
 the two documents it reads, the justfile and the CI workflow, which run it beside the other
 cross-tree scans, [AGENTS.md](../../AGENTS.md), [README.md](../../README.md) and
 [docs/index.md](../index.md), which count and name the scans, and this addendum.
+
+## Addendum (2026-08-26): the scan roster is held to the recipes that run it
+
+The live-roster addendum above built a scan holding a document's roster to the set it describes,
+registered three rosters, and closed by naming the nearest list it did not reach: the cross-tree
+scans themselves, spelled in seven places and found already short a scan in one of them while the
+mechanism was being written. That list is held here, in the three places that spell names.
+
+### Re-derived first, and there are eight copies rather than seven, one of them stale today
+
+Measured over the tree before anything changed. The entry counted seven copies and it undercounted
+by one, and the eighth is the one that had gone wrong. What the copies really are is three
+different kinds of thing:
+
+- **three spell the names.** The gate list in [AGENTS.md](../../AGENTS.md) named nine of the ten in
+  code spans and wrote the tenth as "the line cap"; the `cross-tree` job comment in
+  `.github/workflows/ci.yml` names all ten as bare words; and the module-doc line in
+  [docs/index.md](../index.md), which the entry did not count at all, named eight, missing
+  `defaultcheck.py` and `backlogcheck.py`, and called `backlogcheck.py` the fifth cross-tree scan
+  when it is the tenth. So a copy was stale on the day this was picked up, for the second time in
+  this list's short history, and it was again a copy nobody had thought to count.
+- **two describe them.** The header comment of the same workflow and the Purpose paragraph of
+  [modules/repo-gates.md](../modules/repo-gates.md) both run through the ten as phrases, the
+  punctuating-dash ban and the compose defaults check, naming no module at all.
+- **three carry only a tally.** The `just check` row in [README.md](../../README.md), the comment
+  above the `check` recipe, and the justfile line of the repo map each say how many there are.
+
+### What a cross-tree scan is, which is the part with no directory to read
+
+Every other set a roster is held to is a listing of something. This one is not: `contrast.py` sits
+in `scripts/` and gates nothing, `composefiles.py` is read by three gates and run by none, and
+`check-shell` is a recipe CI schedules that the single gate deliberately does not run
+(ADR-0011 shell-clippy addendum). What makes a module a cross-tree scan is that **`just check` runs
+it before the per-tree checks and CI's `cross-tree` job runs it too**, which is a fact about a
+justfile and a workflow.
+
+`scripts/scanrecipes.py` reads both. The gate side is the unbroken run of `just check-*` lines the
+`check` recipe opens with, which stops at the first command that is not one, so the four trees
+below it are outside however they are launched. The CI side is every `- run:` step of that job,
+each of which must be one of those recipes or the reader refuses. A recipe becomes a module through
+its own body, because the two names are not the same word: `check-backlog` runs `backlogcheck.py`.
+
+**A disagreement between the two files is a fault rather than a merge.** Answering with either side
+alone would let a document agree with the half that had moved, which is the exact failure being
+closed one level up. They are compared as sets, since these scans are independent of each other and
+the order each file runs them in is its own business.
+
+### Which copies are held, and the argument for the ones that are not
+
+The three that spell names are registered, in two shapes. Two are read as code spans, and the third
+is the workflow comment, read bare, which is the other half of the decision the entry left open:
+**a comment is a roster when it names its members.** Nothing about a YAML comment needs parsing
+here, the boundary phrases doing the work a parser would, and the alternative was to declare the
+copy that had actually gone stale out of scope.
+
+Two edits made those copies readable and both are improvements on their own terms. The gate list
+now spells `linecap.py` beside the nine siblings it already spelled, and the index line spells the
+scans as file names, which is how every other document in this repo names them. Neither is the gate
+rewriting the document to suit itself: no sentence changed its claim, and the passages are bounded
+on phrases that carry no tally, so a scan can be added without editing the registry.
+
+The other five are left alone, and the reasons differ.
+
+**The three tallies are the standing decision.** A document's numbers are its own business (ADR-0029
+registry-parts addendum, widened to say that the decision covers numbers and not names in the
+roster-membership addendum). Nothing changes here.
+
+**The two descriptions are declined for now rather than deferred quietly.** A roster written as
+phrases has no names to hold, and the only way to hold it would be to rewrite both passages into
+lists of module names. That would cost the Purpose paragraph the thing it is for, which is to say
+what this tree is rather than which files are in it, and the header comment the argument it makes
+for the job below it. It is recorded as
+[R-452](../refinements/tasks/452-a-roster-written-in-descriptions-is-held-by-nobody.md), because
+the descriptive copy in that header is precisely the one that was found short a scan, so the
+residue is real even though the cheap fix is worse than the problem.
+
+### Proved able to fail, thirteen mutants over the real tree
+
+**Suite: `scripts/rostercheck.py --root ..` run against the real [AGENTS.md](../../AGENTS.md), the
+real `.github/workflows/ci.yml` and the real [docs/index.md](../index.md), with the real justfile
+and workflow as the far side**, one temporary edit at a time, each restored from a copy taken
+before the first and the restore asserted by a clean row at the end. The number is the process exit
+code, and the note beside it is how many faults that run printed.
+
+| # | mutation | expected | got |
+| --- | --- | --- | --- |
+| 00 | none, the tree as committed | 0 | 0 |
+| 01 | an eleventh scan wired into both files, no document touched | 1 | 1, three faults |
+| 02 | a scan wired into the gate and not into CI | 2 | 2, the two files disagree |
+| 03 | a scan wired into CI and not into the gate | 2 | 2, the same refusal from the other side |
+| 04 | one scan struck from the engineering contract's list | 1 | 1 |
+| 05 | one scan struck from the workflow's own comment | 1 | 1 |
+| 06 | one scan struck from the documentation index | 1 | 1 |
+| 07 | a scan renamed in the contract only | 1 | 1, both directions at once |
+| 08 | a recipe repointed at another module, no document touched | 1 | 1, six faults |
+| 09 | the contract's opening phrase reworded | 1 | 1 |
+| 10 | the workflow comment's opening phrase reworded | 1 | 1 |
+| 11 | the cross-tree job renamed, which is a boundary and the reader's subject at once | 2 | 2 |
+| 12 | the tally in front of the contract's list changed to eleven | 0 | 0 |
+| 13 | a scan's description reworded, the name left alone | 0 | 0 |
+
+Row 01 is the defect the entry is about, arriving as three reds rather than as prose somebody
+re-reads, and it is the reason this landed as a second commit rather than one: adding
+`scanrecipes.py` to `scripts/` reported two reds against the module listings held one commit
+earlier, before those documents were updated. Rows 02, 03 and 11 are the reader refusing to answer,
+which is exit 2 rather than exit 1 and says which two lists disagree. Row 08 reddens all three
+copies twice over, the repointed recipe both losing a member and inventing one. Rows 12 and 13 are
+the tally and the prose staying free.
+
+### Proved able to fail, eleven mutants over the scripts suite
+
+**Suite: `scripts/tests/`, 1244 tests** (1221 before this change), which is the collection every
+count below is out of. One mutant at a time, each restored from a copy taken before the first, with
+`__pycache__` purged between runs, and the baseline re-established after the last row. Eleven
+mutants, eleven killed.
+
+| # | mutation | expected | observed |
+| --- | --- | --- | --- |
+| 00 | none, the tree as written | the baseline | 1244 passed |
+| 01 | the gate's run is read from the whole recipe rather than from its opening | the stop test fails | 1 failed, 1243 passed |
+| 02 | a block ends only at column zero | the sibling job test fails, and the real tree with it | 9 failed, 1235 passed |
+| 03 | a step the job was not taught is stepped over | the refusal test fails | 1 failed, 1243 passed |
+| 04 | a recipe running two modules answers with one of them | the two-module test fails | 1 failed, 1243 passed |
+| 05 | the two files are merged rather than compared | both disagreement tests fail | 3 failed, 1241 passed |
+| 06 | a recipe's name is trimmed instead of its body being read | the real tree fails, and the differing-name test | 5 failed, 1239 passed |
+| 07 | the scans may come back empty | the floor test fails, and the rosters over it | 6 failed, 1238 passed |
+| 08 | INTERACTION: the workflow comment is registered as a spelled roster | the real tree fails | 3 failed, 1241 passed |
+| 09 | INTERACTION: the scan rosters are held to the modules in scripts/ | the real tree fails | 4 failed, 1240 passed |
+| 10 | the workflow roster is dropped from the registry | the multi-shape test fails | 1 failed, 1243 passed |
+| 11 | a recipe header may carry no parameters | the parameter test fails | 2 failed, 1242 passed |
+
+Row 02 is the mutant that was a real defect first. The block reader originally ended a block at the
+first unindented line, which is right for a justfile recipe written at column zero and wrong for a
+workflow job, since every job is written under one key: the first reading reported fifteen recipes
+for the `cross-tree` job, having walked straight through every job below it, `check-shell` and the
+per-tree checks included. The depth is now read off the header, and this row is that fix held in
+place.
+
+Rows 08 and 09 are the interaction rows, aimed at the seam between this set and the machinery it
+arrives in: the bare spelling swapped back to the code spans the older rosters use, which finds
+nothing in a YAML comment, and the new rosters pointed at the members reader the older ones use,
+which is the mistake of holding a scan list to a directory listing.
+
+### Records
+
+The record is the task file
+[R-446](../refinements/tasks/446-the-scan-roster-is-spelled-in-seven-places.md), which closes as
+landed, [docs/refinements/index.md](../refinements/index.md), which is regenerated from it,
+`scripts/scanrecipes.py` and its suite, the reader answering what the scans are,
+`scripts/rostermembers.py`, which offers that answer to a roster, `scripts/rosters.py`, which
+registers the three copies, [AGENTS.md](../../AGENTS.md), whose gate list now spells every scan it
+names and whose repo map gains the new module, `.github/workflows/ci.yml`, whose job comment is now
+a held roster, [docs/index.md](../index.md), which was two scans short and is repaired,
+[modules/repo-gates.md](../modules/repo-gates.md), which documents the new module, and this
+addendum.
