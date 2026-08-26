@@ -94,6 +94,21 @@ delegation time (ADR-0012 admission-wall addendum).
 > dispatch is allowed to outlast the run that made it (ADR-0009 ordering addendum), that costing
 > the whole run instead of the one call and reporting a wedged sidecar as a subtask that would not
 > stop talking.
+> **Both of those readings are of the tools-enabled shape, and this file's own stack ships the
+> other one.** A subagents-only bring-up hands its subagents no dispatcher, so `constrain_output`
+> is on and every reply is decoded into the fixed `{"reply": ...}` envelope (ADR-0028). Measured
+> paired over the same report bodies, that shape costs **1.01 to at least 2.36 times** the tokens
+> of the same subtask raw, 550 to at least 1024 against 366 to 544, and one narrow summarization in
+> three reached the cap and came back refused. It is not writing more: its replies are **shorter**.
+> The tokens go to a reasoning trace, because the tier's `--chat-template-kwargs
+> '{"enable_thinking": false}'` stops taking effect once a request carries a `response_format`, and
+> a delegated run drops every reasoning delta unread. **So on a subagents-only stack, a cap refusal
+> on ordinary narrow work is this and not a runaway**; raise `CORTEX_SUBAGENTS_MAX_TOKENS` to get
+> through the day, keeping it under the per-slot context (`CORTEX_SUBAGENT_CTX_SIZE` divided by
+> `CORTEX_SUBAGENTS_PARALLEL`, 4096 at the defaults) less the prompt, and read the ADR-0005 envelope
+> addendum before retuning anything permanently. The wire is **not** silent while this happens: the
+> reasoning arrives as its own deltas, 200 of them over 156.3 s with a longest gap of 3.46 s, so the
+> stall ceiling is nowhere near firing and a wedged server is not what this looks like.
 > What they cut is a model that is talking rather than one that is slow: the sixth shape, an
 > open-ended essay no narrow subtask should ask for, was cut at 577 tokens and 1958 s still writing.
 > **Every number here is an idle-box number**, and a saturated host runs the same subtask five to

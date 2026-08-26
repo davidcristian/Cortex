@@ -41,6 +41,24 @@ SUBAGENT_COUPLINGS: tuple[Constant, ...] = (
         ),
     ),
     Constant(
+        label="the delegated completion's shipped token cap",
+        why=(
+            "the cap on how far any one completion of a delegated run may decode is declared in "
+            "the core module the attempt builds its generation bounds from, quoted to an operator "
+            "by the delegation runbook as the count a completion is cut at, and restated in the "
+            "orchestrator contract as the field's own default, so retuning the declaration alone "
+            "would leave two documents quoting a cap no completion is held to. It is the other "
+            "half of the value the entry above holds, the two shipping together as one "
+            "`AttemptBounds`, and it was the only one of the four bounds around a delegated run "
+            "this registry did not hold (ADR-0005 total-cap addendum)"
+        ),
+        sites=(Site(SUBAGENTS_CORE, "DEFAULT_SUBAGENT_MAX_TOKENS"),),
+        mentions=(
+            Mention(SUBAGENTS_RUNBOOK, "`CORTEX_SUBAGENTS_MAX_TOKENS` (default {value})"),
+            Mention(ORCHESTRATOR_DOC, "`max_tokens: int = {value}`"),
+        ),
+    ),
+    Constant(
         label="the stall ceiling's shipped default",
         why=(
             "the bound on how long a delegated stream may send nothing is declared in the "
