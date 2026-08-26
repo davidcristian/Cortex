@@ -247,6 +247,14 @@ thinking off, ctx 8192, 2 slots):
   `reasoning_content`, direct answers). The earlier compose comment claiming gemma-4-E* are
   non-reasoning templates was wrong and is corrected; both lineup families are
   reasoning-capable and both need the flag on CPU.
+  **Corrected 2026-08-26 (ADR-0005 thinking-lever addendum).** The first sentence is wrong and the
+  validation behind it does not support it: the prompts it was read on invite no deliberation, so a
+  direct answer with no `reasoning_content` is what this pick does with the kwarg, without it, and
+  with it set to true. On a prompt that does invite deliberation, which a `response_format`
+  reliably makes of an ordinary summarization, the E4B pick writes a full trace with the kwarg set
+  at the server, at the request, and at both. What the second and third sentences say still stands,
+  and is now stronger: both families are reasoning-capable, and the flag they need on CPU is a pair,
+  `--reasoning-budget 0` beside the kwarg.
 - **Qwen3.5-2B remains the documented cheap override** (`CORTEX_MODEL_FILE_SUBAGENT`) when
   latency matters more than robustness; **Slice 8.6** (heterogeneous subagent models) still
   makes the choice per-task, with E4B as the safe default rather than the special case.

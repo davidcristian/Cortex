@@ -52,8 +52,16 @@ DEFAULT_NVIDIA_SMI = "nvidia-smi"
 
 # Both subagent-tier families are reasoning models and unbounded thinking is minutes per call
 # (ADR-0010), so the hosted subagent tier carries the same server-side reasoning-off pair the CPU
-# subagent service does.
-_REASONING_OFF = ("--chat-template-kwargs", '{"enable_thinking": false}')
+# subagent service does. **Two flags, not one** (ADR-0005 thinking-lever addendum): the template
+# kwarg alone was measured to leave the trace running on a request carrying a `response_format`,
+# which is every reply a tool-less subagent decodes into the fixed envelope, and the budget is the
+# one that reaches that shape. Neither is redundant, the kwarg being what the template itself reads.
+_REASONING_OFF = (
+    "--chat-template-kwargs",
+    '{"enable_thinking": false}',
+    "--reasoning-budget",
+    "0",
+)
 
 # llama.cpp's own word for a trace nobody bounds, and this repo's "unset" for the same reason it
 # is the engine's default: a deployment that names no budget emits no flag, so its tier comes up
@@ -224,9 +232,10 @@ class ModelHostConfig(BaseSettings):
     def _reasoning(self, budget: int) -> tuple[str, ...]:
         """A tier's thinking budget, in llama.cpp's own flag, or nothing at all when unrestricted.
 
-        The subagent tier is deliberately not given one: its deliberation is already off at the
-        template (``_REASONING_OFF``), so a positive count there would be a knob whose effect no
-        env can reach. What this bounds is a think that happens, not whether one does.
+        The subagent tier is deliberately not routed through here: it carries a fixed zero in
+        ``_REASONING_OFF`` instead, because what it wants is no thought rather than a short one,
+        and a deployment raising the cortex's budget must not raise a subagent's with it. What
+        this bounds is the length of a think that happens, not whether one does.
         """
         if budget == _UNRESTRICTED_REASONING:
             return ()

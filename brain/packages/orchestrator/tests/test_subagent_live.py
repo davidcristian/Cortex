@@ -13,8 +13,9 @@ Skips unless CORTEX_SUBAGENTS_ENDPOINT is set (the `--no-cov` matters, since the
 otherwise fail the run). The roster test (ADR-0018) additionally needs the alternate server
 (docker-compose.subagents-roster.yml) and its endpoint in
 CORTEX_SUBAGENTS_QWEN_ENDPOINT (127.0.0.1:8083 as published). Every subagent server must have
-reasoning disabled, and the compose files bake in `--chat-template-kwargs
-'{"enable_thinking": false}'`; a reasoning model without it crawls (docs/runbooks/subagents-cpu.md).
+reasoning disabled, and the compose files bake in both flags that takes,
+`--chat-template-kwargs '{"enable_thinking": false}'` and `--reasoning-budget 0`; a reasoning model
+without them crawls (docs/runbooks/subagents-cpu.md).
 """
 
 import os

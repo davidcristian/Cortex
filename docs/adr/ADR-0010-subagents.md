@@ -170,6 +170,18 @@ flag, plain requests answer directly in ~0.3-0.6 s and the live delegation test 
 (`--reasoning-budget 0` did **not** work on this build. It still produced reasoning; only
 `--chat-template-kwargs` / the per-request `enable_thinking` disabled it.)
 
+**Revised 2026-08-26 (ADR-0005 thinking-lever addendum).** Both halves of the paragraph above were
+measured on the Qwen-2B pick, and the lineup's default entry is now a gemma-4-E\*, whose template
+this same paragraph says ignores the kwarg. It does, and the consequence went unnoticed for as long
+as nothing on the tier asked the model to deliberate: once a request carries a `response_format`,
+which is every reply a tool-less subagent decodes into the fixed envelope (ADR-0028), the E4B pick
+writes a full reasoning trace with the kwarg set at the server, at the request, and at both. On a
+current image `--reasoning-budget 0` does work and is what reaches that shape, so every subagent
+server this repo ships now carries **both** flags: the kwarg for the Qwen family's template, the
+budget for the engine. The same image also prints a deprecation warning for the kwarg on every
+boot, which is
+[R-461](../refinements/tasks/461-the-tiers-thinking-flag-is-deprecated.md).
+
 At the time of this addendum, the **cortex-driven** path (a resident gemma-4-12B *deciding* to
 emit `spawn_subagents` end to end) remained the host-only half (needs the GPU); it was
 closed 2026-07-01 (see the closure addendum below). The measured pick is recorded in the

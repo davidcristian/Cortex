@@ -135,11 +135,13 @@ def test_naming_every_tiers_artifact_hosts_all_three_on_the_documented_ports(
     assert "32768" in roster["deep"].argv
     # The GPU-placed subagent is the tier ADR-0012's host half was waiting for: whole model on the
     # GPU, reasoning off, one server slot per admitted subagent.
-    assert roster["subagent-gpu"].argv[-4:] == (
+    assert roster["subagent-gpu"].argv[-6:] == (
         "3",
         "--jinja",
         "--chat-template-kwargs",
         '{"enable_thinking": false}',
+        "--reasoning-budget",
+        "0",
     )
     assert "-ngl" in roster["subagent-gpu"].argv
     assert roster["subagent-gpu"].argv[roster["subagent-gpu"].argv.index("-ngl") + 1] == "99"
@@ -307,14 +309,26 @@ def test_a_budgeted_seeing_cortex_keeps_both_tails(monkeypatch: pytest.MonkeyPat
     assert "--mmproj" in argv
 
 
-def test_the_subagent_tier_keeps_the_lever_it_already_has(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A budget for a tier whose deliberation is already off would be a knob with no effect, so
-    the GPU-placed subagent keeps the template pair and gains nothing."""
+def test_the_subagent_tier_ends_the_thought_rather_than_bounding_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Both levers, and a zero the deployment cannot raise (ADR-0005 thinking-lever addendum).
+
+    The template pair alone was measured not to reach a request carrying a ``response_format``,
+    which is every reply a tool-less subagent decodes into the fixed envelope, and the budget is
+    what does reach it. A positive count would be a length for a thought this tier does not want
+    at all, so the deployment's own budget is deliberately not consulted here.
+    """
     monkeypatch.setenv("CORTEX_MODEL_FILE_SUBAGENT_GPU", "small/sub.gguf")
     monkeypatch.setenv("CORTEX_REASONING_BUDGET", "128")
     argv = ModelHostConfig().roster()["subagent-gpu"].argv
-    assert argv[-2:] == ("--chat-template-kwargs", '{"enable_thinking": false}')
-    assert "--reasoning-budget" not in argv
+    assert argv[-4:] == (
+        "--chat-template-kwargs",
+        '{"enable_thinking": false}',
+        "--reasoning-budget",
+        "0",
+    )
+    assert "128" not in argv
 
 
 def test_a_budget_below_the_engines_own_default_is_refused(

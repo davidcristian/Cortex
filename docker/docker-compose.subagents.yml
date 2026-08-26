@@ -125,12 +125,26 @@ services:
       - "--jinja"
       # Disable reasoning for the subagent tier (ADR-0010 increment-4 addendum): both lineup
       # families (gemma-4-E*, Qwen3.5) are reasoning models, and unbounded thinking on CPU is
-      # minutes/call. Narrow subagents don't need it. This is the server-side twin of
-      # enable_thinking=false; templates honor it (validated on the E4B pick: '17 + 25' answers
-      # '42' in ~1.8 s with no reasoning trace; on the Qwen-2B override, ~0.3-0.6 s). The E4B
-      # injection-robustness holds with thinking OFF (0/10, ADR-0004 injection addendum).
+      # minutes/call. Narrow subagents don't need it. The kwarg is the server-side twin of the
+      # per-request enable_thinking=false, and the Qwen template honors it (~0.3-0.6 s on the
+      # Qwen-2B override). The '17 + 25' -> '42' in ~1.8 s reading on the E4B pick, once read as
+      # validating the flag there too, validated nothing: that prompt invites no deliberation, and
+      # the E4B template does not read the kwarg at all. The E4B injection-robustness holds with
+      # thinking OFF (0/10, ADR-0004 injection addendum).
+      #
+      # TWO flags, and neither is redundant (ADR-0005 thinking-lever addendum). The kwarg is what
+      # the chat template itself reads, and it was measured to leave the trace running on a request
+      # carrying a response_format, which is EVERY reply a tool-less subagent decodes into the
+      # fixed envelope (ADR-0028), and therefore every reply a subagents-only stack produces. On
+      # the E4B pick that cost 200 decoded tokens with no reply text in them at all. The budget is
+      # the flag that reaches that shape: with it the same request answers from 1.0 to 2.4 s in
+      # with no trace at all. Zero rather than a count, because a narrow subtask wants no thought
+      # and not a short one; the cortex tier's own count is CORTEX_REASONING_BUDGET, which
+      # deliberately does not reach here.
       - "--chat-template-kwargs"
       - '{"enable_thinking": false}'
+      - "--reasoning-budget"
+      - "0"
       - "--ctx-size"
       - "${CORTEX_SUBAGENT_CTX_SIZE:-8192}"
       - "--parallel"

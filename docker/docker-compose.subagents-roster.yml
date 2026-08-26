@@ -53,8 +53,13 @@ services:
       - "-ngl"
       - "0"
       - "--jinja"
+      # Both reasoning-off flags, for the reason the default entry's own command block argues at
+      # length: the template kwarg does not reach a request carrying a response_format, which is
+      # every reply a tool-less subagent decodes into the envelope.
       - "--chat-template-kwargs"
       - '{"enable_thinking": false}'
+      - "--reasoning-budget"
+      - "0"
       - "--ctx-size"
       - "${CORTEX_SUBAGENT_CTX_SIZE:-8192}"
       - "--parallel"

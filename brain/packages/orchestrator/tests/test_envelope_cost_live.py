@@ -37,9 +37,12 @@ constrained arm would write is read past the shipped cap that censors it; and
 beside. `CORTEX_ENVELOPE_HEAD` sets how much of each half of the stream is kept verbatim.
 
 What it found on 2026-08-26, recorded in full in the ADR-0005 envelope addendum: the envelope
-costs 1.01 to at least 2.36 times the raw shape's tokens for a shorter reply, because the
-tier's server-side `enable_thinking: false` stops holding once a request carries a
-`response_format` and the tokens go to a reasoning trace the run then drops unread.
+cost 1.01 to at least 2.36 times the raw shape's tokens for a shorter reply, the tokens going to a
+reasoning trace the run then dropped unread. The lever that stops that trace is a server flag and
+not a request key (ADR-0005 thinking-lever addendum), so **a server started without
+`--reasoning-budget 0` reproduces the defect and not the fix**: with it, the same three bodies at
+the shipped cap finish at 63 to 89 decoded tokens with no trace at all, and without it the first
+of them spends 200 tokens on trace alone.
 """
 
 import json

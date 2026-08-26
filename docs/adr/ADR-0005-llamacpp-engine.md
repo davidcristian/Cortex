@@ -828,6 +828,11 @@ that tier spending 498 characters of trace and 2.2 s to its first word for a 484
    deployment. The runbook's advice is to start at `512` on a tier a user reads.
 7. **The GPU-placed subagent tier gains nothing.** Its deliberation is already off at the
    template, so a positive count there would be a knob no env can make matter.
+   **Superseded 2026-08-26 by the thinking-lever addendum below**, whose measurement is that the
+   premise is false: on the gemma-4-E\* pick the template ignores the kwarg, and the trace runs on
+   any request carrying a `response_format`. That tier now carries `--reasoning-budget 0`, a fixed
+   zero rather than a count, so what stays true is the second half of this decision: a *positive*
+   count there is still a knob no env can make matter.
 
 ### What this does not do, and where that is recorded
 
@@ -1301,3 +1306,165 @@ bounds around a delegated run that `scripts/crosscheck.py` did not tie to the ru
 contract that quote it, so retuning it alone was a silent green. It is tied now, which is what makes
 the retune those two entries carry a change a gate will hold rather than one three documents can
 drift behind.
+
+## Thinking-lever addendum (2026-08-26): the flag that reaches a constrained request
+
+**Status:** Accepted. Closes
+[docs/refinements/tasks/456-a-constrained-request-loses-the-thinking-lever.md](../refinements/tasks/456-a-constrained-request-loses-the-thinking-lever.md),
+which the envelope addendum above opened the hour it found where the envelope's tokens go.
+
+The addendum above measured the defect and proposed the fix in one sentence: give a constrained
+attempt a `GenerationBounds` with `thinking=False`, so the request carries the key itself rather
+than trusting a server flag a `response_format` overrides. **That fix was built, run against the
+live tier, and does not work.** What it was reaching for exists, one flag over.
+
+### Re-derived first
+
+Read off the tree rather than off the entry. `build_payload` still emits
+`chat_template_kwargs: {"enable_thinking": false}` for a bound whose `thinking` is false and
+nothing at all for one whose `thinking` is true. `PlacedAttempt` still built its `_generation` from
+`bounds.max_tokens` alone, its comment still carrying the argument for sending no thinking key.
+`UNBOUNDED_ATTEMPT` still made that `None`. `constrain_output` still defaults on and still applies
+where the run holds no dispatcher. Nothing had moved.
+
+### The fix the entry named, built and measured
+
+`PlacedAttempt` was changed to build `GenerationBounds(max_tokens=..., thinking=False)` whenever
+the attempt is constrained, riding the constraint rather than the cap, with the unbounded case
+sending a bounds it had never sent. Three behaviour tests, green. Then the same probe the defect
+was measured with, one body at a cap of 200 through
+`brain/packages/orchestrator/tests/test_envelope_cost_live.py`:
+
+| arm | first reply token | decoded | stop | reply | reasoning |
+| --- | --- | --- | --- | --- | --- |
+| before, shipped code | 159.7 s | 200 | capped | 0 chars | 671 chars |
+| the per-request key | 150.0 s | 200 | capped | 0 chars | 709 chars |
+
+Unchanged, inside the noise of two runs of the same thing. So the change was reverted rather than
+landed, and the wire was read instead of the port. Four requests against the same server, the
+harness's own prompt, a cap of 40 so each costs half a minute:
+
+| request | reply | reasoning |
+| --- | --- | --- |
+| no `response_format`, no kwargs | 171 chars from 3.0 s | none |
+| `response_format`, no kwargs | none | a trace |
+| `response_format` + `chat_template_kwargs` | none | a trace |
+| `response_format` + kwargs, no system role | none | a trace |
+
+And on a short arithmetic prompt (`"What is 17 + 25?"`) the `response_format` arm answers `42` with
+no trace at all, with or without the key. **So the entry's mechanism was half right.** It is not
+that a `response_format` cancels the kwarg. It is that on this template the kwarg is not what
+suppresses the trace in the first place: ADR-0010 recorded that "the kwarg is ignored by
+non-reasoning templates like gemma-4-E\*", and the pick this tier ships is one. What the constrained
+shape changes is whether the model deliberates at all, and the key it was being asked to stop with
+had never been reading on this model. ADR-0010 records it working on the Qwen roster alternate,
+which is the pick that addendum validated it against, and that reading is not re-taken here; what
+kept the two conclusions from being separated is that until the envelope landed, nothing on this
+tier asked the model to deliberate, so a template that read the kwarg and one that ignored it
+behaved identically.
+
+### The lever that does work
+
+`--reasoning-budget 0`, which the trace-budget addendum above measured on the cortex tier and this
+ADR's own decision then declined to give the subagent tier, on the grounds that "its deliberation is
+already off at the template, so a positive count there would be a knob no env can make matter". The
+first half of that sentence is what the envelope measurement refutes. The same server, restarted
+with the budget beside the kwarg, on the same prompt at the same cap:
+
+| server | reply | reasoning |
+| --- | --- | --- |
+| kwarg only | none, in 33 s | a trace |
+| kwarg + `--reasoning-budget 0` | from 1.0 to 2.4 s | none |
+
+### Decision
+
+1. **Every subagent server this repo ships carries both flags.** The template kwarg stays, being
+   what the Qwen roster alternate's template actually reads, and `--reasoning-budget 0` joins it in
+   `docker/docker-compose.subagents.yml`, in the roster override beside it, and in the hosted GPU
+   subagent tier's `_REASONING_OFF`. Neither is redundant and neither alone covers the lineup.
+   The cost is the one the trace-budget addendum already named for the cortex tier: a llama.cpp
+   that does not know the flag **fails the server at startup** rather than ignoring it, so a
+   deployment pinning an old digest of `ghcr.io/ggml-org/llama.cpp:server` trades a slow subagent
+   for one that will not come up. That is the right way round. A tier that refuses to start says
+   so on the first `docker compose up`, where this defect said nothing for as long as nobody
+   measured a delegated reply.
+2. **Zero rather than a count, and not the deployment's own.** `CORTEX_REASONING_BUDGET` bounds the
+   length of a thought the cortex is having on purpose. A narrow subtask wants no thought, so the
+   subagent tier is not routed through `_reasoning` and a deployment that lengthens the cortex's
+   trace cannot lengthen a subagent's with it.
+3. **This stays per tier and does not become a port field.** The measurement above is why: the
+   per-request key was built, run, and had no effect on the shape that needed it, and the
+   trace-budget addendum separately measured that llama.cpp will not read `reasoning_budget` off a
+   request in either direction. A port field the engine ignores is a knob that lies, which is the
+   same argument that kept the trace budget out of `GenerationBounds`.
+4. **`PlacedAttempt` keeps sending no thinking key**, and the argument on `_generation` stands
+   unamended. It said saying it again per request would change the request for a deployment whose
+   template spells the flag differently; what this measurement adds is that it would also not have
+   worked, so the reversal buys nothing on either side of the trade.
+
+### The live reading
+
+One body, one shape, one cap, through the committed harness against the compose file's own CPU
+`llama-server` (gemma-4-E4B QAT q4_0, `-ngl 0 --jinja --parallel 2 --ctx-size 8192`), at
+`CORTEX_ENVELOPE_MAX_TOKENS=200` so the arm is a probe rather than a run. Both rows are this
+machine in this session, so they differ in the tier's argv and in nothing else.
+
+| arm | first reply token | decoded | stop | reply | reasoning | outcome |
+| --- | --- | --- | --- | --- | --- | --- |
+| kwarg only | 159.7 s | 200 | capped | 0 chars | 671 chars | refused |
+| kwarg + budget | **17.5 s** | 50 | **finished** | 151 chars | **0 chars** | answered |
+
+A single labelled reading per arm rather than an interval, because two runs is not a width. The
+before row also reproduces the reading the envelope addendum recorded from a separate probe (200
+tokens, 0 reply text, 763 characters of reasoning), which is as much replication as either number
+gets.
+
+The run stopped **finished** rather than at the cap, which is the whole of the defect gone: what
+reached the cortex is an answer and not the refusal that a cap on ordinary narrow work was
+producing.
+
+At the **shipped** cap of 1024, the same arm over the same three report bodies the envelope
+addendum measured:
+
+| body | first reply token | decoded | stop | reply | reasoning | envelope reading before |
+| --- | --- | --- | --- | --- | --- | --- |
+| warehouse | 7.5 s | 64 | finished | 230 chars | 0 | 1024, capped, refused |
+| clinic | 18.0 s | 63 | finished | 223 chars | 0 | 702, 158 chars |
+| fleet | 17.6 s | 89 | finished | 395 chars | 0 | 550, 1176 chars |
+
+**63 to 89 decoded tokens against 550 to at least 1024**, at the cap that was firing. The cap now
+has an order of magnitude of headroom on the shape it was failing, which is what
+[R-457](../refinements/tasks/457-the-caps-derivation-on-the-shape-that-ships.md) was waiting to be
+able to read.
+
+**One thing these readings do not say, and it is not small.** The replies are short because they
+are the wrong text. All three open by narrating the task rather than doing it: "The user wants a
+comprehensive summary of the provided site report", "I need to summarize the provided text while
+ensuring every single detail is retained", and the fleet run spends its reply arguing that the
+instruction contradicts itself. With the trace suppressed, this model writes into `reply` what it
+would otherwise have written into `reasoning_content`, and the envelope's `reply` property carries
+no description telling it otherwise. That is three draws from a 4B model and it prices nothing on
+its own, but it is the first sight of this shape answering without a trace and it is recorded
+rather than smoothed over. What the envelope costs the *answer*, as against the tokens, is
+[R-459](../refinements/tasks/459-what-the-envelope-costs-the-answer.md), and it is the reason the
+cap is not re-derived from the numbers above in the same breath.
+
+### What this does not do, and where that is recorded
+
+- **The port's own thinking switch is now known to be conditional**, holding on a plain request and
+  doing nothing on a constrained one on this template, and nothing in the tree says so to a caller.
+  Four shipped bounds rest on it, and one of them, the rerank judge's, pairs it with a schema of
+  its own.
+  [R-458](../refinements/tasks/458-the-ports-thinking-switch-is-conditional.md).
+- **Three files now spell the same reasoning-off pair and nothing holds them together**, the two
+  subagent compose files and the model host's `_REASONING_OFF`.
+  [R-460](../refinements/tasks/460-the-reasoning-off-pair-is-spelled-in-three-places.md).
+- **The kwarg is deprecated on the shipped image**, which says so on every subagent boot:
+
+```
+Setting 'enable_thinking' via --chat-template-kwargs is deprecated. Use --reasoning on /
+--reasoning off instead.
+```
+
+  So the older half of the pair is on a clock, and the replacement it names may well do the work of
+  both. [R-461](../refinements/tasks/461-the-tiers-thinking-flag-is-deprecated.md).
