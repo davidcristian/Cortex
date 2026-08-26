@@ -103,7 +103,8 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    config via env only.
 6. **`just check` is the single gate**, running ruff, pyright, pytest + coverage,
    `cargo fmt --check`, clippy, `cargo test`, `cargo llvm-cov`, the overlay's typecheck and
-   Vitest coverage, and the ten cross-tree scans: the line cap, which reaches all three
+   Vitest coverage, and **the cross-tree scans**, ten of them: `linecap.py`, the line cap, which
+   reaches all three
    toolchains; `dashcheck.py`, which bans a dash used as punctuation in any text file
    (ADR-0026); `crosscheck.py`, which ties every value this repo spells in more than one place,
    whether the far side declares it, orders itself against it, carries it among the several it
@@ -144,7 +145,8 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    every `#fragment` written anywhere in the repo to naming a heading the document it aims at
    really offers, a backlog index answering out of the rendering the gate is about to require
    and every other document out of the file on disk
-   (ADR-0039). All ten run unconditionally, in CI too. Pre-commit mirrors it. Run it
+   (ADR-0039). Each of them runs unconditionally, in CI too, and this list is itself held to the
+   recipes that run them (ADR-0003 scan-roster addendum). Pre-commit mirrors it. Run it
    before declaring anything done. **One recipe is deliberately outside it**, `check-shell`
    (clippy on the Tauri shell), which CI schedules and `just check` does not run: it is the only
    check needing system libraries, the Linux GTK/webkit/dbus dev packages a clean dev box need
@@ -306,7 +308,9 @@ scripts/          repo gates, plus the one module here that gates nothing, contr
                   has written down, and where each one's real set is read from) +
                   rosternames.py (what a page's roster names, in the three shapes one is written
                   in, and the two phrases bounding the passage it occupies) + rostermembers.py
-                  (what the tree really holds, this block included),
+                  (what the tree really holds, this block included) + scanrecipes.py (the one
+                  such set that is no listing at all, which scans the gate and CI both run,
+                  read from the two files that run them),
                   composefiles.py (which files all three compose gates walk, answered once so
                   they cannot drift apart), backlogcheck.py (each backlog index still matches
                   its task files,

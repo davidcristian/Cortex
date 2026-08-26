@@ -4,6 +4,9 @@ import re
 from collections.abc import Iterable
 from pathlib import Path
 
+import scanrecipes
+from scanrecipes import ScanReadError
+
 # The body's live suite, and the tree this repo's own gates live in.
 LIVE_SEAM = Path("body/crates/rpc/tests/live.rs")
 GATES = Path("scripts")
@@ -104,6 +107,15 @@ def cli_gate_modules(root: Path) -> frozenset[str]:
 def library_gate_modules(root: Path) -> frozenset[str]:
     """Every module in `scripts/` that another module reads rather than a shell runs."""
     return _floored(_with_a_cli(root, wanted=False), f"the modules in {GATES} with no CLI")
+
+
+def cross_tree_scans(root: Path) -> frozenset[str]:
+    """Every module the single gate and CI both run as a cross-tree scan."""
+    try:
+        found = scanrecipes.scan_modules(root)
+    except ScanReadError as err:
+        raise MemberError(str(err)) from err
+    return _floored(found, "the cross-tree scans the gate runs")
 
 
 def registry_tuples(root: Path) -> frozenset[str]:

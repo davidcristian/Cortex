@@ -19,7 +19,7 @@ recipes, `ci_paths.py`
 by the CI
 workflow, `commitlint.py` by the commit-msg pre-commit stage, `contrast.py` by `just turn-cost`;
 each also exposes a pure, unit-tested core function).
-**The rest have no CLI of their own**, thirty-four modules,
+**The rest have no CLI of their own**, thirty-five modules,
 most split out under the line cap and each named for what it holds: `couplings.py` is the
 vocabulary `crosscheck.py`'s registry is written in, `registry.py` names the parts that registry is
 written in, and `seamcouplings.py`, `endpointcouplings.py`, `shippedcouplings.py`,
@@ -39,7 +39,8 @@ the Rust stub's spelling, `logsamples.py` is what a documented log line claims t
 `logcalls.py` is what the call writing it really attaches, the two sides `samplecheck.py` holds
 together, `rosters.py` is every roster this repo has written down with `rosternames.py` reading
 what a page's roster names and `rostermembers.py` reading the set it describes, the two sides
-`rostercheck.py` holds together, `composefiles.py` is
+`rostercheck.py` holds together, `scanrecipes.py` is the one of those sets that is not a listing
+of anything, which scans the single gate and CI both run, `composefiles.py` is
 which files the three compose gates walk, answered once so they cannot drift apart about it,
 `gitenv.py` is the environment every git call in this tree runs with, held in one place because
 a caller that forgets it is wrong in silence rather than red, `skippeddirs.py` is the directory
@@ -656,6 +657,16 @@ that last question to have an answer.
   middle of a longer word. Fences are deliberately not read: a bullet inside one is read as
   a bullet, which fails loudly, and the alternative is a fourth spelling of the markdown fence in
   this tree.
+- `scanrecipes.py` is which scans the single gate runs and has no CLI. Every other set a roster is
+  held to is a listing of something; a cross-tree scan is not a file, so what makes a module one is
+  that `just check` runs it before the per-tree checks and CI's `cross-tree` job runs it too.
+  `gate_scans(text)` is the unbroken run of `just check-*` lines the `check` recipe opens with,
+  `job_scans(text)` every `- run:` step of that job, and `recipe_module(text, recipe)` the one
+  module a recipe hands to python, since the two names differ: `check-backlog` runs
+  `backlogcheck.py`. **A disagreement between the two files is a fault rather than a merge**, since
+  answering with either side alone would let a document agree with the half that had moved, and
+  they are compared as sets, the order a scan runs in being each file's own business. A step it
+  was not taught, a recipe running no module or two, and a missing recipe or job are each refused.
 - `rostermembers.py` is that gate's tree side and has no CLI: the `#[ignore]`d tests in one Rust
   suite, read as the first function below each attribute so a stacked `#[tokio::test]` cannot hide
   the name; the file names in `scripts/`, whole and split into the ones carrying a top-level
