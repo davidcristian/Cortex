@@ -2275,7 +2275,12 @@ Log rendering (ADR-0038 rendered-fields addendum; `log_fields.py` + `log_format.
   (`<cut 900 chars>`) names what did not print (ADR-0038 bounded-value addendum). The number is the
   measured 16 KiB a container's log driver gives one message divided by eight, and it clears the
   widest value the tree attaches, the recall trail's dropped candidates at the shipped pool of
-  twenty. What the division by eight buys is room for **seven** fields at the bound rather than
+  twenty. That clearance is arithmetic rather than a sample (ADR-0038 real-trail addendum): twenty
+  entries carrying a 36-character uuid4 id come to 1,101 characters of syntax and id plus twenty
+  float reprs, and no Python float renders in more than 24 characters, so the field cannot pass
+  1,581 whatever the cosines are; read off lines a live stack wrote, a whole dropped pool renders at
+  1,465 to 1,473 characters over 466 lines, none of them cut. What the division by eight buys is
+  room for **seven** fields at the bound rather than
   eight: eight come to 16,384 characters, one past the measured cliff before a `key=`, a
   separator, a marker or the message is counted, and seven cut fields measure a line of 14,536
   characters against eight at 16,607. The bound is spent on the rendered text rather than on the

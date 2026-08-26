@@ -250,6 +250,38 @@ memory.recall` still holds the trail for the last block. The samples in `measure
 gitignored: they are evidence of one run on one machine, and the reading they support belongs in an
 ADR addendum.
 
+## Measuring how wide that trail line's widest field gets (ADR-0038 real-trail addendum)
+
+`dropped` is the widest value the brain attaches to any log line, and `cortex_core.VALUE_CHARS`,
+the per-field bound, is sized to clear it. The figure it was sized against was synthesised: `uuid4`
+ids and cosine scores drawn in a script, no store anywhere near it. This is what reads the width
+off lines a live stack wrote instead:
+
+```
+CORTEX_MODELS_DIR=/path/to/models just recall-width
+```
+
+That brings up the gpu plus memory stacks, recreates the brain with `CORTEX_MEMORY_SCOPE=session`
+and `CORTEX_MEMORY_RECALL_AUDIT=1`, copies
+`brain/packages/orchestrator/tests/recall_trail_probe.py` and the wide recall corpus into the
+container, and runs the probe there. Inside the container it seeds a fresh session scope with all
+41 notes through `MemoryRecaller.record`, so the ids are minted by the shipped factory and the
+vectors by the real embedder, then recalls every question the corpus carries. Forty one notes
+against a pool of twenty is what makes the pool a real pool rather than the whole store. Each block
+finishes with real turns over the brain's own loopback seam, whose trail lines come back out of
+`docker compose logs brain` rather than off the probe's stream, which is what says the cheap phase
+measures the same lines a serving turn writes. `scripts/trailwidth.py` then reports each capture's
+range, median and a seeded bootstrap of the mean, and the count of renderings the bound cut.
+
+Two blocks by default, because the claim under test is about a maximum and one sample of a maximum
+can only grow with `n`. `just recall-width 1 2 0` is the quick shape to reach for when the harness
+itself is what is in doubt: one block, two passes, no turns. The captures land in `measurements/`
+and are gitignored for the reason the turn-cost samples are.
+
+**Read the cut count first.** Any number above zero says the bound cut a value that ships, which is
+the failure `VALUE_CHARS` was sized to avoid, and it makes every width beside it a reading of the
+bound rather than of the field.
+
 ## Tainted-turn recording (`CORTEX_MEMORY_ON_TAINTED`, ADR-0019)
 
 A turn that reads untrusted content is dropped from memory by default (`skip`), so every stored

@@ -1,6 +1,6 @@
 # The widest value the tree attaches is a synthesis, and no real recall line was ever measured
 
-**Status:** open, actionable
+**Status:** landed 2026-08-26
 **Area:** memory
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
 
@@ -29,3 +29,25 @@ from having done this one: thirty to forty five minutes including bring-up and s
 seeding the part most likely to run long. The result is worth having whichever way it lands, since
 a synthesis that matches the real distribution is a stronger justification than one nobody checked,
 and a synthesis that does not is a bound argued against the wrong number.
+
+## Trail
+
+- 2026-08-21: opened by the close of [R-349](349-a-mutation-table-nobody-replayed.md), which
+  re-measured the figure, found it sound, and found its provenance misdescribed: a synthesis over
+  drawn ids and scores, filed beside the container measurements it is not one of.
+- 2026-08-26: **landed**, as the [ADR-0038 real-trail
+  addendum](../../adr/ADR-0038-ranked-recall.md), a probe that runs inside the brain container
+  (`brain/packages/orchestrator/tests/recall_trail_probe.py`), the `recall-width` recipe that owns
+  its docker, and `scripts/trailwidth.py`, which reads the captures back. Two blocks on the 24 GB
+  card under the shipped `judge` rank, 75 distinct queries against a seeded 41 note corpus,
+  466 trail lines, none of them cut. **The synthesis held**: a whole dropped pool of
+  twenty renders at 1,465 to 1,473 characters against the synthesised 1,458 to 1,476, the real
+  floor higher and the real ceiling inside it, which is what the entry hoped for and not what it
+  expected. The stronger result is the one that needed no sample: with the shipped id factory the
+  field is 1,101 characters of syntax and id plus twenty float reprs, and no Python float renders
+  in more than 24, so it cannot pass 1,581 and `VALUE_CHARS` clears it by 467 whatever the cosines
+  do. The comment on `VALUE_CHARS` moves to the measured reading; this file and the record it came
+  from keep the synthesised one, being statements about a date. Opened by this close:
+  [R-453](453-the-harness-reads-one-field-off-a-line-it-has-whole.md),
+  [R-454](454-the-readers-needles-are-not-tied-to-the-sink.md) and
+  [R-455](455-the-fields-ceiling-assumes-the-shipped-id-factory.md).
