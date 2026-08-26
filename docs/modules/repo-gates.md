@@ -20,11 +20,11 @@ by the CI
 workflow, `commitlint.py` by the commit-msg pre-commit stage, `contrast.py` by `just turn-cost`
 and `trailwidth.py` by `just recall-width`;
 each also exposes a pure, unit-tested core function).
-**The rest have no CLI of their own**, thirty-five modules,
+**The rest have no CLI of their own**, thirty-six modules,
 most split out under the line cap and each named for what it holds: `couplings.py` is the
 vocabulary `crosscheck.py`'s registry is written in, `registry.py` names the parts that registry is
 written in, and `seamcouplings.py`, `endpointcouplings.py`, `shippedcouplings.py`,
-`subagentcouplings.py`,
+`boundscouplings.py`, `subagentcouplings.py`,
 `modelhostcouplings.py`, `emailcouplings.py`, `fixturecouplings.py`, `capturecouplings.py`,
 `overlaycouplings.py` and `logcouplings.py` are those parts, `values.py`
 is the value forms that scan compares on and the spellings a mention writes one in, `readings.py`
@@ -106,16 +106,17 @@ that last question to have an answer.
   one. `registry.py` is the only module that names them, so a new part is a data file plus one line
   there and the scan never learns the registry has parts; `crosscheck.CONSTANTS` is
   `SEAM_COUPLINGS`, then `ENDPOINT_COUPLINGS`, `SHIPPED_COUPLINGS`, `CAPTURE_COUPLINGS`,
-  `SUBAGENT_COUPLINGS`,
+  `BOUNDS_COUPLINGS`, `SUBAGENT_COUPLINGS`,
   `MODELHOST_COUPLINGS`, `EMAIL_COUPLINGS`, `FIXTURE_COUPLINGS`, `OVERLAY_COUPLINGS`, then
   `LOG_COUPLINGS`. Each part is named for its subject: couplings whose far side is another
   tree's code across the language boundary; the address and port each side answers on, with every
   file that dials or states one; the brain container's own shipped defaults, restated
   by a compose default, a runbook row or a module contract; one capture's own edge, byte budget
-  and deadlines, which are that same kind narrowed to a single request; the subagent tier's
-  admission budgets with the cgroup limits that are their hard twins, beside them the four
-  bounds one delegated run stands between, each held to the runbook and the module contract that
-  quote it, and the reasoning-off flag pair every server in that tier starts with, held as one
+  and deadlines, which are that same kind narrowed to a single request; the four bounds one
+  delegated run stands between, each held to the runbook and the module contract that quote it and
+  to no stack at all, since nothing under `docker/` ships one of them; the subagent tier's
+  admission budgets with the cgroup limits that are their hard twins,
+  and the reasoning-off flag pair every server in that tier starts with, held as one
   needle whose value is the budget's count and whose shape is the two flag names around it; the model-host tier settings
   and the
   override that ships them; the email sidecar's three safety answers and the override that spells

@@ -269,13 +269,14 @@ scripts/          repo gates, plus the two modules here that gate nothing, contr
                   agreeing) + couplings.py (the vocabulary its registry is written in) +
                   registry.py (the only module naming the parts that registry is written in) +
                   seamcouplings.py, endpointcouplings.py, shippedcouplings.py,
-                  capturecouplings.py, subagentcouplings.py,
+                  capturecouplings.py, boundscouplings.py, subagentcouplings.py,
                   modelhostcouplings.py, emailcouplings.py, fixturecouplings.py,
                   overlaycouplings.py and logcouplings.py (the registry
-                  itself, in the ten parts it is written in, seven split off by the line cap and
-                  three added as subjects: another tree's code, the address each side answers
+                  itself, in the eleven parts it is written in, eight split off by the line cap
+                  and three added as subjects: another tree's code, the address each side answers
                   on, the brain's own shipped
-                  defaults, one capture's own numbers, the subagent tier's budgets, the model
+                  defaults, one capture's own numbers, the bounds one delegated run stands
+                  between, the subagent tier's budgets, the model
                   host's tiers, the email
                   sidecar's shipped answers, a measurement fixture against the suite that
                   measures it, the overlay's own

@@ -29,6 +29,8 @@ directory beside it and to the order the tuple reads them in by
   restate them.
 - `capturecouplings` ties one capture's own numbers, the edge and byte budget it rides with and
   the deadlines it runs under, to everything that ships or states them.
+- `boundscouplings` ties the four bounds one delegated run stands between, none of which any stack
+  ships, to the runbook and the module contract that quote each.
 - `subagentcouplings` ties the subagent tier's admission budgets to the container limits that are
   their hard twins.
 - `modelhostcouplings` ties the model-host sidecar's tier settings to the override that ships them.
@@ -52,6 +54,7 @@ list above, in the one place a reader also learns what each part is for.
 
 from typing import NamedTuple
 
+from boundscouplings import BOUNDS_COUPLINGS
 from capturecouplings import CAPTURE_COUPLINGS
 from couplings import Constant
 from emailcouplings import EMAIL_COUPLINGS
@@ -69,6 +72,7 @@ CONSTANTS: tuple[Constant, ...] = (
     *ENDPOINT_COUPLINGS,
     *SHIPPED_COUPLINGS,
     *CAPTURE_COUPLINGS,
+    *BOUNDS_COUPLINGS,
     *SUBAGENT_COUPLINGS,
     *MODELHOST_COUPLINGS,
     *EMAIL_COUPLINGS,
