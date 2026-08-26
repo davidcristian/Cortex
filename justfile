@@ -3,7 +3,7 @@
 
 default: check
 
-# All gates: the nine cross-tree scans first (fast), then the four tree checks in
+# All gates: the ten cross-tree scans first (fast), then the four tree checks in
 # PARALLEL (ADR-0006), so wall time ≈ the slowest tree. Output is buffered per tree
 # and printed in a fixed order so logs stay readable; any failure fails the gate.
 # Kept bash-3.2 compatible (no `declare -A` etc.) for macOS system bash.
@@ -18,6 +18,7 @@ check:
     just check-volumecheck
     just check-stubcheck
     just check-samplecheck
+    just check-rostercheck
     just check-backlog
     tmp=$(mktemp -d)
     trap 'rm -rf "$tmp"' EXIT
@@ -103,6 +104,16 @@ check-stubcheck:
 check-samplecheck:
     cd scripts && uv sync --locked
     cd scripts && uv run python samplecheck.py --root ..
+
+# Every roster a document keeps still names the set it describes: the ignored checks in the
+# body's live seam suite, the modules in scripts/, the tuples the constant registry is joined
+# from. Membership and naming only. The sentence beside each name is what a roster is FOR and
+# is deliberately unheld, as is any tally beside it, a count restated by hand being the half
+# that drifts first. A roster's two boundary phrases are data, so a passage that slid out from
+# under them fails rather than quietly shrinking what is compared.
+check-rostercheck:
+    cd scripts && uv sync --locked
+    cd scripts && uv run python rostercheck.py --root ..
 
 # Hand-run, needs docker and the network: pull every image this repo's compose files name,
 # ask the daemon what each actually declares, and fail when scripts/imagevolumes.py

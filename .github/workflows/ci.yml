@@ -4,8 +4,9 @@
 # ADR-0006): unknown paths run every toolchain job, and if the diff range cannot be
 # determined we run them all too. The cross-tree scans (the 300-line cap, the
 # punctuating-dash ban, the cross-language constant check, the compose bind check, the
-# compose defaults check, the image-volume check, the seam-stub comment check, and the
-# backlog check) are exempt from the filter and always
+# compose defaults check, the image-volume check, the seam-stub comment check, the
+# documented-log-sample check, the document-roster check, and the backlog check) are
+# exempt from the filter and always
 # run. Every action is pinned to a full commit SHA
 # with a version comment; dependabot (.github/dependabot.yml) keeps the pins fresh.
 name: CI
@@ -86,7 +87,9 @@ jobs:
   # the comments proto/body.proto carries, which spans two trees and so belongs to
   # neither job; samplecheck.py holds every log line a runbook prints to the call site
   # that writes it, which is a docs tree against a Python one and so belongs to neither
-  # job either; and backlogcheck.py holds each backlog index to its task files
+  # job either; rostercheck.py holds every roster a document keeps to the set it
+  # describes, which is a docs tree against two others and belongs to none of the jobs;
+  # and backlogcheck.py holds each backlog index to its task files
   # (ADR-0039), which is docs-only and so would otherwise never run.
   cross-tree:
     runs-on: ubuntu-latest
@@ -106,6 +109,7 @@ jobs:
       - run: just check-volumecheck
       - run: just check-stubcheck
       - run: just check-samplecheck
+      - run: just check-rostercheck
       - run: just check-backlog
 
   python:

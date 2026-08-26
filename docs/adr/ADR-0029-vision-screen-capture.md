@@ -5626,3 +5626,121 @@ closes, [docs/refinements/index.md](../refinements/index.md), which is regenerat
 `brain/packages/inference/tests/rendered_screens.py`, which carries the argument for its own
 frame, `brain/packages/inference/tests/test_image_arm.py`, which no longer restates the old claim,
 and this addendum.
+
+## Addendum (2026-08-26): the standing decision covers numbers and not names, so both lists are held
+
+The registry-parts addendum above held `registry.py`'s docstring list of parts to the directory
+beside it and left two copies of that same list in
+[modules/repo-gates.md](../modules/repo-gates.md) exactly as they were, under a standing decision
+made one addendum earlier: a document describing the gate is not a far side of the gate, and a
+tally in it goes stale on the next row. The question left open was whether that decision covers a
+list of **names** or only a list of **numbers**. It covers numbers.
+
+The argument is the one the entry itself offered and it survives being tested. A tally goes stale
+on any edit anywhere, including edits that change nothing about what the document says, which is
+why holding one would make a gate out of arithmetic nobody reads. A name list goes stale on
+exactly one edit, adding or renaming a member, which is the edit that should redden it. They are
+not the same object and the decision that covered one was never asked about the other.
+
+### Re-derived first, and both copies were current and both were still unheld
+
+Measured over the tree before anything changed. The registry is written in ten parts, one more
+than when the entry was filed, and both copies in the module contract name all ten. So the drift
+the entry predicted was absorbed by hand when the log part landed, exactly as the live seam
+roster's was absorbed by hand twice (ADR-0003 live-roster addendum), and in both cases the repair
+left nothing behind that would notice the next one. The two copies are still in different orders,
+the paragraph near the top not being in read order, which remains harmless and remains the
+evidence that nobody was comparing them to anything.
+
+### Both copies are held, and the first one is held wider than the entry asked
+
+The entry framed the first copy as a list of the `*couplings.py` files. Reading the paragraph it
+sits in says otherwise: that paragraph names **every module in `scripts/`**, all forty four of
+them at the time, the CLIs in its opening clause and the rest in the sentence after, each with
+what it holds. The parts are a run inside a bigger roster, and the bigger roster is the one worth
+holding, because the promise this document makes is that a future agent can work on this tree
+without reading it, and that promise breaks the day any module lands unnamed, not only a coupling
+part. So the registered roster is the paragraph and its members are the modules on disk. The parts
+are covered by it, and so is every module that has nothing to do with the registry, and so were
+the four modules this very change added, which the gate reported as four reds before the document
+was updated.
+
+The second copy is the tuple names in the `crosscheck.py` bullet, held on their own because they
+are a different spelling of the same set, `<SUBJECT>_COUPLINGS` rather than
+`<subject>couplings.py`, and because that copy is the one that also gives each part's subject.
+Their far side is derived from the file names through the convention `registry.py` declares and
+`test_the_parts_on_disk_are_exactly_what_the_registry_reads` already asserts, so no third place
+gets to spell them.
+
+**What is still not held, on purpose.** The number in front of the second sentence, how many
+modules have no CLI, stays a hand count under the standing decision, and so does which of the two
+clauses a module is named in: the roster is the paragraph, so a module named in the wrong half of
+it passes. Both are recorded rather than smuggled
+([R-448](../refinements/tasks/448-the-module-listing-is-held-whole-and-not-in-halves.md)). And a
+**third** copy of the same list is unheld for a different reason again: the `scripts/` entry of
+the repo map in [AGENTS.md](../../AGENTS.md) names all forty eight modules too, in a fenced block
+of plain text where the code spans this name reader takes a name from do not exist, so holding it
+needs a third way of writing a roster down
+([R-449](../refinements/tasks/449-the-repo-map-names-every-gate-module-unheld.md)).
+
+### Proved able to fail, sixteen mutants over the scripts suite, one of them alive
+
+**Suite: `scripts/tests/`, 1202 tests** (1147 before this change), which is the collection every
+count below is out of. One mutant at a time, each restored from a copy taken before the first,
+with `__pycache__` purged between runs, and the baseline re-established after every row. Sixteen
+mutants, fifteen killed, and the survivor is row 14.
+
+| # | mutation | expected | observed |
+| --- | --- | --- | --- |
+| 00 | none, the tree as written | the baseline | 1202 passed |
+| 01 | a boundary phrase carried twice is accepted | the ambiguous-boundary test fails | 1 failed, 1201 passed |
+| 02 | an empty passage is accepted | the degenerate-passage test fails | 1 failed, 1201 passed |
+| 03 | a bullet with no name is skipped rather than reported | the nameless-bullet test fails | 1 failed, 1201 passed |
+| 04 | a name is looked for inside a code span rather than as the whole of it | the span test fails, and so does the real tree | 3 failed, 1199 passed |
+| 05 | a check's name is taken from anywhere in the file | the stack test fails, and most of the gate with it | 16 failed, 1186 passed |
+| 06 | the ignore attribute must start at column zero | the nested-module test fails | 1 failed, 1201 passed |
+| 07 | an empty described set is allowed to agree with an empty roster | all three floors fail | 3 failed, 1199 passed |
+| 08 | the vocabulary file is read as a registry part | the two part tests fail, and the real tree | 5 failed, 1197 passed |
+| 09 | only the members the roster lost are reported | the rename test fails | 1 failed, 1201 passed |
+| 10 | only the names the roster invented are reported | six tests fail, the added check among them | 6 failed, 1196 passed |
+| 11 | a registry holding no roster reports success | the registry floor fails | 1 failed, 1201 passed |
+| 12 | a fault stops carrying the reason the two sides must agree | the reason test fails | 1 failed, 1201 passed |
+| 13 | a roster that lost its passage passes silently | the moved-passage test fails | 1 failed, 1201 passed |
+| 14 | a registered roster's closing phrase moved past the list it bounds | nothing, and this is the exposure | 1202 passed |
+| 15 | INTERACTION: the addendum heading a task file points at is renamed | the anchor scan fails and no roster does | 1 failed, 1201 passed |
+| 16 | INTERACTION: a bullet in the live roster loses its name | the roster scan fails and the anchor scan does not | 2 failed, 1200 passed |
+
+Rows 15 and 16 are the interaction rows, and they are the reason the roster question did not
+become a mode of the backlog gate. Renaming a heading this repo points at with a fragment reddens
+the anchor scan and leaves every roster green; a bullet losing its name in a roster reddens the
+roster scan and leaves the anchor scan green. Two gates, two questions, neither shadowing the
+other.
+
+Row 14 is the mutant in the registry rather than in the logic, and it is the survivor, which is
+reported rather than tidied away. A boundary phrase **moved** still appears exactly once, so the
+gate reads a wider region and compares whatever it finds there: the live roster's closing phrase
+pushed down to the invariants heading swallows one more sentence, that sentence carries no bullet,
+and every test stays green. The same was measured from the other roster, whose closing phrase
+pulled back into the first bullet of the list below it swallows a run of prose with no module name
+in it and exits 0 printing the summary it prints when nothing moved. The exposure is asymmetric,
+since a wider passage can only make the gate see MORE names and never hide a member the roster
+lost, and it is filed as
+[R-447](../refinements/tasks/447-a-widened-passage-is-caught-only-by-accident.md) rather than
+closed here: every cheap fix for it either catches nothing, since a widened passage still carries
+every name, or turns an ordinary prose edit into a red.
+
+Row 06 was a survivor on the first run and is the reason the suite has one more test than it did.
+The reader allows an indented attribute so a suite grouping its checks in a `mod` block still has
+them, nothing in this tree indents one, and an allowance nothing exercises is an allowance nobody
+would notice losing. The fixture that spends it is
+`test_a_check_nested_in_a_module_is_still_a_check`, and with it the mutant dies.
+
+### Records
+
+The record is the task file
+[R-413](../refinements/tasks/413-the-module-contracts-part-list-is-held-by-nobody.md), which
+closes as landed, [docs/refinements/index.md](../refinements/index.md), which is regenerated from
+it, [modules/repo-gates.md](../modules/repo-gates.md), which gains the new gate's own entries and
+is now the document two of the three registered rosters are written on, `scripts/rosters.py`,
+which registers them, and the ADR-0003 live-roster addendum, which is where the mechanism and its
+own mutation table live.

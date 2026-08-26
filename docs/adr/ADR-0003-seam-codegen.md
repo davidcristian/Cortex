@@ -255,3 +255,143 @@ numbers a miss names swapped (4), and the doubled reading never counted (2).
 
 Both suites are stdlib-only and need no `protoc`, no docker and no GPU, so the gate still runs
 everywhere `just check` does, CI included.
+
+## Addendum (2026-08-26): the live roster is held to the suite, and its tally is dropped
+
+Decision 3 above put the live seam checks in an `#[ignore]`d suite that no gate runs: not in CI,
+not under coverage, started by hand with `just seam-health`. That is the right shape and it has a
+consequence nobody priced. For every other suite in this repo, the tests are their own
+documentation, because a reader meets them by running them. This one is met by reading
+[modules/body-rpc.md](../modules/body-rpc.md), which is the only description of it a reader gets
+without opening the file, and which is what decides whether they open the file at all. Nothing
+held that description to `body/crates/rpc/tests/live.rs`.
+
+### Re-derived first, and the roster is right today for the second time
+
+Measured over the tree before anything changed. `tests/live.rs` carries eight `#[ignore]`d tests
+and the roster names those eight, so the two lists agree at this moment. That is not evidence
+against the entry; it is the shape of the defect. The roster opened by saying "Two `#[ignore]`d
+tests run against a real brain" while describing four and the suite carried seven, through several
+passes that each added a check and left the sentence alone. Two passes since then repaired it by
+hand, the second on the day before this one, and neither repair left anything behind that would
+notice the third divergence. A list that is correct because somebody remembered is a list that is
+correct until somebody does not.
+
+The tally in front of it was the half that went first, and it went twice: the count and the list
+disagreed with each other, and both disagreed with the file.
+
+### What a roster is, and what is held about one
+
+A **roster** is a list of names a document keeps for a set the tree really holds. Three of them
+are registered now, the live checks here and two in the `scripts/` contract (ADR-0029
+roster-membership addendum), and `scripts/rostercheck.py` holds each to the thing itself:
+
+- **membership**, every member of the real set is named on the page;
+- **naming**, every name on the page is a member.
+
+Nothing else. The sentence beside each name says what that check proves and why it is shaped the
+way it is, which is the whole value of the list and precisely what a generated one could never
+say. A gate that forced this prose into a machine-readable table would destroy the thing it was
+built to protect, so the prose is free: any wording, any length, any order. Reordering the eight
+bullets, rewriting every sentence, and moving a bullet from a fact about the check to a fact about
+the brain are all green.
+
+**The tally is dropped rather than rendered.** The entry offered both, and dropping it is the
+better half of the offer. A number restated by hand beside a list it summarises is a second copy
+of the same claim with none of the detail, it goes stale on the same edit, and a reader who wants
+it can count the bullets, which are now guaranteed to be the set. What replaced it says the two
+things the number was doing badly: that the roster is every check and nothing else, and that not
+all of them need a brain, which each bullet now answers for itself.
+
+### Why a scan of its own rather than an existing one
+
+`crosscheck.py` ties a **value** spelled in more than one place. A roster is not a value: the far
+side is a set nobody spells anywhere, derived by reading a directory or a run of attributes, and
+the near side is a list rather than an occurrence. Registering eight test names as eight constants
+would be eight entries that never disagree with anything, since the suite declares no name a
+registry could read.
+
+`backlogcheck.py` already reads documents, and it reads them for **pointers**: a link that
+resolves, a fragment that names a heading its target offers. Widening it to membership would put
+two unrelated questions behind one flag and one exit code. The two now sit beside each other and
+prove they do not overlap: renaming a heading this record carries, while a task file points at it,
+reddens the backlog gate and leaves the roster gate green; a bullet in the live roster losing its
+name reddens the roster gate and leaves the backlog gate green.
+
+### How a roster is written down, and where it begins
+
+`scripts/rosters.py` is the registry and `rostercheck.py` is the scan, the same split the constant
+registry uses: a roster arrives as one entry plus, when its set is a new kind, one reader in
+`rostermembers.py`, and the scan never learns which document or which shape it is reading.
+
+Two decisions inside that are worth the ink. **A passage is bounded by two phrases the document
+already carries**, each exactly once, because bounding by heading would put both of the `scripts/`
+contract's rosters into one section, where a name missing from one list would pass on the strength
+of the other, and bounding by paragraph cannot reach a list that opens with a fenced command. A
+phrase that stops appearing, or starts appearing twice, is a reported fault naming itself, so a
+roster that slides out from under its own boundary fails rather than quietly shrinking what is
+compared. **Names are read in one of two shapes**, a bullet's first code span or every code span
+matching the roster's own pattern, because a roster that explains each member is a list and a
+roster inside a running sentence is not, and forcing either into the other's shape would be the
+gate dictating prose again.
+
+### Proved able to fail, fourteen mutants over the real tree
+
+**Suite: `scripts/rostercheck.py --root ..` run against the real `body/crates/rpc/tests/live.rs`,
+the real [modules/body-rpc.md](../modules/body-rpc.md) and the real
+[modules/repo-gates.md](../modules/repo-gates.md)**, one temporary edit at a time, each restored
+from a copy taken before the first and the restore asserted by the next clean row. The number is
+the process exit code.
+
+| # | mutation | expected | got |
+| --- | --- | --- | --- |
+| 00 | none, the tree as committed | 0 | 0 |
+| 01 | a ninth live check added to the suite, the roster left alone | 1 | 1 |
+| 02 | a live check renamed in the suite only | 1 | 1 |
+| 03 | a live check renamed in the roster only | 1 | 1 |
+| 04 | a roster bullet stripped of its name | 1 | 1 |
+| 05 | a roster bullet's prose reworded (must stay green) | 0 | 0 |
+| 06 | the live roster's opening phrase reworded | 1 | 1 |
+| 07 | the live roster's closing phrase reworded | 1 | 1 |
+| 08 | a tenth registry part added on disk, both lists left alone | 1 | 1, two faults, one per roster |
+| 09 | one part struck from the tuple list | 1 | 1 |
+| 10 | two modules struck from the contract's own listing | 1 | 1 |
+| 11 | a module renamed in the contract and not on disk | 1 | 1, both directions at once |
+| 12 | the parts roster's opening phrase reworded | 1 | 1 |
+| 13 | the live suite removed | 2 | 2 |
+| 14 | every ignore in the live suite disarmed | 2 | 2 |
+
+Rows 01 and 08 are the two directions the backlog entries described, arriving as reds on the day
+the gate landed rather than as prose somebody re-read. Row 05 is the proof that the prose is free,
+and row 04 the proof that a bullet losing its name is a fault rather than a member quietly leaving
+the roster. Rows 13 and 14 are the floors: a comparison over nothing reports success forever.
+
+The suite behind the scan was mutated too, sixteen mutants over `scripts/tests/`, fifteen killed
+and the survivor reported rather than tidied away. That table is in the ADR-0029
+roster-membership addendum, with the second half of the decision.
+
+### What this opened
+
+The scan reads three rosters and the repo writes more lists than that. The nearest is the list of
+cross-tree scans themselves, spelled in seven places across a README table, two YAML comments, a
+justfile comment, this repo's contract twice and a module doc, one of which was found short a scan
+while this was being written
+([R-446](../refinements/tasks/446-the-scan-roster-is-spelled-in-seven-places.md)). A second is
+narrower and lives inside the mechanism: a boundary phrase moved to a wider point in its own
+document is only caught when the wider passage happens to break some other rule
+([R-447](../refinements/tasks/447-a-widened-passage-is-caught-only-by-accident.md)).
+
+### Records
+
+The record is the task file
+[R-442](../refinements/tasks/442-nothing-holds-the-live-check-roster-to-the-suite.md), which
+closes as landed, [docs/refinements/index.md](../refinements/index.md), which is regenerated from
+it, `scripts/rostercheck.py`, `scripts/rosters.py`, `scripts/rosternames.py` and
+`scripts/rostermembers.py`, the new gate and its three parts,
+`scripts/tests/test_rostercheck.py`, `scripts/tests/test_rosternames.py` and
+`scripts/tests/test_rostermembers.py`, [modules/body-rpc.md](../modules/body-rpc.md), whose live
+roster loses its tally and gains the sentence saying what holds it,
+[modules/repo-gates.md](../modules/repo-gates.md), which documents the new gate and is now one of
+the two documents it reads, the justfile and the CI workflow, which run it beside the other
+cross-tree scans, [AGENTS.md](../../AGENTS.md), [README.md](../../README.md) and
+[docs/index.md](../index.md), which count and name the scans, and this addendum.
