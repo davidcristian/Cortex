@@ -6006,3 +6006,81 @@ it, `scripts/subagentcouplings.py`, which carries the entry and the pair's templ
 `brain/packages/model_manager/src/cortex_model_manager/config.py`, whose fixed count is now a
 named constant, [modules/brain-model-manager.md](../modules/brain-model-manager.md), which names
 it, and this addendum.
+
+## Addendum (2026-08-26): the subagent part splits on the line between a run and its container
+
+`scripts/subagentcouplings.py` stood at 298 lines against a cap of 300, which is room for no entry
+at all, so the next coupling written into it would have failed the line cap rather than landed.
+That is the gate working, and it is also a trap: whoever wrote that entry would have been splitting
+a registry part in the middle of recording a coupling, which is the cleanup pass this contract asks
+nobody to do inside something else. The split was therefore taken on its own, with nothing else
+riding in it.
+
+### The seam was the sibling's own name
+
+The file held ten entries in three groups. Four are the bounds one delegated run stands between:
+the deadline on the whole run, the token cap on any one completion of it, the ceiling on how long
+its stream may say nothing, and the wait a spawn may spend queued for room. Five are what the tier
+is charged and what the container serving it is given, the two soft admission budgets with their
+hard cgroup twins and the three numbers one spawn is charged. The tenth is the reasoning-off flag
+pair every server in the tier starts with.
+
+The line between the first group and the rest was already written down twice. `registry.py` says
+`subagentcouplings` ties the subagent tier's admission budgets to the container limits that are
+their hard twins, which was a true sentence about six of the ten entries and silent about the other
+four. The far sides sort the same way: every bound is restated by a runbook row and a module
+contract and not one of them is spelled anywhere under `docker/`, while every budget and every ask
+reaches a compose file. A claim about what one run is allowed and a claim about what the container
+serving it gets are two subjects, and the second keeps the file named for the tier.
+
+The flags stayed with the budgets rather than leaving as a third part. They are a property of the
+servers that stack starts, which is the subject the compose entries beside them are already about,
+and a part carved for one entry is a file named after a single coupling.
+
+### The name
+
+`boundscouplings.py`, holding `BOUNDS_COUPLINGS`. The subject names itself: two of the four ship
+together as one `AttemptBounds` in the core, and the documents quoting all four call them bounds.
+`runcouplings` was the honest alternate and was declined for reading as a claim about a run rather
+than about what one is held to, and for sitting closer than it should to the tier a sibling part is
+already named for. A name ending in a digit was never a candidate.
+
+### Pure motion, which is why no mutation table is owed
+
+The four entries moved verbatim, and the tuple joins the new part where they already sat, after
+`CAPTURE_COUPLINGS` and before `SUBAGENT_COUPLINGS`. So `crosscheck.CONSTANTS` reads the same 73
+entries in the same order and prints the same shape, 73 entries over 83 declaring sites and 242
+mentions with 24 of them pinned to a count, which was measured on both sides of the change and
+diffed label by label. No scan learned anything and no gate changed what it checks, so a table
+here would be counting mutants against unchanged logic.
+
+What was verified instead is that the suites already holding a split still catch the way one goes
+wrong. With the new part on disk and its line missing from the tuple, both registry checks redden,
+one naming the part the registry does not read and one naming the position at which the docstring's
+list disagrees with the directory.
+
+### Four listings, three of which the gate named
+
+A new part has to be named in four places: `registry.py`'s own docstring, the part list in the
+module contract, that contract's roster of every module with no CLI, and the repo map in the
+engineering contract. Three of them are held, and `rostercheck.py` printed exactly three faults
+after the split, one for the module missing from the map, one for the module missing from the
+no-CLI half of the contract's sentence, and one for `BOUNDS_COUPLINGS` missing from the part list
+beside it. The fourth, the docstring, is held by the constant suite instead, which reads the
+directory and the order the tuple joins it in.
+
+Two hand tallies sit beside those listings and neither is held, the count of modules with no CLI
+and the count of parts in the repo map. Both were updated by hand here, which is the residue
+[R-449](../refinements/tasks/449-the-repo-map-names-every-gate-module-unheld.md) already records
+and this pass leaves where it is.
+
+### Records
+
+The record is the task file
+[R-463](../refinements/tasks/463-the-subagent-couplings-part-is-two-lines-under-the-cap.md), which
+closes as landed, [docs/refinements/index.md](../refinements/index.md), which is regenerated from
+it, `scripts/boundscouplings.py`, which is the new part, `scripts/subagentcouplings.py`, which
+keeps the container's half and is 163 lines to the new file's 175,
+`scripts/registry.py`, which names and joins both,
+[modules/repo-gates.md](../modules/repo-gates.md) and [AGENTS.md](../../AGENTS.md), whose listings
+name the eleventh part, and this addendum.
