@@ -18,6 +18,10 @@ TUPLE = "_COUPLINGS"
 IGNORED = re.compile(r"^\s*#\[ignore\b")
 FUNCTION = re.compile(r"^\s*(?:pub +)?(?:async +)?fn +([A-Za-z_][A-Za-z0-9_]*)")
 
+# What gives a module here a command line of its own. It is read at column zero, since a guard is
+# a top-level statement and the same text inside a docstring or a nested function is neither one.
+MAIN_GUARD = re.compile(r"^if __name__ == \"__main__\":", re.MULTILINE)
+
 
 class MemberError(Exception):
     """A set some roster describes cannot be read, or came back empty."""
@@ -81,6 +85,25 @@ def live_seam_checks(root: Path) -> frozenset[str]:
 def gate_modules(root: Path) -> frozenset[str]:
     """Every module in `scripts/`, the tree its own module contract is a contract for."""
     return _floored(_filenames(root, MODULES), f"the modules in {GATES}")
+
+
+def _with_a_cli(root: Path, *, wanted: bool) -> list[str]:
+    """The modules in `scripts/` that do, or do not, carry a top-level main guard."""
+    return [
+        name
+        for name in _filenames(root, MODULES)
+        if (MAIN_GUARD.search(_read(root, GATES / name)) is not None) == wanted
+    ]
+
+
+def cli_gate_modules(root: Path) -> frozenset[str]:
+    """Every module in `scripts/` with a command line of its own."""
+    return _floored(_with_a_cli(root, wanted=True), f"the CLIs in {GATES}")
+
+
+def library_gate_modules(root: Path) -> frozenset[str]:
+    """Every module in `scripts/` that another module reads rather than a shell runs."""
+    return _floored(_with_a_cli(root, wanted=False), f"the modules in {GATES} with no CLI")
 
 
 def registry_tuples(root: Path) -> frozenset[str]:

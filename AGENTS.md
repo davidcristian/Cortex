@@ -132,11 +132,13 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    leave a documented sample printing what nothing emits, and which holds field names and never
    field values, a captured value being a dated reading (ADR-0009 sample-membership addendum);
    `rostercheck.py`, which holds every roster a document keeps to the set it really describes, the
-   ignored checks in the body's live seam suite, the modules in `scripts/`, the tuples the constant
+   ignored checks in the body's live seam suite, the modules in `scripts/` and the two halves the
+   contract sorts them into, that same set again in the repo map below, the tuples the constant
    registry is joined from, so a member added and a sentence left alone is a red rather than a
    reader misled, and which holds membership and naming only, the sentence beside each name being
    what a roster is for and any tally beside it being the half that drifts first (ADR-0003
-   live-roster addendum and ADR-0029 roster-membership addendum);
+   live-roster addendum, and the ADR-0029 addenda on roster membership and on holding that listing
+   in halves);
    and `backlogcheck.py`, which holds each backlog index to the task files it describes and
    every link in them to resolving, so a status can be written in exactly one place, and holds
    every `#fragment` written anywhere in the repo to naming a heading the document it aims at
@@ -302,8 +304,9 @@ scripts/          repo gates, plus the one module here that gates nothing, contr
                   rostercheck.py (every roster a document keeps still names the set it
                   describes, membership and naming only) + rosters.py (which rosters this repo
                   has written down, and where each one's real set is read from) +
-                  rosternames.py (what a page's roster names, and the two phrases bounding the
-                  passage it is written in) + rostermembers.py (what the tree really holds),
+                  rosternames.py (what a page's roster names, in the three shapes one is written
+                  in, and the two phrases bounding the passage it occupies) + rostermembers.py
+                  (what the tree really holds, this block included),
                   composefiles.py (which files all three compose gates walk, answered once so
                   they cannot drift apart), backlogcheck.py (each backlog index still matches
                   its task files,

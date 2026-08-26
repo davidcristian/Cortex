@@ -6,13 +6,17 @@ from pathlib import Path
 from typing import NamedTuple
 
 import rostermembers
-from rosternames import Bulleted, Spelled, Written
+from rosternames import Bare, Bulleted, Spelled, Written
 
 # How a member is spelled where a roster runs as a sentence rather than as a list. A module is a
 # bare file name, so a code span carrying a path or a flag beside one is not a member; a part is
 # the tuple name the registry joins, which no other code span in that passage is shaped like.
 MODULE = re.compile(r"[a-z_]+\.py")
 PART = re.compile(r"[A-Z][A-Z_]*_COUPLINGS")
+
+# The sentence dividing the gate tree's contract in two. It is one phrase and it bounds two
+# rosters, closing the one over the modules a shell can run and opening the one over the rest.
+NO_CLI = "**The rest have no CLI of their own**"
 
 
 class Roster(NamedTuple):
@@ -26,6 +30,7 @@ class Roster(NamedTuple):
     subject: str
     why: str
     members: Callable[[Path], frozenset[str]]
+    refers_to: Callable[[Path], frozenset[str]] | None = None
 
 
 ROSTERS: tuple[Roster, ...] = (
@@ -44,15 +49,43 @@ ROSTERS: tuple[Roster, ...] = (
         members=rostermembers.live_seam_checks,
     ),
     Roster(
-        label="the modules this tree is a contract for",
+        label="the modules this tree runs from a shell",
         document=Path("docs/modules/repo-gates.md"),
         opens="**Public contract**",
+        closes=NO_CLI,
+        written=Spelled(pattern=MODULE),
+        subject="a module in scripts/ with a command line of its own",
+        why=(
+            "this sentence is where a reader learns which modules can be run and which are read "
+            "by another, so a module in the wrong half of it is described as something it is not"
+        ),
+        members=rostermembers.cli_gate_modules,
+    ),
+    Roster(
+        label="the modules this tree only reads",
+        document=Path("docs/modules/repo-gates.md"),
+        opens=NO_CLI,
         closes="implements AGENTS.md gate 1",
         written=Spelled(pattern=MODULE),
-        subject="a module in scripts/",
+        subject="a module in scripts/ with no command line",
         why=(
             "this contract promises a future agent can work on the tree without reading it, "
-            "which it can only keep while every module in the tree is named on the page"
+            "which it can only keep while every module in the tree is named on the page and "
+            "named in the half of the sentence that is true of it"
+        ),
+        members=rostermembers.library_gate_modules,
+        refers_to=rostermembers.cli_gate_modules,
+    ),
+    Roster(
+        label="the gate tree in the repo map",
+        document=Path("AGENTS.md"),
+        opens="scripts/          repo gates",
+        closes=".github/          GPU-less CI running",
+        written=Bare(pattern=MODULE),
+        subject="a module in scripts/",
+        why=(
+            "this map is what the contract every agent here reads says the tree contains, and a "
+            "module missing from it is a module the next agent works around rather than with"
         ),
         members=rostermembers.gate_modules,
     ),

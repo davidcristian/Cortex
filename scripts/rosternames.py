@@ -23,7 +23,13 @@ class Spelled(NamedTuple):
     pattern: re.Pattern[str]
 
 
-Written = Bulleted | Spelled
+class Bare(NamedTuple):
+    """Every word matching ``pattern`` is a name, for a passage that carries no code spans."""
+
+    pattern: re.Pattern[str]
+
+
+Written = Bulleted | Spelled | Bare
 
 
 def _once(text: str, phrase: str, which: str) -> int:
@@ -66,9 +72,25 @@ def _bulleted(text: str) -> list[str]:
     return found
 
 
+def _inside_a_word(text: str, at: int) -> bool:
+    """Whether ``text`` carries a word character at ``at``, which puts a match inside a word."""
+    return 0 <= at < len(text) and (text[at].isalnum() or text[at] == "_")
+
+
+def _bare(text: str, pattern: re.Pattern[str]) -> list[str]:
+    """Return every whole word in ``text`` matching ``pattern``, in the order it carries them."""
+    return [
+        found.group(0)
+        for found in pattern.finditer(text)
+        if not _inside_a_word(text, found.start() - 1) and not _inside_a_word(text, found.end())
+    ]
+
+
 def names(text: str, written: Written) -> list[str]:
     """Return every name the roster in ``text`` writes down, in the order it writes them."""
     if isinstance(written, Spelled):
         spans = [span.group(1) for span in CODE_SPAN.finditer(text)]
         return [span for span in spans if written.pattern.fullmatch(span)]
+    if isinstance(written, Bare):
+        return _bare(text, written.pattern)
     return _bulleted(text)

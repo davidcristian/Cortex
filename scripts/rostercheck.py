@@ -57,6 +57,7 @@ def check_one(root: Path, roster: Roster) -> tuple[frozenset[str], list[Fault]]:
     text = _read(root, roster.document)
     try:
         members = roster.members(root)
+        aside = frozenset[str]() if roster.refers_to is None else roster.refers_to(root)
     except MemberError as err:
         raise RosterCheckError(str(err)) from err
     try:
@@ -72,7 +73,7 @@ def check_one(root: Path, roster: Roster) -> tuple[frozenset[str], list[Fault]]:
     ]
     faults.extend(
         _fault(roster, f"the roster names {name}, which is not {roster.subject}")
-        for name in sorted(named - members)
+        for name in sorted(named - members - aside)
     )
     return members, faults
 
