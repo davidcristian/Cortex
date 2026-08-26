@@ -100,15 +100,23 @@ delegation time (ADR-0012 admission-wall addendum).
 > paired over the same report bodies, that shape costs **1.01 to at least 2.36 times** the tokens
 > of the same subtask raw, 550 to at least 1024 against 366 to 544, and one narrow summarization in
 > three reached the cap and came back refused. It is not writing more: its replies are **shorter**.
-> The tokens go to a reasoning trace, because the tier's `--chat-template-kwargs
-> '{"enable_thinking": false}'` stops taking effect once a request carries a `response_format`, and
-> a delegated run drops every reasoning delta unread. **So on a subagents-only stack, a cap refusal
-> on ordinary narrow work is this and not a runaway**; raise `CORTEX_SUBAGENTS_MAX_TOKENS` to get
-> through the day, keeping it under the per-slot context (`CORTEX_SUBAGENT_CTX_SIZE` divided by
-> `CORTEX_SUBAGENTS_PARALLEL`, 4096 at the defaults) less the prompt, and read the ADR-0005 envelope
-> addendum before retuning anything permanently. The wire is **not** silent while this happens: the
-> reasoning arrives as its own deltas, 200 of them over 156.3 s with a longest gap of 3.46 s, so the
-> stall ceiling is nowhere near firing and a wedged server is not what this looks like.
+> The tokens went to a reasoning trace, and a delegated run drops every reasoning delta unread.
+> **That is fixed in this file's own command block, and the fix is a server flag, so a subagent
+> server started without it still has it** (ADR-0005 thinking-lever addendum). The pair to check on
+> any subagent tier's argv is `--chat-template-kwargs '{"enable_thinking": false}'` **and**
+> `--reasoning-budget 0`: the kwarg is what the Qwen roster alternate's template reads, and the
+> budget is what reaches a request carrying a `response_format`, which the gemma-4-E* pick's
+> template ignores the kwarg on. With only the kwarg, the summarization body above spent 200 decoded
+> tokens with **no reply text in them at all** and came back a refusal; with both, the same body at
+> the same cap answered from 17.5 s in, 50 tokens, finished rather than capped, with no trace.
+> **So a cap refusal on ordinary narrow work is the missing flag before it is a runaway**; read the
+> argv (`docker inspect -f '{{json .Args}}' cortex-llama-subagent-1`) before touching
+> `CORTEX_SUBAGENTS_MAX_TOKENS`. If a tier really does need more room, keep the cap under the
+> per-slot context (`CORTEX_SUBAGENT_CTX_SIZE` divided by `CORTEX_SUBAGENTS_PARALLEL`, 4096 at the
+> defaults) less the prompt, and read the ADR-0005 envelope addendum before retuning anything
+> permanently. The wire is **not** silent while a trace runs: the reasoning arrives as its own
+> deltas, 200 of them over 156.3 s with a longest gap of 3.46 s, so the stall ceiling is nowhere
+> near firing and a wedged server is not what this looks like.
 > What they cut is a model that is talking rather than one that is slow: the sixth shape, an
 > open-ended essay no narrow subtask should ask for, was cut at 577 tokens and 1958 s still writing.
 > **Every number here is an idle-box number**, and a saturated host runs the same subtask five to
@@ -149,13 +157,20 @@ delegation time (ADR-0012 admission-wall addendum).
 > scheduler's queue onto a lock; more than two at once needs distinct entries (the roster override)
 > or a **second** GPU-capable executor, which the one hosted GPU tier is not.
 
-> **Reasoning is disabled** on the subagent server (`--chat-template-kwargs
-> '{"enable_thinking": false}'`, baked into the compose command). Both lineup families
-> (gemma-4-E*, Qwen3.5) are reasoning models. Unbounded thinking on CPU is minutes per call,
-> and `LlamaCppBackend` reads `content`, not the `reasoning_content` where `<think>` traces land,
-> so it would look empty and crawl. With the flag, plain requests answer directly (~1.8 s on the
-> E4B pick, ~0.3-0.6 s on the Qwen-2B override), and the E4B injection-robustness (0/10) holds
-> with thinking off (ADR-0004 injection addendum).
+> **Reasoning is disabled** on the subagent server by **two** flags, baked into the compose
+> command: `--chat-template-kwargs '{"enable_thinking": false}'` and `--reasoning-budget 0`. Both
+> lineup families (gemma-4-E*, Qwen3.5) are reasoning models. Unbounded thinking on CPU is minutes
+> per call, and `LlamaCppBackend` reads `content`, not the `reasoning_content` where `<think>`
+> traces land, so it would look empty and crawl. With the kwarg, plain requests answer directly
+> (~1.8 s on the E4B pick, ~0.3-0.6 s on the Qwen-2B override), and the E4B injection-robustness
+> (0/10) holds with thinking off (ADR-0004 injection addendum).
+> **Neither flag covers the lineup alone, which is why both are there** (ADR-0005 thinking-lever
+> addendum). The kwarg is a chat-template variable, and the E4B pick's template does not read it,
+> so on that pick it does nothing the moment a request makes the model want to deliberate, which a
+> `response_format` does: measured, the constrained shape decoded 200 tokens of pure trace with the
+> kwarg set at the server, at the request, and at both. `--reasoning-budget 0` is the engine's own
+> flag and reaches it, taking the same request to a reply from 1.0 to 2.4 s in with no trace at all.
+> A deployment adding a subagent server of its own needs both.
 
 ## 2. Validate the delegation machinery (no GPU cortex needed)
 
@@ -290,7 +305,8 @@ A standalone CPU E4B server is enough (no full stack). Bring one up on loopback 
 docker run -d --name e4b-probe --cpus 4 -p 127.0.0.1:8090:8090 -v /srv/models:/models:ro \
   ghcr.io/ggml-org/llama.cpp:server \
   --model /models/google/gemma-4-E4B-it-qat-q4_0-gguf/gemma-4-E4B_q4_0-it.gguf \
-  --host 0.0.0.0 --port 8090 -ngl 0 --jinja --chat-template-kwargs '{"enable_thinking": false}'
+  --host 0.0.0.0 --port 8090 -ngl 0 --jinja --chat-template-kwargs '{"enable_thinking": false}' \
+  --reasoning-budget 0
 ```
 
 Then run the integration test through the real `LlamaCppBackend`, which asserts the same

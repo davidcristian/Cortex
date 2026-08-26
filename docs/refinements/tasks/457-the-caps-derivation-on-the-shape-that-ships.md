@@ -1,6 +1,6 @@
 # The token cap's derivation is written against a shape the default stack does not run
 
-**Status:** open, a seam or port change comes first
+**Status:** open, actionable
 **Area:** subagents
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
 
@@ -38,3 +38,19 @@ any cap materially above 1024 lands between two bounds that were never compared.
 - 2026-08-26: opened by the close of
   [R-431](431-the-token-cap-fires-on-the-shape-that-ships.md), whose paired run showed the cap's
   derivation does not describe the shape the compose override ships.
+- 2026-08-26: The trigger fired. [R-456](456-a-constrained-request-loses-the-thinking-lever.md)
+  landed as a tier flag (`--reasoning-budget 0` beside the template kwarg on every subagent server),
+  and this entry's blocking premise, that the replacement number "cannot be measured while the
+  reasoning is running", no longer holds. Re-measured at the shipped cap over the same three report
+  bodies, constrained, through the same harness: **63 to 89 decoded tokens, all three finished, 223
+  to 395 characters**, against the 550 to at least 1024 this entry was written over. So the cap is
+  not close to firing on this shape any more and the pressure is off; what remains is that its
+  derivation still describes the unconstrained shape.
+  **It does not close here, and the reason is new.** The rule that produced 1024 is five times the
+  longest reply this tier has been measured writing, and the replies above are short because they
+  are the wrong text: all three narrate the task instead of performing it, the model writing into
+  `reply` what it used to write into `reasoning_content`
+  ([R-459](459-what-the-envelope-costs-the-answer.md)). Five times 89 is 445, and re-deriving a cap
+  down to that from a reply nobody would accept is the same mistake as retuning it up around a
+  reasoning trace. So the re-derivation waits on a constrained reply that is actually an answer, and
+  the second question this entry asks, which of the two ceilings binds, is unchanged and unanswered.

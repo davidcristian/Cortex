@@ -33,6 +33,8 @@ services:
       - "--jinja"
       - "--chat-template-kwargs"
       - '{"enable_thinking": false}'
+      - "--reasoning-budget"
+      - "0"
       - "--ctx-size"
       - "${CORTEX_SUBAGENT_CTX_SIZE:-8192}"
       - "--parallel"

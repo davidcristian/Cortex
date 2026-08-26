@@ -30,10 +30,12 @@ DEFAULT_SUBAGENT_PARALLEL = 2
 DEFAULT_IMAGE_MAX_TOKENS = 1024
 DEFAULT_NVIDIA_SMI = "nvidia-smi"
 
-# Both subagent-tier families are reasoning models and unbounded thinking is minutes per call
-# (ADR-0010), so the hosted subagent tier carries the same server-side reasoning-off pair the CPU
-# subagent service does.
-_REASONING_OFF = ("--chat-template-kwargs", '{"enable_thinking": false}')
+_REASONING_OFF = (
+    "--chat-template-kwargs",
+    '{"enable_thinking": false}',
+    "--reasoning-budget",
+    "0",
+)
 
 _UNRESTRICTED_REASONING = -1
 

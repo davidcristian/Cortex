@@ -156,8 +156,12 @@ It lives in `_UNRESTRICTED_REASONING`, which the GPU override restates for both 
 file declares, not a name a module exports, so the sentinel stays private and the gate stays a
 reader of text (ADR-0029's boolean addendum).
 It is per tier because llama.cpp accepts it per server only: a request body carrying the same key
-is ignored in both directions, measured. The GPU-placed subagent tier deliberately has no such
-knob, its deliberation being off at the template already
+is ignored in both directions, measured. The GPU-placed subagent tier has no such **knob**, but it
+does carry the flag, at a fixed `0` inside `_REASONING_OFF` beside the template kwarg (ADR-0005
+thinking-lever addendum). The kwarg alone was measured not to stop the trace on a request carrying
+a `response_format`, which is every reply a tool-less subagent decodes into the fixed envelope, and
+a narrow subtask wants no thought rather than a short one, so the zero is fixed here and a
+deployment lengthening the cortex's trace cannot lengthen a subagent's with it
 ([docs/runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md) has the measured table).
 `RosterError` is a boot-time misconfiguration. `build_supervisor(config)` wires the supervisor and
 the probe client it owns (the three timing knobs are read off those two objects by a gated test,
