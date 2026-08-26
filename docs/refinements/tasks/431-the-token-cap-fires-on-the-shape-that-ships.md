@@ -1,6 +1,6 @@
 # The token cap fired on a narrow subtask running the shape this repo ships by default
 
-**Status:** open, actionable
+**Status:** landed 2026-08-26
 **Area:** subagents
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
 
@@ -40,3 +40,26 @@ exercise.
 - 2026-08-25: opened by the close of [R-207](207-whole-subtask-figure-off.md), whose control for
   the constrained shape hit the token cap on a subtask the unconstrained shape answers in a third
   of the time.
+- 2026-08-26: Landed. Both shapes were run over the same three report bodies, serialized through
+  the real runner against the live CPU entry, and the effect is the envelope's rather than the
+  body's or the draw's: paired, the envelope costs **1.01 to at least 2.36 times** the raw shape's
+  decoded tokens, 550 to at least 1024 against 366 to 544, never less, and one of the three reached
+  the cap and came back refused. It is not the envelope inviting a longer answer, which is what
+  this entry assumed: the envelope's replies are **shorter**, 158 and 1176 characters against 1559
+  and 2211 raw. The tokens go to a **reasoning trace**, and that is the finding. A probe at a cap
+  of 200 decoded 200 tokens of which none were reply text and 763 characters were reasoning, so the
+  tier's `--chat-template-kwargs '{"enable_thinking": false}'` stops taking effect once a request
+  carries a `response_format`, and a delegated run drops every reasoning delta unread. The cap is
+  therefore not what is wrong and does not move here; the retune is filed with the fix as
+  [R-456](456-a-constrained-request-loses-the-thinking-lever.md) and
+  [R-457](457-the-caps-derivation-on-the-shape-that-ships.md). Recorded in the ADR-0005 envelope
+  addendum with the paired table and the interval `scripts/contrast.py` reads off it; the runbook
+  now tells an operator that a cap refusal on ordinary narrow work is this. The second question
+  this entry asked is answered yes, live: the cut landed mid-envelope and was reported as the cap,
+  `AttemptFailure.TRUNCATED` naming the deployment's own 1024, never as a malformed envelope. Two
+  things came with it. The measurement is now a committed harness rather than a scratchpad,
+  `brain/packages/orchestrator/tests/test_envelope_cost_live.py`, which is what this entry could
+  not assume the last one had left behind. And the cap turned out to be the only one of the four
+  bounds around a delegated run that the constant scan did not hold to the runbook and the module
+  contract quoting it, which is now closed, so the retune those two entries carry is one a gate
+  will hold.

@@ -1197,3 +1197,107 @@ Filed as [R-430](../refinements/tasks/430-the-bounds-are-sized-on-an-idle-box.md
 the kernel as well as the cores, and the numbers above are a direction and an order of magnitude
 rather than a calibration. What it establishes is that the tier is not insulated from its host,
 which is enough to explain the interval and enough to size an entry against.
+
+## Envelope addendum (2026-08-26): what the reply envelope really spends, measured paired
+
+The batch addendum above measured the whole-subtask figure on the **unconstrained** shape and took
+one constrained control beside it, which ran to the 1024-token cap and came back a refusal on an
+ordinary summarization. One sample separates nothing, so this is the paired run that does: the same
+three report bodies, both shapes, serialized against one CPU `llama-server` at the compose file's
+own shape, driven through the real `SubagentRunner` -> `PlacedAttempt` -> `LlamaCppBackend` chain at
+the shipped bounds. The driver is
+`brain/packages/orchestrator/tests/test_envelope_cost_live.py`, integration-marked, and it writes a
+`contrast.py` sample per arm so the seconds are read by the same arithmetic every other live
+measurement here is read by.
+
+### Re-derived first
+
+`constrain_output` still defaults to `True`, and `PlacedAttempt` still applies it exactly where the
+run holds no dispatcher, which is what a subagents-only stack ships. The cap is still 1024 and its
+derivation is still five times a 199-token unconstrained reply. The refusal text the entry quoted is
+still what the runner returns. Nothing had moved.
+
+### What three bodies say
+
+Each row is one report body under both shapes. Tokens are llama.cpp's own `timings.predicted_n`,
+seconds are the whole run through the runner, and `reply` is what the cortex was handed.
+
+| body | raw tokens | raw wall | raw reply | envelope tokens | envelope wall | envelope reply | envelope stop |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| warehouse | 434 | 336.0 s | 1512 chars | **1024** | 787.0 s | cut, refused | **capped** |
+| clinic | 366 | 282.8 s | 1559 chars | 702 | 535.1 s | 158 chars | finished |
+| fleet | 544 | 425.4 s | 2211 chars | 550 | 426.9 s | 1176 chars | finished |
+
+**The raw shape reads 366 to 544 decoded tokens in 282.8 to 425.4 s.** The envelope reads **550 to
+at least 1024** in 426.9 to 787.0 s, "at least" because the shipped cap censors the top row: that
+run was still writing when the count ran out. Paired, the envelope costs **1.01 to at least 2.36
+times** the tokens of the same body's raw run, and it is never cheaper.
+
+`scripts/contrast.py` over the two samples, at its default 20000 resamples and seed 20260808, puts
+the envelope **+234.9 s** of wall clock per body (95% CI +1.5 to +451.0) and **+380.5 s** of delay
+before the first reply token reaches the port (95% CI +197.5 to +491.9). Neither interval spans
+zero, over three questions, which is as much as three questions can say. The seconds understate the
+envelope slightly and in one known way: the two arms of a pair are the same prompt, so the slot's
+cache hands the second one its prompt back and it re-evaluates 19 tokens where the first evaluated
+282, worth about ten seconds out of hundreds. The tokens are untouched by it.
+
+### So it is the envelope, and not the body or the draw
+
+The entry this closes named three candidate explanations. The pairing rules two of them out and
+re-describes the third. It is not that one report body invites a long answer: every body's envelope
+run is at or above its own raw run, and the design holds the body fixed. It is not ordinary
+sampling variance either, in the direction that matters: the effect points the same way in all
+three pairs and reaches a factor of two in two of them, though the third sits within six tokens of
+no effect at all, which is the honest width of three questions. So it is the envelope. What it is
+**not** is the envelope inviting a longer *answer*, which is what the entry assumed and what the
+character counts refuse. The envelope's replies are **shorter**: 158 and 1176
+characters against 1559 and 2211 for the same bodies raw. It spends more tokens and returns less
+text.
+
+### Where the tokens actually go, which is the finding
+
+A probe at a cap of 200 on the same shape, with the two halves of the stream kept apart, decodes
+**200 tokens of which 0 are reply text and 763 characters are reasoning**, opening
+`Here's a thinking process to ensure all details are captured accurately`. Read off the wire
+instead of off the port, the same request is 200 SSE lines over 156.3 s, **not one of them a
+content delta**, arriving with a longest gap between two lines of **3.46 s**. So nothing here is
+silent and nothing is wedged: the 600 s stall ceiling is two orders of magnitude away from what
+this shape actually does, which is talk to itself at full speed. The subagent tier is
+supposed to have thinking off: both lineup families are reasoning models, and every subagent server
+this repo ships starts with `--chat-template-kwargs '{"enable_thinking": false}'` (ADR-0010), which
+is why `PlacedAttempt` deliberately sends no per-request thinking key. **That server-side lever
+holds on the raw request and does not hold once the request carries a `response_format`.** The raw
+arm's first reply token arrives 13.1 to 14.2 s in, immediately after prompt eval; the envelope arm's
+arrives 210.9 to 505.0 s in, because everything before it is a reasoning trace that
+`stream_tool_loop` then drops unread.
+
+So the shipped tool-less shape spends most of a cap sized on reply length on text no reader ever
+sees, and ADR-0038's pairing rule is exactly the one being broken: a cap on a reasoning model with
+thinking left on deletes the reply rather than shortening it. The warehouse row is that sentence
+happening to an ordinary subtask.
+
+### What moves, and what deliberately does not
+
+**The cap does not move here.** Its derivation is invalidated on the shape that ships, but the
+number that would replace it cannot be measured while the reasoning is running: the longest envelope
+reading is a lower bound of 1024 rather than a length, and five times even that lower bound is 5120,
+above the 4096 tokens a slot gets from this compose file's 8192 across `--parallel 2`. So the rule
+that produced 1024 has no room left to produce anything on this shape. Retuning a cap around a
+defect rather than fixing the defect would also be the wrong repair, and retuning it on an
+extrapolated number is the exact failure the entry behind this run exists to warn against. The fix
+is [R-456](../refinements/tasks/456-a-constrained-request-loses-the-thinking-lever.md) and the
+re-derivation waiting on it is
+[R-457](../refinements/tasks/457-the-caps-derivation-on-the-shape-that-ships.md), which may well
+find nothing left to do.
+
+**A mid-envelope cut is reported as the cap, live and end to end.** `settle_reply` reads `capped`
+ahead of the envelope check so a reply the server stopped is never blamed on the model's grammar,
+and the warehouse run exercised that path for real: `AttemptFailure.TRUNCATED`, the capped-run
+refusal naming the deployment's own 1024, and no `MALFORMED`. The arm ordering does what it was
+written to do.
+
+**The registry now holds the cap.** `DEFAULT_SUBAGENT_MAX_TOKENS` was the only one of the four
+bounds around a delegated run that `scripts/crosscheck.py` did not tie to the runbook and the module
+contract that quote it, so retuning it alone was a silent green. It is tied now, which is what makes
+the retune those two entries carry a change a gate will hold rather than one three documents can
+drift behind.

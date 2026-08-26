@@ -56,6 +56,34 @@ SUBAGENT_COUPLINGS: tuple[Constant, ...] = (
         ),
     ),
     Constant(
+        label="the delegated completion's shipped token cap",
+        why=(
+            "the cap on how far any one completion of a delegated run may decode is declared in "
+            "the core module the attempt builds its generation bounds from, quoted to an operator "
+            "by the delegation runbook as the count a completion is cut at, and restated in the "
+            "orchestrator contract as the field's own default, so retuning the declaration alone "
+            "would leave two documents quoting a cap no completion is held to. It is the other "
+            "half of the value the entry above holds, the two shipping together as one "
+            "`AttemptBounds`, and it was the only one of the four bounds around a delegated run "
+            "this registry did not hold (ADR-0005 total-cap addendum)"
+        ),
+        sites=(Site(SUBAGENTS_CORE, "DEFAULT_SUBAGENT_MAX_TOKENS"),),
+        # The entry above with the numbers changed and nothing re-spelled: a token count is an int
+        # on every side, so both mentions write it the way the declaration does and this entry
+        # needs no lossy reading beside them.
+        #
+        # Two kinds stay out, on the rules the siblings below already settled. The arithmetic under
+        # the value is out: four places say the cap is about five times the longest reply this tier
+        # was measured writing, which is a consequence of a measurement, and a needle over it would
+        # redden this constant whenever the measurement moved. And the core suite pins the cap by
+        # its literal where it asserts the refusal's own wording, which runs on every commit and so
+        # holds itself.
+        mentions=(
+            Mention(SUBAGENTS_RUNBOOK, "`CORTEX_SUBAGENTS_MAX_TOKENS` (default {value})"),
+            Mention(ORCHESTRATOR_DOC, "`max_tokens: int = {value}`"),
+        ),
+    ),
+    Constant(
         label="the stall ceiling's shipped default",
         why=(
             "the bound on how long a delegated stream may send nothing is declared in the "
