@@ -465,6 +465,54 @@ turn-cost arm="judge" control="raw" reps="8":
     uv run python contrast.py "../measurements/block-1-{{ control }}.json" \
         "../measurements/block-2-{{ arm }}.json" "../measurements/block-3-{{ control }}.json"
 
+# How wide the recall trail's `dropped` field really gets, read off lines the brain container
+# wrote (ADR-0038 real-trail addendum). `VALUE_CHARS` is argued against that width, and the figure
+# it was argued against was synthesised in process from uuid4 ids and made-up cosines; this is what
+# reads it off a live stack instead. THE DOCKER LIVES HERE for the reason it lives in `turn-cost`:
+# the probe runs INSIDE the shipped image, so copying it in and capturing what it wrote is a
+# deployment step rather than an assertion, and `scripts/trailwidth.py` reads the captures back.
+# Two blocks by default, because the claim is about a maximum and one sample of a maximum proves
+# nothing; each block ends with real turns over the seam, whose trail lines come back through the
+# container's log driver rather than off the probe's own stream. Needs a real GPU, the models dir
+# and roughly fifteen minutes; never runs in CI. Runbook: docs/runbooks/memory-pgvector.md.
+recall-width blocks="2" passes="3" turns="8":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    compose="docker compose --project-directory . -f docker/docker-compose.yml"
+    compose="$compose -f docker/docker-compose.gpu.yml -f docker/docker-compose.memory.yml"
+    mkdir -p measurements
+    health_wait=180
+    $compose up -d --build
+    # The trail is off by default and the probe refuses to run under global scoping, so the brain
+    # is recreated with both set rather than trusting whatever the stack came up with.
+    CORTEX_MEMORY_SCOPE=session CORTEX_MEMORY_RECALL_AUDIT=1 \
+        $compose up -d --no-deps --force-recreate brain
+    deadline=$((SECONDS + health_wait))
+    until $compose ps brain | grep -q '(healthy)'; do
+        if [ "$SECONDS" -ge "$deadline" ]; then
+            echo "brain never reported (healthy) in ${health_wait}s" >&2
+            $compose ps brain >&2
+            echo "diagnose with: $compose logs brain" >&2
+            exit 1
+        fi
+        sleep 1
+    done
+    $compose cp brain/packages/inference/tests/recall_corpus.py brain:/tmp/recall_corpus.py
+    $compose cp brain/packages/orchestrator/tests/recall_trail_probe.py brain:/tmp/probe.py
+    captures=()
+    for block in $(seq 1 {{ blocks }}); do
+        echo "=== block $block of {{ blocks }} ==="
+        started=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+        probed="measurements/trail-width-$block-direct.log"
+        served="measurements/trail-width-$block-turns.log"
+        $compose exec -T -e PYTHONPATH=/tmp -e CORTEX_TRAIL_DIRECT_PASSES={{ passes }} \
+            -e CORTEX_TRAIL_TURNS={{ turns }} brain python /tmp/probe.py >"$probed" 2>&1
+        $compose logs brain --since "$started" >"$served" 2>&1
+        captures+=("../$probed" "../$served")
+    done
+    cd scripts && uv sync --locked
+    uv run python trailwidth.py "${captures[@]}"
+
 # The gpu stack PLUS a loopback publish of the model-host control API, which the base gpu override
 # deliberately withholds (it can start and stop GPU processes, ADR-0030 d3). For live tests only;
 # `just down-gpu` takes it down. Procedure: docs/runbooks/model-swap.md.

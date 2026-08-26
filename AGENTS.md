@@ -261,8 +261,10 @@ body/             Rust/Tauri workspace, host-native
   app/            React+Vite overlay (gated 100%) + its host-native Tauri src-tauri
                   shell (fmt- and clippy-checked in CI, running it is host-only) named
                   cortex-body, own workspace
-scripts/          repo gates, plus the one module here that gates nothing, contrast.py (the
-                  interval a live measurement reports, ADR-0038): linecap.py (300-line cap), dashcheck.py (no dash as
+scripts/          repo gates, plus the two modules here that gate nothing, contrast.py (the
+                  interval a live measurement reports) and trailwidth.py (the width the recall
+                  trail's widest field really renders at, read off captured lines, both
+                  ADR-0038): linecap.py (300-line cap), dashcheck.py (no dash as
                   punctuation), crosscheck.py (one value, spelled in several places, still
                   agreeing) + couplings.py (the vocabulary its registry is written in) +
                   registry.py (the only module naming the parts that registry is written in) +

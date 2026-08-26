@@ -105,8 +105,12 @@ CUT = "<cut {chars} chars>"
 # eight make one of 16,607. Seven is therefore the headroom, and that it is enough is an argument
 # rather than a check: nothing here measures the widest line the tree can build, which is a
 # separate open question and not this constant's to answer. The bound does clear the widest value
-# the tree attaches today (the recall trail's dropped candidates at the shipped pool of twenty,
-# 1,458 to 1,476 characters over 200 draws) by enough that nothing shipped is cut.
+# the tree attaches today, the recall trail's dropped candidates at the shipped pool of twenty, and
+# that clearance is arithmetic rather than a sample (ADR-0038 real-trail addendum): twenty entries
+# carrying a 36-character uuid4 id come to 1,101 characters of syntax and id plus twenty float
+# reprs, and no Python float renders in more than 24 characters, so the field cannot pass 1,581
+# however the cosines fall. Read off lines a live stack really wrote, a whole dropped pool renders
+# at 1,465 to 1,473 characters over 466 lines and nothing shipped was cut.
 VALUE_CHARS = 2048
 
 # The attributes ``logging`` puts on every record itself, plus the two a ``Formatter`` adds while

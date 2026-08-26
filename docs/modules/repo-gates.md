@@ -17,7 +17,8 @@ belongs to neither the brain nor the body and is gated exactly like both. A stan
 `coverage_gate.py` invoked by `just`
 recipes, `ci_paths.py`
 by the CI
-workflow, `commitlint.py` by the commit-msg pre-commit stage, `contrast.py` by `just turn-cost`;
+workflow, `commitlint.py` by the commit-msg pre-commit stage, `contrast.py` by `just turn-cost`
+and `trailwidth.py` by `just recall-width`;
 each also exposes a pure, unit-tested core function).
 **The rest have no CLI of their own**, thirty-five modules,
 most split out under the line cap and each named for what it holds: `couplings.py` is the
@@ -857,6 +858,22 @@ that last question to have an answer.
   produced the samples is not. Refuses rather than guesses on a malformed sample, on two blocks
   that asked different questions, on a single sample, and on a non-positive resample count. Exit 0
   printing the report; exit 2 printing one `contrast: PROBLEM` line; argparse exit 2 on usage.
+
+- `trailwidth.py CAPTURE [CAPTURE ...] [--resamples N] [--seed S]` is the second module here that
+  gates nothing, and it is here for the same three reasons: pure, never inside the brain image,
+  covered like everything else (ADR-0038 real-trail addendum). It reads captured log text and
+  reports the rendered width of the recall trail's `dropped` field, which is the widest value the
+  tree attaches and therefore the value `cortex_core.VALUE_CHARS` is argued against. A line
+  qualifies by carrying the trail's own message and that field, and the rendering is taken from the
+  field's `=` to the next `name=` pair rather than to the next space: the trail's compact JSON holds
+  no space, but a rendering the bound CUT ends in a marker that carries two, and stopping at the
+  first of them would report a cut field as a whole one exactly at the bound. Per capture it prints
+  the count, the floor and ceiling, the median, and a seeded percentile bootstrap of the mean, then
+  the range over every capture and how many renderings were cut. **The cut count is the load-bearing
+  line**: any number above zero says the bound bit a value that ships. Refuses rather than guesses
+  on a capture it cannot read, one holding no trail line at all, and a non-positive resample count.
+  Exit 0 printing the report; exit 2 printing one `trailwidth: PROBLEM` line; argparse exit 2 on
+  usage.
 
 **Invariants.**
 - stdlib-only modules; pure cores (`scan`, `evaluate`/`check`, `classify`, `report`) unit-tested

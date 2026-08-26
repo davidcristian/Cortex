@@ -3300,3 +3300,157 @@ audited tool calls do, so the grep that used to gather two kinds of line gathers
 
 Nothing new. The bare-noun spellings on the swap path (`handoff`, `turn`, `active_handoff`) are a
 third instance of the same shape and are filed by the ADR-0009 addendum that carries the rule.
+
+## Real-trail addendum (2026-08-26): the widest value the tree attaches, read off a live stack
+
+The bounded-value addendum sized `VALUE_CHARS` against the widest value the tree attaches, which is
+the recall trail's own `dropped` list at the shipped pool of twenty, and put that width at 1,458 to
+1,475 characters over 200 draws. The ADR-0002 replay pass re-measured it at 1,458 to 1,476 and
+found the measurement sound and its provenance misdescribed: the draw was `uuid4` ids and cosine
+scores synthesised in process, with no store anywhere near it. What that left open was never the
+number. It was what the number is a number about, filed as
+[R-358](../refinements/tasks/358-the-widest-value-was-never-a-real-line.md): a real `dropped` list
+carries the ids the shipped record path minted and the cosines pgvector returned, and the rendered
+width is a function of both. It closes here, measured on the stack, and the synthesis survives it.
+
+### The harness, and the division of labour it rests on
+
+`brain/packages/orchestrator/tests/recall_trail_probe.py` runs **inside the brain container**,
+which is the whole point: every line it measures is written by the shipped image, through the
+composition root's own `build_memory`, the shipped `LoggingRecallSink` and the shipped formatter.
+It is copied in and run rather than imported, the image carrying no test tree. `just recall-width`
+owns the docker, for the reason `just turn-cost` does, and `scripts/trailwidth.py` reads the
+captures back, for the reason `contrast.py` does: the arithmetic behind a published number belongs
+in a gated tool rather than in an integration-marked print.
+
+Every pass and every turn seeds a session scope of its own with all 41 notes of the wide recall
+corpus through `MemoryRecaller.record`, so the ids are minted by the shipped factory and the
+vectors by the real CPU embedder. Each pass then asks every question the corpus carries, every
+question in the unrelated population, and every note's own text: 75 distinct queries, which matters
+more than the line count, since one query is one draw of twenty scores however often it repeats. Forty one notes against
+a pool of twenty is what makes the pool a real pool rather than the whole store. Each block ends
+with real turns over the brain's own loopback seam, whose lines come back out of `docker compose
+logs brain` rather than off the probe's stream, so the cheap phase is answerable to the serving
+path rather than trusted beside it.
+
+### What a live stack renders
+
+Two blocks, run separately, on the 24 GB card with the gpu and memory overrides up, the shipped
+`judge` rank and `CORTEX_MEMORY_RECALL_AUDIT=1`. Width is reported against the candidates a line
+named, because this field is a sum over its entries and a rank that kept four notes and a rank that
+kept none are two different quantities:
+
+| candidates dropped | lines | rendered width | per candidate |
+| --- | --- | --- | --- |
+| 17 | 9 | 1,246 to 1,249 | 73.29 to 73.47 |
+| 18 | 43 | 1,313 to 1,324 | 72.94 to 73.56 |
+| 19 | 342 | 1,389 to 1,399 | 73.11 to 73.63 |
+| 20 | 72 | 1,465 to 1,473 | 73.25 to 73.65 |
+| cut by the bound | 0 | | |
+
+The bottom row of the first column is the one the claim is about. Twenty dropped is the whole pool,
+which is what a rank that keeps nothing leaves behind, and on this stack that is the `demur` basis:
+the judge read the pool, answered that none of it helps, and the trail carried all twenty. It is
+not a corner case reached by contrivance. It is what an unanswerable question does, 72 times in
+466 lines here.
+
+**The two blocks agree to the character**, 1,465 to 1,473 in each over 36 full-pool lines apiece,
+and it is worth saying what that does and does not show. A cosine is a pure function of the note
+text and the embedding model, and the id half of an entry varies by nothing, so two blocks asking
+the same 75 questions of the same 41 notes draw the same scores twice. What varies between them is
+only which candidates the rank kept. So the agreement is evidence that the rank's own variability
+does not move the ceiling, and it is not a second independent draw of the score distribution. That
+limit is what the next decision gets past.
+
+### Decision 1: the synthesis held, and the comment moves to the measured reading
+
+Real, at the full pool: 1,465 to 1,473 over 466 trail lines. Synthesised: 1,458 to 1,476. The
+real floor is 7 characters higher and the real ceiling 3 lower, so the real range sits inside the
+synthesised one, and the figure `VALUE_CHARS` was argued against was right about the quantity it
+stood in for. The entry that opened this was still right to doubt it, and saying so is the point:
+the objection was never that the number looked wrong, it was that nobody could say whether it was
+right. Now somebody can, and the answer happens to be the dull one.
+
+The comment on `VALUE_CHARS` therefore moves to the measured reading and this record does not,
+on the rule the compose survey settled and the replay pass reused: a comment states what the tree
+attaches today, so a wider reading makes it wrong, while a record states what was measured on a
+date, so a wider reading makes it history.
+
+Why the two agree is arithmetic rather than luck, and worth one sentence, because it says what the
+synthesis was actually a model of. An entry renders as `{"id":"<36>","score":<repr>}`, so the id
+half contributes no variance at all: the shipped factory mints 36 characters every time. Everything
+that can vary is the twenty float reprs, and `random.random()` and a pgvector cosine both spend
+about 18.5 characters on one.
+
+### Decision 2: the bound clears the field by arithmetic, not only by sample
+
+A sample of a maximum can only grow with `n`, so the sample above is the weaker half of this close.
+The stronger half needs no sample. At the shipped pool of twenty, with the shipped id factory, the
+field renders as 1,101 characters of syntax and id plus twenty float reprs, and no Python float
+renders in more than 24 characters (the longest in `[-1, 1]` is a 24-character exponential form,
+searched over two million random bit patterns and confirmed against the worst cases by hand). So
+the field **cannot** pass 1,581 characters however the cosines fall, and `VALUE_CHARS` clears that
+by 467 with no assumption about the scores whatever.
+
+That is what actually retires the question, and it makes the measurement's one real limit
+harmless: the run used one corpus and one embedding model, so the distribution above is this
+corpus's distribution, and a model whose cosines rendered longer would move it. It could not move
+it past 1,581. The assumption the ceiling does rest on is the id, and it is filed rather than
+assumed away:
+[R-455](../refinements/tasks/455-the-fields-ceiling-assumes-the-shipped-id-factory.md).
+
+### Decision 3: recorded as a dated addendum, not as a gated record
+
+The obvious alternative was the out-of-reach-evidence shape of the ADR-0011 addendum: record the
+far answer in the tree, gate the record, re-derive it with a hand-run recipe. It is declined, and
+on what that pattern is for rather than on cost. `imagevolumes.py` exists because `volumecheck.py`
+must compare a compose file against what an image declares and cannot ask docker; the record is an
+input a gate reads. Nothing compares anything against this width. `VALUE_CHARS` is chosen from the
+log driver's measured cliff, and the field's width is the argument that the choice is generous, not
+a number any code reads. A gate over it would be a gate over a dated reading, which `samplecheck.py`
+already refuses to be on exactly this ground, holding a documented log line's field names and never
+its field values. So this takes the turn-cost shape instead: the harness is committed and versioned,
+the recipe is in the `justfile`, the reading is here with its date, and the captures in
+`measurements/` are gitignored evidence of one run on one machine.
+
+### Distrust green
+
+Eight mutations, each applied to `scripts/trailwidth.py` alone with
+`scripts/tests/test_trailwidth.py` re-run, 23 cases:
+
+| Mutation | Reddens |
+| --- | --- |
+| the rendering stops at the next space rather than at the next field | **4** |
+| the cut marker is looked for anywhere rather than at the end | **1** |
+| a rendering that will not parse counts as no candidates rather than none | **1** |
+| a rendering that is not a list is counted rather than skipped | **1** |
+| a capture with no trail line is accepted rather than refused | **1** |
+| a reading with no candidate count joins a cohort anyway | **1** |
+| the cohort ceiling reads the floor | **2** |
+| the cut count stops counting | **2** |
+
+The second row is the one that had to be earned. It survived the first pass of this table, which is
+what the rule is for: the anchor is real, a cut marker only ever sitting at the end of a rendering
+that stopped, and nothing had asked what happens when a value's own text spells one. A case that
+puts the marker inside the value was added, and the mutation reddens.
+
+### Consequences
+
+- The number `VALUE_CHARS` is argued against is a reading of the trail rather than of a synthesis,
+  and the argument no longer depends on a sample at all: 1,581 is a ceiling over the shipped shape.
+- `just recall-width` and `scripts/trailwidth.py` are the committed way to take that reading again,
+  on another corpus, another embedding model, or a widened pool.
+- The cut count is the line to read first in that report. Any number above zero says the bound cut
+  a value that ships, and makes every width beside it a reading of the bound rather than the field.
+- `docs/runbooks/memory-pgvector.md` gains the procedure; `docs/modules/brain-core.md` gains the
+  measured reading beside the bound.
+
+### Deferred by this addendum
+
+- The harness captures whole lines and measures one field of each, which is the live half
+  [R-337](../refinements/tasks/337-a-bounded-value-leaves-the-line-unbounded.md) has been waiting
+  on: [R-453](../refinements/tasks/453-the-harness-reads-one-field-off-a-line-it-has-whole.md).
+- The reader spells the sink's message and field name and neither is tied to the declaration:
+  [R-454](../refinements/tasks/454-the-readers-needles-are-not-tied-to-the-sink.md).
+- The arithmetic ceiling assumes the shipped id factory:
+  [R-455](../refinements/tasks/455-the-fields-ceiling-assumes-the-shipped-id-factory.md).
