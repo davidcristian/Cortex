@@ -1,6 +1,6 @@
 # The subagent tier's reasoning-off flags are spelled in three files and held together by nobody
 
-**Status:** open, actionable
+**Status:** landed 2026-08-26
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -26,3 +26,24 @@ budgets, tying the flag pair as a value across the three files, so a server star
 red rather than a slow subagent. The reading it has to survive is that two of the three spellings
 are YAML list items and the third a Python tuple, which is the "second spelling a far side's own
 syntax forces" case the cross-language addendum already covers.
+
+## Trail
+
+- 2026-08-26: opened by the close of
+  [R-456](456-a-constrained-request-loses-the-thinking-lever.md), which added a second flag to
+  each of the three spellings and left a gate change for its own pass.
+- 2026-08-26: landed as the
+  [ADR-0029 addendum on holding a flag pair as one needle](../../adr/ADR-0029-vision-screen-capture.md#addendum-2026-08-26-two-flags-that-must-travel-together-are-one-needle-not-a-new-relation),
+  one entry in `scripts/subagentcouplings.py` with one site and two mentions. The co-occurrence
+  needed no new vocabulary: a mention is a value plus shape, so the budget's count is the value
+  and the two flag names and the kwarg's own JSON are the shape, which makes half a pair an
+  unfound needle. **Re-derivation moved the entry's premise once.** The three spellings were
+  where it said they were, but the third is already pinned whole by the model_manager roster
+  suite, so the coupling holds the two compose files and says so. The count had to be hoisted out
+  of `_REASONING_OFF` into `_NO_REASONING_BUDGET` to be readable at all, which is the price this
+  module's tier defaults have paid before. What the entry hoped for and did not get is the
+  durable claim, that every subagent server this repo starts carries the pair; that set is
+  enumerated by nobody, which is filed as
+  [R-462](462-nothing-enumerates-the-subagent-servers-this-repo-starts.md), beside the part file
+  the entry pushed to within two lines of the cap,
+  [R-463](463-the-subagent-couplings-part-is-two-lines-under-the-cap.md).

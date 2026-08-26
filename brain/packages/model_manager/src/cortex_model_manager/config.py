@@ -56,11 +56,19 @@ DEFAULT_NVIDIA_SMI = "nvidia-smi"
 # kwarg alone was measured to leave the trace running on a request carrying a `response_format`,
 # which is every reply a tool-less subagent decodes into the fixed envelope, and the budget is the
 # one that reaches that shape. Neither is redundant, the kwarg being what the template itself reads.
+#
+# The count the budget is fixed at is named rather than written inside the tuple so
+# `scripts/crosscheck.py` can read it: the two compose subagent servers spell this same pair, and a
+# number the scan cannot find a declaration for is a number it cannot compare. Hoisting it is the
+# price of a registered coupling, paid the way this module's tier defaults already pay it (ADR-0029
+# cross-language-constant addendum).
+_NO_REASONING_BUDGET = "0"
+
 _REASONING_OFF = (
     "--chat-template-kwargs",
     '{"enable_thinking": false}',
     "--reasoning-budget",
-    "0",
+    _NO_REASONING_BUDGET,
 )
 
 # llama.cpp's own word for a trace nobody bounds, and this repo's "unset" for the same reason it

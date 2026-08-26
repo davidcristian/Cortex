@@ -161,7 +161,10 @@ does carry the flag, at a fixed `0` inside `_REASONING_OFF` beside the template 
 thinking-lever addendum). The kwarg alone was measured not to stop the trace on a request carrying
 a `response_format`, which is every reply a tool-less subagent decodes into the fixed envelope, and
 a narrow subtask wants no thought rather than a short one, so the zero is fixed here and a
-deployment lengthening the cortex's trace cannot lengthen a subagent's with it
+deployment lengthening the cortex's trace cannot lengthen a subagent's with it. That zero is
+`_NO_REASONING_BUDGET`, named beside the tuple rather than written inside it so
+`scripts/crosscheck.py` can read it: the two compose subagent servers spell the same pair, and the
+registry holds all four of its items to them as one needle (ADR-0029's flag-pair addendum)
 ([docs/runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md) has the measured table).
 `RosterError` is a boot-time misconfiguration. `build_supervisor(config)` wires the supervisor and
 the probe client it owns (the three timing knobs are read off those two objects by a gated test,

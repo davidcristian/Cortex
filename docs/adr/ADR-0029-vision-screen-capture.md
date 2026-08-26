@@ -5921,3 +5921,88 @@ it in the naming direction only, their three suites,
 [modules/repo-gates.md](../modules/repo-gates.md), whose opening paragraph now divides on a phrase
 the gate reads, [AGENTS.md](../../AGENTS.md), whose repo map is now the third document this scan
 reads, and this addendum.
+
+## Addendum (2026-08-26): two flags that must travel together are one needle, not a new relation
+
+The subagent tier's reasoning-off pair was spelled in three places and held by nobody: the two
+compose subagent servers and the hosted GPU tier's argv each carry `--chat-template-kwargs
+'{"enable_thinking": false}'` and `--reasoning-budget 0`, and neither flag alone covers both
+lineup families. A server started with half the pair spends its whole token cap on a trace no
+reader ever sees and answers a cap refusal, which is a defect whose only symptom is a slow
+subagent. The fix that added the second flag deliberately left the coupling for its own pass,
+because a gate change owes a mutation table of its own.
+
+### Re-derived first, and the three spellings were current
+
+The task file was an hour old and was still a record rather than a reading, so the three places
+were read again before anything was written: `docker/docker-compose.subagents.yml` and
+`docker/docker-compose.subagents-roster.yml` each spell the pair as four list items under one
+`command:`, at the same six-space indentation, and `_REASONING_OFF` in the model host's
+`config.py` spells it as a four-string tuple. That much the entry had right. What it did not say
+is that the third spelling is already held: the model_manager roster suite pins that tier's argv
+whole and reddens when the budget leaves it, which the fix's own table measured. So what nothing
+read was the two compose files, and that is what this entry is for.
+
+### A co-occurrence is a needle's shape, and a relation would be a second way to say it
+
+The registry's vocabulary is about one value spelled in several places still agreeing, and this
+claim is about two values that must always appear together. The honest question was whether that
+needs a new `Relation`. It does not, and adding one would have been the duplication this backlog
+already records: a mention is **a value plus shape, and the shape is other people's text**, which
+is exactly what a pair is. The budget's count is the value; the two flag names and the kwarg's own
+JSON are the shape around it; the whole four-item block is one needle. Take either half away from
+either server and the needle is unfound. Retune the zero to a count and it is unfound for the
+other reason, a narrow subtask wanting no thought rather than a short one. The indentation between
+the items is part of that shape rather than an accident of layout, six spaces being where an item
+under a service's command sits.
+
+The count had to become readable to be compared at all, so it was hoisted out of the tuple into
+`_NO_REASONING_BUDGET` beside it. That is the price of a registered coupling and this module has
+paid it before: the compose-default survey hoisted every tier number out of its `Field(...)` call
+for the same reason.
+
+### What is held, and what is still not
+
+Held: both compose servers carry both flags, in order, with the kwarg's JSON and the budget's zero
+as the sidecar declares it. Not held: the claim a reader would rather have, that **every** subagent
+server this repo starts carries the pair. That claim is about a set nothing here enumerates. A
+server is one today because a compose service runs the llama.cpp image and the brain's subagent
+config dials its address, and reading that set means resolving endpoints across compose files and
+through the model host's tiers. A fourth server added tomorrow is therefore still a place someone
+has to register, which is filed rather than smoothed over.
+
+### Proved able to fail, seven mutants over the scripts suite
+
+Each mutation was applied alone and `cd scripts && uv run pytest -q --no-cov` re-run over the
+1274 checks of that suite. Rows five and six mutate the gate's own data, which is production code
+here; row seven aims at the seam with the couplings that already hold this tier's numbers.
+
+| mutation | reddens |
+| --- | --- |
+| the CPU subagent server loses `--reasoning-budget 0` | 10 |
+| the roster server loses the template kwarg | 9 |
+| the roster server's budget is retuned from zero to 128 | 10 |
+| the hoisted count is renamed and the registry left alone | 13 |
+| GATE: the pair's entry is dropped from the registry | 7 |
+| GATE: the needle is narrowed to the budget half alone | 2 |
+| INTERACTION: a sibling entry's number moves in the same file | 7 |
+
+Row six is the row that names the deliverable. Narrowing the needle to `--reasoning-budget` and
+its count leaves every other check green and reddens exactly the two that take the kwarg away from
+a server, so what the suite holds really is the pair and not the number under one of its halves.
+Row five reddens the seven checks written for this entry and nothing else, which is the evidence
+that no sibling coupling covered these lines and the entry is not a second gate over a held value.
+Row seven is the other direction of that same question: a neighbour's number moving reddens the
+neighbour and leaves the pair's own four checks green, so the two entries divide the one file they
+share rather than overlapping in it.
+
+### Records
+
+The record is the task file
+[R-460](../refinements/tasks/460-the-reasoning-off-pair-is-spelled-in-three-places.md), which
+closes as landed, [docs/refinements/index.md](../refinements/index.md), which is regenerated from
+it, `scripts/subagentcouplings.py`, which carries the entry and the pair's template,
+`scripts/tests/test_crosscheck.py`, which reddens on the fault it was filed for,
+`brain/packages/model_manager/src/cortex_model_manager/config.py`, whose fixed count is now a
+named constant, [modules/brain-model-manager.md](../modules/brain-model-manager.md), which names
+it, and this addendum.

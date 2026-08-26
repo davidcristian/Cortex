@@ -1,5 +1,5 @@
-"""The couplings around the subagent tier: what a spawn is charged, what its container gets, and
-how long one may run.
+"""The couplings around the subagent tier: what a spawn is charged, what its container gets, how
+long one may run, and the reasoning-off pair every server in it starts with.
 
 One of the data files `crosscheck.py` reads as a single registry, split off `shippedcouplings.py`
 when the compose survey pushed that file past the 300-line cap. The seam it fell on is the one its
@@ -16,6 +16,8 @@ noticing; what a file buys is a reader who can hold one subject at a time.
 from couplings import Constant, Mention, Site, Spelling
 
 SUBAGENTS_COMPOSE = "docker/docker-compose.subagents.yml"
+ROSTER_COMPOSE = "docker/docker-compose.subagents-roster.yml"
+MODELHOST_CONFIG = "brain/packages/model_manager/src/cortex_model_manager/config.py"
 SUBAGENTS_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config_subagents.py"
 SUBAGENTS_CORE = "brain/packages/core/src/cortex_core/subagents.py"
 SUBAGENTS_SCHEDULER = "brain/packages/core/src/cortex_core/scheduler.py"
@@ -24,6 +26,17 @@ TOOLS_RUNBOOK = "docs/runbooks/tools-mcp.md"
 CORE_DOC = "docs/modules/brain-core.md"
 INFERENCE_DOC = "docs/modules/brain-inference.md"
 ORCHESTRATOR_DOC = "docs/modules/brain-orchestrator.md"
+
+# The reasoning-off pair as a compose command spells it: four items under one `command:`, the
+# budget's count rendered and everything around it shape. The indentation between the items is
+# part of that shape rather than an accident of layout, six spaces being where a list item under a
+# service's command sits, so an item re-indented out of the command block leaves this unfound.
+REASONING_OFF_PAIR = (
+    '- "--chat-template-kwargs"\n'
+    "      - '{\"enable_thinking\": false}'\n"
+    '      - "--reasoning-budget"\n'
+    '      - "{value}"'
+)
 
 SUBAGENT_COUPLINGS: tuple[Constant, ...] = (
     Constant(
@@ -251,6 +264,35 @@ SUBAGENT_COUPLINGS: tuple[Constant, ...] = (
         mentions=(
             Mention(SUBAGENTS_COMPOSE, '"${CORTEX_SUBAGENTS_MEMORY_GB:-{value}}"'),
             Mention(SUBAGENTS_COMPOSE, "-> {value} memory ask"),
+        ),
+    ),
+    Constant(
+        label="the subagent tier's reasoning-off flag pair",
+        why=(
+            "every subagent server this repo starts carries both `--chat-template-kwargs` and "
+            "`--reasoning-budget 0`, because neither flag alone covers both lineup families: the "
+            "kwarg is what a Qwen chat template reads and what the gemma-4-E* templates ignore, "
+            "and the budget is what reaches the constrained request shape every tool-less "
+            "subagent decodes into the fixed envelope. A server started with half the pair spends "
+            "its whole token cap on a trace no reader ever sees and answers a cap refusal, which "
+            "is a defect whose only symptom is a slow subagent (ADR-0005 thinking-lever addendum)"
+        ),
+        # The one place a language this scan reads declares any of it: the hosted GPU tier's argv,
+        # whose count was hoisted out of `_REASONING_OFF` to be readable at all. The entry sits
+        # here rather than beside that sidecar's tier settings because what it holds is the
+        # subagent tier's servers, and the sidecar's own argv is already pinned whole by the
+        # model_manager roster suite, which runs on every commit.
+        sites=(Site(MODELHOST_CONFIG, "_NO_REASONING_BUDGET"),),
+        # Two flags that must appear TOGETHER, which is a co-occurrence and not an equality, and
+        # it is held here as one needle rather than as a relation of its own: the budget's count
+        # is the value, the two flag names and the kwarg's own JSON are the shape around it, and
+        # a needle is a value plus shape already. Take either half away from either server and
+        # the needle is unfound; retune the zero to a count and it is unfound for the other
+        # reason, a narrow subtask wanting no thought rather than a short one. A second relation
+        # saying what a template already says would be a second way to write one claim.
+        mentions=(
+            Mention(SUBAGENTS_COMPOSE, REASONING_OFF_PAIR),
+            Mention(ROSTER_COMPOSE, REASONING_OFF_PAIR),
         ),
     ),
 )
