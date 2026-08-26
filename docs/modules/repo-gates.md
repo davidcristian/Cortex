@@ -126,11 +126,17 @@ that last question to have an answer.
   each again; a stack built to be measured against and the suite that measures it, the one subject
   the repo does not ship; the overlay's TypeScript against its own stylesheet; and the brain's log
   vocabulary, the one name each work identity is written under, against every line that spells it
-  and every runbook that tells an operator to grep it, the only part whose subject is a field's
-  name rather than its value (ADR-0009 one-vocabulary addendum). Its turn entry also holds the one
+  and every runbook that tells an operator to grep it, the only part whose subject is a name a line
+  is written with rather than a value one carries (ADR-0009 one-vocabulary addendum). Its turn
+  entry also holds the one
   qualified spelling in the brain, the second turn named on a single line, through a template that
   renders the qualifier in front of the same declared value, so a rename of the family cannot leave
-  the qualified name behind (sixth-name addendum). Some arrived as
+  the qualified name behind (sixth-name addendum). Its last two entries hold the other two words of
+  that vocabulary, the message and the field name `trailwidth.py` spells to find and cut the recall
+  trail's widest value out of a captured line, and they are the one place in the registry where the
+  DECLARING side gates nothing: a reader run by hand on a GPU is exactly the far side no suite
+  would notice moving, which is the argument the fixture part already makes for a subject nothing
+  ships (ADR-0038 tied-needle addendum). Some arrived as
   splits under the cap and some as subjects added beside them, which is the one-line claim being
   paid from both directions rather than argued.
   `couplings.py` is the vocabulary every part is written in, left behind when each moved out
@@ -905,8 +911,11 @@ that last question to have an answer.
   covered like everything else (ADR-0038 real-trail addendum). It reads captured log text and
   reports the rendered width of the recall trail's `dropped` field, which is the widest value the
   tree attaches and therefore the value `cortex_core.VALUE_CHARS` is argued against. A line
-  qualifies by carrying the trail's own message and that field, and the rendering is taken from the
-  field's `=` to the next `name=` pair rather than to the next space: the trail's compact JSON holds
+  qualifies by carrying the trail's own message and that field, and **both of those words are
+  registered in `logcouplings.py` against the sink that writes them** (ADR-0038 tied-needle
+  addendum), so a rename in the brain reddens `just check` on the day it is made rather than
+  surfacing here weeks later as a capture holding no trail line at all. The rendering is taken from
+  the field's `=` to the next `name=` pair rather than to the next space: the trail's compact JSON holds
   no space, but a rendering the bound CUT ends in a marker that carries two, and stopping at the
   first of them would report a cut field as a whole one exactly at the bound. Per capture it prints
   the count, the floor and ceiling, the median, and a seeded percentile bootstrap of the mean, then

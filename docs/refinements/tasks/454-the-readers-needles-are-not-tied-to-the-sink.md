@@ -1,6 +1,6 @@
 # The reader's needles are not tied to the sink that writes them
 
-**Status:** open, actionable
+**Status:** landed 2026-08-27
 **Area:** repo-gates
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
 
@@ -27,3 +27,25 @@ of the reading, so the work is the registration rather than a new parser.
 **Why it is not urgent.** The reader gates nothing, so a stale needle costs a hand run and a clear
 refusal rather than a wrong green. It is filed because the cost of registering it is small and the
 next rename is where it would be noticed.
+
+## Trail
+
+- 2026-08-26: opened by the close of
+  [R-358](358-the-widest-value-was-never-a-real-line.md), which added a second module to `scripts/`
+  that reads the brain's log lines and spells two of the brain's own strings to find them.
+- 2026-08-27: **landed**, as the [ADR-0038 tied-needle
+  addendum](../../adr/ADR-0038-ranked-recall.md) and two entries in `scripts/logcouplings.py`, the
+  registry part whose subject is a name a log line is written with. `TRAIL_MESSAGE` and
+  `TRAIL_FIELD` are the declaring sites and the sink holds the mentions, which is the first entry
+  in the registry whose declaring side gates nothing: the argument for holding it is
+  `fixturecouplings.py`'s, that a value no suite runs on every commit needs the registry more than
+  a shipped one does. **One half of this entry's claim was stale**: a rename of the message alone
+  never silenced the reader, the plain formatter putting the same word on every line twice, once as
+  the logger's tail and once as the message, so the reader would have gone on working by accident.
+  The field is the needle that carries the silence. The message's needle is written as the emitting
+  call for exactly that reason. Two Python places being one language, the entries stand on the far
+  sides that were already there and unheld, the memory runbook and the gates module contract, which
+  is the same answer the subagent flag rule reached rather than arranging the entry past the rule.
+  Opened by this close:
+  [R-469](469-the-trails-logger-name-is-spelled-in-three-places-and-held-in-none.md) and
+  [R-470](470-the-reader-assumes-the-plain-rendering.md).
