@@ -82,3 +82,10 @@ flag that a request silently overrides is not a lever this repo can keep relying
   spelled in three files with nothing holding them together; and
   [R-461](461-the-tiers-thinking-flag-is-deprecated.md), the older of the two flags being one the
   shipped image already prints a deprecation warning for on every boot.
+- 2026-08-27: **The mechanism recorded above is wrong**, corrected by the close of
+  [R-458](458-the-ports-thinking-switch-is-conditional.md). The E4B template does read the kwarg,
+  measured on a prompt that invites deliberation: a plain request writes 654 characters of trace
+  without the switch and none with it. What the `response_format` costs is the switch's effect and
+  not its delivery, so this entry's own original reading was right and the correction that replaced
+  it was not. Nothing landed here moves: the fix is still `--reasoning-budget 0` at the tier, and
+  the per-request key would still have bought nothing on the shape that needed it.

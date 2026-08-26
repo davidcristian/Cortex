@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from cortex_core import (
     DecodeCadence,
     DecodeStop,
+    GenerationBounds,
     InferenceBackend,
     InferenceError,
     InferenceEvent,
@@ -53,9 +54,14 @@ def _messages() -> list[Message]:
     return [Message(role=Role.USER, text="what is the answer", at=_AT, turn_id="t-1")]
 
 
-async def events_of(backend: InferenceBackend, model: str = CONTRACT_MODEL) -> list[InferenceEvent]:
+async def events_of(
+    backend: InferenceBackend,
+    model: str = CONTRACT_MODEL,
+    *,
+    bounds: GenerationBounds | None = None,
+) -> list[InferenceEvent]:
     """Drive one completion to exhaustion and return everything it yielded, in order."""
-    return [event async for event in backend.stream(model, _messages())]
+    return [event async for event in backend.stream(model, _messages(), bounds=bounds)]
 
 
 def _text(events: Sequence[InferenceEvent]) -> str:
@@ -82,6 +88,15 @@ async def check_thinking_arrives_apart_and_before_the_reply(subject: BackendUnde
     thinking_at = [i for i, event in enumerate(events) if isinstance(event, ReasoningChunk)]
     text_at = [i for i, event in enumerate(events) if isinstance(event, TextChunk)]
     assert max(thinking_at) < min(text_at), f"thinking must precede the reply: {events!r}"
+
+
+async def check_a_deliberation_the_request_asked_against_still_crosses(
+    subject: BackendUnderTest,
+) -> None:
+    """Asked for no thinking and answered with a trace anyway, an implementation hands it over."""
+    events = await events_of(subject.deliberating(), bounds=GenerationBounds(thinking=False))
+    assert _thinking(events) == CONTRACT_THINKING, f"the ignored switch hid the trace: {events!r}"
+    assert _text(events) == CONTRACT_REPLY, f"the reply did not survive the switch: {events!r}"
 
 
 async def check_a_tool_call_crosses_the_port_assembled(subject: BackendUnderTest) -> None:
@@ -163,6 +178,7 @@ type StreamCheck = Callable[[BackendUnderTest], Awaitable[None]]
 STREAM_CHECKS: tuple[StreamCheck, ...] = (
     check_the_reply_is_its_text_deltas_joined_in_order,
     check_thinking_arrives_apart_and_before_the_reply,
+    check_a_deliberation_the_request_asked_against_still_crosses,
     check_a_tool_call_crosses_the_port_assembled,
     check_a_tool_call_never_precedes_the_words_beside_it,
     check_the_closing_events_arrive_once_each_and_in_one_order,

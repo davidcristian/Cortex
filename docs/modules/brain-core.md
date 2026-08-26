@@ -891,7 +891,13 @@ unchanged):
   addendum) is how far this one request lets the model go: `max_tokens` caps what the server will
   decode, and `thinking=False` asks the chat template to skip deliberation. They are one value
   because they only work together, a cap against a thinking model returning an empty reply
-  (measured); `max_tokens` below 1 raises `ValueError`. `None` (the default, and every user-facing
+  (measured); `max_tokens` below 1 raises `ValueError`. **`thinking` is a request and not a
+  guarantee** (ADR-0005 switch-is-advisory addendum): what it asks for is honoured or ignored
+  behind the endpoint, measured per pick AND per request shape, so an implementation passes it on,
+  never enforces it, and lets a trace that arrived anyway cross as `ReasoningChunk` rather than
+  filtering it into the silence the caller asked for. That stream is a caller's only evidence that
+  the switch did not hold; the dependable bound is the tier's own `--reasoning-budget`.
+  `None` (the default, and every user-facing
   reply) leaves both to the deployment's server flags, so that request is byte-identical to the
   one this port always described. Per request rather than per server because one resident cortex
   both answers the user, where deliberation earns its wait, and folds a history recap, where it is
@@ -1795,6 +1801,13 @@ Use-case:
   one, and so does `JudgeRecallPolicy` since the ADR-0038 unjudged-rank addendum, leaving
   `generate_title` the one caller that hands none. Six arguments is ruff's `max-args` ceiling, so a
   seventh collaborator wants a bundle rather than another keyword.
+  It **warns when it drops a trace the request asked against** (ADR-0005 switch-is-advisory
+  addendum): `bounds.thinking=False` is a request to the deployment's chat template and not a
+  guarantee, and where it goes unhonoured every caller here is holding a cap sized on the answer
+  while the model spends it thinking. One `WARNING` per completion then names the `model` and the
+  `chars` nobody read. The returned text is unchanged, the fix being a tier flag
+  (`--reasoning-budget 0`) rather than anything a side call can do; a completion that failed part
+  way says nothing, there being no completion to describe.
 - `ToolDispatcher(registry, audit, clock, *, confirmer=None, policy=DEFAULT_DISPATCH_POLICY)`
   is the turn's tool gateway and
   capability gate (ADR-0009/0013). `dispatch(call, *, stamp=UNSTAMPED, gated=False,

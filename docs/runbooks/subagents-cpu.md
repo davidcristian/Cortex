@@ -104,9 +104,10 @@ delegation time (ADR-0012 admission-wall addendum).
 > **That is fixed in this file's own command block, and the fix is a server flag, so a subagent
 > server started without it still has it** (ADR-0005 thinking-lever addendum). The pair to check on
 > any subagent tier's argv is `--chat-template-kwargs '{"enable_thinking": false}'` **and**
-> `--reasoning-budget 0`: the kwarg is what the Qwen roster alternate's template reads, and the
-> budget is what reaches a request carrying a `response_format`, which the gemma-4-E* pick's
-> template ignores the kwarg on. With only the kwarg, the summarization body above spent 200 decoded
+> `--reasoning-budget 0`: the kwarg is what a chat template reads on a plain request, and the
+> budget is what reaches a request carrying a `response_format`, the shape the kwarg was measured
+> to stop holding on (ADR-0005 switch-is-advisory addendum) and the shape every tool-less subagent
+> reply is decoded in. With only the kwarg, the summarization body above spent 200 decoded
 > tokens with **no reply text in them at all** and came back a refusal; with both, the same body at
 > the same cap answered from 17.5 s in, 50 tokens, finished rather than capped, with no trace.
 > **So a cap refusal on ordinary narrow work is the missing flag before it is a runaway**; read the
