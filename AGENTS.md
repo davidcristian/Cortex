@@ -103,7 +103,7 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    config via env only.
 6. **`just check` is the single gate**, running ruff, pyright, pytest + coverage,
    `cargo fmt --check`, clippy, `cargo test`, `cargo llvm-cov`, the overlay's typecheck and
-   Vitest coverage, and the nine cross-tree scans: the line cap, which reaches all three
+   Vitest coverage, and the ten cross-tree scans: the line cap, which reaches all three
    toolchains; `dashcheck.py`, which bans a dash used as punctuation in any text file
    (ADR-0026); `crosscheck.py`, which ties every value this repo spells in more than one place,
    whether the far side declares it, orders itself against it, carries it among the several it
@@ -131,12 +131,18 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    the order the formatter renders them, so a field a call stopped or started attaching cannot
    leave a documented sample printing what nothing emits, and which holds field names and never
    field values, a captured value being a dated reading (ADR-0009 sample-membership addendum);
+   `rostercheck.py`, which holds every roster a document keeps to the set it really describes, the
+   ignored checks in the body's live seam suite, the modules in `scripts/`, the tuples the constant
+   registry is joined from, so a member added and a sentence left alone is a red rather than a
+   reader misled, and which holds membership and naming only, the sentence beside each name being
+   what a roster is for and any tally beside it being the half that drifts first (ADR-0003
+   live-roster addendum and ADR-0029 roster-membership addendum);
    and `backlogcheck.py`, which holds each backlog index to the task files it describes and
    every link in them to resolving, so a status can be written in exactly one place, and holds
    every `#fragment` written anywhere in the repo to naming a heading the document it aims at
    really offers, a backlog index answering out of the rendering the gate is about to require
    and every other document out of the file on disk
-   (ADR-0039). All nine run unconditionally, in CI too. Pre-commit mirrors it. Run it
+   (ADR-0039). All ten run unconditionally, in CI too. Pre-commit mirrors it. Run it
    before declaring anything done. **One recipe is deliberately outside it**, `check-shell`
    (clippy on the Tauri shell), which CI schedules and `just check` does not run: it is the only
    check needing system libraries, the Linux GTK/webkit/dbus dev packages a clean dev box need
@@ -293,6 +299,11 @@ scripts/          repo gates, plus the one module here that gates nothing, contr
                   what the call site writing it would print) + logsamples.py (what a documented
                   sample claims, read off the page) + logcalls.py (what the call really attaches,
                   parsed out of the module),
+                  rostercheck.py (every roster a document keeps still names the set it
+                  describes, membership and naming only) + rosters.py (which rosters this repo
+                  has written down, and where each one's real set is read from) +
+                  rosternames.py (what a page's roster names, and the two phrases bounding the
+                  passage it is written in) + rostermembers.py (what the tree really holds),
                   composefiles.py (which files all three compose gates walk, answered once so
                   they cannot drift apart), backlogcheck.py (each backlog index still matches
                   its task files,
@@ -313,7 +324,7 @@ justfile          `just check` + check-*; proto, up/down, brain-serve, seam-heal
                   backlog (regenerate each backlog index from its task files), shuffle (every
                   suite at one chosen seed, the sweep the gate's own fixed seed never draws,
                   ADR-0002)
-                  (`just check` runs the nine cross-tree scans before the per-tree ones;
+                  (`just check` runs the ten cross-tree scans before the per-tree ones;
                   `turn-cost` is the A/B/A live measurement, where the container restarts
                   between arms live, ADR-0038; `image-volumes` is the hand-run docker
                   re-derivation of the record `check-volumecheck` reads, ADR-0011)

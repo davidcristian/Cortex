@@ -231,7 +231,12 @@ cd body && CORTEX_REGEN_PROTO=1 cargo build -p body-rpc
 regenerating with an unchanged proto must leave `git diff` empty.
 
 **Live checks** (AGENTS.md gate 3, the Rust `integration` suite, ADR-0003 decision 3).
-Eight `#[ignore]`d tests, six of them against a real brain, run by `just seam-health`:
+The `#[ignore]`d tests in `tests/live.rs`, run by `just seam-health`. The roster below is every
+one of them and nothing else, held that way by `scripts/rostercheck.py`, so a check the suite
+gains and this list does not, or a name here whose check is gone, is a red rather than a reader
+misled (ADR-0003 live-roster addendum). It opens with no tally, a count restated beside a list
+being the half that drifts first here; each bullet says what its check needs, and not all of them
+need a brain:
 
 ```sh
 cargo test -p body-rpc --test live -- --ignored

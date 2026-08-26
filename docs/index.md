@@ -507,7 +507,9 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
     pinned image declares and the `dockerfilevolumes` reading of what a Dockerfile here declares),
     stubcheck (with its `protocomments` reader), samplecheck (with the `logsamples` reading of
     what a runbook's log line claims and the `logcalls` reading of what the call really
-    attaches), the
+    attaches), rostercheck (with the `rosters` registry of which lists a document keeps, the
+    `rosternames` reading of what a page names and the `rostermembers` reading of what the tree
+    holds), the
     coverage gate, the CI path classifier, and the commit-message CLI.
 
 ## Runbooks

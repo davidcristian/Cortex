@@ -78,6 +78,7 @@ jobs:
       - run: just check-volumecheck
       - run: just check-stubcheck
       - run: just check-samplecheck
+      - run: just check-rostercheck
       - run: just check-backlog
 
   python:

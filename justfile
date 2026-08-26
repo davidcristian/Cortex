@@ -14,6 +14,7 @@ check:
     just check-volumecheck
     just check-stubcheck
     just check-samplecheck
+    just check-rostercheck
     just check-backlog
     tmp=$(mktemp -d)
     trap 'rm -rf "$tmp"' EXIT
@@ -75,6 +76,10 @@ check-stubcheck:
 check-samplecheck:
     cd scripts && uv sync --locked
     cd scripts && uv run python samplecheck.py --root ..
+
+check-rostercheck:
+    cd scripts && uv sync --locked
+    cd scripts && uv run python rostercheck.py --root ..
 
 image-volumes:
     cd scripts && uv sync --locked

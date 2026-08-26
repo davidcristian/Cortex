@@ -3,7 +3,7 @@
 **Purpose.** The repo's own tooling, in the tree neither shipped artifact contains: the cross-tree
 line cap, the punctuating-dash ban, the cross-language constant check, the compose bind-mount
 check, the compose defaults check, the image-volume check, the seam-stub comment check, the
-documented-log-sample check, the
+documented-log-sample check, the document-roster check, the
 backlog gate, the Rust coverage threshold, the CI path
 classifier, the commit-message style hook,
 and, since 2026-08-09, the one module here that gates nothing, the interval a live measurement
@@ -13,12 +13,12 @@ belongs to neither the brain nor the body and is gated exactly like both. A stan
 
 **Public contract** (all are CLIs, with `linecap.py`, `dashcheck.py`, `crosscheck.py`,
 `bindcheck.py`, `defaultcheck.py`, `volumecheck.py`, `stubcheck.py`, `samplecheck.py`,
-`backlogcheck.py` and
+`rostercheck.py`, `backlogcheck.py` and
 `coverage_gate.py` invoked by `just`
 recipes, `ci_paths.py`
 by the CI
 workflow, `commitlint.py` by the commit-msg pre-commit stage, `contrast.py` by `just turn-cost`;
-each also exposes a pure, unit-tested core function). Thirty-one modules here have no CLI of their
+each also exposes a pure, unit-tested core function). Thirty-four modules here have no CLI of their
 own, most split out under the line cap and each named for what it holds: `couplings.py` is the
 vocabulary `crosscheck.py`'s registry is written in, `registry.py` names the parts that registry is
 written in, and `seamcouplings.py`, `endpointcouplings.py`, `shippedcouplings.py`,
@@ -36,7 +36,9 @@ answer that gate reads and the drift report over it, `dockerfilevolumes.py` is w
 in this tree declares against the row for the image built from it, `protocomments.py` is what a proto comment is and how it normalizes into
 the Rust stub's spelling, `logsamples.py` is what a documented log line claims to print and
 `logcalls.py` is what the call writing it really attaches, the two sides `samplecheck.py` holds
-together, `composefiles.py` is
+together, `rosters.py` is every roster this repo has written down with `rosternames.py` reading
+what a page's roster names and `rostermembers.py` reading the set it describes, the two sides
+`rostercheck.py` holds together, `composefiles.py` is
 which files the three compose gates walk, answered once so they cannot drift apart about it,
 `gitenv.py` is the environment every git call in this tree runs with, held in one place because
 a caller that forgets it is wrong in silence rather than red, `skippeddirs.py` is the directory
@@ -606,6 +608,45 @@ that last question to have an answer.
   is refused **by name**: `logger.log(level, message, ...)` takes its level from a variable, which
   the model host's request failure does, so there is no level a sample could be held to, and saying
   that beats reporting a message the module visibly writes as one it does not.
+- `rostercheck.py [--root DIR]` holds every roster a document keeps to the set it describes
+  (ADR-0003 live-roster addendum and ADR-0029 roster-membership addendum). A **roster** is a list
+  of names a page keeps for something the tree really holds: the `#[ignore]`d checks in the body's
+  live seam suite, the modules in this directory, the tuples the constant registry is joined from.
+  Each entry carries a sentence saying what its member proves or is for, which is why the list is
+  written by hand and has to stay that way, and it is only the names that are held: **every member
+  is named, and every name is a member**. The prose beside them is free, at any length and in any
+  order, since a generated list could say what the names are and never what one of them proves.
+  **Counts are not held**, and the live roster's opening tally came off instead: a number restated
+  beside a list drifts before the list does and a reader can recount it in a second. **Where a
+  roster begins and ends is data**, two phrases the document already carries, each exactly once,
+  because two of the three rosters share one page and a rule that read whole pages would let a
+  name missing from one list pass on the strength of the other. Names are read either as bullets,
+  one per member with the name its first code span, or as every code span in the passage matching
+  the roster's own pattern. Exit 0 with a summary stating what the comparison was over, the
+  rosters, the documents and the members; exit 1 printing `DOC: LABEL: DETAIL; WHY` per fault,
+  which includes a boundary phrase that stopped appearing or started appearing twice; exit 2 if
+  `--root` is not a directory, a document or a described set cannot be read, or either comes back
+  empty.
+- `rosters.py` is that gate's registry and has no CLI: every roster this repo has written down, as
+  one tuple, in the same all-data-and-no-logic split `crosscheck.py`'s registry uses. An entry
+  declares its label, its document, the two phrases bounding its passage, how a name is spelled
+  there, what a member is, why the two sides must agree, and the reader answering for the real
+  set. A roster arrives as one entry plus, when its set is a new kind, one reader; the scan never
+  learns which document or which shape it is reading.
+- `rosternames.py` is that gate's page side and has no CLI. `passage(text, opens, closes)` returns
+  the run of a document a roster occupies, refusing a phrase the page does not carry exactly once
+  and a closing phrase written before its opening one, since the boundary is part of what a roster
+  claims. `names(text, written)` reads the names out of it, `Bulleted` taking the first code span
+  of every bullet and refusing a bullet that opens without one, `Spelled` taking every code span
+  matching the roster's pattern. Fences are deliberately not read: a bullet inside one is read as
+  a bullet, which fails loudly, and the alternative is a fourth spelling of the markdown fence in
+  this tree.
+- `rostermembers.py` is that gate's tree side and has no CLI: the `#[ignore]`d tests in one Rust
+  suite, read as the first function below each attribute so a stacked `#[tokio::test]` cannot hide
+  the name; the file names in `scripts/`; and the registry's parts as the tuple names the
+  `<subject>couplings.py` convention gives them, `couplings.py` itself being the vocabulary rather
+  than a part. Every one of them refuses an empty answer, a comparison over nothing being one that
+  cannot fail.
 - `backlogcheck.py [--root DIR] [--write]` holds each backlog index to the task files it
   describes (ADR-0039). Without `--write` it checks, which is what `just check-backlog` runs;
   with `--write` it regenerates each index, which is what `just backlog` runs. That split is the
@@ -1085,6 +1126,15 @@ that last question to have an answer.
   label, and one commented out inside a shell block and wrapped over two lines, and a further test
   reads the runbooks themselves so a shape nobody writes any more cannot go on being tested
   against itself.
+- `rostercheck.py` is held to the same pair, and the second half of it matters more here than
+  anywhere: `test_the_repos_own_rosters_hold` runs the gate over the committed tree, and
+  `test_the_repo_really_writes_a_roster_in_both_shapes` fails if the registry ever stops
+  exercising both ways a roster can be written, since a bulleted rule nothing bulleted would be a
+  rule that cannot redden. A third holds every registered boundary phrase to appearing exactly
+  once in its own document, which is what turns a roster that quietly slid out of its passage into
+  a failure of the registry rather than a silent shrinking of what is compared. This document is
+  one of the two the gate reads, so a module added to `scripts/` and left unnamed above fails the
+  gate that lives in it.
 - The exclusion lists above are the single definition of "non-test source file" and
   "generated code" for the cap. Change them only with an ADR update.
 - `dashcheck.py`, `commitlint.py`, and their tests spell the dashes as `\uXXXX` escapes
