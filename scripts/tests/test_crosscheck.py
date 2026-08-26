@@ -1111,6 +1111,17 @@ MODELHOST_CONFIG = "brain/packages/model_manager/src/cortex_model_manager/config
 DECLARED = '_NO_REASONING_BUDGET = "0"'
 REQUIRED = 'Flag("--reasoning-budget", "0")'
 
+# The other entry read out of the registry and applied to a doctored copy, and the reason it is
+# the second: it is the one whose declaring side gates nothing at all, so nothing but this scan
+# runs on the day the sink moves. The reader spells both words and the sink writes both.
+TRAIL_MESSAGE = "the message one recall-trail line is found by"
+TRAIL_FIELD = "the field a recall-trail line names the candidates it dropped under"
+TRAIL_READER = "scripts/trailwidth.py"
+RECALL_SINK = "brain/packages/memory/src/cortex_memory/audit.py"
+
+SINK_MESSAGE = '_logger.info("memory.recall"'
+SINK_FIELD = '"dropped": ['
+
 
 def registered(label: str) -> couplings.Constant:
     """The one registered entry a fault would print ``label`` for."""
@@ -1181,6 +1192,73 @@ def test_the_budget_is_held_by_this_entry_and_not_by_a_neighbour(tmp_path: Path)
     copied(tmp_path, pair, {FLAG_GATE: (REQUIRED, "")})
     assert crosscheck.check(tmp_path, neighbours) == []
     assert [fault.label for fault in crosscheck.check(tmp_path, (pair,))] == [REASONING_OFF]
+
+
+def test_the_trail_needles_hold_over_the_files_they_name(tmp_path: Path) -> None:
+    """The copy with nothing edited is green, so every red below is the edit and not the copy."""
+    for label in (TRAIL_MESSAGE, TRAIL_FIELD):
+        constant = registered(label)
+        copied(tmp_path, constant, {})
+        assert crosscheck.check_constant(tmp_path, constant) == []
+
+
+def test_the_trails_field_moving_in_the_sink_alone_is_a_fault(tmp_path: Path) -> None:
+    """The defect this entry was filed for: the reader cuts the value out of a captured line by
+    this key, so a rename in the sink leaves the one measurement behind the per-value bound's
+    argument refusing every capture, in the words of a stack that wrote no trail at all."""
+    constant = registered(TRAIL_FIELD)
+    copied(tmp_path, constant, {RECALL_SINK: (SINK_FIELD, '"passed_over": [')})
+    faults = crosscheck.check_constant(tmp_path, constant)
+    assert [fault.label for fault in faults] == [TRAIL_FIELD]
+    assert RECALL_SINK in faults[0].detail
+
+
+def test_the_trails_message_moving_reddens_though_the_line_still_carries_the_word(
+    tmp_path: Path,
+) -> None:
+    """The needle is the call and not the word alone, and this is what that buys.
+
+    The sink logs through `cortex.memory.recall`, so this word sits on every rendered line twice
+    and a capture would go on matching the half that did not move. A needle rendering the word
+    alone would find that half in the sink too and hold nothing: the reader would keep working
+    while its own comment, which says this is the message the sink writes, had stopped being true.
+    """
+    constant = registered(TRAIL_MESSAGE)
+    copied(tmp_path, constant, {RECALL_SINK: (SINK_MESSAGE, '_logger.info("memory.ranked"')})
+    faults = crosscheck.check_constant(tmp_path, constant)
+    assert [fault.label for fault in faults] == [TRAIL_MESSAGE]
+    doctored = (tmp_path / RECALL_SINK).read_text(encoding="utf-8")
+    assert "memory.recall" in doctored, "the logger goes on spelling the word that was renamed"
+
+
+def test_the_reader_retuning_its_own_needle_is_the_same_fault_from_the_other_side(
+    tmp_path: Path,
+) -> None:
+    """A reader that renamed its needle would measure nothing just as silently as a sink that
+    renamed the key, so the declaring side moving alone is a fault at every place still spelling
+    what the sink writes: the runbook that says which question the field answers, the module
+    contract that says what is being measured, and the sink itself."""
+    constant = registered(TRAIL_FIELD)
+    copied(tmp_path, constant, {TRAIL_READER: ('TRAIL_FIELD = "dropped"', 'TRAIL_FIELD = "cut"')})
+    faults = crosscheck.check_constant(tmp_path, constant)
+    assert {fault.label for fault in faults} == {TRAIL_FIELD}
+    assert len(faults) == len(constant.mentions), faults
+
+
+def test_the_trails_field_is_held_by_this_entry_and_not_by_a_neighbour(tmp_path: Path) -> None:
+    """The interaction check: this sink is already a far side of the conversation entry, which
+    holds a field key in the very same dict, so a rename some neighbour happened to catch would
+    make this entry a second gate over what another already said. Every other entry is run over
+    the doctored tree and none of them notices."""
+    field = registered(TRAIL_FIELD)
+    neighbours = tuple(
+        constant for constant in crosscheck.CONSTANTS if constant.label != TRAIL_FIELD
+    )
+    for constant in neighbours:
+        copied(tmp_path, constant, {})
+    copied(tmp_path, field, {RECALL_SINK: (SINK_FIELD, '"passed_over": [')})
+    assert crosscheck.check(tmp_path, neighbours) == []
+    assert [fault.label for fault in crosscheck.check(tmp_path, (field,))] == [TRAIL_FIELD]
 
 
 def _parts_on_disk() -> list[str]:

@@ -3462,3 +3462,137 @@ puts the marker inside the value was added, and the mutation reddens.
   [R-454](../refinements/tasks/454-the-readers-needles-are-not-tied-to-the-sink.md).
 - The arithmetic ceiling assumes the shipped id factory:
   [R-455](../refinements/tasks/455-the-fields-ceiling-assumes-the-shipped-id-factory.md).
+
+## Tied-needle addendum (2026-08-27): the reader's two words, held to the sink that writes them
+
+The real-trail addendum left `scripts/trailwidth.py` spelling two of the brain's own strings to
+find the lines it measures, `memory.recall` and `dropped`, and tying neither to the sink that
+writes them. That is
+[R-454](../refinements/tasks/454-the-readers-needles-are-not-tied-to-the-sink.md), and it closes
+here, in the registry `crosscheck.py` reads.
+
+### What re-deriving the claim found, which is one word and not two
+
+The entry said a rename of either string leaves the reader finding nothing. That is true of the
+field and not of the message, and the difference is the plain formatter. A rendered trail line
+opens `INFO:cortex.memory.recall:memory.recall `, the stdlib's own basic format being what
+`PlainFormatter` builds on, so the word the reader looks for sits on every line twice: once as the
+logger's tail and once as the message. Rename the message alone and the reader goes on qualifying
+lines on the logger's half, working by accident while its own comment, which says this is the
+message the sink writes, has stopped being true. The field is the load-bearing needle: it is cut
+out of the line by ` dropped=`, it appears nowhere else on the line, and a rename of it is exactly
+the silence the entry described.
+
+Both are registered anyway. A needle that works by accident is a needle nobody may rely on, and
+the rename that actually happens to a trail is the wholesale one, the message and the logger
+moving together, which silences the reader outright.
+
+### Decision 1: a module that gates nothing is a far side like any other
+
+The question this entry really asks is whether `trailwidth.py` may sit in a registry of couplings
+at all, being the tree's one reader that fails nothing. It may, and the argument is
+`fixturecouplings.py`'s, sharpened: **a value nothing runs on every commit needs the registry more
+than a shipped one does, not less.** A shipped default has a suite that would notice. This reader
+is run by hand, on a GPU, when somebody chooses to measure, so a needle that stopped matching waits
+in the tree until the next measurement and then surfaces as `no memory.recall line carrying a
+dropped field`, which reads as a stack that wrote no trail. Fifteen minutes of GPU time and a
+misattributed failure is the cost of the silence.
+
+What makes it registrable is not what the module is used for but what its literals ARE: claims
+about another module's output, in a tree that cannot import it, which is the whole of the
+registry's subject. `trailwidth.py` is a standalone uv project that must never depend on the brain,
+the same wall every other entry here is built over.
+
+### Decision 2: a gate, and not a runtime check inside the reader
+
+The alternative was to have the reader detect its own staleness: read the sink, or widen the
+refusal to say the needle may have moved. Declined, because the two questions are different and
+only one of them is answerable at the time it matters. The gate asks "did somebody rename this
+today", on every commit, with the diff in front of them. The reader's refusal asks "did this
+deployment write trail lines", which is a fact about a capture and stays worth refusing on. Neither
+substitutes for the other, and with the needles held, the refusal's wording is now correct rather
+than misleading: a capture with no trail line means the stack, because the reader cannot be stale
+without the gate having said so first.
+
+### Decision 3: the log vocabulary is the part, and the one-language rule was answered
+
+The entries live in `logcouplings.py`, whose subject is a name a brain log line is written with
+rather than a value one carries. The two candidates it beat:
+
+- **`fixturecouplings.py`**, on the argument above being that part's own. It loses on what the
+  value is. A message and a field name the brain writes are the log part's whole subject, where a
+  fixture's names are values the repo ships nowhere, and filing a log field name under both parts
+  would be the split each part is named to prevent.
+- **A twelfth part of its own.** Declined for the same reason and because it buys nothing: a part
+  is a subject, and this subject already has one. The line cap did not force the question either,
+  `logcouplings.py` landing at 275 lines.
+
+The rule that did bite is the registry suite's, that an entry whose places are all one language
+proves nothing about a seam. The reader is Python and the sink is Python. The fix is the one the
+subagent-flag addendum in ADR-0029 already found: **register the far side that was already there
+and unheld**, rather than arrange the entry past the rule. Both words are spelled in
+[memory-pgvector.md](../runbooks/memory-pgvector.md), which tells an operator to grep the message
+and names the field to say which question it answers, and the field again in
+[repo-gates.md](../modules/repo-gates.md), which states what the reader measures. Those are the
+far sides no import could ever reach, and a rename leaves each of them instructing somebody about a
+line the brain has stopped writing.
+
+**The message's needle is the call and not the word**, `_logger.info("{value}"`, precisely because
+of the doubling above: a needle rendering the word alone finds the logger's copy in the sink's own
+source and holds nothing. The logger name itself is deliberately not registered, that being a
+second value which merely happens to end in this one, and holding it would pin a resemblance
+nothing states. What that leaves unheld is filed below.
+
+### Distrust green
+
+Ten mutations, each applied alone with the scripts suite re-run, over the 1338 checks of
+`scripts/tests/`. The first six mutate the tree the registry reads; the next three mutate the
+registry, which is production code here; the last is the interaction.
+
+| mutation | reddens |
+| --- | --- |
+| the sink renames the key its dropped candidates ride under | 8 |
+| the sink renames the message it writes | 8 |
+| the reader retunes its own needle | 25 |
+| the runbook stops naming the field in the sentence that reads it | 8 |
+| the module contract stops naming the field it measures | 8 |
+| the sink renames only the logger, leaving the message | 1 |
+| GATE: the message needle renders the word alone | 1 |
+| GATE: the field needle renders the word alone | 3 |
+| GATE: the entry keeps only its two Python places | 1 |
+| INTERACTION: a sibling key moves in the very same dict | 6 |
+
+Rows over the committed tree redden every check that copies it, which is by design: the doctored
+tests copy the real files, so a place that moved house leaves the suite failing rather than quietly
+checking a tree nobody reads. Row three is high for a reason worth stating rather than smoothing:
+sixteen of its twenty five are the reader's own suite, which pins the needle from the other side,
+and the registry contributes nine.
+
+Row six is the deliberate non-claim: `crosscheck` itself stays green, the logger being unheld, and
+the single red is the suite's own assertion that the logger goes on spelling the word, which is the
+premise the message needle's shape rests on. Rows seven and eight are what that shape buys. The
+word alone is found in `getLogger("cortex.memory.recall")` after the message has moved, and a bare
+`dropped` is found in `audit.dropped.carried` after the key has, so either narrowing leaves a real
+rename green. Row nine is the one-language rule refusing the entry the moment its two documents
+are taken away, which is the check that says the far sides above are the entry's legs rather than
+its decoration. The last row is the interaction: the conversation this sink names in the very same
+`extra=` dict moves without either new entry noticing.
+
+### Consequences
+
+- A rename of the recall trail's message or of its widest field reddens `just check` on the day it
+  is made. The reader that measures that field, and the two documents that tell an operator what
+  it holds, move with it or the gate says which of them did not.
+- The registry now holds an entry whose declaring side gates nothing, and the reason is written
+  down: the far side no suite runs is the one a registry is worth most on.
+- `logcouplings.py` is the brain's log vocabulary rather than its work identities alone, at 75
+  entries over 85 declaring sites and 249 mentions.
+
+### Deferred by this addendum
+
+- The logger the trail is written through is spelled in the sink and in two documents and held by
+  nothing:
+  [R-469](../refinements/tasks/469-the-trails-logger-name-is-spelled-in-three-places-and-held-in-none.md).
+- The reader can only read the `plain` rendering, and a capture taken under `packed` refuses in the
+  words of a stack that wrote no trail:
+  [R-470](../refinements/tasks/470-the-reader-assumes-the-plain-rendering.md).

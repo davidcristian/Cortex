@@ -39,7 +39,8 @@ directory beside it and to the order the tuple reads them in by
   only part whose subject the repo does not ship.
 - `overlaycouplings` ties the overlay's TypeScript to the stylesheet that spends what it declares.
 - `logcouplings` ties the brain's log vocabulary, the one name each work identity is written
-  under, to every line that spells it and every runbook that tells an operator to grep it.
+  under and the two words one recall-trail line is found by, to every line that spells it, every
+  runbook that tells an operator to grep it and the reader outside the brain that measures it.
 
 Counting the registry lives here too, beside the tuple the parts are joined into, because the size
 of a collection is a fact about the collection rather than about any scan over it. `shape` is what
