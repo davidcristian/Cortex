@@ -5744,3 +5744,180 @@ it, [modules/repo-gates.md](../modules/repo-gates.md), which gains the new gate'
 is now the document two of the three registered rosters are written on, `scripts/rosters.py`,
 which registers them, and the ADR-0003 live-roster addendum, which is where the mechanism and its
 own mutation table live.
+
+## Addendum (2026-08-26): the module listing is held in halves, and the repo map's copy is held too
+
+The roster-membership addendum above registered the Public contract paragraph of
+[modules/repo-gates.md](../modules/repo-gates.md) as one roster over every module in `scripts/`,
+and it left two things it had measured. The paragraph makes a second claim underneath the one that
+got held, sorting the modules into the ones a shell can run and the ones another module reads, and
+the roster being the whole paragraph meant a module named in the wrong clause passed. And a third
+copy of the same set, the `scripts/` entry of the repo map in [AGENTS.md](../../AGENTS.md), was
+left alone for a different reason again: the name reader took a name from a code span, and a repo
+map is a fenced block of plain text where every module name is a bare word.
+
+Both are closed here, by two decisions that are independent and land together because they are the
+same set read twice more.
+
+### Re-derived first, and all three listings were current and two were unheld
+
+Measured over the tree before anything changed. `scripts/` holds forty eight modules, fourteen of
+them carrying a top-level main guard and thirty four not. The repo map names all forty eight,
+each exactly once, and names nothing that is not there. The contract's opening clause names the
+fourteen CLIs and nothing else, and the sentence after it names all thirty four of the rest, plus
+seven CLI modules it refers to while saying whose reader each library is. So the entries described
+the tree correctly on the day they were picked up, for the third time in this backlog, and for the
+third time the reason was that somebody had kept them correct by hand while nothing was comparing
+them to anything.
+
+### A module has a CLI exactly when it carries a main guard, which is what splits the paragraph
+
+The half the paragraph sorts a module into is not a matter of taste. A module here is runnable
+exactly when it carries `if __name__ == "__main__":` at the top level, which is one read of the
+same directory the roster already walks, so both halves have a far side that is a fact rather than
+an opinion. `rostermembers.py` answers all three questions off one listing: the whole tree, the
+tree with a guard, and the tree without.
+
+The two halves are then two rosters over two passages of one paragraph, bounded the way every
+roster here is bounded, by phrases the document carries. One phrase does both jobs: the sentence
+opening the second list closes the first, so a rewrite that loses it reports two faults naming
+themselves rather than one roster quietly widening over the other.
+
+### A name a sibling roster owns is a reference and not an entry
+
+The second half cannot be held with the plain rule, and the reason is prose rather than mechanism.
+It says whose reader each library is, and it says it with the other half's names: `composemounts.py`
+is `bindcheck.py`'s mount reader, `logsamples.py` and `logcalls.py` are the two sides
+`samplecheck.py` holds together. Seven CLI names stand in that sentence today. Requiring every name
+in a passage to be a member would make ordinary, useful prose a red, and dropping the naming
+direction for that roster would give up the half that catches a module the tree no longer has.
+
+So a roster may declare the set whose names it is allowed to carry that way, and nothing else is
+let through. The registry says it once, the scan applies it in the naming direction only, and the
+membership direction is untouched: **borrowing widens what a passage may name and never what it
+may leave out.** Those two are indistinguishable on this tree, the halves being disjoint by
+construction, so the suite pins the difference with a registry that overlaps deliberately, since a
+rule nothing can tell apart from a weaker one is a rule nobody is keeping.
+
+What the allowance costs is worth stating plainly, because it is a hole and it is deliberate. The
+gate cannot tell a name a passage refers to from a name it claims, so a sentence putting a CLI
+module in the second half as a subject rather than an owner reads as a reference and passes. What
+it cannot do is hide the module from the first half, which still reports it as a member nobody
+named, so the failure mode is a sentence that reads oddly rather than a set that has drifted. It
+is filed rather than smuggled
+([R-451](../refinements/tasks/451-a-borrowed-name-cannot-be-told-from-a-claimed-one.md)).
+
+### Bare names, which is the third way a roster is written down
+
+The repo map is the shape the reader could not see: no code spans, no bullets, module names laid
+out in columns inside a fenced block. `Bare` is that shape, every whole word in the passage
+matching the roster's own pattern. It is safe only inside a bounded passage, since a bare
+`linecap.py` in ordinary prose would otherwise read as a roster entry wherever it fell, and that
+is exactly what the boundary phrases already provide.
+
+It takes one guard the other two shapes get for free. A code span ends at its own backtick and a
+bullet at its own line, while a bare match has neither, so a match touching a word character on
+either side is inside a longer word and is not a name. `linecap.pyc`, `R2linecap.py` and
+`linecap.py_old` are each refused, and a path is not: a slash is not a word character, so
+`scripts/linecap.py` in a map is that module named.
+
+**The fence is not the obstacle, and measuring that is what corrected the entry's premise.** The
+entry says the names sit in a block no reader here can see, and the block is invisible only to a
+reader that strips fences before looking. This one does not, and the passage the boundary phrases
+cut out carries no fence marker at all, so the fenced block was never in the way; the code spans
+were. A mutant that skipped fenced lines inside the passage changed nothing and had to be rewritten
+to strip fences from the document first before it could redden anything, which is the measurement
+that says which of the two facts was load bearing.
+
+### What is still not held, on purpose
+
+The tally in front of the second list stays a hand count under the standing decision, and so does
+the fact that the first clause has no tally at all. And the same repo map names every Rust crate
+and every brain package in exactly the shape now readable, which is the question this decision
+answers for `scripts/` and defers for the other two trees: the bare shape makes them holdable, and
+whether a repo map should be held tree by tree is a decision about that document rather than about
+this mechanism ([R-450](../refinements/tasks/450-the-repo-map-holds-two-more-listings-unheld.md)).
+
+### Proved able to fail, fifteen mutants over the real tree
+
+**Suite: `scripts/rostercheck.py --root ..` run against the real [AGENTS.md](../../AGENTS.md) and
+the real [modules/repo-gates.md](../modules/repo-gates.md), with the real `scripts/` directory as
+the far side**, one temporary edit at a time, each restored from a copy taken before the first and
+the restore asserted by a clean row at the end. The number is the process exit code, and the note
+beside it is how many faults that run printed.
+
+| # | mutation | expected | got |
+| --- | --- | --- | --- |
+| 00 | none, the tree as committed | 0 | 0 |
+| 01 | a module with no CLI lands, both listings left alone | 1 | 1, two faults |
+| 02 | a module with a CLI lands, both listings left alone | 1 | 1, two faults |
+| 03 | a module renamed in the repo map only | 1 | 1, both directions at once |
+| 04 | a module gains a CLI and stays in the no CLI half | 1 | 1, one fault |
+| 05 | a module loses its CLI and stays in the CLI half | 1 | 1, two faults |
+| 06 | a bare name in the repo map swallowed into a longer word | 1 | 1 |
+| 07 | the repo map's opening phrase reworded | 1 | 1 |
+| 08 | the repo map's closing phrase reworded | 1 | 1 |
+| 09 | the sentence dividing the contract in two reworded | 1 | 1, one per half |
+| 10 | prose in the no CLI half reworded, no name touched | 0 | 0 |
+| 11 | the paragraph's hand count changed from thirty four to forty | 0 | 0 |
+| 12 | a borrowed name misspelled into a module that does not exist | 1 | 1 |
+| 13 | one name struck from the repo map | 1 | 1 |
+| 14 | two CLI modules named only in the no CLI half | 1 | 1, two faults |
+
+Rows 04 and 05 are the two directions the split exists for, and row 04 is the one that could not
+redden before this change: the module is still named in the paragraph, so the whole-paragraph
+roster saw nothing wrong. It reports exactly one fault, from the half that gained a member nobody
+named, which is the allowance behaving as designed rather than a hole in it. Rows 10 and 11 are the
+proof that the prose and its tally are free, and row 12 the proof that the allowance is one named
+set rather than an amnesty.
+
+### Proved able to fail, thirteen mutants over the scripts suite
+
+**Suite: `scripts/tests/`, 1221 tests** (1202 before this change), which is the collection every
+count below is out of. One mutant at a time, each restored from a copy taken before the first,
+with `__pycache__` purged between runs, and the baseline re-established after the last row.
+Thirteen mutants, thirteen killed.
+
+| # | mutation | expected | observed |
+| --- | --- | --- | --- |
+| 00 | none, the tree as written | the baseline | 1221 passed |
+| 01 | a bare match's leading edge is not guarded | the edge test fails | 1 failed, 1220 passed |
+| 02 | a bare match's trailing edge is not guarded | the edge test fails | 1 failed, 1220 passed |
+| 03 | FENCE: a passage is cut out of a document whose fenced blocks are stripped first | the repo map roster loses its boundary | 3 failed, 1218 passed |
+| 04 | INTERACTION: a bare roster falls through to the bulleted reader that predates it | the bare tests fail, and the real tree | 7 failed, 1214 passed |
+| 05 | a main guard is looked for anywhere rather than at column zero | the nested and quoted guard test fails | 4 failed, 1217 passed |
+| 06 | the two halves of the tree are swapped | eleven tests fail, the real tree among them | 11 failed, 1210 passed |
+| 07 | the no CLI half may come back empty | the floor test fails | 1 failed, 1220 passed |
+| 08 | a borrowed name is forgiven in the membership direction too | the overlapping registry test fails | 1 failed, 1220 passed |
+| 09 | a roster that borrows stops reporting invented names at all | the invented name test fails | 1 failed, 1220 passed |
+| 10 | INTERACTION: every roster borrows the CLI modules by default | thirteen tests fail | 13 failed, 1208 passed |
+| 11 | the repo map is held to the CLIs rather than to the whole tree | the real tree fails, twice | 2 failed, 1219 passed |
+| 12 | INTERACTION: the repo map roster is pointed at the page the older rosters are on | four tests fail | 4 failed, 1217 passed |
+| 13 | the borrowed set is read as empty for every roster | five tests fail | 5 failed, 1216 passed |
+
+Row 03 is the fence row and it is the one that taught something. Written first as a reader skipping
+fenced lines **inside** the passage, it changed nothing and passed all 1221 tests, because the
+passage the boundary phrases cut out of a repo map carries no fence marker: it is inside a block
+rather than containing one. Only stripping the fences from the whole document before finding the
+passage reproduces the reader the entry describes, and that one reddens.
+
+Rows 04, 10 and 12 are the interaction rows, each aimed at the seam between what landed here and
+the machinery that was already there: the new spelling dispatched to the old reader, the new
+registry field defaulted onto the three rosters that predate it, and the new roster pointed at the
+document the old ones share. Row 08 is the pair that no input from this tree can tell apart, the
+two halves being disjoint by construction, which is why the suite registers an overlapping
+borrowed set to separate them.
+
+### Records
+
+The record is the task files
+[R-448](../refinements/tasks/448-the-module-listing-is-held-whole-and-not-in-halves.md) and
+[R-449](../refinements/tasks/449-the-repo-map-names-every-gate-module-unheld.md), which close as
+landed, [docs/refinements/index.md](../refinements/index.md), which is regenerated from them,
+`scripts/rosternames.py`, which gains the bare spelling and its edge guard,
+`scripts/rostermembers.py`, which gains the two halves of the gate tree, `scripts/rosters.py`,
+which registers the three new rosters and the borrowed set, `scripts/rostercheck.py`, which applies
+it in the naming direction only, their three suites,
+[modules/repo-gates.md](../modules/repo-gates.md), whose opening paragraph now divides on a phrase
+the gate reads, [AGENTS.md](../../AGENTS.md), whose repo map is now the third document this scan
+reads, and this addendum.

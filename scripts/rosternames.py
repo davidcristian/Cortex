@@ -7,7 +7,7 @@ nothing here generates one. The **names** in it are a different claim, about mem
 nothing held one until this scan: a check renamed, a module added, a part split off, and the
 document goes on describing the set that existed before it, green everywhere.
 
-This module answers the page's half of that comparison, in two shapes, because a roster is
+This module answers the page's half of that comparison, in three shapes, because a roster is
 written the way its document reads best:
 
 - **bulleted**, one bullet per member with its name the bullet's first code span, which is how a
@@ -17,6 +17,12 @@ written the way its document reads best:
 - **spelled**, every code span in the passage matching the roster's own pattern, which is how a
   roster written as a running sentence is read. The pattern belongs to the roster, so the prose
   around the names may name anything else it likes in backticks.
+- **bare**, every word in the passage matching that pattern with no code span around it, which is
+  how a roster written in a fenced block is read: a repo map is plain text laid out in columns and
+  a backtick in it would be a backtick. This is the shape that only works inside a bounded
+  passage, since a bare `linecap.py` in ordinary prose reads like a roster entry wherever it
+  falls, and it takes a guard the other two get from their own delimiters: a match touching a word
+  character on either side sits inside a longer word and is not a name.
 
 **A passage is bounded by two phrases the document already carries**, each exactly once. Bounding
 by heading would put both rosters in the `scripts/` contract into one section, where a name
@@ -54,7 +60,13 @@ class Spelled(NamedTuple):
     pattern: re.Pattern[str]
 
 
-Written = Bulleted | Spelled
+class Bare(NamedTuple):
+    """Every word matching ``pattern`` is a name, for a passage that carries no code spans."""
+
+    pattern: re.Pattern[str]
+
+
+Written = Bulleted | Spelled | Bare
 
 
 def _once(text: str, phrase: str, which: str) -> int:
@@ -97,9 +109,25 @@ def _bulleted(text: str) -> list[str]:
     return found
 
 
+def _inside_a_word(text: str, at: int) -> bool:
+    """Whether ``text`` carries a word character at ``at``, which puts a match inside a word."""
+    return 0 <= at < len(text) and (text[at].isalnum() or text[at] == "_")
+
+
+def _bare(text: str, pattern: re.Pattern[str]) -> list[str]:
+    """Return every whole word in ``text`` matching ``pattern``, in the order it carries them."""
+    return [
+        found.group(0)
+        for found in pattern.finditer(text)
+        if not _inside_a_word(text, found.start() - 1) and not _inside_a_word(text, found.end())
+    ]
+
+
 def names(text: str, written: Written) -> list[str]:
     """Return every name the roster in ``text`` writes down, in the order it writes them."""
     if isinstance(written, Spelled):
         spans = [span.group(1) for span in CODE_SPAN.finditer(text)]
         return [span for span in spans if written.pattern.fullmatch(span)]
+    if isinstance(written, Bare):
+        return _bare(text, written.pattern)
     return _bulleted(text)

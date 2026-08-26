@@ -18,8 +18,9 @@ belongs to neither the brain nor the body and is gated exactly like both. A stan
 recipes, `ci_paths.py`
 by the CI
 workflow, `commitlint.py` by the commit-msg pre-commit stage, `contrast.py` by `just turn-cost`;
-each also exposes a pure, unit-tested core function). Thirty-four modules here have no CLI of their
-own, most split out under the line cap and each named for what it holds: `couplings.py` is the
+each also exposes a pure, unit-tested core function).
+**The rest have no CLI of their own**, thirty-four modules,
+most split out under the line cap and each named for what it holds: `couplings.py` is the
 vocabulary `crosscheck.py`'s registry is written in, `registry.py` names the parts that registry is
 written in, and `seamcouplings.py`, `endpointcouplings.py`, `shippedcouplings.py`,
 `subagentcouplings.py`,
@@ -611,7 +612,9 @@ that last question to have an answer.
 - `rostercheck.py [--root DIR]` holds every roster a document keeps to the set it describes
   (ADR-0003 live-roster addendum and ADR-0029 roster-membership addendum). A **roster** is a list
   of names a page keeps for something the tree really holds: the `#[ignore]`d checks in the body's
-  live seam suite, the modules in this directory, the tuples the constant registry is joined from.
+  live seam suite, the modules in this directory, the two halves that same sentence sorts them
+  into, the same set again in the repo map's fenced block, the tuples the constant registry is
+  joined from.
   Each entry carries a sentence saying what its member proves or is for, which is why the list is
   written by hand and has to stay that way, and it is only the names that are held: **every member
   is named, and every name is a member**. The prose beside them is free, at any length and in any
@@ -619,10 +622,18 @@ that last question to have an answer.
   **Counts are not held**, and the live roster's opening tally came off instead: a number restated
   beside a list drifts before the list does and a reader can recount it in a second. **Where a
   roster begins and ends is data**, two phrases the document already carries, each exactly once,
-  because two of the three rosters share one page and a rule that read whole pages would let a
-  name missing from one list pass on the strength of the other. Names are read either as bullets,
-  one per member with the name its first code span, or as every code span in the passage matching
-  the roster's own pattern. Exit 0 with a summary stating what the comparison was over, the
+  because several rosters share one page, one sentence closes one of them and opens the next, and
+  a rule that read whole pages would let a
+  name missing from one list pass on the strength of the other. Names are read in three shapes:
+  as bullets,
+  one per member with the name its first code span; as every code span in the passage matching
+  the roster's own pattern; or **bare**, every whole word matching it, which is what reaches a
+  repo map, a fenced block of plain text where a backtick would be a backtick and a match touching
+  a word character is inside a longer word rather than a name.
+  **A name a sibling roster owns is a reference and not an entry**, which is what lets one
+  paragraph carry two rosters while saying whose reader each module is; nothing else is let
+  through, so a module that gains a command line and stays in the second half is still a member
+  the first half does not name. Exit 0 with a summary stating what the comparison was over, the
   rosters, the documents and the members; exit 1 printing `DOC: LABEL: DETAIL; WHY` per fault,
   which includes a boundary phrase that stopped appearing or started appearing twice; exit 2 if
   `--root` is not a directory, a document or a described set cannot be read, or either comes back
@@ -630,20 +641,27 @@ that last question to have an answer.
 - `rosters.py` is that gate's registry and has no CLI: every roster this repo has written down, as
   one tuple, in the same all-data-and-no-logic split `crosscheck.py`'s registry uses. An entry
   declares its label, its document, the two phrases bounding its passage, how a name is spelled
-  there, what a member is, why the two sides must agree, and the reader answering for the real
-  set. A roster arrives as one entry plus, when its set is a new kind, one reader; the scan never
+  there, what a member is, why the two sides must agree, the reader answering for the real
+  set, and optionally the sibling set whose names that passage may carry as references. A roster
+  arrives as one entry plus, when its set is a new kind, one reader; the scan never
   learns which document or which shape it is reading.
 - `rosternames.py` is that gate's page side and has no CLI. `passage(text, opens, closes)` returns
   the run of a document a roster occupies, refusing a phrase the page does not carry exactly once
   and a closing phrase written before its opening one, since the boundary is part of what a roster
   claims. `names(text, written)` reads the names out of it, `Bulleted` taking the first code span
   of every bullet and refusing a bullet that opens without one, `Spelled` taking every code span
-  matching the roster's pattern. Fences are deliberately not read: a bullet inside one is read as
+  matching the roster's pattern, and `Bare` taking every whole word matching it, for a passage
+  carrying no code spans at all. A bare match is guarded on both edges, since the other two
+  shapes get that from their own delimiters and this one would otherwise read a name out of the
+  middle of a longer word. Fences are deliberately not read: a bullet inside one is read as
   a bullet, which fails loudly, and the alternative is a fourth spelling of the markdown fence in
   this tree.
 - `rostermembers.py` is that gate's tree side and has no CLI: the `#[ignore]`d tests in one Rust
   suite, read as the first function below each attribute so a stacked `#[tokio::test]` cannot hide
-  the name; the file names in `scripts/`; and the registry's parts as the tuple names the
+  the name; the file names in `scripts/`, whole and split into the ones carrying a top-level
+  `if __name__ == "__main__":` guard and the ones that do not, which is the one fact deciding
+  which half of this contract's opening sentence a module belongs in; and the registry's parts as
+  the tuple names the
   `<subject>couplings.py` convention gives them, `couplings.py` itself being the vocabulary rather
   than a part. Every one of them refuses an empty answer, a comparison over nothing being one that
   cannot fail.

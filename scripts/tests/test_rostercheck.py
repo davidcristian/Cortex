@@ -16,9 +16,10 @@ import pytest
 
 import rostercheck
 import rostermembers
+import rosternames
 import rosters
 from rostercheck import Fault, RosterCheckError, check, check_one, main
-from rosternames import Bulleted, Spelled
+from rosternames import Bare, Bulleted, Spelled
 from rosters import Roster
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -157,6 +158,123 @@ def test_no_count_is_held_against_the_roster(tmp_path: Path) -> None:
     assert faults(repo(tmp_path, page=tallied)) == []
 
 
+# ── the names one half of a paragraph borrows from the other ──────────────────
+
+CONTRACT = Path("docs/modules/repo-gates.md")
+
+HALVES = """\
+# scripts/ (`repo-gates`)
+
+**Public contract** (all are CLIs, with `linecap.py` invoked by a `just` recipe).
+**The rest have no CLI of their own**, two modules: `skippeddirs.py` is what `linecap.py` skips
+and `values.py` is what it counts.
+
+- `linecap.py [--root DIR]` implements AGENTS.md gate 1.
+"""
+
+LIBRARIES = Roster(
+    label="the modules this tree only reads",
+    document=CONTRACT,
+    opens="**The rest have no CLI of their own**",
+    closes="implements AGENTS.md gate 1",
+    written=Spelled(pattern=re.compile(r"[a-z_]+\.py")),
+    subject="a module in scripts/ with no command line",
+    why="a module in the wrong half is described as something it is not",
+    members=rostermembers.library_gate_modules,
+    refers_to=rostermembers.cli_gate_modules,
+)
+
+GUARD = '"""A miniature."""\n\n\nif __name__ == "__main__":\n    main()\n'
+
+
+def contract(root: Path, *, page: str = HALVES, runs: str = "linecap.py") -> Path:
+    """Write a miniature contract beside a `scripts/` where ``runs`` is its only CLI."""
+    document = root / CONTRACT
+    document.parent.mkdir(parents=True, exist_ok=True)
+    document.write_text(page, encoding="utf-8")
+    tree = root / rostermembers.GATES
+    tree.mkdir(parents=True, exist_ok=True)
+    (tree / runs).write_text(GUARD, encoding="utf-8")
+    for name in ("skippeddirs.py", "values.py"):
+        (tree / name).write_text('"""A miniature."""\n', encoding="utf-8")
+    return root
+
+
+def test_a_name_the_sibling_roster_owns_is_a_reference_and_not_a_fault(tmp_path: Path) -> None:
+    """The sentence says whose reader a module is, and it says it with the other half's name."""
+    assert faults(contract(tmp_path), LIBRARIES) == []
+
+
+def test_a_name_no_roster_owns_is_still_reported(tmp_path: Path) -> None:
+    """The allowance is one named set, not an amnesty on every name the passage carries."""
+    invented = HALVES.replace("what `linecap.py` skips", "what `dashcheck.py` skips")
+    assert detail(contract(tmp_path, page=invented), LIBRARIES).startswith(
+        "the roster names dashcheck.py, which is not a module in scripts/ with no command line"
+    )
+
+
+def test_a_member_missing_from_a_borrowing_roster_is_still_reported(tmp_path: Path) -> None:
+    """Membership is held in both halves; only the naming direction takes the allowance."""
+    silent = HALVES.replace("`skippeddirs.py` is what `linecap.py` skips", "nothing to speak of")
+    assert detail(contract(tmp_path, page=silent), LIBRARIES).startswith(
+        "skippeddirs.py is a module in scripts/ with no command line and the roster does not name"
+    )
+
+
+def every_module(root: Path) -> frozenset[str]:
+    """A borrowed set overlapping the roster's own members, which no registry here would write."""
+    return rostermembers.gate_modules(root)
+
+
+def test_a_borrowed_name_that_is_also_a_member_is_still_owed(tmp_path: Path) -> None:
+    """Borrowing widens what a passage may NAME and never what it may leave out.
+
+    The two halves of the real contract are disjoint by construction, a module either carrying a
+    main guard or not, so nothing in the tree can tell the two rules apart. A registry that
+    borrowed a set overlapping its own members could, and the direction it would forgive is the
+    one that matters: a member nobody named.
+    """
+    silent = HALVES.replace("`skippeddirs.py` is what `linecap.py` skips", "nothing to speak of")
+    overlapping = LIBRARIES._replace(refers_to=every_module)
+    assert detail(contract(tmp_path, page=silent), overlapping).startswith(
+        "skippeddirs.py is a module in scripts/ with no command line and the roster does not name"
+    )
+
+
+def test_a_module_that_gained_a_cli_and_stayed_put_reddens_the_half_that_lost_it(
+    tmp_path: Path,
+) -> None:
+    """The defect the split exists for, and the reason the allowance leaves no hole.
+
+    `skippeddirs.py` grows a command line and the paragraph is not touched. The half it is named
+    in accepts it as a reference, exactly as designed, and the half it has moved into reports it
+    as a member nobody named, which is the fault a reader needs.
+    """
+    root = contract(tmp_path)
+    (root / rostermembers.GATES / "skippeddirs.py").write_text(GUARD, encoding="utf-8")
+    clis = LIBRARIES._replace(
+        label="the modules this tree runs from a shell",
+        opens="**Public contract**",
+        closes="**The rest have no CLI of their own**",
+        subject="a module in scripts/ with a command line of its own",
+        members=rostermembers.cli_gate_modules,
+        refers_to=None,
+    )
+    assert faults(root, LIBRARIES) == []
+    assert detail(root, clis).startswith(
+        "skippeddirs.py is a module in scripts/ with a command line of its own and the roster "
+        "does not name it"
+    )
+
+
+def test_a_set_a_roster_refers_to_that_cannot_be_read_is_an_input_failure(tmp_path: Path) -> None:
+    """The borrowed set is read from the tree like any other, so it fails by the same door."""
+    root = contract(tmp_path)
+    (root / rostermembers.GATES / "linecap.py").write_text('"""No CLI now."""\n', encoding="utf-8")
+    with pytest.raises(RosterCheckError, match="the CLIs in scripts came back empty"):
+        check_one(root, LIBRARIES)
+
+
 # ── the boundaries of a passage, which are part of what a roster claims ────────
 
 
@@ -261,10 +379,22 @@ def test_the_repos_own_rosters_are_over_something() -> None:
     assert scanned.members > scanned.rosters
 
 
-def test_the_repo_really_writes_a_roster_in_both_shapes() -> None:
-    """A spelling nothing in the tree uses is a rule that cannot redden, so both are pinned."""
+def test_the_repo_really_writes_a_roster_in_every_shape() -> None:
+    """A spelling nothing in the tree uses is a rule that cannot redden, so all three are pinned."""
     shapes = {type(roster.written) for roster in rosters.ROSTERS}
-    assert shapes == {Bulleted, Spelled}
+    assert shapes == {Bulleted, Spelled, Bare}
+
+
+def test_the_repo_really_spends_the_allowance_for_a_borrowed_name() -> None:
+    """Same floor for the other new rule: an allowance nothing exercises is one nobody keeps."""
+    borrowing = [roster for roster in rosters.ROSTERS if roster.refers_to is not None]
+    assert borrowing
+    for roster in borrowing:
+        passage = rosternames.passage(
+            (REPO_ROOT / roster.document).read_text(encoding="utf-8"), roster.opens, roster.closes
+        )
+        named = frozenset(rosternames.names(passage, roster.written))
+        assert named - roster.members(REPO_ROOT), roster.label
 
 
 def test_every_registered_boundary_phrase_is_written_once_in_its_document() -> None:
@@ -291,3 +421,15 @@ def test_every_registered_pattern_refuses_something_the_passage_carries() -> Non
         text = (REPO_ROOT / roster.document).read_text(encoding="utf-8")
         spans = {found.group(1) for found in re.finditer(r"`([^`]+)`", text)}
         assert any(roster.written.pattern.fullmatch(span) is None for span in spans), roster.label
+
+
+def test_every_bare_roster_names_something_no_code_span_would_have_reached() -> None:
+    """The shape earns its place only where names are written bare, which is what is pinned here."""
+    bare = [roster for roster in rosters.ROSTERS if isinstance(roster.written, Bare)]
+    assert bare
+    for roster in bare:
+        passage = rosternames.passage(
+            (REPO_ROOT / roster.document).read_text(encoding="utf-8"), roster.opens, roster.closes
+        )
+        spanned = {found.group(1) for found in re.finditer(r"`([^`]+)`", passage)}
+        assert set(rosternames.names(passage, roster.written)) - spanned, roster.label

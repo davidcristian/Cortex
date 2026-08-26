@@ -13,8 +13,10 @@ import pytest
 import rostermembers
 from rostermembers import (
     MemberError,
+    cli_gate_modules,
     gate_modules,
     ignored_tests,
+    library_gate_modules,
     live_seam_checks,
     registry_tuples,
 )
@@ -143,6 +145,62 @@ def test_a_gate_tree_holding_no_module_is_a_failure(tmp_path: Path) -> None:
         gate_modules(gates(tmp_path))
 
 
+# ── the two halves that same tree sorts into ───────────────────────────────────
+
+GUARD = '"""A miniature with a command line."""\n\n\nif __name__ == "__main__":\n    main()\n'
+
+
+def split(root: Path, *, runs: tuple[str, ...], read: tuple[str, ...]) -> Path:
+    """Write a miniature `scripts/` where ``runs`` carry a main guard and ``read`` do not."""
+    gates(root, *read)
+    tree = root / rostermembers.GATES
+    for name in runs:
+        (tree / name).write_text(GUARD, encoding="utf-8")
+    return root
+
+
+def test_a_module_has_a_cli_exactly_when_it_carries_a_main_guard(tmp_path: Path) -> None:
+    root = split(tmp_path, runs=("linecap.py",), read=("skippeddirs.py", "values.py"))
+    assert cli_gate_modules(root) == frozenset({"linecap.py"})
+    assert library_gate_modules(root) == frozenset({"skippeddirs.py", "values.py"})
+
+
+def test_the_two_halves_are_the_whole_tree_and_share_nothing(tmp_path: Path) -> None:
+    """The split is what makes each half holdable, so it has to be a partition of the directory."""
+    root = split(tmp_path, runs=("linecap.py",), read=("values.py",))
+    assert cli_gate_modules(root) | library_gate_modules(root) == gate_modules(root)
+    assert not cli_gate_modules(root) & library_gate_modules(root)
+
+
+def test_a_guard_that_is_not_at_the_top_level_is_not_a_cli(tmp_path: Path) -> None:
+    """An indented guard is inside something, and a quoted one is a module writing about one."""
+    root = gates(tmp_path, "values.py")
+    (tmp_path / rostermembers.GATES / "values.py").write_text(
+        '"""Prose quoting `if __name__ == "__main__":` as the thing a CLI carries."""\n'
+        "\n\ndef nested() -> None:\n"
+        '    if __name__ == "__main__":\n        pass\n',
+        encoding="utf-8",
+    )
+    assert library_gate_modules(root) == frozenset({"values.py"})
+    with pytest.raises(MemberError, match="came back empty"):
+        cli_gate_modules(root)
+
+
+def test_a_tree_whose_every_module_is_a_cli_leaves_the_other_half_empty(tmp_path: Path) -> None:
+    """Either half coming back empty is a failure, since an empty half agrees with any sentence."""
+    root = split(tmp_path, runs=("linecap.py",), read=())
+    with pytest.raises(MemberError, match="came back empty"):
+        library_gate_modules(root)
+
+
+def test_a_module_that_cannot_be_read_is_named_rather_than_sorted(tmp_path: Path) -> None:
+    """Guessing a half for a file the reader cannot open would put a claim behind a shrug."""
+    root = split(tmp_path, runs=("linecap.py",), read=("values.py",))
+    (root / rostermembers.GATES / "values.py").write_bytes(b"\xff\xfe not text at all")
+    with pytest.raises(MemberError, match=r"cannot read scripts/values\.py"):
+        library_gate_modules(root)
+
+
 # ── the tuples the constant registry is joined from ────────────────────────────
 
 
@@ -174,3 +232,10 @@ def test_the_real_suite_and_the_real_registry_are_both_read() -> None:
     assert len(live_seam_checks(REPO_ROOT)) > 1
     assert len(registry_tuples(REPO_ROOT)) > 1
     assert "rostermembers.py" in gate_modules(REPO_ROOT)
+
+
+def test_the_real_tree_really_holds_both_halves() -> None:
+    """A half nothing in the tree fills is a rule that cannot redden, so both are pinned here."""
+    assert "rostercheck.py" in cli_gate_modules(REPO_ROOT)
+    assert "rostermembers.py" in library_gate_modules(REPO_ROOT)
+    assert cli_gate_modules(REPO_ROOT) | library_gate_modules(REPO_ROOT) == gate_modules(REPO_ROOT)

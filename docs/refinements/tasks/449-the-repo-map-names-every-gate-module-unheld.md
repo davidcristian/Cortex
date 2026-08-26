@@ -1,9 +1,6 @@
 # The repo map names every gate module in a block no reader here can see
 
-**Status:** open, fix when it bites
-**Trigger:** a module is added to `scripts/` and the repo map keeps describing the tree that
-existed before it, which is the same drift the module contract's own listing was just held
-against, one document over.
+**Status:** landed 2026-08-26
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -31,3 +28,27 @@ lines above and below it. Check what that costs the other trees first: the same 
 every Rust crate and every brain package in the same shape, so the shape that lands here decides
 whether those become rosters too or stay prose. The tally in front of the parts stays a hand count
 either way, under the standing decision that a document's numbers are its own business.
+
+## Trail
+
+- 2026-08-26: opened by the close of
+  [R-413](413-the-module-contracts-part-list-is-held-by-nobody.md), which held one copy of this set
+  and left this one alone for want of a third way of writing a roster down.
+- 2026-08-26: landed as the
+  [ADR-0029 addendum on holding that listing in halves](../../adr/ADR-0029-vision-screen-capture.md#addendum-2026-08-26-the-module-listing-is-held-in-halves-and-the-repo-maps-copy-is-held-too),
+  which added the bare spelling the entry asked for, every whole word in a bounded passage matching
+  the roster's pattern, guarded on both edges so a name inside a longer word is not one.
+  **Re-derivation left the answer standing and corrected the reason.** The map was complete on
+  the day this was picked up, naming all forty eight modules and nothing else, each exactly once.
+  What
+  moved is the diagnosis: the entry says the names sit in a fenced block no reader here can see,
+  and the fence turns out not to be the obstacle at all, since the passage the boundary phrases cut
+  out carries no fence marker and this reader strips none. The code spans were the obstacle, which
+  the mutation run measured rather than assumed, a fence-skipping mutant changing nothing until it
+  was rewritten to strip fences from the whole document first. The entry's own instruction to check
+  what the shape costs the other trees was followed and answered by deferral: the same map names
+  every Rust crate and every brain package in the same shape, and whether a repo map is held tree by
+  tree is a decision about that document rather than about this mechanism, filed as
+  [R-450](450-the-repo-map-holds-two-more-listings-unheld.md). The tally in front of the registry
+  parts stays a hand count either way, as this entry asked. The same commit closed
+  [R-448](448-the-module-listing-is-held-whole-and-not-in-halves.md).

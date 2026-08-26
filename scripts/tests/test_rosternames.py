@@ -10,7 +10,7 @@ import re
 
 import pytest
 
-from rosternames import BULLET, CODE_SPAN, Bulleted, PassageError, Spelled, names, passage
+from rosternames import BULLET, CODE_SPAN, Bare, Bulleted, PassageError, Spelled, names, passage
 
 PAGE = """\
 # scripts/ (`repo-gates`)
@@ -117,6 +117,44 @@ def test_a_spelled_roster_refuses_a_span_that_only_contains_a_name() -> None:
 def test_a_spelled_roster_reads_a_name_written_twice_twice() -> None:
     """The scan compares sets; the reader reports the page, so a repeat is not hidden here."""
     assert names("`a.py` then `a.py`", Spelled(pattern=MODULE)) == ["a.py", "a.py"]
+
+
+def test_a_bare_roster_takes_every_whole_word_matching_its_pattern() -> None:
+    """The shape a repo map needs: plain text in columns, where a backtick would be a backtick."""
+    mapped = """\
+scripts/          repo gates: linecap.py (300-line cap), dashcheck.py (no dash as
+                  punctuation) + couplings.py (the vocabulary)
+"""
+    assert names(mapped, Bare(pattern=MODULE)) == ["linecap.py", "dashcheck.py", "couplings.py"]
+
+
+def test_a_bare_roster_ignores_a_name_sitting_inside_a_longer_word() -> None:
+    """The guard the other two shapes get from their own delimiters and this one has to carry.
+
+    Three edges, because a word character is three things here: a letter the pattern will not
+    take, a digit, and the underscore a file name is as likely to end on as to start with.
+    """
+    assert names("test_linecap.pyc is not a module", Bare(pattern=MODULE)) == []
+    assert names("R2linecap.py is not one either", Bare(pattern=MODULE)) == []
+    assert names("linecap.py_old is a copy of one", Bare(pattern=MODULE)) == []
+
+
+def test_a_bare_name_is_read_at_either_end_of_its_passage() -> None:
+    """A passage opening or closing on a name has no character to guard against, and is not one."""
+    assert names("linecap.py", Bare(pattern=MODULE)) == ["linecap.py"]
+
+
+def test_a_bare_roster_reads_a_path_as_the_name_it_ends_with() -> None:
+    """A slash is not a word character, so `scripts/linecap.py` in a map is that module named."""
+    assert names("scripts/linecap.py holds the cap", Bare(pattern=MODULE)) == ["linecap.py"]
+
+
+def test_a_bare_roster_does_not_care_whether_a_name_is_in_a_code_span() -> None:
+    """It exists for pages with no spans, and a page mixing the two is one roster either way."""
+    assert names("`linecap.py` and linecap.py", Bare(pattern=MODULE)) == [
+        "linecap.py",
+        "linecap.py",
+    ]
 
 
 def test_a_passage_with_no_bullets_at_all_names_nothing() -> None:

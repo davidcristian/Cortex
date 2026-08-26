@@ -10,6 +10,13 @@ never to another sentence about the tree.
 - **the gate modules** are the files in `scripts/`. The contract for this tree opens by naming
   every one of them and saying what each holds, which is what lets a future agent work here
   without reading the tree, and it is exactly that promise that goes stale the day a module lands.
+  The repo map in the contract every agent here reads names the same set a second time, in a
+  fenced block of plain text, so the two answers come from one reading of the directory.
+- **the modules with a CLI** and **the ones without** are that same directory split by the one
+  thing that decides which half of the contract's sentence a module belongs in: a module has a
+  command line exactly when it carries a `if __name__ == "__main__":` guard at the top level.
+  Sorting a module into the wrong half tells a reader it is something it is not, and until the
+  split the sentence was held whole, so either half could be wrong and the paragraph still pass.
 - **the registry's parts** are the tuples `crosscheck.CONSTANTS` is joined from, named by the
   convention `registry.py` declares: a `<subject>couplings.py` holds a `<SUBJECT>_COUPLINGS`. The
   convention is asserted by the constant suite rather than assumed here, and `couplings.py` itself
@@ -41,6 +48,10 @@ TUPLE = "_COUPLINGS"
 # function below it, since attributes stack in any order.
 IGNORED = re.compile(r"^\s*#\[ignore\b")
 FUNCTION = re.compile(r"^\s*(?:pub +)?(?:async +)?fn +([A-Za-z_][A-Za-z0-9_]*)")
+
+# What gives a module here a command line of its own. It is read at column zero, since a guard is
+# a top-level statement and the same text inside a docstring or a nested function is neither one.
+MAIN_GUARD = re.compile(r"^if __name__ == \"__main__\":", re.MULTILINE)
 
 
 class MemberError(Exception):
@@ -105,6 +116,25 @@ def live_seam_checks(root: Path) -> frozenset[str]:
 def gate_modules(root: Path) -> frozenset[str]:
     """Every module in `scripts/`, the tree its own module contract is a contract for."""
     return _floored(_filenames(root, MODULES), f"the modules in {GATES}")
+
+
+def _with_a_cli(root: Path, *, wanted: bool) -> list[str]:
+    """The modules in `scripts/` that do, or do not, carry a top-level main guard."""
+    return [
+        name
+        for name in _filenames(root, MODULES)
+        if (MAIN_GUARD.search(_read(root, GATES / name)) is not None) == wanted
+    ]
+
+
+def cli_gate_modules(root: Path) -> frozenset[str]:
+    """Every module in `scripts/` with a command line of its own."""
+    return _floored(_with_a_cli(root, wanted=True), f"the CLIs in {GATES}")
+
+
+def library_gate_modules(root: Path) -> frozenset[str]:
+    """Every module in `scripts/` that another module reads rather than a shell runs."""
+    return _floored(_with_a_cli(root, wanted=False), f"the modules in {GATES} with no CLI")
 
 
 def registry_tuples(root: Path) -> frozenset[str]:

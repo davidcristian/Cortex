@@ -21,9 +21,15 @@ describing a registry is not a far side of its numbers, and it draws the line th
 names: a name list goes stale exactly when a member is added, which is when it should redden.
 
 **Where a roster begins and ends is data**, two phrases the document already carries, because
-holding one section of a document is not the same question as holding the document. Two of the
-three rosters here live in one page, one inside a paragraph and one inside a clause, and a rule
-that read the whole page would let a name missing from one list pass on the strength of the other.
+holding one section of a document is not the same question as holding the document. Several
+rosters here share one page, one sentence closes one of them and opens the next, and a rule that
+read whole pages would let a name missing from one list pass on the strength of the other.
+
+**A name a sibling roster owns is a reference rather than an entry.** A paragraph split into two
+rosters says whose reader each module is, and it says it with the other half's names, so requiring
+every name to be a member would make ordinary prose a fault. A roster may declare the set whose
+names it is allowed to carry that way, and nothing else is let through: a module that gains a
+command line and stays in the wrong half is still a member the other half does not name.
 
 **Both empty sides are a failure rather than a pass.** A suite whose ignores are all gone, a
 directory that moved, a phrase that stopped appearing: each is either an input failure or a
@@ -97,6 +103,7 @@ def check_one(root: Path, roster: Roster) -> tuple[frozenset[str], list[Fault]]:
     text = _read(root, roster.document)
     try:
         members = roster.members(root)
+        aside = frozenset[str]() if roster.refers_to is None else roster.refers_to(root)
     except MemberError as err:
         raise RosterCheckError(str(err)) from err
     try:
@@ -112,7 +119,7 @@ def check_one(root: Path, roster: Roster) -> tuple[frozenset[str], list[Fault]]:
     ]
     faults.extend(
         _fault(roster, f"the roster names {name}, which is not {roster.subject}")
-        for name in sorted(named - members)
+        for name in sorted(named - members - aside)
     )
     return members, faults
 
