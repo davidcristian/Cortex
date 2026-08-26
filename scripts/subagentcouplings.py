@@ -1,10 +1,12 @@
-"""The couplings around the subagent tier: what a spawn is charged, what its container gets, and
-how long one may run.
+"""The couplings around the subagent tier: what a spawn is charged, what its container gets, how
+long one may run, and the reasoning-off pair every server in it starts with.
 """
 
 from couplings import Constant, Mention, Site, Spelling
 
 SUBAGENTS_COMPOSE = "docker/docker-compose.subagents.yml"
+ROSTER_COMPOSE = "docker/docker-compose.subagents-roster.yml"
+MODELHOST_CONFIG = "brain/packages/model_manager/src/cortex_model_manager/config.py"
 SUBAGENTS_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config_subagents.py"
 SUBAGENTS_CORE = "brain/packages/core/src/cortex_core/subagents.py"
 SUBAGENTS_SCHEDULER = "brain/packages/core/src/cortex_core/scheduler.py"
@@ -13,6 +15,13 @@ TOOLS_RUNBOOK = "docs/runbooks/tools-mcp.md"
 CORE_DOC = "docs/modules/brain-core.md"
 INFERENCE_DOC = "docs/modules/brain-inference.md"
 ORCHESTRATOR_DOC = "docs/modules/brain-orchestrator.md"
+
+REASONING_OFF_PAIR = (
+    '- "--chat-template-kwargs"\n'
+    "      - '{\"enable_thinking\": false}'\n"
+    '      - "--reasoning-budget"\n'
+    '      - "{value}"'
+)
 
 SUBAGENT_COUPLINGS: tuple[Constant, ...] = (
     Constant(
@@ -186,6 +195,23 @@ SUBAGENT_COUPLINGS: tuple[Constant, ...] = (
         mentions=(
             Mention(SUBAGENTS_COMPOSE, '"${CORTEX_SUBAGENTS_MEMORY_GB:-{value}}"'),
             Mention(SUBAGENTS_COMPOSE, "-> {value} memory ask"),
+        ),
+    ),
+    Constant(
+        label="the subagent tier's reasoning-off flag pair",
+        why=(
+            "every subagent server this repo starts carries both `--chat-template-kwargs` and "
+            "`--reasoning-budget 0`, because neither flag alone covers both lineup families: the "
+            "kwarg is what a Qwen chat template reads and what the gemma-4-E* templates ignore, "
+            "and the budget is what reaches the constrained request shape every tool-less "
+            "subagent decodes into the fixed envelope. A server started with half the pair spends "
+            "its whole token cap on a trace no reader ever sees and answers a cap refusal, which "
+            "is a defect whose only symptom is a slow subagent (ADR-0005 thinking-lever addendum)"
+        ),
+        sites=(Site(MODELHOST_CONFIG, "_NO_REASONING_BUDGET"),),
+        mentions=(
+            Mention(SUBAGENTS_COMPOSE, REASONING_OFF_PAIR),
+            Mention(ROSTER_COMPOSE, REASONING_OFF_PAIR),
         ),
     ),
 )

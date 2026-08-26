@@ -30,11 +30,13 @@ DEFAULT_SUBAGENT_PARALLEL = 2
 DEFAULT_IMAGE_MAX_TOKENS = 1024
 DEFAULT_NVIDIA_SMI = "nvidia-smi"
 
+_NO_REASONING_BUDGET = "0"
+
 _REASONING_OFF = (
     "--chat-template-kwargs",
     '{"enable_thinking": false}',
     "--reasoning-budget",
-    "0",
+    _NO_REASONING_BUDGET,
 )
 
 _UNRESTRICTED_REASONING = -1

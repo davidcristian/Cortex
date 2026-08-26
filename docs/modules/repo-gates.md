@@ -113,9 +113,10 @@ that last question to have an answer.
   file that dials or states one; the brain container's own shipped defaults, restated
   by a compose default, a runbook row or a module contract; one capture's own edge, byte budget
   and deadlines, which are that same kind narrowed to a single request; the subagent tier's
-  admission budgets with the cgroup limits that are their hard twins, and beside them the four
+  admission budgets with the cgroup limits that are their hard twins, beside them the four
   bounds one delegated run stands between, each held to the runbook and the module contract that
-  quote it; the model-host tier settings
+  quote it, and the reasoning-off flag pair every server in that tier starts with, held as one
+  needle whose value is the budget's count and whose shape is the two flag names around it; the model-host tier settings
   and the
   override that ships them; the email sidecar's three safety answers and the override that spells
   each again; a stack built to be measured against and the suite that measures it, the one subject
