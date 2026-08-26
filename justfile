@@ -3,7 +3,7 @@
 
 default: check
 
-# All gates: the eight cross-tree scans first (fast), then the four tree checks in
+# All gates: the nine cross-tree scans first (fast), then the four tree checks in
 # PARALLEL (ADR-0006), so wall time ≈ the slowest tree. Output is buffered per tree
 # and printed in a fixed order so logs stay readable; any failure fails the gate.
 # Kept bash-3.2 compatible (no `declare -A` etc.) for macOS system bash.
@@ -17,6 +17,7 @@ check:
     just check-defaultcheck
     just check-volumecheck
     just check-stubcheck
+    just check-samplecheck
     just check-backlog
     tmp=$(mktemp -d)
     trap 'rm -rf "$tmp"' EXIT
@@ -92,6 +93,16 @@ check-volumecheck:
 check-stubcheck:
     cd scripts && uv sync --locked
     cd scripts && uv run python stubcheck.py --root ..
+
+# Every log line a runbook prints back to an operator still says what the call site that
+# writes it would print: the level, the logger, the message, and the fields in the order the
+# formatter renders them, which is name order. Field VALUES are deliberately not held, one
+# runbook's captured port being a dated reading rather than a coupling. The samples are found
+# rather than registered, so a new one is held the day it is written (ADR-0009 addendum on a
+# sample's membership).
+check-samplecheck:
+    cd scripts && uv sync --locked
+    cd scripts && uv run python samplecheck.py --root ..
 
 # Hand-run, needs docker and the network: pull every image this repo's compose files name,
 # ask the daemon what each actually declares, and fail when scripts/imagevolumes.py

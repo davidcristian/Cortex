@@ -2942,3 +2942,158 @@ that sorts after `session_id` would be missing from the sample, and neither is v
 ([R-438](../refinements/tasks/438-a-documented-log-sample-can-still-print-the-wrong-fields.md)).
 The audit transcript this ADR records and the redaction sample in ADR-0038 are pinned by nothing
 at all, being evidence of a live run rather than instructions.
+
+## Sample-membership addendum (2026-08-26): a documented log line is held to the call that writes it
+
+The bare-id addendum above pinned the ORDER of the one verbatim log sample it knew about and left
+its membership open, on the argument that the anchor it built was free and membership was not.
+This closes that, and the first thing the re-derivation found is that the premise was wrong about
+how much was exposed.
+
+### Re-derived first, and the count was low
+
+The defect re-derives exactly as filed. `swap_settle.fail` attaches `session_id`, `turn_id` and
+`reason`; `log_fields.render_fields` sorts, so the line prints `reason`, `session_id`, `turn_id`;
+`docs/runbooks/model-swap.md` prints that. Delete the reason from the call and every gate stays
+green with the runbook still printing it, because the two needles in `scripts/logcouplings.py`
+read the runbook and nothing reads the call.
+
+What was wrong is the sentence that says two live samples exist. A sweep for a rendered line in
+every document here returns three inside `docs/runbooks/` and eleven inside two ADRs. The runbook
+ones are the failed settle, the seam server's boot line in the WSL runbook, and the quarantine
+pair in the scheduling runbook, and all three are instructions rather than transcripts: each is
+printed to tell an operator what to expect on a stream. So the bill the earlier decision priced
+against one sample was always being paid for three, and a fourth arrives every time somebody
+documents a line.
+
+### Decision 1: a scan of its own, `scripts/samplecheck.py`
+
+Four things per sample have to agree: the level, the logger, the message and the field list. Fields
+are compared as a sequence rather than as a set, so one comparison holds membership and order at once:
+the printed order is name order and therefore a function of the key set alone, which means a
+sequence comparison says everything a set comparison would and one more thing besides.
+
+The scan is not folded into `crosscheck.py`, and the reason is that a field list is not a value.
+That registry ties one value spelled in several places, compares it after reduction, and renders
+it into a needle; a set of keys reduces to nothing a needle can spell, and the doc side of this
+question is read rather than searched for. The house pattern for a new subject with a reader of
+its own is a scan beside the others, which is what `stubcheck.py` and `backlogcheck.py` both are.
+So `logsamples.py` reads what a page claims and `logcalls.py` reads what a call attaches, and the
+gate compares the two.
+
+`logcalls.py` is the one reader in `scripts/` that parses Python rather than matching it. An
+`extra=` dict spans five lines at the failed settle, and a brace counter written to follow that is
+a Python parser with the corners missing. `ast` executes nothing, so the seam the bare-id addendum
+declined to open, an import of the brain from `scripts/`, stays shut: this reads the brain's text
+the way every other scan here does and merely reads it with the right tool.
+
+One line shape is refused rather than read, and named as itself. `logger.log(level, message, ...)`
+takes its level from a variable, which the model host's request failure really does, so there is
+no method name to read a level from and no level a sample could be held to. That is reported as
+what it is instead of as a message nothing logs, because the message is in the module and a fault
+denying it would send a reader hunting for text they can see.
+
+### Decision 2: field names, and never field values
+
+The re-rendering gate that addendum refused would have had to be taught which placeholder stands
+for what before it could agree with a sample that is already right, `<what happened>` and
+`<chat id>` both carrying spaces the real formatter would quote. That objection is answered by not
+asking: this scan compares names and drops every value.
+
+It is also the only answer compatible with a decision the constant registry already made. The WSL
+runbook's `port=50051` is registered there as a dated reading rather than a coupling, on the
+argument that a captured line stays true after the default it quotes moves. Holding values here
+would overturn that from a second gate, which is how two gates come to disagree about one line.
+
+### Decision 3: runbooks are contract, and an ADR's transcripts are evidence
+
+The samples in this document and in ADR-0038 are declared evidence rather than contract, in
+writing, which is the other half of what the entry asked for. An addendum records what was decided
+on the day it was decided, and this document already refuses to edit an older one into agreement
+with a later reading. A transcript is the same kind of thing: it is what a run printed on a day,
+kept beside the decision it justifies. Holding it to today's code would make a record of the past
+into a thing that must be edited to stay green, and the first such edit would destroy the evidence
+it was kept for. A runbook is the other kind, written in the present tense and opened while
+something is broken, so the walk reads `docs/runbooks/` and stops there.
+
+The honest cost is stated rather than argued away: a reader who copies a field list out of a
+recorded transcript is reading it as a statement about what the code emits today, and it is not
+one. What answers that is the date on the addendum around it, not a gate.
+
+### Decision 4: found rather than registered
+
+There is no list of samples to keep current. The walk reads the runbooks and checks every fenced
+line shaped like a rendered one, so a sample written tomorrow is held tomorrow. A registry would
+have left each new one unpinned until somebody remembered it, which is the same silence this scan
+closes, one indirection further back. What that costs is that a runbook quoting a line no brain
+module writes fails rather than skips, and that direction is the intended one.
+
+Two narrowings keep the find honest. A sample is a line inside a fence, never a sentence, because
+reading prose would make every inline mention of a line owe a field list and push a writer away
+from naming one at all. And the message ends at the first `name=` that opens outside a quoted
+value, which is the rule a reader applies by eye; a message that spelled a `word=` of its own would
+be reported as a message no call logs, which is loud and in the safe direction.
+
+### Distrust green, over two suites at once
+
+Fourteen mutations, each planted alone, both suites run, then the file restored from a copy and
+compared by digest. All fourteen restorations matched. The first column counts
+`scripts/tests/test_samplecheck.py`, `test_logsamples.py` and `test_logcalls.py`, 66 tests
+together; the second counts `scripts/tests/test_crosscheck.py`, 144 tests, which is where the
+order anchor this addendum builds on lives.
+
+| Mutation | New | Anchor |
+| --- | --- | --- |
+| the runbook prints the three fields in the order the call site wrote them | 3 | 4 |
+| the settle stops attaching the reason | 3 | 0 |
+| the settle starts attaching a field that sorts last | 3 | 0 |
+| the settle is demoted from a warning to an info | 2 | 0 |
+| the runbook names a logger no module declares | 3 | 0 |
+| a candidate inside a quoted value opens a field | 1 | 0 |
+| a wrapped sample is not folded back into one line | 4 | 0 |
+| the comment marker on a continuation is left where it stands | 4 | 0 |
+| a line outside a fence is read as a sample | 1 | 0 |
+| fields come back in the order the call wrote them | 8 | 0 |
+| an `extra=` that is not a literal mapping is shrugged at | 1 | 0 |
+| a runtime level is reported as a message nothing logs | 1 | 0 |
+| the gate compares the level and not the fields | 6 | 0 |
+| the walk reads every document rather than the runbooks | 5 | 0 |
+
+The first four rows are the reading. Row one is the interaction: a reordered sample reddens both
+gates, so the anchor is intact and the new scan agrees with it rather than replacing it. Rows two
+and three are the entry's own defect in both directions, and a 3 beside a 0 is the whole claim of
+this addendum: neither was visible to the scan that already ran, and the anchor's blindness there
+is a property rather than an accident of the alphabet. Row four is the level, which nothing held
+before and which the runbook tells an operator to grep for.
+
+The last row is worth reading twice. Widening the walk from the runbooks to all of `docs/` reddens
+five and reports seven misses on the committed tree, which is decision 3 paid for rather than
+asserted. Three are the model host's `before` block in ADR-0038, whose messages ended in a colon
+until the rendered-fields work took the colon off, so that record is a recording of the defect it
+fixed. Three are the audit transcripts, whose sink builds its field dict in code rather than at
+the call. One is the model host's request failure, written through `logger.log` at a level chosen
+while it runs, which is the shape this reader refuses by name.
+
+### Consequences
+
+- Three operator-facing log samples are held to the calls that write them, and a fourth is held
+  the day it is written.
+- A field a call site stops or starts attaching now reddens a gate rather than leaving a runbook
+  printing a line nothing emits. That is the whole of what the order anchor could not see.
+- `scripts/` gained the ability to read a call site rather than a declaration, without gaining an
+  import of the brain. The next question of this shape has a reader to build on.
+- The gate count in AGENTS.md moves from eight to nine, and the argument for a scan of its own is
+  written above rather than left as a precedent to copy.
+
+### Deferred by this addendum
+
+The walk reads `docs/runbooks/` and holds every sample it finds, but nothing holds a runbook to
+quoting the lines an operator actually needs: a line the brain writes and no runbook mentions is
+invisible here by construction, and the coverage question is a different one from the agreement
+question
+([R-444](../refinements/tasks/444-nothing-says-which-log-lines-a-runbook-should-print.md)).
+
+The new doc reader is also the third module in `scripts/` to spell the markdown fence for itself,
+beside the backlog's heading reader and the commit-message linter, and this repo already holds
+that a question several gates ask should be answered once
+([R-445](../refinements/tasks/445-three-gates-each-spell-the-markdown-fence-for-themselves.md)).

@@ -3,6 +3,7 @@
 **Purpose.** The repo's own tooling, in the tree neither shipped artifact contains: the cross-tree
 line cap, the punctuating-dash ban, the cross-language constant check, the compose bind-mount
 check, the compose defaults check, the image-volume check, the seam-stub comment check, the
+documented-log-sample check, the
 backlog gate, the Rust coverage threshold, the CI path
 classifier, the commit-message style hook,
 and, since 2026-08-09, the one module here that gates nothing, the interval a live measurement
@@ -11,12 +12,13 @@ belongs to neither the brain nor the body and is gated exactly like both. A stan
 (not a brain workspace member, per ADR-0002).
 
 **Public contract** (all are CLIs, with `linecap.py`, `dashcheck.py`, `crosscheck.py`,
-`bindcheck.py`, `defaultcheck.py`, `volumecheck.py`, `stubcheck.py`, `backlogcheck.py` and
+`bindcheck.py`, `defaultcheck.py`, `volumecheck.py`, `stubcheck.py`, `samplecheck.py`,
+`backlogcheck.py` and
 `coverage_gate.py` invoked by `just`
 recipes, `ci_paths.py`
 by the CI
 workflow, `commitlint.py` by the commit-msg pre-commit stage, `contrast.py` by `just turn-cost`;
-each also exposes a pure, unit-tested core function). Twenty-nine modules here have no CLI of their
+each also exposes a pure, unit-tested core function). Thirty-one modules here have no CLI of their
 own, most split out under the line cap and each named for what it holds: `couplings.py` is the
 vocabulary `crosscheck.py`'s registry is written in, `registry.py` names the parts that registry is
 written in, and `seamcouplings.py`, `endpointcouplings.py`, `shippedcouplings.py`,
@@ -32,7 +34,9 @@ reader, `composedefaults.py` is `defaultcheck.py`'s substitution reader, `compos
 `imagevolumes.py` is the recorded
 answer that gate reads and the drift report over it, `dockerfilevolumes.py` is what a Dockerfile
 in this tree declares against the row for the image built from it, `protocomments.py` is what a proto comment is and how it normalizes into
-the Rust stub's spelling, `composefiles.py` is
+the Rust stub's spelling, `logsamples.py` is what a documented log line claims to print and
+`logcalls.py` is what the call writing it really attaches, the two sides `samplecheck.py` holds
+together, `composefiles.py` is
 which files the three compose gates walk, answered once so they cannot drift apart about it,
 `gitenv.py` is the environment every git call in this tree runs with, held in one place because
 a caller that forgets it is wrong in silence rather than red, `skippeddirs.py` is the directory
@@ -548,6 +552,60 @@ that last question to have an answer.
   way protoc does; those are the comments the stub owes two copies of. On the
   stub side it collects `///` lines and nothing else. `normalize` is the three-part undo above,
   applied to both sides so the rule is stated once.
+- `samplecheck.py [--root DIR]` holds every log line a runbook prints back to an operator to the
+  call site that writes it (ADR-0009 sample-membership addendum). A runbook that shows a rendered
+  line is telling a reader what to expect on a stream while somebody is waiting, and nothing tied
+  those samples to the `extra=` two hundred files away: a field a call stopped attaching left the
+  sample printing what nothing emits, and a field it started attaching left the sample short of
+  one, with both sides green. Four things have to agree per sample: the **level** the sample
+  prints against the method the call uses (`exception` prints `ERROR`), the **logger** it names
+  against the module that declares that name, the **message** against one a call there really
+  writes, and the **fields** against exactly the keys that call attaches, in the order the
+  formatter prints them. Field order is name order, so one comparison holds membership and order
+  together, and it subsumes the neighbouring-field anchor the constant registry already carries
+  over the same sample. **Values are deliberately not held.** A sample's values are placeholders
+  as often as readings, one runbook's captured `port=50051` is registered in `crosscheck.py` as a
+  dated reading rather than a coupling, and requiring a hand-written placeholder to be quoted the
+  way the formatter quotes a value with a space in it is the fiction ADR-0009 refused to teach a
+  gate to expect. **Found rather than registered**: the walk reads `docs/runbooks/` and checks
+  every fenced line shaped like a rendered one, so a new sample is held the day it is written,
+  and a runbook quoting a line no brain module writes is a miss rather than a skip. **Runbooks
+  and not every document**, which is the other half of that decision: an ADR's transcripts are
+  evidence of a run on a day, recorded beside the decision they justify, and holding a dated
+  record to today's code would make the past a thing that must be edited to stay green. **Fails
+  closed**: an unreadable runbook tree, a brain whose loggers cannot be collected, and either
+  side coming back empty are each a failure. Exit 0 with a summary stating what the comparison
+  was over, the samples, the runbooks and the loggers they were resolved against; exit 1 printing
+  `docs/runbooks/FILE:LINE: the sample DETAIL` per miss; exit 2 if `--root` is not a directory or
+  an input could not be read.
+- `logsamples.py` is `samplecheck.py`'s doc side and has no CLI. It turns a fenced line back into
+  the level, logger, message and field names it claims to render. A sample is a line **inside a
+  fence**, never a sentence, since reading prose would make every inline mention owe a field
+  list. The `LEVEL:logger:message` prefix is searched for rather than anchored, so compose's
+  container label and the `#` that comments a sample out inside a shell block are decoration. The
+  message stops where the first `name=` opens **outside a quoted value**, which is the rule a
+  reader applies by eye and the only one that keeps a JSON argument from reading as a field. A
+  sample that wraps over a trailing backslash is folded back into the one line it stands for,
+  with the continuation's own comment marker dropped, because that marker would otherwise sit
+  between the message and the first field; the fold stops at a fence so a backslash on a block's
+  last line cannot swallow the marker that closes it.
+- `logcalls.py` is `samplecheck.py`'s code side and has no CLI. It answers which module owns a
+  logger name and what one call under it puts on its line. It is the one reader here that
+  **parses** Python rather than matching it: an `extra=` dict spans five lines at the failed
+  settle, and a brace counter written to follow that is a Python parser with the corners missing.
+  `ast` executes nothing, so the seam ADR-0009 declined to open, an import of the brain from
+  `scripts/`, stays shut. Logger names are collected from both spellings the brain uses,
+  `getLogger(__name__)` resolving to the module's own dotted path (a package barrel claiming the
+  package name) and a literal being the name itself, which is how the recall trail and the tool
+  audit name themselves; a name two files claim is a fault. Only each package's `src/` is walked,
+  a package's tests sitting beside it. Fields come back sorted, which is not this reader
+  rearranging an answer but restating `render_fields`, whose sort is what makes the printed order
+  a function of the key set. A message no call logs, a message logged twice, an `extra=` that is
+  not a literal mapping and a key that is not a plain string are each reported rather than shrugged
+  at, a shrug being how a gate hands itself an empty answer and calls the document right. One shape
+  is refused **by name**: `logger.log(level, message, ...)` takes its level from a variable, which
+  the model host's request failure does, so there is no level a sample could be held to, and saying
+  that beats reporting a message the module visibly writes as one it does not.
 - `backlogcheck.py [--root DIR] [--write]` holds each backlog index to the task files it
   describes (ADR-0039). Without `--write` it checks, which is what `just check-backlog` runs;
   with `--write` it regenerates each index, which is what `just backlog` runs. That split is the
@@ -1019,6 +1077,14 @@ that last question to have an answer.
   `test_the_repo_really_offers_the_two_shapes_this_rule_must_not_report` fails if the tree ever
   stops carrying a code-span heading or an intraword-underscore one, those being the two shapes a
   detector written slightly too wide would redden first.
+- `samplecheck.py` is checked against the real tree by its own suite the way `crosscheck.py` and
+  `stubcheck.py` are, so `check-scripts` catches a drift even when `check-samplecheck` is not the
+  recipe that runs, and a second test holds the walk to having read something: a runbook tree that
+  came back empty would make the first one vacuous. Its fixtures are miniatures of the three
+  shapes the committed runbooks really carry, a bare fenced line, one behind compose's container
+  label, and one commented out inside a shell block and wrapped over two lines, and a further test
+  reads the runbooks themselves so a shape nobody writes any more cannot go on being tested
+  against itself.
 - The exclusion lists above are the single definition of "non-test source file" and
   "generated code" for the cap. Change them only with an ADR update.
 - `dashcheck.py`, `commitlint.py`, and their tests spell the dashes as `\uXXXX` escapes

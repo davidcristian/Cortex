@@ -84,7 +84,9 @@ jobs:
   # images, which is the whole reason the answer is recorded (ADR-0011 addendum on
   # evidence out of the gate's reach); stubcheck.py holds the committed Rust seam stub to
   # the comments proto/body.proto carries, which spans two trees and so belongs to
-  # neither job; and backlogcheck.py holds each backlog index to its task files
+  # neither job; samplecheck.py holds every log line a runbook prints to the call site
+  # that writes it, which is a docs tree against a Python one and so belongs to neither
+  # job either; and backlogcheck.py holds each backlog index to its task files
   # (ADR-0039), which is docs-only and so would otherwise never run.
   cross-tree:
     runs-on: ubuntu-latest
@@ -103,6 +105,7 @@ jobs:
       - run: just check-defaultcheck
       - run: just check-volumecheck
       - run: just check-stubcheck
+      - run: just check-samplecheck
       - run: just check-backlog
 
   python:

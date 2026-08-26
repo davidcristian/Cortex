@@ -103,7 +103,7 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    config via env only.
 6. **`just check` is the single gate**, running ruff, pyright, pytest + coverage,
    `cargo fmt --check`, clippy, `cargo test`, `cargo llvm-cov`, the overlay's typecheck and
-   Vitest coverage, and the eight cross-tree scans: the line cap, which reaches all three
+   Vitest coverage, and the nine cross-tree scans: the line cap, which reaches all three
    toolchains; `dashcheck.py`, which bans a dash used as punctuation in any text file
    (ADR-0026); `crosscheck.py`, which ties every value this repo spells in more than one place,
    whether the far side declares it, orders itself against it, carries it among the several it
@@ -126,13 +126,17 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    `stubcheck.py`, which holds the committed Rust seam stub to the comments
    [proto/body.proto](proto/body.proto) carries, the one half of a skipped regeneration no
    compiler would notice, as a text comparison running no codegen (ADR-0003 stub-fidelity
-   addendum);
+   addendum); `samplecheck.py`, which holds every log line a runbook prints back to an operator to
+   the call site that writes it, its level, its logger, its message and the fields it carries in
+   the order the formatter renders them, so a field a call stopped or started attaching cannot
+   leave a documented sample printing what nothing emits, and which holds field names and never
+   field values, a captured value being a dated reading (ADR-0009 sample-membership addendum);
    and `backlogcheck.py`, which holds each backlog index to the task files it describes and
    every link in them to resolving, so a status can be written in exactly one place, and holds
    every `#fragment` written anywhere in the repo to naming a heading the document it aims at
    really offers, a backlog index answering out of the rendering the gate is about to require
    and every other document out of the file on disk
-   (ADR-0039). All eight run unconditionally, in CI too. Pre-commit mirrors it. Run it
+   (ADR-0039). All nine run unconditionally, in CI too. Pre-commit mirrors it. Run it
    before declaring anything done. **One recipe is deliberately outside it**, `check-shell`
    (clippy on the Tauri shell), which CI schedules and `just check` does not run: it is the only
    check needing system libraries, the Linux GTK/webkit/dbus dev packages a clean dev box need
@@ -285,6 +289,10 @@ scripts/          repo gates, plus the one module here that gates nothing, contr
                   stubcheck.py (every comment the proto carries still
                   appears in the committed Rust stub) + protocomments.py (what a comment is on
                   each side and how the two spellings are made comparable),
+                  samplecheck.py (every log line a runbook prints back to an operator still says
+                  what the call site writing it would print) + logsamples.py (what a documented
+                  sample claims, read off the page) + logcalls.py (what the call really attaches,
+                  parsed out of the module),
                   composefiles.py (which files all three compose gates walk, answered once so
                   they cannot drift apart), backlogcheck.py (each backlog index still matches
                   its task files,
@@ -305,7 +313,7 @@ justfile          `just check` + check-*; proto, up/down, brain-serve, seam-heal
                   backlog (regenerate each backlog index from its task files), shuffle (every
                   suite at one chosen seed, the sweep the gate's own fixed seed never draws,
                   ADR-0002)
-                  (`just check` runs the eight cross-tree scans before the per-tree ones;
+                  (`just check` runs the nine cross-tree scans before the per-tree ones;
                   `turn-cost` is the A/B/A live measurement, where the container restarts
                   between arms live, ADR-0038; `image-volumes` is the hand-run docker
                   re-derivation of the record `check-volumecheck` reads, ADR-0011)
