@@ -1,20 +1,14 @@
 """The couplings around the subagent tier's container: what a spawn is charged, what the container
-running it is given, and the reasoning-off pair every server in it starts with.
+running it is given, and the count that says its servers do no thinking at all.
 """
 
 from couplings import Constant, Mention, Site, Spelling
 
 SUBAGENTS_COMPOSE = "docker/docker-compose.subagents.yml"
-ROSTER_COMPOSE = "docker/docker-compose.subagents-roster.yml"
 MODELHOST_CONFIG = "brain/packages/model_manager/src/cortex_model_manager/config.py"
 SUBAGENTS_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config_subagents.py"
-
-REASONING_OFF_PAIR = (
-    '- "--chat-template-kwargs"\n'
-    "      - '{\"enable_thinking\": false}'\n"
-    '      - "--reasoning-budget"\n'
-    '      - "{value}"'
-)
+FLAG_GATE = "scripts/flagcheck.py"
+SUBAGENTS_RUNBOOK = "docs/runbooks/subagents-cpu.md"
 
 SUBAGENT_COUPLINGS: tuple[Constant, ...] = (
     Constant(
@@ -96,21 +90,22 @@ SUBAGENT_COUPLINGS: tuple[Constant, ...] = (
         ),
     ),
     Constant(
-        label="the subagent tier's reasoning-off flag pair",
+        label="the subagent tier's reasoning-off budget",
         why=(
-            "every subagent server this repo starts carries both `--chat-template-kwargs` and "
-            "`--reasoning-budget 0`, because neither flag alone covers both request shapes the "
-            "tier serves: the kwarg is what a chat template reads on a plain request, and the "
-            "budget is what reaches the constrained shape every tool-less subagent decodes into "
-            "the fixed envelope, where the kwarg was measured to stop holding. A server started "
-            "with half the pair spends its whole token cap on a trace no reader ever sees and "
-            "answers a cap refusal, which is a defect whose only symptom is a slow subagent "
-            "(ADR-0005 switch-is-advisory addendum)"
+            "the count under `--reasoning-budget` is what says a narrow subtask wants no thought "
+            "rather than a short one, and three places spell it: the argv the model host starts "
+            "its own hosted subagent tier with, the value the flag gate requires of every "
+            "subagent server the compose stack starts, and the subagent runbook, which both "
+            "states the pair to check on any tier's argv and hands an operator a `docker run` "
+            "that starts a server with it. Retuning one leaves two halves of one tier under two "
+            "answers to what thinking costs, and an operator bringing up a server the shipped "
+            "stack would not (ADR-0005 switch-is-advisory addendum)"
         ),
         sites=(Site(MODELHOST_CONFIG, "_NO_REASONING_BUDGET"),),
         mentions=(
-            Mention(SUBAGENTS_COMPOSE, REASONING_OFF_PAIR),
-            Mention(ROSTER_COMPOSE, REASONING_OFF_PAIR),
+            Mention(FLAG_GATE, 'Flag("--reasoning-budget", "{value}")'),
+            Mention(SUBAGENTS_RUNBOOK, "`--reasoning-budget {value}`"),
+            Mention(SUBAGENTS_RUNBOOK, "\n  --reasoning-budget {value}\n"),
         ),
     ),
 )

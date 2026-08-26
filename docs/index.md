@@ -513,8 +513,10 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
     what a runbook's log line claims and the `logcalls` reading of what the call really
     attaches), `rostercheck.py` (with the `rosters` registry of which lists a document keeps, the
     `rosternames` reading of what a page names, the `rostermembers` reading of what the tree
-    holds and the `scanrecipes` reading of which scans this repo actually runs) and
-    `backlogcheck.py` (with the `backlog` grammar, the `backlogindex` renderer, the
+    holds and the `scanrecipes` reading of which scans this repo actually runs),
+    `flagcheck.py` (with the `subagentservers` derivation of which servers a composed stack
+    starts as subagents and the `composestarts` reading of what each service is started with)
+    and `backlogcheck.py` (with the `backlog` grammar, the `backlogindex` renderer, the
     `backloganchors` pointer reader and the `headingshapes` refusals under it). **Beside them**
     sit the coverage gate, the CI path classifier, the commit-message CLI, and the contrast
     reading `just turn-cost` prints.
