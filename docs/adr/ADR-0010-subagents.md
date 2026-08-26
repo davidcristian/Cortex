@@ -170,10 +170,12 @@ flag, plain requests answer directly in ~0.3-0.6 s and the live delegation test 
 (`--reasoning-budget 0` did **not** work on this build. It still produced reasoning; only
 `--chat-template-kwargs` / the per-request `enable_thinking` disabled it.)
 
-**Revised 2026-08-26 (ADR-0005 thinking-lever addendum).** Both halves of the paragraph above were
-measured on the Qwen-2B pick, and the lineup's default entry is now a gemma-4-E\*, whose template
-this same paragraph says ignores the kwarg. It does, and the consequence went unnoticed for as long
-as nothing on the tier asked the model to deliberate: once a request carries a `response_format`,
+**Revised 2026-08-26 (ADR-0005 thinking-lever addendum), and corrected 2026-08-27 (ADR-0005
+switch-is-advisory addendum): the E4B template does read the kwarg.** Measured on the pick itself
+with no server flags at all, a plain request writes 654 characters of trace without the switch and
+none with it, so the parenthesis above ("the kwarg is ignored by non-reasoning templates like
+gemma-4-E\*") is wrong about this family and the revision below inherited it. What is right is the
+consequence, which is the shape rather than the template: once a request carries a `response_format`,
 which is every reply a tool-less subagent decodes into the fixed envelope (ADR-0028), the E4B pick
 writes a full reasoning trace with the kwarg set at the server, at the request, and at both. On a
 current image `--reasoning-budget 0` does work and is what reaches that shape, so every subagent

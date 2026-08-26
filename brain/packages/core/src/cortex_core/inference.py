@@ -129,12 +129,28 @@ class GenerationBounds:
 
     Two knobs that only make sense together, which is why they are one value rather than two
     keywords. ``max_tokens`` caps what the server will decode for this request; ``thinking``
-    ``False`` asks the chat template to skip the model's deliberation entirely. A reasoning model
-    spends its budget on thinking *first*, so a cap without the switch does not shorten the reply,
-    it deletes it: measured against the shipped cortex on a summarization prompt, ``max_tokens``
-    160 and 256 with thinking on both came back ``finish_reason: "length"`` carrying 624 and 988
-    characters of ``reasoning_content`` and an **empty** ``content``. Pairing them is what makes a
-    cap sized from the wanted answer safe.
+    ``False`` asks the deployment's chat template to skip the model's deliberation. A reasoning
+    model spends its budget on thinking *first*, so a cap without the switch does not shorten the
+    reply, it deletes it: measured against the shipped cortex on a summarization prompt,
+    ``max_tokens`` 160 and 256 with thinking on both came back ``finish_reason: "length"`` carrying
+    624 and 988 characters of ``reasoning_content`` and an **empty** ``content``.
+
+    **``thinking`` is a request and not a guarantee** (ADR-0005 switch-is-advisory addendum). It
+    renders as ``chat_template_kwargs: {"enable_thinking": false}``, which reaches a template this
+    value knows nothing about, and whether the model then skips its trace was measured to depend on
+    the shape of the request carrying it: on the shipped cortex pick the switch holds plain and
+    constrained alike, and on the shipped subagent pick it holds on a plain request and does
+    nothing at all on one carrying a ``response_format``, where the model deliberates through it
+    and spends the whole cap doing so. So what makes a cap sized from the wanted answer safe is a
+    **bounded trace**, of which this switch is the cheapest source and not a dependable one. The
+    dependable one is the tier's own ``--reasoning-budget`` (ADR-0005 trace-budget addendum), which
+    ends the thought at the engine whatever the model wants, and which every subagent server this
+    repo ships now carries at zero for exactly this reason.
+
+    Nothing here can tell a caller which side its deployment is on, so two things say it instead:
+    ``brain/packages/inference/tests/test_thinking_switch_live.py`` is the probe that answers it
+    per request shape, and ``drain_text`` logs it when a request that asked for no thinking is
+    answered with a trace anyway.
 
     The defaults are the deployment's own: no cap (llama-server's ``n_predict: -1``) and whatever
     the server's chat template does about thinking. So a caller that passes nothing gets the

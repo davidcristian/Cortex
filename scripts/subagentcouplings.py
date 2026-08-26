@@ -135,12 +135,13 @@ SUBAGENT_COUPLINGS: tuple[Constant, ...] = (
         label="the subagent tier's reasoning-off flag pair",
         why=(
             "every subagent server this repo starts carries both `--chat-template-kwargs` and "
-            "`--reasoning-budget 0`, because neither flag alone covers both lineup families: the "
-            "kwarg is what a Qwen chat template reads and what the gemma-4-E* templates ignore, "
-            "and the budget is what reaches the constrained request shape every tool-less "
-            "subagent decodes into the fixed envelope. A server started with half the pair spends "
-            "its whole token cap on a trace no reader ever sees and answers a cap refusal, which "
-            "is a defect whose only symptom is a slow subagent (ADR-0005 thinking-lever addendum)"
+            "`--reasoning-budget 0`, because neither flag alone covers both request shapes the "
+            "tier serves: the kwarg is what a chat template reads on a plain request, and the "
+            "budget is what reaches the constrained shape every tool-less subagent decodes into "
+            "the fixed envelope, where the kwarg was measured to stop holding. A server started "
+            "with half the pair spends its whole token cap on a trace no reader ever sees and "
+            "answers a cap refusal, which is a defect whose only symptom is a slow subagent "
+            "(ADR-0005 switch-is-advisory addendum)"
         ),
         # The one place a language this scan reads declares any of it: the hosted GPU tier's argv,
         # whose count was hoisted out of `_REASONING_OFF` to be readable at all. The entry sits

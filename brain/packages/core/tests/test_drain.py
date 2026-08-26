@@ -7,6 +7,7 @@ nothing. These tests watch that block's ``finally`` run on the happy path and on
 failure, and they pin the guard around ``aclose`` by draining a stream that has none.
 """
 
+import logging
 from collections.abc import AsyncIterator, Sequence
 from datetime import UTC, datetime
 
@@ -24,6 +25,9 @@ from cortex_core.inference import (
 from cortex_core.stops import StopLedger
 
 _AT = datetime(2026, 8, 6, tzinfo=UTC)
+# The logger the helper writes its one warning under, named here so a check reads that module's own
+# lines rather than whatever else a suite happened to log.
+_DRAIN_LOGGER = "cortex_core.drain"
 
 
 def _message() -> Message:
@@ -207,3 +211,91 @@ async def test_an_event_that_is_neither_text_nor_a_stop_is_dropped_with_a_ledger
     backend = _GeneratorBackend([ReasoningChunk("thinking out loud"), TextChunk("the answer")])
     assert await drain_text(backend, "cortex", [_message()], stops=ledger) == "the answer"
     assert ledger.capped is False
+
+
+def _unread(caplog: pytest.LogCaptureFixture) -> list[logging.LogRecord]:
+    """Every line this module wrote about a trace it dropped unread."""
+    return [record for record in caplog.records if record.name == _DRAIN_LOGGER]
+
+
+async def _drained(
+    caplog: pytest.LogCaptureFixture,
+    events: Sequence[InferenceEvent],
+    bounds: GenerationBounds | None,
+) -> tuple[str, list[logging.LogRecord]]:
+    """One drain, and whatever it said about the deliberation it was handed."""
+    caplog.clear()
+    caplog.set_level(logging.WARNING, logger=_DRAIN_LOGGER)
+    text = await drain_text(_GeneratorBackend(events), "cortex", [_message()], bounds=bounds)
+    return text, _unread(caplog)
+
+
+async def test_a_trace_arriving_despite_the_switch_is_reported_with_what_it_cost(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The deployment ignored the switch, so the drop is announced instead of silent.
+
+    This is the failure the line exists for (ADR-0005 switch-is-advisory addendum): the caller
+    paired a cap with a switch the template did not honour, so the model is spending that cap on a
+    trace nobody will read and the reply arrives short or empty. ``chars`` is what makes the line
+    a diagnosis rather than a hint, since the tokens are gone by the time anyone reads it.
+    """
+    text, records = await _drained(
+        caplog,
+        [ReasoningChunk("first I should"), ReasoningChunk(" consider"), TextChunk("Green Tea")],
+        GenerationBounds(max_tokens=32, thinking=False),
+    )
+    assert text == "Green Tea", "the reply must be returned exactly as it was"
+    assert len(records) == 1
+    assert records[0].levelno == logging.WARNING
+    # ``extra`` lands in the record's own dict, which is where a formatter reads it from.
+    assert records[0].__dict__["model"] == "cortex"
+    assert records[0].__dict__["chars"] == len("first I should consider")
+
+
+async def test_a_switch_the_deployment_honoured_says_nothing(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The ordinary case, and the reason a line here means the one thing.
+
+    A tier that skipped its deliberation, or one whose trace its own ``--reasoning-budget`` ended
+    at once, streams no reasoning at all, so nothing is dropped and nothing is said.
+    """
+    text, records = await _drained(
+        caplog, [TextChunk("Green Tea")], GenerationBounds(max_tokens=32, thinking=False)
+    )
+    assert text == "Green Tea"
+    assert records == []
+
+
+async def test_a_trace_nobody_asked_against_is_dropped_as_quietly_as_ever(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Both ways of not asking: bounds that left thinking on, and no bounds at all.
+
+    Every ``drain_text`` caller discards deliberation by construction, so a trace here is unread
+    whatever the request said. What makes it worth a line is only that the request asked against
+    it, and these two did not.
+    """
+    trace = [ReasoningChunk("thinking out loud"), TextChunk("a title")]
+    _, thinking_on = await _drained(caplog, trace, GenerationBounds(max_tokens=32))
+    _, unbounded = await _drained(caplog, trace, None)
+    assert thinking_on == []
+    assert unbounded == []
+
+
+async def test_a_completion_that_failed_partway_describes_nothing(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A stream that died mid-trace says nothing, there being no completion to describe.
+
+    The same stance the rank's two warnings take: a backend that could not answer is reported by
+    the caller that catches ``InferenceError``, and reading a partial trace as a deployment
+    ignoring the switch would blame a template for a dead server.
+    """
+    caplog.clear()
+    caplog.set_level(logging.WARNING, logger=_DRAIN_LOGGER)
+    backend = _GeneratorBackend([ReasoningChunk("first I should"), TextChunk("x")], fail_after=1)
+    with pytest.raises(InferenceError):
+        await drain_text(backend, "cortex", [_message()], bounds=GenerationBounds(thinking=False))
+    assert _unread(caplog) == []

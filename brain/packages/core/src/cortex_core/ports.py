@@ -100,7 +100,14 @@ class InferenceBackend(Protocol):
     without the caller re-threading it, which is why the port did not have to change at all.
     ``bounds`` (ADR-0038 cheap-fold addendum) is how far this one request lets the model go, per
     REQUEST because one resident cortex both answers the user, where deliberation earns its wait,
-    and folds a recap, where it is discarded unread. Failures surface as ``InferenceError``, at a
+    and folds a recap, where it is discarded unread.
+    **A ``bounds`` asking for no thinking is passed on and never enforced** (ADR-0005
+    switch-is-advisory addendum): an implementation asks its deployment and reports what came back,
+    so a trace that arrived despite the switch still crosses as ``ReasoningChunk`` rather than
+    being filtered into the silence the caller asked for. That stream is the caller's only evidence
+    that the switch did not hold, and a deployment where it does not is one whose cap paired with
+    the switch deletes the reply, so an implementation that swallowed the trace would leave that
+    failure with nothing at all to read. Failures surface as ``InferenceError``, at a
     moment the port leaves open: an implementation may fail before it hands back an iterator or on
     the first event of one, and both shapes are live in this tree.
     **A backend whose engine says why a completion ended closes it with one ``DecodeStop``**

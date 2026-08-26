@@ -16,6 +16,9 @@ or an order:
   any of it;
 - a reasoning model's deliberation crosses as its own kind and none of it arrives after the reply
   has begun;
+- a deliberation that arrived despite a request asking for none crosses all the same, an
+  implementation reporting what its deployment did rather than filtering it into the silence the
+  caller asked for;
 - a tool call crosses whole, its id, name and arguments one value, never the fragments a wire
   splits it into;
 - a tool call never precedes the words beside it, which is the promise the port's own word
@@ -48,7 +51,11 @@ on the events that came out of ``stream``, never on how the implementation got t
 The served-model check needs no fifth builder, and that is the point of writing it this way: every
 builder here stands for a deployment that serves ``CONTRACT_MODEL`` and nothing else, the adapter's
 because its manager is constructed with that one resident and the twin's because it is told the
-same, so asking any of them for ``UNSERVED_MODEL`` is already the world the check wants.
+same, so asking any of them for ``UNSERVED_MODEL`` is already the world the check wants. The
+ignored-switch check needs none either, for the same reason read the other way: ``deliberating`` is
+a deployment that thought, and asking *it* for no thinking is exactly the world where a switch went
+unhonoured, which is a real deployment and not a hypothetical (ADR-0005 switch-is-advisory
+addendum).
 """
 
 import asyncio
@@ -59,6 +66,7 @@ from datetime import UTC, datetime
 from cortex_core import (
     DecodeCadence,
     DecodeStop,
+    GenerationBounds,
     InferenceBackend,
     InferenceError,
     InferenceEvent,
@@ -116,9 +124,14 @@ def _messages() -> list[Message]:
     return [Message(role=Role.USER, text="what is the answer", at=_AT, turn_id="t-1")]
 
 
-async def events_of(backend: InferenceBackend, model: str = CONTRACT_MODEL) -> list[InferenceEvent]:
+async def events_of(
+    backend: InferenceBackend,
+    model: str = CONTRACT_MODEL,
+    *,
+    bounds: GenerationBounds | None = None,
+) -> list[InferenceEvent]:
     """Drive one completion to exhaustion and return everything it yielded, in order."""
-    return [event async for event in backend.stream(model, _messages())]
+    return [event async for event in backend.stream(model, _messages(), bounds=bounds)]
 
 
 def _text(events: Sequence[InferenceEvent]) -> str:
@@ -155,6 +168,30 @@ async def check_thinking_arrives_apart_and_before_the_reply(subject: BackendUnde
     thinking_at = [i for i, event in enumerate(events) if isinstance(event, ReasoningChunk)]
     text_at = [i for i, event in enumerate(events) if isinstance(event, TextChunk)]
     assert max(thinking_at) < min(text_at), f"thinking must precede the reply: {events!r}"
+
+
+async def check_a_deliberation_the_request_asked_against_still_crosses(
+    subject: BackendUnderTest,
+) -> None:
+    """Asked for no thinking and answered with a trace anyway, an implementation hands it over.
+
+    ``GenerationBounds(thinking=False)`` is a request to the deployment's chat template and not a
+    guarantee about the model: measured live, the shipped subagent pick honours it on a plain
+    request and deliberates straight through it on one carrying a ``response_format``, spending the
+    whole of a paired cap on the trace and returning an empty reply (ADR-0005 switch-is-advisory
+    addendum). What the port owes in that world is the evidence. A caller cannot ask a template
+    what it did, so a trace arriving after the switch was sent is the only thing that says the
+    switch did not hold, and an implementation that filtered it here to make the port look truthful
+    would leave the failure with nothing to read at all: an empty reply, a cap, and silence where
+    the tokens went.
+
+    The reply is asserted beside it because the obligation is to report and not to react. Nothing
+    about the request changes when a deployment ignores it, so the completion is the same
+    completion, and an implementation may not start refusing, retrying or truncating one.
+    """
+    events = await events_of(subject.deliberating(), bounds=GenerationBounds(thinking=False))
+    assert _thinking(events) == CONTRACT_THINKING, f"the ignored switch hid the trace: {events!r}"
+    assert _text(events) == CONTRACT_REPLY, f"the reply did not survive the switch: {events!r}"
 
 
 async def check_a_tool_call_crosses_the_port_assembled(subject: BackendUnderTest) -> None:
@@ -284,6 +321,7 @@ type StreamCheck = Callable[[BackendUnderTest], Awaitable[None]]
 STREAM_CHECKS: tuple[StreamCheck, ...] = (
     check_the_reply_is_its_text_deltas_joined_in_order,
     check_thinking_arrives_apart_and_before_the_reply,
+    check_a_deliberation_the_request_asked_against_still_crosses,
     check_a_tool_call_crosses_the_port_assembled,
     check_a_tool_call_never_precedes_the_words_beside_it,
     check_the_closing_events_arrive_once_each_and_in_one_order,

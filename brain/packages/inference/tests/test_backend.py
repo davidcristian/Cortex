@@ -343,8 +343,11 @@ async def test_bounds_render_as_a_token_cap_and_a_no_thinking_template_kwarg() -
 
     ``max_tokens`` overrides llama-server's own ``n_predict: -1`` for this call, and
     ``chat_template_kwargs`` is the per-request twin of the ``--chat-template-kwargs`` the
-    subagent tier bakes into its compose command; ``--reasoning-budget 0`` does not work on
-    this build, so this is the key that does.
+    subagent tier bakes into its compose command. It is the only thinking lever a request has:
+    ``--reasoning-budget`` is read off a server's argv and ignored on a request body, measured in
+    both directions (ADR-0005 trace-budget addendum), so what this pins is that the one key a
+    request can carry is carried, and whether the deployment then honours it is not the adapter's
+    to promise (ADR-0005 switch-is-advisory addendum).
     """
     captured: dict[str, object] = {}
 

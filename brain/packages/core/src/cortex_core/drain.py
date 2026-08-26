@@ -12,12 +12,21 @@ in-turn side call (the session title, a model-based recall rank) releases the le
 the code rather than at the mercy of the collector.
 """
 
+import logging
 from collections.abc import AsyncGenerator, Sequence
 
 from cortex_core.conversation import Message
-from cortex_core.inference import DecodeStop, GenerationBounds, JsonSchema, TextChunk
+from cortex_core.inference import (
+    DecodeStop,
+    GenerationBounds,
+    JsonSchema,
+    ReasoningChunk,
+    TextChunk,
+)
 from cortex_core.ports import InferenceBackend
 from cortex_core.stops import StopLedger
+
+_logger = logging.getLogger(__name__)
 
 
 async def drain_text(
@@ -42,6 +51,18 @@ async def drain_text(
     caller to decide about, and the stream is closed on that path too, which is the whole reason
     this exists.
 
+    **A trace that arrives despite ``thinking=False`` is dropped with a line rather than in
+    silence** (ADR-0005 switch-is-advisory addendum). That switch is a request to the deployment's
+    chat template and not a guarantee about the model, and where it goes unhonoured every caller
+    here is holding a cap sized on the wanted answer while the model spends it thinking, so the
+    reply comes back empty or cut with the tokens unaccounted for. This is the one place that sees
+    both halves of that, the request that asked and the trace that came back, and it is the place
+    the trace is destroyed, so the line is written here and says how many characters went unread.
+    Nothing else changes: the text is returned exactly as before, because a deployment that ignores
+    the switch is something an operator fixes at the tier (``--reasoning-budget 0``) and not
+    something a side call can react to. A completion that fails part way says nothing, there being
+    no completion to describe, which is the stance the rank's own two warnings take.
+
     ``stops`` is the optional collaborator that receives the closing ``DecodeStop``, threaded the
     way ``ToolLoopContext`` threads one into ``stream_tool_loop`` and for the same reason: why a
     completion ended is a fact about the machine that stopped it rather than something the model
@@ -58,15 +79,25 @@ async def drain_text(
     Six arguments is ruff's ceiling here, deliberately reached rather than approached: a seventh
     collaborator wants a bundle (the ``ToolLoopContext`` move), not another keyword.
     """
+    asked_against = bounds is not None and not bounds.thinking
     stream = backend.stream(model, messages, schema=schema, bounds=bounds)
     parts: list[str] = []
+    unasked = 0
     try:
         async for event in stream:
             if isinstance(event, TextChunk):
                 parts.append(event.text)
+            elif isinstance(event, ReasoningChunk) and asked_against:
+                unasked += len(event.text)
             elif isinstance(event, DecodeStop) and stops is not None:
                 stops.observe(event)
     finally:
         if isinstance(stream, AsyncGenerator):
             await stream.aclose()
+    if unasked:
+        _logger.warning(
+            "the model deliberated on a request that asked for no thinking, and the trace was "
+            "dropped unread",
+            extra={"model": model, "chars": unasked},
+        )
     return "".join(parts)

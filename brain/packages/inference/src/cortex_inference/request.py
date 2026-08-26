@@ -93,8 +93,14 @@ def build_payload(
     ``bounds`` renders as two independent keys. ``max_tokens`` is the OpenAI field llama-server
     reads as ``n_predict`` for this request, overriding the server's own ``-1``.
     ``chat_template_kwargs: {"enable_thinking": false}`` is the per-request half of the lever the
-    subagent tier takes per server (``--chat-template-kwargs``, ADR-0010); the other documented
-    lever, ``--reasoning-budget 0``, does not work on this build, so this is the one that does.
+    subagent tier takes per server (``--chat-template-kwargs``, ADR-0010). It is the only half a
+    request has, and it is advisory: measured on the two shipped picks it holds on a plain request
+    and, on the subagent pick, does nothing at all once the request carries a ``response_format``,
+    the model deliberating straight through it (ADR-0005 switch-is-advisory addendum). The lever
+    that holds whatever the request looks like is the tier's own ``--reasoning-budget``, and this
+    adapter deliberately cannot send it: llama.cpp reads that count off the server's argv and
+    ignores it on a request body, measured in both directions (ADR-0005 trace-budget addendum), so
+    a payload key for it would be a knob that lies.
     A ``thinking=True`` bound emits no key at all rather than an explicit ``true``: the server's
     template default is what a user-facing reply already gets, and saying so louder would change
     the request for every deployment whose template spells the flag differently.

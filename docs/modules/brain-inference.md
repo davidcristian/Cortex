@@ -147,11 +147,24 @@ with the cause chained:
   `TRUNCATED` outcome (ADR-0005 tool-call-cut addendum). It needs a server started the way a
   subagent tier is, deliberation off at the server, since the attempt sends no `thinking` of its
   own.
-- **What the streaming list holds is what a stream owes, said without saying when.** Nine checks
+- **`tests/test_thinking_switch_live.py` is the probe for whether a deployment honours
+  `thinking=False` at all** (`integration`-marked, ADR-0005 switch-is-advisory addendum). One
+  prompt four ways against one endpoint, plain and carrying `REPLY_ENVELOPE`, each with the switch
+  and without it, answering per request shape rather than per tier because that is how the answer
+  came out: measured on the two shipped picks, both honour it plain and the E4B pick deliberates
+  straight through it under a `response_format`. It wants a server started with **neither**
+  `--chat-template-kwargs` nor `--reasoning-budget`, both of those being the deployment answering
+  for the model, and it **asserts its control**: the arms that send no switch must deliberate, or
+  the prompt invited no thought and the run is thrown away rather than read. That assertion is the
+  whole difference between it and the two earlier readings of the same question.
+- **What the streaming list holds is what a stream owes, said without saying when.** Ten checks
   over four worlds a fixture arranges (a reasoning model answering, a completion that asks for a
   tool, a completion with nothing to say, a backend that cannot answer): the reply is its deltas
   joined in arrival order; the thinking crosses as its own kind and is over before the reply
-  starts; a tool call crosses whole; a tool call never precedes the words beside it; the two
+  starts; a deliberation that arrived despite a request asking for none crosses all the same, an
+  implementation reporting what its deployment did rather than filtering it into the silence the
+  caller asked for (ADR-0005 switch-is-advisory addendum); a tool call crosses whole; a tool call
+  never precedes the words beside it; the two
   closing events arrive at most once each with the stop first and both after what they describe; a
   completion with nothing to say owes no event at all; an abandoned completion costs the backend
   nothing, the next one arriving whole; a backend that cannot answer fails its caller with

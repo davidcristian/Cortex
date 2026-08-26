@@ -26,8 +26,8 @@ design, AGENTS.md gate 3).
 | `CORTEX_MMPROJ_FILE_CORTEX` | the multimodal projector, relative to the same dir. Setting it adds llama.cpp's `--mmproj` pair to the cortex tier's argv, which is what makes `GET /props` report `modalities.vision` and therefore what makes the brain advertise `capture_screen` (ADR-0029). Empty (the default) starts text-only. See `docs/runbooks/vision.md` | `google/gemma-4-12B-it-qat-q4_0-gguf/mmproj-gemma-4-12b-it-qat-q4_0.gguf` |
 | `CORTEX_IMAGE_MAX_TOKENS` | how many tokens one picture may occupy, and with it how much of a 4K screen the cortex can read. `1024` is the default, paired with `CORTEX_BODY_CAPTURE_MAX_EDGE=2048` on the brain; `0` hands the budget back to the model, which is the 266-token view that reads 13% of a 4K screen. See the legibility section below before changing it, and never set llama.cpp's `--image-max-tokens` by hand instead | `1024` |
 | `CORTEX_CTX_SIZE` | context window (KV size); **set it**. The model default (262144) alone eats ~8 GB | `16384` |
-| `CORTEX_REPLY_THINKING` | keeps the model's deliberation on for a user's own reply. `false` skips it, which is the lever for the wait rather than for the length: measured on the shipped cortex the whole of 11.8 to 18.1 s before the first word is the trace, against 0.4 s with it off for an answer of the same size. It costs the answer's quality on hard questions and empties the thinking status the overlay renders | `true` |
-| `CORTEX_REPLY_MAX_TOKENS` | caps how far each completion of a user's turn decodes. `0` sends no cap and leaves the real bound at the context window. **Never set this against an unbounded trace:** a reasoning model spends its budget on thinking first, and `max_tokens: 512` with thinking left on returned an empty reply 3 of 3 on this cortex. Pair it with `CORTEX_REPLY_THINKING=false`, or with a `CORTEX_REASONING_BUDGET` that leaves the cap room to answer in (at a budget of 128, the same 512-token cap returned 1488 and 1561 characters of reply). Whatever cuts a reply, this or the context window, the turn now says so under the text | `0` |
+| `CORTEX_REPLY_THINKING` | keeps the model's deliberation on for a user's own reply. `false` skips it, which is the lever for the wait rather than for the length: measured on the shipped cortex the whole of 11.8 to 18.1 s before the first word is the trace, against 0.4 s with it off for an answer of the same size. It costs the answer's quality on hard questions and empties the thinking status the overlay renders. `false` is a **request** to the pick's chat template and not a guarantee about the model, so check yours before pairing it with a cap ("Whether your own pick honours the switch at all", below) | `true` |
+| `CORTEX_REPLY_MAX_TOKENS` | caps how far each completion of a user's turn decodes. `0` sends no cap and leaves the real bound at the context window. **Never set this against an unbounded trace:** a reasoning model spends its budget on thinking first, and `max_tokens: 512` with thinking left on returned an empty reply 3 of 3 on this cortex. Pair it with a `CORTEX_REASONING_BUDGET` that leaves the cap room to answer in, or, once you have checked that your pick honours it, with `CORTEX_REPLY_THINKING=false` (at a budget of 128, the same 512-token cap returned 1488 and 1561 characters of reply). Whatever cuts a reply, this or the context window, the turn now says so under the text | `0` |
 | `CORTEX_REASONING_BUDGET` | how many tokens the **cortex tier** may spend thinking before the engine closes the thought and makes it answer. The middle of the dial the two knobs above are the ends of: they say whether to think, this says how long. `-1` (the default) emits no flag and leaves the trace unbounded; `0` ends every think immediately, for every request the tier serves; `N > 0` is a token budget. Measured on the cortex pick, one open question per arm: unrestricted spends 2323 to 2996 chars of trace and 10.1 to 12.6 s before the first word, `512` about 2000 chars and 8.4 to 9.2 s, `128` about 500 chars and 1.7 to 2.6 s, `0` none and 0.2 s, and the reply is the same size in all four. See the thinking-budget section below | `-1` |
 | `CORTEX_REASONING_BUDGET_BRAIN` | the same knob for the **deep tier**, separate because the two are read on opposite arguments: the cortex answers while somebody watches, and the deep model was picked for reaching an answer inside its trace at all (ADR-0004) | `-1` |
 | `CORTEX_NGL` | GPU layers to offload: `99` = all, `0` = CPU-only, partial = hybrid (ADR-0004 addendum) | `99` |
@@ -310,6 +310,34 @@ five machines, a train timetable sum, an ages puzzle) came back right in all thr
 `128` and `0`, so they price the latency and say nothing about the ceiling. Start at `512` on a
 tier a user reads, and treat a lower count as a trade to be checked against your own hard
 questions.
+
+### Whether your own pick honours the switch at all (agent-runnable)
+
+Reading 4 above holds for the cortex pick and is **not a property of the switch**. Turning thinking
+off per request asks the deployment's chat template to skip the deliberation, and whether the model
+then does was measured to depend on the pick and on the shape of the request carrying it: on the
+shipped cortex it holds plain and under a `response_format` alike, and on the shipped subagent pick
+it holds plain and does nothing at all under a `response_format`, where the model deliberates
+through it and spends the whole of a paired cap on the trace (ADR-0005 switch-is-advisory addendum).
+
+That matters here because `CORTEX_REPLY_MAX_TOKENS` paired with `CORTEX_REPLY_THINKING=false` is
+exactly such a pairing, and so are the bounds the title, the recap and the recall rank send, the
+last of those carrying a schema of its own. On a pick that ignores the switch, each of them returns
+an empty reply instead of a short one.
+
+Ask your own tier rather than assuming, with a server started with **neither** reasoning flag:
+
+```
+cd brain && CORTEX_THINKING_ENDPOINT=http://127.0.0.1:8080 \
+  uv run pytest -m integration --no-cov -s \
+  packages/inference/tests/test_thinking_switch_live.py
+```
+
+It prints a verdict per request shape. If either says the switch does nothing, the repair is this
+section's own knob rather than the switch: set `CORTEX_REASONING_BUDGET=0` (or a count) so the
+engine ends the thought whatever the template was told, which is what every subagent server here
+already carries. The brain also says so at runtime now, one `WARNING` per side call from
+`cortex_core.drain` naming the `model` and the `chars` of trace it dropped unread.
 
 ## Framing-efficacy probe (Slice 6.5 / ADR-0013, agent-runnable)
 

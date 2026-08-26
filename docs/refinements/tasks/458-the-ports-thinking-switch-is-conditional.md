@@ -1,6 +1,6 @@
 # The port's thinking switch holds on one request shape and silently does nothing on another
 
-**Status:** open, actionable
+**Status:** landed 2026-08-27
 **Area:** inference
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
 
@@ -33,3 +33,36 @@ left unbudgeted and read whether the reply survives its cap. Then say in the por
 what the field is: a request for a template that reads it, and not a guarantee. If the answer is
 that the cortex family ignores it too, the honest repair is the one the subagent tier just took, a
 tier-level `--reasoning-budget` the deployment sets, and the field's docstring should point at it.
+
+## Trail
+
+- 2026-08-26: opened by the close of
+  [R-456](456-a-constrained-request-loses-the-thinking-lever.md), as the residue of a fix that was
+  built on this switch, measured to do nothing, and reverted.
+- 2026-08-27: Landed, with **the paragraph above corrected on its own subject**. The claim in the
+  title is right and its stated reason is wrong, and so was the correction R-456 replaced it with.
+  Measured through a new committed probe against both shipped picks, each server started with
+  neither `--chat-template-kwargs` nor `--reasoning-budget`, one prompt sent four ways: the E4B
+  template **does** read the kwarg, writing 654 characters of trace without the switch and none
+  with it on a plain request, and it is the `response_format` that costs the switch its effect (599
+  without, **664 with**). The cortex pick honours it in both shapes (735 / 0 and 685 / 0). So it is
+  the request's shape after all, and not the template, and the reading that concluded otherwise had
+  taken its plain arm on a prompt that produced no trace even with no switch set, which cannot tell
+  a suppressed deliberation from an absent one. The probe asserts that control now.
+  The four shipped bounds are safe where they run: all four were re-measured live on the unbudgeted
+  cortex tier, the rank's cap-plus-schema-plus-switch included, and each is still the cheap arm
+  (title 0.3 s against 4.1 s, recap 2.2 s against 8.2 s, rank 0.8 s per question against 7.5 s at an
+  unchanged MRR of 1.000).
+  What landed is the honesty rather than a behaviour change: `GenerationBounds.thinking` is
+  documented as a request and not a guarantee, with the pairing rule restated as needing a bounded
+  trace; `InferenceBackend` now owes the caller the evidence, a trace that arrived despite the
+  switch crossing as `ReasoningChunk` rather than being filtered away, held by a shared contract
+  check over the fake and the real adapter; and `drain_text`, the one place that sees both the
+  request that asked and the trace that came back, warns with the model and the characters it
+  dropped unread. Recorded in the ADR-0005 switch-is-advisory addendum, which also corrects the
+  thinking-lever addendum above it, ADR-0010's parenthesis about gemma-4-E\* templates, and
+  ADR-0038's line about `--reasoning-budget`.
+  Opened by it: [R-464](464-why-a-grammar-restores-the-trace.md) (the mechanism under the reading is
+  still unknown), [R-465](465-the-switch-across-the-lineup.md) (two picks are not a rule) and
+  [R-466](466-nothing-holds-a-cap-to-a-bounded-trace.md) (the pairing is reported at runtime and
+  still held by nothing).

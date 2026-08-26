@@ -249,9 +249,13 @@ class JudgeRecallPolicy:
             # with opposite fixes: True is ``rank_bounds`` running out mid-envelope, which wants a
             # wider bound or a smaller ``k``, and False is a model that ended by itself and wrote
             # something else. ``chars`` splits that second case again, ``0`` being a model that
-            # emitted no assistant text at all (a reasoning tier ignoring ``thinking=False``, whose
-            # deliberation ``drain_text`` drops unread) and any other length being text that
-            # arrived and was not the envelope, which is constrained decoding not holding. Both
+            # emitted no assistant text at all and any other length being text that
+            # arrived and was not the envelope, which is constrained decoding not holding. The
+            # first of those is no longer a guess: this request pairs a cap with ``thinking=False``
+            # AND a schema, which is the shape the switch was measured doing nothing on (ADR-0005
+            # switch-is-advisory addendum), and where that happens ``drain_text`` writes its own
+            # line naming the tier and the characters it dropped, so the two lines land together
+            # and this one need not carry the diagnosis alone. Both
             # ride the record alone: the entry point's formatter renders whatever a record
             # carries, so spelling them into the message too would print each of them twice.
             _logger.warning(

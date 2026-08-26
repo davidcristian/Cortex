@@ -101,10 +101,13 @@ class PlacedAttempt:
         # request shape for every completion of every attempt. ``thinking`` is left at its default,
         # which emits no key at all, so the pairing ADR-0038 insists on (a cap on a reasoning model
         # with thinking left ON deletes the reply rather than shortening it) is kept by the tier
-        # rather than by this request: every subagent server this repo ships starts with
-        # ``--chat-template-kwargs '{"enable_thinking": false}'`` (ADR-0010), and saying it again
-        # per request would change the request for a deployment whose template spells the flag
-        # differently.
+        # rather than by this request: every subagent server this repo ships starts with both
+        # ``--chat-template-kwargs '{"enable_thinking": false}'`` and ``--reasoning-budget 0``
+        # (ADR-0010), and it is the second of those that this attempt depends on. Its own requests
+        # carry a ``response_format`` whenever the run holds no dispatcher, and the key was measured
+        # doing nothing on that shape (ADR-0005 switch-is-advisory addendum), so sending it here
+        # would buy nothing while changing the request for a deployment whose template spells the
+        # flag differently.
         self._generation = (
             None if bounds.max_tokens is None else GenerationBounds(max_tokens=bounds.max_tokens)
         )

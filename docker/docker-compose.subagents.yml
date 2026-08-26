@@ -128,8 +128,10 @@ services:
       # minutes/call. Narrow subagents don't need it. The kwarg is the server-side twin of the
       # per-request enable_thinking=false, and the Qwen template honors it (~0.3-0.6 s on the
       # Qwen-2B override). The '17 + 25' -> '42' in ~1.8 s reading on the E4B pick, once read as
-      # validating the flag there too, validated nothing: that prompt invites no deliberation, and
-      # the E4B template does not read the kwarg at all. The E4B injection-robustness holds with
+      # validating the flag there too, validated nothing: that prompt invites no deliberation, so
+      # a template that reads the kwarg and one that ignores it look identical on it. Measured on a
+      # prompt that does invite one, the E4B template DOES read it, and only on a plain request
+      # (ADR-0005 switch-is-advisory addendum). The E4B injection-robustness holds with
       # thinking OFF (0/10, ADR-0004 injection addendum).
       #
       # TWO flags, and neither is redundant (ADR-0005 thinking-lever addendum). The kwarg is what

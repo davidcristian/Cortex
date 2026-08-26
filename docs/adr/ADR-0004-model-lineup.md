@@ -255,6 +255,15 @@ thinking off, ctx 8192, 2 slots):
   at the server, at the request, and at both. What the second and third sentences say still stands,
   and is now stronger: both families are reasoning-capable, and the flag they need on CPU is a pair,
   `--reasoning-budget 0` beside the kwarg.
+  **The first sentence is restored 2026-08-27 (ADR-0005 switch-is-advisory addendum), with the
+  shape named.** The correction above threw out the right claim with the bad validation. Measured on
+  a prompt that does invite deliberation, on a server carrying neither reasoning flag, the E4B
+  template honours the kwarg on a **plain** request (654 characters of trace without it, none with
+  it) and the same key does nothing at all once the request carries a `response_format` (599
+  without, 664 with). So the correction's own example, an ordinary summarization made deliberative
+  by a `response_format`, is the one shape the kwarg never reaches on this pick, which is why it
+  read as a template that ignores the flag. The pair the tier ships is unchanged and is what
+  covers both shapes.
 - **Qwen3.5-2B remains the documented cheap override** (`CORTEX_MODEL_FILE_SUBAGENT`) when
   latency matters more than robustness; **Slice 8.6** (heterogeneous subagent models) still
   makes the choice per-task, with E4B as the safe default rather than the special case.

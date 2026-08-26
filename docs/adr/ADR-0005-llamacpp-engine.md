@@ -829,8 +829,10 @@ that tier spending 498 characters of trace and 2.2 s to its first word for a 484
 7. **The GPU-placed subagent tier gains nothing.** Its deliberation is already off at the
    template, so a positive count there would be a knob no env can make matter.
    **Superseded 2026-08-26 by the thinking-lever addendum below**, whose measurement is that the
-   premise is false: on the gemma-4-E\* pick the template ignores the kwarg, and the trace runs on
-   any request carrying a `response_format`. That tier now carries `--reasoning-budget 0`, a fixed
+   premise is false: the trace runs on any request carrying a `response_format`, which is every
+   reply a tool-less subagent decodes. (That addendum blamed the template, and the
+   switch-is-advisory addendum below corrects it: the template reads the kwarg fine, on a plain
+   request.) That tier now carries `--reasoning-budget 0`, a fixed
    zero rather than a count, so what stays true is the second half of this decision: a *positive*
    count there is still a knob no env can make matter.
 
@@ -1357,7 +1359,15 @@ that a `response_format` cancels the kwarg. It is that on this template the kwar
 suppresses the trace in the first place: ADR-0010 recorded that "the kwarg is ignored by
 non-reasoning templates like gemma-4-E\*", and the pick this tier ships is one. What the constrained
 shape changes is whether the model deliberates at all, and the key it was being asked to stop with
-had never been reading on this model. ADR-0010 records it working on the Qwen roster alternate,
+had never been reading on this model.
+
+> **Wrong, and corrected 2026-08-27 by the switch-is-advisory addendum below.** The paragraph above
+> is this addendum's one bad inference, and the table it rests on is why: its first row carried no
+> kwarg and produced **no trace**, so the model was not deliberating on that prompt in that shape,
+> and nothing under it can say what a key to stop a deliberation did. Measured on a prompt that does
+> invite one, the E4B template reads the kwarg on a plain request and the `response_format` is
+> exactly what costs it its effect, so the entry's own mechanism was right after all. Everything
+> else here stands: the fix, the readings, and the reason the per-request key bought nothing. ADR-0010 records it working on the Qwen roster alternate,
 which is the pick that addendum validated it against, and that reading is not re-taken here; what
 kept the two conclusions from being separated is that until the envelope landed, nothing on this
 tier asked the model to deliberate, so a template that read the kwarg and one that ignored it
@@ -1468,3 +1478,196 @@ Setting 'enable_thinking' via --chat-template-kwargs is deprecated. Use --reason
 
   So the older half of the pair is on a clock, and the replacement it names may well do the work of
   both. [R-461](../refinements/tasks/461-the-tiers-thinking-flag-is-deprecated.md).
+
+## Switch-is-advisory addendum (2026-08-27): which request shapes a thinking switch survives
+
+**Status:** Accepted. Closes
+[docs/refinements/tasks/458-the-ports-thinking-switch-is-conditional.md](../refinements/tasks/458-the-ports-thinking-switch-is-conditional.md),
+which the thinking-lever addendum above opened as its own residue, and **corrects that addendum's
+account of the defect it fixed**. The repair it shipped is right and does not move. The mechanism
+it wrote down is wrong, and the entry it opened was wrong about the same thing in the opposite
+direction, so both are re-derived here from a measurement neither of them took.
+
+### Re-derived first
+
+Read off the tree rather than off the entry. `build_payload` still renders `thinking=False` as
+`chat_template_kwargs: {"enable_thinking": false}` and a `thinking=True` bound as no key at all.
+Four shipped bounds still pair a cap sized on the wanted answer with that switch: `TITLE_BOUNDS`
+(32), `RECAP_BOUNDS` (512), `rank_bounds(k)` (24 + 8k, and the only one that also carries a schema,
+`ORDER_ENVELOPE`), and the cortex turn's own, which a deployment builds from
+`CORTEX_REPLY_MAX_TOKENS` and `CORTEX_REPLY_THINKING`. `drain_text` still drops every
+`ReasoningChunk` before its caller sees one. Nothing had moved.
+
+The entry's own worry, that the cortex family might ignore the kwarg the way the subagent pick was
+said to, is answered by the tree before any server is started: each of those four bounds was landed
+with a live before-and-after on the shipped cortex, and each shows the switch doing something large.
+Re-run today against the running tier, unbudgeted, they still do:
+
+| shape | with the switch | without it |
+| --- | --- | --- |
+| title, cap 32 | 0.3 / 0.3 / 0.3 s, same three titles | 4.1 / 4.4 / 3.2 s |
+| recap, cap 512 | 2.2 / 2.2 / 2.5 s, 378 / 380 / 398 chars | 8.2 / 9.5 / 6.0 s, 368 / 382 / 326 chars |
+| rank, cap 48 **and a schema** | 0.8 s per question, MRR 1.000, 0 fallbacks | 7.5 s per question, MRR 1.000 |
+
+The rank row is the one the entry was afraid of, a cap and a schema and the switch together, and on
+this tier it is the cheap arm that ships. So the four are safe where they run, and that is not what
+this addendum is about.
+
+### What a real server said
+
+The question the entry could not answer from the tree is whether the switch is conditional on the
+request's **shape**, which is what the thinking-lever addendum above denied. Measured 2026-08-27 by
+the agent through the committed probe
+(`brain/packages/inference/tests/test_thinking_switch_live.py`), which sends one prompt four ways
+against one server: plain and carrying `REPLY_ENVELOPE`, each with the switch and without it. Both
+servers were started with **neither** `--chat-template-kwargs` nor `--reasoning-budget`, since
+either one is the deployment answering the question for the model. One run per cell, at a cap of
+256, reading trace characters then reply characters:
+
+| tier | plain, no switch | plain, switch | envelope, no switch | envelope, switch |
+| --- | --- | --- | --- | --- |
+| cortex, gemma-4-12B QAT q4_0, `-ngl 99 -c 16384` | 735, 0 | 0, 693 | 685, 0 | **0, 611** |
+| subagent, gemma-4-E4B QAT q4_0, `-ngl 0 -c 8192` | 654, 0 | 0, 726 | 599, 0 | **664, 0** |
+
+Four readings decide everything below.
+
+1. **The switch is conditional on the request's shape, and the entry was right.** On the E4B pick
+   the same key, on the same server, in the same minute, suppresses the whole trace on a plain
+   request and suppresses nothing at all under a `response_format`, where the model deliberates
+   through it and spends the entire cap doing so. That last cell is the defect the envelope
+   addendum measured, reproduced in isolation: 664 characters of trace, zero of reply, capped.
+2. **It is not the plumbing.** The obvious explanation, that a `response_format` costs a request
+   its `chat_template_kwargs` before any template sees them, is refuted by the cortex row: same
+   build, same adapter, same code path, and its constrained arm is silent. The key arrives. What
+   differs is what the pick does with a grammar in front of it.
+3. **The E4B template does read the kwarg**, which is the claim [ADR-0010](ADR-0010-subagents.md)
+   carried and the thinking-lever addendum leaned on. Its plain arm is 654 characters of trace
+   without the switch and none with it, on the identical prompt.
+4. **Both picks agree on the plain shape and disagree on the constrained one**, so neither
+   "the template reads it" nor "the shape decides it" is the whole rule. The honest statement is
+   the small one: whether a switch holds is decided behind the endpoint, per pick and per shape,
+   and no caller can see which.
+
+### Why the addendum above could not have seen this
+
+Its four-request probe read, at a cap of 40 on the harness's own summarization prompt:
+
+| request | reply | reasoning |
+| --- | --- | --- |
+| no `response_format`, no kwargs | 171 chars from 3.0 s | none |
+| `response_format`, no kwargs | none | a trace |
+| `response_format` + `chat_template_kwargs` | none | a trace |
+
+The first row is the whole of it. That arm carried **no switch** and produced **no trace**, so the
+model was not deliberating on that prompt in that shape, and the row below it could say nothing
+about a key whose only job is to stop a deliberation that would otherwise happen. From those rows
+the addendum concluded that the key "had never been reading on this model", which is the one
+inference they cannot support. It is the same trap the same section had just named one paragraph
+earlier about the `17 + 25` reading, and it was walked into with the trap written down.
+
+What makes the difference here is a prompt with a few steps in it and a **control that has to
+fire**: the arms that send no switch must deliberate, per shape, or the run is thrown away rather
+than read. That is an assertion in the probe and not a line of output, for exactly this reason.
+
+None of this changes what shipped. `--reasoning-budget 0` remains the only lever that reaches the
+constrained shape on the E4B pick, every subagent server still carries it, and the per-request key
+that was built and reverted would still have bought nothing. Only the sentence explaining why.
+
+### Decision
+
+1. **`GenerationBounds.thinking` stays a field and stops being a promise.** Its docstring says what
+   it is: a request to the deployment's chat template, honoured or not per pick and per request
+   shape, and never a guarantee about the model. The pairing rule it exists for is restated in the
+   terms the trace-budget addendum already used and this value had never caught up with: what makes
+   a cap sized on the wanted answer safe is a **bounded trace**, of which the switch is the cheapest
+   source and not a dependable one.
+2. **The port owes the caller the evidence.** `InferenceBackend` now says that a bound asking for no
+   thinking is passed on and never enforced, so a trace that arrived anyway still crosses as
+   `ReasoningChunk` rather than being filtered into the silence the caller asked for. That stream is
+   the only thing that can tell a caller the switch did not hold, and an implementation that
+   swallowed it to make the port look truthful would leave the failure with nothing to read at all:
+   an empty reply, a cap, and no account of where the tokens went. It is a shared contract check
+   over both implementations rather than a note.
+3. **`drain_text` says so out loud.** It is the one place that sees the request that asked and the
+   trace that came back, and it is the place the trace is destroyed, so a completion that
+   deliberated against the switch is dropped with a warning naming the model and the characters
+   nobody read. Every caller of it holds a cap sized on an answer, so this is exactly the population
+   at risk. The text is returned unchanged: the fix is a tier flag an operator sets, not something a
+   side call can react to.
+4. **The turn's own path deliberately gains nothing.** A user's reply renders its trace as the
+   thinking status the overlay shows (ADR-0020), so a deployment whose `CORTEX_REPLY_THINKING=false`
+   went unhonoured is already looking at the evidence. Silence is only a defect where the trace is
+   discarded unread, which is the three side calls and not the turn.
+5. **No adapter-side repair, and no capability probe.** Filtering the trace to honour the switch is
+   forbidden by decision 2. Asking the server what its template does is not available either:
+   `GET /props` reports the template, not what a pick does with a grammar in front of it, which is
+   the thing that varied here. The answer is a measurement, so the answer ships as a probe.
+6. **The probe is committed rather than run and written down.** `test_thinking_switch_live.py` is
+   integration-marked and out of CI, takes an endpoint, and answers per request shape with its
+   control asserted. A deployment that changes a pick can rerun it in one command, which is the
+   difference between this reading and the two before it.
+
+### The line, on a real tier
+
+Decision 3 was run rather than only unit tested, through the shipped `drain_text` against the same
+unbudgeted E4B server, twice:
+
+```
+WARNING cortex_core.drain: the model deliberated on a request that asked for no thinking, and
+the trace was dropped unread model=subagent chars=681
+reply: ''
+```
+
+That is the failure this whole addendum is about, said at the moment it happens: a schema, a cap of
+256, `thinking=False`, an empty reply, and 681 characters of trace nobody will ever see. The second
+run is the one that matters as much: the **shipped rank prompt** through the same `drain_text` with
+`ORDER_ENVELOPE` and `rank_bounds(3)` against the same server logged **nothing** and returned
+`{"order": [2, 0, 1]}`, correctly ordered. A rank asks for a placing rather than a derivation, so
+this pick does not deliberate over one even where it may, and the line stays what a line here should
+be: rare, and about one thing.
+
+### What this does not do, and where that is recorded
+
+- **Why the E4B deliberates under a grammar is not known**, only that it does and that the key
+  reaches its template. Separating the model's own behaviour from llama.cpp's choice of chat format
+  under a `response_format` needs the engine's side read rather than the wire's, and it would say
+  whether a deployment can ever have this back.
+  [R-464](../refinements/tasks/464-why-a-grammar-restores-the-trace.md).
+- **Two picks are not a rule.** Both are gemma-4 and one probe run each, so the shape of the split
+  (plain honoured, constrained not) is measured twice and generalised nowhere. The Qwen roster
+  alternate this repo also ships is unmeasured on it.
+  [R-465](../refinements/tasks/465-the-switch-across-the-lineup.md).
+- **Nothing gates the pairing.** A future bound that pairs a cap with the switch on a tier where it
+  does not hold is still written the same way and still fails at runtime; what changed is that the
+  runtime now says so. A check that a schema-carrying bound is only used against a tier with a
+  bounded trace would need the core to know a tier's argv, which it deliberately does not.
+  [R-466](../refinements/tasks/466-nothing-holds-a-cap-to-a-bounded-trace.md).
+
+### Distrust green
+
+Six mutations, each applied to production code alone with the named suite re-run, then reverted.
+The first two are over the 91 checks of the inference package suite
+(`brain/packages/inference/tests/`), the last four over the 1628 of the core suite
+(`brain/packages/core/tests/`).
+
+| mutation | reddens |
+| --- | --- |
+| the adapter filters the trace the switch asked against | **1** |
+| the adapter drops every reasoning delta | **3** |
+| the drain never reports an unread trace | **1** |
+| the drain reports every trace, asked against or not | **1** |
+| the drain counts deltas rather than characters | **1** |
+| a stream that died mid trace is reported as an ignored switch | **1** |
+
+The first two rows are the pair worth reading together. The targeted filter, which is the repair a
+well meaning adapter would reach for and the one decision 2 forbids, reddens **exactly one check**,
+`check_a_deliberation_the_request_asked_against_still_crosses` on the adapter's leg and nothing
+else: no existing check passes any bounds at all, so before this the whole tree was green on an
+adapter that quietly deleted the only evidence a caller has. Dropping reasoning outright reddens
+three, the two contract checks and the adapter's own reasoning case, which is what says the new
+check is aimed at something the old ones do not cover rather than restating them.
+
+The last row is the one the first draft got wrong. Moving the report inside the stream's `finally`
+looks harmless and turns a dead server into a template that ignores the switch, blaming a
+deployment for a transport failure; the check that a completion which failed part way describes
+nothing is what separates them.

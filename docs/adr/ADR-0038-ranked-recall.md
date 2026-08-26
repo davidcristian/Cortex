@@ -522,6 +522,14 @@ flag the subagent tier bakes into its compose command; the other documented leve
 `--reasoning-budget 0`, still does not work on this build, so this is the one that does. It was
 verified against the shipped cortex before any of it was written rather than assumed.
 
+**Corrected 2026-08-27** (ADR-0005 switch-is-advisory addendum): `--reasoning-budget` does work on
+a current image and is a token budget rather than a switch, but it is read off a server's argv and
+ignored on a request body, so it is still not a lever a request has. What is wrong above is only
+the reason. And the key this paragraph does send is a request to a template rather than a
+guarantee: on the shipped subagent pick it holds on a plain request and does nothing at all on one
+carrying a `response_format`. The four bounds this ADR ships all run on the cortex tier, where it
+was re-measured holding in both shapes.
+
 Per request rather than per server is the whole point. One resident cortex both answers the user,
 where deliberation earns its wait and the compose file deliberately leaves it on, and folds a
 recap, where the deliberation is discarded by construction. A server flag cannot tell those apart.
