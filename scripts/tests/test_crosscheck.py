@@ -1099,17 +1099,17 @@ def test_the_repo_itself_is_tied() -> None:
 #
 # The whole-repo assertion above says every entry holds today; it cannot say that any one of them
 # would notice the edit it was written for, because the tree is green and there is nothing to
-# notice. So the reasoning-off pair is read out of the registry and applied to a COPY of the real
-# files with one flag taken away, which is the fault it was filed for arriving as a diff.
+# notice. So the reasoning-off budget is read out of the registry and applied to a COPY of the
+# real files with one side retuned, which is the fault it was filed for arriving as a diff.
 
-REASONING_OFF = "the subagent tier's reasoning-off flag pair"
-SUBAGENTS_COMPOSE = "docker/docker-compose.subagents.yml"
-ROSTER_COMPOSE = "docker/docker-compose.subagents-roster.yml"
+REASONING_OFF = "the subagent tier's reasoning-off budget"
+FLAG_GATE = "scripts/flagcheck.py"
+MODELHOST_CONFIG = "brain/packages/model_manager/src/cortex_model_manager/config.py"
 
-# The two flags as a compose command spells them: four list items, the pair the tier must start
-# with. Each half is written here as its own text so a test can take exactly one away.
-KWARG_ITEMS = '      - "--chat-template-kwargs"\n      - \'{"enable_thinking": false}\'\n'
-BUDGET_ITEMS = '      - "--reasoning-budget"\n      - "0"\n'
+# The count as each side spells it: the sidecar declares it, and the flag gate requires it of
+# every subagent server the compose stack starts.
+DECLARED = '_NO_REASONING_BUDGET = "0"'
+REQUIRED = 'Flag("--reasoning-budget", "0")'
 
 
 def registered(label: str) -> couplings.Constant:
@@ -1139,64 +1139,46 @@ def copied(root: Path, constant: couplings.Constant, edits: dict[str, tuple[str,
         target.write_text(text, encoding="utf-8")
 
 
-def test_the_flag_pair_holds_over_the_files_it_names(tmp_path: Path) -> None:
+def test_the_reasoning_off_budget_holds_over_the_files_it_names(tmp_path: Path) -> None:
     """The copy with nothing edited is green, so every red below is the edit and not the copy."""
     constant = registered(REASONING_OFF)
     copied(tmp_path, constant, {})
     assert crosscheck.check_constant(tmp_path, constant) == []
 
 
-@pytest.mark.parametrize("compose", [SUBAGENTS_COMPOSE, ROSTER_COMPOSE])
-@pytest.mark.parametrize(("half", "items"), [("kwarg", KWARG_ITEMS), ("budget", BUDGET_ITEMS)])
-def test_a_subagent_server_started_with_one_of_the_two_flags_is_a_fault(
-    tmp_path: Path, compose: str, half: str, items: str
-) -> None:
-    """Either flag gone from either server is the defect this entry exists for.
-
-    The kwarg is ignored by the gemma template and the budget is what reaches it, so a server
-    carrying one of them starts a tier that spends its whole cap on a trace no reader ever sees.
-    Half a pair is the shape that fault arrives in, and it is why the two are held as one needle.
-    """
+def test_a_gate_requiring_a_budget_the_hosted_tier_does_not_ship_is_a_fault(tmp_path: Path) -> None:
+    """The compose servers and the sidecar's own tier are two halves of one tier, so a rule that
+    let them disagree about what no thinking costs would slow exactly one placement."""
     constant = registered(REASONING_OFF)
-    copied(tmp_path, constant, {compose: (items, "")})
-    faults = crosscheck.check_constant(tmp_path, constant)
-    assert [fault.label for fault in faults] == [REASONING_OFF], half
-    assert compose in faults[0].detail
-
-
-def test_a_server_left_at_a_budget_the_tier_does_not_ship_is_a_fault(tmp_path: Path) -> None:
-    """A zero retuned to a count is a tier that thinks briefly, which this pair refuses.
-
-    The other direction of the same coupling: the flags are both there and the number under one
-    of them is not the sidecar's. A narrow subtask wants no thought rather than a short one, so
-    the value is held as tightly as the two names around it.
-    """
-    constant = registered(REASONING_OFF)
-    budgeted = BUDGET_ITEMS.replace('"0"', '"128"')
-    copied(tmp_path, constant, {ROSTER_COMPOSE: (BUDGET_ITEMS, budgeted)})
+    copied(tmp_path, constant, {FLAG_GATE: (REQUIRED, REQUIRED.replace('"0"', '"128"'))})
     faults = crosscheck.check_constant(tmp_path, constant)
     assert [fault.label for fault in faults] == [REASONING_OFF]
-    assert "--reasoning-budget" in faults[0].detail
+    assert FLAG_GATE in faults[0].detail
 
 
-def test_the_pair_is_held_by_this_entry_and_not_by_a_neighbour(tmp_path: Path) -> None:
-    """Nothing else in the registry reads these lines, which is why the entry had to be written.
+def test_the_hosted_tier_retuned_on_its_own_is_the_same_fault_from_the_other_side(
+    tmp_path: Path,
+) -> None:
+    """The declaring side moving is what a needle is for: every far side goes on saying the zero
+    the sidecar has stopped shipping, so all three rendered needles stop being found at once."""
+    constant = registered(REASONING_OFF)
+    copied(tmp_path, constant, {MODELHOST_CONFIG: (DECLARED, DECLARED.replace('"0"', '"128"'))})
+    faults = crosscheck.check_constant(tmp_path, constant)
+    assert {fault.label for fault in faults} == {REASONING_OFF}
+    assert len(faults) == len(constant.mentions), faults
 
-    The interaction check: this tier's budgets were already registered before the flags were, so
-    a pair that some sibling entry happened to cover would be a second gate saying what one
-    already said. Every other entry is run over the doctored tree and none of them notices.
-    """
+
+def test_the_budget_is_held_by_this_entry_and_not_by_a_neighbour(tmp_path: Path) -> None:
+    """The interaction check: this tier's budgets were registered before its reasoning was, and a
+    number some sibling entry happened to cover would be a second gate saying what one already
+    said. Every other entry is run over the doctored tree and none of them notices."""
     pair = registered(REASONING_OFF)
     neighbours = tuple(
-        constant
-        for constant in crosscheck.CONSTANTS
-        if constant.label != REASONING_OFF
-        and any(mention.path == SUBAGENTS_COMPOSE for mention in constant.mentions)
+        constant for constant in crosscheck.CONSTANTS if constant.label != REASONING_OFF
     )
-    assert neighbours, f"nothing else spends a value in {SUBAGENTS_COMPOSE}, which cannot be right"
     for constant in neighbours:
         copied(tmp_path, constant, {})
-    copied(tmp_path, pair, {SUBAGENTS_COMPOSE: (BUDGET_ITEMS, "")})
+    copied(tmp_path, pair, {FLAG_GATE: (REQUIRED, "")})
     assert crosscheck.check(tmp_path, neighbours) == []
     assert [fault.label for fault in crosscheck.check(tmp_path, (pair,))] == [REASONING_OFF]
 

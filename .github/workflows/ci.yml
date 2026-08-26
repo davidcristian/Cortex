@@ -89,6 +89,9 @@ jobs:
   # that writes it, which is a docs tree against a Python one and so belongs to neither
   # job either; rostercheck.py holds every roster a document keeps to the set it
   # describes, which is a docs tree against two others and belongs to none of the jobs;
+  # flagcheck.py holds every subagent server the compose tree starts to the flags its
+  # tier requires, deriving that set from the stack's own wiring and argv, which reads
+  # docker/ against scripts/ and a runbook and so belongs to no toolchain either;
   # and backlogcheck.py holds each backlog index to its task files
   # (ADR-0039), which is docs-only and so would otherwise never run.
   cross-tree:
@@ -110,6 +113,7 @@ jobs:
       - run: just check-stubcheck
       - run: just check-samplecheck
       - run: just check-rostercheck
+      - run: just check-flagcheck
       - run: just check-backlog
 
   python:

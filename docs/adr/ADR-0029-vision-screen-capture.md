@@ -6084,3 +6084,142 @@ keeps the container's half and is 163 lines to the new file's 175,
 `scripts/registry.py`, which names and joins both,
 [modules/repo-gates.md](../modules/repo-gates.md) and [AGENTS.md](../../AGENTS.md), whose listings
 name the eleventh part, and this addendum.
+
+## Addendum (2026-08-27): a rule runs over a set the tree derives, not over a list somebody keeps
+
+The reasoning-off pair was held as one needle per named compose file, which is a claim about the
+two servers written down and says nothing about a third. A deployment that added one, in a new
+override or an existing one, shipped whatever its author remembered and reddened nothing. The
+missing half was never the check; it was the **set**. This landed the set, as a reader that
+derives it from the stack's own wiring and argv, and moved the rule onto it.
+
+### Re-derived first, and the premise held after a night that moved the measurement
+
+The entry was a day old and the flags had been re-measured in between, so both were read again
+before anything was written. The re-measurement corrected what the two compose files say about the
+kwarg, the small pick's template does read it and a `response_format` is what costs it its effect,
+and it left the shipped argv alone: both servers still carry both flags, and the sidecar still
+declares the budget's count. So the premise the entry rests on was untouched. The registry named
+`docker/docker-compose.subagents.yml` and `docker/docker-compose.subagents-roster.yml`, a third
+server was nobody's business, and that is what this closes.
+
+### Not the roster gate, and the reason is worth writing down
+
+`rostercheck.py` holds a document's list of names to a set the tree really has, membership and
+naming only, and the subagent servers look at first like exactly that. They are not. A roster's
+two sides are **a page and a set**, and its whole value is the sentence a human wrote beside each
+name. Here there is no page: the claim is a property of each member (its argv carries three
+flags), which a roster deliberately refuses to hold, and the far side is a rule rather than prose.
+Registering the servers as a roster would have bought the naming half, that the registry's list of
+compose files matches the set, and left the property still held per file by hand. So the answer
+was a rule of its own over a derived set, and the naming half came free: the three new modules are
+held by the roster gate like every other module in `scripts/`, which is what turns "register the
+scan" into four listings a gate names for you.
+
+### What a subagent server is, read two ways because either reading alone has a hole
+
+A service is one when **the wiring dials it**, an environment value under
+`CORTEX_SUBAGENTS_ENDPOINT`, `CORTEX_SUBAGENTS_GPU_ENDPOINT` or a `CORTEX_SUBAGENTS_ROSTER__<name>`
+object writing an address whose host is a service name; or when **its own argv says so**, the
+command naming its model file under a `CORTEX_MODEL_FILE_SUBAGENT*` variable. The first alone
+misses a server whose override starts it and leaves its address to the host environment. The
+second alone misses one whose model path is written out, which is how a hand tuned deployment
+spells it. Both readings are in, and the mutation table below is what says neither is decorative.
+
+Two exclusions are deliberate. **The image is not part of the answer**: `docker-compose.memory.yml`
+starts the CPU embedder from the very same llama.cpp server image, and a rule that read the image
+would demand a chat template of a server that serves no chat. **A service that declares no command
+is not a server here**: its argv belongs to an entrypoint or to a supervisor, and the model host's
+own subagent tier is the second case, pinned whole by the model_manager suite that runs on every
+commit. Nothing leaks through that exclusion, because a llama.cpp server started with no command
+names no model and never answers a request, so a subagent server without one is a stack that fails
+loudly rather than a tier that answers wrongly.
+
+### The tool-capable template joins the pair, since the rule is what a server must start with
+
+The entry was filed about the reasoning-off pair, and the rule it became is "the flags a subagent
+server must be started with", which `--jinja` has qualified for since the tier existed: without it
+llama.cpp runs its built-in template, which cannot emit a tool call, so a tools-enabled subagent
+comes up healthy with no tools at all. Both shipped servers already carry it and both compose files
+already argue for it. Leaving it out would have been a rule describing less than the tree keeps.
+The requirements are data, so a fourth flag is a line.
+
+### What the constant registry kept, and what it handed over
+
+The two compose needles are gone from `subagentcouplings.py` and the entry is renamed for what it
+now holds, the tier's reasoning-off **budget** rather than its flag pair. The co-occurrence moved
+to the rule, which can express it over a set; the number stayed in the registry, which is where a
+value spelled in several trees belongs. Its far sides are now the gate's own required value and
+the subagent runbook, which states the pair to check on any tier's argv and hands an operator a
+`docker run` that starts a server by hand, outside any stack, and therefore outside anything a
+compose gate can reach.
+
+That runbook is not decoration. Tying the sidecar's declaration only to the gate's data would have
+made the entry's two places both Python, which the registry's own suite refuses: an entry whose
+places are one language proves nothing about a seam. The refusal was right and the fix was to
+register the far side that was already there and unheld.
+
+### The line cap took the split, on the seam between a syntax and a subject
+
+The reader came to 334 lines as one module, so it is two: `composestarts.py` answers what a
+compose service is started with and what environment it is given, which is a question about YAML
+and knows nothing about subagents, and `subagentservers.py` answers which of those services serve
+this tier, which is a question about the brain's wiring and knows nothing about indentation. It is
+the seam `composeservices.py` and `composetargets.py` already fell on, and it is why
+`composefiles.py` now says four gates rather than three.
+
+### Proved able to fail, thirteen mutants over the scripts suite
+
+Each mutation was applied alone and `cd scripts && uv run pytest -q --no-cov` re-run over the 1333
+checks of that suite. The first five mutate the tree the gate reads; the rest mutate the gate,
+which is production code here. Rows over the committed tree redden every check that copies it,
+which is by design: those checks copy the real compose files so a server that moves house leaves
+the suite failing rather than quietly checking a stack nobody runs.
+
+| mutation | reddens |
+| --- | --- |
+| the CPU subagent server loses `--reasoning-budget 0` | 10 |
+| the roster server loses the template kwarg | 10 |
+| the CPU subagent server loses `--jinja` | 10 |
+| the roster server's budget is retuned from zero to 128 | 10 |
+| A FOURTH SERVER arrives in a new override carrying none of the three | 9 |
+| GATE: the set is read from the wiring alone | 1 |
+| GATE: the set is read from the argv alone | 5 |
+| GATE: the reasoning-off pair is narrowed to the budget half | 3 |
+| GATE: a flag's value is not held, only its presence | 4 |
+| GATE: only the first occurrence of a repeated flag is held | 1 |
+| GATE: a service declaring no command is read as a server | 1 |
+| GATE: the tool-capable template requirement is dropped | 2 |
+| INTERACTION: a sibling coupling's number moves in the same compose file | 5 |
+
+Row five is the deliverable and the only row the tree could not have produced before: a server
+nothing registered, in a file nothing had heard of, reddens the gate and the CLI over the committed
+tree with nobody having listed it. Rows six and seven are what say the two readings are both load
+bearing rather than one being a spare: the fourth server is found by its wiring alone, since its
+model path is written out, and the argv reading is the only thing that finds a server nothing
+dials. Row eight is the row that keeps the pair a pair, narrowing it to the budget leaves every
+other check green and reddens exactly the three that take the kwarg away. The last row is the
+interaction: a neighbour's number moving in `docker-compose.subagents.yml` reddens the constant
+scan and not one check of this gate, so the two divide the file they share.
+
+### What is still not held
+
+A server started **outside** compose. The runbook's own `docker run` is now held to the budget by
+the constant registry, which is the value and not the pair, and a deployment that starts a server
+by hand from neither of those texts is held by nothing here, as it always was. And the model
+host's hosted subagent tier is still held by its own suite rather than by this gate, which is the
+right split while the sidecar builds that argv in Python: a second reader over it would be a
+second way to write one claim.
+
+### Records
+
+The record is the task file
+[R-462](../refinements/tasks/462-nothing-enumerates-the-subagent-servers-this-repo-starts.md),
+which closes as landed, [docs/refinements/index.md](../refinements/index.md), which is regenerated
+from it, `scripts/flagcheck.py`, which is the new scan and the rule it runs,
+`scripts/subagentservers.py` and `scripts/composestarts.py`, which are the set and the syntax
+under it, `scripts/subagentcouplings.py`, whose entry is narrower and better aimed,
+`scripts/composefiles.py`, which now answers for four gates, `justfile` and
+[.github/workflows/ci.yml](../../.github/workflows/ci.yml), which run the eleventh scan,
+[AGENTS.md](../../AGENTS.md), [docs/index.md](../index.md) and
+[modules/repo-gates.md](../modules/repo-gates.md), whose listings name it, and this addendum.

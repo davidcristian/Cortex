@@ -3,7 +3,7 @@
 
 default: check
 
-# All gates: the ten cross-tree scans first (fast), then the four tree checks in
+# All gates: the eleven cross-tree scans first (fast), then the four tree checks in
 # PARALLEL (ADR-0006), so wall time ≈ the slowest tree. Output is buffered per tree
 # and printed in a fixed order so logs stay readable; any failure fails the gate.
 # Kept bash-3.2 compatible (no `declare -A` etc.) for macOS system bash.
@@ -19,6 +19,7 @@ check:
     just check-stubcheck
     just check-samplecheck
     just check-rostercheck
+    just check-flagcheck
     just check-backlog
     tmp=$(mktemp -d)
     trap 'rm -rf "$tmp"' EXIT
@@ -114,6 +115,18 @@ check-samplecheck:
 check-rostercheck:
     cd scripts && uv sync --locked
     cd scripts && uv run python rostercheck.py --root ..
+
+# Every subagent server this repo starts carries the flags its tier requires: the reasoning-off
+# pair, because neither flag alone covers both request shapes the tier serves and a server with
+# half of it spends its whole cap on a trace no reader ever sees, and the tool-capable chat
+# template, without which a tools-enabled subagent silently has no tools. The set of servers is
+# DERIVED rather than registered: a service is one when the brain's subagent wiring dials its
+# address or when its own argv names a subagent model file, so an override adding a server is held
+# the day it is written rather than the day somebody remembers to list it (ADR-0029 addendum on
+# deriving the set a rule runs over).
+check-flagcheck:
+    cd scripts && uv sync --locked
+    cd scripts && uv run python flagcheck.py --root ..
 
 # Hand-run, needs docker and the network: pull every image this repo's compose files name,
 # ask the daemon what each actually declares, and fail when scripts/imagevolumes.py

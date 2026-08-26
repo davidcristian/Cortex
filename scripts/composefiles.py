@@ -1,8 +1,9 @@
 """Which files in this tree are compose files, answered once for the gates that ask.
 
-Three gates walk the repo for compose files and must walk to the same answer: `bindcheck.py`
-reads the bind mounts they declare, `defaultcheck.py` reads the substitutions they spend, and
-`volumecheck.py` reads what each service runs against the volume paths its image declares. A
+Four gates walk the repo for compose files and must walk to the same answer: `bindcheck.py`
+reads the bind mounts they declare, `defaultcheck.py` reads the substitutions they spend,
+`volumecheck.py` reads what each service runs against the volume paths its image declares, and
+`flagcheck.py` reads which of those services serve subagents and what each is started with. A
 second copy of this walk is a gate that learns about a new override file while its siblings
 do not, in silence, which is the shape of defect all three exist to remove. So the
 question lives here, and no gate spells it twice.

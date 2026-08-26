@@ -103,7 +103,7 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    config via env only.
 6. **`just check` is the single gate**, running ruff, pyright, pytest + coverage,
    `cargo fmt --check`, clippy, `cargo test`, `cargo llvm-cov`, the overlay's typecheck and
-   Vitest coverage, and **the cross-tree scans**, ten of them: `linecap.py`, the line cap, which
+   Vitest coverage, and **the cross-tree scans**, eleven of them: `linecap.py`, the line cap, which
    reaches all three
    toolchains; `dashcheck.py`, which bans a dash used as punctuation in any text file
    (ADR-0026); `crosscheck.py`, which ties every value this repo spells in more than one place,
@@ -140,6 +140,12 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    what a roster is for and any tally beside it being the half that drifts first (ADR-0003
    live-roster addendum, and the ADR-0029 addenda on roster membership and on holding that listing
    in halves);
+   `flagcheck.py`, which holds every subagent server this repo starts to the flags its tier
+   requires, the reasoning-off pair and the tool-capable chat template, and which DERIVES that
+   set from the stack's own wiring and argv rather than reading a list, a service being one of
+   these servers when the brain's subagent config dials its address or when its own command names
+   a subagent model file, so an override adding a server is held the day it is written and not the
+   day somebody remembers to register it (ADR-0029 addendum on deriving the set a rule runs over);
    and `backlogcheck.py`, which holds each backlog index to the task files it describes and
    every link in them to resolving, so a status can be written in exactly one place, and holds
    every `#fragment` written anywhere in the repo to naming a heading the document it aims at
@@ -314,7 +320,13 @@ scripts/          repo gates, plus the two modules here that gate nothing, contr
                   (what the tree really holds, this block included) + scanrecipes.py (the one
                   such set that is no listing at all, which scans the gate and CI both run,
                   read from the two files that run them),
-                  composefiles.py (which files all three compose gates walk, answered once so
+                  flagcheck.py (every subagent server this repo starts still carries the flags
+                  its tier requires) + subagentservers.py (which servers those are, derived from
+                  the wiring that dials them and the argv that names their model, so a new one
+                  needs no registering) + composestarts.py (what a compose service is started
+                  with and what environment it is given, the two keys the volume gate's reader
+                  steps over),
+                  composefiles.py (which files all four compose gates walk, answered once so
                   they cannot drift apart), backlogcheck.py (each backlog index still matches
                   its task files,
                   ADR-0039) + backlog.py (task-file grammar), backlogindex.py (what the
@@ -334,7 +346,7 @@ justfile          `just check` + check-*; proto, up/down, brain-serve, seam-heal
                   backlog (regenerate each backlog index from its task files), shuffle (every
                   suite at one chosen seed, the sweep the gate's own fixed seed never draws,
                   ADR-0002)
-                  (`just check` runs the ten cross-tree scans before the per-tree ones;
+                  (`just check` runs the eleven cross-tree scans before the per-tree ones;
                   `turn-cost` is the A/B/A live measurement, where the container restarts
                   between arms live, ADR-0038; `image-volumes` is the hand-run docker
                   re-derivation of the record `check-volumecheck` reads, ADR-0011)

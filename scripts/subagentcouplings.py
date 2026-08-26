@@ -1,5 +1,5 @@
 """The couplings around the subagent tier's container: what a spawn is charged, what the container
-running it is given, and the reasoning-off pair every server in it starts with.
+running it is given, and the count that says its servers do no thinking at all.
 
 One of the data files `crosscheck.py` reads as a single registry, split off `shippedcouplings.py`
 when the compose survey pushed that file past the 300-line cap. The seam it fell on is the one its
@@ -15,6 +15,13 @@ cap. They were a claim about what one run is allowed where everything left is a 
 the container serving it gets, and every one of them is restated by a document rather than by the
 stack, so the split is visible in the paths as well as in the labels.
 
+The reasoning-off entry below is narrower than it was, and deliberately. It used to render the
+tier's flag pair as four compose list items and require them in each of the two servers it could
+name, which is a claim about two files where the claim worth making is about every server the
+stack starts. `flagcheck.py` derives that set and holds the pair over all of it, so what stays
+here is the value under one half of the pair, tied to the sidecar that declares it: a set is a
+rule's to enforce, and a number spelled in two trees is this registry's.
+
 Nothing in the scan asks which file an entry sits in, so a coupling moves house without the gate
 noticing; what a file buys is a reader who can hold one subject at a time.
 """
@@ -22,20 +29,10 @@ noticing; what a file buys is a reader who can hold one subject at a time.
 from couplings import Constant, Mention, Site, Spelling
 
 SUBAGENTS_COMPOSE = "docker/docker-compose.subagents.yml"
-ROSTER_COMPOSE = "docker/docker-compose.subagents-roster.yml"
 MODELHOST_CONFIG = "brain/packages/model_manager/src/cortex_model_manager/config.py"
 SUBAGENTS_CONFIG = "brain/packages/orchestrator/src/cortex_orchestrator/config_subagents.py"
-
-# The reasoning-off pair as a compose command spells it: four items under one `command:`, the
-# budget's count rendered and everything around it shape. The indentation between the items is
-# part of that shape rather than an accident of layout, six spaces being where a list item under a
-# service's command sits, so an item re-indented out of the command block leaves this unfound.
-REASONING_OFF_PAIR = (
-    '- "--chat-template-kwargs"\n'
-    "      - '{\"enable_thinking\": false}'\n"
-    '      - "--reasoning-budget"\n'
-    '      - "{value}"'
-)
+FLAG_GATE = "scripts/flagcheck.py"
+SUBAGENTS_RUNBOOK = "docs/runbooks/subagents-cpu.md"
 
 SUBAGENT_COUPLINGS: tuple[Constant, ...] = (
     Constant(
@@ -132,33 +129,41 @@ SUBAGENT_COUPLINGS: tuple[Constant, ...] = (
         ),
     ),
     Constant(
-        label="the subagent tier's reasoning-off flag pair",
+        label="the subagent tier's reasoning-off budget",
         why=(
-            "every subagent server this repo starts carries both `--chat-template-kwargs` and "
-            "`--reasoning-budget 0`, because neither flag alone covers both request shapes the "
-            "tier serves: the kwarg is what a chat template reads on a plain request, and the "
-            "budget is what reaches the constrained shape every tool-less subagent decodes into "
-            "the fixed envelope, where the kwarg was measured to stop holding. A server started "
-            "with half the pair spends its whole token cap on a trace no reader ever sees and "
-            "answers a cap refusal, which is a defect whose only symptom is a slow subagent "
-            "(ADR-0005 switch-is-advisory addendum)"
+            "the count under `--reasoning-budget` is what says a narrow subtask wants no thought "
+            "rather than a short one, and three places spell it: the argv the model host starts "
+            "its own hosted subagent tier with, the value the flag gate requires of every "
+            "subagent server the compose stack starts, and the subagent runbook, which both "
+            "states the pair to check on any tier's argv and hands an operator a `docker run` "
+            "that starts a server with it. Retuning one leaves two halves of one tier under two "
+            "answers to what thinking costs, and an operator bringing up a server the shipped "
+            "stack would not (ADR-0005 switch-is-advisory addendum)"
         ),
-        # The one place a language this scan reads declares any of it: the hosted GPU tier's argv,
-        # whose count was hoisted out of `_REASONING_OFF` to be readable at all. The entry sits
-        # here rather than beside that sidecar's tier settings because what it holds is the
-        # subagent tier's servers, and the sidecar's own argv is already pinned whole by the
-        # model_manager roster suite, which runs on every commit.
+        # The one place a language this scan reads declares it: the hosted GPU tier's argv, whose
+        # count was hoisted out of `_REASONING_OFF` to be readable at all. The entry sits here
+        # rather than beside that sidecar's tier settings because what it holds is the subagent
+        # tier's servers, and the sidecar's own argv is already pinned whole by the model_manager
+        # roster suite, which runs on every commit.
         sites=(Site(MODELHOST_CONFIG, "_NO_REASONING_BUDGET"),),
-        # Two flags that must appear TOGETHER, which is a co-occurrence and not an equality, and
-        # it is held here as one needle rather than as a relation of its own: the budget's count
-        # is the value, the two flag names and the kwarg's own JSON are the shape around it, and
-        # a needle is a value plus shape already. Take either half away from either server and
-        # the needle is unfound; retune the zero to a count and it is unfound for the other
-        # reason, a narrow subtask wanting no thought rather than a short one. A second relation
-        # saying what a template already says would be a second way to write one claim.
+        # The two compose needles this entry used to carry are gone, and that is the whole point.
+        # They rendered the pair as four list items and required it in each of the two servers
+        # this file could name, which held those two files and said nothing about a third.
+        # `flagcheck.py` derives that set from the stack's own wiring and argv and holds every
+        # server in it to the pair, so the co-occurrence now lives in a rule that can express it
+        # over a set, and what stays here is the value under one half of it.
+        #
+        # The runbook is the far side no gate over compose could reach: its `docker run` starts a
+        # server by hand, outside any stack, and its prose tells a deployment adding a server of
+        # its own what to put on the argv. Both go on saying zero the day the tier stops shipping
+        # one. The two spellings are separate needles because they are separate shapes, the fenced
+        # command carrying its own indentation and the prose its backticks, and neither is pinned
+        # to a count: the prose says this three times in three arguments, and a paragraph rewritten
+        # to say it twice is an edit rather than a defect.
         mentions=(
-            Mention(SUBAGENTS_COMPOSE, REASONING_OFF_PAIR),
-            Mention(ROSTER_COMPOSE, REASONING_OFF_PAIR),
+            Mention(FLAG_GATE, 'Flag("--reasoning-budget", "{value}")'),
+            Mention(SUBAGENTS_RUNBOOK, "`--reasoning-budget {value}`"),
+            Mention(SUBAGENTS_RUNBOOK, "\n  --reasoning-budget {value}\n"),
         ),
     ),
 )
