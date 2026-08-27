@@ -7,6 +7,7 @@ from typing import NamedTuple
 
 from composefiles import ComposeSearchError
 from composestarts import ComposeStartError
+from hostedtiers import HostedTierError, hosted
 from subagentservers import Server, servers
 
 # A gate over no server, or over no requirement, would be green forever, which is the one thing
@@ -116,16 +117,28 @@ def check_one(server: Server, requirements: tuple[Requirement, ...] | None = Non
 
 
 def check(root: Path, requirements: tuple[Requirement, ...] | None = None) -> Scan:
-    """Hold every subagent server the compose tree under ``root`` starts to every requirement."""
+    """Hold every subagent server the tree under ``root`` starts, either way, to every requirement.
+
+    The compose stack is read first, so a tree that is no repo at all is reported as the compose
+    tree it is missing rather than as the sidecar module underneath that one.
+    """
     required = REQUIREMENTS if requirements is None else requirements
     flags = sum(len(requirement.flags) for requirement in required)
     if flags < MIN_FLAGS:
         msg = "no flag is required of a subagent server, and a rule over nothing cannot fail"
         raise FlagCheckError(msg)
     try:
-        found = servers(root)
-    except (ComposeStartError, ComposeSearchError) as err:
+        composed = servers(root)
+        tiers = hosted(root)
+    except (ComposeStartError, ComposeSearchError, HostedTierError) as err:
         raise FlagCheckError(str(err)) from err
+    found = (
+        *composed,
+        *(
+            Server(file=tier.file, service=tier.named, line=tier.line, command=tier.command)
+            for tier in tiers
+        ),
+    )
     if len(found) < MIN_SERVERS:
         msg = f"no subagent server is started under {root}; a scan over nothing cannot fail"
         raise FlagCheckError(msg)
@@ -162,15 +175,16 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{fault.file}: {fault.service}: {fault.detail}")
     if scanned.faults:
         print(
-            f"\nflagcheck: {len(scanned.faults)} server problem(s). Every server the subagent "
-            "wiring dials is started by a command in this tree, so add the flag to that command "
-            "rather than to the deployment that remembers it.",
+            f"\nflagcheck: {len(scanned.faults)} server problem(s). Every subagent server this "
+            "repo starts is started by an argv written in this tree, a compose command or the "
+            "model host's own tier, so add the flag to that argv rather than to the deployment "
+            "that remembers it.",
             file=sys.stderr,
         )
         return 1
     print(
         f"flagcheck OK: the {scanned.servers} subagent server(s) started under {given} by "
-        f"{scanned.files} compose file(s) each carry all {scanned.flags} required flag(s)"
+        f"{scanned.files} file(s) each carry all {scanned.flags} required flag(s)"
     )
     return 0
 
