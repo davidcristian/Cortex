@@ -133,7 +133,7 @@ def test_the_embedder_is_not_a_subagent_server_though_it_runs_the_same_image(
 
 def test_a_dialled_service_that_declares_no_command_is_not_one(tmp_path: Path) -> None:
     """The supervisor case: the model host starts its subagent tier as a child process, and that
-    argv is pinned by the model_manager suite rather than readable from any compose file."""
+    argv is read off the sidecar's own declaration rather than from any compose file."""
     supervised = """\
 services:
   brain:

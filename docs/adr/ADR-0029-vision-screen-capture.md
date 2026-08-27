@@ -6223,3 +6223,156 @@ under it, `scripts/subagentcouplings.py`, whose entry is narrower and better aim
 [.github/workflows/ci.yml](../../.github/workflows/ci.yml), which run the eleventh scan,
 [AGENTS.md](../../AGENTS.md), [docs/index.md](../index.md) and
 [modules/repo-gates.md](../modules/repo-gates.md), whose listings name it, and this addendum.
+
+## Addendum (2026-08-28): one rule over both placements of one tier, since a reader is not a claim
+
+The subagent servers a composed stack starts have been held to their tier's flags since the set
+was derived; the model host's own hosted subagent tier was not, and the previous addendum's
+closing paragraph argued that leaving it to the model_manager suite was the right split, because
+"a second reader over it would be a second way to write one claim". That sentence conflated two
+things. The claim is `flagcheck.REQUIREMENTS`. A reader is a source of members. Adding a second
+source of members to one rule is the derived-set principle applied once more, and it is the
+opposite of writing the claim twice, which is what the split was actually doing.
+
+### Re-derived first, and the entry was current in every particular
+
+Every claim the task file made was read again out of the tree before anything was written, and
+all of them held. `ModelHostConfig.tiers()` really is a fixed three-entry tuple filtered by
+whether a deployment named an artifact for each; `llama_server_argv` really emits `_JINJA` for
+every tier and splats the tier's own `extra` after it; the subagent tier really is the only one
+carrying `_REASONING_OFF`; and `subagentservers.servers()` really returned compose services only,
+its own docstring naming this tier as the case it deliberately did not reach. The registry really
+tied the budget's count and nothing else about the pair.
+
+One phrasing deserves a correction rather than a repeat. The entry said the model_manager suite
+"pins that argv whole". It pins the **cortex** tier's argv whole, flag for flag, which is the
+equality that slice was built to defend; what it pins of the subagent tier is its tail, `-ngl`
+and the last six items, in two checks. Both redden when the tail goes, measured below, so the
+substance of the claim was right and its scope was generous.
+
+### The cheap close, argued honestly, and why it was refused
+
+The task named a cheaper close and asked for it to be argued against first: keep the
+model_manager suite as the holder and add a check there that every tier whose id names a subagent
+carries `_REASONING_OFF`. Two things can be said for it and they are not nothing. It **runs the
+real code**, where a reader of the source is a second account of what the argv will be, and it
+costs one test rather than two modules. Its weakest part is the membership test the task
+suggested, since a tier's logical id is `CORTEX_MODEL_SUBAGENT_GPU` and renameable by any
+deployment, but that is fixable: `ModelHostConfig.model_fields` would derive the set honestly,
+from each field's own `validation_alias`, and a fourth tier would be held without anybody
+extending a list.
+
+It was refused on one scenario, and the scenario is the point of the entry rather than a corner.
+`REQUIREMENTS` is data and a fourth flag is a line. Add one, and every compose server is held to
+it that afternoon while the hosted tier is not, because the model_manager suite is a claim about
+`ModelHostConfig` and cannot be reached by an edit to a rule in another tree. That is the same
+miss the derived set was built for, one level up: a rule running over a set nobody joined it to.
+The layering says the same thing more quietly. "Every subagent server this repo starts carries
+these flags" is a repo-wide deployment invariant, and half of it living in a brain unit test puts
+the two halves in different toolchains where neither can see the other.
+
+The honest weakness of what was built instead is that it reads source rather than running it, so
+three things carry it. The reader takes the flags out of `llama_server_argv`'s **own** return
+tuple rather than restating them, so it reports what is written and not what somebody believed.
+Everything it was not taught is refused rather than skipped. And the model_manager suite keeps
+its exact argv pins, so the two halves are complementary and neither is a spare: that suite says
+what the tier really starts with, and the gate says the rule reaches it.
+
+### A hosted tier serves subagents when the setting naming its artifact does
+
+The compose side reads a service's argv for a `CORTEX_MODEL_FILE_SUBAGENT*` variable. The hosted
+side reads the settings field carrying the tier's `model_path` and asks the same question of its
+`validation_alias`, through the same `MODEL_PREFIX`, which stays the one place that prefix is
+written. The tier's logical id is deliberately not the test, for the reason above.
+
+The rest of the reading is mechanical and is refused wherever it is not. `llama_server_argv` must
+return exactly one tuple and splat a tier's `extra` exactly once, since a builder branching over
+two returns has flags this reader is not evaluating and taking the first would be a gate green
+over the branch it did not take. An argv item that cannot be reduced to a string, a port rendered
+with `str()`, becomes `UNREADABLE`, a token no requirement can be met by: dropping it would close
+the gap between a flag and the item after it, and a check reading the wrong neighbour is worse
+than one reporting an item it cannot see. A **subagent** tier's own tail is refused rather than
+given that token, because that tail is the whole of what makes the tier one of these, and a fault
+saying a flag is missing when the flag is plainly written in the file would send a reader hunting.
+
+### The requirement is no longer spelled twice, and no registry entry was needed for it
+
+The task asked whether the close should tie the rest of the requirement, `--jinja` and the
+template kwarg, the way the registry already ties the budget's count. It does, and by the rule
+rather than by the registry, which is strictly stronger. The gate now reads the sidecar's own
+`_JINJA` and `_REASONING_OFF` and compares them against `REQUIREMENTS`, so a rename on either
+side reddens, in both directions, and a value coupling would only have said the same thing about
+two of the three flags. The registry's entry stays because its far side is the one no rule
+reaches: the subagent runbook, whose `docker run` starts a server by hand outside any stack. Its
+comment is corrected to say that the sidecar's declaration is now read by a rule as well.
+
+### The line cap took the split, on the seam between a syntax and a subject
+
+The reader came to 309 lines as one module, so it is two, the same seam `composestarts.py` fell
+on: `moduleconstants.py` answers what a Python module's own top level binds and knows nothing
+about tiers, and `hostedtiers.py` answers which of those bindings is a subagent tier's and knows
+nothing about assignment statements. Parsed with `ast` and never imported, for the reason
+`logcalls.py` gives: the seam the architecture keeps shut is an import of the brain from the gate
+tree, and a tuple of flags written over as many lines as it has items is not something a text
+reader follows without becoming a Python parser with the corners missing.
+
+### Proved able to fail, twelve mutants over the scripts suite
+
+Each mutation was applied alone and `cd scripts && uv run pytest -q --no-cov` re-run over the
+1397 checks of that suite. The first three mutate the tree the gate reads, which here is the
+committed sidecar; the rest mutate the gate, which is production code here. Rows over the
+committed tree redden every check that copies it, by design, those checks copying the real files
+so a tier that moves house leaves the suite failing rather than quietly checking a stack nobody
+runs.
+
+| mutation | reddens |
+| --- | --- |
+| the hosted subagent tier loses its reasoning-off tail | 14 |
+| the sidecar renames the tool-capable template flag | 14 |
+| A FOURTH TIER arrives in the sidecar carrying no tail | 13 |
+| GATE: the hosted placement is left out of the set | 4 |
+| GATE: membership is a tier's own setting name rather than the subagent prefix | 2 |
+| GATE: the membership prefix is widened past the subagent settings | 24 |
+| GATE: an argv item the reader cannot resolve is dropped rather than held in place | 3 |
+| GATE: a subagent tier's unreadable tail is filled with that token rather than refused | 2 |
+| GATE: what the argv builder writes after the splat is dropped | 2 |
+| GATE: a builder splatting a tail twice is read rather than refused | 2 |
+| GATE: a value that is no sequence at all reads as an empty one | 3 |
+| INTERACTION: the sidecar's budget count moves, which two gates now read | 22 |
+
+Row three is the deliverable and the row the tree could not have produced before: a fourth tier
+in the sidecar's own tuple, with the setting that makes it one and the tail its author forgot,
+reddens the gate with nobody having listed it. Row five is what says the membership is derived
+rather than registered, narrowing it to today's one setting name leaves every other check green
+and reddens exactly the two that add a tier. Row four is the join itself, and it reddens only
+four because the rule and the readers are separable by construction.
+
+The two halves being complementary is measured rather than asserted. The first row's edit, run
+against the brain instead, reddens 2 of the 134 checks of the model_manager suite, both of them
+in `test_model_roster.py`, which is the suite saying what the tier really starts with. The last
+row is the interaction: moving `_NO_REASONING_BUDGET` reddens 9 checks of the constant scan's
+suite and 13 across this gate's own two, since the registry and the rule now read one declaration, and
+neither was taught about the other.
+
+### What is still not held
+
+The membership rule on both sides is a **naming convention that nothing enforces on the settings
+that must follow it**. A subagent artifact named under a variable that does not begin
+`CORTEX_MODEL_FILE_SUBAGENT` falls out of both readers silently, and the gate's whole promise,
+that a server added tomorrow is held the day it is written, rests on that convention. The record
+is [R-472](../refinements/tasks/472-the-membership-prefix-is-a-convention-nothing-enforces.md).
+A server started outside compose and outside the sidecar is unchanged and still held only by the
+constant registry's value, which is
+[R-468](../refinements/tasks/468-a-subagent-server-started-outside-compose-is-held-by-a-value.md).
+
+### Records
+
+The record is the task file
+[R-467](../refinements/tasks/467-the-hosted-subagent-tier-meets-the-flag-rule-by-hand.md), which
+closes as landed, [docs/refinements/index.md](../refinements/index.md), which is regenerated from
+it, `scripts/hostedtiers.py` and `scripts/moduleconstants.py`, which are the new reader and the
+syntax under it, `scripts/flagcheck.py`, which runs one rule over both sets,
+`scripts/subagentservers.py` and `scripts/subagentcouplings.py`, whose accounts of who holds the
+sidecar are corrected, [AGENTS.md](../../AGENTS.md), [docs/index.md](../index.md) and
+[modules/repo-gates.md](../modules/repo-gates.md), whose listings name the two modules, and this
+addendum.

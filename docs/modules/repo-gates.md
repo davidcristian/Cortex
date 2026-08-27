@@ -20,7 +20,7 @@ by the CI
 workflow, `commitlint.py` by the commit-msg pre-commit stage, `contrast.py` by `just turn-cost`
 and `trailwidth.py` by `just recall-width`;
 each also exposes a pure, unit-tested core function).
-**The rest have no CLI of their own**, thirty-eight modules,
+**The rest have no CLI of their own**, forty modules,
 most split out under the line cap and each named for what it holds: `couplings.py` is the
 vocabulary `crosscheck.py`'s registry is written in, `registry.py` names the parts that registry is
 written in, and `seamcouplings.py`, `endpointcouplings.py`, `shippedcouplings.py`,
@@ -35,8 +35,10 @@ reader, `composedefaults.py` is `defaultcheck.py`'s substitution reader, `compos
 `composetargets.py` split out of it again for the container path one mount entry names,
 `composestarts.py` is the reader of the two keys that one steps over, what a service is started
 with and what environment it is given, and `subagentservers.py` derives from those two which
-servers a composed stack starts as subagents, the set `flagcheck.py` holds to its tier's flags,
-`imagevolumes.py` is the recorded
+servers a composed stack starts as subagents, one of the two sets `flagcheck.py` holds to its
+tier's flags, `hostedtiers.py` is the other, the tier the model host starts itself, read off the
+sidecar's own declaration with `moduleconstants.py` answering underneath it for what a Python
+module's top level binds, `imagevolumes.py` is the recorded
 answer that gate reads and the drift report over it, `dockerfilevolumes.py` is what a Dockerfile
 in this tree declares against the row for the image built from it, `protocomments.py` is what a proto comment is and how it normalizes into
 the Rust stub's spelling, `logsamples.py` is what a documented log line claims to print and
@@ -691,7 +693,13 @@ that last question to have an answer.
   than a part. Every one of them refuses an empty answer, a comparison over nothing being one that
   cannot fail.
 - `flagcheck.py [--root DIR]` holds every subagent server this repo starts to the flags its tier
-  requires (ADR-0029 addendum on deriving the set a rule runs over). `REQUIREMENTS` is the rule
+  requires (ADR-0029 addenda on deriving the set a rule runs over and on covering both placements
+  of one tier with one rule). **The rule is one and the readers are two**: this tier is started in
+  two places, as a compose service and as the model host's own hosted tier, so the scan runs
+  `REQUIREMENTS` over the union of `subagentservers.py` and `hostedtiers.py`. A flag added to the
+  rule therefore reaches both placements the day it is written, and a flag renamed on either side
+  reddens, the sidecar's own spelling being compared against this one rather than trusted.
+  `REQUIREMENTS` is the rule
   and it is production code here: each entry carries a label, the sentence saying why every server
   must meet it, and the flags it is made of. Two entries today. The reasoning-off pair is **one**
   requirement rather than two, because two flags that must travel together are one claim about a
@@ -703,17 +711,42 @@ that last question to have an answer.
   and a tree starting no server each being a scan that reports success forever. The count under
   `--reasoning-budget` is one value in two trees, this rule's and the model host's
   `_NO_REASONING_BUDGET`, and `crosscheck.py` is what holds them together.
-- `subagentservers.py` is that gate's set and has no CLI. `servers(root)` returns every subagent
+- `subagentservers.py` is the compose half of that gate's set and has no CLI. `servers(root)`
+  returns every subagent
   server the compose tree starts, and the derivation is the deliverable: **the set is read off the
   stack rather than registered beside the rule**, so an override adding a server is held the day
   it is written. A service is one for either of two reasons, and each catches what the other
   misses. The wiring says so, an environment value under `CORTEX_SUBAGENTS_ENDPOINT`,
   `CORTEX_SUBAGENTS_GPU_ENDPOINT` or a `CORTEX_SUBAGENTS_ROSTER__<name>` object writing an address
   whose host is a service name; or the argv says so, the command naming its model file under a
-  `CORTEX_MODEL_FILE_SUBAGENT*` variable. The image is deliberately not part of the answer, the
+  `CORTEX_MODEL_FILE_SUBAGENT*` variable, `MODEL_PREFIX` being the single place that prefix is
+  written. The image is deliberately not part of the answer, the
   CPU embedder running the very same llama.cpp image, and a service declaring no command of its
-  own is not one, its argv belonging to an entrypoint or to the model host's supervisor, whose own
-  tier is pinned whole by the model_manager suite instead.
+  own is not one, its argv belonging to an entrypoint or to the model host's supervisor, which the
+  other half of the set reads directly.
+- `hostedtiers.py` is that other half and has no CLI. `hosted(root)` returns every tier the model
+  host starts as a subagent, read off `brain/packages/model_manager/src/cortex_model_manager/`:
+  the flags out of `llama_server_argv`'s own return tuple, the tier's tail out of the `extra` its
+  `TierArgs` declares, spliced in where that builder splats it. **A tier serves subagents when the
+  setting naming its artifact does**, the same `CORTEX_MODEL_FILE_SUBAGENT*` reading the compose
+  side makes, taken from the field's `validation_alias`; the tier's logical id is deliberately not
+  the test, an id being what a deployment renames. Nothing about which flags matter is written
+  here, which is what keeps the rule single. An argv item it cannot reduce to a string becomes
+  `UNREADABLE`, a token no requirement can be met by, since dropping it would close the gap
+  between a flag and the item after it. Everything it was not taught is refused rather than
+  answered emptily: an absent or unparseable module, a builder that does not splat a tier's tail
+  exactly once, a settings class naming no environment variable, a tree declaring no tier at all,
+  a tier whose artifact path names no field it can resolve, and a subagent tier whose own tail is
+  a call rather than literals.
+- `moduleconstants.py` is that reader's syntax side and has no CLI. `constants(module)` returns
+  every top-level string and run of strings a parsed module binds, `parse`, `text`, `items` and
+  `bound` being the pieces it is built from. Parsed with `ast` and never imported, for the reason
+  `logcalls.py` gives: a tuple of flags is written over as many lines as it has items, and a
+  reader following that in text is a Python parser with the corners missing. Resolution runs in
+  source order, which is what makes a name resolvable and a cycle impossible. Two answers that
+  look alike are kept apart: a value that is no sequence at all comes back as `None`, and a
+  sequence one of whose items is unreadable comes back as a sequence holding one, since a caller
+  conflating them would report a tier's whole tail as empty rather than as unreadable.
 - `composestarts.py` is that reader's compose side and has no CLI. `read_starts(text)` returns
   every service one file writes, with the argv it starts with and the environment it is given,
   which are exactly the two keys `composeservices.py` steps over. A command of `None` is a service
@@ -1240,15 +1273,19 @@ that last question to have an answer.
   one of the two the gate reads, so a module added to `scripts/` and left unnamed above fails the
   gate that lives in it.
 - `flagcheck.py` is held to that pattern from both ends, which its own set makes possible. Its
-  mutations run against a **copy of the committed compose tree** rather than a fixture, so a
+  mutations run against a **copy of the committed tree**, both placements of it, rather than a
+  fixture, so a
   server that moves house leaves the suite failing instead of quietly checking a stack nobody
   runs, and `test_the_committed_tree_is_green_so_every_red_below_is_the_mutation` is what makes
   every red below it the edit. The test the gate exists for is
   `test_a_server_no_registry_names_is_held_the_day_its_override_is_written`, which ADDS a server
   in a file nothing has heard of and asserts every requirement reddens: taking a flag off a known
-  server was already catchable by naming that file, and this is the half that was not.
-  `subagentservers.py` and `composestarts.py` each carry the same guard on the guard, one
-  asserting the committed tree really starts the servers it ships and the other that every
+  server was already catchable by naming that file, and this is the half that was not. Its twin on
+  the other placement is `test_a_fourth_tier_for_a_second_pick_is_held_the_day_it_is_declared`,
+  which adds a tier to the sidecar's own tuple with the setting that makes it one and the tail its
+  author forgot. `subagentservers.py`, `hostedtiers.py` and `composestarts.py` each carry the same
+  guard on the guard, asserting respectively that the committed tree really starts the servers it
+  ships, that the committed sidecar really declares the tier it hosts, and that every
   committed compose file is a shape the reader can read, since a reader agreeing with its own
   fixtures and with nothing real would leave the gate green over an empty set.
 - The exclusion lists above are the single definition of "non-test source file" and

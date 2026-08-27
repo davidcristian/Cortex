@@ -144,8 +144,10 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    requires, the reasoning-off pair and the tool-capable chat template, and which DERIVES that
    set from the stack's own wiring and argv rather than reading a list, a service being one of
    these servers when the brain's subagent config dials its address or when its own command names
-   a subagent model file, so an override adding a server is held the day it is written and not the
-   day somebody remembers to register it (ADR-0029 addendum on deriving the set a rule runs over);
+   a subagent model file, and the model host's own hosted tier being one when the setting naming
+   its artifact says so, so a server or a tier added anywhere in this tree is held the day it is
+   written and not the day somebody remembers to register it (ADR-0029 addenda on deriving the set
+   a rule runs over and on covering both placements of one tier with one rule);
    and `backlogcheck.py`, which holds each backlog index to the task files it describes and
    every link in them to resolving, so a status can be written in exactly one place, and holds
    every `#fragment` written anywhere in the repo to naming a heading the document it aims at
@@ -322,11 +324,14 @@ scripts/          repo gates, plus the two modules here that gate nothing, contr
                   such set that is no listing at all, which scans the gate and CI both run,
                   read from the two files that run them),
                   flagcheck.py (every subagent server this repo starts still carries the flags
-                  its tier requires) + subagentservers.py (which servers those are, derived from
-                  the wiring that dials them and the argv that names their model, so a new one
-                  needs no registering) + composestarts.py (what a compose service is started
-                  with and what environment it is given, the two keys the volume gate's reader
-                  steps over),
+                  its tier requires) + subagentservers.py (which of them a composed stack starts,
+                  derived from the wiring that dials them and the argv that names their model, so
+                  a new one needs no registering) + composestarts.py (what a compose service is
+                  started with and what environment it is given, the two keys the volume gate's
+                  reader steps over) + hostedtiers.py (the placement no compose file holds, the
+                  model host's own subagent tier, read off the sidecar's declaration so one rule
+                  covers both) + moduleconstants.py (what a Python module's own top level binds,
+                  read without importing it, that reader's syntax side),
                   composefiles.py (which files all four compose gates walk, answered once so
                   they cannot drift apart), backlogcheck.py (each backlog index still matches
                   its task files,

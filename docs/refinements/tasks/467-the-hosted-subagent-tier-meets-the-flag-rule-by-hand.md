@@ -1,6 +1,6 @@
 # The hosted subagent tier meets the flag rule by hand rather than by the rule
 
-**Status:** open, actionable
+**Status:** landed 2026-08-28
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -39,3 +39,22 @@ before the first is built.
 - 2026-08-27: opened by the close of
   [R-462](462-nothing-enumerates-the-subagent-servers-this-repo-starts.md), which reached every
   subagent server compose starts and left the one the supervisor starts to its own suite.
+- 2026-08-28: landed as the
+  [ADR-0029 addendum on one rule over both placements of one tier](../../adr/ADR-0029-vision-screen-capture.md#addendum-2026-08-28-one-rule-over-both-placements-of-one-tier-since-a-reader-is-not-a-claim),
+  a second member source for the same rule: `scripts/hostedtiers.py` reads the sidecar's own tier
+  declarations and `scripts/moduleconstants.py` is the syntax under it, and `scripts/flagcheck.py`
+  runs `REQUIREMENTS` over the union of that and the compose set. **Re-derivation found nothing
+  stale**, every claim this entry made held, though "pins that argv whole" was generous: the
+  model_manager suite pins the cortex tier's argv flag for flag and the subagent tier's tail.
+  **The cheap close was argued and refused.** It runs the real code, which is its real advantage,
+  and its membership test could have been derived honestly from `model_fields` rather than from a
+  renameable id. It was refused on one scenario that is the entry's own point: `REQUIREMENTS` is
+  data, so a fourth flag is a line, and a suite in another tree cannot be reached by that line.
+  The two halves are complementary rather than redundant, measured in the addendum's table: that
+  suite says what the tier really starts with and the gate says the rule reaches it. **The rest of
+  the requirement is tied by the rule rather than by the registry**, the gate now comparing the
+  sidecar's own `_JINJA` and `_REASONING_OFF` against `REQUIREMENTS` in both directions, which a
+  value coupling could not have done for the pair. The registry's entry stays for the runbook's
+  hand-started server, which no rule reaches. What the close opened is the convention underneath
+  both readers,
+  [R-472](472-the-membership-prefix-is-a-convention-nothing-enforces.md).

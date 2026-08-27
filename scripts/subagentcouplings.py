@@ -143,8 +143,9 @@ SUBAGENT_COUPLINGS: tuple[Constant, ...] = (
         # The one place a language this scan reads declares it: the hosted GPU tier's argv, whose
         # count was hoisted out of `_REASONING_OFF` to be readable at all. The entry sits here
         # rather than beside that sidecar's tier settings because what it holds is the subagent
-        # tier's servers, and the sidecar's own argv is already pinned whole by the model_manager
-        # roster suite, which runs on every commit.
+        # tier's servers. The flag gate now reads that same declaration and requires the pair of
+        # it, so this entry's own two Python places overlap with a rule; what it keeps that no
+        # rule reaches is the runbook below, and the count is worth pinning from both directions.
         sites=(Site(MODELHOST_CONFIG, "_NO_REASONING_BUDGET"),),
         # The two compose needles this entry used to carry are gone, and that is the whole point.
         # They rendered the pair as four list items and required it in each of the two servers

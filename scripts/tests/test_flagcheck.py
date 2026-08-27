@@ -1,15 +1,17 @@
 """Behaviour of the gate holding every subagent server this repo starts to its tier's flags.
 
-Two kinds of test sit below and the second kind is the point of the entry this landed for. The
+Three kinds of test sit below and the last two are the ones successive entries landed for. The
 first mutates a server the tree already ships, taking one flag off it, which is the fault the
 constant registry could already catch by naming that file. The second ADDS a server, in an
-override nothing registered, which is the fault nothing here could catch before: the set is
-derived, so a server arriving tomorrow is held the day it is written.
+override nothing registered, which is the fault nothing could catch before the set was derived.
+The third mutates the placement no compose file holds, the model host's own hosted subagent tier,
+which the supervisor starts from an argv assembled in Python and which used to be correct by hand.
 
-The last tests run the gate over the committed compose tree, where it is green or the fixtures
-are testing the gate against itself.
+The last tests run the gate over the committed tree, where it is green or the fixtures are
+testing the gate against itself.
 """
 
+from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
@@ -26,17 +28,63 @@ from flagcheck import (
     main,
     missing,
 )
+from hostedtiers import MODEL_MANAGER
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 SUBAGENTS = "docker-compose.subagents.yml"
 ROSTER = "docker-compose.subagents-roster.yml"
 
+# The sidecar's two halves: the module every tier's argv is assembled in, and the module the
+# tiers themselves are declared in.
+ARGV_MODULE = "tiers.py"
+TIER_MODULE = "config.py"
+
 # The reasoning-off pair as a compose command spells it, each half its own text so a test can
 # take exactly one away, and the budget's own line so a test can retune it.
 KWARG_ITEMS = '      - "--chat-template-kwargs"\n      - \'{"enable_thinking": false}\'\n'
 BUDGET_ITEMS = '      - "--reasoning-budget"\n      - "0"\n'
 JINJA_ITEM = '      - "--jinja"\n'
+
+# The same pair and the same template where the sidecar spells them, which is what makes the two
+# placements one rule's business rather than two.
+HOSTED_PAIR = "                extra=_REASONING_OFF,\n"
+HOSTED_JINJA = '_JINJA = "--jinja"'
+
+# A tier nobody registered: a fourth entry for a second subagent pick, with its own artifact
+# setting and a tail its author forgot to copy.
+FOURTH_FIELD = "    subagent_gpu_port: int = Field(default=8083, gt=0, le=65535)\n"
+FOURTH_TIER = "            ),\n        )\n        return tuple("
+FOURTH = """\
+            ),
+            TierArgs(
+                model="subagent-cpu",
+                model_path=self._path(self.subagent_cpu_file),
+                port=8084,
+                ngl=0,
+                ctx_size=4096,
+                parallel=1,
+            ),
+        )
+        return tuple("""
+
+# A sidecar hosting one tier that serves something other than subagents, which is what the floor
+# under this gate needs: a tree readable at both placements and empty at both.
+BARE_ARGV = """\
+_JINJA = "--jinja"
+
+
+def llama_server_argv(binary, tier):
+    return (binary, _JINJA, *tier.extra)
+"""
+
+BARE_TIERS = """\
+class ModelHostConfig(BaseSettings):
+    cortex_file: str = Field(default="", validation_alias="CORTEX_MODEL_FILE_CORTEX")
+
+    def tiers(self):
+        return (TierArgs(model_path=self._path(self.cortex_file), extra=()),)
+"""
 
 # A server nobody registered: a new override that starts one and wires the brain to dial it, with
 # a command carrying none of the three flags.
@@ -56,20 +104,25 @@ services:
 """
 
 
-def copied(root: Path, edits: dict[str, tuple[str, str]] | None = None) -> Path:
-    """The committed compose tree copied under ``root``, with one edit per named file.
+def copied(root: Path, edits: Sequence[tuple[str, str, str]] = ()) -> Path:
+    """The committed tree copied under ``root``, with each named edit applied to its file.
 
-    Copying the real files is what makes a mutation a test rather than a hand run: a server that
-    moves house leaves this failing instead of quietly checking a stack nobody runs.
+    Both placements are copied, the compose stack and the model host's own two modules, because
+    the rule now runs over both. Copying the real files is what makes a mutation a test rather
+    than a hand run: a server that moves house leaves this failing instead of quietly checking a
+    stack nobody runs. An edit is a triple so one file can take more than one, which is what a
+    tier arriving with its own setting needs.
     """
     (root / "docker").mkdir(parents=True, exist_ok=True)
-    for path in (REPO_ROOT / "docker").glob("docker-compose*.yml"):
+    (root / MODEL_MANAGER).mkdir(parents=True, exist_ok=True)
+    sidecar = [REPO_ROOT / MODEL_MANAGER / name for name in (ARGV_MODULE, TIER_MODULE)]
+    for path in [*(REPO_ROOT / "docker").glob("docker-compose*.yml"), *sidecar]:
         text = path.read_text(encoding="utf-8")
-        was, now = (edits or {}).get(path.name, ("", ""))
-        if was:
+        for _, was, now in [edit for edit in edits if edit[0] == path.name]:
             assert was in text, f"{path.name} no longer spells {was!r}, so this mutation edits it"
             text = text.replace(was, now, 1)
-        (root / "docker" / path.name).write_text(text, encoding="utf-8")
+        under = MODEL_MANAGER if path.suffix == ".py" else Path("docker")
+        (root / under / path.name).write_text(text, encoding="utf-8")
     return root
 
 
@@ -142,7 +195,48 @@ def test_a_fault_carries_the_requirement_that_names_it_and_the_reason_it_exists(
 def test_the_committed_tree_is_green_so_every_red_below_is_the_mutation(tmp_path: Path) -> None:
     scanned = check(copied(tmp_path))
     assert scanned.faults == []
-    assert scanned.servers >= 2, "the tree ships two subagent servers, so one would be a miss"
+    assert scanned.servers >= 3, "two compose servers and the hosted tier, so two would be a miss"
+
+
+def test_the_hosted_tier_is_held_by_the_same_rule_as_the_servers_compose_starts(
+    tmp_path: Path,
+) -> None:
+    """The placement no compose file holds. Taking the pair off the sidecar's own tier reddens
+    this gate rather than only the suite next to it, which is what one rule over two placements
+    means: the fault names the module the argv is assembled in, not a service."""
+    faults = check(copied(tmp_path, [(TIER_MODULE, HOSTED_PAIR, "                extra=(),\n")]))
+    assert [fault.service for fault in faults.faults] == ["CORTEX_MODEL_FILE_SUBAGENT_GPU"] * 2
+    assert {fault.file for fault in faults.faults} == {(MODEL_MANAGER / TIER_MODULE).as_posix()}
+    assert all("reasoning-off pair" in fault.detail for fault in faults.faults)
+
+
+def test_a_fourth_tier_for_a_second_pick_is_held_the_day_it_is_declared(tmp_path: Path) -> None:
+    """The whole reason the sidecar joined the set. Its subagent tier was one position in a fixed
+    tuple, so a fourth added for a second pick carried whatever its author copied and the suite
+    pinning today's three went on passing for the three it names."""
+    field = FOURTH_FIELD + (
+        '    subagent_cpu_file: str = Field(\n        default="", '
+        'validation_alias="CORTEX_MODEL_FILE_SUBAGENT_CPU"\n    )\n'
+    )
+    faults = check(
+        copied(
+            tmp_path,
+            [(TIER_MODULE, FOURTH_FIELD, field), (TIER_MODULE, FOURTH_TIER, FOURTH)],
+        )
+    ).faults
+    assert {fault.service for fault in faults} == {"CORTEX_MODEL_FILE_SUBAGENT_CPU"}
+    assert len(faults) == 2, "the shared argv still carries --jinja, so only the pair is missing"
+
+
+def test_a_sidecar_renaming_the_tool_capable_template_reddens_its_own_tier(
+    tmp_path: Path,
+) -> None:
+    """The flag names are compared rather than each trusted to its own tree, so the requirement
+    is spelled twice and cannot drift: the compose servers still carry it and this one does not."""
+    edit = (ARGV_MODULE, HOSTED_JINJA, '_JINJA = "--chat-template"')
+    faults = check(copied(tmp_path, [edit])).faults
+    assert [fault.service for fault in faults] == ["CORTEX_MODEL_FILE_SUBAGENT_GPU"]
+    assert faults[0].detail.startswith("the tool-capable chat template:")
 
 
 @pytest.mark.parametrize("compose", [SUBAGENTS, ROSTER])
@@ -152,7 +246,7 @@ def test_a_server_started_with_half_the_reasoning_off_pair_is_a_fault(
 ) -> None:
     """Either flag gone from either shipped server: the kwarg does not reach the constrained
     shape and the budget does, so a server with one of them still runs a trace nobody reads."""
-    faults = check(copied(tmp_path, {compose: (items, "")})).faults
+    faults = check(copied(tmp_path, [(compose, items, "")])).faults
     assert len(faults) == 1, half
     assert faults[0].file == f"docker/{compose}"
 
@@ -161,13 +255,13 @@ def test_a_server_started_at_a_budget_the_tier_does_not_ship_is_a_fault(tmp_path
     """A zero retuned to a count is a tier that thinks briefly, which this pair refuses: a narrow
     subtask wants no thought rather than a short one."""
     budgeted = BUDGET_ITEMS.replace('"0"', '"128"')
-    faults = check(copied(tmp_path, {ROSTER: (BUDGET_ITEMS, budgeted)})).faults
+    faults = check(copied(tmp_path, [(ROSTER, BUDGET_ITEMS, budgeted)])).faults
     assert [fault.service for fault in faults] == ["llama-subagent-qwen"]
     assert "where the tier requires '0'" in faults[0].detail
 
 
 def test_a_server_started_without_the_tool_capable_template_is_a_fault(tmp_path: Path) -> None:
-    faults = check(copied(tmp_path, {SUBAGENTS: (JINJA_ITEM, "")})).faults
+    faults = check(copied(tmp_path, [(SUBAGENTS, JINJA_ITEM, "")])).faults
     assert [fault.detail.split(":")[0] for fault in faults] == ["the tool-capable chat template"]
 
 
@@ -185,13 +279,27 @@ def test_a_server_no_registry_names_is_held_the_day_its_override_is_written(tmp_
 # ── the floors, since a scan over nothing would be green forever ───────────────
 
 
-def test_a_tree_that_starts_no_subagent_server_is_reported_rather_than_passed(
+def test_a_tree_that_starts_no_subagent_server_either_way_is_reported_rather_than_passed(
     tmp_path: Path,
 ) -> None:
+    """Both placements empty, since a floor over one of them would be a floor a tree could still
+    walk under by moving the tier to the other."""
     (tmp_path / "docker").mkdir()
     (tmp_path / "docker" / "docker-compose.yml").write_text("services:\n  redis:\n", "utf-8")
+    (tmp_path / MODEL_MANAGER).mkdir(parents=True)
+    (tmp_path / MODEL_MANAGER / ARGV_MODULE).write_text(BARE_ARGV, encoding="utf-8")
+    (tmp_path / MODEL_MANAGER / TIER_MODULE).write_text(BARE_TIERS, encoding="utf-8")
     with pytest.raises(FlagCheckError, match="a scan over nothing cannot fail"):
         check(tmp_path)
+
+
+def test_a_sidecar_this_gate_cannot_read_leaves_by_the_gates_own_door(tmp_path: Path) -> None:
+    """The second reader's refusal arrives as an input failure like the first one's, so a tier
+    whose declaration moved is reported rather than quietly dropped from the set."""
+    root = copied(tmp_path)
+    (root / MODEL_MANAGER / ARGV_MODULE).unlink()
+    with pytest.raises(FlagCheckError, match=f"cannot read .*{ARGV_MODULE}"):
+        check(root)
 
 
 def test_a_rule_requiring_nothing_is_reported_rather_than_passed(tmp_path: Path) -> None:
@@ -223,7 +331,7 @@ def test_the_cli_passes_over_the_committed_tree(capsys: pytest.CaptureFixture[st
 def test_the_cli_prints_every_fault_and_fails(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    root = copied(tmp_path, {SUBAGENTS: (BUDGET_ITEMS, "")})
+    root = copied(tmp_path, [(SUBAGENTS, BUDGET_ITEMS, "")])
     assert main(["--root", str(root)]) == 1
     printed = capsys.readouterr()
     assert "llama-subagent: the tier's reasoning-off pair" in printed.out

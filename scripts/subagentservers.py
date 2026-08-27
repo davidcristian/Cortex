@@ -20,10 +20,11 @@ image, and a rule that read the image would demand a chat template of a server t
 
 **A service that declares no command of its own is not one.** Its argv comes from somewhere this
 reader cannot see, which is either an image's entrypoint or a supervisor: the model host's
-subagent tier is a child process it starts by hand, and that argv is pinned whole by the
-model_manager suite, which runs on every commit. Nothing is lost, because a llama.cpp server
-started with no command names no model and never serves a request, so a subagent server without
-one is a stack that fails loudly rather than a tier that answers wrongly.
+subagent tier is a child process it starts by hand, and `hostedtiers.py` reads that placement off
+the sidecar's own declaration, so the rule reaches it without this reader guessing at a service
+whose command is not written here. Nothing is lost either way, because a llama.cpp server started
+with no command names no model and never serves a request, so a subagent server without one is a
+stack that fails loudly rather than a tier that answers wrongly.
 
 **An endpoint that writes no address dials nothing here.** A deployment may pass the variable
 straight through and name the server only in the host environment, which is a legitimate shape and
