@@ -11,7 +11,8 @@ from typing import NamedTuple, cast
 from contrast import DEFAULT_RESAMPLES, DEFAULT_SEED, bootstrap
 
 # The message `LoggingRecallSink` writes, which is what tells a trail line from every other line in
-# a capture. Matched anywhere in the line, since a capture may carry a compose service prefix.
+# a capture. Matched where the formatter puts a message rather than anywhere in the line, by the
+# pattern below, since the logger this sink writes through ends in the same word.
 TRAIL_MESSAGE = "memory.recall"
 # The field whose width is the subject. Spelled once and spent in the pattern below.
 TRAIL_FIELD = "dropped"
@@ -19,6 +20,7 @@ _VALUE = re.compile(rf" {TRAIL_FIELD}=(?P<value>.*?)(?= [A-Za-z_][A-Za-z0-9_]*=|
 # What `cortex_core.CUT` renders as, anchored at the end, since that is the only place it can sit
 # on a value the bound cut.
 _CUT = re.compile(r"<cut \d+ chars>$")
+_RECORD = re.compile(rf"[A-Z]+:[^\s:]+:{re.escape(TRAIL_MESSAGE)}(?= |$)")
 
 
 class TrailWidthError(Exception):
@@ -26,9 +28,10 @@ class TrailWidthError(Exception):
 
 
 class Reading(NamedTuple):
-    """One trail line's field: how wide it rendered, how many candidates it named, and if cut."""
+    """One trail line: the field's width, the whole line's, the candidates named, and if cut."""
 
     width: int
+    line: int
     entries: int | None
     cut: bool
 
@@ -41,8 +44,13 @@ class Block(NamedTuple):
 
     @property
     def widths(self) -> tuple[int, ...]:
-        """Every reading's width, in the order the capture carried them."""
+        """Every reading's field width, in the order the capture carried them."""
         return tuple(reading.width for reading in self.readings)
+
+    @property
+    def lines(self) -> tuple[int, ...]:
+        """Every reading's whole-line width, in the same order."""
+        return tuple(reading.line for reading in self.readings)
 
     @property
     def cut(self) -> int:
@@ -61,14 +69,15 @@ class Shape(NamedTuple):
 
 def read_line(line: str) -> Reading | None:
     """One line's reading, or ``None`` when the line is not a trail line carrying the field."""
-    if TRAIL_MESSAGE not in line:
+    opened = _RECORD.search(line)
+    if opened is None:
         return None
     match = _VALUE.search(line)
     if match is None:
         return None
     value = match.group("value")
     cut = _CUT.search(value) is not None
-    return Reading(len(value), None if cut else _entries(value), cut)
+    return Reading(len(value), len(line) - opened.start(), None if cut else _entries(value), cut)
 
 
 def _entries(value: str) -> int | None:
@@ -107,13 +116,13 @@ def shape(widths: list[int]) -> Shape:
     return Shape(len(widths), min(widths), statistics.median(widths), max(widths))
 
 
-def by_entries(blocks: list[Block]) -> dict[int, list[int]]:
-    """Every whole rendering's width across the blocks, grouped by how many candidates it named."""
-    grouped: dict[int, list[int]] = {}
+def by_entries(blocks: list[Block]) -> dict[int, list[Reading]]:
+    """Every whole rendering across the blocks, grouped by how many candidates it named."""
+    grouped: dict[int, list[Reading]] = {}
     for block in blocks:
         for reading in block.readings:
             if reading.entries is not None:
-                grouped.setdefault(reading.entries, []).append(reading.width)
+                grouped.setdefault(reading.entries, []).append(reading)
     return grouped
 
 
@@ -132,10 +141,18 @@ def report(blocks: list[Block], *, resamples: int, seed: int) -> str:
             f" median {seen.median:.1f}, mean {mean.point:.1f}"
             f" (95% CI {mean.low:.1f} to {mean.high:.1f}), cut {block.cut}"
         )
+    lines.extend(["", "per block, the rendered width of the whole line that field sits on:"])
+    for block in blocks:
+        whole = shape(list(block.lines))
+        lines.append(
+            f"  {block.path.name} (n={whole.n}): {whole.low} to {whole.high} chars,"
+            f" median {whole.median:.1f}"
+        )
     grouped = by_entries(blocks)
     lines.extend(["", "over every block, by the candidates one line named:"])
     for entries in sorted(grouped):
-        cohort = shape(grouped[entries])
+        cohort = shape([reading.width for reading in grouped[entries]])
+        whole = shape([reading.line for reading in grouped[entries]])
         # A rank that kept the whole pool drops nothing and renders the empty list, which is what
         # a deployment fetching exactly `k` produces on every recall. It has a width and no
         # per-candidate reading, so it is described rather than divided by.
@@ -146,13 +163,16 @@ def report(blocks: list[Block], *, resamples: int, seed: int) -> str:
         )
         lines.append(
             f"  {entries:3d} dropped (n={cohort.n:4d}): {cohort.low} to {cohort.high} chars,"
-            f" median {cohort.median:.1f}, {per}"
+            f" median {cohort.median:.1f}, {per},"
+            f" whole line {whole.low} to {whole.high}"
         )
     every = [width for block in blocks for width in block.widths]
+    wide = [width for block in blocks for width in block.lines]
     lines.extend(
         [
             "",
-            f"over all {len(every)} lines: {min(every)} to {max(every)} chars",
+            f"over all {len(every)} trail lines: the field {min(every)} to {max(every)} chars,"
+            f" the whole line {min(wide)} to {max(wide)}",
             f"cut by the bound: {sum(block.cut for block in blocks)}",
         ]
     )
@@ -163,7 +183,8 @@ def main(argv: list[str] | None = None) -> int:
     """Read the captures, print the report, and return the process exit code."""
     parser = argparse.ArgumentParser(
         description=(
-            "Report the rendered width of the recall trail's dropped field, per captured block."
+            "Report the rendered width of the recall trail's dropped field, and of the whole"
+            " line it sits on, per captured block."
         ),
     )
     parser.add_argument("captures", type=Path, nargs="+", help="captured log text, one per block")

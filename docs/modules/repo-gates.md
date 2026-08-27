@@ -914,12 +914,20 @@ that last question to have an answer.
   qualifies by carrying the trail's own message and that field, and **both of those words are
   registered in `logcouplings.py` against the sink that writes them** (ADR-0038 tied-needle
   addendum), so a rename in the brain reddens `just check` on the day it is made rather than
-  surfacing here weeks later as a capture holding no trail line at all. The rendering is taken from
-  the field's `=` to the next `name=` pair rather than to the next space: the trail's compact JSON holds
+  surfacing here weeks later as a capture holding no trail line at all. **The whole line that field
+  sits on is reported beside it**, in the same cohorts, because the per-value bound leaves the line
+  itself unbounded and the recall trail is the widest line the brain writes (ADR-0038 whole-line
+  addendum). That width is measured from where the shipped formatter's output starts, the level,
+  logger and message of `logging.BASIC_FORMAT`, so a capture's own service prefix is not counted
+  and the two captures a run takes are comparable; finding that opening is also what qualifies a
+  line, which is what tells the message from the logger name ending in the same word. The rendering
+  is taken from the field's `=` to the next `name=` pair rather than to the next space: the trail's compact JSON holds
   no space, but a rendering the bound CUT ends in a marker that carries two, and stopping at the
   first of them would report a cut field as a whole one exactly at the bound. Per capture it prints
   the count, the floor and ceiling, the median, and a seeded percentile bootstrap of the mean, then
-  the range over every capture and how many renderings were cut. **The cut count is the load-bearing
+  the same shape for the whole line without an interval, since a mean's sampling distribution says
+  nothing about the ceiling a line is read for, then the range over every capture and how many
+  renderings were cut. **The cut count is the load-bearing
   line**: any number above zero says the bound bit a value that ships. Refuses rather than guesses
   on a capture it cannot read, one holding no trail line at all, and a non-positive resample count.
   Exit 0 printing the report; exit 2 printing one `trailwidth: PROBLEM` line; argparse exit 2 on
