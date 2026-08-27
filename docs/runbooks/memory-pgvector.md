@@ -273,6 +273,15 @@ finishes with real turns over the brain's own loopback seam, whose trail lines c
 measures the same lines a serving turn writes. `scripts/trailwidth.py` then reports each capture's
 range, median and a seeded bootstrap of the mean, and the count of renderings the bound cut.
 
+**The whole line is reported beside the field**, per capture and in the same cohorts, because the
+per-value bound leaves the line unbounded and this is the widest line the brain writes: if anything
+this deployment logs approaches the 16 KiB cliff a container's log driver ends a message at, it is
+one of these (ADR-0038 whole-line addendum). The width counted is the rendering and not the
+captured text, so the `brain-1  |` prefix `docker compose logs` puts in front of a line is left
+out. Read the two ranges together rather than one after the other: the widest field and the widest
+line are not the same line, a rank that keeps three notes writing a narrower `dropped` and a wider
+line than one that keeps none.
+
 Two blocks by default, because the claim under test is about a maximum and one sample of a maximum
 can only grow with `n`. `just recall-width 1 2 0` is the quick shape to reach for when the harness
 itself is what is in doubt: one block, two passes, no turns. The captures land in `measurements/`

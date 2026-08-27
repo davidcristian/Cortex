@@ -3596,3 +3596,140 @@ its decoration. The last row is the interaction: the conversation this sink name
 - The reader can only read the `plain` rendering, and a capture taken under `packed` refuses in the
   words of a stack that wrote no trail:
   [R-470](../refinements/tasks/470-the-reader-assumes-the-plain-rendering.md).
+
+## Whole-line addendum (2026-08-27): the line the widest field sits on, read off the same captures
+
+The real-trail harness captured whole lines and measured one field of each, which is
+[R-453](../refinements/tasks/453-the-harness-reads-one-field-off-a-line-it-has-whole.md). It closes
+here, by reading the second number off the captures the first reading already produced.
+
+### Why the whole line is the right second question
+
+The per-value bound is a bound on one field, and a line carries a message and as many fields as its
+call site attached, so the line itself is unbounded. What says that cannot bite today is arithmetic
+rather than a check: the bound is the log driver's 16 KiB cliff divided by eight, which leaves room
+for seven fields at it (bounded-value addendum, corrected by the cut-defeats-withholding one), and
+[R-337](../refinements/tasks/337-a-bounded-value-leaves-the-line-unbounded.md) has stood open
+since, its trigger stated as a line whose fields together pass 16,383 characters. It was stated as a
+trigger precisely because **nothing had ever measured a real line's total width**. The recall trail
+is the widest line the brain writes, so if anything this deployment logs approaches that cliff it is
+one of these, and the harness that would answer it was already writing the lines down and reading
+one field of them.
+
+### What a live stack's lines actually render at
+
+The same two blocks the real-trail addendum reports, re-read for the whole line: 466 trail lines,
+the shipped `judge` rank on the 24 GB card. Width is measured from where the shipped formatter's
+output starts, so the compose service prefix the capture carries is not counted.
+
+| candidates dropped | kept | lines | the field | the whole line |
+| --- | --- | --- | --- | --- |
+| 17 | 3 | 9 | 1,246 to 1,249 | 1,784 to 1,800 |
+| 18 | 2 | 43 | 1,313 to 1,324 | 1,724 to 1,749 |
+| 19 | 1 | 342 | 1,389 to 1,399 | 1,701 to 1,724 |
+| 20 | 0 | 72 | 1,465 to 1,473 | 1,691 to 1,699 |
+
+**The widest field is not on the widest line, and the table runs backwards on purpose.** A rank
+that keeps nothing writes the whole pool into `dropped` and the widest field there is, and its line
+is the *narrowest* of the four cohorts. A rank that kept three notes writes a `dropped` list 220
+characters shorter and a line 100 characters longer. The cause is that the two lists are
+complementary and priced differently: everything on the line that is not this field costs exactly
+226 characters when the rank kept nothing, and each kept hit adds about 100 against a dropped
+candidate's 73, a hit carrying the rank key and the taint bit as well as the id and the score. So a
+reading of the field alone points at the wrong lines for this question, which is the whole content
+of the entry that asked for this.
+
+### Decision 1: R-337's headroom is measured, and the entry stays open
+
+The widest line these captures hold is **1,800 characters against a cliff of 16,383**, which is
+11% of it. That is the number R-337 was waiting on and it is not close. Arithmetic over the shipped
+caps says the same thing about the lines this deployment could write rather than did:
+`DROPPED_TRAIL_LIMIT` holds the dropped list at 20 entries and `DEFAULT_RECALL_K` holds the hits at
+5, so at the measured per-entry costs the widest line the shipped shape admits is near 2,200
+characters, still under an eighth of the cliff.
+
+The entry stays open, and the reason is worth stating rather than assuming: what it is about is
+that nothing *bounds* or *gates* the line, and neither of those changed here. What did change is
+that its trigger stopped being a hypothetical about a quantity nobody had read. Its cheaper
+alternative, a test asserting the widest line a shipped sink builds stays under the cliff, now has
+a measured figure to be written against.
+
+One caveat belongs beside the number. The line's maximum comes from the **rarest** cohort, 9 lines
+of 466, where the field's maximum came from a cohort of 72: a rank that keeps notes is the wide
+case for the line, and this corpus made the model keep few. That is the opposite of the field's
+sampling and it means the line's ceiling is the less well sampled of the two.
+
+### Decision 2: the rendering, not the captured text, and that decides qualification too
+
+A capture read back through `docker compose logs` opens every line with a service prefix that never
+crossed the driver, and the two captures a block takes carry different ones, the probe's own stream
+carrying none. So the width is measured from where `logging.BASIC_FORMAT`'s level, logger and
+message begin, which is what the process wrote.
+
+Finding that opening is also what now qualifies a line, and that quietly retires an accident the
+tied-needle addendum had to write down: the message was matched anywhere in the text, and the
+logger this sink writes through ends in the same word, so a line was qualifying on either half.
+The message is matched where the formatter puts a message now, so it is the message that qualifies
+a line, and a sibling line from the same logger is no longer read as a trail line at all.
+
+### Decision 3: no `-t` capture, and the split stays invisible
+
+The obvious way to see a line the driver split is `docker compose logs -t`, which stamps every
+piece. It is declined, and not on cost: **the stamps land mid line**, a piece boundary carrying no
+newline, so a `-t` capture inflates the very width being measured (bounded-value addendum, measured
+there at 16,446 bytes for a split message carrying two stamps). The plainest capture reads a split
+back concatenated, which means the width reported is the width the process wrote, which is the
+question. The two readings cannot be taken at once and this is the one that answers it. At an eighth
+of the cliff there is nothing to see anyway, and the day that stops being true the report says so
+by printing a width past 16,383.
+
+### Decision 4: the cliff is not spelled in the reader
+
+The report prints the line's width and never compares it to the driver's limit. That follows
+decision 3 of the real-trail addendum rather than differing from it: the cliff is a dated
+measurement of a container's log driver, not a value any code reads, and `samplecheck.py` already
+refuses to gate a dated reading. The comparison is made here, with its date on it, exactly as the
+field's was.
+
+### Distrust green
+
+Ten mutations, each applied to `scripts/trailwidth.py` alone with `scripts/tests/test_trailwidth.py`
+re-run, 29 cases:
+
+| Mutation | Reddens |
+| --- | --- |
+| the line's width is counted off the captured text | **11** |
+| the message is matched anywhere in the line again | **13** |
+| the message may be the opening of a longer one | **1** |
+| the level is any text rather than a run of capitals | **11** |
+| a block's whole-line row reads its field widths | **1** |
+| a cohort's whole-line reading reads its field widths | **1** |
+| the pooled whole line reads the field's widths | **1** |
+| the block's whole-line property reads the field | **3** |
+| the pooled whole-line ceiling reads its floor | **1** |
+| the whole-line row carries an interval too | **1** |
+
+Two of these rows were earned rather than reported, and both were vacuous assertions the first pass
+of the table exposed. The cohort's row was asserted as `whole line N to N`, which the **pooled**
+line at the bottom of the report also spells, so the cohort reading could be deleted outright and
+the check stayed green; it now asserts the text that can only be a cohort's row. And the claim that
+the whole line carries no interval was asserted against a string the test had just built rather
+than against the report, so it could not have failed at all; it now counts the intervals in the
+report. A mutation table that finds two of its own checks vacuous is the argument for writing one.
+
+### Consequences
+
+- `just recall-width` reports the whole line beside the field, per block and per cohort, and the
+  runbook says to read the two ranges together rather than one after the other.
+- The widest line the brain writes on this stack is 1,800 characters. The cliff is nine times that.
+- `scripts/trailwidth.py` stands at 295 lines of the 300 the cap allows. The next reading added to
+  it takes the split, and the seam is already visible: reading a capture on one side, reporting a
+  distribution on the other.
+- The reader qualifies a line by the message where the formatter puts it, so the constant registry's
+  needle for that message is load bearing rather than redundant.
+
+### Deferred by this addendum
+
+- The line's own maximum is drawn from the cohort this corpus produced least of, and no reading
+  covers a rank that keeps the whole of `k`:
+  [R-471](../refinements/tasks/471-the-lines-ceiling-is-the-least-sampled-cohort.md).

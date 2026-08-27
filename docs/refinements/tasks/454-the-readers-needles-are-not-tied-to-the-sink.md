@@ -49,3 +49,10 @@ next rename is where it would be noticed.
   Opened by this close:
   [R-469](469-the-trails-logger-name-is-spelled-in-three-places-and-held-in-none.md) and
   [R-470](470-the-reader-assumes-the-plain-rendering.md).
+- 2026-08-27: the accident recorded above is gone. Measuring the whole line meant finding where the
+  formatter's output starts, so a trail line now qualifies by carrying the message where the
+  formatter puts one rather than anywhere in the text
+  ([R-453](453-the-harness-reads-one-field-off-a-line-it-has-whole.md), ADR-0038 whole-line
+  addendum). The message needle registered here is load bearing from that day: rename the message
+  alone and the reader stops finding lines, which is what this entry claimed and what was not yet
+  true when it closed.

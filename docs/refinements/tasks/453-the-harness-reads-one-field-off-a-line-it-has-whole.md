@@ -1,6 +1,6 @@
 # The harness reads one field off a line it has whole
 
-**Status:** open, actionable
+**Status:** landed 2026-08-27
 **Area:** cross-cutting
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
 
@@ -27,3 +27,24 @@ are small; neither is free.
 The reason this is worth doing at all rather than filing and forgetting: the recall trail is the
 widest line the brain writes, so if any line in this deployment approaches the cliff, it is one of
 these, and the harness that would answer it now exists and runs in fifteen minutes.
+
+## Trail
+
+- 2026-08-26: opened by the close of
+  [R-358](358-the-widest-value-was-never-a-real-line.md), which built a harness that captures real
+  trail lines and then measures exactly one field of each.
+- 2026-08-27: **landed**, as the [ADR-0038 whole-line
+  addendum](../../adr/ADR-0038-ranked-recall.md). `scripts/trailwidth.py` reports the whole line's
+  rendered width beside the field's, per block and in the same cohorts, measured from where the
+  shipped formatter's output starts so a capture's own service prefix is not counted. Read off the
+  captures the earlier run already produced: **466 lines, 1,691 to 1,800 characters**, against the
+  16,383 a container's log driver ends a message at, which is the headroom
+  [R-337](337-a-bounded-value-leaves-the-line-unbounded.md) has been waiting on and it is a factor
+  of nine. **The cohort table runs backwards**, which is the finding: a rank that keeps nothing
+  writes the widest `dropped` field and the narrowest line, because a kept hit costs about 100
+  characters against a dropped candidate's 73, so the field's own reading points at the wrong lines
+  for this question. The `-t` capture this entry suggested for seeing a split line is declined with
+  evidence: its stamps land mid line and inflate the width being measured, and a split reads back
+  concatenated in the plain capture, so the width reported is right and only the fact of the split
+  is lost. Opened by this close:
+  [R-471](471-the-lines-ceiling-is-the-least-sampled-cohort.md).
