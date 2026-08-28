@@ -1,6 +1,6 @@
 # The token cap's derivation is written against a shape the default stack does not run
 
-**Status:** open, actionable
+**Status:** satisfied 2026-08-28
 **Area:** subagents
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
 
@@ -54,3 +54,30 @@ any cap materially above 1024 lands between two bounds that were never compared.
   down to that from a reply nobody would accept is the same mistake as retuning it up around a
   reasoning trace. So the re-derivation waits on a constrained reply that is actually an answer, and
   the second question this entry asks, which of the two ceilings binds, is unchanged and unanswered.
+- 2026-08-28: Satisfied, on the second of the two outcomes it named for the cap and with its second
+  question answered outright. The reply this entry was waiting for arrived through
+  [R-459](459-what-the-envelope-costs-the-answer.md): forty draws of the shipped tool-less shape,
+  ten of them real answers at **256 to 429 decoded tokens**, and thirty nine more under an
+  instruction that recovers the answer, 38 of those inside 248 to 323.
+  **The rule does not survive the move to this shape and the number does.** Five times 429 is 2145
+  and five times the answering instruction's longest is 4560, which is above the slot's own 4096
+  before a prompt is subtracted, so a rule whose output has to be clipped by the bound it was meant
+  to sit under has stopped deriving anything. What replaces it is a confirmation on better evidence:
+  1024 is above every answer this tier has been measured writing on the shape that ships, and the
+  sentence the number carries is now **measured true here** rather than inherited, every run in two
+  hundred that reached the cap having reached it on a narration or a reasoning trace and none of
+  them on a long answer.
+  **The second question is answered, and the answer is that it depends on the host.** Put in one
+  unit at this tier's measured 0.18 to 1.35 tok/s, the 2400 s deadline admits about **425** decoded
+  tokens saturated and about **3200** idle, against a slot context of about 3820 after a 261 to 282
+  token prompt. So the deadline is the binding one of the two above the cap everywhere on the
+  measured range, the context only taking over above a prompt of roughly a thousand tokens, and on a
+  saturated host the deadline falls **below** the cap, which makes the cap unreachable there.
+  Raising it materially buys nothing on a busy box, and on an idle one it has about 3000 decoded
+  tokens to grow into before it meets the deadline. Written into the ADR-0005 ceilings addendum,
+  which also corrects the total-cap addendum's naming of the context as the cap's other ceiling, and
+  restated where the number is declared and where an operator reads it.
+  Opened by it: [R-477](477-the-caps-margin-over-an-answering-run.md), since the answering
+  instruction's own tail reached 912 finished tokens and cut two draws in forty at the cap, and
+  [R-478](478-two-ceilings-on-one-run-and-no-ordering.md), since nothing holds the cap and the
+  deadline consistent and the exchange rate between them is a hardware fact the core cannot see.
