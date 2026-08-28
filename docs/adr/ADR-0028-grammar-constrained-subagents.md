@@ -552,5 +552,202 @@ each is now a decision about a tier whose entries do not agree, recorded as such
 who overrides the pick reads what the override costs. The two residues are
 [R-482](../refinements/tasks/482-the-sentence-is-one-wording-for-every-entry.md), the wording that is
 one sentence for entries that answer to different ones, and
-[R-483](../refinements/tasks/483-the-rest-of-the-subagent-tier-is-unasked.md), the three lineup
+[R-483](../refinements/tasks/483-the-rest-of-the-subagent-tier-is-unasked.md), the lineup
 entries of this tier that still have not been asked.
+
+**Both tables above are extended by the row addendum below (2026-08-28)**, which asked the last two
+entries the same question at another 576 runs and reads the whole five-entry row in one place. Read
+them there; the rows here are carried in unchanged.
+
+## Row addendum (2026-08-28): the subagent row read whole, and what the column cannot say
+
+**Status:** Accepted. Closes
+[R-483](../refinements/tasks/483-the-rest-of-the-subagent-tier-is-unasked.md), which the lineup
+addendum above opened by measuring three of the row's five entries and stopping there against a
+clock. Opens [R-484](../refinements/tasks/484-the-control-arm-is-held-to-no-floor.md) and
+[R-485](../refinements/tasks/485-a-roster-description-never-says-whether-the-entry-answers.md). It
+changes no code and one operator expectation.
+
+### Re-derived first
+
+`instruct_reply` still appends `REPLY_INSTRUCTION` to every constrained subtask and to no
+unconstrained one, `REPLY_ENVELOPE` is still the one grammar every tool-less reply is decoded into,
+and `SubagentProfile` still carries resources and a description and nothing about wording, so the
+two entries measured here run exactly what the three above them ran. The prediction being tested was
+written into
+[R-483](../refinements/tasks/483-the-rest-of-the-subagent-tier-is-unasked.md) before a token was
+decoded: both remaining entries are Qwen entries whose template answers the thinking kwarg by
+rendering a thought already closed, so **both should show a reasoning residue near zero and neither
+should lose a shape to that channel**, while the answer rate was named as the half the column cannot
+reach.
+
+### What it ran on
+
+The last two subagent entries of the lineup ([ADR-0004](ADR-0004-model-lineup.md)) through the same
+committed harness, the same four report bodies, the same three subtask shapes and the same eight
+draws a cell, judged the same way: **288 runs each, 576 in all**, which takes the row to five
+entries at 1440 runs.
+
+- **Qwen3.5-0.8B Q8_0**, the smallest entry in the whole lineup and the one the entry named as the
+  more interesting of the two, since it is where narration under a grammar would show up if size
+  were the variable.
+- **Qwen3.5-4B Q4_K_M**, the largest entry of the subagent row.
+
+Both on llama.cpp `b10644-d7a207411` from
+`ghcr.io/ggml-org/llama.cpp@sha256:9f0a986a78ab9261afc3266c807c16933ee4c26c62cb063f0c17f8da890f6c7e`,
+carrying the subagent compose file's own flags (`--jinja`, `--chat-template-kwargs
+'{"enable_thinking": false}'`, `--reasoning-budget 0`, `--ctx-size 8192`, `--parallel 2`, both
+servers reporting `n_ctx_slot = 4096`), at the shipped 1024-token cap, one server at a time with the
+other torn down and the card back at its 1472 to 1503 MiB idle between them. **Both ran `-ngl 99`
+rather than `-ngl 0`**, the same deliberate substitution the two addenda above argue, and this
+session adds the control that substitution had never had on this family: see the ADR-0005 answer
+addendum's CPU control, which now carries a Qwen arm.
+
+### What 1440 runs say
+
+`delivered` counts the replies that carried the answer at all, with a Wilson 95% interval beside it.
+The three earlier picks are the addenda above and are carried in, so the row reads in one place.
+
+| pick | subtask shape | raw | bare, the envelope alone | constrained, the envelope and the sentence |
+| --- | --- | --- | --- | --- |
+| gemma-4-E4B (the default) | summarization | 32/32 (0.89 to 1.00) | **9/32** (0.16 to 0.45) | **29/32** (0.76 to 0.97) |
+| gemma-4-E4B (the default) | extraction | 32/32 (0.89 to 1.00) | 32/32 (0.89 to 1.00) | 31/32 (0.84 to 0.99) |
+| gemma-4-E4B (the default) | one-fact lookup | 32/32 (0.89 to 1.00) | 31/32 (0.84 to 0.99) | 30/32 (0.80 to 0.98) |
+| gemma-4-E4B (the default) | **all three** | **96/96** (0.96 to 1.00) | **72/96** (0.65 to 0.83) | **90/96** (0.87 to 0.97) |
+| Qwen3.5-2B (the roster alternate) | summarization | 32/32 (0.89 to 1.00) | **30/32** (0.80 to 0.98) | 31/32 (0.84 to 0.99) |
+| Qwen3.5-2B (the roster alternate) | extraction | 32/32 (0.89 to 1.00) | 19/32 (0.42 to 0.74) | 23/32 (0.55 to 0.84) |
+| Qwen3.5-2B (the roster alternate) | one-fact lookup | 32/32 (0.89 to 1.00) | 27/32 (0.68 to 0.93) | 29/32 (0.76 to 0.97) |
+| Qwen3.5-2B (the roster alternate) | **all three** | **96/96** (0.96 to 1.00) | **76/96** (0.70 to 0.86) | **83/96** (0.78 to 0.92) |
+| gemma-4-E2B | summarization | 32/32 (0.89 to 1.00) | 27/32 (0.68 to 0.93) | 32/32 (0.89 to 1.00) |
+| gemma-4-E2B | extraction | 32/32 (0.89 to 1.00) | 32/32 (0.89 to 1.00) | 28/32 (0.72 to 0.95) |
+| gemma-4-E2B | one-fact lookup | 32/32 (0.89 to 1.00) | 31/32 (0.84 to 0.99) | **24/32** (0.58 to 0.87) |
+| gemma-4-E2B | **all three** | **96/96** (0.96 to 1.00) | **90/96** (0.87 to 0.97) | **84/96** (0.79 to 0.93) |
+| Qwen3.5-0.8B | summarization | 32/32 (0.89 to 1.00) | 26/32 (0.65 to 0.91) | 28/32 (0.72 to 0.95) |
+| Qwen3.5-0.8B | extraction | 31/32 (0.84 to 0.99) | **16/32** (0.34 to 0.66) | **12/32** (0.23 to 0.55) |
+| Qwen3.5-0.8B | one-fact lookup | 30/32 (0.80 to 0.98) | 28/32 (0.72 to 0.95) | 26/32 (0.65 to 0.91) |
+| Qwen3.5-0.8B | **all three** | **93/96** (0.91 to 0.99) | **70/96** (0.63 to 0.81) | **66/96** (0.59 to 0.77) |
+| Qwen3.5-4B | summarization | 32/32 (0.89 to 1.00) | 32/32 (0.89 to 1.00) | 32/32 (0.89 to 1.00) |
+| Qwen3.5-4B | extraction | 28/32 (0.72 to 0.95) | 27/32 (0.68 to 0.93) | 30/32 (0.80 to 0.98) |
+| Qwen3.5-4B | one-fact lookup | 32/32 (0.89 to 1.00) | 32/32 (0.89 to 1.00) | 32/32 (0.89 to 1.00) |
+| Qwen3.5-4B | **all three** | **92/96** (0.90 to 0.98) | **91/96** (0.88 to 0.98) | **94/96** (0.93 to 0.99) |
+
+The stricter reading of `delivered` is kept, the lineup addendum's: a run cut at the cap is a
+non-delivery whatever its text held, because that is the column the earlier rows were read in. Every
+cap refusal on both new picks carries enough of the answer to pass the proxy on its text alone, so
+the charitable column would read the 0.8B at 94, 75 and 70 of 96 and the 4B at 95, 94 and 95, and
+no claim below turns on the choice.
+
+Four things follow.
+
+1. **The sentence is a cost on a second entry, and the two it costs are not the two the column
+   groups.** On the 0.8B the shipped path delivers **66 of 96 against the bare envelope's 70**, the
+   loss sitting on the extraction shape (16 to 12) and on the lookup (28 to 26) while its
+   summarization gains 2. Those intervals
+   overlap and the honest claim is a small cost rather than a measured harm, which is a weaker
+   statement than the E2B's 90 to 84. What it is not is a second confirmation of the default pick's
+   headline: three of the five entries now fail to gain from the sentence and two of them lose.
+2. **The envelope costs the largest entry of the row nothing at all.** The 4B's bare arm delivers
+   91 of 96 against its own raw arm's 92, the first entry measured where the two are one reading,
+   and the sentence then reads 94. So the defect this whole arc is about is not a property of a
+   grammar meeting a small model. It is a property of a grammar meeting *particular* models, and
+   within this family it thins out as the entry grows: 70, 76 and 91 of 96 bare at 0.8B, 2B and 4B.
+   Across families it does not, the E2B beating the E4B on the same arm.
+3. **The row's floor is lower than the row's record suggested, and it is the smallest entry.** Under
+   the shipped constrained path the five entries span 66 to 94 of 96, a spread of 29 percentage
+   points on identical work, and the bottom of it is a lineup entry one `CORTEX_MODEL_FILE_SUBAGENT`
+   selects. Its extraction cell is the worst measured anywhere in this arc: **12 of 32**, worse than
+   the defect the sentence was written to repair.
+4. **The raw arm stopped being perfect, which is a reading about the instrument.** Every earlier
+   pick answered 96 of 96 unconstrained, and the two entries here answer 93 and 92. Both losses are
+   the entry failing the subtask rather than the envelope taking an answer away, so every rate above
+   is still read against its own pick's raw arm, but the harness holds `raw` to nothing and the
+   record had quietly been treating it as a constant.
+   [R-484](../refinements/tasks/484-the-control-arm-is-held-to-no-floor.md).
+
+### The residue, and the prediction that held
+
+Counted as a rate over draws, the way the addenda above count it.
+
+| pick | its template's answer to "do not think" | raw | bare | constrained |
+| --- | --- | --- | --- | --- |
+| gemma-4-E4B (the default) | drops the block, adds nothing | 0/96 | 1/96 | 8/96 (0.04 to 0.16) |
+| Qwen3.5-2B (the roster alternate) | closes an empty think | 0/96 | 0/96 | 0/96 (0.00 to 0.04) |
+| gemma-4-E2B | drops the block, adds nothing | 0/96 | 0/96 | **14/96** (0.09 to 0.23) |
+| Qwen3.5-0.8B | closes an empty think | 0/96 | 0/96 | **0/96** (0.00 to 0.04) |
+| Qwen3.5-4B | closes an empty think | 0/96 | 0/96 | **0/96** (0.00 to 0.04) |
+
+**The prediction held, on both picks and on every cell.** Not one of the 576 runs here wrote a
+character into the reasoning channel, on any arm and on any shape, and no shape was lost to it. With
+the roster alternate that is **0 of 864 Qwen draws** against 22 of 192 constrained gemma-4-E draws,
+so the switch-is-advisory addendum's template column, which was read off each server's
+`POST /apply-template` before any of this was decoded, has now predicted the residue on five entries
+out of five. It is the cheapest selection input this repo has and it costs one HTTP call.
+
+**The cap means the same thing on both new picks as on the roster alternate, which makes it a family
+reading rather than a pick's.** All 17 cap refusals across the two entries are the degenerate
+numeric runaway the lineup addendum described, a reply that starts listing the body's numbers and
+never stops, and 16 of the 17 are on the extraction shape. None carries a trace. So the runbook's
+diagnosis holds for the family and not just for the one entry it was written about: on a Qwen
+subagent a cap refusal on narrow work is the flags or a runaway and never the reasoning channel.
+
+**What the column cannot say is the answer rate, and this is the clearest evidence of that yet.**
+The 0.8B and the 4B sit in the same cell of it, and they are 28 draws apart on the shipped path.
+
+### The failure kind is a family property, not a pick's
+
+The instruction addendum's decision 5 leans on a reading that under the sentence not one constrained
+run failed quietly. The lineup addendum showed that was the default pick's reading. These two entries
+put it beyond doubt: on the 0.8B **26 of the 30 constrained non-deliveries come back `ok=True`**,
+against 21 of 26 bare. The 4B's two constrained non-deliveries split one and one, which is too few
+to read as a rate and is recorded rather than leaned on. So of the three entries whose failures are
+numerous enough to characterise, the two that fail mostly silently under the shipped path are both
+Qwen entries, whose refusals are runaways rather than trace losses, and the two gemma-4-E entries
+fail loudly. That is the same split as the residue, read from the other end:
+the entries that never lose an answer to the reasoning channel are the entries whose failures the
+cortex cannot see.
+
+The 0.8B's quiet failures are the roster alternate's mode again. It hands the instruction back:
+`"Summarize the report below, keeping every detail."` is the whole of one bare reply, `"north
+warehouse"` and `"114"` are two more, and under the sentence one reply is a paraphrase of
+`REPLY_INSTRUCTION` itself, `"The following number extraction is required. The entire response must
+be the answer itself and should not include the task description, approach planning, or
+announcements."`, offered as the answer. The decision does not move, for the reason it gives, which
+is about what a detector over prose can do. What moves is how wide its cited evidence was.
+
+### Distrust green
+
+**The proxy could have been ranking rather than separating on these picks too.** It separates them
+more cleanly than it separated the last two: across the 384 replies on the two number shapes not one
+lands between 0.07 and 0.53 number recall, so the 0.5 threshold cuts an empty band rather than a
+population, and the comma reading the lineup addendum introduced (a comma read once as a thousands
+separator and once as a separator, taking the charitable maximum) moves no cell here.
+
+**The lookup rule is a regex over the body's own period and it was read twice.** The strict reading
+requires the period as the body names it (`week 34`, `month ending`, `quarter three`, `fortnight
+18`); a charitable one also accepts a garbled or misspelled naming of the same period. Two cells of
+the 0.8B's six move under it, its raw lookup from 30 to 32 and its constrained from 26 to 27, on
+replies that answer `Fortnite 18` and `34 weeks`. The strict column is the one tabled, it is the
+column the earlier picks were read in, and no claim above turns on those two draws.
+
+**The two picks could have differed in something other than the pick.** They ran the same four
+bodies, the same three instructions, the same eight draws, the same cap, the same grammar, the same
+image digest and the same `-ngl`, one server at a time with the other torn down, and the `bare` arm
+asserts on every draw that it removed a sentence rather than reporting the shipped path twice.
+
+**A prediction that cannot fail is not a prediction.** This one could have: the same column called
+the E4B and the E2B wrong-side and they wrote 22 traces between them, and the entry naming the
+prediction also named the half it does not reach, which is exactly the half that surprised.
+
+### What moves
+
+No code, and no pick. The subagent row is now measured whole, so the instruction addendum's five
+decisions keep the scope the lineup addendum gave them and gain a floor: they are decisions about a
+tier whose entries answer the same work between 66 and 94 times in 96. That is recorded at
+[ADR-0004](ADR-0004-model-lineup.md)'s subagent row and in the subagent runbook, where an operator
+who overrides the pick now reads which two entries to override to last rather than one. The two
+residues are
+[R-484](../refinements/tasks/484-the-control-arm-is-held-to-no-floor.md), the control arm nothing
+holds to a floor, and
+[R-485](../refinements/tasks/485-a-roster-description-never-says-whether-the-entry-answers.md), the
+description the cortex picks a roster entry by, which says how fast an entry is and how robust and
+never whether it answers.

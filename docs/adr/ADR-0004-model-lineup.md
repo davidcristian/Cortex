@@ -595,6 +595,22 @@ lineup section. Three readings belong here, where picks are chosen.
    overrides `CORTEX_MODEL_FILE_SUBAGENT` to the E2B is the one this reading is for, and the
    subagent runbook says so where the override is documented.
 
+5. **The subagent row is now measured whole, and it does not agree with itself**
+   ([ADR-0028](ADR-0028-grammar-constrained-subagents.md)'s row addendum, 2026-08-28). All five
+   entries have been through the constrained reply path at 288 runs each, 1440 in all. The residue
+   column above survives the other two: Qwen3.5-0.8B and Qwen3.5-4B write into the reasoning channel
+   on **0 draws of 288 each**, which takes the family to 0 of 864 and the column to five predictions
+   out of five. What the column does not touch is the answer rate, and that is where this row
+   spreads: under the shipped path the five entries deliver between **66 and 94 of 96** on identical
+   work. The floor is the smallest entry, Qwen3.5-0.8B, which answers an extraction on 12 draws of
+   32; the ceiling is Qwen3.5-4B, whose bare envelope costs it nothing measurable against its own
+   unconstrained arm (91 of 96 against 92). So size within a family tracks the cost and size across
+   families does not, and the appended sentence is a gain on three entries of the five and a cost on
+   two, with only the default pick's gain large. Both entries a deployment ships stay on the paying
+   side. The
+   selection reading for a chooser is that this row is a spread and not a tier, and the runbook
+   names the two entries to override to last.
+
 **What this does not change.** No pick moves. The subagent tier's two reasoning-off flags stay
 exactly as they are: `--reasoning-budget 0` is what covers the gemma-4-E entries on the shape their
 template cannot, it costs nothing on an entry whose template already holds, and a tier carrying both

@@ -1756,6 +1756,14 @@ and all three subtask shapes; gemma-4-E4B on 8 of 96 constrained draws and gemma
 is the order this table's `4/5` and `5/5` put them in. So a cell here is a lost answer somewhere
 else, and the full reading is the ADR-0028 lineup addendum.
 
+**All five entries of the subagent row have since been asked, and the column is five for five
+(2026-08-28).** Qwen3.5-0.8B and Qwen3.5-4B, the two remaining, write into that channel on 0 draws
+of 288 each, on every arm and every subtask shape, which puts the Qwen entries of this row at **0 of
+864** against 22 of 192 for the two gemma-4-E entries. The prediction was written down before either
+server was started and it could have failed on either pick. What the column still says nothing about
+is the answer rate: these two sit in the same cell of it and are 28 draws apart on the shipped
+constrained path, 66 and 94 of 96. The full reading is the ADR-0028 row addendum.
+
 **Where the residue went.** The prediction is a set of readings of one engine build rather than a
 theorem, and nothing in the stack reads the rendering it turns on, though a loaded server answers in
 one call.
@@ -2026,6 +2034,17 @@ the sixteen is again either a summary or a plan, with no reply between the two: 
 gap that separates the 160 separates these as well. Sixteen runs cannot show a small difference
 between the placements and are not offered as doing so. What they refuse is a large one, which is
 what the substitution needed.
+
+**The other family has now been controlled too (2026-08-28).** Everything above is gemma-4-E4B, so
+the substitution had been checked on one family and spent on two. Qwen3.5-0.8B Q8_0 was re-run on
+the same CPU image and build, `-ngl 0` and every other flag identical, on the summarization shape
+over the same four bodies at two draws: **24 runs**, three arms of 8. It delivered **8 of 8 raw, 7
+of 8 bare and 8 of 8 constrained**, against the same three arms on the card at 32 of 32, 26 of 32
+and 28 of 32, and it wrote nothing into the reasoning channel on either placement. Twenty four runs
+again refuse a large difference and cannot see a small one. What they price is the substitution's
+whole point: this entry decodes at 10.4 to 17.3 tok/s on the CPU against 91 to 350 on the card, so
+the 576 runs behind the ADR-0028 row addendum would have been most of a day on the placement the
+compose file ships.
 
 ### Which of the entry's three outcomes, and what moves
 
