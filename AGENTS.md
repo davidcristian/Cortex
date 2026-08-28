@@ -131,7 +131,10 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    the call site that writes it, its level, its logger, its message and the fields it carries in
    the order the formatter renders them, so a field a call stopped or started attaching cannot
    leave a documented sample printing what nothing emits, and which holds field names and never
-   field values, a captured value being a dated reading (ADR-0009 sample-membership addendum);
+   field values, a captured value being a dated reading (ADR-0009 sample-membership addendum), and
+   which refuses a module that spells one logger name twice, a declaration beside a literal of the
+   same string being two names where the documents restating it are tied to one (ADR-0009 one-name
+   addendum);
    `rostercheck.py`, which holds every roster a document keeps to the set it really describes, the
    ignored checks in the body's live seam suite, the modules in `scripts/` and the two halves the
    contract sorts them into, that same set again in the repo map below, the tuples the constant
@@ -318,7 +321,7 @@ scripts/          repo gates, plus the two modules here that gate nothing, contr
                   samplecheck.py (every log line a runbook prints back to an operator still says
                   what the call site writing it would print) + logsamples.py (what a documented
                   sample claims, read off the page) + logcalls.py (what the call really attaches,
-                  parsed out of the module),
+                  parsed out of the module, and the one logger name a module may not spell twice),
                   rostercheck.py (every roster a document keeps still names the set it
                   describes, membership and naming only) + rosters.py (which rosters this repo
                   has written down, and where each one's real set is read from) +

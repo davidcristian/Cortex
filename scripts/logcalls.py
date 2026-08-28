@@ -93,11 +93,28 @@ def _parsed(text: str, shown: str) -> ast.Module:
         raise LogCallError(msg) from err
 
 
+def _literal(named: str, text: str, shown: str) -> str:
+    """The name a literal call claims, refused when the same module also binds it.
+
+    Only the binding is what the constant registry ties documents to, so a module holding both
+    spellings can move the literal alone and leave them restating a name nothing writes through.
+    """
+    strings, _ = constants(_parsed(text, shown))
+    declared = sorted(name for name, value in strings.items() if value == named)
+    if declared:
+        msg = (
+            f"{shown} writes the logger {named!r} inside the call and binds it above as "
+            f"{', '.join(declared)}; pass the binding, so the name is written once"
+        )
+        raise LogCallError(msg)
+    return named
+
+
 def claimed(claim: re.Match[str], text: str, inside: Path, shown: str) -> str:
     """The logger name one ``getLogger`` call claims, in whichever spelling it claims it."""
     named = claim["named"]
     if named is not None:
-        return named
+        return _literal(named, text, shown)
     bound = claim["bound"]
     if bound is None:
         return dotted(inside)
