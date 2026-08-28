@@ -11,7 +11,9 @@ from cortex_core.log_fields import (
     TURN_FIELD,
 )
 
-_logger = logging.getLogger("cortex.tools.audit")
+_LOGGER_NAME = "cortex.tools.audit"
+
+_logger = logging.getLogger(_LOGGER_NAME)
 
 
 class LoggingAuditSink:

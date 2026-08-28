@@ -58,7 +58,8 @@ def test_a_module_logging_under_name_is_found_by_its_dotted_path(tmp_path: Path)
 
 
 def test_a_sink_that_names_itself_is_found_under_the_name_it_chose(tmp_path: Path) -> None:
-    """The tool audit and the recall trail both do this, their lines being read as a trail."""
+    """The spelling neither self-named sink writes any more, both binding the name above the call.
+    """
     brain(tmp_path, {"tools/src/cortex_tools/audit.py": 'getLogger("cortex.tools.audit")\n'})
     assert set(logcalls.loggers(tmp_path)) == {"cortex.tools.audit"}
 
@@ -259,8 +260,8 @@ def test_a_spread_into_extra_is_a_fault_rather_than_a_short_answer() -> None:
 # ── the brain this reader is written for ───────────────────────────────────────
 
 
-def test_the_committed_brain_declares_every_spelling_of_a_logger_claim() -> None:
-    """A guard on the fixtures: a spelling nobody writes would be untested machinery."""
+def test_the_committed_brain_declares_both_spellings_a_logger_is_claimed_in() -> None:
+    """A guard on the fixtures: the two spellings the brain has left, one of them twice."""
     names = logcalls.loggers(REPO_ROOT)
     assert names["cortex_core.swap_settle"].endswith("cortex_core/swap_settle.py")
     assert names["cortex.tools.audit"].endswith("cortex_tools/audit.py")

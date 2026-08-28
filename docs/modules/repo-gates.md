@@ -137,14 +137,18 @@ that last question to have an answer.
   addendum), whose turn entry also holds the one qualified spelling in the brain, the second
   turn named on a single line, through a template that renders the qualifier in front of the
   same declared value, so a rename of the family cannot leave the qualified name behind
-  (sixth-name addendum); and the second such part, the three words one recall-trail line is
+  (sixth-name addendum); and the second such part, the words one line of either per-line trail is
   found by, which are one line's where the vocabulary next door is one word's
-  across the brain: the logger it is written through, held to the two runbooks and the module
+  across the brain: the recall trail's logger, held to the two runbooks and the module
   contract that restate it (ADR-0038 named-logger addendum), and the message and the field name
   `trailwidth.py` spells to find and cut the recall trail's widest value out of a captured line.
   Those two are the one place in the registry where the DECLARING side gates nothing: a reader
   run by hand on a GPU is exactly the far side no suite would notice moving, which is the
   argument the fixture part already makes for a subject nothing ships (ADR-0038 tied-needle
+  addendum). The tool audit's logger is the fourth entry there and the same shape as the first,
+  held to the tools runbook, the local-dev runbook, the docstring that argues from it that the
+  shipped level is not a knob, and that module's suite, which writes a line under the name to
+  prove the argument and would go on proving it about an abandoned logger (ADR-0009 audit-logger
   addendum). Some arrived as
   splits under the cap and some as subjects added beside them, which is the one-line claim being
   paid from both directions rather than argued.

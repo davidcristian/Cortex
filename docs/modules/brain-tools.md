@@ -54,7 +54,15 @@ source of audited, model-callable tools.
   large or sensitive); a failure logs the short error detail; both log the tool name,
   arguments, the result's `trust` provenance (so "did this turn read untrusted content?"
   is answerable from the durable trail alone, per ADR-0013 decision 2), and timestamp (the
-  AGENTS.md audit gate). A line also names the work it was for, `session_id`, `turn_id`,
+  AGENTS.md audit gate). The logger it writes through is declared in the module as `_LOGGER_NAME`
+  rather than spelled inside the `getLogger` call, because four places restate that name and none
+  of them can import it: the two runbooks that tell an operator to select the trail by it, the
+  docstring that fixes the shipped level at INFO because this trail rides on it, and that module's
+  suite, which writes a line under the name to prove it. `scripts/crosscheck.py` ties all four to
+  the declaration, so a rename here reddens the gate rather than leaving them describing a trail
+  nothing writes (ADR-0009 audit-logger addendum). This contract names the declaration rather than
+  the name, deliberately: a fifth restatement written to be gated would be the gate choosing its
+  own subject. A line also names the work it was for, `session_id`, `turn_id`,
   `task_id` and `item_id` off the dispatch's stamp, under the field names the rest of the brain's
   log lines
   spell them with, and this is the one sink that takes those five names from

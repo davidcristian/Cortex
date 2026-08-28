@@ -1,15 +1,20 @@
-"""The couplings around the recall trail: the three words one of its lines is found by."""
+"""The couplings around the brain's two per-line trails: the words one of their lines is found by.
+"""
 
 from couplings import Constant, Mention, Site
 
+AUDIT_SINK = "brain/packages/tools/src/cortex_tools/audit.py"
 RECALL_SINK = "brain/packages/memory/src/cortex_memory/audit.py"
 
+CONFIG_LOGGING = "brain/packages/orchestrator/src/cortex_orchestrator/config_logging.py"
+CONFIG_LOGGING_SUITE = "brain/packages/orchestrator/tests/test_config_logging.py"
 TRAIL_READER = "scripts/trailwidth.py"
 
 GATES_MODULE = "docs/modules/repo-gates.md"
 LOCAL_DEV_RUNBOOK = "docs/runbooks/local-dev-wsl.md"
 MEMORY_MODULE = "docs/modules/brain-memory.md"
 MEMORY_RUNBOOK = "docs/runbooks/memory-pgvector.md"
+TOOLS_RUNBOOK = "docs/runbooks/tools-mcp.md"
 
 FIELD_KEY = '"{value}":'
 
@@ -70,6 +75,30 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
             Mention(RECALL_SINK, FIELD_KEY),
             Mention(MEMORY_RUNBOOK, "`{value}` names every"),
             Mention(GATES_MODULE, "the recall trail's `{value}` field"),
+        ),
+    ),
+    Constant(
+        label="the logger one tool-audit line is written through",
+        why=(
+            "this is the name an operator selects the audit trail by on a stream carrying every "
+            "other line the brain writes, and four places restate it while none of them can "
+            "import it: the tools runbook says one such line is written per dispatched call, the "
+            "local-dev runbook names it among the two per-line trails a deployment can raise or "
+            "lower, the process entry's logging module names it to argue that the shipped level "
+            "is not a knob, and that module's own suite writes a line under the name and asserts "
+            "the rendered result to prove the argument; a rename in the sink alone leaves two "
+            "runbooks telling an operator to select a trail nothing writes, one module arguing "
+            "about the level of a logger that no longer exists, and one suite demonstrating the "
+            "argument on a name the brain abandoned, all four green (ADR-0009 audit-logger "
+            "addendum)"
+        ),
+        sites=(Site(AUDIT_SINK, "_LOGGER_NAME"),),
+        mentions=(
+            Mention(TOOLS_RUNBOOK, "(one `{value}` line per call)"),
+            Mention(LOCAL_DEV_RUNBOOK, "the tool audit (`{value}`, always on"),
+            Mention(CONFIG_LOGGING, "audit trail (``{value}``,"),
+            Mention(CONFIG_LOGGING_SUITE, 'getLogger("{value}").info'),
+            Mention(CONFIG_LOGGING_SUITE, '== "INFO:{value}:tool.invocation'),
         ),
     ),
 )
