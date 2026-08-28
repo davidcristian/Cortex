@@ -145,3 +145,44 @@ would have to grow a third shape. None of that is hard and all of it is unowed, 
 what a dead-until-a-consumer entry is for. Decision 3's composition hazard is unchanged and still
 covers it: both subagent servers run with `--jinja`, so any grammar this seam sends stays gated to
 the tool-less path.
+
+## Answer-rate addendum (2026-08-28): the defence holds, and the niche it defends mostly stops answering
+
+Prices what this ADR never priced. The laundering argument was always about *format*, and the live
+validation above is a clean structural result that nothing here disturbs. What was never measured is
+whether the constrained niche still returns an answer, and on a deliberation-inviting subtask it
+mostly does not. Measured over 160 runs by the agent and recorded in full in the ADR-0005 answer
+addendum: the unconstrained shape answered on **40 of 40** draws and the envelope on **10 of 40**,
+over the same four report bodies at the shipped cap on the shipped pick.
+
+Three consequences for this ADR, and none of them is that the constraint was wrong.
+
+**The defence is untouched and so is decision 3.** The appended-structure guarantee is a property of
+the grammar, not of the reply, and across 200 runs at four request shapes not one came back
+`MALFORMED`: every reply decoded into the envelope it was asked for. Nothing a weak model did here
+rode outside the field. The gating to the tool-less path
+still makes the composition hazard with `--jinja` structurally impossible.
+
+**Decision 2's envelope is doing less than its shape suggests, because the model never reads it.**
+Asked through `POST /apply-template`, this pick renders a byte-identical prompt with the envelope and
+without it, while the same endpoint does render a `chat_template_kwargs` change and a `tools` array,
+and the cortex pick answers the same way about both of the schemas this repo sends.
+So `{"reply": <string>}` is a constraint on the next token and never a description of a contract:
+the field's name reaches the grammar and stops there. That is the reason the obvious repair fails.
+Giving `reply` a `description` moved the answer rate by nothing measurable (9 of 40 against 10), and
+so did adding a required field ahead of it for the narration to occupy (10 of 40), the model simply
+narrating into both. What did move it is the subtask text, which is the one channel that reaches the
+model: an instruction naming what the reply must contain took the same shape to **39 of 40**.
+
+**It re-reads the alternative this ADR rejected.** A per-task caller-supplied schema was rejected
+above as a larger surface for no gain in the laundering defence, and that reasoning stands and gains
+a second leg: a richer schema could not have explained anything to the model either, so the surface
+would have bought constraint alone. The same reading applies to the second constrained caller the
+GBNF addendum names. `ORDER_ENVELOPE` is invisible as text too, and the rerank judge is unaffected
+for a reason worth writing down rather than assuming: a placing is not a shape a model narrates its
+way into, so a grammar that admits only `{"order": [n, ...]}` leaves nowhere for a preamble to go
+and nothing a preamble would say. **The hazard is specific to a field whose value is prose.**
+
+What this leaves is a question about the subagent contract rather than about the grammar, so it is
+recorded rather than typed:
+[R-476](../refinements/tasks/476-the-envelopes-answer-rate-is-an-instruction.md).

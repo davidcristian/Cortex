@@ -8,15 +8,15 @@ summarization the raw shape answers well inside it. One sample cannot separate t
 the body it ran over or from sampling variance on a 4B model, so this driver runs **both shapes
 over the same bodies** and leaves the pairing to arithmetic rather than to a reading.
 
-Blocked, paired, and serialized: for each report body the raw arm runs and then the constrained
-arm, one stream at a time against one CPU `llama-server`, so the two arms of a body see the same
-machine and the wall clocks stay comparable with the batch this repo already measured. Each body
-is its own report, so no two *pairs* share a slot's prompt cache; the two arms of one pair share it
-by construction, being the same prompt, which is what makes them paired and which costs the second
-arm about ten seconds less prompt eval than the first paid.
+Blocked, paired, and serialized: for each report body every arm runs in turn and every draw of the
+body repeats that block, one stream at a time against one `llama-server`, so the arms of a body see
+the same machine and the wall clocks stay comparable with the batch this repo already measured.
+Each body is its own report, so no two *bodies* share a slot's prompt cache; the arms of one draw
+share it by construction, being the same prompt, which is what makes them paired and which costs
+every arm after the first about ten seconds less prompt eval than the first paid.
 
 It writes one `contrast.py` sample per arm (`arm`, and `turns` carrying `question`/`ttft`/`wall`),
-rewritten after every completed pair so a run cut short still leaves whole pairs behind. Each turn
+rewritten after every completed run so a run cut short still leaves whole draws behind. Each turn
 also carries the reading this measurement is really about, `tokens` off the server's own
 `timings.predicted_n`, plus the stop reason and what the runner told the cortex; `contrast.py`
 reads the seconds and ignores the rest.
@@ -29,12 +29,26 @@ Integration-marked, so CI and the coverage gate never see it. Bring up the subag
       uv run pytest -m integration --no-cov -s \\
       packages/orchestrator/tests/test_envelope_cost_live.py
 
-Four knobs size a run to a budget or turn it into a probe. `CORTEX_ENVELOPE_BODIES` runs only
-the first N bodies; `CORTEX_ENVELOPE_ARMS` runs a subset of `raw,constrained`;
-`CORTEX_ENVELOPE_MAX_TOKENS` overrides the cap the runs are given, which is how the length the
-constrained arm would write is read past the shipped cap that censors it; and
-`CORTEX_ENVELOPE_TAG` suffixes the sample names so a probe cannot overwrite the run it sits
-beside. `CORTEX_ENVELOPE_HEAD` sets how much of each half of the stream is kept verbatim.
+Six knobs size a run to a budget or turn it into a probe. `CORTEX_ENVELOPE_BODIES` runs only
+the first N bodies; `CORTEX_ENVELOPE_ARMS` runs a subset of `raw,constrained,described,prefaced`;
+`CORTEX_ENVELOPE_DRAWS` repeats every arm of every body that many times, because one draw of a
+sampled model is a draw and not a reading; `CORTEX_ENVELOPE_MAX_TOKENS` overrides the cap the runs
+are given, which is how the length the constrained arm would write is read past the shipped cap
+that censors it; and `CORTEX_ENVELOPE_TAG` suffixes the sample names so a probe cannot overwrite
+the run it sits beside. `CORTEX_ENVELOPE_HEAD` sets how much of each half of the stream is kept
+verbatim, which is separate from `output`: the reply itself is always kept whole, because what an
+answer says is the reading this harness grew to take. `CORTEX_ENVELOPE_INSTRUCTION` replaces the
+subtask every body is given, which is the only place this engine lets anything be said to the model
+about the envelope at all.
+
+The last two arms exist for questions the first two cannot ask. `raw` and `constrained` differ in
+whether a grammar is in play at all; `described` is the shipped envelope with one sentence added to
+its `reply` property saying what the field is for, so the difference between it and `constrained`
+is the description and nothing else. The shipped `REPLY_ENVELOPE` is a bare typed string, which
+tells a model the shape of the field and nothing about its purpose, and whether that silence costs
+the answer anything is a schema away from being measurable. `prefaced` then asks the other
+question, whether what lands in `reply` is there because the grammar offers it nowhere else to go,
+by adding a required field ahead of it that it can go to.
 
 What it found on 2026-08-26, recorded in full in the ADR-0005 envelope addendum: the envelope
 cost 1.01 to at least 2.36 times the raw shape's tokens for a shorter reply, the tokens going to a
@@ -43,6 +57,13 @@ not a request key (ADR-0005 thinking-lever addendum), so **a server started with
 `--reasoning-budget 0` reproduces the defect and not the fix**: with it, the same three bodies at
 the shipped cap finish at 63 to 89 decoded tokens with no trace at all, and without it the first
 of them spends 200 tokens on trace alone.
+
+What it found on 2026-08-28, once the arms above existed and every cell was drawn ten times
+(ADR-0005 answer addendum): those short finished replies are the defect and not the fix. Over four
+bodies at ten draws the unconstrained arm returned a summary on 40 of 40 and the shipped envelope on
+10 of 40, the rest narrating the subtask rather than doing it, and neither schema arm moved that.
+So a run of this harness that reports the envelope finishing quickly inside its cap is reporting
+the failure, and `output` is the field that says which it is.
 """
 
 import json
@@ -83,6 +104,7 @@ from cortex_core import (
     ToolSpec,
     VramBudgetPlacer,
 )
+from cortex_core.subagent_reply import REPLY_ENVELOPE
 from cortex_inference import LlamaCppBackend
 
 _ENDPOINT = os.environ.get("CORTEX_SUBAGENTS_ENDPOINT")
@@ -96,6 +118,10 @@ _LIMIT = int(os.environ.get("CORTEX_ENVELOPE_BODIES", "4"))
 # diagnostic inside the harness, where the next reader finds it, instead of in a scratchpad.
 _MAX_TOKENS = int(os.environ.get("CORTEX_ENVELOPE_MAX_TOKENS", str(DEFAULT_SUBAGENT_MAX_TOKENS)))
 _ARMS = tuple(os.environ.get("CORTEX_ENVELOPE_ARMS", "raw,constrained").split(","))
+# How many times each arm of each body is drawn. One, so every recipe written before this knob
+# existed still means what it said. Above one is what a quality reading needs: this tier samples,
+# and a cell read once is a draw that a reader will quote as a rule.
+_DRAWS = int(os.environ.get("CORTEX_ENVELOPE_DRAWS", "1"))
 # Named where the sample is written as well as where the run is configured, so a diagnostic at a
 # raised cap cannot silently overwrite the shipped-cap sample it is meant to sit beside.
 _TAG = os.environ.get("CORTEX_ENVELOPE_TAG", "")
@@ -103,10 +129,72 @@ _TAG = os.environ.get("CORTEX_ENVELOPE_TAG", "")
 # the reply and cannot say where, and where is the whole of what a retune would rest on.
 _HEAD = int(os.environ.get("CORTEX_ENVELOPE_HEAD", "400"))
 
+# The shipped envelope with one sentence added, and the only difference between the `constrained`
+# arm and the `described` one. It says what the field is for and nothing about how to fill it: a
+# description that told the model not to narrate would measure the instruction rather than the
+# schema, and the question here is what an empty property costs, not what a better prompt buys.
+# Built from the shipped constant rather than retyped, so it cannot drift from the grammar it is
+# a variant of, and it lives here rather than in the core because a probe arm is not a shape
+# anything ships.
+#
+# It has been run and it changes nothing, which is a reading about the engine rather than about the
+# wording: this build renders the same prompt with a schema and without one, so a `description` here
+# reaches the grammar builder and no model (ADR-0005 answer addendum). The arm stays because that is
+# the sort of claim a later build could falsify, and re-running it is how anyone would find out.
+_REPLY_DESCRIPTION = "The answer to the instruction, written out in full as plain text."
+_DESCRIBED_ENVELOPE: JsonSchema = {
+    **REPLY_ENVELOPE,
+    "properties": {"reply": {"type": "string", "description": _REPLY_DESCRIPTION}},
+}
+
+# The fourth arm, and the one that asks about the cause rather than about the cost. A tier told not
+# to think still opens a summarization by planning it, and under the shipped envelope the only
+# grammatical position for that text is inside `reply`, which is why a reader gets a plan where an
+# answer belongs. This envelope gives the plan a field of its own, ahead of the reply and required
+# so the grammar cannot skip it, leaving `reply` the position it was always meant to hold. The
+# runner unwraps `reply` and nothing else, so what the cortex would be handed is unchanged, and so
+# is the appended-structure guarantee (ADR-0028): the extra field is inside the grammar, not after
+# it. It is a probe and not a proposal; what it measures is whether the narration has somewhere
+# else to go.
+#
+# The answer is that it does not need one. Run at ten draws over four bodies it lands on the same
+# rate as the arm with no such field, the model filling `notes` with a plan and `reply` with more
+# plan, so what arrives in `reply` is not overflow: this pick is treating a plan as the whole of its
+# output, and no rearrangement of the fields talks it out of that.
+_PREFACED_ENVELOPE: JsonSchema = {
+    "type": "object",
+    "properties": {
+        "notes": {
+            "type": "string",
+            "description": "Any planning or restatement of the task, before the answer.",
+        },
+        "reply": {"type": "string", "description": _REPLY_DESCRIPTION},
+    },
+    "required": ["notes", "reply"],
+    "additionalProperties": False,
+}
+
+# Which schema each arm's request carries, and therefore what the arm is. `None` is the raw shape,
+# which is also the shape that tells the runner not to unwrap anything.
+_SCHEMAS: dict[str, JsonSchema | None] = {
+    "raw": None,
+    "constrained": REPLY_ENVELOPE,
+    "described": _DESCRIBED_ENVELOPE,
+    "prefaced": _PREFACED_ENVELOPE,
+}
+
 # The summarization shape the total-cap addendum found longest of the narrow four, over four
 # report bodies of about the same length. Different subject matter each time, so a body that
 # happens to invite a long answer shows up as one pair out of line rather than as the reading.
-_INSTRUCTION = "Summarize the report below, keeping every detail."
+#
+# Overridable, and for one reason worth stating where the override is. This build shows the model
+# no part of a `response_format` schema: the rendered prompt is byte-identical with the envelope
+# and without it, so a property's `description` is read by the grammar builder and by nothing else.
+# Whatever an envelope could have told the model about its field can therefore only be said in the
+# instruction, and the knob is what lets that be measured against the same bodies as the arms above.
+_INSTRUCTION = os.environ.get(
+    "CORTEX_ENVELOPE_INSTRUCTION", "Summarize the report below, keeping every detail."
+)
 
 _BODIES: dict[str, str] = {
     "warehouse": (
@@ -175,10 +263,17 @@ class _Recording:
     ``LlamaCppBackend`` and the only thing added is a reading. ``DecodeCadence`` carries
     llama.cpp's ``predicted_n``, which is the decoded length this measurement is about, and
     ``DecodeStop`` carries why the completion ended, which is how the cap announces itself.
+
+    ``substitute`` is the one thing it changes rather than records, and it changes exactly one
+    request field. The runner reaches for ``REPLY_ENVELOPE`` by name, so an arm that differs only
+    in the schema cannot be configured from outside it; swapping the schema here keeps every other
+    line of the run the shipped one, including the unwrap, which still finds ``reply`` because
+    every arm's grammar still declares it.
     """
 
-    def __init__(self, inner: InferenceBackend) -> None:
+    def __init__(self, inner: InferenceBackend, *, substitute: JsonSchema | None = None) -> None:
         self._inner = inner
+        self._substitute = substitute
         self.cadence: DecodeCadence | None = None
         self.stop: DecodeStop | None = None
         self.ttft_s: float | None = None
@@ -198,7 +293,8 @@ class _Recording:
         bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
         started = time.monotonic()
-        events = self._inner.stream(model, messages, tools=tools, schema=schema, bounds=bounds)
+        asked = self._substitute if schema is not None and self._substitute is not None else schema
+        events = self._inner.stream(model, messages, tools=tools, schema=asked, bounds=bounds)
         async for event in events:
             if isinstance(event, TextChunk):
                 if self.ttft_s is None:
@@ -229,21 +325,23 @@ def _roster(backend: InferenceBackend) -> SubagentRoster:
 
 
 async def _one(
-    client: httpx.AsyncClient, name: str, body: str, *, constrain: bool
+    client: httpx.AsyncClient, name: str, body: str, *, arm: str, draw: int
 ) -> dict[str, Any]:
     """Run one body on one shape through the real runner and say what came back."""
+    schema = _SCHEMAS[arm]
     recorder = _Recording(
-        LlamaCppBackend(SingleResidentModelManager(_MODEL, _ENDPOINT or ""), client)
+        LlamaCppBackend(SingleResidentModelManager(_MODEL, _ENDPOINT or ""), client),
+        substitute=schema,
     )
     store = InMemoryTaskStore()
     runner = SubagentRunner(
         store,
         _roster(recorder),
         SystemClock(),
-        constrain_output=constrain,
+        constrain_output=schema is not None,
         bounds=AttemptBounds(max_tokens=_MAX_TOKENS, timeout_s=DEFAULT_SUBAGENT_RUN_TIMEOUT_S),
     )
-    task_id = f"{name}-{'constrained' if constrain else 'raw'}"
+    task_id = f"{name}-{arm}-{draw}"
     await store.put_task(
         SubagentTask(id=task_id, instruction=_INSTRUCTION, context=body, at=datetime.now(UTC))
     )
@@ -252,6 +350,8 @@ async def _one(
     wall = time.monotonic() - started
     turn = {
         "question": name,
+        "arm": arm,
+        "draw": draw,
         "cap": _MAX_TOKENS,
         "ttft": recorder.ttft_s if recorder.ttft_s is not None else wall,
         "wall": wall,
@@ -263,15 +363,20 @@ async def _one(
         "output_chars": len(result.output),
         "stream_text_chars": len(recorder.text),
         "reasoning_chars": len(recorder.reasoning),
+        # Kept whole, and the only field here that is. A length says a reply happened; whether it
+        # answered the instruction or described answering it is in the words, and that reading is
+        # what this harness was extended to support.
+        "output": result.output,
         "stream_head": recorder.text[:_HEAD],
         "reasoning_head": recorder.reasoning[:_HEAD],
     }
-    print(f"  {task_id}: {json.dumps(turn)}", flush=True)  # noqa: T201 -- the report is the point
+    printed = {key: value for key, value in turn.items() if key != "output"}
+    print(f"  {task_id}: {json.dumps(printed)}", flush=True)  # noqa: T201 -- the report is the point
     return turn
 
 
 def _write(arm: str, turns: list[dict[str, Any]]) -> None:
-    """Rewrite one arm's sample, so a run cut short still leaves the pairs it finished."""
+    """Rewrite one arm's sample, so a run cut short still leaves the draws it finished."""
     _OUT.mkdir(parents=True, exist_ok=True)
     path = _OUT / f"envelope-{arm}{_TAG}.json"
     path.write_text(json.dumps({"arm": arm, "turns": turns}, indent=2) + "\n", encoding="utf-8")
@@ -280,17 +385,20 @@ def _write(arm: str, turns: list[dict[str, Any]]) -> None:
 @pytest.mark.integration
 @pytest.mark.skipif(not _ENDPOINT, reason="set CORTEX_SUBAGENTS_ENDPOINT to a live subagent server")
 async def test_the_envelope_against_the_raw_shape_over_the_same_bodies() -> None:
-    """Both shapes over each body, raw first, writing after every completed pair."""
+    """Every shape over each body, raw first, writing after every completed run."""
     turns: dict[str, list[dict[str, Any]]] = {arm: [] for arm in _ARMS}
     # No request timeout: a CPU subtask streams for minutes and the stall ceiling is per read.
     async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, read=None)) as client:
         for name, body in list(_BODIES.items())[:_LIMIT]:
-            for arm in _ARMS:
-                turns[arm].append(await _one(client, name, body, constrain=arm == "constrained"))
-                _write(arm, turns[arm])
+            # Draws inside a body and arms inside a draw, so a run cut short loses whole draws of
+            # a whole body rather than one arm of one, which is the unit the pairing is over.
+            for draw in range(1, _DRAWS + 1):
+                for arm in _ARMS:
+                    turns[arm].append(await _one(client, name, body, arm=arm, draw=draw))
+                    _write(arm, turns[arm])
     # The measurement is the numbers printed and written above; what must hold whatever the model
     # decides is that every arm answered over the same bodies, which is what makes them pairable.
-    asked = [[turn["question"] for turn in seen] for seen in turns.values()]
+    asked = [[(turn["question"], turn["draw"]) for turn in seen] for seen in turns.values()]
     assert all(seen == asked[0] for seen in asked), f"the arms asked different bodies: {asked}"
     everything = [turn for seen in turns.values() for turn in seen]
     assert all(turn["tokens"] is not None for turn in everything), "a run reported no timings"

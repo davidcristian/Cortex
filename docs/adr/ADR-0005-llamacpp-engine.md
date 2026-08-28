@@ -1861,3 +1861,187 @@ The last row is the one the first draft got wrong. Moving the report inside the 
 looks harmless and turns a dead server into a template that ignores the switch, blaming a
 deployment for a transport failure; the check that a completion which failed part way describes
 nothing is what separates them.
+
+## Answer addendum (2026-08-28): what the envelope costs the answer, which is not its length
+
+**Status:** Accepted. Closes
+[docs/refinements/tasks/459-what-the-envelope-costs-the-answer.md](../refinements/tasks/459-what-the-envelope-costs-the-answer.md),
+which the thinking-lever addendum's own first readings opened, and **corrects one sentence of the
+envelope addendum above**: that addendum read the constrained arm's shorter replies as the envelope
+returning less text, which is right as arithmetic and wrong as an account of what those replies are.
+Opens [R-476](../refinements/tasks/476-the-envelopes-answer-rate-is-an-instruction.md) and
+[R-479](../refinements/tasks/479-the-reasoning-budget-held-until-the-prompt-pushed.md).
+
+Everything this ADR had measured about the reply envelope was a length: decoded tokens, wall clock,
+characters returned. Nobody had read whether the answer was as good, and the first readings taken
+once the trace was off were three replies that all narrated the task instead of performing it. Three
+draws from a 4B model price nothing, so this is the reading that does.
+
+### Re-derived first
+
+`REPLY_ENVELOPE` is still a bare `{"reply": <string>}` with `additionalProperties: false`,
+`PlacedAttempt` still sends it exactly where the run holds no dispatcher, and `settle_reply` still
+reads `capped` before the unwrap. The cap is still 1024 and the deadline still 2400 s. Every
+subagent server this repo starts still carries `--chat-template-kwargs '{"enable_thinking": false}'`
+beside `--reasoning-budget 0`. Nothing had moved.
+
+### How an answer was judged, and what that reading cannot do
+
+Two readings over the same replies, one mechanical and one by a reader, and the mechanical one
+carries the table because the instruction has a checkable meaning. It says "keeping every detail",
+so **number recall** is the fraction of a body's distinct numeric literals that appear in the reply.
+The reader's half then sorts every reply into `answer` (a summary from its first sentence),
+`mixed` (a plan or preamble and then the summary) or `narration` (only text about the task).
+
+The two agree, and the proxy turns out to separate the populations rather than rank them: across
+**160 replies not one lands between 0.09 and 0.82**. A reply either carries essentially every number
+in the report or it carries almost none, and reading the low ones confirms what they are, openings
+like "The user wants a comprehensive summary of the provided site report" and
+"Here's a plan to ensure all details are captured". Read at a seeded random twelve of the ninety one
+low replies rather than at the ones that caught the eye, all twelve are narration and one of them is
+the instruction handed back verbatim.
+
+What this cannot do is worth saying plainly. It is one instruction over four operational report
+bodies of one genre, judged by one reader with one proxy, and it measures whether an answer arrived
+rather than how well it is written. A subtask that invites no deliberation is not represented here
+at all, and on the evidence below that is exactly the axis the effect runs along.
+
+### What it ran on
+
+gemma-4-E4B QAT q4_0, the shipped subagent pick, on llama.cpp `b10644-d7a207411` from
+`ghcr.io/ggml-org/llama.cpp@sha256:9f0a986a78ab9261afc3266c807c16933ee4c26c62cb063f0c17f8da890f6c7e`,
+carrying the subagent server's own flags (`--jinja`, the reasoning-off pair, `--ctx-size 8192`,
+`--parallel 2`, the server's own log reporting `n_ctx_slot = 4096`) and driven through the real
+`SubagentRunner` chain at the shipped cap by
+`brain/packages/orchestrator/tests/test_envelope_cost_live.py`. Four report bodies, ten draws each,
+four request shapes: **160 runs**.
+
+**It ran `-ngl 99` rather than `-ngl 0`, and that is a deliberate substitution.** What is being read
+is what the model writes, not how fast it writes it, and the CPU placement decodes at 1.26 to 1.35
+tok/s on an idle box and a fifth of that on a busy one, which puts the 200 runs behind this
+addendum at about ten hours of decoding at the fast end alone. The GPU placement is not a made-up
+shape either: it is the tier's other shipped one, the model host's opt-in subagent tier behind
+`CORTEX_MODEL_FILE_SUBAGENT_GPU` (ADR-0030), and every flag but `-ngl` is the compose file's. The
+assumption this rests on is that offload changes throughput and not what the model decides, and a
+CPU control over the same bodies is recorded below rather than left as an assertion. **No wall clock
+from this run is comparable with the batch addendum's**, and none is quoted.
+
+### What 160 runs say
+
+Each arm is the same four bodies at ten draws. `delivered` counts the replies that carried the
+summary at all, meaning `answer` plus `mixed`, with a Wilson 95% interval beside it because a rate
+over 40 draws is a rate and not a constant.
+
+| arm | what the request carried | delivered | decoded tokens, median / max | reply chars, median | capped |
+| --- | --- | --- | --- | --- | --- |
+| raw | no schema | **40/40** (0.91 to 1.00) | 408 / 451 | 1556 | 0 |
+| constrained | the shipped envelope | **10/40** (0.14 to 0.40) | 48 / 429 | 159 | 0 |
+| described | the envelope, `reply` given a description | **9/40** (0.12 to 0.38) | 57 / 1024 | 202 | 1 |
+| prefaced | a required `notes` field ahead of `reply` | **10/40** (0.14 to 0.40) | 96 / 472 | 156 | 0 |
+
+One thing that does not vary is worth stating before the five that do: across all 200 runs behind
+this addendum, at four request shapes, **not one came back `MALFORMED`**. The grammar held on every
+draw, and everything below is about what the model chose to put inside it.
+
+Five things follow, and the first is the finding.
+
+1. **The envelope does not shorten the answer. It deletes the answer three times in four.** The
+   unconstrained shape answered on every one of forty draws; the shape a subagents-only stack ships
+   answered on ten. The intervals do not come near each other. This is the same effect the envelope
+   addendum saw as "it spends more tokens and returns less text", read at the level the text is
+   written rather than counted.
+2. **When it does answer, it answers as well as raw.** Over the ten constrained replies that are
+   summaries, number recall runs 0.82 to 1.00 with a median of 1.00, against raw's 1.00 throughout,
+   at a median 1234 characters against raw's 1556. So the envelope costs an answer's **arrival** and
+   not its quality, which is a different defect from the one the entry expected and wants a
+   different repair.
+3. **A description on the property changes nothing, and could not have.** This is the arm the entry
+   asked for, on the reasoning that an empty schema tells the model nothing about what the field is
+   for. It tells the model nothing either way: asked through `POST /apply-template`, this pick
+   renders a **byte-identical prompt** with no schema, with the bare envelope, with the described
+   envelope and with the two-field one, while the same endpoint on the same server does render a
+   `chat_template_kwargs` change and does render a `tools` array. So a `description` here is read by
+   the grammar builder and by nothing else, and the model meets a schema only as a constraint on its
+   next token. **That generalises past this envelope and past this pick**: asked the same way on a
+   `gemma-4-12B` server started in the same session, the cortex tier renders the same prompt with
+   `REPLY_ENVELOPE`, with `ORDER_ENVELOPE` and with neither, its own two controls firing (a `tools`
+   array shows, and `enable_thinking: false` renders the pre-closed thought the mechanism section
+   above describes). So every schema this repo sends is invisible to the model as text, on both
+   picks that receive one.
+4. **Giving the narration a field of its own does not free the reply.** The `prefaced` arm makes a
+   `notes` string required ahead of `reply`, so the grammar offers the preamble somewhere else to
+   go. The model takes it and narrates twice: `"notes": "The user wants a summary of the provided
+   site report..."` then `"reply": "I need to meticulously extract and organize all data points..."`.
+   Ten of forty, the same rate as the arm with no such field. The text in `reply` is therefore not
+   overflow with nowhere to go; the model is treating a plan as the whole of its output.
+5. **The instruction is where the repair lives, and it is large.** The one place this engine lets
+   anything be said to the model about the envelope is the subtask itself. Appending "Your entire
+   response must be the summary itself. Do not describe the task, plan an approach, or announce what
+   you are about to write." to the same instruction, on the same four bodies at ten draws through
+   the shipped envelope, delivers **39 of 40** (0.87 to 1.00). Thirty eight of those forty runs
+   decode between 248 and 323 tokens.
+
+### The residue on the fifth reading, which is not free
+
+Three of those forty draws, all on one body, wrote 2282 to 3692 characters into the **reasoning**
+channel, which a delegated run drops unread, **on a server carrying both reasoning-off flags**. They
+are the only three draws above 323 decoded tokens: one finished at 912 and two reached the 1024 cap
+and came back refused. Read rather than counted they are not all one thing. Two are a deliberation,
+opening "Here's a thinking process to arrive at the desired summary". The third is stranger and
+worse: its reasoning channel holds a **complete summary** and its reply holds a second, different
+summary that the cap then cut, so the model wrote the answer twice and the reader got neither.
+
+Two things follow and both are bounded by how few draws they are. The instruction that keeps the
+plan out of `reply` does not remove the plan, it relocates it, which is the next question rather
+than a reason not to ask it and is carried by
+[R-476](../refinements/tasks/476-the-envelopes-answer-rate-is-an-instruction.md). And
+`--reasoning-budget 0` did not hold on those three, which the thinking-lever addendum above states
+without qualification and which the other 160 runs here support without exception. Three draws on
+one body under a probe instruction is not enough to amend a shipped claim, so it is filed rather
+than acted on:
+[R-479](../refinements/tasks/479-the-reasoning-budget-held-until-the-prompt-pushed.md).
+
+### The CPU control
+
+The assumption above is that `-ngl` changes throughput and not what the model decides, and this is
+the arm that checks it rather than asserting it. A second server, the CPU `server` image
+`ghcr.io/ggml-org/llama.cpp@sha256:9f84380be42d6285a827629c809387349c3541aa8986f7536547ca33cc8dd47a`
+on the same build, `-ngl 0` and every other flag identical, under the compose file's own
+`--cpus 4.0` and 8 GB: **16 runs**, the two envelope arms over warehouse at five draws and clinic at
+three, stopped at that paired boundary because it decoded at 0.33 to 1.06 tok/s while the rest of
+this session was running beside it.
+
+It reproduces the phenomenon and the shape of the reading. The `constrained` arm delivered on 2 of
+8 and `described` on 1 of 8, against the same two arms over the same eight cells on the GPU at 0 of
+8 and 2 of 8, and over both of those bodies at all ten draws at 4 of 20 and 6 of 20. Every one of
+the sixteen is again either a summary or a plan, with no reply between the two: the number-recall
+gap that separates the 160 separates these as well. Sixteen runs cannot show a small difference
+between the placements and are not offered as doing so. What they refuse is a large one, which is
+what the substitution needed.
+
+### Which of the entry's three outcomes, and what moves
+
+The entry named three honest outcomes. This is the third, **it costs enough that the tool-less shape
+wants a different grammar**, with one correction to that wording: what it wants is not a different
+grammar. Readings 3 and 4 are two grammar changes that buy nothing, and reading 5 is a prompt change
+that buys almost everything, because on this engine a schema constrains and never informs.
+
+**Nothing in the shipped tree moves here.** The entry's own caution is that changing the grammar
+every delegated reply is decoded into on a thin reading is the mistake this backlog exists to
+refuse, and the reading that would justify a change points at the runner's instruction rather than
+at `REPLY_ENVELOPE`. That is a decision about what the subagent contract says, so it is written down
+and left to
+[R-476](../refinements/tasks/476-the-envelopes-answer-rate-is-an-instruction.md) rather than typed
+tonight. The laundering argument this envelope was built for is re-read against these numbers in the
+ADR-0028 answer-rate addendum.
+
+### Distrust green
+
+The failure mode of a measurement with four arms is that two of them are the same request. Two
+things say they were not. The `prefaced` arm's stream carries `{"notes": ..., "reply": ...}`, a
+two-field object that only the substituted grammar admits, so the substitution reaches the wire. And
+the `/apply-template` reading in point 3 has both of its controls firing on both picks: the same
+endpoint, in the same minute, on the same server, does show a `chat_template_kwargs` change and a
+`tools` array in the rendered prompt, so a schema that leaves it unchanged is a schema that is
+genuinely not there. A null result whose instrument was never shown to move is not a reading, which
+is the trap the switch-is-advisory addendum above was written to name.

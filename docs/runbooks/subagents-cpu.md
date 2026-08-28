@@ -118,6 +118,18 @@ delegation time (ADR-0012 admission-wall addendum).
 > permanently. The wire is **not** silent while a trace runs: the reasoning arrives as its own
 > deltas, 200 of them over 156.3 s with a longest gap of 3.46 s, so the stall ceiling is nowhere
 > near firing and a wedged server is not what this looks like.
+> **With both flags on, that shape stops spending the cap and starts losing the answer instead**,
+> which no bound will report to you (ADR-0005 answer addendum). Read over 160 runs, four report
+> bodies at ten draws each: the unconstrained shape, which is what a tools-enabled subagent decodes
+> into, returned a summary on **40 of 40** draws and the tool-less envelope on **10 of 40**. The other thirty are well-formed replies that narrate the
+> subtask instead of doing it, "The user wants a comprehensive summary of the provided site report"
+> and the like, and they come back `ok=True` at 29 to 142 decoded tokens with a median of 43, so
+> nothing in the logs, the stop reason or the refusal text marks them. **A short, fast, successful delegated summary on a
+> subagents-only stack is the symptom to look at**, not a cap refusal. The cause is not the schema
+> and cannot be fixed with one: this engine renders the same prompt with a `response_format` and
+> without it, so the model never reads the envelope. What recovers it is the wording of the subtask
+> the cortex sends, which took the same shape to 39 of 40 in the same run and is
+> [R-476](../refinements/tasks/476-the-envelopes-answer-rate-is-an-instruction.md).
 > What they cut is a model that is talking rather than one that is slow: the sixth shape, an
 > open-ended essay no narrow subtask should ask for, was cut at 577 tokens and 1958 s still writing.
 > **Every number here is an idle-box number**, and a saturated host runs the same subtask five to

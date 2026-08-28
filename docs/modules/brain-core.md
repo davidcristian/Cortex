@@ -1978,7 +1978,15 @@ Use-case:
 - `subagent_reply.py` holds the envelope and the settling, split off when the finish reason added a
   third thing a completed run could be and took the attempt past both the line cap and the
   complexity ceiling. `REPLY_ENVELOPE` is the schema a constrained request asks for and
-  `unwrap_envelope(text)` reads the answer back, both directions of one grammar. `settle_reply(text,
+  `unwrap_envelope(text)` reads the answer back, both directions of one grammar. **What it does not
+  do is tell the model anything**, which the ADR-0005 answer addendum measured and which a reader of
+  this file would otherwise assume from its shape: llama.cpp renders the same prompt with the schema
+  and without it, so the field's name and any description on it reach the grammar and stop there. On
+  a subtask that invites deliberation the shipped pick then narrates into `reply` on three draws in
+  four, which is a well-formed envelope carrying a plan rather than an answer, and the repair is a
+  sentence in the subtask rather than a change here
+  ([R-476](../refinements/tasks/476-the-envelopes-answer-rate-is-an-instruction.md)).
+  `settle_reply(text,
   *, capped, max_tokens, constrain, tainted)` is the ordered reading a finished run gets: capped
   first (`TRUNCATED` with `cap_detail(max_tokens)`, which quotes this deployment's cap only when it
   set one, a server's context window cutting a run nobody capped being indistinguishable on the
