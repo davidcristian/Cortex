@@ -20,6 +20,15 @@ counts are measured rather than aimed at:
 - taking only the re-run's taint rather than the union reddens exactly 1,
   ``test_the_taint_a_failed_gpu_attempt_read_survives_into_the_re_run_result``;
 - recording only the re-run's own reason in the detail reddens 3, two here and the spawn case.
+
+And two for the sentence a constrained ask now carries (ADR-0028 instruction addendum), over the
+same suite:
+
+- never appending it reddens exactly 1,
+  ``test_a_constrained_ask_carries_the_envelopes_own_sentence_on_the_instruction``;
+- appending it to every ask rather than only a constrained one reddens 8: the two negative cases
+  here plus six existing tests across ``test_runner.py``, ``test_spawn.py`` and
+  ``test_delegation.py`` that read the prompt a subagent was handed.
 """
 
 import asyncio
@@ -59,6 +68,7 @@ from cortex_core import (
     ToolSpec,
     VramBudgetPlacer,
 )
+from cortex_core.subagent_reply import REPLY_INSTRUCTION
 
 _AT = datetime(2026, 7, 3, 12, 0, tzinfo=UTC)
 
@@ -134,11 +144,17 @@ class FailingBackend:
 
 
 class SchemaRecordingBackend:
-    """Records the schema it was handed each call and yields fixed text (ADR-0028)."""
+    """Records the schema and the messages it was handed and yields fixed text (ADR-0028).
+
+    Both halves of the constrained ask are recorded because the envelope now reaches the model
+    twice, once as a grammar the server enforces and once as a sentence on the end of the
+    instruction (ADR-0028 instruction addendum), and only the second one the model can read.
+    """
 
     def __init__(self, deltas: Sequence[str]) -> None:
         self._deltas = deltas
         self.schemas: list[JsonSchema | None] = []
+        self.asked: list[tuple[Message, ...]] = []
 
     async def stream(
         self,
@@ -149,8 +165,9 @@ class SchemaRecordingBackend:
         schema: JsonSchema | None = None,
         bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
-        del model, messages, tools, bounds
+        del model, tools, bounds
         self.schemas.append(schema)
+        self.asked.append(tuple(messages))
         for delta in self._deltas:
             yield TextChunk(delta)
 
@@ -402,6 +419,45 @@ async def test_constrained_tool_less_subagent_passes_the_envelope_and_unwraps_th
     result = await _runner(store, backend, constrain_output=True).run("t1")
     assert (result.ok, result.output) == (True, "blue")
     assert backend.schemas == [_ENVELOPE]  # the envelope was threaded to the backend
+
+
+def _user_text(backend: SchemaRecordingBackend) -> str:
+    """What the one user message of the first call asked, the sentence included."""
+    return next(m.text for m in backend.asked[0] if m.role is Role.USER)
+
+
+async def test_a_constrained_ask_carries_the_envelopes_own_sentence_on_the_instruction() -> None:
+    # ADR-0028 instruction addendum: a schema constrains this engine's next token and never
+    # describes a contract, so what the envelope means travels in the subtask text or nowhere.
+    store = InMemoryTaskStore()
+    await store.put_task(SubagentTask(id="t1", instruction="name a color", context="", at=_AT))
+    backend = SchemaRecordingBackend(['{"reply": "blue"}'])
+    await _runner(store, backend, constrain_output=True).run("t1")
+    assert _user_text(backend) == f"name a color {REPLY_INSTRUCTION}"
+
+
+async def test_an_unconstrained_ask_carries_the_instruction_and_nothing_else() -> None:
+    # The sentence is the envelope's, so a run with no envelope must be asked exactly what the
+    # cortex wrote: a tools-enabled subagent composes its own reply shape around its dispatches.
+    store = InMemoryTaskStore()
+    await store.put_task(SubagentTask(id="t1", instruction="name a color", context="", at=_AT))
+    backend = SchemaRecordingBackend(["blue"])
+    await _runner(store, backend, constrain_output=False).run("t1")
+    assert _user_text(backend) == "name a color"
+
+
+async def test_a_tools_enabled_subagent_is_asked_without_the_sentence_too() -> None:
+    # The sentence rides with the grammar, and the grammar is gated to the tool-less path
+    # (ADR-0028 decision 3), so the knob being on cannot reach a subagent that has tools.
+    store = InMemoryTaskStore()
+    await store.put_task(SubagentTask(id="t1", instruction="name a color", context="", at=_AT))
+    backend = SchemaRecordingBackend(["blue"])
+    registry = InMemoryToolRegistry(
+        {"read": (ToolSpec(name="read", description="", parameters={}), _read_handler)}
+    )
+    dispatcher = ToolDispatcher(registry, RecordingAuditSink(), FixedClock())
+    await _runner(store, backend, tools=dispatcher, constrain_output=True).run("t1")
+    assert _user_text(backend) == "name a color"
 
 
 async def test_a_malformed_constrained_reply_is_a_failed_result_carrying_the_raw_text() -> None:

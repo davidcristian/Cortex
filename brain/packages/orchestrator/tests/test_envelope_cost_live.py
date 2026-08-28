@@ -30,7 +30,8 @@ Integration-marked, so CI and the coverage gate never see it. Bring up the subag
       packages/orchestrator/tests/test_envelope_cost_live.py
 
 Six knobs size a run to a budget or turn it into a probe. `CORTEX_ENVELOPE_BODIES` runs only
-the first N bodies; `CORTEX_ENVELOPE_ARMS` runs a subset of `raw,constrained,described,prefaced`;
+the first N bodies; `CORTEX_ENVELOPE_ARMS` runs a subset of
+`raw,constrained,bare,described,prefaced`;
 `CORTEX_ENVELOPE_DRAWS` repeats every arm of every body that many times, because one draw of a
 sampled model is a draw and not a reading; `CORTEX_ENVELOPE_MAX_TOKENS` overrides the cap the runs
 are given, which is how the length the constrained arm would write is read past the shipped cap
@@ -41,8 +42,12 @@ answer says is the reading this harness grew to take. `CORTEX_ENVELOPE_INSTRUCTI
 subtask every body is given, which is the only place this engine lets anything be said to the model
 about the envelope at all.
 
-The last two arms exist for questions the first two cannot ask. `raw` and `constrained` differ in
-whether a grammar is in play at all; `described` is the shipped envelope with one sentence added to
+Three arms exist for questions `raw` and `constrained` cannot ask between them. `raw` and
+`constrained` differ in whether a grammar is in play at all, and since the runner appends
+`REPLY_INSTRUCTION` to every constrained subtask they now differ in a sentence too (ADR-0028
+instruction addendum); `bare` is the shipped constrained path with that sentence taken back off on
+the wire, which is the envelope as it stood before the sentence existed and the counterfactual every
+rate below is read against. `described` is the shipped envelope with one sentence added to
 its `reply` property saying what the field is for, so the difference between it and `constrained`
 is the description and nothing else. The shipped `REPLY_ENVELOPE` is a bare typed string, which
 tells a model the shape of the field and nothing about its purpose, and whether that silence costs
@@ -64,12 +69,19 @@ bodies at ten draws the unconstrained arm returned a summary on 40 of 40 and the
 10 of 40, the rest narrating the subtask rather than doing it, and neither schema arm moved that.
 So a run of this harness that reports the envelope finishing quickly inside its cap is reporting
 the failure, and `output` is the field that says which it is.
+
+What it found the same night once the sentence shipped, over three subtask shapes rather than one
+(ADR-0028 instruction addendum): the sentence is the repair, and `CORTEX_ENVELOPE_INSTRUCTION` is
+how another shape is asked. That knob replaces the subtask; the runner still appends the shipped
+sentence to whatever it is on the constrained path, so the way to measure a candidate wording is to
+change the constant and re-run rather than to type a longer instruction here.
 """
 
 import json
 import os
 import time
 from collections.abc import AsyncIterator, Sequence
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -104,7 +116,7 @@ from cortex_core import (
     ToolSpec,
     VramBudgetPlacer,
 )
-from cortex_core.subagent_reply import REPLY_ENVELOPE
+from cortex_core.subagent_reply import REPLY_ENVELOPE, REPLY_INSTRUCTION
 from cortex_inference import LlamaCppBackend
 
 _ENDPOINT = os.environ.get("CORTEX_SUBAGENTS_ENDPOINT")
@@ -179,9 +191,20 @@ _PREFACED_ENVELOPE: JsonSchema = {
 _SCHEMAS: dict[str, JsonSchema | None] = {
     "raw": None,
     "constrained": REPLY_ENVELOPE,
+    "bare": REPLY_ENVELOPE,
     "described": _DESCRIBED_ENVELOPE,
     "prefaced": _PREFACED_ENVELOPE,
 }
+
+# The one arm that is the shipped path with something taken away. `constrained` now carries
+# `REPLY_INSTRUCTION` because the runner appends it to every constrained subtask (ADR-0028
+# instruction addendum); `bare` runs that same shipped path and removes the sentence again on the
+# wire, so what it measures is the envelope as it stood before the sentence existed. It is the
+# counterfactual arm, and it exists here rather than as a config knob because the sentence and the
+# grammar are one contract: a deployment turns both off together or neither, and only a measurement
+# wants the halves apart. Stripping is exactly the instrument `substitute` already is, one request
+# field changed on the way past with every other line of the run the shipped one.
+_STRIPPING_ARMS = frozenset({"bare"})
 
 # The summarization shape the total-cap addendum found longest of the narrow four, over four
 # report bodies of about the same length. Different subject matter each time, so a body that
@@ -271,9 +294,16 @@ class _Recording:
     every arm's grammar still declares it.
     """
 
-    def __init__(self, inner: InferenceBackend, *, substitute: JsonSchema | None = None) -> None:
+    def __init__(
+        self,
+        inner: InferenceBackend,
+        *,
+        substitute: JsonSchema | None = None,
+        strip_instruction: bool = False,
+    ) -> None:
         self._inner = inner
         self._substitute = substitute
+        self._strip_instruction = strip_instruction
         self.cadence: DecodeCadence | None = None
         self.stop: DecodeStop | None = None
         self.ttft_s: float | None = None
@@ -294,7 +324,8 @@ class _Recording:
     ) -> AsyncIterator[InferenceEvent]:
         started = time.monotonic()
         asked = self._substitute if schema is not None and self._substitute is not None else schema
-        events = self._inner.stream(model, messages, tools=tools, schema=asked, bounds=bounds)
+        sent = self._without_instruction(messages) if self._strip_instruction else messages
+        events = self._inner.stream(model, sent, tools=tools, schema=asked, bounds=bounds)
         async for event in events:
             if isinstance(event, TextChunk):
                 if self.ttft_s is None:
@@ -307,6 +338,17 @@ class _Recording:
             if isinstance(event, DecodeStop):
                 self.stop = event
             yield event
+
+    @staticmethod
+    def _without_instruction(messages: Sequence[Message]) -> list[Message]:
+        """``messages`` with the runner's appended sentence taken back off, and a check that it
+        was there: an arm that silently stripped nothing would report the shipped path twice."""
+        stripped = [
+            replace(message, text=message.text.replace(f" {REPLY_INSTRUCTION}", ""))
+            for message in messages
+        ]
+        assert stripped != list(messages), "nothing to strip: the runner sent no instruction"
+        return stripped
 
 
 def _roster(backend: InferenceBackend) -> SubagentRoster:
@@ -332,6 +374,7 @@ async def _one(
     recorder = _Recording(
         LlamaCppBackend(SingleResidentModelManager(_MODEL, _ENDPOINT or ""), client),
         substitute=schema,
+        strip_instruction=arm in _STRIPPING_ARMS,
     )
     store = InMemoryTaskStore()
     runner = SubagentRunner(

@@ -47,3 +47,24 @@ one body's quirk and the record here is the entry that says so.
 Worth reading beside it: [R-474](474-the-switch-could-be-rendered-as-a-lever-that-holds.md), since
 the per-request `reasoning_budget_tokens` this build honours is a second lever on the same shape and
 would be the obvious repair if the flag really is conditional.
+
+## Trail
+
+- 2026-08-28: opened by the close of
+  [R-459](459-what-the-envelope-costs-the-answer.md), on three draws in forty, all on one body,
+  under a probe instruction that had not been decided on.
+- 2026-08-28: the instruction was decided and shipped
+  ([R-476](476-the-envelopes-answer-rate-is-an-instruction.md)), and its re-measurement gives this
+  entry three things it was waiting for without closing it. **A rate**: 8 of 96 constrained draws
+  against 1 of 96 with the sentence stripped and 0 of 96 unconstrained, so the door exists without
+  the prompt pushing on it and the push makes it about eight times as likely. **More than one body
+  and more than one shape**: the eight fall on two of the four report bodies and on all three
+  subtask shapes, including a one-fact lookup whose whole answer is two words, so these are not one
+  body's quirk. **A mechanism worth checking against the handler**: six of the eight are not
+  deliberation at all. They open with a malformed channel marker, the literal `t</c>`,
+  `t <|channe|s_input>`, `h</c>` or `t</channe|c>`, and then write the answer itself into the
+  reasoning channel, running to the cap and coming back refused. That is a control token the model
+  had no business emitting being parsed as a channel switch, which is a narrower claim than "the
+  budget did not hold" and points the committed probe at a cell it can actually distinguish: the
+  same prompt against a build whose gemma-4 handler treats an unopened thought differently. Read in
+  full in the ADR-0005 instruction addendum.

@@ -35,7 +35,13 @@ from cortex_core.subagent_outcome import (
     cap_detail,
     reran_on_cpu,
 )
-from cortex_core.subagent_reply import REPLY_ENVELOPE, settle_reply, unwrap_envelope
+from cortex_core.subagent_reply import (
+    REPLY_ENVELOPE,
+    REPLY_INSTRUCTION,
+    instruct_reply,
+    settle_reply,
+    unwrap_envelope,
+)
 from cortex_core.subagents import UNBOUNDED_ATTEMPT, AttemptBounds, SubagentTask
 from cortex_core.tool_budget import DispatchBudget
 from cortex_core.tool_loop import ToolLoopContext, stream_tool_loop
@@ -50,10 +56,12 @@ __all__ = [
     "INNER_TIMEOUT_MSG",
     "MALFORMED_ENVELOPE_MSG",
     "REPLY_ENVELOPE",
+    "REPLY_INSTRUCTION",
     "AttemptFailure",
     "AttemptOutcome",
     "PlacedAttempt",
     "cap_detail",
+    "instruct_reply",
     "reran_on_cpu",
     "settle_reply",
     "task_messages",
@@ -61,9 +69,14 @@ __all__ = [
 ]
 
 
-def task_messages(task: SubagentTask) -> list[Message]:
-    """The subagent's prompt: the instruction as the user ask, context as system framing."""
-    messages = [Message(role=Role.USER, text=task.instruction, at=task.at, turn_id=task.id)]
+def task_messages(task: SubagentTask, *, constrain: bool) -> list[Message]:
+    """The subagent's prompt: the instruction as the user ask, context as system framing.
+
+    A constrained ask carries the envelope's own sentence on the end of the instruction, that being
+    the only channel a schema's meaning can travel on (ADR-0028 instruction addendum).
+    """
+    asked = instruct_reply(task.instruction) if constrain else task.instruction
+    messages = [Message(role=Role.USER, text=asked, at=task.at, turn_id=task.id)]
     if task.context:
         framing = Message(role=Role.SYSTEM, text=task.context, at=task.at, turn_id=task.id)
         messages.insert(0, framing)
@@ -146,15 +159,16 @@ class PlacedAttempt:
         step reaches that sink; what the wrapper buys is that the release stops depending on
         where the timer happened to fire.
         """
-        working = task_messages(task)
+        # Structurally, `self._tools is None` is exactly the niche a weak model is reachable in
+        # (ADR-0017), which is the niche the envelope defends. Decided before the prompt is built,
+        # because the envelope now reaches the model as words as well as as a grammar.
+        constrain = self._tools is None and self._constrain_output
+        working = task_messages(task, constrain=constrain)
         # A tools-enabled subagent reads untrusted content too, so it gets the same standing rule
         # and its own taint ledger. A subagent that reads a malicious file taints its result,
         # which propagates to the cortex that spawned it (ADR-0013).
         if self._tools is not None:
             working.insert(0, security_preamble_message(task.at, task.id))
-        # Structurally, `self._tools is None` is exactly the niche a weak model is reachable in
-        # (ADR-0017), which is the niche the envelope defends.
-        constrain = self._tools is None and self._constrain_output
         taint = TaintLedger()
         # Where each completion of this loop reports why it ended (ADR-0005 finish-reason
         # addendum). The cortex turn passes none, its reader watching the reply arrive; a

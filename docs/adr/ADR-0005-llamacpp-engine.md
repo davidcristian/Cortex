@@ -2141,3 +2141,31 @@ Nothing in the tree, which is this entry's own preferred outcome of the two it n
 derivation's restatement lands where the number is declared (`cortex_core/subagents.py`), where an
 operator reads it (the delegation runbook) and here, so the shape the cap was measured on is no
 longer a claim about a shape nothing ships.
+
+## Instruction addendum (2026-08-28): the sentence that recovers the answer, across three shapes
+
+**Status:** Accepted. The decision, the wording and the full table live in the ADR-0028 instruction
+addendum, because what changed is what a delegated run *says* and not what this engine does. This is
+the pointer, plus the two readings that belong beside the ones above because they are about the
+engine rather than about the contract.
+
+The answer addendum above measured a repair it declined to type, and it is now typed: the runner
+appends `REPLY_INSTRUCTION` to every constrained subtask. Re-measured on the same pick, the same
+build and the same digest, `-ngl 99` again, at three subtask shapes over four bodies at eight draws
+each (**288 runs**), the shipped envelope answers **90 of 96** with that sentence against **72 of
+96** without it, and the whole of the gap is the summarization shape, 29 of 32 against 9 of 32,
+while an extraction and a lookup were already answering and stay within a draw of where they were.
+
+**The reasoning residue now has a rate and a mechanism, and both matter here.** It is 8 of 96
+constrained draws against 1 of 96 without the sentence and 0 of 96 raw, on two of the four bodies
+and on all three shapes, so it is neither one body's quirk nor the sentence's alone. Six of the
+eight are not deliberation at all: they open with a malformed channel marker, the literal `t</c>`,
+`t <|channe|s_input>`, `h</c>` or `t</channe|c>`, and then write the answer itself into the
+reasoning channel that a delegated run discards, running to the cap and coming back refused. That is
+a **server-side parse of a control token the model should not have emitted**, which is a different
+claim from a model choosing to think under a grammar, and it sharpens rather than settles
+[R-479](../refinements/tasks/479-the-reasoning-budget-held-until-the-prompt-pushed.md).
+
+**And the ceilings addendum's margin is unchanged by it.** Every one of those six ran to exactly
+1024 with nothing in `reply`, so reaching this cap still means what the comment beside the number
+says. No answering run in the 288 came near it.

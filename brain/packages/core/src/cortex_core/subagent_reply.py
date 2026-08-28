@@ -9,7 +9,10 @@ over.
 
 Both directions of the envelope live here, the schema a constrained request asks for and the
 unwrapping of the answer, because they are one grammar read twice and a change to either is a
-change to both (ADR-0028).
+change to both (ADR-0028). The sentence the constrained path appends to its subtask lives here for
+the same reason and is the third side of the same contract: it says in words what the grammar can
+only enforce, and on this engine words are the only half the model ever reads (ADR-0028
+instruction addendum).
 
 The settling itself is an ordered reading, and the order is the whole of it: a run cut at a token
 limit is reported as cut even when the cut landed mid-envelope, because a reply the server stopped
@@ -27,7 +30,13 @@ from cortex_core.subagent_outcome import (
     cap_detail,
 )
 
-__all__ = ["REPLY_ENVELOPE", "settle_reply", "unwrap_envelope"]
+__all__ = [
+    "REPLY_ENVELOPE",
+    "REPLY_INSTRUCTION",
+    "instruct_reply",
+    "settle_reply",
+    "unwrap_envelope",
+]
 
 # The fixed one-field reply envelope a constrained subagent is decoded into (ADR-0028): there is
 # no grammatical position for an appended footer, link, or section, so a jailbroken weak model
@@ -38,6 +47,31 @@ REPLY_ENVELOPE: JsonSchema = {
     "required": ["reply"],
     "additionalProperties": False,
 }
+
+# What the envelope cannot say, said in the one channel that reaches the model (ADR-0028
+# instruction addendum). A schema on this engine constrains the next token and never describes a
+# contract: the same pick renders a byte-identical prompt with the envelope and without it, so
+# ``reply`` is a name the grammar builder reads and the model never sees. Left to itself under that
+# grammar the tier answers a deliberation-inviting subtask one time in four, spending the field on
+# a plan instead, and this sentence is what takes it back.
+#
+# It names the answer rather than a genre, because a subtask here is a summarization, an extraction
+# or a lookup and the wording must not tune itself to one of them. It is appended rather than
+# prefixed so it is the last thing said, which is the position that survives an instruction the
+# cortex composed from content it read.
+REPLY_INSTRUCTION = (
+    "Your entire response must be the answer itself. Do not describe the task, plan an "
+    "approach, or announce what you are about to write."
+)
+
+
+def instruct_reply(instruction: str) -> str:
+    """``instruction`` with the constrained path's own sentence appended.
+
+    One function rather than an f-string at the call site, so the harness that measures this can
+    strip exactly what the runner adds and read the counterfactual against the shipped path.
+    """
+    return f"{instruction} {REPLY_INSTRUCTION}"
 
 
 def unwrap_envelope(text: str) -> str | None:

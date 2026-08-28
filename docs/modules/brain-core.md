@@ -1942,6 +1942,10 @@ Use-case:
   already-placed backend and returns an `AttemptOutcome(text, failure, detail, tainted)` instead of
   storing anything (instruction as the user ask, `context` as a `Role.SYSTEM` message; a
   tools-enabled subagent also gets the `SECURITY_PREAMBLE` and its own `TaintLedger`, ADR-0013).
+  `task_messages(task, *, constrain)` builds that prompt, and the keyword is the second half of the
+  envelope: a constrained ask carries `REPLY_INSTRUCTION` appended to the instruction, an
+  unconstrained one is asked exactly what the cortex wrote. Whether to constrain is therefore
+  decided **before** the prompt is built rather than after it.
   Every attempt is a fresh function over the task: its own working set, ledger and fence nonce, the
   shared `budget` being the deliberate exception. A mid-stream `InferenceError` is an
   `AttemptFailure.INFERENCE` outcome carrying the partial text. The consumption runs inside
@@ -1982,10 +1986,16 @@ Use-case:
   do is tell the model anything**, which the ADR-0005 answer addendum measured and which a reader of
   this file would otherwise assume from its shape: llama.cpp renders the same prompt with the schema
   and without it, so the field's name and any description on it reach the grammar and stop there. On
-  a subtask that invites deliberation the shipped pick then narrates into `reply` on three draws in
-  four, which is a well-formed envelope carrying a plan rather than an answer, and the repair is a
-  sentence in the subtask rather than a change here
-  ([R-476](../refinements/tasks/476-the-envelopes-answer-rate-is-an-instruction.md)).
+  a subtask that invites deliberation the shipped pick then narrated into `reply` on three draws in
+  four, which is a well-formed envelope carrying a plan rather than an answer. So the repair is a
+  sentence in the subtask rather than a change to the schema, and it lives here too:
+  `REPLY_INSTRUCTION` is that sentence and `instruct_reply(instruction)` appends it, both of them
+  beside the grammar because they are one contract said twice, once to the server and once to the
+  model (ADR-0028 instruction addendum). It is the constrained path's alone; an unconstrained
+  subagent is asked what the cortex wrote and nothing more. **The sentence is not a detector**: a
+  plan that still arrives in `reply` is `ok=True`, because nothing in the core can tell a plan from
+  an answer without judging prose, and a judge that misfires costs an answer the cortex had
+  ([R-480](../refinements/tasks/480-a-narrated-reply-arrives-as-an-answer.md)).
   `settle_reply(text,
   *, capped, max_tokens, constrain, tainted)` is the ordered reading a finished run gets: capped
   first (`TRUNCATED` with `cap_detail(max_tokens)`, which quotes this deployment's cap only when it

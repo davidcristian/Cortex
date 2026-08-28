@@ -186,3 +186,183 @@ and nothing a preamble would say. **The hazard is specific to a field whose valu
 What this leaves is a question about the subagent contract rather than about the grammar, so it is
 recorded rather than typed:
 [R-476](../refinements/tasks/476-the-envelopes-answer-rate-is-an-instruction.md).
+
+## Instruction addendum (2026-08-28): what the envelope cannot say, said in the subtask
+
+**Status:** Accepted. Closes
+[R-476](../refinements/tasks/476-the-envelopes-answer-rate-is-an-instruction.md), which the
+answer-rate addendum above opened by measuring the constrained niche answering one time in four and
+declining to type the repair on the strength of one subtask shape. Opens
+[R-480](../refinements/tasks/480-a-narrated-reply-arrives-as-an-answer.md) and
+[R-481](../refinements/tasks/481-the-sentence-is-measured-on-one-pick.md). It is the first change
+this ADR's decisions have taken since the envelope shipped, and it changes what a delegated run
+**says** rather than what it **admits**.
+
+### Re-derived first
+
+`REPLY_ENVELOPE` was still a bare `{"reply": <string>}` with `additionalProperties: false`,
+`PlacedAttempt` still sent it exactly where the run holds no dispatcher, `task_messages` still built
+the prompt out of `task.instruction` alone, and nothing anywhere in this tree said a word to a
+subagent about what its one field is for. The cap was still 1024 and the deadline still 2400 s. The
+measurement below re-derives the answer-rate addendum's headline as its own control arm and gets it:
+the shape that shipped before tonight delivers a summary on 9 of 32 draws, against the 10 of 40 that
+addendum recorded.
+
+### The decision, in five parts
+
+1. **The sentence lives beside the grammar, in the core.** `REPLY_INSTRUCTION` and
+   `instruct_reply(instruction)` are module constants in `cortex_core/subagent_reply.py`, the file
+   that already holds both directions of the envelope, because they are one contract said twice:
+   once to the server, which enforces it, and once to the model, which is the only half of the pair
+   that can read anything. A sentence typed at a call site would be a prompt. A sentence beside the
+   schema is the contract that schema was always trying to express and could not.
+2. **It is appended to the instruction, and it is last.** `task_messages(task, *, constrain)` now
+   takes the decision that used to be made after it, so a constrained ask is
+   `f"{task.instruction} {REPLY_INSTRUCTION}"` and an unconstrained one is exactly what the cortex
+   wrote. Appended rather than prefixed because last is the position that survives an instruction
+   the cortex composed out of content it read, and inside the user message rather than a system one
+   because a subtask is one ask and because that is the shape the recovery was measured on.
+3. **It names the answer and never a genre.** The wording the answer addendum measured said "the
+   summary itself", which was written for a summarization probe and would be a lie on the two other
+   shapes this tier is asked for. What ships says "the answer itself", and the price of that
+   generalisation is measured below rather than assumed.
+4. **It rides with the envelope and gets no knob of its own.** `CORTEX_SUBAGENTS_CONSTRAIN_OUTPUT`
+   turns both off together or neither: a deployment that wants the raw stream back wants the raw
+   contract back, and a second knob that could leave the grammar on with the sentence off would be a
+   knob for reproducing a defect. The counterfactual a measurement needs is an arm in the harness,
+   not a setting an operator can reach.
+5. **A plan that still arrives in `reply` is not detected, and that is a decision rather than an
+   omission.** It stays `ok=True`. Nothing in the core can tell a plan from an answer without
+   judging prose: a keyword detector misfires on a legitimate answer whose subject is a request, and
+   a false positive is strictly worse than the quiet pass, since it destroys an answer the cortex
+   had. A structural detector cannot exist for the reason this ADR's answer-rate addendum already
+   gives, that the hazard is specific to a field whose value is prose. The only honest judge is
+   another completion, on the tier that just narrated. What the measurement below says about this is
+   the reason it can be left: under the sentence, **not one** of the 96 constrained runs failed
+   quietly. Every failure arrived as a refusal. The residual is
+   [R-480](../refinements/tasks/480-a-narrated-reply-arrives-as-an-answer.md).
+
+### What it was measured on
+
+The shipped subagent pick, gemma-4-E4B QAT q4_0, on llama.cpp `b10644-d7a207411` from
+`ghcr.io/ggml-org/llama.cpp@sha256:9f0a986a78ab9261afc3266c807c16933ee4c26c62cb063f0c17f8da890f6c7e`,
+carrying the subagent compose file's own flags (`--jinja`, `--chat-template-kwargs
+'{"enable_thinking": false}'`, `--reasoning-budget 0`, `--ctx-size 8192`, `--parallel 2`), driven
+through the real `SubagentRunner` chain at the shipped 1024-token cap by
+`brain/packages/orchestrator/tests/test_envelope_cost_live.py`. **It ran `-ngl 99` rather than
+`-ngl 0`**, the same deliberate substitution the answer addendum argues, for the same reason and
+with that addendum's own CPU control standing behind it: what is read here is what the model writes,
+and the CPU placement decodes this at about 1.3 tok/s against the 120 to 130 tok/s these runs saw.
+No wall clock from this run is comparable with the batch addendum's, and none is quoted.
+
+Three arms over the same four report bodies at eight draws each, and **three subtask shapes rather
+than one**, which is the half of this the entry insisted on: everything measured before tonight was
+summarization, which is the shape that invites deliberation, and a wording tuned on the shape that
+narrates could cost a shape that never did. All three shapes come from this tier's own measured
+repertoire in the ADR-0005 total-cap addendum's table, a summarization, an extraction and a one-fact
+lookup, asked as "Summarize the report below, keeping every detail", "Extract every number from the
+report below" and "What reporting period does the report below cover?". **288 runs.**
+
+- `raw`: no schema and no sentence, which is the tools-enabled shape.
+- `bare`: the shipped envelope with the runner's sentence stripped back off on the wire, which is
+  the shape that shipped before this addendum and the counterfactual every rate is read against.
+- `constrained`: the shipped envelope with the shipped sentence, which is what a subagents-only
+  stack now sends.
+
+A summarization and an extraction are judged by number recall, the fraction of a body's distinct
+numeric literals the reply carries, at the same threshold and with the same bimodality the answer
+addendum found; a lookup is judged by whether the reply names the body's own reporting period.
+
+### What 288 runs say
+
+`delivered` counts the replies that carried the answer at all, with a Wilson 95% interval beside it.
+
+| subtask shape | raw | bare, the envelope alone | constrained, the envelope and the sentence |
+| --- | --- | --- | --- |
+| summarization | 32/32 (0.89 to 1.00) | **9/32** (0.16 to 0.45) | **29/32** (0.76 to 0.97) |
+| extraction | 32/32 (0.89 to 1.00) | 32/32 (0.89 to 1.00) | 31/32 (0.84 to 0.99) |
+| one-fact lookup | 32/32 (0.89 to 1.00) | 31/32 (0.84 to 0.99) | 30/32 (0.80 to 0.98) |
+| all three | **96/96** (0.96 to 1.00) | **72/96** (0.65 to 0.83) | **90/96** (0.87 to 0.97) |
+
+Four things follow, and the second is the one this entry was opened to find out.
+
+1. **The sentence is the repair, on the shape the defect lives on.** Summarization goes from 9 of 32
+   to 29 of 32 with the grammar, the cap, the bodies and the server unchanged. The bare arm
+   reproduces the answer addendum's 10 of 40 closely enough that the two are one reading.
+2. **It costs the shapes that were never narrating, and the cost is one draw in thirty two each.**
+   Extraction was already perfect without it (32 of 32) and lookup nearly so (31 of 32), which is
+   the entry's own hypothesis confirmed: the effect lives on deliberation, and a shape that invites
+   none has nothing to recover. Under the sentence those two land at 31 and 30. So the honest
+   summary of the trade is that it converts about three quarters of one shape's runs from failure to
+   answer and costs about a thirtieth of two other shapes', and the cost has a mechanism, below.
+3. **Under the sentence the failures are loud, and without it they are quiet.** This is the finding
+   that decides part 5 above. Of the bare arm's 24 non-deliveries, **23 are `ok=True`**: a
+   well-formed envelope carrying "The user wants a summary of the provided site report" or "Here are
+   a few options, depending on the desired tone and format", handed to the cortex as an answer. Of
+   the constrained arm's 6, **all 6 are `ok=False`**, every one of them a run cut at the cap and
+   refused in the words `GENERATION_CAP_MSG` already carries. So the sentence does not only move
+   more answers through, it moves the residue out of the silent failure mode and into the one the
+   cortex can read. A quiet failure that becomes a loud one is worth a rate rise on its own.
+4. **The generalisation from a genre to "the answer" is free.** A fifth arm asks whether part 3's generalisation cost anything. It runs the answer addendum's own
+   probe wording verbatim, "Your entire response must be the summary itself", on the summarization
+   shape over the same four bodies at the same eight draws, reached through the `bare` arm so the
+   hand written sentence is the only one on the wire. It delivered **30 of 32** (0.80 to 0.98) with
+   three trace draws and two refusals, against the shipped wording's 29 of 32 (0.76 to 0.97) with
+   four and three. Those are one reading, so naming the answer rather than the genre costs nothing
+   measurable on the genre it was named for, and the distance from both of them to the 39 of 40 the
+   answer addendum recorded is draw variance rather than a word.
+
+### The residue, counted as a rate over draws
+
+The answer addendum found three draws in forty writing into the reasoning channel that a delegated
+run drops unread, on a server carrying both reasoning-off flags, and asked for the rate. It is
+**8 of 96** constrained draws (0.04 to 0.16) against **1 of 96** bare and **0 of 96** raw. Six of
+the eight were lost runs, the ones counted in the table above; two finished anyway, having
+deliberated first and then answered.
+
+Three things about it that the earlier reading could not see.
+
+- **It is not one body's quirk.** The eight fall on two of the four bodies (warehouse and clinic)
+  and on all three subtask shapes, including the lookup, where the whole answer is two words.
+- **It is not the sentence's alone.** The bare arm produced one, on a lookup, so the door exists
+  without anything pushing on it. What the sentence does is make it about eight times as likely.
+- **It is mostly not deliberation.** Two of the eight open in the register the earlier reading
+  described ("Here's a thinking process to ensure all details are captured"). The other six open
+  with a **malformed channel marker**, the literal strings `t</c>`, `t <|channe|s_input>`, `h</c>`
+  and `t</channe|c>`, and then write the answer itself into the reasoning channel. That is a
+  different failure from a model choosing to think: the answer was written and routed to the half a
+  delegated run discards, after the model emitted a control token it had no business emitting. All
+  six then ran to the cap and were refused.
+
+That belongs to [R-479](../refinements/tasks/479-the-reasoning-budget-held-until-the-prompt-pushed.md),
+which was opened for exactly this and which now has a rate, more than one body, more than one shape
+and a mechanism worth naming to go with it.
+
+### Distrust green
+
+Three ways this measurement could have been an instrument reading itself, and what says it was not.
+
+**The counterfactual arm could have been the shipped path twice.** `bare` strips the sentence off
+the messages on their way to the server, and it asserts that it removed something, so an arm that
+stripped nothing fails rather than reporting the shipped path under another name. Its replies then
+differ from the constrained arm's in exactly the way the hypothesis predicts, narrating on 23 of 96.
+
+**The judge could have been a threshold pretending to be a reading.** It is not: the number-recall
+proxy separates the populations rather than ranking them, exactly as the answer addendum found, and
+the failures listed above are legible as narration in their first eight words. The lookup shape's
+judge is not a proxy at all, the correct reply being a two-word span of the body.
+
+**The arms could have differed in something other than the sentence.** They share the server, the
+bodies, the draw order, the cap and the grammar, and they are blocked so that the three arms of one
+draw of one body run in immediate succession.
+
+### What moves
+
+The core gains `REPLY_INSTRUCTION` and `instruct_reply`, `task_messages` gains the keyword that
+selects between them, and the composition is gated by three unit tests in
+`brain/packages/core/tests/test_runner.py`: a constrained ask carries the sentence, an unconstrained
+one does not, and a tools-enabled one does not either even with the knob on. The harness gains the
+`bare` arm and the instrument check under it. Nothing about the grammar, the unwrap, the settling
+order or the laundering defence moves: decision 3's gating to the tool-less path is what carries the
+sentence to exactly the runs the envelope reaches, so the two halves of the contract cannot come
+apart.
