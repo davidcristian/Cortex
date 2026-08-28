@@ -316,9 +316,14 @@ questions.
 Reading 4 above holds for the cortex pick and is **not a property of the switch**. Turning thinking
 off per request asks the deployment's chat template to skip the deliberation, and whether the model
 then does was measured to depend on the pick and on the shape of the request carrying it: on the
-shipped cortex it holds plain and under a `response_format` alike, and on the shipped subagent pick
-it holds plain and does nothing at all under a `response_format`, where the model deliberates
-through it and spends the whole of a paired cap on the trace (ADR-0005 switch-is-advisory addendum).
+shipped cortex it holds plain and under a `response_format` alike, 5 draws of 5 each, and on the
+shipped subagent pick it holds plain and is a coin toss under a `response_format`, 4 draws in 5
+deliberating through it and spending the whole of a paired cap on the trace (ADR-0005
+switch-is-advisory addendum). The cause is the pick's own chat template rather than the model: with
+thinking off the cortex's opens and closes an empty thought in the prompt and the subagent's simply
+drops a marker, while the grammar llama.cpp builds for a `response_format` leaves the thought open
+either way. So the first thing to look at on a new pick is what its template renders when it is
+told not to think, which is the line the probe below prints before its cells.
 
 That matters here because `CORTEX_REPLY_MAX_TOKENS` paired with `CORTEX_REPLY_THINKING=false` is
 exactly such a pairing, and so are the bounds the title, the recap and the recall rank send, the
@@ -333,7 +338,9 @@ cd brain && CORTEX_THINKING_ENDPOINT=http://127.0.0.1:8080 \
   packages/inference/tests/test_thinking_switch_live.py
 ```
 
-It prints a verdict per request shape. If either says the switch does nothing, the repair is this
+It prints a verdict per request shape. Add `CORTEX_THINKING_REPEATS=5` before believing one: the
+cell that carries this finding splits 4 to 1 on the subagent pick, so a single draw of it can say
+either thing. If either verdict says the switch does nothing, the repair is this
 section's own knob rather than the switch: set `CORTEX_REASONING_BUDGET=0` (or a count) so the
 engine ends the thought whatever the template was told, which is what every subagent server here
 already carries. The brain also says so at runtime now, one `WARNING` per side call from

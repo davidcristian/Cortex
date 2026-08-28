@@ -26,3 +26,13 @@ budgeted server's own count. So the fix is not a field this repo can add. When a
 the body, the change is small and the shape is already there: `GenerationBounds` gains a third
 number, `build_payload` renders it, and the tier flag becomes the deployment's default rather than
 its only setting.
+
+**The engine half of that trigger has fired, measured 2026-08-28 on
+`ghcr.io/ggml-org/llama.cpp` `b10644-d7a207411`.** The server reads `reasoning_budget_tokens` (or
+`thinking_budget_tokens`) off the request body and falls back to the tier's flag only when the
+request says `-1`. The paragraph above is still right about the name it sent: `reasoning_budget` is
+ignored on that same build in the same minute, logged as `tokens=-1` on every draw. So what is left
+open here is the second half of the trigger, two callers on one tier wanting different positive
+counts, and the engine no longer holds it shut. [R-474](474-the-switch-could-be-rendered-as-a-lever-that-holds.md)
+is the other use of the same key, a zero rather than a count, and carries the questions a payload
+key raises for both.
