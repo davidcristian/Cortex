@@ -1,6 +1,6 @@
 # A built row's answer comes from whatever this machine last built
 
-**Status:** open, actionable
+**Status:** landed 2026-08-28
 **Area:** repo-gates
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md)
 
@@ -45,3 +45,25 @@ a row, so that reasoning is what would have to be revised rather than merely ext
 
 - 2026-08-26: opened by the close of
   [R-437](437-a-volume-added-to-a-dockerfile-here-moves-the-same-record.md).
+- **2026-08-28, closed.** Landed as the base rows, argued in the ADR-0011 addendum on the bases the
+  built rows stand on: `scripts/imagevolumes.py` now carries a row for `python:3.12-slim-trixie`
+  and `ghcr.io/ggml-org/llama.cpp:server-cuda`, the recipe pulls them like every other registry
+  reference, and `scripts/dockerfilebases.py` holds each built row to carrying what its base's row
+  carries. Every claim above held at HEAD when re-derived. The exposure was measured before it was
+  argued: both bases declare no `VOLUME` at all on 2026-08-28, which is a dated reading and not a
+  property, while the staleness was live on this host, `cortex-mcp-email` carrying a build from
+  2026-07-03 against a base republished 2026-08-25. Two docker measurements decide the shape: a
+  declaration is inherited through `FROM`, and a `FROM ... AS builder` stage's reaches no built
+  image, so what a built image declares is exactly the union of its own Dockerfile and its **last**
+  stage's base, and the tree could already read the first half. Building before inspecting is
+  declined as minutes and gigabytes for an answer two pulls already give, and as turning a
+  verification into something that rebuilds what it verifies; refusing to answer for a build older
+  than its Dockerfile is declined as aiming at the half already closed and as unreliable on a fresh
+  clone, where every file is newer than every image; naming the residue on the recipe is declined
+  on cost, the answer taken needing no build, no schedule and no daemon. The entry's warning was
+  right: `imagevolumes.py`'s reasoning about why no base has a row was revised rather than extended,
+  its premise being true and its conclusion not following. **Twelve mutants over the three suites
+  the change is measured by, all twelve killed**, tabled in that addendum with the live proof
+  beside it. One residue filed: the base rows are recorded where a built row could instead be
+  derived from them
+  ([R-473](473-a-built-row-is-recorded-where-it-could-be-derived.md)).

@@ -946,3 +946,126 @@ docker/docker-compose.yml:15: brain/Dockerfile declares VOLUME '/var/cache/thing
 With the line removed the same command exits 0 and states the reading behind it, four declared
 paths covered over ten compose files, eleven service definitions, eight images, and two Dockerfiles
 here declaring nothing their rows do not carry.
+
+## Addendum (2026-08-28): the bases the built rows stand on get rows of their own
+
+Two addenda above made the record honest from two sides, and each named what it left. The
+re-derivation now pulls every reference it did not build, and the gate now holds each built row to
+what its own Dockerfile declares. What neither reached is the third side: `cortex-brain`,
+`cortex-mcp-email` and `cortex-model-host` are asked with no pull, having no registry, so
+`docker image inspect cortex-brain` answers out of whatever the machine running the recipe last
+tagged. If that build is old and the base it stands on has since been republished with a new
+`VOLUME`, the row is confirmed against the old build and `just image-volumes` reports agreement.
+That is the defect the pull addendum fixed for pulled references, arriving on the three it
+deliberately exempted.
+
+**The exposure was measured before it was argued.** On this host, on 2026-08-28,
+`python:3.12-slim-trixie` and `ghcr.io/ggml-org/llama.cpp:server-cuda` each declare no `VOLUME` at
+all, so nothing is wrong today. That is a dated reading and not a property: both are moving tags,
+and the record has to survive one of them gaining a declaration. The staleness itself is not
+hypothetical and was live on this host while the deferral was open: `cortex-mcp-email` carried a
+build from 2026-07-03 while the `python:3.12-slim-trixie` beside it had been republished on
+2026-08-25, an eight week window in which that row answered for an image no fresh build would
+produce.
+
+**The mechanism was measured too**, because the decision rests on it. A base declaring
+`/probe/base` was built, an image built `FROM` it declares `/probe/base` itself, so a declaration
+really is inherited. A `FROM ... AS builder` stage declaring `/probe/builder` contributed nothing
+to the built image, only the final stage's config surviving a build. Those two readings are what
+make the answer below complete rather than approximate: what a built image declares is exactly the
+union of what its Dockerfile declares and what the image its **last** stage stands on declares, and
+this tree can already read the first half.
+
+**Decision: the record holds a row for each base a Dockerfile here stands on, and every path that
+row carries must appear in the row for the image built from it.** The rule is one-directional, like
+its sibling, and runs in the same walk over the same read of the same file. The base rows are
+ordinary pulled references, so the recipe that already refreshes correctly refreshes them, and the
+gate that already runs on a machine with no docker reads the result. A base republished with a new
+`VOLUME` therefore reddens `just check` on the next re-derivation, rather than waiting for somebody
+to rebuild on the machine that happens to run the recipe.
+
+That also retires a claim this document used to make. `imagevolumes.py` argued at length that no
+base needs a row, on the grounds that whatever a base declares is already inherited into the built
+image, which is the thing a container really runs. The premise was true and the conclusion did not
+follow: inherited into the image *this machine last built*, which is not the image the next build
+produces, and a record whose freshness depends on when somebody last ran `docker build` is the
+cache read the pull addendum exists to refuse.
+
+The three other shapes the deferral framed stay declined against that.
+
+- **Building before inspecting** would make the recipe answer about a fresh image, and it is the
+  honest version of the question. It costs a CUDA image build on every machine that runs the
+  recipe, minutes and gigabytes, for an answer the two rows above compute from two pulls the
+  recipe already does. It also changes what the recipe is: a verification that rebuilds and retags
+  the artifacts it was verifying is no longer only reading, and a build failing for a reason that
+  has nothing to do with volumes would stop the record being checked at all.
+- **Refusing to answer for a built image older than its Dockerfile** aims at the half that is
+  already closed, and closed better, since the Dockerfile rule runs on every commit rather than on
+  a hand run. It says nothing about the base, which is the whole of what is left. The comparison is
+  also unreliable: a fresh clone gives every file a checkout time, so every built image would be
+  older than every Dockerfile and the recipe would refuse to answer for all three rows.
+- **Declaring the exposure too small to act on** is the one with a real case, since both bases
+  declare nothing today and the symptom of the class is clutter on a host rather than lost data.
+  It loses on cost. The answer taken here needs no build, no schedule and no second daemon, and it
+  moves the question out of "run the recipe and hope somebody rebuilt first" into a rule that runs
+  on every commit. A residue named on a recipe is the tier-three answer this ADR already argues is
+  the last resort, and it is not the last resort here.
+
+**What it cost.** `dockerfilebases.py` is the new reader: the image a file's last stage stands on,
+followed back through stage names when the last `FROM` names an earlier stage, `scratch` answered
+as standing on nothing, a `--platform` flag dropped, and every other shape refused rather than
+guessed at, including a stage standing on itself. The file's own grammar moved there with it, the
+comment and continuation handling and the `escape=` refusal, because a stage cannot be found before
+the lines are joined and both readers now work over the same ones. `volumecheck.py` was at 294 of
+the 300 line cap and had been within a line or two of it through both preceding addenda, so
+`base_project` moved to `composefiles.py`, which already owns the bare stems that answer it and is
+therefore where the knowledge belonged. The stale-row rule needed no second mechanism: a base is
+counted among the references the walk named, so a base row nothing stands on is reported by the
+rule that already reports an image row nothing runs.
+
+### Proven able to fail
+
+**Suite: `scripts/tests/test_volumecheck.py`, `scripts/tests/test_dockerfilevolumes.py` and
+`scripts/tests/test_dockerfilebases.py`, 98 tests** (86 before this change), run against a mutated
+gate and restored from a copy after each. Baseline 98 passed, 0 failed. Twelve mutants planted, all
+twelve killed, none of them by a crash: each leaves a gate that runs and answers wrongly.
+
+| mutant planted in the gate | tests killed |
+|---|---|
+| the last stage is not the one that decides | 9 |
+| a stage name is never followed back to its image | 6 |
+| a stage name is matched case-sensitively | 1 |
+| scratch is looked up as if it were an image | 24 |
+| a FROM naming more than an image and a stage is accepted | 4 |
+| a file with no FROM answers instead of being refused | 1 |
+| a flag is read as the image it precedes | 2 |
+| an unrecorded base is a silent pass | 2 |
+| a path the base declares and the row lacks is not reported | 2 |
+| the built row is compared against the base without normalizing | 1 |
+| the gate never asks a build what its base declares | 4 |
+| a base never reaches the record's naming half | 5 |
+
+The live proof beside it, which is the deferral's own subject acted out. With
+`python:3.12-slim-trixie` recorded as declaring `/var/cache/base` and nothing else changed,
+`volumecheck.py --root ..` exits 1 and reddens both rows built from the file that stands on it,
+naming each image separately because each is a container of its own:
+
+```
+$ cd scripts && uv run python volumecheck.py --root ..
+docker/docker-compose.email.yml:37: brain/Dockerfile builds 'cortex-mcp-email' FROM 'python:3.12-slim-trixie', which declares VOLUME '/var/cache/base', and the row for 'cortex-mcp-email' in scripts/imagevolumes.py does not carry it; ...
+docker/docker-compose.yml:15: brain/Dockerfile builds 'cortex-brain' FROM 'python:3.12-slim-trixie', which declares VOLUME '/var/cache/base', and the row for 'cortex-brain' in scripts/imagevolumes.py does not carry it; ...
+```
+
+With the row put back the same command exits 0 over four declared paths, ten compose files, eleven
+service definitions, ten images counting the two bases, and two Dockerfiles here declaring and
+inheriting nothing their rows do not carry. `just image-volumes` against a real docker exits 0 on
+the same day, over all ten images, three of them built here and seven pulled before they were
+asked.
+
+What stays open is smaller and is filed rather than named on a recipe. The two base rows are now
+the only rows a built row's correctness depends on that nothing derives: the gate reads the `FROM`
+and looks the reference up, so a repointed base is caught, but the row's *contents* are still a
+recorded measurement rather than something the built row is computed from. Deriving a built row
+entirely, as the union of its Dockerfile's declarations and its base's row, would leave the record
+holding only what a registry can answer for, and would make the three built rows unnecessary
+([R-473](../refinements/tasks/473-a-built-row-is-recorded-where-it-could-be-derived.md)).

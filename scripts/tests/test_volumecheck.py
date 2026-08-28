@@ -225,6 +225,37 @@ def test_a_row_no_compose_file_names_is_a_claim_nothing_can_check(tree: Path) ->
     assert "'db:1'" in faults[1].detail
 
 
+def test_a_path_the_base_declares_and_the_built_row_lacks_is_reported(tree: Path) -> None:
+    """The one way a built row could still be wrong. It is asked without a pull, so it answers
+    from whatever the machine running the recipe last built, while the base has been republished
+    and the next build there inherits a path nothing mounts."""
+    _write(tree, "brain/Dockerfile", "FROM base:1\n")
+    records = {**RECORDS, "base:1": ("/inherited",)}
+    scanned = volumecheck.check(tree, records)
+    faults = [fault for fault in scanned.faults if fault.path != volumecheck.RECORD_PATH]
+    assert len(faults) == 1
+    assert "FROM 'base:1', which declares VOLUME '/inherited'" in faults[0].detail
+
+
+def test_a_base_the_record_has_no_row_for_is_an_unasked_question(tree: Path) -> None:
+    """Half of what a built row says comes from its base, so an unrecorded one leaves the row
+    unanswerable rather than merely unchecked."""
+    _write(tree, "brain/Dockerfile", "FROM base:1\n")
+    faults = _faults(tree)
+    assert len(faults) == 1
+    assert "has no row for" in faults[0].detail
+    assert "just image-volumes" in faults[0].detail
+
+
+def test_a_row_named_only_by_a_dockerfile_is_named_enough_to_stand(tree: Path) -> None:
+    """A base is named by a `FROM` and by no compose service, so the stale-row rule has to count
+    that as naming it; a rule that did not would make the rows the other rule needs impossible."""
+    _write(tree, "brain/Dockerfile", "FROM base:1\n")
+    scanned = volumecheck.check(tree, {**RECORDS, "base:1": ()})
+    assert "base:1" in scanned.names
+    assert [fault for fault in scanned.faults if "'base:1'" in fault.detail] == []
+
+
 def test_an_image_written_as_a_substitution_cannot_be_keyed_on(tree: Path) -> None:
     """The record is keyed on the image a container runs, which an expansion does not spell."""
     _write(tree, "docker/docker-compose.v.yml", _service('    image: "${TAG:-db:1}"\n'))
@@ -326,7 +357,8 @@ def test_main_states_what_it_read_beside_the_verdict(capsys: pytest.CaptureFixtu
     assert "declared volume path(s)" in out
     assert "compose file(s), " in out
     assert "service definition(s) and " in out
-    assert "2 Dockerfile(s) here declare nothing their row does not carry" in out
+    assert "image(s) counting the bases those builds stand on, " in out
+    assert "2 Dockerfile(s) here declare and inherit nothing their row does not carry" in out
 
 
 def test_main_reports_each_fault_and_exits_one(

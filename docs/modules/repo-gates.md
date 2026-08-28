@@ -40,7 +40,10 @@ tier's flags, `hostedtiers.py` is the other, the tier the model host starts itse
 sidecar's own declaration with `moduleconstants.py` answering underneath it for what a Python
 module's top level binds, `imagevolumes.py` is the recorded
 answer that gate reads and the drift report over it, `dockerfilevolumes.py` is what a Dockerfile
-in this tree declares against the row for the image built from it, `protocomments.py` is what a proto comment is and how it normalizes into
+in this tree declares against the row for the image built from it, with `dockerfilebases.py`
+answering the other half of that row, the image the file's last stage stands on and whose own
+row is pulled because a built row never is, and carrying the line joining both readers work
+over, `protocomments.py` is what a proto comment is and how it normalizes into
 the Rust stub's spelling, `logsamples.py` is what a documented log line claims to print and
 `logcalls.py` is what the call writing it really attaches, the two sides `samplecheck.py` holds
 together, `rosters.py` is every roster this repo has written down with `rosternames.py` reading
@@ -418,6 +421,12 @@ that last question to have an answer.
   override while its sibling does not, in silence. The components it skips are
   `skippeddirs.SKIPPED_DIRS`, shared with every other walk here; it carried a shorter list of its
   own until that module landed, and joining changed neither compose gate's reading.
+  `base_project(...)` is the same question asked one step further and lives here for the same
+  reason: only the bare-stemmed file is what compose reads when handed no `-f`, and only it pins
+  the project name an override inherits, so a gate keying a build-only service as
+  `{project}-{service}` needs the stems this module already owns. Exactly one such file must pin a
+  name; none and several both return `None`, and the caller draws a fault rather than keying a
+  silently wrong row.
 - `skippeddirs.py` is the directory components no walk here enters and has no CLI: ten names,
   read by all four walks (`dashcheck.py`, `linecap.py`, which composes its own list from it,
   `backloganchors.py` and `composefiles.py`). **It is deliberately not `.gitignore`**, and the
@@ -464,15 +473,21 @@ that last question to have an answer.
   say so, which is also why a service naming neither an image nor a build is read as a fragment
   and asked nothing. **A second rule covers the three rows this repo builds**, where the record can
   move under the gate from inside the tree rather than from a registry: every path a Dockerfile
-  here declares must appear in the row for the image built from it (`dockerfilevolumes.py`). It is
-  one-directional, a recorded path the Dockerfile does not declare being inherited from a base
-  image the record deliberately holds no row for. Nine things fail it: a declared path no service
+  here declares must appear in the row for the image built from it (`dockerfilevolumes.py`), and
+  so must every path declared by the image that file's last stage stands `FROM`
+  (`dockerfilebases.py`), the record carrying a row for each of those two bases and pulling it on
+  every re-derivation because a built row can never be pulled at all. Between them the two halves
+  account for the whole of what a built image declares, which was measured rather than assumed:
+  a declaration is inherited through `FROM`, and a builder stage's reaches no built image. Both
+  are one-directional, so a recorded path neither half declares is nobody's fault. Eleven things
+  fail it: a declared path no service
   covers, an image the record
-  has no row for, a row no compose file names, an image spelled through a substitution the record
+  has no row for, a base the record has no row for, a base declaring a path the built row does not
+  carry, a row nothing here names, an image spelled through a substitution the record
   cannot be keyed on, a service that only builds where no base file pins the project half of its
   image name, a compose file the reader will not guess at, a Dockerfile declaring a path its row
   denies, a build stanza reaching no Dockerfile under either project directory, and a build path
-  spelled through a substitution. Under all nine sits
+  spelled through a substitution. Under all eleven sits
   `composefiles.py`'s floor, shared with the other two compose gates, where finding no compose
   file at all is a failure rather than an empty pass. **A build-only service's image is derived**
   as `{project}-{service}`, the project read from the file's own `name:` and otherwise from the
@@ -485,9 +500,13 @@ that last question to have an answer.
 - `imagevolumes.py` is `volumecheck.py`'s record and has no CLI of its own. `IMAGE_VOLUMES` maps
   each image reference a compose file names to the paths it declares, an empty tuple being a
   measured answer rather than a missing one, which is what lets the gate tell a silence somebody
-  measured from an image nobody has asked about. Its docstring carries the measurement: the
-  `docker image inspect --format` line, the date, and why the three built rows are spelled the way
-  compose tags them with no row for the bases they inherit from. `docker_volumes` is the only
+  measured from an image nobody has asked about. Two of its rows are named by a `FROM` in this tree
+  rather than by any compose file: they are the bases the three built rows stand on, recorded
+  because a built row is asked without a pull and so answers from whatever the machine running the
+  recipe last built, while a base row is refreshed from its registry every time. Its docstring
+  carries the measurement: the
+  `docker image inspect --format` line, the dates, and why the three built rows are spelled the way
+  compose tags them. `docker_volumes` is the only
   part needing a real daemon and is the module's one `pragma: no cover`, and it is where the pull
   lives; `rederive` decides everything, including which references are refreshed and which are
   local builds, and takes any inspector, so the comparison is tested against a fake.
@@ -500,12 +519,31 @@ that last question to have an answer.
   this one. Everything else raises `DockerfileError` rather than being walked past, since a skipped
   `VOLUME` is a declared path the record would go on denying: an argument carrying a build argument
   or an environment variable, a path that is not absolute, a JSON container that is not an array of
-  paths, a `VOLUME` naming nothing, and an `escape=` parser directive, which would change what a
-  continuation means. `undeclared(...)` is the rule over it and reports what no row carries, taking
+  paths, and a `VOLUME` naming nothing. `undeclared(...)` is the rule over it and reports what no
+  row carries, taking
   the Dockerfile from the compose service's `build:` rather than from a record of its own, since a
-  second spelling of that mapping is the same defect one level down. `landings(...)` resolves a
+  second spelling of that mapping is the same defect one level down. It asks the base half over
+  the same read, so a file is opened once and an unreadable one owes one fault rather than two.
+  `landings(...)` resolves a
   relative context against **both** project directories compose can pick, exactly as `bindcheck.py`
   resolves a bind source, and an absolute one lands once rather than twice.
+- `dockerfilebases.py` is the other side of a built row and has no CLI. `read_base(text)` returns
+  the image a Dockerfile's **last** stage stands on, which is the only stage whose config survives
+  a build: measured with docker on 2026-08-28, an image built from a base declaring `/probe/base`
+  declares it too, while a `FROM ... AS builder` stage declaring `/probe/builder` contributed
+  nothing, which is why `brain/Dockerfile`'s `uv` builder stage gets no row. A last stage naming an
+  earlier one is followed back through the stage names, however either side cases them, until it
+  reaches something that is not a stage; `FROM scratch` stands on nothing and returns `None` rather
+  than being sent looking for a row. A `--platform` flag is dropped, changing nothing about what
+  the named image declares. Everything else raises `DockerfileError`: an image spelled through a
+  substitution, a file with no `FROM` at all, a `FROM` that is not an image optionally named with
+  `AS`, and a stage standing on itself or on one written after it, which no build could resolve.
+  `inherited(...)` is the rule, one-directional like its sibling: every path the base's row carries
+  must appear in the built row, and an unrecorded base is an unasked question rather than a pass.
+  The file's own grammar lives here too, `logical(text)` joining continuation lines and dropping
+  comments and refusing an `escape=` parser directive that would change what a continuation means,
+  because a stage cannot be found before the lines are joined and both readers work over the same
+  ones.
 - `composetargets.py` is the container path one mount entry names and has no CLI. It is the half of
   `composeservices.py` that answers what `composemounts.py` deliberately does not: that reader takes
   a mount's source and drops every entry naming none, this one takes its **target**, where a named

@@ -3,9 +3,10 @@
 Two halves are exercised, and they fail in different directions. `read_volumes` is a reader, so
 most of what is below asserts a refusal: a shape it was not taught has to raise rather than be
 walked past, since a `VOLUME` this reader skipped is a declared path the record would go on
-denying. `undeclared` is the rule over it, one-directional by design, so the tests that matter
-most are the two that assert what is *not* a fault: a path the row already carries, and a row
-carrying a path the Dockerfile never mentions, which is inherited from a base image.
+denying. `undeclared` is the rule over it, and it is where both halves of a built row meet: what
+the file declares itself and what its base declares for it, asked over one read. Both halves are
+one-directional by design, so the tests that matter most are the ones asserting what is *not* a
+fault: a path the row already carries, and a row carrying a path neither side ever names.
 """
 
 from pathlib import Path
@@ -13,7 +14,8 @@ from pathlib import Path
 import pytest
 
 from composeservices import DEFAULT_DOCKERFILE, Build
-from dockerfilevolumes import DockerfileError, landings, read_volumes, undeclared
+from dockerfilebases import DockerfileError
+from dockerfilevolumes import landings, read_volumes, undeclared
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -148,7 +150,7 @@ def test_an_absolute_context_lands_on_one_file_rather_than_twice(tmp_path: Path)
 def test_a_declared_path_the_row_does_not_carry_is_reported(tmp_path: Path) -> None:
     """The whole point: the built image declares a path and the record goes on denying it."""
     compose = _tree(tmp_path, "FROM scratch\nVOLUME /var/cache/thing\n")
-    reading = undeclared(tmp_path, compose, HERE, "tree-brain", ())
+    reading = undeclared(tmp_path, compose, HERE, "tree-brain", (), {})
     assert reading.dockerfiles == (DEFAULT_DOCKERFILE,)
     assert len(reading.faults) == 1
     assert "declares VOLUME '/var/cache/thing'" in reading.faults[0]
@@ -157,29 +159,70 @@ def test_a_declared_path_the_row_does_not_carry_is_reported(tmp_path: Path) -> N
 
 def test_a_declared_path_the_row_carries_is_the_record_in_step(tmp_path: Path) -> None:
     compose = _tree(tmp_path, "FROM scratch\nVOLUME /var/cache/thing\n")
-    reading = undeclared(tmp_path, compose, HERE, "tree-brain", ("/var/cache/thing",))
-    assert reading == ((DEFAULT_DOCKERFILE,), ())
+    reading = undeclared(tmp_path, compose, HERE, "tree-brain", ("/var/cache/thing",), {})
+    assert reading == ((DEFAULT_DOCKERFILE,), (), ())
 
 
-def test_a_recorded_path_the_dockerfile_never_names_is_inherited_and_not_a_fault(
+def test_a_recorded_path_neither_the_file_nor_its_base_declares_is_not_a_fault(
     tmp_path: Path,
 ) -> None:
-    """The rule is one-directional: only docker can say what the base image declares, and the
-    record deliberately holds no row for a base, so a path arriving from one is not a drift."""
-    compose = _tree(tmp_path, "FROM python:3.12-slim-trixie\n")
-    assert undeclared(tmp_path, compose, HERE, "tree-brain", ("/inherited",)).faults == ()
+    """Both rules are one-directional, so a row carrying more than the two sides declare is not a
+    drift: what is declared is held to what is recorded, and never the reverse."""
+    compose = _tree(tmp_path, "FROM base:1\n")
+    reading = undeclared(tmp_path, compose, HERE, "tree-brain", ("/inherited",), {"base:1": ()})
+    assert reading == ((DEFAULT_DOCKERFILE,), ("base:1",), ())
+
+
+def test_a_path_the_base_declares_and_the_row_lacks_is_reported(tmp_path: Path) -> None:
+    """The half a built row cannot catch itself: the base was republished with a declaration, and
+    the row goes on answering from whatever the machine running the recipe last built."""
+    compose = _tree(tmp_path, "FROM base:1\n")
+    reading = undeclared(tmp_path, compose, HERE, "tree-brain", (), {"base:1": ("/inherited",)})
+    assert reading.bases == ("base:1",)
+    assert len(reading.faults) == 1
+    assert "FROM 'base:1', which declares VOLUME '/inherited'" in reading.faults[0]
+
+
+def test_a_path_the_base_declares_and_the_row_carries_is_the_record_in_step(
+    tmp_path: Path,
+) -> None:
+    """And the two sides are compared as paths, so one trailing slash is not a second spelling."""
+    compose = _tree(tmp_path, "FROM base:1\n")
+    records = {"base:1": ("/inherited",)}
+    assert undeclared(tmp_path, compose, HERE, "tree-brain", ("/inherited/",), records) == (
+        (DEFAULT_DOCKERFILE,),
+        ("base:1",),
+        (),
+    )
+
+
+def test_a_base_the_record_has_no_row_for_is_a_fault(tmp_path: Path) -> None:
+    """An unrecorded base is an unasked question, exactly as an unrecorded image is one."""
+    compose = _tree(tmp_path, "FROM base:1\n")
+    reading = undeclared(tmp_path, compose, HERE, "tree-brain", (), {})
+    assert reading.bases == ("base:1",)
+    assert len(reading.faults) == 1
+    assert "has no row for" in reading.faults[0]
+
+
+def test_a_file_standing_on_nothing_asks_for_no_base_row(tmp_path: Path) -> None:
+    """`FROM scratch` inherits nothing, so the walk names no base and the record owes none."""
+    compose = _tree(tmp_path, "FROM scratch\n")
+    assert undeclared(tmp_path, compose, HERE, "tree-brain", (), {}).bases == ()
 
 
 def test_a_row_carrying_a_trailing_slash_still_covers_the_path(tmp_path: Path) -> None:
     """One container path has one spelling on both sides of the comparison."""
     compose = _tree(tmp_path, "FROM scratch\nVOLUME /srv/mail\n")
-    assert undeclared(tmp_path, compose, HERE, "tree-brain", ("/srv/mail/",)).faults == ()
+    assert undeclared(tmp_path, compose, HERE, "tree-brain", ("/srv/mail/",), {}).faults == ()
 
 
 def test_a_build_pointing_where_no_dockerfile_lands_is_a_fault(tmp_path: Path) -> None:
     """A mapping that reaches nothing checks nothing, which is the silence this gate is against."""
     compose = _tree(tmp_path, "FROM scratch\n")
-    faults = undeclared(tmp_path, compose, Build("./nowhere", "Dockerfile"), "tree-x", ()).faults
+    faults = undeclared(
+        tmp_path, compose, Build("./nowhere", "Dockerfile"), "tree-x", (), {}
+    ).faults
     assert len(faults) == 1
     assert "where no Dockerfile lands" in faults[0]
 
@@ -194,14 +237,14 @@ def test_a_build_path_spelled_through_a_substitution_is_a_fault(
 ) -> None:
     """Only a build resolves it, so the file that declares the paths cannot be read at all."""
     compose = _tree(tmp_path, "FROM scratch\n")
-    faults = undeclared(tmp_path, compose, build, "tree-brain", ()).faults
+    faults = undeclared(tmp_path, compose, build, "tree-brain", (), {}).faults
     assert len(faults) == 1
     assert "carries a substitution" in faults[0]
 
 
 def test_a_dockerfile_the_reader_refuses_is_a_fault_rather_than_a_silence(tmp_path: Path) -> None:
     compose = _tree(tmp_path, "VOLUME ${CACHE}\n")
-    reading = undeclared(tmp_path, compose, HERE, "tree-brain", ())
+    reading = undeclared(tmp_path, compose, HERE, "tree-brain", (), {})
     assert reading.dockerfiles == (DEFAULT_DOCKERFILE,)
     assert len(reading.faults) == 1
     assert "could not be read" in reading.faults[0]
@@ -211,7 +254,7 @@ def test_a_dockerfile_the_reader_refuses_is_a_fault_rather_than_a_silence(tmp_pa
 def test_a_dockerfile_that_is_not_text_is_a_fault(tmp_path: Path) -> None:
     compose = _tree(tmp_path, "FROM scratch\n")
     (tmp_path / DEFAULT_DOCKERFILE).write_bytes(b"\xff\xfe VOLUME")
-    faults = undeclared(tmp_path, compose, HERE, "tree-brain", ()).faults
+    faults = undeclared(tmp_path, compose, HERE, "tree-brain", (), {}).faults
     assert len(faults) == 1
     assert "could not be read" in faults[0]
 
@@ -222,7 +265,7 @@ def test_a_dockerfile_outside_the_root_is_named_by_the_way_back_to_it(tmp_path: 
     compose = _tree(root, "FROM scratch\nVOLUME /a\n")
     outside = Build("..", DEFAULT_DOCKERFILE)
     (tmp_path / DEFAULT_DOCKERFILE).write_text("FROM scratch\nVOLUME /outside\n", encoding="utf-8")
-    reading = undeclared(root, compose, outside, "tree-brain", ())
+    reading = undeclared(root, compose, outside, "tree-brain", (), {})
     assert reading.dockerfiles == ("../Dockerfile", DEFAULT_DOCKERFILE)
     assert "'/outside'" in reading.faults[0]
     assert "'/a'" in reading.faults[1]

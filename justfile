@@ -81,8 +81,9 @@ check-defaultcheck:
 # image-volumes` is what re-derives that record from docker and fails when it has gone
 # stale (ADR-0011 addendum on evidence out of the gate's reach). Three of those rows are
 # built here, and for those the same scan reads the Dockerfile each build stanza points at
-# and fails when it declares a path its row does not carry, which is the half of the
-# question the tree can answer with no daemon at all.
+# and fails when it declares, or inherits from the image its last stage stands on, a path
+# its row does not carry. That is the half of the question the tree can answer with no
+# daemon at all, and it is the whole of what a built image declares.
 check-volumecheck:
     cd scripts && uv sync --locked
     cd scripts && uv run python volumecheck.py --root ..
@@ -128,12 +129,15 @@ check-flagcheck:
     cd scripts && uv sync --locked
     cd scripts && uv run python flagcheck.py --root ..
 
-# Hand-run, needs docker and the network: pull every image this repo's compose files name,
-# ask the daemon what each actually declares, and fail when scripts/imagevolumes.py
-# disagrees. The pull is the point, since inspect answers out of the local cache and most of
-# these references are moving tags; the three images built here are asked without one. Run
-# it after pinning a new image or bumping a pinned one, and on any day a moving tag may have
-# been republished, since that record is the only thing check-volumecheck can see.
+# Hand-run, needs docker and the network: pull every image this repo names, ask the daemon
+# what each actually declares, and fail when scripts/imagevolumes.py disagrees. The pull is
+# the point, since inspect answers out of the local cache and most of these references are
+# moving tags; the three images built here are asked without one, having no registry, which
+# is why the two bases they stand on have rows of their own and are pulled like the rest. A
+# built row is therefore whatever the machine running this last built, and the gate holds it
+# to a base that is current. Run it after pinning a new image or bumping a pinned one, on
+# any day a moving tag may have been republished, and after rebuilding an image here, since
+# that record is the only thing check-volumecheck can see.
 image-volumes:
     cd scripts && uv sync --locked
     cd scripts && uv run python volumecheck.py --root .. --rederive

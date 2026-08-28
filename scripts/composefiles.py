@@ -16,8 +16,15 @@ in the tree.
 
 Finding nothing is a failure rather than an empty pass, which is the one rule this module
 carries of its own: a scan whose glob matched nothing would report success forever.
+
+**Which of those files is the base** is the same question asked one step further, so it is
+answered here too. Only the bare-stemmed file is what compose reads when handed no `-f` at all,
+and only it pins the project name that an override, layered onto it, runs under. A gate keyed on
+the image a container really runs needs that name to key a service that only builds, and it needs
+to read the stems to find it, which is this module's own knowledge.
 """
 
+from collections.abc import Iterable
 from pathlib import Path
 
 from skippeddirs import SKIPPED_DIRS
@@ -48,3 +55,19 @@ def compose_files(root: Path) -> list[Path]:
         msg = f"no compose file under {root}; a scan that matched nothing cannot fail"
         raise ComposeSearchError(msg)
     return found
+
+
+def base_project(pinned: Iterable[tuple[Path, str | None]]) -> str | None:
+    """The project name an override with none of its own inherits, taken from the base file.
+
+    Compose runs a service that only builds under an image called `<project>-<service>`, so a gate
+    keyed on what a container really runs can only key that service once the project is known, and
+    an override does not pin one: it is layered onto the base and takes the base's. The base is the
+    file compose reads when handed no `-f` at all, which is the one whose stem is bare. Exactly one
+    such file must pin a name. None and several are both an answer this will not guess at, and the
+    caller then draws a fault of its own rather than keying a silently wrong row.
+    """
+    named = [
+        project for path, project in pinned if project is not None and path.stem in COMPOSE_STEMS
+    ]
+    return named[0] if len(named) == 1 else None

@@ -18,8 +18,8 @@ image-volumes` asks docker again and reports every row that has since drifted. T
 `docs/refinements/index.md` already has, a recorded artifact with a gate over it and a recipe that
 regenerates it.
 
-**How it was measured.** Once per image named by a compose file under `docker/`, on 2026-08-25,
-with the same format string `docker_volumes` below spends, which is `INSPECT_FORMAT`:
+**How it was measured.** Once per image this repo names, on the date beside its row, with the same
+format string `docker_volumes` below spends, which is `INSPECT_FORMAT`:
 
     docker image inspect --format "$INSPECT_FORMAT" <image>
 
@@ -34,7 +34,7 @@ from whatever was lying around. The three images this repo builds are the except
 registry to be refreshed from: their answer is the local build, which is the thing a container
 here really runs.
 
-Two of the eight answer with a path. The other six declare nothing, and a row saying so is worth
+Two of the ten answer with a path. The other eight declare nothing, and a row saying so is worth
 as much as a row saying otherwise: it is what lets the gate tell an image whose silence was
 measured from one nobody has asked about yet.
 
@@ -42,10 +42,21 @@ measured from one nobody has asked about yet.
 image compose tags `<project>-<service>`, which is why `cortex-brain` and `cortex-mcp-email` are
 spelled here and why `docker inspect cortex-brain-1` is the container beside them in the runbooks.
 `cortex-model-host` is the same name written out, its compose service naming the tag itself
-because a second Dockerfile in one context needs one. No row exists for the base images those
-three are built from, `python:3.12-slim-trixie` and `ghcr.io/ggml-org/llama.cpp:server-cuda`,
-because no compose file names either: whatever they declare is already inherited into the built
-image, which is the thing a container actually runs and the thing measured above.
+because a second Dockerfile in one context needs one.
+
+**The two base rows exist because a built row cannot be re-derived.** A built row is asked without
+a pull, having no registry to be refreshed from, so its answer is whatever the machine running the
+recipe last built, and a build inherits whatever its base declared on the day it ran. This record
+used to hold no row for `python:3.12-slim-trixie` or `ghcr.io/ggml-org/llama.cpp:server-cuda` on
+the grounds that no compose file names either and that what they declare is already inherited into
+the image a container really runs. The first half is still true and the second was the mistake:
+inherited into the image this machine last built, which is not the image the next build produces.
+Both are moving tags, so they are recorded and pulled like every other registry reference, and
+`dockerfilebases.py` holds each built row to carrying what its base's row carries. A base
+republished with a new `VOLUME` then reddens the gate on the next re-derivation instead of waiting
+for somebody to rebuild. The bases of the *builder* stages get no row for the reason the old
+paragraph gave about all of them: a builder stage's declarations were measured not to reach the
+built image at all, so no container ever runs them.
 """
 
 import subprocess
@@ -67,6 +78,11 @@ IMAGE_VOLUMES: dict[str, tuple[str, ...]] = {
     "cortex-brain": (),
     "cortex-mcp-email": (),
     "cortex-model-host": (),
+    # The two bases the rows above are built on, named by a Dockerfile here rather than by a
+    # compose file, and pulled on every re-derivation because a built row cannot be. Measured
+    # 2026-08-28; the eight rows above were measured 2026-08-25.
+    "python:3.12-slim-trixie": (),
+    "ghcr.io/ggml-org/llama.cpp:server-cuda": (),
 }
 
 # Where a row is edited, named here so the gate reporting a stale or missing one can say where to
