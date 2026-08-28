@@ -38,6 +38,7 @@ from cortex_core import (
     ToolSpec,
     VramBudgetPlacer,
 )
+from cortex_core.subagent_reply import REPLY_ENVELOPE
 from cortex_inference import LlamaCppBackend
 
 _ENDPOINT = os.environ.get("CORTEX_SUBAGENTS_ENDPOINT")
@@ -46,6 +47,10 @@ _OUT = Path(os.environ.get("CORTEX_ENVELOPE_OUT", "."))
 _LIMIT = int(os.environ.get("CORTEX_ENVELOPE_BODIES", "4"))
 _MAX_TOKENS = int(os.environ.get("CORTEX_ENVELOPE_MAX_TOKENS", str(DEFAULT_SUBAGENT_MAX_TOKENS)))
 _ARMS = tuple(os.environ.get("CORTEX_ENVELOPE_ARMS", "raw,constrained").split(","))
+# How many times each arm of each body is drawn. One, so every recipe written before this knob
+# existed still means what it said. Above one is what a quality reading needs: this tier samples,
+# and a cell read once is a draw that a reader will quote as a rule.
+_DRAWS = int(os.environ.get("CORTEX_ENVELOPE_DRAWS", "1"))
 # Named where the sample is written as well as where the run is configured, so a diagnostic at a
 # raised cap cannot silently overwrite the shipped-cap sample it is meant to sit beside.
 _TAG = os.environ.get("CORTEX_ENVELOPE_TAG", "")
@@ -53,10 +58,37 @@ _TAG = os.environ.get("CORTEX_ENVELOPE_TAG", "")
 # the reply and cannot say where, and where is the whole of what a retune would rest on.
 _HEAD = int(os.environ.get("CORTEX_ENVELOPE_HEAD", "400"))
 
-# The summarization shape the total-cap addendum found longest of the narrow four, over four
-# report bodies of about the same length. Different subject matter each time, so a body that
-# happens to invite a long answer shows up as one pair out of line rather than as the reading.
-_INSTRUCTION = "Summarize the report below, keeping every detail."
+_REPLY_DESCRIPTION = "The answer to the instruction, written out in full as plain text."
+_DESCRIBED_ENVELOPE: JsonSchema = {
+    **REPLY_ENVELOPE,
+    "properties": {"reply": {"type": "string", "description": _REPLY_DESCRIPTION}},
+}
+
+_PREFACED_ENVELOPE: JsonSchema = {
+    "type": "object",
+    "properties": {
+        "notes": {
+            "type": "string",
+            "description": "Any planning or restatement of the task, before the answer.",
+        },
+        "reply": {"type": "string", "description": _REPLY_DESCRIPTION},
+    },
+    "required": ["notes", "reply"],
+    "additionalProperties": False,
+}
+
+# Which schema each arm's request carries, and therefore what the arm is. `None` is the raw shape,
+# which is also the shape that tells the runner not to unwrap anything.
+_SCHEMAS: dict[str, JsonSchema | None] = {
+    "raw": None,
+    "constrained": REPLY_ENVELOPE,
+    "described": _DESCRIBED_ENVELOPE,
+    "prefaced": _PREFACED_ENVELOPE,
+}
+
+_INSTRUCTION = os.environ.get(
+    "CORTEX_ENVELOPE_INSTRUCTION", "Summarize the report below, keeping every detail."
+)
 
 _BODIES: dict[str, str] = {
     "warehouse": (
@@ -121,8 +153,9 @@ _BODIES: dict[str, str] = {
 class _Recording:
     """An ``InferenceBackend`` that passes everything through and keeps the server's own numbers."""
 
-    def __init__(self, inner: InferenceBackend) -> None:
+    def __init__(self, inner: InferenceBackend, *, substitute: JsonSchema | None = None) -> None:
         self._inner = inner
+        self._substitute = substitute
         self.cadence: DecodeCadence | None = None
         self.stop: DecodeStop | None = None
         self.ttft_s: float | None = None
@@ -142,7 +175,8 @@ class _Recording:
         bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
         started = time.monotonic()
-        events = self._inner.stream(model, messages, tools=tools, schema=schema, bounds=bounds)
+        asked = self._substitute if schema is not None and self._substitute is not None else schema
+        events = self._inner.stream(model, messages, tools=tools, schema=asked, bounds=bounds)
         async for event in events:
             if isinstance(event, TextChunk):
                 if self.ttft_s is None:
@@ -173,21 +207,23 @@ def _roster(backend: InferenceBackend) -> SubagentRoster:
 
 
 async def _one(
-    client: httpx.AsyncClient, name: str, body: str, *, constrain: bool
+    client: httpx.AsyncClient, name: str, body: str, *, arm: str, draw: int
 ) -> dict[str, Any]:
     """Run one body on one shape through the real runner and say what came back."""
+    schema = _SCHEMAS[arm]
     recorder = _Recording(
-        LlamaCppBackend(SingleResidentModelManager(_MODEL, _ENDPOINT or ""), client)
+        LlamaCppBackend(SingleResidentModelManager(_MODEL, _ENDPOINT or ""), client),
+        substitute=schema,
     )
     store = InMemoryTaskStore()
     runner = SubagentRunner(
         store,
         _roster(recorder),
         SystemClock(),
-        constrain_output=constrain,
+        constrain_output=schema is not None,
         bounds=AttemptBounds(max_tokens=_MAX_TOKENS, timeout_s=DEFAULT_SUBAGENT_RUN_TIMEOUT_S),
     )
-    task_id = f"{name}-{'constrained' if constrain else 'raw'}"
+    task_id = f"{name}-{arm}-{draw}"
     await store.put_task(
         SubagentTask(id=task_id, instruction=_INSTRUCTION, context=body, at=datetime.now(UTC))
     )
@@ -196,6 +232,8 @@ async def _one(
     wall = time.monotonic() - started
     turn = {
         "question": name,
+        "arm": arm,
+        "draw": draw,
         "cap": _MAX_TOKENS,
         "ttft": recorder.ttft_s if recorder.ttft_s is not None else wall,
         "wall": wall,
@@ -207,15 +245,20 @@ async def _one(
         "output_chars": len(result.output),
         "stream_text_chars": len(recorder.text),
         "reasoning_chars": len(recorder.reasoning),
+        # Kept whole, and the only field here that is. A length says a reply happened; whether it
+        # answered the instruction or described answering it is in the words, and that reading is
+        # what this harness was extended to support.
+        "output": result.output,
         "stream_head": recorder.text[:_HEAD],
         "reasoning_head": recorder.reasoning[:_HEAD],
     }
-    print(f"  {task_id}: {json.dumps(turn)}", flush=True)  # noqa: T201 -- the report is the point
+    printed = {key: value for key, value in turn.items() if key != "output"}
+    print(f"  {task_id}: {json.dumps(printed)}", flush=True)  # noqa: T201 -- the report is the point
     return turn
 
 
 def _write(arm: str, turns: list[dict[str, Any]]) -> None:
-    """Rewrite one arm's sample, so a run cut short still leaves the pairs it finished."""
+    """Rewrite one arm's sample, so a run cut short still leaves the draws it finished."""
     _OUT.mkdir(parents=True, exist_ok=True)
     path = _OUT / f"envelope-{arm}{_TAG}.json"
     path.write_text(json.dumps({"arm": arm, "turns": turns}, indent=2) + "\n", encoding="utf-8")
@@ -224,17 +267,20 @@ def _write(arm: str, turns: list[dict[str, Any]]) -> None:
 @pytest.mark.integration
 @pytest.mark.skipif(not _ENDPOINT, reason="set CORTEX_SUBAGENTS_ENDPOINT to a live subagent server")
 async def test_the_envelope_against_the_raw_shape_over_the_same_bodies() -> None:
-    """Both shapes over each body, raw first, writing after every completed pair."""
+    """Every shape over each body, raw first, writing after every completed run."""
     turns: dict[str, list[dict[str, Any]]] = {arm: [] for arm in _ARMS}
     # No request timeout: a CPU subtask streams for minutes and the stall ceiling is per read.
     async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, read=None)) as client:
         for name, body in list(_BODIES.items())[:_LIMIT]:
-            for arm in _ARMS:
-                turns[arm].append(await _one(client, name, body, constrain=arm == "constrained"))
-                _write(arm, turns[arm])
+            # Draws inside a body and arms inside a draw, so a run cut short loses whole draws of
+            # a whole body rather than one arm of one, which is the unit the pairing is over.
+            for draw in range(1, _DRAWS + 1):
+                for arm in _ARMS:
+                    turns[arm].append(await _one(client, name, body, arm=arm, draw=draw))
+                    _write(arm, turns[arm])
     # The measurement is the numbers printed and written above; what must hold whatever the model
     # decides is that every arm answered over the same bodies, which is what makes them pairable.
-    asked = [[turn["question"] for turn in seen] for seen in turns.values()]
+    asked = [[(turn["question"], turn["draw"]) for turn in seen] for seen in turns.values()]
     assert all(seen == asked[0] for seen in asked), f"the arms asked different bodies: {asked}"
     everything = [turn for seen in turns.values() for turn in seen]
     assert all(turn["tokens"] is not None for turn in everything), "a run reported no timings"
