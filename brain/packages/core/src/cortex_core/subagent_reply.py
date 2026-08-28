@@ -10,7 +10,13 @@ from cortex_core.subagent_outcome import (
     cap_detail,
 )
 
-__all__ = ["REPLY_ENVELOPE", "settle_reply", "unwrap_envelope"]
+__all__ = [
+    "REPLY_ENVELOPE",
+    "REPLY_INSTRUCTION",
+    "instruct_reply",
+    "settle_reply",
+    "unwrap_envelope",
+]
 
 # The fixed one-field reply envelope a constrained subagent is decoded into (ADR-0028): there is
 # no grammatical position for an appended footer, link, or section, so a jailbroken weak model
@@ -21,6 +27,20 @@ REPLY_ENVELOPE: JsonSchema = {
     "required": ["reply"],
     "additionalProperties": False,
 }
+
+REPLY_INSTRUCTION = (
+    "Your entire response must be the answer itself. Do not describe the task, plan an "
+    "approach, or announce what you are about to write."
+)
+
+
+def instruct_reply(instruction: str) -> str:
+    """``instruction`` with the constrained path's own sentence appended.
+
+    One function rather than an f-string at the call site, so the harness that measures this can
+    strip exactly what the runner adds and read the counterfactual against the shipped path.
+    """
+    return f"{instruction} {REPLY_INSTRUCTION}"
 
 
 def unwrap_envelope(text: str) -> str | None:

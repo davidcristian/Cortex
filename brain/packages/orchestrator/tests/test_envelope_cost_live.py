@@ -4,6 +4,7 @@ import json
 import os
 import time
 from collections.abc import AsyncIterator, Sequence
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -38,7 +39,7 @@ from cortex_core import (
     ToolSpec,
     VramBudgetPlacer,
 )
-from cortex_core.subagent_reply import REPLY_ENVELOPE
+from cortex_core.subagent_reply import REPLY_ENVELOPE, REPLY_INSTRUCTION
 from cortex_inference import LlamaCppBackend
 
 _ENDPOINT = os.environ.get("CORTEX_SUBAGENTS_ENDPOINT")
@@ -82,9 +83,12 @@ _PREFACED_ENVELOPE: JsonSchema = {
 _SCHEMAS: dict[str, JsonSchema | None] = {
     "raw": None,
     "constrained": REPLY_ENVELOPE,
+    "bare": REPLY_ENVELOPE,
     "described": _DESCRIBED_ENVELOPE,
     "prefaced": _PREFACED_ENVELOPE,
 }
+
+_STRIPPING_ARMS = frozenset({"bare"})
 
 _INSTRUCTION = os.environ.get(
     "CORTEX_ENVELOPE_INSTRUCTION", "Summarize the report below, keeping every detail."
@@ -153,9 +157,16 @@ _BODIES: dict[str, str] = {
 class _Recording:
     """An ``InferenceBackend`` that passes everything through and keeps the server's own numbers."""
 
-    def __init__(self, inner: InferenceBackend, *, substitute: JsonSchema | None = None) -> None:
+    def __init__(
+        self,
+        inner: InferenceBackend,
+        *,
+        substitute: JsonSchema | None = None,
+        strip_instruction: bool = False,
+    ) -> None:
         self._inner = inner
         self._substitute = substitute
+        self._strip_instruction = strip_instruction
         self.cadence: DecodeCadence | None = None
         self.stop: DecodeStop | None = None
         self.ttft_s: float | None = None
@@ -176,7 +187,8 @@ class _Recording:
     ) -> AsyncIterator[InferenceEvent]:
         started = time.monotonic()
         asked = self._substitute if schema is not None and self._substitute is not None else schema
-        events = self._inner.stream(model, messages, tools=tools, schema=asked, bounds=bounds)
+        sent = self._without_instruction(messages) if self._strip_instruction else messages
+        events = self._inner.stream(model, sent, tools=tools, schema=asked, bounds=bounds)
         async for event in events:
             if isinstance(event, TextChunk):
                 if self.ttft_s is None:
@@ -189,6 +201,17 @@ class _Recording:
             if isinstance(event, DecodeStop):
                 self.stop = event
             yield event
+
+    @staticmethod
+    def _without_instruction(messages: Sequence[Message]) -> list[Message]:
+        """``messages`` with the runner's appended sentence taken back off, and a check that it
+        was there: an arm that silently stripped nothing would report the shipped path twice."""
+        stripped = [
+            replace(message, text=message.text.replace(f" {REPLY_INSTRUCTION}", ""))
+            for message in messages
+        ]
+        assert stripped != list(messages), "nothing to strip: the runner sent no instruction"
+        return stripped
 
 
 def _roster(backend: InferenceBackend) -> SubagentRoster:
@@ -214,6 +237,7 @@ async def _one(
     recorder = _Recording(
         LlamaCppBackend(SingleResidentModelManager(_MODEL, _ENDPOINT or ""), client),
         substitute=schema,
+        strip_instruction=arm in _STRIPPING_ARMS,
     )
     store = InMemoryTaskStore()
     runner = SubagentRunner(
