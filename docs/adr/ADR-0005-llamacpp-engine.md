@@ -1483,7 +1483,10 @@ Setting 'enable_thinking' via --chat-template-kwargs is deprecated. Use --reason
 
 **Status:** Accepted, and extended 2026-08-28 by the mechanism section below, which names what
 reading 4 could only say was decided out of sight and closes
-[docs/refinements/tasks/464-why-a-grammar-restores-the-trace.md](../refinements/tasks/464-why-a-grammar-restores-the-trace.md).
+[docs/refinements/tasks/464-why-a-grammar-restores-the-trace.md](../refinements/tasks/464-why-a-grammar-restores-the-trace.md),
+and by the lineup section after it, which asks every remaining entry of
+[ADR-0004](ADR-0004-model-lineup.md) the same question and closes
+[docs/refinements/tasks/465-the-switch-across-the-lineup.md](../refinements/tasks/465-the-switch-across-the-lineup.md).
 Closes
 [docs/refinements/tasks/458-the-ports-thinking-switch-is-conditional.md](../refinements/tasks/458-the-ports-thinking-switch-is-conditional.md),
 which the thinking-lever addendum above opened as its own residue, and **corrects that addendum's
@@ -1558,7 +1561,9 @@ Four readings decide everything below.
    the small one: whether a switch holds is decided behind the endpoint, per pick and per shape,
    and no caller can see which. **Read a day later** in the mechanism section below, which names
    what decides it: the two picks ship different chat templates, and only one of them closes the
-   thought in the prompt when it is told not to think.
+   thought in the prompt when it is told not to think. The lineup section after that one asks every
+   remaining entry and finds the same thing deciding each of them, so a caller cannot see which and
+   an **operator** can, off one `POST /apply-template`.
 
 ### Why the addendum above could not have seen this
 
@@ -1673,6 +1678,81 @@ has fired. Rendering the port's switch as that key rather than only as the templ
 [R-474](../refinements/tasks/474-the-switch-could-be-rendered-as-a-lever-that-holds.md), and it is
 not taken here: this entry was scoped to naming the cause.
 
+### The lineup, asked (2026-08-28): the template decides, and the family does not
+
+Everything above is two picks of one family, which is a mechanism and not a rule, and
+[R-465](../refinements/tasks/465-the-switch-across-the-lineup.md) is the entry that held that gap
+open. Every remaining chat entry of the lineup ([ADR-0004](ADR-0004-model-lineup.md)) has now been
+asked the same question through the same committed probe: five draws a cell, a cap of 256, each
+server started with **neither** reasoning flag, all on `b10644-d7a207411` (the `-ngl 0` rows on
+`ghcr.io/ggml-org/llama.cpp@sha256:9f84380be42d6285a827629c809387349c3541aa8986f7536547ca33cc8dd47a`,
+the `-ngl 99` rows on
+`@sha256:9f0a986a78ab9261afc3266c807c16933ee4c26c62cb063f0c17f8da890f6c7e`). A cell counts the draws
+that deliberated **with the switch sent**, so `0/5` is a switch that held every time; the arms that
+send no switch deliberated on 5 of 5 everywhere, which is the probe's asserted control and is what
+makes the rest of the table mean anything.
+
+| entry | placement | chat format | its template's answer to "do not think" | plain | envelope |
+| --- | --- | --- | --- | --- | --- |
+| gemma-4-12B QAT q4_0 (cortex pick) | `-ngl 99 -c 16384` | `peg-gemma4` | closes an empty thought | 0/5 | 0/5 |
+| gemma-4-31B QAT q4_0 (deep pick) | `-ngl 99 -c 8192` | `peg-gemma4` | closes an empty thought | 0/5 | 0/5 |
+| gemma-4-26B-A4B QAT q4_0 | `-ngl 99 -c 8192` | `peg-gemma4` | closes an empty thought | 0/5 | 0/5 |
+| gemma-4-E4B QAT q4_0 (subagent pick) | `-ngl 0 -c 8192` | `peg-gemma4` | drops the block, adds nothing | 0/5 | **4/5** |
+| gemma-4-E2B QAT q4_0 | `-ngl 0 -c 8192` | `peg-gemma4` | drops the block, adds nothing | 0/5 | **5/5** |
+| Qwen3.5-0.8B Q8_0 | `-ngl 99 -c 8192` | `peg-native` | closes an empty think | 0/5 | 0/5 |
+| Qwen3.5-2B Q4_K_M (roster alternate) | `-ngl 0 -c 8192` | `peg-native` | closes an empty think | 0/5 | 0/5 |
+| Qwen3.5-4B Q4_K_M | `-ngl 0 -c 8192` | `peg-native` | closes an empty think | 0/5 | 0/5 |
+| Qwen3.5-9B UD-Q4_K_XL | `-ngl 99 -c 16384` | `peg-native` | closes an empty think | 0/5 | 0/5 |
+| Qwen3.6-27B Q4_K_M | `-ngl 99 -c 8192` | `peg-native` | closes an empty think | 0/5 | 0/5 |
+| Qwen3.6-35B-A3B UD-Q3_K_XL | `-ngl 99 -c 8192` | `peg-native` | closes an empty think | 0/5 | 0/5 |
+
+The cortex row and the E4B row are the readings above, carried in so there is one place to read the
+lineup from. Two entries are measured at a quant this ADR does not name, the machine carrying
+UD-Q4_K_XL and UD-Q3_K_XL where ADR-0004 writes Q4_K_M and UD-Q3_K_M; a quant is not a chat
+template, so the rows stand for their entries and the substitution is recorded rather than hidden.
+**The placement column varies and is not a variable**: it decides where the weights sit and nothing
+about the prompt or the grammar, and both of its values appear on both sides of the split, the
+Qwen3.5-2B holding on `-ngl 0` where the E2B fails on the same flag. One entry was run both ways
+as the control for that, the Qwen3.5-4B, and its four cells read the same on the card as on the
+CPU.
+
+**No entry in the lineup ignores the switch on a plain request.** That is the reading with something
+at stake and the one this entry called worth acting on, and it says nothing is owed:
+`TITLE_BOUNDS`, `RECAP_BOUNDS` and the reply bounds a deployment builds from
+`CORTEX_REPLY_MAX_TOKENS` each pair a cap sized on the wanted answer with the switch and carry no
+schema, so on every entry above that pairing shortens a reply rather than deleting it. The one
+shipped bound that carries a schema too, `rank_bounds` with `ORDER_ENVELOPE`, is built against the
+**cortex** model by `JudgeRecallPolicy` and never against a subagent tier, and the cortex pick is on
+the holding side of the column that splits. Nothing shipped stands on a failing cell, and this
+section changes no code.
+
+**What decides the constrained column is the template, and the two obvious candidates are both
+refuted by this table.** Not the family: gemma-4 splits down the middle of its own entries, the 12B,
+the 31B and the 26B-A4B holding where the E2B and the E4B do not, which is the same family across
+its whole range on both sides of the split. Not the handler either, which is the first guess the
+mechanism section invites: `peg-gemma4` serves both sides of that split, and the other handler in
+this lineup builds the same shape of root, `<think>` and `</think>` where the gemma one writes its
+channel markers, so neither handler shuts the door a schema opens. What separates the rows is the
+column before the verdicts, read off each server's own `POST /apply-template` before a token is
+decoded: an entry whose template answers the kwarg by rendering a thought **already closed** holds
+under a schema, and one that answers by dropping the block and adding nothing does not. That was the
+mechanism section's account of two picks. It predicts the constrained verdict on every entry here.
+
+**Three smaller readings from the same runs.** The schema reaches no template anywhere in the
+lineup: on every entry the two request shapes carrying one switch render byte-identical prompts,
+which is the assertion the probe makes ahead of its cells and which held for all of them. The split
+is not about size or tier either, landing inside one family across its whole range and putting the
+smallest entry measured on the same side as the largest. And the Qwen claim this repo carried on the
+strength of a `17 + 25` that invited no deliberation is now measured on a prompt that does: every
+Qwen entry honours the kwarg, on both shapes, so the compose comment was right and had been standing
+on nothing. [ADR-0010](ADR-0010-subagents.md) and the subagent runbook say so where they said the
+weaker thing.
+
+**Where the residue went.** The prediction is a set of readings of one engine build rather than a
+theorem, and nothing in the stack reads the rendering it turns on, though a loaded server answers in
+one call.
+[R-475](../refinements/tasks/475-a-tier-can-be-asked-what-its-template-answers.md).
+
 ### Decision
 
 1. **`GenerationBounds.thinking` stays a field and stops being a promise.** Its docstring says what
@@ -1741,12 +1821,12 @@ be: rare, and about one thing.
   opened is the lever it named: the engine now reads a thinking budget off the request body, and the
   port's switch could be rendered as one rather than as a template kwarg the grammar overrules.
   [R-474](../refinements/tasks/474-the-switch-could-be-rendered-as-a-lever-that-holds.md).
-- **Two picks are not a rule.** Both are gemma-4, and while each cell is now five draws rather than
-  one, the shape of the split (plain honoured, constrained not) is still measured on two picks and
-  generalised nowhere. The Qwen roster alternate this repo also ships is unmeasured on it, and the
-  mechanism above says what to look at first on any new pick: what its own template renders when it
-  is told not to think.
-  [R-465](../refinements/tasks/465-the-switch-across-the-lineup.md).
+- **Two picks were not a rule**, and the lineup section below is the whole lineup asked. Its answer
+  is that the mechanism generalises and neither of this addendum's two picks was special: what a
+  pick's own template renders when it is told not to think predicts its constrained verdict on every
+  entry measured. What that leaves is a prediction nothing in the stack reads, though it is one HTTP
+  call against a server that is already up.
+  [R-475](../refinements/tasks/475-a-tier-can-be-asked-what-its-template-answers.md).
 - **Nothing gates the pairing.** A future bound that pairs a cap with the switch on a tier where it
   does not hold is still written the same way and still fails at runtime; what changed is that the
   runtime now says so. A check that a schema-carrying bound is only used against a tier with a

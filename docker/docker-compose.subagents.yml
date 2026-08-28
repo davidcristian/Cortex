@@ -131,7 +131,10 @@ services:
       # validating the flag there too, validated nothing: that prompt invites no deliberation, so
       # a template that reads the kwarg and one that ignores it look identical on it. Measured on a
       # prompt that does invite one, the E4B template DOES read it, and only on a plain request
-      # (ADR-0005 switch-is-advisory addendum). The E4B injection-robustness holds with
+      # (ADR-0005 switch-is-advisory addendum). The Qwen claim was read on that same '17 + 25' and
+      # was standing on nothing either; re-asked on the deliberative prompt at five draws a cell it
+      # holds, and on BOTH request shapes, which is where the two candidates differ (that addendum's
+      # lineup section). The E4B injection-robustness holds with
       # thinking OFF (0/10, ADR-0004 injection addendum).
       #
       # TWO flags, and neither is redundant (ADR-0005 thinking-lever addendum). The kwarg is what

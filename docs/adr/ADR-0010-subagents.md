@@ -184,6 +184,15 @@ budget for the engine. The same image also prints a deprecation warning for the 
 boot, which is
 [R-461](../refinements/tasks/461-the-tiers-thinking-flag-is-deprecated.md).
 
+**And the Qwen half of that sentence is measured 2026-08-28** (ADR-0005 switch-is-advisory
+addendum, lineup section), where before it rested on the same `17 + 25` this addendum's own reading
+above used. Asked on a prompt that does invite deliberation, at five draws a cell, against a server
+carrying neither flag, the Qwen3.5-2B override honours the kwarg on a plain request and on one
+carrying a `response_format` alike, 5 draws of 5 each. So the split named above is between the two
+subagent candidates rather than between a template and a shape: the kwarg carries the Qwen entry on
+both shapes and the budget carries the gemma-4-E entries on the constrained one, and a tier keeping
+both flags is a tier that does not have to know which pick it was handed.
+
 At the time of this addendum, the **cortex-driven** path (a resident gemma-4-12B *deciding* to
 emit `spawn_subagents` end to end) remained the host-only half (needs the GPU); it was
 closed 2026-07-01 (see the closure addendum below). The measured pick is recorded in the

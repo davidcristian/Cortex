@@ -552,3 +552,38 @@ a typed field on `TierArgs`, a second artifact path per tier and a VRAM budget r
 is worth writing before an artifact exists that the pinned server accepts. The entry's trigger is
 therefore upstream-shaped and now says so: an MTP or draft artifact for a shipped tier that this
 build of llama.cpp loads at all.
+
+## Addendum (2026-08-28): every chat entry answers the thinking switch, and the answer is its template's
+
+This lineup had been asked about VRAM, load time, decode rate, injection robustness and answer
+quality, and never as a lineup about the one field a caller sends when it wants a short answer
+rather than a long one. `GenerationBounds(thinking=False)` renders as
+`chat_template_kwargs: {"enable_thinking": false}`, and whether a pick then skips its deliberation
+had been measured on two entries, both gemma-4
+([ADR-0005](ADR-0005-llamacpp-engine.md)'s switch-is-advisory addendum). Every remaining chat entry
+has now been asked, five draws a cell, each server carrying **neither** reasoning flag; the
+per-entry table with the placements, the chat formats and the engine digests is that addendum's
+lineup section. Three readings belong here, where picks are chosen.
+
+1. **Every entry honours it on a plain request**, 0 draws of 5 deliberating with the switch sent
+   against 5 of 5 without it. So the shipped bounds that pair a cap with the switch and carry no
+   schema are safe on anything a deployment names off this table, and no pick revision is owed to
+   this reading.
+2. **Under a `response_format` the lineup splits, and it splits inside a family.** The dense gemma-4
+   entries hold, the 12B, the 31B and the 26B-A4B alike; both gemma-4-E entries deliberate straight
+   through the switch, the E2B on 5 draws of 5 and the E4B on 4. Every Qwen entry holds on both
+   shapes, which puts the claim [ADR-0010](ADR-0010-subagents.md) and the subagent compose file
+   carried on real footing at last: it was read off a `17 + 25` that invites no deliberation and
+   therefore proved nothing either way, and re-asked on a prompt that does invite one, it is true.
+3. **The deciding property is the entry's own chat template, and it is readable before a pick is
+   made.** Ask a candidate's server for its rendered prompt with the kwarg and without it: an entry
+   whose template answers "do not think" by rendering a thought already opened and closed holds
+   under a schema, and one that answers by dropping the block and adding nothing does not. That held
+   on every entry measured. It is the cheapest selection input in this ADR, one HTTP call against a
+   loaded server, and it is the one to take on a candidate that will serve a side call carrying a
+   schema.
+
+**What this does not change.** No pick moves. The subagent tier's two reasoning-off flags stay
+exactly as they are: `--reasoning-budget 0` is what covers the gemma-4-E entries on the shape their
+template cannot, it costs nothing on an entry whose template already holds, and a tier carrying both
+does not have to know which entry it was handed.

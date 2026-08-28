@@ -325,6 +325,16 @@ drops a marker, while the grammar llama.cpp builds for a `response_format` leave
 either way. So the first thing to look at on a new pick is what its template renders when it is
 told not to think, which is the line the probe below prints before its cells.
 
+**That last sentence is a rule now rather than a hunch**, every chat entry of ADR-0004's lineup
+having been asked at five draws a cell (that addendum's lineup section). Two things came of it
+for a deployment choosing a pick. **Every entry holds on a plain request**, so a cap paired with the
+switch and no schema shortens a reply on any of them rather than deleting it. And the constrained
+split is neither a family nor a handler property but the template's: on every entry measured, one
+that renders a thought already closed holds under a schema and one that drops the block and adds
+nothing does not, which puts the two gemma-4-E entries alone on the failing side and the Qwen
+entries and the dense gemma-4 entries together on the other. Ask a candidate's own server before
+naming it in a `.env`; a loaded server answers in one call.
+
 That matters here because `CORTEX_REPLY_MAX_TOKENS` paired with `CORTEX_REPLY_THINKING=false` is
 exactly such a pairing, and so are the bounds the title, the recap and the recall rank send, the
 last of those carrying a schema of its own. On a pick that ignores the switch, each of them returns

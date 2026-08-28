@@ -166,12 +166,21 @@ delegation time (ADR-0012 admission-wall addendum).
 > (~1.8 s on the E4B pick, ~0.3-0.6 s on the Qwen-2B override), and the E4B injection-robustness
 > (0/10) holds with thinking off (ADR-0004 injection addendum).
 > **Neither flag covers the lineup alone, which is why both are there** (ADR-0005 thinking-lever
-> addendum). The kwarg is a chat-template variable, and the E4B pick's template does not read it,
-> so on that pick it does nothing the moment a request makes the model want to deliberate, which a
+> addendum). The kwarg is a chat-template variable, and the E4B pick's template reads it on a plain
+> request and stops mattering the moment a request makes the model want to deliberate, which a
 > `response_format` does: measured, the constrained shape decoded 200 tokens of pure trace with the
 > kwarg set at the server, at the request, and at both. `--reasoning-budget 0` is the engine's own
 > flag and reaches it, taking the same request to a reply from 1.0 to 2.4 s in with no trace at all.
 > A deployment adding a subagent server of its own needs both.
+> **Which of the two carries the tier depends on the pick, and both subagent candidates this repo
+> ships are on opposite sides of it** (ADR-0005 switch-is-advisory addendum, lineup section). Asked
+> at five draws a cell on a server carrying neither flag, both gemma-4-E picks honour the kwarg on a
+> plain request and deliberate through it under a `response_format`, the E2B on 5 draws of 5 and the
+> E4B on 4, so on those the budget is the whole of the defence for every reply an envelope is
+> decoded in. The Qwen-2B override honours it on **both** shapes, on all five draws of each, so
+> there the budget is a second lock on a door already shut. Keep both flags on both servers anyway: the
+> difference is a property of the pick's own chat template, and the argv outlives the pick a
+> deployment happens to name.
 
 ## 2. Validate the delegation machinery (no GPU cortex needed)
 

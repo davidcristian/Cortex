@@ -47,12 +47,24 @@ The two right-hand columns are the finding. Both picks honour the switch on a pl
 under the envelope the E4B mostly deliberates through it and spends the whole cap doing so, which
 is the capped empty reply a delegated run was reaching the cortex with.
 
+**Every other chat entry of the lineup (ADR-0004) was asked the same way on the same build**, and
+the per-entry table is the ADR-0005 addendum's lineup section. Two of its readings matter to anyone
+pointing this file at a server. Nothing in the lineup ignores the switch on a **plain** request, so
+a verdict of "does nothing" there is news about a deployment rather than a known pick. And under the
+envelope the split is the **template's**, not the family's or the handler's: the two gemma-4-E
+entries are the only ones that deliberate through the switch, the dense gemma-4 entries and every
+Qwen entry hold, and on all of them the verdict is what the rendered-prompt line below already says,
+a template answering the switch with a thought already closed holding under a schema and one that
+drops the block and adds nothing not.
+
 **Why, which is what the rendered-prompt lines this probe prints ahead of the cells are for.**
 A `response_format` does not
 change the chat format and does not reach the template at all; what it changes is that llama.cpp
 builds a grammar, and the gemma-4 handler's root for one is a start, then an optional thought, then
 the fenced JSON payload: it leaves the model's reasoning channel open as the only continuation that
-admits prose. It
+admits prose. The other handler this lineup resolves to, `peg-native`, builds the same shape with
+`<think>` and `</think>` where the gemma one writes its channel markers, so no handler here shuts
+that door. It
 builds that alternative without reading `enable_thinking`, so on a constrained request the switch's
 only lever is whatever the template itself renders, and the two picks differ there: the cortex's
 answers "do not think" by opening and closing an empty thought in the prompt, and the E4B's by

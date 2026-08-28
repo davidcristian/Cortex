@@ -98,14 +98,15 @@ def build_payload(
     and, on the subagent pick, is a coin toss once the request carries a ``response_format``, the
     model deliberating straight through it on 4 draws in 5. The key reaches the template either
     way; what a schema adds is a grammar that leaves the thought open whatever the template was
-    told, and only one of the two picks' templates has already closed it (ADR-0005
-    switch-is-advisory addendum). The lever that holds whatever the request looks like is the
-    tier's own ``--reasoning-budget``, and this adapter deliberately does not send one: the
-    spelling this repo tried, ``reasoning_budget``, is ignored on a request body in both
-    directions (ADR-0005 trace-budget addendum). A build that reads ``reasoning_budget_tokens``
-    off the body has since been measured to end the thought on exactly the shape the switch loses,
-    so this payload could carry a lever that holds; that is a decision for the port owning the
-    switch rather than for this mapping, and it is open in the deferred-refinements backlog.
+    told, so what decides a pick is whether its own template has already closed it, measured over
+    the whole lineup (ADR-0005 switch-is-advisory addendum). The lever that holds whatever the
+    request looks like is the tier's own ``--reasoning-budget``, and this adapter deliberately
+    does not send one: the spelling this repo tried, ``reasoning_budget``, is ignored on a request
+    body in both directions (ADR-0005 trace-budget addendum). A build that reads
+    ``reasoning_budget_tokens`` off the body has since been measured to end the thought on exactly
+    the shape the switch loses, so this payload could carry a lever that holds; that is a decision
+    for the port owning the switch rather than for this mapping, and it is open in the
+    deferred-refinements backlog.
     A ``thinking=True`` bound emits no key at all rather than an explicit ``true``: the server's
     template default is what a user-facing reply already gets, and saying so louder would change
     the request for every deployment whose template spells the flag differently.

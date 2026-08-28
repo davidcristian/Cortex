@@ -55,7 +55,12 @@ services:
       - "--jinja"
       # Both reasoning-off flags, for the reason the default entry's own command block argues at
       # length: the template kwarg stops holding on a request carrying a response_format, which is
-      # every reply a tool-less subagent decodes into the envelope.
+      # every reply a tool-less subagent decodes into the envelope. THAT reason is the default
+      # entry's and not this one's, measured: this pick's template answers the kwarg by rendering a
+      # thought already closed, so it holds under the envelope too, 5 draws of 5 (ADR-0005
+      # switch-is-advisory addendum, lineup section). The budget stays anyway. It costs nothing on a
+      # tier that wants no thought, it is what the flag rule reads on every subagent server here,
+      # and the argv outlives whichever GGUF CORTEX_MODEL_FILE_SUBAGENT_QWEN happens to name.
       - "--chat-template-kwargs"
       - '{"enable_thinking": false}'
       - "--reasoning-budget"

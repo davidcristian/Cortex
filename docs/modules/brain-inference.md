@@ -151,8 +151,9 @@ with the cause chained:
   `thinking=False` at all** (`integration`-marked, ADR-0005 switch-is-advisory addendum). One
   prompt four ways against one endpoint, plain and carrying `REPLY_ENVELOPE`, each with the switch
   and without it, answering per request shape rather than per tier because that is how the answer
-  came out: measured on the two shipped picks, both honour it plain and the E4B pick deliberates
-  straight through it under a `response_format` on 4 draws in 5. It wants a server started with
+  came out: run over every chat entry of the lineup, all of them honour it plain and the two
+  gemma-4-E entries deliberate straight through it under a `response_format`, the shipped E4B pick
+  on 4 draws in 5 and the E2B on 5. It wants a server started with
   **neither** `--chat-template-kwargs` nor `--reasoning-budget`, both of those being the deployment
   answering for the model, and it **asserts its control**: the arms that send no switch must
   deliberate, or the prompt invited no thought and the run is thrown away rather than read. That
@@ -162,9 +163,10 @@ with the cause chained:
   constant. Ahead of the cells it reads the **rendered prompt** for all four request shapes off the
   server's own `POST /apply-template`, prints whether the template read the switch, and asserts
   that the two shapes carrying one switch render the same prompt: that is what says a difference
-  between their cells is the schema's doing and not a difference of prompt, and on the two picks it
-  is also the mechanism, the cortex's template closing an empty thought where the E4B's writes
-  nothing (ADR-0005 switch-is-advisory addendum).
+  between their cells is the schema's doing and not a difference of prompt, and it is also the
+  **predictor**, an entry whose template answers the switch with a thought already closed holding
+  under a schema where one that drops the block and adds nothing does not, on every entry measured
+  (ADR-0005 switch-is-advisory addendum, mechanism and lineup sections).
 - **What the streaming list holds is what a stream owes, said without saying when.** Ten checks
   over four worlds a fixture arranges (a reasoning model answering, a completion that asks for a
   tool, a completion with nothing to say, a backend that cannot answer): the reply is its deltas

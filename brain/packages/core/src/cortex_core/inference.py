@@ -143,7 +143,8 @@ class GenerationBounds:
     toss on one carrying a ``response_format``, where the model deliberates through it on 4 draws
     in 5 and spends the whole cap doing so. The cause is a template this value cannot see: a
     ``response_format`` makes llama.cpp build a grammar that leaves the model's thought open, and
-    only one of the two picks' templates has already closed it. So a cap sized from the wanted
+    what decides a pick is whether its own template has already closed it, measured over every entry
+    of the lineup and splitting one family down its middle. So a cap sized from the wanted
     answer is made safe by neither this value nor the pick, but by a
     **bounded trace**, of which this switch is the cheapest source and not a dependable one. The
     dependable one is the tier's own ``--reasoning-budget`` (ADR-0005 trace-budget addendum), which
