@@ -112,6 +112,55 @@ def test_a_logger_named_through_something_the_module_does_not_bind_is_a_fault(
         logcalls.loggers(tmp_path)
 
 
+def test_a_module_that_binds_its_logger_name_and_writes_it_again_is_a_fault(
+    tmp_path: Path,
+) -> None:
+    """The declaration is what the constant registry ties the restating documents to, so a sink
+    holding both spellings can move the literal alone and leave them on an abandoned name. The
+    fault names the binding, that being the spelling the call is asked to pass."""
+    brain(
+        tmp_path,
+        {
+            "tools/src/cortex_tools/audit.py": (
+                '_LOGGER_NAME = "cortex.tools.audit"\n'
+                '_logger = logging.getLogger("cortex.tools.audit")\n'
+            )
+        },
+    )
+    with pytest.raises(logcalls.LogCallError, match="binds it above as _LOGGER_NAME; pass"):
+        logcalls.loggers(tmp_path)
+
+
+def test_every_binding_of_a_twice_spelled_logger_name_is_named(tmp_path: Path) -> None:
+    """A module that bound the name twice would otherwise be told to pass one of two, with the
+    reader picking whichever the dict happened to hold first."""
+    brain(
+        tmp_path,
+        {
+            "tools/src/cortex_tools/audit.py": (
+                '_TRAIL = "cortex.tools.audit"\n'
+                '_LOGGER_NAME = "cortex.tools.audit"\n'
+                '_logger = logging.getLogger("cortex.tools.audit")\n'
+            )
+        },
+    )
+    with pytest.raises(logcalls.LogCallError, match="as _LOGGER_NAME, _TRAIL;"):
+        logcalls.loggers(tmp_path)
+
+
+def test_a_literal_beside_a_binding_of_some_other_string_is_left_alone(tmp_path: Path) -> None:
+    """The rule is one name written once, not a ban on declaring anything beside a literal call."""
+    brain(
+        tmp_path,
+        {
+            "tools/src/cortex_tools/audit.py": (
+                '_MESSAGE = "tool.invocation"\ngetLogger("cortex.tools.audit")\n'
+            )
+        },
+    )
+    assert set(logcalls.loggers(tmp_path)) == {"cortex.tools.audit"}
+
+
 def test_a_package_barrel_claims_the_package_name_and_not_its_init(tmp_path: Path) -> None:
     brain(tmp_path, {"core/src/cortex_core/__init__.py": "getLogger(__name__)\n"})
     assert set(logcalls.loggers(tmp_path)) == {"cortex_core"}

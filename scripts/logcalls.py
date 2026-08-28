@@ -31,6 +31,13 @@ which is the same reading `hostedtiers.py` makes of the sidecar's declarations. 
 followed. A name imported from another module is refused rather than chased, an importer of the
 brain being exactly what this tree may not become.
 
+**A module may not spell one logger name twice.** A declaration is what the constant registry ties
+the documents restating a name to, and a literal beside one holds two names where there was one:
+move the literal alone and those documents go on being tied to a name the brain no longer writes,
+every gate green. So a literal is refused when this module's own top level binds it. Nothing is
+asked about how a declaration is spelled, so the rule needs no convention to run over, and a literal
+in a module that binds nothing is left alone, being the legal Python the spelling above is read for.
+
 **The level comes from the method, and ``exception`` is an error.** A sample prints the level the
 formatter wrote, so the call's own method is what it has to agree with. ``exception`` is the one
 name that is not its own level: it logs at ``ERROR`` and adds a traceback, which is why a runbook
@@ -157,6 +164,23 @@ def _parsed(text: str, shown: str) -> ast.Module:
         raise LogCallError(msg) from err
 
 
+def _literal(named: str, text: str, shown: str) -> str:
+    """The name a literal call claims, refused when the same module also binds it.
+
+    Only the binding is what the constant registry ties documents to, so a module holding both
+    spellings can move the literal alone and leave them restating a name nothing writes through.
+    """
+    strings, _ = constants(_parsed(text, shown))
+    declared = sorted(name for name, value in strings.items() if value == named)
+    if declared:
+        msg = (
+            f"{shown} writes the logger {named!r} inside the call and binds it above as "
+            f"{', '.join(declared)}; pass the binding, so the name is written once"
+        )
+        raise LogCallError(msg)
+    return named
+
+
 def claimed(claim: re.Match[str], text: str, inside: Path, shown: str) -> str:
     """The logger name one ``getLogger`` call claims, in whichever spelling it claims it.
 
@@ -166,7 +190,7 @@ def claimed(claim: re.Match[str], text: str, inside: Path, shown: str) -> str:
     """
     named = claim["named"]
     if named is not None:
-        return named
+        return _literal(named, text, shown)
     bound = claim["bound"]
     if bound is None:
         return dotted(inside)

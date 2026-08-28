@@ -1,6 +1,6 @@
 # A declared logger name is never held to the call that passes it
 
-**Status:** open, actionable
+**Status:** landed 2026-08-28
 **Area:** repo-gates
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
 
@@ -33,3 +33,20 @@ narrow one is checkable without naming a convention and catches the same mutatio
 - 2026-08-28: opened by the close of
   [R-486](486-the-tool-audits-logger-name-is-spelled-in-four-places-and-held-in-none.md), whose
   mutation table records the zero this entry is named for.
+- 2026-08-28: **landed**, as the [ADR-0009 one-name
+  addendum](../../adr/ADR-0009-tools-mcp.md) and a rule in `scripts/logcalls.py`: a literal
+  `getLogger` argument this module's own top level also binds is refused, the fault naming every
+  binding of it and asking the call to pass one. **The entry's claim held on re-derivation**, which
+  is not what the two closes before it found: the mutation was applied to the tool audit's sink on
+  the committed tree and `crosscheck`, `samplecheck`, `ruff`, `pyright` and the 504 checks of the
+  tools and orchestrator suites were all green under it, and the unused constant is not an unused
+  import, so no linter sees one either. The narrow rule the entry recommended is the one built, and
+  the two wider ones were declined for a reason worth keeping: a rule over the `_LOGGER_NAME`
+  convention has to spell that identifier in the gate tree, which is a third spelling of exactly the
+  kind of thing this repo would then want tied, and teaching the constant scan what a logger is
+  would make the registry's data a place where a subject is decided. It reaches every module rather
+  than the two sinks, so a sink named this way later is held on the day it is written. **The reader
+  now stands at exactly 300 lines**, so the next rule it gains splits it, along the seam its own
+  docstring already draws. Opened by this close:
+  [R-489](489-a-declared-logger-name-and-a-different-name-in-the-call.md), the half a rule about one
+  name spelled twice cannot see.

@@ -662,10 +662,16 @@ that last question to have an answer.
   `ast` executes nothing, so the seam ADR-0009 declined to open, an import of the brain from
   `scripts/`, stays shut. Logger names are collected from every spelling the brain uses,
   `getLogger(__name__)` resolving to the module's own dotted path (a package barrel claiming the
-  package name), a literal being the name itself, which is how the tool audit names itself, and a
-  bare identifier being a name the same module bound above the call, which is how the recall trail
-  names itself now that three documents restate that name and the constant registry ties them to
-  the declaration (ADR-0038 named-logger addendum). The third spelling is resolved against that
+  package name), a literal being the name itself, which is the spelling no module here writes any
+  more and which stays read because such a call is legal Python, and a bare identifier being a name
+  the same module bound above the call, which is how both self-named sinks name themselves now that
+  documents restate those names and the constant registry ties them to the declarations (ADR-0038
+  named-logger and ADR-0009 audit-logger addenda). A module that binds a name **and** writes the
+  same string inside the call is refused, the fault naming every binding of it, because only the
+  declaration is what the registry ties documents to and two spellings of one name are one edit away
+  from documents tied to a name nothing writes (ADR-0009 one-name addendum). A module binding a
+  logger name it does not pass is not reached by that rule, which sees two names rather than one
+  spelled twice. The third spelling is resolved against that
   module's own top level, by `moduleconstants.py`, and nothing wider: a name imported from
   elsewhere is refused with the name in the fault rather than chased, chasing one being the import
   this tree may not make. A name two files claim is a fault. Only each package's `src/` is walked,

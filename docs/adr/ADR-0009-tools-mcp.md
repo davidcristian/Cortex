@@ -3247,3 +3247,86 @@ held by nothing: the runbook describes the message instead of printing a rendere
 And the gate compares a declared name against what restates it without asking that the sink's own
 call passes it, which the last row of the table above is: green, with two names to keep in step
 ([R-488](../refinements/tasks/488-a-declared-logger-name-is-never-held-to-the-call-that-passes-it.md)).
+
+
+## One-name addendum (2026-08-28): a module writes its logger name once
+
+The addendum above ends by naming the one thing it does not hold, and it names it because a
+mutation written to be a red row measured zero: a sink that keeps `_LOGGER_NAME` and spells the
+same string inside `getLogger` again passes every suite and every scan. The constant registry ties
+the documents restating a name to the declaration; nothing tied the declaration to the call. This
+addendum closes that, and it is a rule about the shape rather than about either trail, which is why
+it landed apart from the two closes that preceded it.
+
+### Re-derived first, and the claim held
+
+The mutation was applied to `cortex_tools/audit.py` on the committed tree and the tree stayed
+green: `just check-crosscheck` (77 entries), `just check-samplecheck` (3 samples over 37 loggers),
+`ruff` and `pyright` over the package, and the 504 checks of the tools and orchestrator suites
+together. Nothing objects to a module holding two spellings of one name, and the unused constant is
+not an unused import, so no linter sees it either. The entry's account of the reach was right as
+written: both sinks are shaped this way and any sink named this way later would be.
+
+### Decision: the rule is one name written once, and it lives with the reader that resolves them
+
+`scripts/logcalls.py` already parses each `getLogger` call and already resolves a bare identifier
+against its module's own top level, so it holds both halves at the point a mismatch is visible. It
+now refuses a literal whose string that module also binds, naming the binding and asking the call to
+pass it. A fault there is a fault of the sample gate, which runs unconditionally.
+
+The narrow rule was chosen over the two wider ones the entry offered. "A module binding
+`_LOGGER_NAME` must pass it" would name a convention, and a gate that runs over a convention has to
+spell the convention's own identifier, which is a third spelling of the very thing this repo would
+then want tied. "One name written once" needs no convention at all: it is a fact about a module's
+own text, it reaches any module rather than the two sinks, and it catches the mutation that was
+filed. Putting it in the constant scan was declined for the reason the scan is written the way it
+is: that scan compares places against a declared value and knows nothing about what a logger is,
+and teaching it would make the registry's data a place where a subject is decided.
+
+What it deliberately leaves is stated below rather than implied.
+
+### Distrust green, over the gate suite
+
+Seven mutations, each applied alone to the committed tree, with the **1,429 checks of the gate
+suite** (`scripts/tests/`) re-run. The two sink rows also ran the gate itself, which is where a
+real violation surfaces, and the brain's own suites, which is where it does not.
+
+| Mutation | scripts | `just check-samplecheck` |
+| --- | --- | --- |
+| the tool audit's sink spells the literal beside its declaration | **5** | **fails** |
+| the recall sink spells the literal beside its declaration | **5** | **fails** |
+| GATE: the rule never fires | **2** | passes |
+| GATE: the literal branch returns before reaching the rule | **2** | passes |
+| GATE: the bindings are matched by name rather than by value | **2** | passes |
+| GATE: only the first binding is named | **1** | passes |
+| GATE: the bindings are named in the order the module wrote them | **1** | passes |
+
+Rows one and two are the row that measured zero in the addendum above, now five and five, on both
+sinks rather than the one the mutation was written against. Neither moves the brain's own suites:
+the 504 checks of the tools and orchestrator packages are green under row one, because a module
+that spells one name twice writes exactly the lines it wrote before. That is the whole reason the
+hole is worth a gate rather than a reader's attention.
+
+Rows three to five are the rule itself, held by the two tests that describe it. Rows six and seven
+are the fault's own text, held by the module that binds one name twice: a reader told to pass one
+of two bindings, in whichever order the module happened to write them, is a reader sent to guess.
+
+### Consequences
+
+- A sink that inlines its logger name into the call, which is what an editor offers to do with a
+  constant used once, reddens `just check` on the day it is offered rather than on the day the
+  literal moves.
+- The literal `getLogger("name")` spelling stays read, and a module that writes one while binding
+  nothing is untouched: the rule is about two spellings of one name, not about literals.
+- The reader now stands at exactly 300 lines, which is the cap. The next rule it gains splits it,
+  and the seam is the one its own docstring draws, between which module owns a logger name and what
+  one call under it puts on its line.
+
+### Deferred by this addendum
+
+A module that binds one logger name and passes a different one is still green here: the rule sees
+two names rather than one spelled twice, and neither the registry nor the sample gate asks which of
+them the call passed unless a document happens to quote a sample of that trail. Reaching it means
+either naming the declaration convention or teaching the registry what a logger is, both of which
+this addendum declined
+([R-489](../refinements/tasks/489-a-declared-logger-name-and-a-different-name-in-the-call.md)).
