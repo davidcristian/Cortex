@@ -2045,3 +2045,99 @@ endpoint, in the same minute, on the same server, does show a `chat_template_kwa
 `tools` array in the rendered prompt, so a schema that leaves it unchanged is a schema that is
 genuinely not there. A null result whose instrument was never shown to move is not a reading, which
 is the trap the switch-is-advisory addendum above was written to name.
+
+## Ceilings addendum (2026-08-28): the cap re-derived on the shape that ships, and which bound binds
+
+**Status:** Accepted. Closes
+[docs/refinements/tasks/457-the-caps-derivation-on-the-shape-that-ships.md](../refinements/tasks/457-the-caps-derivation-on-the-shape-that-ships.md),
+which the envelope addendum above opened and which has been waiting since for a constrained reply
+that is actually an answer. The answer addendum above produced forty nine of them. Opens
+[R-477](../refinements/tasks/477-the-caps-margin-over-an-answering-run.md) and
+[R-478](../refinements/tasks/478-two-ceilings-on-one-run-and-no-ordering.md). It also **corrects one
+sentence of the total-cap addendum**, which named the per-slot context as the cap's other ceiling
+and never weighed the deadline against it.
+
+### Re-derived first
+
+`DEFAULT_SUBAGENT_MAX_TOKENS` is still 1024 and `DEFAULT_SUBAGENT_RUN_TIMEOUT_S` still 2400.0.
+`docker/docker-compose.subagents.yml` still ships `--ctx-size 8192` across `--parallel 2`, and the
+server started from it says so itself in its first lines, `n_ctx_slot = 4096`. The four report
+bodies this measurement runs over send prompts of **261 to 282 tokens**, read off the server's own
+`prompt eval time` lines, which is the same neighbourhood as the 276 the batch addendum recorded.
+Nothing had moved.
+
+### The derivation, restated against the shape that ships
+
+The total-cap addendum sized the cap as roughly five times the longest of five narrow replies, a
+summarization answering in 199 tokens. Every one of those five was measured on the **unconstrained**
+shape, and a subagents-only stack runs the constrained one, which is the whole of what this entry
+was about. That shape now has readings of its own, forty draws over four bodies at the shipped cap:
+
+| shape and instruction | replies that are answers | decoded tokens of those answers |
+| --- | --- | --- |
+| unconstrained, the harness's instruction | 40 of 40 | 372 to 451, median 408 |
+| the shipped envelope, the same instruction | 10 of 40 | 256 to **429**, median 309 |
+| the shipped envelope, an instruction that names what the reply holds | 39 of 40 | 248 to **912**, with 38 of that arm's 40 runs inside 248 to 323 |
+
+**The rule that produced 1024 does not produce a number here.** Five times 429 is 2145 and five
+times 912 is 4560; the second is above the slot's own 4096 before the prompt is subtracted, and both
+are above what the deadline admits on a busy host, measured below. A rule whose output has to be
+clipped by the bound it was supposed to sit under has stopped being a derivation.
+
+### So the cap is confirmed where it stands, on a better argument than the rule
+
+**1024 is above every answer this tier has been measured writing on the shape that ships** (longest
+429) and comfortably above the band that 38 of 40 answering runs occupy under the instruction that
+recovers the answer (248 to 323). And the sentence the number carries, that reaching the cap is
+itself the evidence of a model talking rather than working, is now **measured true on this shape**
+rather than inherited from another one. Three runs out of two hundred reached 1024 across every arm
+run for the answer addendum, and not one of them was a long answer: one spent the budget writing a
+thinking process into `reply`, and two spent 3351 and 3692 characters of it in the reasoning channel
+a delegated run drops unread. Reaching this cap still means what the comment beside it says.
+
+What is no longer comfortable is the margin at the other end, and it is recorded rather than acted
+on: 912 is a finished, correct answer at 89% of the cap, and two of that arm's forty draws were cut
+at it. That is [R-477](../refinements/tasks/477-the-caps-margin-over-an-answering-run.md), and it is
+deliberately a trigger rather than a retune, since the instruction those numbers were measured under
+is itself the open question at
+[R-476](../refinements/tasks/476-the-envelopes-answer-rate-is-an-instruction.md).
+
+### Which of the two ceilings binds, which is the question nobody had asked
+
+The entry's second question is which bound a cap materially above 1024 would run into first, and it
+needs no good reply to settle, only the three bounds put in one unit. Decoded tokens is that unit.
+The rates are this tier's own, from the control in the batch addendum above: **0.18 to 1.35 tok/s**
+decode and 6.7 to 20.6 tok/s prompt eval, the low end of each being what a saturated host costs a
+container whose `--cpus` is a quota rather than a reservation.
+
+| bound | decoded tokens it admits | how it gets there |
+| --- | --- | --- |
+| this deployment's cap | **1024** | `DEFAULT_SUBAGENT_MAX_TOKENS`, flat |
+| the run deadline | **425** saturated to **3222** quiet | 2400 s less this prompt's eval, times the decode rate |
+| the slot's context | about **3820** | 4096 less a 261 to 282 token prompt |
+
+Three readings follow, and the third is the one the entry asked for.
+
+1. **On a quiet host the order is cap, then deadline, then context.** The cap fires first, exactly
+   as the total-cap addendum intended, and the two bounds above it are 3007 to 3222 and about 3820.
+2. **On a saturated host the order inverts and the cap becomes unreachable.** At 0.18 tok/s the
+   deadline admits about 425 decoded tokens, less than half the cap, so a run long enough to be cut
+   by the cap is cut by the clock first and reported as a deadline rather than as a runaway. That is
+   [R-478](../refinements/tasks/478-two-ceilings-on-one-run-and-no-ordering.md), since
+   `SubagentsConfig` already refuses three orderings at boot and cannot check this one, the relation
+   depending on a decode rate the core has no way to know.
+3. **The deadline is the binding one of the two, everywhere on this tier's measured range.** It is
+   below the context ceiling at both ends, and the crossover where the context would take over is a
+   prompt of about 920 to 1140 tokens on a quiet host and about 3765 on a saturated one, against the
+   261 to 282 a narrow subtask sends here. So **raising the cap materially above 1024 buys nothing
+   on a busy host, and on an idle one it has about 3000 decoded tokens to grow into before it meets
+   the deadline**, and the sentence in the
+   total-cap addendum that names the context as the cap's other ceiling is true and points at the
+   loosest of the three.
+
+### What moves
+
+Nothing in the tree, which is this entry's own preferred outcome of the two it named. The
+derivation's restatement lands where the number is declared (`cortex_core/subagents.py`), where an
+operator reads it (the delegation runbook) and here, so the shape the cap was measured on is no
+longer a claim about a shape nothing ships.

@@ -68,7 +68,15 @@ delegation time (ADR-0012 admission-wall addendum).
 > when the deployment set one. Neither has an
 > off switch; the deadline must stay **above** `CORTEX_SUBAGENTS_STALL_TIMEOUT_S`, and the brain
 > refuses to start otherwise, since a wedge reported as a runaway loses the CPU re-run it deserves.
-> The numbers are this hardware's, measured over five subtask shapes on the shipped entry: the cap
+> The numbers are this hardware's, measured over five subtask shapes on the shipped entry, all five
+> of them on the **tools-enabled** shape, so on a subagents-only stack the cap is confirmed rather
+> than derived: forty draws of the tool-less shape answer in 256 to 429 decoded tokens, and every
+> run measured reaching the cap reached it on a narration or a reasoning trace rather than on a long
+> answer (ADR-0005 ceilings addendum). **Two bounds sit above the cap and the per-slot context is
+> the looser of them.** In decoded tokens the run deadline admits about 425 on a saturated host and
+> about 3200 on an idle one, against the context's 4096 less your prompt, so on a busy box the
+> deadline fires before the cap can and raising `CORTEX_SUBAGENTS_MAX_TOKENS` there buys nothing.
+> The cap
 > is about five times the longest narrow reply (199 tokens, a summarization) and the deadline four
 > times the longest whole subtask (623.8 s, the same one), the extra doubling covering a tool-using
 > run whose loop spends on several rounds what that measurement spent on one completion. A full
@@ -112,9 +120,12 @@ delegation time (ADR-0012 admission-wall addendum).
 > the same cap answered from 17.5 s in, 50 tokens, finished rather than capped, with no trace.
 > **So a cap refusal on ordinary narrow work is the missing flag before it is a runaway**; read the
 > argv (`docker inspect -f '{{json .Args}}' cortex-llama-subagent-1`) before touching
-> `CORTEX_SUBAGENTS_MAX_TOKENS`. If a tier really does need more room, keep the cap under the
-> per-slot context (`CORTEX_SUBAGENT_CTX_SIZE` divided by `CORTEX_SUBAGENTS_PARALLEL`, 4096 at the
-> defaults) less the prompt, and read the ADR-0005 envelope addendum before retuning anything
+> `CORTEX_SUBAGENTS_MAX_TOKENS`. If a tier really does need more room, keep the cap under **both**
+> bounds above it and not just the roomier one: the per-slot context
+> (`CORTEX_SUBAGENT_CTX_SIZE` divided by `CORTEX_SUBAGENTS_PARALLEL`, 4096 at the
+> defaults) less the prompt, and what `CORTEX_SUBAGENTS_RUN_TIMEOUT_S` can decode at your tier's own
+> rate, which is the smaller of the two here and is about 425 tokens on a saturated host. Read the
+> ADR-0005 envelope and ceilings addenda before retuning anything
 > permanently. The wire is **not** silent while a trace runs: the reasoning arrives as its own
 > deltas, 200 of them over 156.3 s with a longest gap of 3.46 s, so the stall ceiling is nowhere
 > near firing and a wedged server is not what this looks like.

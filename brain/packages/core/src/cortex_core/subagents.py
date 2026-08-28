@@ -106,8 +106,16 @@ UNBOUNDED_ATTEMPT = AttemptBounds()
 # answer rather than from the context, the way the recap fold's six times and the title's eight
 # are: what makes a cap safe is that reaching it is itself the evidence, and a reply five times the
 # longest one this tier has been measured writing is a model that is talking rather than working.
-# The subagent server's own per-slot context sits above it, so this fires first and the prompt
-# keeps its half.
+#
+# Those five replies were all measured on the tools-enabled shape, and a subagents-only stack runs
+# the constrained one, so the number is confirmed rather than derived on the shape that ships
+# (ADR-0005 ceilings addendum). Forty draws of it answer in 256 to 429 tokens, the rule's five times
+# would put the cap above the slot's own context, and the sentence above holds on this shape too:
+# every run measured reaching this cap reached it on a narration or a reasoning trace and never on
+# a long answer. Two bounds sit above it rather than the one this comment used to name, and the
+# per-slot context is the looser: the run deadline below admits about 425 decoded tokens on a
+# saturated host and about 3200 on an idle one, so on a busy box it is the deadline that fires
+# first and this cap is out of reach.
 DEFAULT_SUBAGENT_MAX_TOKENS = 1024
 # The deadline is four times the longest whole subtask measured on that tier, the extra doubling
 # covering a tool-using run whose loop spends that on several rounds where the measurement spent it
