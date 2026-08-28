@@ -583,6 +583,18 @@ lineup section. Three readings belong here, where picks are chosen.
    loaded server, and it is the one to take on a candidate that will serve a side call carrying a
    schema.
 
+4. **That column now costs answers, and it decides what a subagent override buys**
+   ([ADR-0028](ADR-0028-grammar-constrained-subagents.md)'s lineup addendum, 2026-08-28). Three
+   entries of the subagent row have been run through the constrained reply path at 288 runs each, and
+   the split above predicts the rate at which each writes its answer into the reasoning channel a
+   delegated run drops: Qwen3.5-2B, on the holding side, does it on 0 draws of 288; gemma-4-E4B on 8
+   of 96 constrained draws and the E2B on 14. The consequence for a chooser is that the sentence the
+   constrained path appends to every subtask, which recovers the E4B's narrating shape from 9 of 32
+   to 29 of 32, leaves gemma-4-E2B **worse overall than without it**, 84 of 96 against 90. The
+   shipped default and the shipped roster alternate are both on the paying side; an operator who
+   overrides `CORTEX_MODEL_FILE_SUBAGENT` to the E2B is the one this reading is for, and the
+   subagent runbook says so where the override is documented.
+
 **What this does not change.** No pick moves. The subagent tier's two reasoning-off flags stay
 exactly as they are: `--reasoning-budget 0` is what covers the gemma-4-E entries on the shape their
 template cannot, it costs nothing on an entry whose template already holds, and a tier carrying both

@@ -1748,6 +1748,14 @@ Qwen entry honours the kwarg, on both shapes, so the compose comment was right a
 on nothing. [ADR-0010](ADR-0010-subagents.md) and the subagent runbook say so where they said the
 weaker thing.
 
+**The column predicts a cost and not only a rendering (2026-08-28).** Three subagent-tier entries
+have since been run through the constrained reply path at 288 runs each, and the constrained column
+above orders them by how often each writes its answer into the reasoning channel a delegated run
+drops: Qwen3.5-2B, which closes an empty think, does it on 0 draws of 288 across both envelope arms
+and all three subtask shapes; gemma-4-E4B on 8 of 96 constrained draws and gemma-4-E2B on 14, which
+is the order this table's `4/5` and `5/5` put them in. So a cell here is a lost answer somewhere
+else, and the full reading is the ADR-0028 lineup addendum.
+
 **Where the residue went.** The prediction is a set of readings of one engine build rather than a
 theorem, and nothing in the stack reads the rendering it turns on, though a loaded server answers in
 one call.
@@ -2169,3 +2177,15 @@ claim from a model choosing to think under a grammar, and it sharpens rather tha
 **And the ceilings addendum's margin is unchanged by it.** Every one of those six ran to exactly
 1024 with nothing in `reply`, so reaching this cap still means what the comment beside the number
 says. No answering run in the 288 came near it.
+
+**Both readings are one pick's, and the second of them is now three (2026-08-28).** The same 288 runs
+have been taken on the roster alternate and on gemma-4-E2B, and the residue rate is 0 of 96 on the
+first and 14 of 96 on the second, which is the lineup section's constrained column read as a cost.
+The cap margin holds on all three, and no run either of them reported as an answer got past 721
+decoded tokens. But
+**reaching this cap does not mean one thing across the tier**, which is what the paragraph above
+would say if it were read as a rule. On gemma-4-E2B all 11 capped runs are one of these traces, as
+on the default pick. On the roster alternate all 10 are the opposite: no trace at all and a
+degenerate repetition inside `reply` itself, nine of them on the extraction shape, on both envelope
+arms alike. So on a pick whose template holds, a cap refusal on narrow work is a runaway and never
+the reasoning channel. The full reading is the ADR-0028 lineup addendum.

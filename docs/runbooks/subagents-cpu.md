@@ -22,6 +22,12 @@ GPU-placed spawn really executes on the GPU and both of the placer's verdicts ar
   not `D:`. Override the file with `CORTEX_MODEL_FILE_SUBAGENT` (default
   `google/gemma-4-E4B-it-qat-q4_0-gguf/gemma-4-E4B_q4_0-it.gguf`; the cheaper/faster
   `unsloth/Qwen3.5-2B-GGUF/Qwen3.5-2B-Q4_K_M.gguf` when robustness matters less).
+  **The override changes what a tool-less subagent answers, not only how fast.** Three entries have
+  been measured through the constrained reply path at 288 runs each (ADR-0028 lineup addendum): the
+  default answers 90 of 96 and the Qwen override 83 of 96, and `gemma-4-E2B_q4_0-it.gguf`, the other
+  entry of the subagent row, answers **84 of 96 with the shipped sentence against 90 without it**,
+  losing a one-fact lookup on 8 draws of 32 to a reasoning channel a delegated run drops. Prefer
+  either of the first two; the E2B is the entry to override to last.
 
 ## 1. Bring up the subagent server
 
@@ -152,6 +158,11 @@ delegation time (ADR-0012 admission-wall addendum).
 > current stack a cap refusal on narrow work is the flags first, this second, and a runaway third.
 > A plan arriving in `reply` as an `ok=True` answer is rarer but still possible and still silent,
 > which is [R-480](../refinements/tasks/480-a-narrated-reply-arrives-as-an-answer.md).
+> **Every number in this note is the default pick's**, and the pick is one env var away from being a
+> different one (ADR-0028 lineup addendum). On the Qwen roster alternate the quiet failure never
+> went away, 8 of its 13 constrained non-deliveries still arriving `ok=True`, so on that pick the
+> short successful delegated answer is still the thing to look at; and it writes nothing to the
+> reasoning channel at all, so a cap refusal there is the flags or a runaway and never this.
 > What they cut is a model that is talking rather than one that is slow: the sixth shape, an
 > open-ended essay no narrow subtask should ask for, was cut at 577 tokens and 1958 s still writing.
 > **Every number here is an idle-box number**, and a saturated host runs the same subtask five to

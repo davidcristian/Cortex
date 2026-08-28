@@ -284,6 +284,10 @@ addendum found; a lookup is judged by whether the reply names the body's own rep
 | one-fact lookup | 32/32 (0.89 to 1.00) | 31/32 (0.84 to 0.99) | 30/32 (0.80 to 0.98) |
 | all three | **96/96** (0.96 to 1.00) | **72/96** (0.65 to 0.83) | **90/96** (0.87 to 0.97) |
 
+**Every row of this table is gemma-4-E4B**, and the lineup addendum below carries the same table for
+two more entries of the same tier. Read them together: on the roster alternate the bare arm answers
+a summarization on 30 of 32 rather than 9, and on gemma-4-E2B the sentence costs more than it buys.
+
 Four things follow, and the second is the one this entry was opened to find out.
 
 1. **The sentence is the repair, on the shape the defect lives on.** Summarization goes from 9 of 32
@@ -366,3 +370,187 @@ one does not, and a tools-enabled one does not either even with the knob on. The
 order or the laundering defence moves: decision 3's gating to the tool-less path is what carries the
 sentence to exactly the runs the envelope reaches, so the two halves of the contract cannot come
 apart.
+
+## Lineup addendum (2026-08-28): the sentence asked of two more picks, and one is worse for it
+
+**Status:** Accepted. Closes
+[R-481](../refinements/tasks/481-the-sentence-is-measured-on-one-pick.md), which the instruction
+addendum above opened by shipping a sentence to every roster entry on 288 runs of one of them.
+Opens [R-482](../refinements/tasks/482-the-sentence-is-one-wording-for-every-entry.md) and
+[R-483](../refinements/tasks/483-the-rest-of-the-subagent-tier-is-unasked.md). It changes no code
+and one operator expectation.
+
+### Re-derived first
+
+`task_messages` still appends `instruct_reply`'s sentence to every constrained subtask and to no
+unconstrained one, `REPLY_INSTRUCTION` is still a module constant with no per-entry seam, and
+`SubagentProfile` still carries resources and a description and nothing about wording. So the
+sentence really does ship to whatever `CORTEX_MODEL_FILE_SUBAGENT` names and to every roster entry
+the cortex can pick, which is what the entry said and what makes the question below worth asking.
+The control arms then re-derive the instruction addendum's headline the other way round: on the
+roster alternate the **bare** envelope answers a summarization on 30 of 32, where on the default
+pick it answers on 9 of 32.
+
+### What it ran on
+
+Two more subagent-tier entries of the lineup ([ADR-0004](ADR-0004-model-lineup.md)) through the same
+committed harness, the same four report bodies, the same three subtask shapes and the same eight
+draws a cell, judged the same way: **288 runs each, 576 in all**.
+
+- **Qwen3.5-2B Q4_K_M**, the roster alternate `docker/docker-compose.subagents-roster.yml` ships,
+  which is the pick the entry named as the one worth asking.
+- **gemma-4-E2B QAT q4_0**, the cheapest additional draw and the entry the switch-is-advisory
+  addendum's lineup section marks as the worse half of the pair whose template drops the thinking
+  block rather than closing it.
+
+Both on llama.cpp `b10644-d7a207411` from
+`ghcr.io/ggml-org/llama.cpp@sha256:9f0a986a78ab9261afc3266c807c16933ee4c26c62cb063f0c17f8da890f6c7e`,
+each server carrying its own compose file's flags (`--jinja`, `--chat-template-kwargs
+'{"enable_thinking": false}'`, `--reasoning-budget 0`, `--ctx-size 8192`, `--parallel 2`, both
+reporting `n_ctx_slot = 4096`), at the shipped 1024-token cap. **Both ran `-ngl 99` rather than
+`-ngl 0`**, the same deliberate substitution the instruction addendum and the ADR-0005 answer
+addendum argue, for the same reason and with that addendum's CPU control standing behind it. No wall
+clock here is comparable with the batch addendum's and none is quoted.
+
+### What 576 runs say
+
+`delivered` counts the replies that carried the answer at all, with a Wilson 95% interval beside it.
+The gemma-4-E4B rows are the instruction addendum's own and are carried in so the three picks read
+in one place.
+
+| pick | subtask shape | raw | bare, the envelope alone | constrained, the envelope and the sentence |
+| --- | --- | --- | --- | --- |
+| gemma-4-E4B (the default) | summarization | 32/32 (0.89 to 1.00) | **9/32** (0.16 to 0.45) | **29/32** (0.76 to 0.97) |
+| gemma-4-E4B (the default) | extraction | 32/32 (0.89 to 1.00) | 32/32 (0.89 to 1.00) | 31/32 (0.84 to 0.99) |
+| gemma-4-E4B (the default) | one-fact lookup | 32/32 (0.89 to 1.00) | 31/32 (0.84 to 0.99) | 30/32 (0.80 to 0.98) |
+| gemma-4-E4B (the default) | **all three** | **96/96** (0.96 to 1.00) | **72/96** (0.65 to 0.83) | **90/96** (0.87 to 0.97) |
+| Qwen3.5-2B (the roster alternate) | summarization | 32/32 (0.89 to 1.00) | **30/32** (0.80 to 0.98) | 31/32 (0.84 to 0.99) |
+| Qwen3.5-2B (the roster alternate) | extraction | 32/32 (0.89 to 1.00) | 19/32 (0.42 to 0.74) | 23/32 (0.55 to 0.84) |
+| Qwen3.5-2B (the roster alternate) | one-fact lookup | 32/32 (0.89 to 1.00) | 27/32 (0.68 to 0.93) | 29/32 (0.76 to 0.97) |
+| Qwen3.5-2B (the roster alternate) | **all three** | **96/96** (0.96 to 1.00) | **76/96** (0.70 to 0.86) | **83/96** (0.78 to 0.92) |
+| gemma-4-E2B | summarization | 32/32 (0.89 to 1.00) | 27/32 (0.68 to 0.93) | 32/32 (0.89 to 1.00) |
+| gemma-4-E2B | extraction | 32/32 (0.89 to 1.00) | 32/32 (0.89 to 1.00) | 28/32 (0.72 to 0.95) |
+| gemma-4-E2B | one-fact lookup | 32/32 (0.89 to 1.00) | 31/32 (0.84 to 0.99) | **24/32** (0.58 to 0.87) |
+| gemma-4-E2B | **all three** | **96/96** (0.96 to 1.00) | **90/96** (0.87 to 0.97) | **84/96** (0.79 to 0.93) |
+
+**`delivered` is what the runner reported and not what the text held**, which on one of these picks
+is a real difference and on the other two is none. A run cut at the cap comes back `ok=False` and the
+cortex is handed a refusal whatever the reply contained, and the roster alternate produces replies
+that answer for a while and then run away: 7 of its 10 capped runs carry enough of the body's numbers
+to pass the proxy on their text alone. Counting those would have read its bare arm at 79 of 96 and
+its constrained arm at 87 rather than 76 and 83. The stricter column is the one above, because it is
+the column the default pick's rows were already read in, and no claim below turns on the choice: the
+gap between the two arms is 7 draws under one reading and 8 under the other.
+
+Four things follow, and the third is the one this entry was opened to catch.
+
+1. **The defect the sentence repairs is the default pick's, not the tier's.** On the roster
+   alternate the bare envelope answers a summarization on 30 of 32 where the default pick answers on
+   9 of 32, so there is no narration there for a sentence to take back. The instruction addendum's
+   headline is a reading about gemma-4-E4B under a grammar and it was never a reading about small
+   models under a grammar, which is exactly what the entry suspected.
+2. **On the roster alternate the sentence is not a regression, and what it buys is a different
+   shape.** It moves 76 of 96 to 83 of 96, and the gain sits on the extraction (19 to 23) rather
+   than on the summarization (30 to 31), which is the opposite shape from where the default pick's
+   whole gain lives. Those intervals overlap, so the honest claim is a small help that is not a
+   cost, and the entry's third outcome, the one that would have made this a `SubagentProfile` field,
+   does **not** fire on the pick it was written about.
+3. **It fires on the other pick.** Taken over all three shapes gemma-4-E2B is **worse with the
+   sentence than without it**, 84 of 96 against 90 of 96. The sentence does there what it does
+   everywhere, recovering the shape that narrates completely (27 of 32 to 32 of 32), and it loses
+   more than that on the two shapes that were already answering: an extraction goes 32 to 28 and a
+   one-fact lookup 31 to 24. So the cost the instruction addendum priced at one draw in thirty two
+   per non-narrating shape is a property of the pick and not of the wording, and on one lineup entry
+   it is seven.
+4. **Nothing shipped stands on the failing pick.** The subagent tier's default is gemma-4-E4B and
+   the roster alternate is Qwen3.5-2B, and both are on the paying side of the table. The E2B is a
+   named subagent entry of the lineup that one `CORTEX_MODEL_FILE_SUBAGENT` selects and nothing in
+   this tree warns about, which is why this is recorded as a measured hazard on a selectable entry
+   rather than as a shipped regression, and why the remedy is
+   [R-482](../refinements/tasks/482-the-sentence-is-one-wording-for-every-entry.md) rather than a
+   revert.
+
+### The residue, and the column that already predicted it
+
+Counted as a rate over draws, the way the instruction addendum counts it.
+
+| pick | its template's answer to "do not think" | raw | bare | constrained |
+| --- | --- | --- | --- | --- |
+| gemma-4-E4B (the default) | drops the block, adds nothing | 0/96 | 1/96 | 8/96 (0.04 to 0.16) |
+| Qwen3.5-2B (the roster alternate) | closes an empty think | 0/96 | **0/96** | **0/96** (0.00 to 0.04) |
+| gemma-4-E2B | drops the block, adds nothing | 0/96 | 0/96 | **14/96** (0.09 to 0.23) |
+
+**The roster alternate's failures are a different mechanism, and the cap means something else there.**
+Its 20 bare and 13 constrained non-deliveries carry no reasoning trace at all, and its 10 capped runs
+across the two arms are a degenerate repetition inside `reply` itself, nine of them on the extraction
+shape and one on the lookup, a reply that starts listing the body's numbers and never stops
+(`"48210241021881497319162152214222161922222222..."`). The rate is the same with the sentence and
+without it, 5 of 96 each, so this one is the pick meeting the shape and not the pick meeting the
+wording. It matters to a reader of the subagent runbook: on the default pick a cap refusal on narrow
+work is the reasoning channel first, and on this one it can only be a runaway.
+
+**The predictor is the one the switch-is-advisory addendum's lineup section already named**, and it
+was read off each server's `POST /apply-template` before any of this was decoded. An entry whose
+template answers the thinking kwarg by rendering a thought already closed holds under a schema, and
+one that answers by dropping the block and adding nothing does not. The roster alternate is on the
+holding side and writes into the reasoning channel on **no draw of 288**, on either envelope arm and
+on all three shapes. Both entries on the other side do, and they order the way that section's probe
+ordered them: the E2B, which deliberated through the switch on 5 draws of 5 where the E4B did on 4,
+carries about twice the E4B's rate here. So a column that was a rendering before is now a rate, and
+the mechanism is the same one:
+eleven of the E2B's twelve non-deliveries are cap refusals whose answer went into the reasoning
+channel a delegated run drops, behind a malformed channel marker of the kind the instruction
+addendum catalogued (`h</|cha)`, `<|channeal>thought>`, `h_process|>`). One of them wrote
+`fortnight 18` into that channel and then wrote it again into `reply`, so that answer arrived and the
+dropped half got a copy of it. That sharpens
+[R-479](../refinements/tasks/479-the-reasoning-budget-held-until-the-prompt-pushed.md) again, with a
+third pick and a second rate.
+
+### The failure kind does not transfer either
+
+The instruction addendum's decision 5, that a plan arriving in `reply` is deliberately not detected,
+leans on one reading: under the sentence not one of the 96 constrained runs failed quietly. That
+reading is the default pick's. On the roster alternate **8 of the 13 constrained non-deliveries come
+back `ok=True`**, the other five being cap refusals, against 15 of 20 on its bare arm, so the sentence moves the rate there without
+moving the failure out of the silent mode at all; on the E2B it does move it, 1 of 12 quiet against
+6 of 6. The failures are a different shape too. Where the default pick narrates a plan, this pick
+mostly hands the instruction back: `"Summarize the report below, keeping every detail."` is the
+whole of one bare reply, and under the sentence one constrained reply is that instruction **with
+the appended sentence on the end of it**, echoed back as the answer.
+
+The decision does not move, for the reason it gives, which is about what a detector over prose can
+do and not about a rate. What moves is the evidence it cited, so
+[R-480](../refinements/tasks/480-a-narrated-reply-arrives-as-an-answer.md) is amended: its trigger
+was written as an answer rate and the answer rate is the wrong proxy, the roster alternate landing
+within three draws of the default pick's while its failures are quiet at eight times the rate.
+
+### Distrust green
+
+**The proxy could have been ranking rather than separating on these picks.** It nearly was, on one
+shape. Both new picks sometimes answer an extraction with a bare comma-joined list, in which a comma
+is a thousands separator inside one number and the separator between two others, which no
+tokenisation reads both ways. Every cell above was therefore judged twice, once treating a comma as
+a thousands separator and once as a separator, taking the charitable maximum. **One cell of the
+twenty four moves by one draw** under that reading, the roster alternate's constrained extraction, and
+it changes no claim here. The bimodality is weaker than the default pick's all
+the same: on the extraction shape 2 to 3 replies a cell land in the middle band that held 0 of 160
+in the answer addendum, so the extraction rows are read as rates with a draw of slack and the
+summarization and lookup rows are not.
+
+**The two picks could have differed in something other than the pick.** They ran the same four
+bodies, the same three instructions, the same eight draws, the same cap, the same grammar, the same
+image digest and the same `-ngl`, one server at a time with the other torn down, and the `bare` arm
+asserts on every draw that it removed a sentence rather than reporting the shipped path twice.
+
+### What moves
+
+No code. The instruction addendum's five decisions all stand, including the one that gives the
+sentence no knob of its own, because none of them was wrong about the pick they were measured on and
+because a knob is not what a per-entry wording would be. What this section buys them is a scope:
+each is now a decision about a tier whose entries do not agree, recorded as such at
+[ADR-0004](ADR-0004-model-lineup.md)'s subagent row and in the subagent runbook, where an operator
+who overrides the pick reads what the override costs. The two residues are
+[R-482](../refinements/tasks/482-the-sentence-is-one-wording-for-every-entry.md), the wording that is
+one sentence for entries that answer to different ones, and
+[R-483](../refinements/tasks/483-the-rest-of-the-subagent-tier-is-unasked.md), the three lineup
+entries of this tier that still have not been asked.
