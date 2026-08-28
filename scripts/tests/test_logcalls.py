@@ -3,7 +3,7 @@
 The fixtures are miniature brain packages, laid out the way the real ones are (`<package>/src/`
 holding an importable tree), because the walk's whole job is to find a logger by the name a
 document prints and that name is a function of where the module sits. The last tests here read
-the committed brain, where the two spellings of a logger claim are true or this reader is
+the committed brain, where every spelling of a logger claim is true or this reader is
 answering about a tree nobody ships.
 """
 
@@ -68,6 +68,43 @@ def test_a_sink_that_names_itself_is_found_under_the_name_it_chose(tmp_path: Pat
     """The tool audit and the recall trail both do this, their lines being read as a trail."""
     brain(tmp_path, {"tools/src/cortex_tools/audit.py": 'getLogger("cortex.tools.audit")\n'})
     assert set(logcalls.loggers(tmp_path)) == {"cortex.tools.audit"}
+
+
+def test_a_sink_naming_its_logger_through_a_constant_is_found_under_that_name(
+    tmp_path: Path,
+) -> None:
+    """The recall trail's spelling: its name is a declaration because three documents restate it
+    and the constant registry ties them to it, so a reader that knew only a literal would drop
+    that trail out of this answer and fail a sample of it as a logger no module declares."""
+    brain(
+        tmp_path,
+        {
+            "memory/src/cortex_memory/audit.py": (
+                '_LOGGER_NAME = "cortex.memory.recall"\n_logger = logging.getLogger(_LOGGER_NAME)\n'
+            )
+        },
+    )
+    assert logcalls.loggers(tmp_path) == {
+        "cortex.memory.recall": "brain/packages/memory/src/cortex_memory/audit.py"
+    }
+
+
+def test_a_logger_named_through_something_the_module_does_not_bind_is_a_fault(
+    tmp_path: Path,
+) -> None:
+    """A name from anywhere but this module's own top level is refused rather than chased: an
+    importer of the brain is what this tree may not become, so the fault says which name it is."""
+    brain(
+        tmp_path,
+        {
+            "memory/src/cortex_memory/audit.py": (
+                "from cortex_core.log_fields import RECALL_LOGGER\n"
+                "_logger = logging.getLogger(RECALL_LOGGER)\n"
+            )
+        },
+    )
+    with pytest.raises(logcalls.LogCallError, match="RECALL_LOGGER, which its own top level"):
+        logcalls.loggers(tmp_path)
 
 
 def test_a_package_barrel_claims_the_package_name_and_not_its_init(tmp_path: Path) -> None:
@@ -229,11 +266,12 @@ def test_a_spread_into_extra_is_a_fault_rather_than_a_short_answer() -> None:
 # ── the brain this reader is written for ───────────────────────────────────────
 
 
-def test_the_committed_brain_declares_both_spellings_of_a_logger_claim() -> None:
+def test_the_committed_brain_declares_every_spelling_of_a_logger_claim() -> None:
     """A guard on the fixtures: a spelling nobody writes would be untested machinery."""
     names = logcalls.loggers(REPO_ROOT)
     assert names["cortex_core.swap_settle"].endswith("cortex_core/swap_settle.py")
     assert names["cortex.tools.audit"].endswith("cortex_tools/audit.py")
+    assert names["cortex.memory.recall"].endswith("cortex_memory/audit.py")
 
 
 def test_the_real_settler_attaches_the_three_fields_its_runbook_prints() -> None:

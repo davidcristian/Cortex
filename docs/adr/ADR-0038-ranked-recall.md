@@ -3733,3 +3733,148 @@ report. A mutation table that finds two of its own checks vacuous is the argumen
 - The line's own maximum is drawn from the cohort this corpus produced least of, and no reading
   covers a rank that keeps the whole of `k`:
   [R-471](../refinements/tasks/471-the-lines-ceiling-is-the-least-sampled-cohort.md).
+
+## Named-logger addendum (2026-08-28): the name three documents select this trail by
+
+The tied-needle addendum tied the trail's message and its widest field to the sink and left the
+logger alone, which is
+[R-469](../refinements/tasks/469-the-trails-logger-name-is-spelled-in-three-places-and-held-in-none.md).
+It closes here, in the same registry, and the entry's own account of the tree was wrong in two
+ways worth writing down before the decision.
+
+### What re-deriving the claim found, which is one document and one green gate
+
+The entry said the name is spelled in the sink and in **two** documents. It is spelled in three.
+Beside the memory runbook, which says what turning the trail on produces, and the local-dev
+runbook, which names it among the two per-line trails a deployment can raise or lower on its own,
+`docs/modules/brain-memory.md` has stated that `record(audit)` writes one such line since the trail
+landed on 2026-08-06, three weeks before anybody wrote down that there were two. The entry's own
+reopen trigger named a third document as the condition to revisit it, and that condition had been
+met before the entry existed. That is the failure this backlog's own standing warning describes,
+arriving in its milder form: what got measured was the passage somebody had just edited rather
+than the set the claim is about.
+
+The second correction is sharper, because the entry's cost sentence rests on it. It says a rename
+leaves both sentences instructing an operator about a logger nothing writes through "with every
+gate green". That is false of the code and true of the documents. Nine of the memory package's
+forty checks read a line back through `caplog.at_level(..., logger="cortex.memory.recall")`, and a
+rename reddens every one: a record logged under some other name never reaches a handler at INFO,
+so those tests see no lines at all. So the defect was never
+that a rename is silent. It is that a rename is loud in one tree and silent in the three documents
+an operator actually reads, and the loud half is what makes the silent half plausible to leave
+behind: the suite goes green again the moment the tests are moved onto the new name, and nothing
+then says the documents were not.
+
+### Decision 1: the name gets a declaration, and that is not the gate editing the code
+
+The registry compares a declaration against the places restating it, and there was none here: the
+name was the argument of `logging.getLogger`. So `brain/packages/memory/src/cortex_memory/audit.py`
+now binds `_LOGGER_NAME` and hands it to the call. The entry called this the shape this repo
+blesses reading rather than creating, and the objection is real. Two things answer it, and
+decision 3 below is the third.
+
+The name now sits where the rest of this brain's log vocabulary already sits.
+`cortex_core.log_fields` declares the five field names for exactly this reason, that a name an
+operator greps is a name several places have to agree on, and the two self-named sinks were the
+exception rather than the convention. A private constant asks nothing of any importer, which the
+registry's own `Site` says in as many words: it reads text and imports nothing, so naming a
+module-private constant widens no API.
+
+And the alternative was not free either. Leaving the name inside the call means the only way to
+hold the documents is to find a logger name in a document by its shape, which is decision 3.
+
+### Decision 2: the reader learns the spelling in the same slice, or the trail leaves its answer
+
+`scripts/logcalls.py` collects the brain's loggers by matching `getLogger(__name__)` and
+`getLogger("literal")`. A name bound above the call matches neither, so the day the sink named its
+logger, `samplecheck.py` would have stopped knowing this trail existed. Nothing would have said so:
+no runbook prints a rendered line of this trail today, so the gate stays green, and the failure
+waits for the first runbook that does print one, which then fails as a sample naming a logger no
+module declares. That is a fault pointing at the document while the reader is what moved.
+
+So the reader learned the third spelling, resolved against the module's own top level by
+`moduleconstants.py`, which is the reading `hostedtiers.py` already makes of the sidecar's
+declarations. Nothing wider is followed: a name imported from another module is refused with the
+name in the fault, because chasing one would make the gate tree an importer of the brain, which is
+the seam ADR-0009 declined to open and this slice does not reopen.
+
+### Decision 3: the registry, and not a rule that finds a logger name by its shape
+
+The entry proposed weighing a second answer first: `samplecheck.py` already resolves a documented
+sample's logger against the loggers the brain declares, and the gap is only the sentences that name
+a logger without printing a line under it. It would have needed no declaration and no registration,
+and it would have held a fourth document the day somebody wrote one. It was measured and declined,
+on what the tree actually spells.
+
+Such a rule has to decide that a token in a document is a logger name, and the only handle is its
+shape. The self-named trails are `cortex.` plus two words. So is `cortex.seam.v1`, which is the
+package `proto/body.proto` declares and which `docs/modules/body-rpc.md` names, and `cortex.dump`
+is the file the backup sidecar writes, named in the memory runbook. A rule keyed on that shape
+either fails on two documents that are correct or carries an exemption list, which is the
+registration it was meant to avoid, in the one form that can be used to silence a real name. The
+module-path loggers are worse: `docs/runbooks/model-swap.md` names `cortex_core.swap_settle` and
+`docs/runbooks/llamacpp-gpu.md` names `cortex_core.drain`, and a shape that reaches those reaches
+every module reference in every module contract, most of which are not loggers at all.
+
+The registry has no such problem, because a mention is a claim somebody wrote down about one
+sentence in one file. What it costs is that a fourth document is unheld until it is registered,
+which is the standing trade this repo makes everywhere the derived set is not cleanly derivable.
+
+### Decision 4: the trail gets its own part of the registry
+
+The logger brought `logcouplings.py` past the 300-line cap, and the seam was already drawn in that
+file's own docstring: five of its entries are the name one work identity rides under wherever the
+brain writes one, and the rest are about a single line on a single stream. `trailcouplings.py` is
+that second half, holding the logger, the message and the dropped-candidate field in the order a
+rendered line spells them. It is the registry's twelfth part and the ninth to arrive as a split,
+which is what `registry.py` was built to take: a data file plus one line there, with the scan never
+learning the registry grew.
+
+### Distrust green
+
+Nine mutations, each applied alone to the committed tree with both suites re-run: the **1,426
+checks of the gate suite** (`scripts/tests/`) and the **40 checks of the memory package's suite**
+(`brain/packages/memory/tests/`), which is the tree that pins this name from the other side.
+
+| Mutation | scripts | memory |
+| --- | --- | --- |
+| the sink renames the logger it writes through | **12** | **9** |
+| the sink spells that name inside the `getLogger` call again | **13** | 0 |
+| the memory runbook keeps the name and loses the sentence around it | **8** | 0 |
+| the local-dev runbook stops naming the logger among the two trails | **8** | 0 |
+| the module contract stops naming the logger it says the sink writes | **8** | 0 |
+| GATE: the reader was never taught the third spelling | **3** | 0 |
+| GATE: the three needles render the name alone | 0 | 0 |
+| GATE: the needles render the name alone and the runbook loses its sentence | 0 | 0 |
+| GATE: the entry keeps only the sink and the runbook that turns the trail on | **1** | 0 |
+
+Row one is the whole entry in one line, and its two numbers are the correction above: the rename
+was always loud in the package that writes the trail and silent in every document that reads it.
+Row six is why decision 2 is not a separate slice: three reds, all of them the reader's own suite,
+and a green gate over a brain whose recall trail this reader can no longer see.
+
+Rows seven and eight are one claim in two halves and the only rows here that redden nothing. A
+needle rendering the name alone holds the rename exactly as well, each of the three documents
+spelling this name once, so the sentence in each template buys nothing against the mutation the
+entry was filed for. Row eight is what it does buy: with the bare needle, a document that keeps the
+name and loses the sentence around it is green, where row three reddens eight. The three templates
+therefore pin **which sentence** carries the name rather than that the file carries it somewhere,
+which is the difference between holding an instruction and holding a mention of one.
+
+### Consequences
+
+- A rename of the recall trail's logger reddens `just check` on the day it is made, and the two
+  runbooks and the module contract move with it or the gate names the ones that did not.
+- `samplecheck.py` resolves a logger a sink names through a constant, so a runbook that starts
+  printing a rendered line of this trail is held to the call that writes it like every other.
+- The constant registry stands at 76 entries over 86 declaring sites and 252 mentions, in twelve
+  parts, and the recall trail's three words are one of them rather than a tail on the log
+  vocabulary's.
+- The tool audit's logger is now the asymmetric one: `cortex.tools.audit` is spelled in its sink,
+  in a sibling module's docstring and in two runbooks, and nothing ties those four.
+
+### Deferred by this addendum
+
+- The tool audit's logger name is spelled in four places and held in none, which is this entry's
+  sibling with the mechanism now built:
+  [R-486](../refinements/tasks/486-the-tool-audits-logger-name-is-spelled-in-four-places-and-held-in-none.md).

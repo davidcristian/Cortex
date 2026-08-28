@@ -1,0 +1,124 @@
+"""The couplings around the recall trail: the three words one of its lines is found by.
+
+One of the data files `crosscheck.py` reads as a single registry, split off `logcouplings.py` when
+the trail's logger brought that file to the 300-line cap, along the seam its docstring had drawn
+from the day the first two of these landed. Five of the entries there are the name one work
+identity rides under, wherever in the brain a line names it; these three are about a single line on
+a single stream, and they are ordered the way that line renders: the logger it is written through,
+the message it opens with, and the field whose width is the subject of everything that reads it.
+
+**Why a logger name needs the gate, and why it has a declaration to be held to.** The name is what
+an operator selects this trail by on a stream carrying every other line the brain writes, and it is
+restated by three documents that between them turn the trail on, name it among the loggers a
+deployment can raise or lower, and state what the sink writes. A rename in the sink would leave all
+three instructing a reader about a logger nothing writes through, with every gate green, which is
+the same silence the two entries below were registered against. The sink names it in a constant
+rather than inside the `getLogger` call so there is a declaration here at all; that is the one place
+in this registry where a far side gained a line to be tied by, and it is argued at the ADR rather
+than assumed here. What keeps it from being the gate editing the code it watches is that the name
+now sits where the rest of this brain's log vocabulary already sits, `cortex_core.log_fields`
+declaring the field names for the same reason, and that `logcalls.py` learned the spelling in the
+same slice, so `samplecheck.py` goes on resolving a documented sample of this trail against it.
+
+**The other two run the other way round, and the reader that declares them gates nothing.**
+`scripts/trailwidth.py` reads how wide the trail's widest field renders off captured container
+logs, and to find a line at all it spells the sink's message and the key that field rides under. It
+cannot import either: it is a standalone project that must never depend on the brain, which is the
+same wall every entry in the log part is built over. So the declaration sits in the reader and the
+sink holds the mentions, which the scan is indifferent to, comparing places and naming no master,
+and which a reader of this file should still be told. That the reader gates nothing is the argument
+FOR holding it rather than against, the same one `fixturecouplings.py` makes: a shipped value has a
+suite that runs on every commit and would notice, while this one is read by hand, on a GPU, when
+somebody chooses to measure, and a needle that stopped matching surfaces there as a stack with no
+trail lines rather than as a reader looking for the wrong word.
+
+**The message's needle is the emitting call and never the word alone.** A rendered line opens
+`INFO:cortex.memory.recall:memory.recall `, the stdlib's own basic format being what the shipped
+formatter builds on, so the word the reader looks for sits on every line twice: once as the
+logger's tail and once as the message. A needle rendering the word alone would find the logger's
+half in the sink too and hold nothing. The entry above is why that resemblance is now stated in one
+place instead of being a coincidence two needles had to step around.
+
+**What is deliberately not here** is the ADR that argued all three. Its pages quote whole rendered
+lines as evidence of a run on a day, and this repo holds that a dated transcript is a record of the
+past rather than a claim about today's code, which is the same line `samplecheck.py` draws when it
+reads the runbooks and declares the decision records evidence.
+"""
+
+from couplings import Constant, Mention, Site
+
+RECALL_SINK = "brain/packages/memory/src/cortex_memory/audit.py"
+
+TRAIL_READER = "scripts/trailwidth.py"
+
+GATES_MODULE = "docs/modules/repo-gates.md"
+LOCAL_DEV_RUNBOOK = "docs/runbooks/local-dev-wsl.md"
+MEMORY_MODULE = "docs/modules/brain-memory.md"
+MEMORY_RUNBOOK = "docs/runbooks/memory-pgvector.md"
+
+# How the sink writes the field a line carries: a string key opening an ``extra=`` dict. The same
+# shape the work identities are spelled in next door, written out again rather than imported,
+# because a part is data and the parts do not read each other: `registry.py` is the only thing that
+# joins them, which is what lets an entry move house without the scan noticing.
+FIELD_KEY = '"{value}":'
+
+# How a sink writes the message a line is found by: the first argument of the call that emits it.
+# The call and not the word alone, because this word is also the tail of the logger the sink writes
+# through, so a bare needle would go on being found there after the message it names had moved.
+TRAIL_CALL = '_logger.info("{value}"'
+
+TRAIL_COUPLINGS: tuple[Constant, ...] = (
+    Constant(
+        label="the logger one recall-trail line is written through",
+        why=(
+            "this is the name an operator selects the trail by on a stream carrying every other "
+            "line the brain writes, and three documents restate it while none of them can import "
+            "it: the memory runbook says what turning the trail on produces, the local-dev "
+            "runbook names it among the two per-line trails a deployment can raise or lower on "
+            "its own, and the module contract states what the sink writes; a rename in the sink "
+            "alone leaves all three instructing a reader about a logger nothing writes through "
+            "(ADR-0038 named-logger addendum)"
+        ),
+        sites=(Site(RECALL_SINK, "_LOGGER_NAME"),),
+        mentions=(
+            Mention(MEMORY_RUNBOOK, "one `{value}` line per"),
+            Mention(LOCAL_DEV_RUNBOOK, "the recall trail (`{value}`, behind"),
+            Mention(MEMORY_MODULE, "`{value}` line per recall,"),
+        ),
+    ),
+    Constant(
+        label="the message one recall-trail line is found by",
+        why=(
+            "the reader that measures this trail selects a line out of a capture by this message "
+            "and spells it itself, having no way to import it, so a rename in the sink leaves a "
+            "hand run measurement refusing every capture in the words of a stack that wrote no "
+            "trail (ADR-0038 tied-needle addendum); the runbook says the line carries this word "
+            "as its message and tells an operator to grep for it, and one of those two sentences "
+            "is what a rename makes false while the other still works by accident, the logger's "
+            "own name ending in the same word"
+        ),
+        sites=(Site(TRAIL_READER, "TRAIL_MESSAGE"),),
+        mentions=(
+            Mention(RECALL_SINK, TRAIL_CALL),
+            Mention(MEMORY_RUNBOOK, "`{value}` message"),
+            Mention(MEMORY_RUNBOOK, "grep {value}"),
+        ),
+    ),
+    Constant(
+        label="the field a recall-trail line names the candidates it dropped under",
+        why=(
+            "this field's rendered width is what `VALUE_CHARS` is argued generous against, and "
+            "the reader that measures it cuts the value out of a captured line by this name, so "
+            "a rename in the sink alone leaves the one measurement behind that argument reading "
+            "nothing at all (ADR-0038 tied-needle addendum); the runbook names the field to say "
+            "which question it answers and the module contract to say what is being measured, "
+            "and neither could be reached by any import"
+        ),
+        sites=(Site(TRAIL_READER, "TRAIL_FIELD"),),
+        mentions=(
+            Mention(RECALL_SINK, FIELD_KEY),
+            Mention(MEMORY_RUNBOOK, "`{value}` names every"),
+            Mention(GATES_MODULE, "the recall trail's `{value}` field"),
+        ),
+    ),
+)

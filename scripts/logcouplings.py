@@ -1,11 +1,12 @@
-"""The couplings around the brain's own log vocabulary: the words one of its lines is found by.
+"""The couplings around the brain's own log vocabulary: the name one work identity rides under.
 
 One of the data files `crosscheck.py` reads as a single registry, and the tenth part, added the way
 `registry.py` was built to take one: a data file plus one line there, with the scan never learning
 the registry grew. The subject is the one thing no other part holds, a NAME a log line is written
-with rather than a value one carries. Five of them are what a line says which work it is about
-under; the last two are what one recall-trail line is told from every other line on a stream by,
-and they are here because a reader outside the brain has to spell them.
+with rather than a value one carries. Five of them are here, one per identity a line says which
+work it is about under. The recall trail's own three words left for `trailcouplings.py` when the
+logger brought this file to the 300-line cap, on the seam this paragraph had drawn since they
+landed: those are one line on one stream and these are one word across the whole brain.
 
 **Why a name needs the gate.** Two identities were spelled two ways at once, and neither split was
 noticed until a reader needed both halves of one investigation. The first opened the day the recall
@@ -44,20 +45,11 @@ then gained the conversation as well (ADR-0009 named-conversation addendum), so 
 modules appear under both of the first two entries below, and a fifth refusal or a fourth settle
 that named only one of the two is caught by whichever entry's count it broke.
 
-**The last two entries run the other way round, and the reader that declares them gates nothing.**
-`scripts/trailwidth.py` reads how wide the recall trail's widest field renders off captured
-container logs, and to find a line at all it spells the sink's message and the key that field rides
-under. It cannot import either: it is a standalone project that must never depend on the brain,
-which is the same wall every other entry here is built over. So the declaration sits in the reader
-and the sink holds the mentions, which the scan is indifferent to, comparing places and naming no
-master, and which a reader of this file should still be told. That the reader gates nothing is the
-argument FOR holding it rather than against, the same one `fixturecouplings.py` makes: a shipped
-value has a suite that runs on every commit and would notice, while this one is read by hand, on a
-GPU, when somebody chooses to measure, and a needle that stopped matching surfaces there as a stack
-with no trail lines rather than as a reader looking for the wrong word. What keeps the pair in this
-part rather than that one is what the value IS. A message and a field name the brain writes are
-this part's whole subject; a fixture's are values the repo ships nowhere, and filing a log field
-name under both parts would be the split each part is named to prevent.
+**The recall trail is next door and not in some other kind of part.** What keeps its three words
+out of the measurement part, whose reader declares two of them, is what the value IS: a message, a
+field name and a logger the brain writes are this subject and not a fixture's, and filing a log
+name under two parts would be the split each part is named to prevent. They sit in a part of their
+own because they are one line's, where every entry here is one word's across eleven modules.
 """
 
 from couplings import Constant, Mention, Site
@@ -79,9 +71,6 @@ TICKER = "brain/packages/orchestrator/src/cortex_orchestrator/ticker.py"
 TURN_CONTEXT = "brain/packages/core/src/cortex_core/turn_context.py"
 TURN_OUTPUT = "brain/packages/core/src/cortex_core/turn_output.py"
 
-TRAIL_READER = "scripts/trailwidth.py"
-
-GATES_MODULE = "docs/modules/repo-gates.md"
 MEMORY_RUNBOOK = "docs/runbooks/memory-pgvector.md"
 SCHEDULING_RUNBOOK = "docs/runbooks/scheduling.md"
 SWAP_RUNBOOK = "docs/runbooks/model-swap.md"
@@ -96,11 +85,6 @@ FIELD_KEY = '"{value}":'
 # with the qualifier in front of the family word. Rendered from the same declaration as the plain
 # name, so the qualified one cannot be left behind by a rename of the family it belongs to.
 ACTIVE_FIELD_KEY = '"active_{value}":'
-
-# How a sink writes the message a line is found by: the first argument of the call that emits it.
-# The call and not the word alone, because this word is also the tail of the logger the sink writes
-# through, so a bare needle would go on being found there after the message it names had moved.
-TRAIL_CALL = '_logger.info("{value}"'
 
 LOG_COUPLINGS: tuple[Constant, ...] = (
     Constant(
@@ -235,41 +219,6 @@ LOG_COUPLINGS: tuple[Constant, ...] = (
         mentions=(
             Mention(TOOLS_RUNBOOK, "`{value}` is the fifth id"),
             Mention(TOOLS_RUNBOOK, "a `{value}=schedule-...`"),
-        ),
-    ),
-    Constant(
-        label="the message one recall-trail line is found by",
-        why=(
-            "the reader that measures this trail selects a line out of a capture by this message "
-            "and spells it itself, having no way to import it, so a rename in the sink leaves a "
-            "hand run measurement refusing every capture in the words of a stack that wrote no "
-            "trail (ADR-0038 tied-needle addendum); the runbook says the line carries this word "
-            "as its message and tells an operator to grep for it, and one of those two sentences "
-            "is what a rename makes false while the other still works by accident, the logger's "
-            "own name ending in the same word"
-        ),
-        sites=(Site(TRAIL_READER, "TRAIL_MESSAGE"),),
-        mentions=(
-            Mention(RECALL_AUDIT, TRAIL_CALL),
-            Mention(MEMORY_RUNBOOK, "`{value}` message"),
-            Mention(MEMORY_RUNBOOK, "grep {value}"),
-        ),
-    ),
-    Constant(
-        label="the field a recall-trail line names the candidates it dropped under",
-        why=(
-            "this field's rendered width is what `VALUE_CHARS` is argued generous against, and "
-            "the reader that measures it cuts the value out of a captured line by this name, so "
-            "a rename in the sink alone leaves the one measurement behind that argument reading "
-            "nothing at all (ADR-0038 tied-needle addendum); the runbook names the field to say "
-            "which question it answers and the module contract to say what is being measured, "
-            "and neither could be reached by any import"
-        ),
-        sites=(Site(TRAIL_READER, "TRAIL_FIELD"),),
-        mentions=(
-            Mention(RECALL_AUDIT, FIELD_KEY),
-            Mention(MEMORY_RUNBOOK, "`{value}` names every"),
-            Mention(GATES_MODULE, "the recall trail's `{value}` field"),
         ),
     ),
 )

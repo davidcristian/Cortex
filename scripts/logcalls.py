@@ -16,8 +16,18 @@ declined to open is an import of the brain from `scripts/`, and that stays shut.
 brain's usual spelling, and its answer is the module's own dotted path, which is exactly what a
 sample prints between the level and the message. Two sinks name themselves instead, the recall
 trail and the tool audit, because their lines are read as a trail rather than as one module's
-account of itself. Both spellings are collected, so a sample naming either resolves, and a logger
-name claimed by two files is a fault rather than a coin toss.
+account of itself. Every spelling is collected, so a sample naming any of them resolves, and a
+logger name claimed by two files is a fault rather than a coin toss.
+
+**A sink may bind its name above the call, and that is the third spelling.** A self-named logger
+restated by documents is declared as a module constant so the constant registry can tie those
+documents to it, which the recall trail's is, and a reader that only knew a literal would drop
+such a logger out of this answer the day it was named: the sample quoting it would then fail as
+a logger no module declares, which is loud and points at the document rather than at the reader.
+So a bare identifier is resolved against that module's own top level, by ``moduleconstants.py``,
+which is the same reading `hostedtiers.py` makes of the sidecar's declarations. Nothing wider is
+followed. A name imported from another module is refused rather than chased, an importer of the
+brain being exactly what this tree may not become.
 
 **The level comes from the method, and ``exception`` is an error.** A sample prints the level the
 formatter wrote, so the call's own method is what it has to agree with. ``exception`` is the one
@@ -48,6 +58,7 @@ import re
 from pathlib import Path
 from typing import NamedTuple
 
+from moduleconstants import constants
 from skippeddirs import SKIPPED_DIRS
 
 # Where the brain's importable source lives, and the directory each package puts it under. Only
@@ -56,9 +67,13 @@ from skippeddirs import SKIPPED_DIRS
 BRAIN_PACKAGES = Path("brain/packages")
 SOURCE_DIR = "src"
 
-# How a module claims a logger, in the two spellings the brain uses. `__name__` resolves to the
-# module's own dotted path; a literal is the name itself.
-GET_LOGGER = re.compile(r"getLogger\(\s*(?:__name__|\"(?P<named>[^\"]+)\")\s*\)")
+# How a module claims a logger, in the three spellings the brain uses. `__name__` resolves to the
+# module's own dotted path; a literal is the name itself; and a bare identifier is a name the same
+# module bound above the call, which is how a sink whose logger is restated by documents declares
+# it for the constant registry to tie them to.
+GET_LOGGER = re.compile(
+    r"getLogger\(\s*(?:__name__|\"(?P<named>[^\"]+)\"|(?P<bound>[A-Za-z_]\w*))\s*\)"
+)
 
 # The keyword a call attaches its fields under, which is the stdlib's own name for them.
 EXTRA = "extra"
@@ -131,6 +146,36 @@ def dotted(relative: Path) -> str:
     return ".".join(parts)
 
 
+def _parsed(text: str, shown: str) -> ast.Module:
+    """Parse one brain module, naming it when what it holds is not Python at all."""
+    try:
+        return ast.parse(text)
+    except SyntaxError as err:
+        msg = f"cannot parse {shown}: {err}"
+        raise LogCallError(msg) from err
+
+
+def claimed(claim: re.Match[str], text: str, inside: Path, shown: str) -> str:
+    """The logger name one ``getLogger`` call claims, in whichever spelling it claims it.
+
+    A bare identifier is resolved against the module's own top level and nothing wider: a name
+    imported from elsewhere is refused rather than followed, since following one would make this
+    reader an importer of the brain, which is the seam the architecture keeps shut.
+    """
+    named = claim["named"]
+    if named is not None:
+        return named
+    bound = claim["bound"]
+    if bound is None:
+        return dotted(inside)
+    strings, _ = constants(_parsed(text, shown))
+    resolved = strings.get(bound)
+    if resolved is None:
+        msg = f"{shown} names its logger {bound}, which its own top level binds to no string"
+        raise LogCallError(msg)
+    return resolved
+
+
 def loggers(root: Path) -> dict[str, str]:
     """Every logger name the brain declares, against the repo-relative file that declares it."""
     found: dict[str, str] = {}
@@ -140,8 +185,9 @@ def loggers(root: Path) -> dict[str, str]:
             if SKIPPED_DIRS & set(inside.parts):
                 continue
             shown = module.relative_to(root).as_posix()
-            for claim in GET_LOGGER.finditer(_read(module, shown)):
-                name = claim["named"] or dotted(inside)
+            text = _read(module, shown)
+            for claim in GET_LOGGER.finditer(text):
+                name = claimed(claim, text, inside, shown)
                 if name in found:
                     msg = f"{shown} and {found[name]} both declare the logger {name!r}"
                     raise LogCallError(msg)
@@ -215,11 +261,7 @@ def _absent(tree: ast.Module, message: str, shown: str) -> str:
 
 def logged(text: str, message: str, shown: str) -> LogCall:
     """The one call in ``text`` that logs ``message``, or a fault naming what was found instead."""
-    try:
-        tree = ast.parse(text)
-    except SyntaxError as err:
-        msg = f"cannot parse {shown}: {err}"
-        raise LogCallError(msg) from err
+    tree = _parsed(text, shown)
     found = [call for node in ast.walk(tree) if (call := _message_call(node, message)) is not None]
     if not found:
         raise LogCallError(_absent(tree, message, shown))

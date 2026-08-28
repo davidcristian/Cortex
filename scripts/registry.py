@@ -39,8 +39,10 @@ directory beside it and to the order the tuple reads them in by
   only part whose subject the repo does not ship.
 - `overlaycouplings` ties the overlay's TypeScript to the stylesheet that spends what it declares.
 - `logcouplings` ties the brain's log vocabulary, the one name each work identity is written
-  under and the two words one recall-trail line is found by, to every line that spells it, every
-  runbook that tells an operator to grep it and the reader outside the brain that measures it.
+  under, to every line that spells it and every runbook that tells an operator to grep it.
+- `trailcouplings` ties the three words one recall-trail line is found by, the logger it is
+  written through, the message it opens with and the field it is measured on, to the sink that
+  writes them, the reader outside the brain that measures them and the documents that state them.
 
 Counting the registry lives here too, beside the tuple the parts are joined into, because the size
 of a collection is a fact about the collection rather than about any scan over it. `shape` is what
@@ -67,6 +69,7 @@ from overlaycouplings import OVERLAY_COUPLINGS
 from seamcouplings import SEAM_COUPLINGS
 from shippedcouplings import SHIPPED_COUPLINGS
 from subagentcouplings import SUBAGENT_COUPLINGS
+from trailcouplings import TRAIL_COUPLINGS
 
 CONSTANTS: tuple[Constant, ...] = (
     *SEAM_COUPLINGS,
@@ -80,6 +83,7 @@ CONSTANTS: tuple[Constant, ...] = (
     *FIXTURE_COUPLINGS,
     *OVERLAY_COUPLINGS,
     *LOG_COUPLINGS,
+    *TRAIL_COUPLINGS,
 )
 
 

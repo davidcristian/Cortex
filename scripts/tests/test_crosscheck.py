@@ -1111,14 +1111,17 @@ MODELHOST_CONFIG = "brain/packages/model_manager/src/cortex_model_manager/config
 DECLARED = '_NO_REASONING_BUDGET = "0"'
 REQUIRED = 'Flag("--reasoning-budget", "0")'
 
-# The other entry read out of the registry and applied to a doctored copy, and the reason it is
-# the second: it is the one whose declaring side gates nothing at all, so nothing but this scan
-# runs on the day the sink moves. The reader spells both words and the sink writes both.
+# The other entries read out of the registry and applied to a doctored copy, and the reason they
+# are the second: two of the three have a declaring side that gates nothing at all, so nothing but
+# this scan runs on the day the sink moves. The reader spells both words and the sink writes both.
+TRAIL_LOGGER = "the logger one recall-trail line is written through"
 TRAIL_MESSAGE = "the message one recall-trail line is found by"
 TRAIL_FIELD = "the field a recall-trail line names the candidates it dropped under"
 TRAIL_READER = "scripts/trailwidth.py"
 RECALL_SINK = "brain/packages/memory/src/cortex_memory/audit.py"
+MEMORY_MODULE = "docs/modules/brain-memory.md"
 
+SINK_LOGGER = '_LOGGER_NAME = "cortex.memory.recall"'
 SINK_MESSAGE = '_logger.info("memory.recall"'
 SINK_FIELD = '"dropped": ['
 
@@ -1196,10 +1199,38 @@ def test_the_budget_is_held_by_this_entry_and_not_by_a_neighbour(tmp_path: Path)
 
 def test_the_trail_needles_hold_over_the_files_they_name(tmp_path: Path) -> None:
     """The copy with nothing edited is green, so every red below is the edit and not the copy."""
-    for label in (TRAIL_MESSAGE, TRAIL_FIELD):
+    for label in (TRAIL_LOGGER, TRAIL_MESSAGE, TRAIL_FIELD):
         constant = registered(label)
         copied(tmp_path, constant, {})
         assert crosscheck.check_constant(tmp_path, constant) == []
+
+
+def test_renaming_the_trails_logger_in_the_sink_reddens_every_document_that_states_it(
+    tmp_path: Path,
+) -> None:
+    """The defect this entry was filed for: the name is what an operator selects the trail by, and
+    three documents restate it while none of them can import it, so a rename in the sink alone
+    used to leave all three instructing a reader about a logger nothing writes through."""
+    constant = registered(TRAIL_LOGGER)
+    renamed = SINK_LOGGER.replace("recall", "trail")
+    copied(tmp_path, constant, {RECALL_SINK: (SINK_LOGGER, renamed)})
+    faults = crosscheck.check_constant(tmp_path, constant)
+    assert {fault.label for fault in faults} == {TRAIL_LOGGER}
+    assert {fault.detail.split()[0] for fault in faults} == {
+        mention.path for mention in constant.mentions
+    }
+
+
+def test_a_document_that_stops_naming_the_trails_logger_is_a_fault(tmp_path: Path) -> None:
+    """The other direction, and the one the entry's own count was stale about: the module contract
+    was the third document restating this name three weeks before anybody wrote down that there
+    were two, so it is held exactly like the runbooks that turn the trail on and name it."""
+    constant = registered(TRAIL_LOGGER)
+    reworded = ("`cortex.memory.recall` line per recall,", "line per recall,")
+    copied(tmp_path, constant, {MEMORY_MODULE: reworded})
+    faults = crosscheck.check_constant(tmp_path, constant)
+    assert [fault.label for fault in faults] == [TRAIL_LOGGER]
+    assert MEMORY_MODULE in faults[0].detail
 
 
 def test_the_trails_field_moving_in_the_sink_alone_is_a_fault(tmp_path: Path) -> None:
@@ -1259,6 +1290,24 @@ def test_the_trails_field_is_held_by_this_entry_and_not_by_a_neighbour(tmp_path:
     copied(tmp_path, field, {RECALL_SINK: (SINK_FIELD, '"passed_over": [')})
     assert crosscheck.check(tmp_path, neighbours) == []
     assert [fault.label for fault in crosscheck.check(tmp_path, (field,))] == [TRAIL_FIELD]
+
+
+def test_the_trails_logger_is_held_by_this_entry_and_not_by_a_neighbour(tmp_path: Path) -> None:
+    """The interaction check, and here it is the one the tied-needle addendum left standing: the
+    message needle is written as the emitting call precisely because the logger's own name ends in
+    the same word, so a logger renamed alone is invisible to it and to every other entry. Every
+    other entry is run over the doctored tree and none of them notices."""
+    logger = registered(TRAIL_LOGGER)
+    neighbours = tuple(
+        constant for constant in crosscheck.CONSTANTS if constant.label != TRAIL_LOGGER
+    )
+    for constant in neighbours:
+        copied(tmp_path, constant, {})
+    copied(tmp_path, logger, {RECALL_SINK: (SINK_LOGGER, SINK_LOGGER.replace("recall", "trail"))})
+    assert crosscheck.check(tmp_path, neighbours) == []
+    alone = crosscheck.check(tmp_path, (logger,))
+    assert {fault.label for fault in alone} == {TRAIL_LOGGER}
+    assert len(alone) == len(logger.mentions), alone
 
 
 def _parts_on_disk() -> list[str]:

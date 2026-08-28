@@ -40,7 +40,14 @@ import logging
 
 from cortex_core import RecallAudit
 
-_logger = logging.getLogger("cortex.memory.recall")
+# The name this trail is selected by, on a stream carrying every other line the brain writes. It
+# is written here rather than inside the call because three documents restate it and none of them
+# can import it, so it is a declaration the constant registry ties them to (ADR-0038 named-logger
+# addendum). Naming it also puts it where the rest of this brain's log vocabulary already lives,
+# `cortex_core.log_fields` declaring the field names for the same reason.
+_LOGGER_NAME = "cortex.memory.recall"
+
+_logger = logging.getLogger(_LOGGER_NAME)
 
 
 class LoggingRecallSink:
