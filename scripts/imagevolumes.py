@@ -19,6 +19,11 @@ IMAGE_VOLUMES: dict[str, tuple[str, ...]] = {
     "cortex-brain": (),
     "cortex-mcp-email": (),
     "cortex-model-host": (),
+    # The two bases the rows above are built on, named by a Dockerfile here rather than by a
+    # compose file, and pulled on every re-derivation because a built row cannot be. Measured
+    # 2026-08-28; the eight rows above were measured 2026-08-25.
+    "python:3.12-slim-trixie": (),
+    "ghcr.io/ggml-org/llama.cpp:server-cuda": (),
 }
 
 # Where a row is edited, named here so the gate reporting a stale or missing one can say where to

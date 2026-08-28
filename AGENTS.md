@@ -307,7 +307,10 @@ scripts/          repo gates, plus the two modules here that gate nothing, contr
                   imagevolumes.py (the recorded answer it reads,
                   because a running docker is what the gate cannot have, re-derived by
                   `just image-volumes`) + dockerfilevolumes.py (the tree's own side of that
-                  record, read from the Dockerfile each build stanza points at),
+                  record, read from the Dockerfile each build stanza points at) +
+                  dockerfilebases.py (the other side of a built row, the image that file's last
+                  stage stands on, whose own row is pulled because a built row never is, and the
+                  line joining both readers work over),
                   stubcheck.py (every comment the proto carries still
                   appears in the committed Rust stub) + protocomments.py (what a comment is on
                   each side and how the two spellings are made comparable),

@@ -2,27 +2,22 @@
 
 import json
 import os
-import re
+from collections.abc import Mapping
 from pathlib import Path
 from typing import NamedTuple, cast
 
 from composeservices import Build
 from composetargets import normalize
+from dockerfilebases import DockerfileError, inherited, logical
 from imagevolumes import RECORD_PATH
 
 # The instruction this reader is looking for, matched case-insensitively the way docker matches it.
 INSTRUCTION = "VOLUME"
 
-# What ends a line that continues onto the next, in the default escape character. A file choosing
-# another one is refused below rather than read under the wrong rule.
-CONTINUES = "\\"
-
 # What opens a JSON container, which is how the array spelling of the instruction begins. Both are
 # dispatched to the array reader, because an object where an array belongs is a shape to refuse
 # with the reason rather than to hand to the path splitter and refuse for the wrong one.
 JSON_OPENERS = ("[", "{")
-
-_ESCAPE = re.compile(r"^#[ \t]*escape[ \t]*=", re.IGNORECASE)
 
 _UNDECLARED = (
     "{dockerfile} declares VOLUME {path!r}, and the row for {reference!r} in "
@@ -43,39 +38,12 @@ _UNRESOLVED = (
 _UNREADABLE = "{dockerfile} builds {reference!r} and could not be read: {detail}"
 
 
-class DockerfileError(Exception):
-    """A Dockerfile carries a shape this reader will not guess at."""
-
-
 class Reading(NamedTuple):
-    """One build stanza followed: the Dockerfiles it reached, and every path no row carries."""
+    """One build stanza followed: the files it reached, what they stand on, and every fault."""
 
     dockerfiles: tuple[str, ...]
+    bases: tuple[str, ...]
     faults: tuple[str, ...]
-
-
-def _logical(text: str) -> list[tuple[int, str]]:
-    """The file's instructions, comments dropped and continuation lines joined onto their first."""
-    joined: list[tuple[int, str]] = []
-    carry = ""
-    start = 0
-    for number, raw in enumerate(text.splitlines(), start=1):
-        line = raw.strip()
-        if not joined and _ESCAPE.match(line):
-            msg = f"line {number}: an escape directive changes what a continuation means"
-            raise DockerfileError(msg)
-        if not line or line.startswith("#"):
-            continue
-        if not carry:
-            start = number
-        if line.endswith(CONTINUES):
-            carry += line[:-1]
-            continue
-        joined.append((start, carry + line))
-        carry = ""
-    if carry:
-        joined.append((start, carry))
-    return joined
 
 
 def _array(number: int, argument: str) -> list[str]:
@@ -116,7 +84,7 @@ def _paths(number: int, argument: str) -> list[str]:
 def read_volumes(text: str) -> tuple[str, ...]:
     """Every container path one Dockerfile declares a VOLUME at, in the order it writes them."""
     found: list[str] = []
-    for number, line in _logical(text):
+    for number, line in logical(text):
         head, _, argument = line.partition(" ")
         if head.upper() != INSTRUCTION:
             continue
@@ -136,32 +104,42 @@ def landings(root: Path, compose: Path, build: Build) -> list[Path]:
 
 
 def undeclared(
-    root: Path, compose: Path, build: Build, reference: str, recorded: tuple[str, ...]
+    root: Path,
+    compose: Path,
+    build: Build,
+    reference: str,
+    recorded: tuple[str, ...],
+    records: Mapping[str, tuple[str, ...]],
 ) -> Reading:
-    """Every path the Dockerfile behind ``reference`` declares that its recorded row lacks."""
+    """Every path the Dockerfile behind ``reference`` declares or inherits that its row lacks."""
     if "$" in build.context or "$" in build.dockerfile:
         written = f"{build.context}/{build.dockerfile}"
-        return Reading((), (_UNRESOLVED.format(reference=reference, written=written),))
+        return Reading((), (), (_UNRESOLVED.format(reference=reference, written=written),))
     found = landings(root, compose, build)
     if not found:
         detail = _NOWHERE.format(
             reference=reference, context=build.context, dockerfile=build.dockerfile
         )
-        return Reading((), (detail,))
+        return Reading((), (), (detail,))
     carried = {normalize(path) for path in recorded}
     read: list[str] = []
+    bases: list[str] = []
     faults: list[str] = []
     for path in found:
         name = Path(os.path.relpath(path, root)).as_posix()
         read.append(name)
         try:
-            paths = read_volumes(path.read_text(encoding="utf-8"))
+            text = path.read_text(encoding="utf-8")
+            paths = read_volumes(text)
+            stands = inherited(name, text, reference, carried, records)
         except (OSError, UnicodeDecodeError, DockerfileError) as err:
             faults.append(_UNREADABLE.format(dockerfile=name, reference=reference, detail=err))
             continue
+        bases.extend(stands.bases)
+        faults.extend(stands.faults)
         faults.extend(
             _UNDECLARED.format(dockerfile=name, path=path_here, reference=reference)
             for path_here in paths
             if path_here not in carried
         )
-    return Reading(tuple(read), tuple(faults))
+    return Reading(tuple(read), tuple(bases), tuple(faults))

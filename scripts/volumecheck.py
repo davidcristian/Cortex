@@ -6,7 +6,7 @@ from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import NamedTuple
 
-from composefiles import COMPOSE_STEMS, ComposeSearchError, compose_files
+from composefiles import ComposeSearchError, base_project, compose_files
 from composeservices import ComposeFile, ComposeServiceError, Service, read_services
 from dockerfilevolumes import undeclared
 from imagevolumes import IMAGE_VOLUMES, RECORD_PATH, Inspector, docker_volumes, report_drift
@@ -22,8 +22,9 @@ _UNRECORDED = (
     "unrecorded image is an unasked question. Run `just image-volumes` to record what it declares."
 )
 _STALE = (
-    "the record has a row for {reference!r}, which no compose file names; a row nothing names is a "
-    "claim nothing can check. Drop the row, or name the image where it belongs."
+    "the record has a row for {reference!r}, which nothing here names, neither a compose service "
+    "nor a Dockerfile these builds stand on; a row nothing names is a claim nothing can check. "
+    "Drop the row, or name the image where it belongs."
 )
 _SUBSTITUTED = (
     "service {service!r} names its image as {reference!r}, and the record is keyed on the image a "
@@ -72,18 +73,6 @@ def read_file(root: Path, compose: Path) -> Read:
     except (OSError, UnicodeDecodeError, ComposeServiceError) as err:
         return Read(path=compose, name=name, found=None, faults=[Fault(name, 0, str(err))])
     return Read(path=compose, name=name, found=found, faults=[])
-
-
-def base_project(reads: Iterable[Read]) -> str | None:
-    """The project name an override with none of its own inherits, taken from the base file."""
-    pinned = [
-        read.found.project
-        for read in reads
-        if read.found is not None
-        and read.found.project is not None
-        and read.path.stem in COMPOSE_STEMS
-    ]
-    return pinned[0] if len(pinned) == 1 else None
 
 
 def uncovered(name: str, service: Service, reference: str, declared: Iterable[str]) -> list[Fault]:
@@ -144,8 +133,9 @@ def check_file(
         paths += len(row)
         faults.extend(uncovered(read.name, service, reference, row))
         if service.build is not None:
-            here = undeclared(root, read.path, service.build, reference, row)
+            here = undeclared(root, read.path, service.build, reference, row, records)
             dockerfiles.extend(here.dockerfiles)
+            names.extend(here.bases)
             faults.extend(Fault(read.name, service.line, detail) for detail in here.faults)
     return Scan(1, definitions, paths, tuple(names), tuple(built), tuple(dockerfiles), faults)
 
@@ -153,7 +143,10 @@ def check_file(
 def check(root: Path, records: Mapping[str, tuple[str, ...]] = IMAGE_VOLUMES) -> Scan:
     """Check every compose file under ``root``, then every recorded row against what they named."""
     reads = [read_file(root, compose) for compose in compose_files(root)]
-    scans = [check_file(root, read, base_project(reads), records) for read in reads]
+    base = base_project(
+        (read.path, read.found.project if read.found is not None else None) for read in reads
+    )
+    scans = [check_file(root, read, base, records) for read in reads]
     named = {name for scan in scans for name in scan.names}
     faults = [fault for scan in scans for fault in scan.faults]
     faults.extend(
@@ -214,8 +207,9 @@ def main(argv: list[str] | None = None, inspect: Inspector = docker_volumes) -> 
     print(
         f"volumecheck OK: {scanned.declared} declared volume path(s) under {given} are covered, "
         f"over {scanned.files} compose file(s), {scanned.definitions} service definition(s) and "
-        f"{len(scanned.names)} image(s), and {len(scanned.dockerfiles)} Dockerfile(s) here declare "
-        "nothing their row does not carry"
+        f"{len(scanned.names)} image(s) counting the bases those builds stand on, and "
+        f"{len(scanned.dockerfiles)} Dockerfile(s) here declare and inherit nothing their row "
+        "does not carry"
     )
     return 0
 
