@@ -18,7 +18,12 @@ pool (the one hard rule).
   keys on that basis may be compared, each kept hit's `id` / `score` / `key` / `tainted`, the
   candidates the rank dropped, and the time. It carries **no text at all**, neither the query nor a
   recalled memory, which is the tool audit's "size not content" stance applied to conversation
-  content. Attached by `CORTEX_MEMORY_RECALL_AUDIT`. A line with no hits is read through its basis
+  content. Attached by `CORTEX_MEMORY_RECALL_AUDIT`. The logger it writes through is declared in
+  the module as `_LOGGER_NAME` rather than spelled inside the `getLogger` call, because this
+  sentence and the two runbooks that turn the trail on and name it restate that name and none of
+  them can import it: `scripts/crosscheck.py` ties all three to the declaration, so a rename here
+  reddens the gate rather than leaving three documents telling an operator to select a trail
+  nothing writes (ADR-0038 named-logger addendum). A line with no hits is read through its basis
   and logs no separate
   flag for one (ADR-0038 abstention addendum): `"basis": "demur"` is the model having read a pool
   and declined all of it, any other basis with empty `hits` is a pool that held nothing to rank, and

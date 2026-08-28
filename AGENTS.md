@@ -279,8 +279,8 @@ scripts/          repo gates, plus the two modules here that gate nothing, contr
                   seamcouplings.py, endpointcouplings.py, shippedcouplings.py,
                   capturecouplings.py, boundscouplings.py, subagentcouplings.py,
                   modelhostcouplings.py, emailcouplings.py, fixturecouplings.py,
-                  overlaycouplings.py and logcouplings.py (the registry
-                  itself, in the eleven parts it is written in, eight split off by the line cap
+                  overlaycouplings.py, logcouplings.py and trailcouplings.py (the registry
+                  itself, in the twelve parts it is written in, nine split off by the line cap
                   and three added as subjects: another tree's code, the address each side answers
                   on, the brain's own shipped
                   defaults, one capture's own numbers, the bounds one delegated run stands
@@ -288,9 +288,10 @@ scripts/          repo gates, plus the two modules here that gate nothing, contr
                   host's tiers, the email
                   sidecar's shipped answers, a measurement fixture against the suite that
                   measures it, the overlay's own
-                  stylesheet, the words one log line is written with, the name
-                  each work identity rides under and the two the recall trail is
-                  found by) + values.py (what a value
+                  stylesheet, the name each work identity rides
+                  under, and the three words one recall-trail line is found by, the logger
+                  it is written through, the message it opens with and the field it is
+                  measured on) + values.py (what a value
                   reduces to and the spelling a mention writes one in) + readings.py (how a
                   constant's readings must then stand) + needles.py (how a rendered needle is
                   looked for, and which of its literals a file that lacks one is told stopped

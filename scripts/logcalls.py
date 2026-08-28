@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 from typing import NamedTuple
 
+from moduleconstants import constants
 from skippeddirs import SKIPPED_DIRS
 
 # Where the brain's importable source lives, and the directory each package puts it under. Only
@@ -13,9 +14,9 @@ from skippeddirs import SKIPPED_DIRS
 BRAIN_PACKAGES = Path("brain/packages")
 SOURCE_DIR = "src"
 
-# How a module claims a logger, in the two spellings the brain uses. `__name__` resolves to the
-# module's own dotted path; a literal is the name itself.
-GET_LOGGER = re.compile(r"getLogger\(\s*(?:__name__|\"(?P<named>[^\"]+)\")\s*\)")
+GET_LOGGER = re.compile(
+    r"getLogger\(\s*(?:__name__|\"(?P<named>[^\"]+)\"|(?P<bound>[A-Za-z_]\w*))\s*\)"
+)
 
 # The keyword a call attaches its fields under, which is the stdlib's own name for them.
 EXTRA = "extra"
@@ -83,6 +84,31 @@ def dotted(relative: Path) -> str:
     return ".".join(parts)
 
 
+def _parsed(text: str, shown: str) -> ast.Module:
+    """Parse one brain module, naming it when what it holds is not Python at all."""
+    try:
+        return ast.parse(text)
+    except SyntaxError as err:
+        msg = f"cannot parse {shown}: {err}"
+        raise LogCallError(msg) from err
+
+
+def claimed(claim: re.Match[str], text: str, inside: Path, shown: str) -> str:
+    """The logger name one ``getLogger`` call claims, in whichever spelling it claims it."""
+    named = claim["named"]
+    if named is not None:
+        return named
+    bound = claim["bound"]
+    if bound is None:
+        return dotted(inside)
+    strings, _ = constants(_parsed(text, shown))
+    resolved = strings.get(bound)
+    if resolved is None:
+        msg = f"{shown} names its logger {bound}, which its own top level binds to no string"
+        raise LogCallError(msg)
+    return resolved
+
+
 def loggers(root: Path) -> dict[str, str]:
     """Every logger name the brain declares, against the repo-relative file that declares it."""
     found: dict[str, str] = {}
@@ -92,8 +118,9 @@ def loggers(root: Path) -> dict[str, str]:
             if SKIPPED_DIRS & set(inside.parts):
                 continue
             shown = module.relative_to(root).as_posix()
-            for claim in GET_LOGGER.finditer(_read(module, shown)):
-                name = claim["named"] or dotted(inside)
+            text = _read(module, shown)
+            for claim in GET_LOGGER.finditer(text):
+                name = claimed(claim, text, inside, shown)
                 if name in found:
                     msg = f"{shown} and {found[name]} both declare the logger {name!r}"
                     raise LogCallError(msg)
@@ -162,11 +189,7 @@ def _absent(tree: ast.Module, message: str, shown: str) -> str:
 
 def logged(text: str, message: str, shown: str) -> LogCall:
     """The one call in ``text`` that logs ``message``, or a fault naming what was found instead."""
-    try:
-        tree = ast.parse(text)
-    except SyntaxError as err:
-        msg = f"cannot parse {shown}: {err}"
-        raise LogCallError(msg) from err
+    tree = _parsed(text, shown)
     found = [call for node in ast.walk(tree) if (call := _message_call(node, message)) is not None]
     if not found:
         raise LogCallError(_absent(tree, message, shown))

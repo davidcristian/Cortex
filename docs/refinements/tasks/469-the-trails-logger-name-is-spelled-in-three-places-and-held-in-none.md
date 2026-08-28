@@ -1,9 +1,7 @@
 # The trail's logger name is spelled in three places and held in none
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-08-28
 **Area:** repo-gates
-**Trigger:** the sink's logger is renamed, or a third document tells an operator to select the
-trail by logger name
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
 
 Opened 2026-08-27 by the close of
@@ -36,3 +34,24 @@ the gap is only the sentences that name a logger without printing a line under i
 - 2026-08-27: opened by the close of
   [R-454](454-the-readers-needles-are-not-tied-to-the-sink.md), whose needle for the message is
   written as the emitting call precisely so that it cannot be satisfied by this name.
+- 2026-08-28: **landed**, as the [ADR-0038 named-logger
+  addendum](../../adr/ADR-0038-ranked-recall.md) and an entry in `scripts/trailcouplings.py`, a new
+  registry part the split took: the logger brought `logcouplings.py` past the line cap, so the
+  recall trail's three words moved into a part of their own, on the seam that file's docstring had
+  drawn between one word across the brain and one line on one stream. The sink declares
+  `_LOGGER_NAME` and the two runbooks and the module contract hold the mentions.
+  **Both halves of this entry's account were stale.** The reopen trigger named a third document
+  telling an operator to select the trail by logger name, and `docs/modules/brain-memory.md` had
+  been that document since the trail landed, three weeks before the entry was written: the
+  condition to revisit was met before the entry existed. And a rename was never green everywhere.
+  Nine of the memory package's forty checks read a line back through `caplog` under this
+  name, so the rename is loud in the tree that writes the trail and silent in the three documents
+  that read it, which is what
+  makes leaving the documents behind plausible: the suite goes green again the moment the tests
+  move onto the new name. The `samplecheck.py` alternative the entry asked to weigh first was
+  measured and declined, because finding a logger name in a document by its shape also finds
+  `cortex.seam.v1` and `cortex.dump`, and reaching the module-path loggers two runbooks name would
+  reach every module reference in every module contract. `scripts/logcalls.py` learned the third
+  spelling of a logger claim in the same slice, so the trail does not drop out of the sample gate's
+  answer the day it gains a declaration. Opened by this close:
+  [R-486](486-the-tool-audits-logger-name-is-spelled-in-four-places-and-held-in-none.md).

@@ -4,7 +4,9 @@ import logging
 
 from cortex_core import RecallAudit
 
-_logger = logging.getLogger("cortex.memory.recall")
+_LOGGER_NAME = "cortex.memory.recall"
+
+_logger = logging.getLogger(_LOGGER_NAME)
 
 
 class LoggingRecallSink:

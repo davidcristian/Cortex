@@ -20,13 +20,13 @@ by the CI
 workflow, `commitlint.py` by the commit-msg pre-commit stage, `contrast.py` by `just turn-cost`
 and `trailwidth.py` by `just recall-width`;
 each also exposes a pure, unit-tested core function).
-**The rest have no CLI of their own**, forty modules,
+**The rest have no CLI of their own**, forty two modules,
 most split out under the line cap and each named for what it holds: `couplings.py` is the
 vocabulary `crosscheck.py`'s registry is written in, `registry.py` names the parts that registry is
 written in, and `seamcouplings.py`, `endpointcouplings.py`, `shippedcouplings.py`,
 `boundscouplings.py`, `subagentcouplings.py`,
 `modelhostcouplings.py`, `emailcouplings.py`, `fixturecouplings.py`, `capturecouplings.py`,
-`overlaycouplings.py` and `logcouplings.py` are those parts, `values.py`
+`overlaycouplings.py`, `logcouplings.py` and `trailcouplings.py` are those parts, `values.py`
 is the value forms that scan compares on and the spellings a mention writes one in, `readings.py`
 is how a set of those values must then stand, `needles.py` is how a rendered needle is looked for
 and what a file that lacks one is told, `composemounts.py` is `bindcheck.py`'s mount
@@ -116,32 +116,36 @@ that last question to have an answer.
   `SEAM_COUPLINGS`, then `ENDPOINT_COUPLINGS`, `SHIPPED_COUPLINGS`, `CAPTURE_COUPLINGS`,
   `BOUNDS_COUPLINGS`, `SUBAGENT_COUPLINGS`,
   `MODELHOST_COUPLINGS`, `EMAIL_COUPLINGS`, `FIXTURE_COUPLINGS`, `OVERLAY_COUPLINGS`, then
-  `LOG_COUPLINGS`. Each part is named for its subject: couplings whose far side is another
-  tree's code across the language boundary; the address and port each side answers on, with every
-  file that dials or states one; the brain container's own shipped defaults, restated
-  by a compose default, a runbook row or a module contract; one capture's own edge, byte budget
-  and deadlines, which are that same kind narrowed to a single request; the four bounds one
-  delegated run stands between, each held to the runbook and the module contract that quote it and
-  to no stack at all, since nothing under `docker/` ships one of them; the subagent tier's
+  `LOG_COUPLINGS` and `TRAIL_COUPLINGS`. Each part is named for its subject: couplings whose
+  far side is another tree's code across the language boundary; the address and port each side
+  answers on, with every file that dials or states one; the brain container's own shipped
+  defaults, restated by a compose default, a runbook row or a module contract; one capture's
+  own edge, byte budget and deadlines, which are that same kind narrowed to a single request;
+  the four bounds one delegated run stands between, each held to the runbook and the module
+  contract that quote it and to no stack at all, since nothing under `docker/` ships one of
+  them; the subagent tier's
   admission budgets with the cgroup limits that are their hard twins,
   and the reasoning-off flag pair every server in that tier starts with, held as one
   needle whose value is the budget's count and whose shape is the two flag names around it; the model-host tier settings
   and the
   override that ships them; the email sidecar's three safety answers and the override that spells
   each again; a stack built to be measured against and the suite that measures it, the one subject
-  the repo does not ship; the overlay's TypeScript against its own stylesheet; and the brain's log
+  the repo does not ship; the overlay's TypeScript against its own stylesheet; the brain's log
   vocabulary, the one name each work identity is written under, against every line that spells it
-  and every runbook that tells an operator to grep it, the only part whose subject is a name a line
-  is written with rather than a value one carries (ADR-0009 one-vocabulary addendum). Its turn
-  entry also holds the one
-  qualified spelling in the brain, the second turn named on a single line, through a template that
-  renders the qualifier in front of the same declared value, so a rename of the family cannot leave
-  the qualified name behind (sixth-name addendum). Its last two entries hold the other two words of
-  that vocabulary, the message and the field name `trailwidth.py` spells to find and cut the recall
-  trail's widest value out of a captured line, and they are the one place in the registry where the
-  DECLARING side gates nothing: a reader run by hand on a GPU is exactly the far side no suite
-  would notice moving, which is the argument the fixture part already makes for a subject nothing
-  ships (ADR-0038 tied-needle addendum). Some arrived as
+  and every runbook that tells an operator to grep it, the first of the two parts whose subject
+  is a name a line is written with rather than a value one carries (ADR-0009 one-vocabulary
+  addendum), whose turn entry also holds the one qualified spelling in the brain, the second
+  turn named on a single line, through a template that renders the qualifier in front of the
+  same declared value, so a rename of the family cannot leave the qualified name behind
+  (sixth-name addendum); and the second such part, the three words one recall-trail line is
+  found by, which are one line's where the vocabulary next door is one word's
+  across the brain: the logger it is written through, held to the two runbooks and the module
+  contract that restate it (ADR-0038 named-logger addendum), and the message and the field name
+  `trailwidth.py` spells to find and cut the recall trail's widest value out of a captured line.
+  Those two are the one place in the registry where the DECLARING side gates nothing: a reader
+  run by hand on a GPU is exactly the far side no suite would notice moving, which is the
+  argument the fixture part already makes for a subject nothing ships (ADR-0038 tied-needle
+  addendum). Some arrived as
   splits under the cap and some as subjects added beside them, which is the one-line claim being
   paid from both directions rather than argued.
   `couplings.py` is the vocabulary every part is written in, left behind when each moved out
@@ -652,10 +656,15 @@ that last question to have an answer.
   **parses** Python rather than matching it: an `extra=` dict spans five lines at the failed
   settle, and a brace counter written to follow that is a Python parser with the corners missing.
   `ast` executes nothing, so the seam ADR-0009 declined to open, an import of the brain from
-  `scripts/`, stays shut. Logger names are collected from both spellings the brain uses,
+  `scripts/`, stays shut. Logger names are collected from every spelling the brain uses,
   `getLogger(__name__)` resolving to the module's own dotted path (a package barrel claiming the
-  package name) and a literal being the name itself, which is how the recall trail and the tool
-  audit name themselves; a name two files claim is a fault. Only each package's `src/` is walked,
+  package name), a literal being the name itself, which is how the tool audit names itself, and a
+  bare identifier being a name the same module bound above the call, which is how the recall trail
+  names itself now that three documents restate that name and the constant registry ties them to
+  the declaration (ADR-0038 named-logger addendum). The third spelling is resolved against that
+  module's own top level, by `moduleconstants.py`, and nothing wider: a name imported from
+  elsewhere is refused with the name in the fault rather than chased, chasing one being the import
+  this tree may not make. A name two files claim is a fault. Only each package's `src/` is walked,
   a package's tests sitting beside it. Fields come back sorted, which is not this reader
   rearranging an answer but restating `render_fields`, whose sort is what makes the printed order
   a function of the key set. A message no call logs, a message logged twice, an `extra=` that is
