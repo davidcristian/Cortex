@@ -1,6 +1,6 @@
 # The sentence every constrained subagent now carries is measured on one pick
 
-**Status:** open, actionable
+**Status:** landed 2026-08-28
 **Area:** subagents
 **Origin:** [ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md)
 
@@ -40,3 +40,39 @@ alternate too and the record simply gains a second pick; it does nothing there, 
 constant is the default pick's and the roster entry is where a per-entry wording would belong; or it
 costs the alternate, which would make this a `SubagentProfile` field rather than a module constant
 and is the only outcome that moves code.
+
+## Trail
+
+- 2026-08-28: opened by the close of
+  [R-476](476-the-envelopes-answer-rate-is-an-instruction.md), which shipped a sentence to every
+  roster entry on 288 runs of one of them.
+- 2026-08-28: Landed. Two more subagent-tier entries were asked the same question through the same
+  committed harness, the same four bodies, the same three subtask shapes, the same eight draws and
+  the same `-ngl 99` substitution: the **Qwen3.5-2B roster alternate** and **gemma-4-E2B**, 288 runs
+  each, **576 in all**, on llama.cpp `b10644-d7a207411`. The reading is the
+  [ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md) lineup addendum, with the
+  selection consequence at [ADR-0004](../../adr/ADR-0004-model-lineup.md), the engine half at
+  [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)'s lineup section and the operator half in the
+  subagent runbook. **The repair does not generalise, because the defect does not.** On the roster
+  alternate the bare envelope answers a summarization on 30 of 32 where the default pick answers on
+  9, so there was no narration there to take back; the sentence still helps it overall, 76 of 96 to
+  83 of 96, but on the extraction shape rather than the summarization one, and the intervals overlap
+  enough that the honest claim is a small help and certainly not a cost. **The third outcome this
+  entry named fired, on the other pick.** gemma-4-E2B is worse with the sentence than without it
+  taken over all three shapes, 84 of 96 against 90 of 96: it recovers the narrating shape completely,
+  27 of 32 to 32 of 32, and loses an extraction from 32 to 28 and a one-fact lookup from 31 to 24.
+  Nothing shipped stands on it, the default and the roster alternate both being on the paying side,
+  but one `CORTEX_MODEL_FILE_SUBAGENT` reaches it and nothing warned.
+  Two mechanisms behind that, both counted as rates over draws. The reasoning residue is **0 of 96
+  on the roster alternate**, on every arm and every shape, against 8 of 96 on the default pick and
+  **14 of 96 on the E2B**, which is exactly the order the ADR-0005 lineup section's template column
+  put the three picks in before any of this was decoded, so that column is now a rate and not only a
+  rendering. And the roster alternate's own failures are a different thing entirely: no trace at all,
+  10 capped runs that are a degenerate repetition inside `reply`, and **8 of its 13 constrained
+  non-deliveries still `ok=True`**, so the instruction addendum's "not one failed quietly" is the
+  default pick's reading and not the tier's.
+  Opened by it: [R-482](482-the-sentence-is-one-wording-for-every-entry.md), the remedy, and
+  [R-483](483-the-rest-of-the-subagent-tier-is-unasked.md), the three entries of this tier that were
+  not reached tonight. [R-480](480-a-narrated-reply-arrives-as-an-answer.md) is amended rather than
+  reopened: its trigger was written as an answer rate, and the answer rate turns out not to predict
+  the quiet failures it stands for.

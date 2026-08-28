@@ -1992,7 +1992,12 @@ Use-case:
   `REPLY_INSTRUCTION` is that sentence and `instruct_reply(instruction)` appends it, both of them
   beside the grammar because they are one contract said twice, once to the server and once to the
   model (ADR-0028 instruction addendum). It is the constrained path's alone; an unconstrained
-  subagent is asked what the cortex wrote and nothing more. **The sentence is not a detector**: a
+  subagent is asked what the cortex wrote and nothing more. **It is also one wording for every
+  roster entry, and the entries do not agree about it** (ADR-0028 lineup addendum): the narration it
+  repairs is the default pick's, the roster alternate barely narrates without it, and one other
+  entry of the same tier answers less often with it than without. Nothing in `SubagentProfile`
+  carries a wording, so a per-entry sentence would be a port change and is
+  [R-482](../refinements/tasks/482-the-sentence-is-one-wording-for-every-entry.md). **The sentence is not a detector**: a
   plan that still arrives in `reply` is `ok=True`, because nothing in the core can tell a plan from
   an answer without judging prose, and a judge that misfires costs an answer the cortex had
   ([R-480](../refinements/tasks/480-a-narrated-reply-arrives-as-an-answer.md)).
