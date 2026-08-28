@@ -4,7 +4,7 @@
 (ADR-0005), and whether the model then skips its deliberation is not the caller's to know. It is
 decided behind the endpoint, and measured here it is decided **per request shape**: on one shipped
 pick the switch holds whatever the request carries, and on the other it holds on a plain request
-and does nothing at all on one carrying a `response_format`.
+and mostly does nothing on one carrying a `response_format`.
 
 That matters because four shipped `GenerationBounds` pair a cap sized on the wanted answer with
 that switch, and one of them (the recall rank's) carries a schema too. On a shape where the switch
@@ -29,21 +29,36 @@ identical, and a later reading of the same kind concluded the switch was dead on
 it is not. So the arms that send no switch must deliberate, per shape, and that is an assertion
 here rather than a line to read past.
 
-Measured 2026-08-27 by the agent, one run per cell, both tiers this repo ships, each server
-started with neither flag, at a cap of 256, each cell reading trace characters then reply
-characters:
+**And one draw is not a reading.** `CORTEX_THINKING_REPEATS` sets how many times each cell is
+drawn. It defaults to 1 so the command above still answers in a coffee break, and a number quoted
+anywhere as a tier's behaviour is drawn 5 times or more, because the first reading of the subagent
+row below was a single draw of a cell that turns out to split 4 to 1.
+
+Measured 2026-08-28 by the agent at 5 draws a cell, both tiers this repo ships, each server started
+with neither flag on llama.cpp `b10644-d7a207411`, at a cap of 256, each cell counting the draws
+that deliberated:
 
 | tier | plain, no switch | plain, switch | envelope, no switch | envelope, switch |
 | --- | --- | --- | --- | --- |
-| cortex, gemma-4-12B QAT q4_0, `-ngl 99` | 735, 0 | 0, 693 | 685, 0 | **0, 611** |
-| subagent, gemma-4-E4B QAT q4_0, `-ngl 0` | 654, 0 | 0, 726 | 599, 0 | **664, 0** |
+| cortex, gemma-4-12B QAT q4_0, `-ngl 99` | 5/5 | 0/5 | 5/5 | **0/5** |
+| subagent, gemma-4-E4B QAT q4_0, `-ngl 0` | 5/5 | 0/5 | 5/5 | **4/5** |
 
 The two right-hand columns are the finding. Both picks honour the switch on a plain request, and
-under the envelope the E4B deliberates through it and spends the whole cap doing so, which is the
-capped empty reply a delegated run was reaching the cortex with. The cortex row is what rules out
-the simplest explanation, that a `response_format` costs a request its `chat_template_kwargs`
-before any template sees them: same build, same code path, and that row is silent. The full
-numbers are in the addendum.
+under the envelope the E4B mostly deliberates through it and spends the whole cap doing so, which
+is the capped empty reply a delegated run was reaching the cortex with.
+
+**Why, which is what the rendered-prompt lines this probe prints ahead of the cells are for.**
+A `response_format` does not
+change the chat format and does not reach the template at all; what it changes is that llama.cpp
+builds a grammar, and the gemma-4 handler's root for one is a start, then an optional thought, then
+the fenced JSON payload: it leaves the model's reasoning channel open as the only continuation that
+admits prose. It
+builds that alternative without reading `enable_thinking`, so on a constrained request the switch's
+only lever is whatever the template itself renders, and the two picks differ there: the cortex's
+answers "do not think" by opening and closing an empty thought in the prompt, and the E4B's by
+dropping a marker and adding nothing. The full account is in the ADR-0005 switch-is-advisory
+addendum's mechanism section; the grammar itself is not on any endpoint, and is read by starting
+the server with `--verbose` and grepping its log for `Grammar` and `chat format:`.
 """
 
 import os
@@ -67,6 +82,7 @@ from cortex_core import (
 )
 from cortex_core.subagent_reply import REPLY_ENVELOPE
 from cortex_inference import LlamaCppBackend
+from cortex_inference.request import build_payload
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
@@ -80,6 +96,12 @@ _CAP = int(os.environ.get("CORTEX_THINKING_MAX_TOKENS", "256"))
 # what the model was deliberating about, and on a cell that spent its whole cap there, what it was
 # writing is the difference between a model thinking and a model narrating the task.
 _HEAD = int(os.environ.get("CORTEX_THINKING_HEAD", "160"))
+# How many draws each cell is. Sampling here is the server's own default, so one draw is one
+# sample of a distribution and not a reading of it: the entry this file's addendum came from was
+# closed the first time on a single draw that happened to say the wrong thing. The default stays
+# 1 so the runbook's one-command form still answers in a coffee break, and anything reported as a
+# tier's behaviour is run at 5 or more.
+_REPEATS = int(os.environ.get("CORTEX_THINKING_REPEATS", "1"))
 
 # A question with a few steps in it, because the control has to fire. Short enough that a 4B model
 # on a CPU answers inside a minute, and not a lookup: a prompt whose answer is one token invites no
@@ -150,33 +172,100 @@ async def _run(
     return cell
 
 
+async def _rendered(client: httpx.AsyncClient, schema: JsonSchema | None, *, switch: bool) -> str:
+    """The prompt this deployment's own chat template makes of that request, asked not inferred.
+
+    ``POST /apply-template`` runs the template over the body the adapter would have sent and hands
+    back the text the model will really see, which is the one half of the engine's side that is
+    readable over HTTP. It separates the two things a silent switch can mean, a key that never
+    reached the template and a template that read it and a model that deliberated anyway, and it
+    is what says a difference between the two request shapes is not a difference in their prompts.
+    """
+    messages = [Message(role=Role.USER, text=_ASK, at=datetime.now(UTC), turn_id="t-switch")]
+    bounds = GenerationBounds(max_tokens=_CAP, thinking=not switch)
+    payload = build_payload(_MODEL, messages, (), schema, bounds)
+    response = await client.post(f"{_ENDPOINT}/apply-template", json=payload)
+    response.raise_for_status()
+    prompt = response.json()["prompt"]
+    assert isinstance(prompt, str)
+    return prompt
+
+
+async def _read_prompts(client: httpx.AsyncClient) -> None:
+    """What the template does with each of the four request shapes, before any token is decoded.
+
+    Two readings come out of it. The schema must not reach the template at all, meaning the two
+    shapes carrying the same switch render the same prompt; that is asserted, because a tier where
+    it fails is a tier whose four cells are comparing two different prompts and whose verdict below
+    would name the wrong cause. Whether the **switch** reaches the template is printed rather than
+    asserted, both answers being real deployments, and it is the line to read first when a verdict
+    says the switch holds: a template that never read the key cannot be why a trace stopped.
+    """
+    for switch in (False, True):
+        prompts = {
+            shape: await _rendered(client, schema, switch=switch) for shape, schema in _SHAPES
+        }
+        rendered = set(prompts.values())
+        assert len(rendered) == 1, (
+            f"the request shapes render different prompts with the switch "
+            f"{'sent' if switch else 'left alone'}, so a difference between their cells below is "
+            f"a difference of prompt rather than of what a schema does: {prompts}"
+        )
+    plain, switched = (
+        await _rendered(client, None, switch=False),
+        await _rendered(client, None, switch=True),
+    )
+    reads = "reads" if plain != switched else "IGNORES"
+    print(f"template  {reads} the switch ({len(plain)} chars against {len(switched)})")  # noqa: T201
+    print("shapes    render one prompt per switch, so the schema never reaches the template")  # noqa: T201
+
+
 async def test_which_request_shapes_this_tier_honours_the_thinking_switch_on() -> None:
-    """Four cells: two request shapes, each sent with the switch and without it.
+    """Four cells, each drawn ``CORTEX_THINKING_REPEATS`` times: two request shapes, each sent
+    with the switch and without it.
 
     What comes out is a verdict per shape, plus the control that makes it a measurement rather than
     an anecdote: a request that sent no switch must have deliberated, or this prompt invites no
-    thought on this tier and nothing here is about the switch.
+    thought on this tier and nothing here is about the switch. Every draw of that arm has to, since
+    a cell is a set of samples of a sampling model and one of them saying the convenient thing is
+    how the reading before this one went wrong.
 
     The verdicts are printed and not asserted, because both answers are real deployments and this
     file cannot know which one it is pointed at. What it asserts besides the control is that every
     cell was really served, a completion with no timings being a cell that says nothing.
     """
-    print(f"\n{_MODEL} at {_ENDPOINT}, cap {_CAP}, no server-side reasoning flags:")  # noqa: T201
-    cells: dict[tuple[str, bool], _Cell] = {}
+    print(  # noqa: T201
+        f"\n{_MODEL} at {_ENDPOINT}, cap {_CAP}, {_REPEATS} draws a cell, "
+        f"no server-side reasoning flags:"
+    )
+    draws: dict[tuple[str, bool], list[_Cell]] = {}
     async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, read=None)) as client:
+        await _read_prompts(client)
         for shape, schema in _SHAPES:
             for switch in (False, True):
-                cells[shape, switch] = await _run(client, shape, schema, switch=switch)
+                cells = [await _run(client, shape, schema, switch=switch) for _ in range(_REPEATS)]
+                draws[shape, switch] = cells
 
     print()  # noqa: T201
     for shape, _ in _SHAPES:
-        control, switched = cells[shape, False], cells[shape, True]
-        assert control.reasoning_chars > 0, (
-            f"the {shape} arm deliberated not at all with the switch left alone, so this prompt "
-            f"invites no thought on {_MODEL} and this run says nothing about the switch"
+        control, switched = draws[shape, False], draws[shape, True]
+        quiet = [cell for cell in control if cell.reasoning_chars == 0]
+        assert not quiet, (
+            f"{len(quiet)} of {_REPEATS} {shape} draws deliberated not at all with the switch left "
+            f"alone, so this prompt invites no thought on {_MODEL} and this run says nothing "
+            f"about the switch"
         )
-        verdict = "holds" if switched.reasoning_chars == 0 else "does nothing"
+        thought = sum(1 for cell in switched if cell.reasoning_chars > 0)
+        verdict = (
+            "holds"
+            if thought == 0
+            else "does nothing"
+            if thought == _REPEATS
+            else f"holds on {_REPEATS - thought} of {_REPEATS} draws"
+        )
         print(f"{shape:<9} the switch {verdict} on {_MODEL}")  # noqa: T201
-    assert all(cell.tokens is not None for cell in cells.values()), (
-        f"a cell reported no timings, so it was not served: {[c.line() for c in cells.values()]}"
+    served = [cell for cells in draws.values() for cell in cells]
+    assert all(cell.tokens is not None for cell in served), (
+        f"a cell reported no timings, so it was not served: "
+        f"{[c.line() for c in served if c.tokens is None]}"
     )

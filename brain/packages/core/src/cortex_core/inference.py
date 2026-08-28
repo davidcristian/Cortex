@@ -139,9 +139,12 @@ class GenerationBounds:
     renders as ``chat_template_kwargs: {"enable_thinking": false}``, which reaches a template this
     value knows nothing about, and whether the model then skips its trace was measured to depend on
     the shape of the request carrying it: on the shipped cortex pick the switch holds plain and
-    constrained alike, and on the shipped subagent pick it holds on a plain request and does
-    nothing at all on one carrying a ``response_format``, where the model deliberates through it
-    and spends the whole cap doing so. So what makes a cap sized from the wanted answer safe is a
+    constrained alike, and on the shipped subagent pick it holds on a plain request and is a coin
+    toss on one carrying a ``response_format``, where the model deliberates through it on 4 draws
+    in 5 and spends the whole cap doing so. The cause is a template this value cannot see: a
+    ``response_format`` makes llama.cpp build a grammar that leaves the model's thought open, and
+    only one of the two picks' templates has already closed it. So a cap sized from the wanted
+    answer is made safe by neither this value nor the pick, but by a
     **bounded trace**, of which this switch is the cheapest source and not a dependable one. The
     dependable one is the tier's own ``--reasoning-budget`` (ADR-0005 trace-budget addendum), which
     ends the thought at the engine whatever the model wants, and which every subagent server this

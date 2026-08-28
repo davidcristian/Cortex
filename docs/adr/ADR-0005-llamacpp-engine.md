@@ -1481,7 +1481,10 @@ Setting 'enable_thinking' via --chat-template-kwargs is deprecated. Use --reason
 
 ## Switch-is-advisory addendum (2026-08-27): which request shapes a thinking switch survives
 
-**Status:** Accepted. Closes
+**Status:** Accepted, and extended 2026-08-28 by the mechanism section below, which names what
+reading 4 could only say was decided out of sight and closes
+[docs/refinements/tasks/464-why-a-grammar-restores-the-trace.md](../refinements/tasks/464-why-a-grammar-restores-the-trace.md).
+Closes
 [docs/refinements/tasks/458-the-ports-thinking-switch-is-conditional.md](../refinements/tasks/458-the-ports-thinking-switch-is-conditional.md),
 which the thinking-lever addendum above opened as its own residue, and **corrects that addendum's
 account of the defect it fixed**. The repair it shipped is right and does not move. The mechanism
@@ -1529,13 +1532,20 @@ either one is the deployment answering the question for the model. One run per c
 | cortex, gemma-4-12B QAT q4_0, `-ngl 99 -c 16384` | 735, 0 | 0, 693 | 685, 0 | **0, 611** |
 | subagent, gemma-4-E4B QAT q4_0, `-ngl 0 -c 8192` | 654, 0 | 0, 726 | 599, 0 | **664, 0** |
 
+Every cell of that table is one draw, and the E4B's bold one is the cell that does not repeat: at
+five draws it splits 4 to 1 rather than landing every time, which the mechanism section below
+re-measures and explains. Every other cell here is 5 of 5 the way it reads, so only the first of the
+four readings needs the qualifier, and it is the one that is strengthened rather than weakened by it.
+
 Four readings decide everything below.
 
 1. **The switch is conditional on the request's shape, and the entry was right.** On the E4B pick
    the same key, on the same server, in the same minute, suppresses the whole trace on a plain
    request and suppresses nothing at all under a `response_format`, where the model deliberates
    through it and spends the entire cap doing so. That last cell is the defect the envelope
-   addendum measured, reproduced in isolation: 664 characters of trace, zero of reply, capped.
+   addendum measured, reproduced in isolation: 664 characters of trace, zero of reply, capped. Read
+   at five draws it is 4 of 5 rather than every time, which says the same thing more sharply: a
+   switch that a request shape reduces to a coin toss is not a switch.
 2. **It is not the plumbing.** The obvious explanation, that a `response_format` costs a request
    its `chat_template_kwargs` before any template sees them, is refuted by the cortex row: same
    build, same adapter, same code path, and its constrained arm is silent. The key arrives. What
@@ -1546,7 +1556,9 @@ Four readings decide everything below.
 4. **Both picks agree on the plain shape and disagree on the constrained one**, so neither
    "the template reads it" nor "the shape decides it" is the whole rule. The honest statement is
    the small one: whether a switch holds is decided behind the endpoint, per pick and per shape,
-   and no caller can see which.
+   and no caller can see which. **Read a day later** in the mechanism section below, which names
+   what decides it: the two picks ship different chat templates, and only one of them closes the
+   thought in the prompt when it is told not to think.
 
 ### Why the addendum above could not have seen this
 
@@ -1572,6 +1584,94 @@ than read. That is an assertion in the probe and not a line of output, for exact
 None of this changes what shipped. `--reasoning-budget 0` remains the only lever that reaches the
 constrained shape on the E4B pick, every subagent server still carries it, and the per-request key
 that was built and reverted would still have bought nothing. Only the sentence explaining why.
+
+### The mechanism, read off the engine (2026-08-28)
+
+Reading 4 above is where this stopped: whether a switch holds is decided behind the endpoint, and
+no caller can see which. This is that decision, read rather than inferred. Measured by the agent on
+`ghcr.io/ggml-org/llama.cpp@sha256:9f84380be42d6285a827629c809387349c3541aa8986f7536547ca33cc8dd47a`
+(the CPU `server` image the subagent tier runs) and
+`@sha256:9f0a986a78ab9261afc3266c807c16933ee4c26c62cb063f0c17f8da890f6c7e` (the `server-cuda` image
+the model host is built on), both reporting `b10644-d7a207411`, each pick's server started with
+neither reasoning flag and with `--verbose` so it prints the format and the grammar it chose.
+
+**The reading is at five draws a cell, and the repeats change it.** Through the same committed
+probe at `CORTEX_THINKING_REPEATS=5`, one prompt four ways, trace characters then reply characters
+per draw:
+
+| tier | plain, no switch | plain, switch | envelope, no switch | envelope, switch |
+| --- | --- | --- | --- | --- |
+| cortex, gemma-4-12B QAT q4_0, `-ngl 99 -c 16384` | 5/5 deliberated | 0/5 | 5/5 | **0/5** |
+| subagent, gemma-4-E4B QAT q4_0, `-ngl 0 -c 8192` | 5/5 deliberated | 0/5 | 5/5 | **4/5** |
+
+The phenomenon reproduces, and the one draw it was recorded from was reading a **tendency as a
+rule**: on the E4B's constrained arm the switch holds on 1 draw in 5 rather than on none. That is
+the shape of the cause below, where the trace is one of two branches the model may take.
+
+Three readings say why, in the order the entry asked for them.
+
+1. **The chat format does not change.** `peg-gemma4` on all 54 requests of this session across both
+   picks, with a `json_schema` and without. A schema does not send the request down another handler.
+2. **The prompt does not change either**, asked of each server itself through `POST /apply-template`
+   rather than reasoned about: for one pick and one value of the switch, the plain shape and the
+   constrained shape render **byte-identical** prompts. Only the switch moves a prompt. That is the
+   direct form of what the cortex row could only infer, and the probe now asserts it, because a tier
+   where it fails is a tier whose four cells are comparing two prompts.
+3. **What the schema changes is that a grammar is built at all.** `common_chat_params_init_gemma4`
+   builds one only for a request carrying a schema or tools, so a plain request here is decoded
+   unconstrained: 12 plain requests, no grammar, against 22 constrained ones each carrying this root,
+   byte-identical across both picks and both values of the switch:
+
+   ````
+   root ::= start (thought | )? "```json" space response-format-schema space "```"
+   thought ::= "<|channel>thought" space until-5 "<channel|>"
+   start ::= "<|turn>model\n"?
+   ````
+
+So the reasoning section is not forced open. It is **held** open, as one of the two continuations
+the grammar allows at the first token, and it is the only one that admits prose: under that root a
+model that would rather explain itself than emit a fence has exactly one legal place to do it. The
+handler builds that alternative without ever reading `enable_thinking`, which is a template variable
+and reaches the template alone. Sibling handlers in the same file do read it, gating their reasoning
+rule on `extract_reasoning && inputs.enable_thinking`, so this is an omission in one handler rather
+than a property of constrained decoding.
+
+**And the difference between the picks is the template, not the model.** The two GGUFs ship
+different chat templates, and with the switch sent they render different prompts, read here off the
+slots the servers really launched:
+
+```
+cortex, 12B     …What does each of them pay?<turn|>\n<|turn>model\n<|channel>thought\n<channel|>
+subagent, E4B   …What does each of them pay?<turn|>\n<|turn>model\n
+```
+
+The cortex's template answers "do not think" by **opening and closing an empty thought** before the
+model writes a token. The E4B's answers by dropping the `<|think|>` marker and adding nothing. On a
+plain request that is the same answer, because no grammar is in play and the missing marker is
+enough for both picks, 5 draws of 5. On a constrained request the grammar re-offers the door, and
+only the cortex's prompt has already shut it: its optional `thought` is spent, and the fenced
+payload is all that is left. The E4B is simply still standing in front of an open door it was asked
+not to walk through, and it walks through 4 times in 5.
+
+**So it is an engine behaviour, and the model is doing nothing surprising.** Naming that changes no
+code here, for the reason the entry was left: the dependable lever is the tier's
+`--reasoning-budget`, which is a **sampler** rather than a prompt or a grammar. It watches for the
+thought's start sequence and forces its end tag, so it reaches every request shape by construction,
+and it is what every subagent server carries.
+
+**There is now a per-request one, which is this reading's own residue.** On this build the server
+reads `reasoning_budget_tokens` (or `thinking_budget_tokens`) off the request body, falling back to
+the tier's flag only when the request says `-1`. Sent as `0` on the exact cell that fails, the E4B's
+constrained request with the switch, it holds on **5 draws of 5**, each returning the envelope. The
+spelling this ADR's trace-budget addendum measured and recorded as ignored, `reasoning_budget`, is
+still ignored on the same build in the same minute: 4 draws of 5 deliberated, which is the arm's own
+baseline, and the server logged `reasoning budget: tokens=-1` for every one of them. That addendum's
+sentence is therefore right about the name it tried and no longer right about the engine, and the
+trigger recorded on
+[docs/refinements/tasks/295-per-request-trace-budget.md](../refinements/tasks/295-per-request-trace-budget.md)
+has fired. Rendering the port's switch as that key rather than only as the template kwarg is
+[R-474](../refinements/tasks/474-the-switch-could-be-rendered-as-a-lever-that-holds.md), and it is
+not taken here: this entry was scoped to naming the cause.
 
 ### Decision
 
@@ -1602,10 +1702,17 @@ that was built and reverted would still have bought nothing. Only the sentence e
    forbidden by decision 2. Asking the server what its template does is not available either:
    `GET /props` reports the template, not what a pick does with a grammar in front of it, which is
    the thing that varied here. The answer is a measurement, so the answer ships as a probe.
+   **Half of that is now askable**, and the mechanism section takes it: `POST /apply-template`
+   renders the prompt a request would really get, which settles whether the key reached the
+   template. What it still cannot say is what the model does next, so the sentence stands where it
+   matters and the probe reads the half that is free.
 6. **The probe is committed rather than run and written down.** `test_thinking_switch_live.py` is
    integration-marked and out of CI, takes an endpoint, and answers per request shape with its
    control asserted. A deployment that changes a pick can rerun it in one command, which is the
-   difference between this reading and the two before it.
+   difference between this reading and the two before it. It draws each cell
+   `CORTEX_THINKING_REPEATS` times, defaulting to one so the runbook's single command still answers
+   quickly, and anything reported here as a tier's behaviour is run at five or more: the first
+   reading of this addendum's own subagent row was a single draw of a cell that splits 4 to 1.
 
 ### The line, on a real tier
 
@@ -1628,14 +1735,17 @@ be: rare, and about one thing.
 
 ### What this does not do, and where that is recorded
 
-- **Why the E4B deliberates under a grammar is not known**, only that it does and that the key
-  reaches its template. Separating the model's own behaviour from llama.cpp's choice of chat format
-  under a `response_format` needs the engine's side read rather than the wire's, and it would say
-  whether a deployment can ever have this back.
-  [R-464](../refinements/tasks/464-why-a-grammar-restores-the-trace.md).
-- **Two picks are not a rule.** Both are gemma-4 and one probe run each, so the shape of the split
-  (plain honoured, constrained not) is measured twice and generalised nowhere. The Qwen roster
-  alternate this repo also ships is unmeasured on it.
+- **Why the E4B deliberates under a grammar was not known** when this addendum landed, only that it
+  does and that the key reaches its template. The mechanism section above closes that a day later
+  and [R-464](../refinements/tasks/464-why-a-grammar-restores-the-trace.md) with it. What the answer
+  opened is the lever it named: the engine now reads a thinking budget off the request body, and the
+  port's switch could be rendered as one rather than as a template kwarg the grammar overrules.
+  [R-474](../refinements/tasks/474-the-switch-could-be-rendered-as-a-lever-that-holds.md).
+- **Two picks are not a rule.** Both are gemma-4, and while each cell is now five draws rather than
+  one, the shape of the split (plain honoured, constrained not) is still measured on two picks and
+  generalised nowhere. The Qwen roster alternate this repo also ships is unmeasured on it, and the
+  mechanism above says what to look at first on any new pick: what its own template renders when it
+  is told not to think.
   [R-465](../refinements/tasks/465-the-switch-across-the-lineup.md).
 - **Nothing gates the pairing.** A future bound that pairs a cap with the switch on a tier where it
   does not hold is still written the same way and still fails at runtime; what changed is that the
