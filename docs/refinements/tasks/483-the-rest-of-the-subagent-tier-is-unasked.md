@@ -1,6 +1,6 @@
 # Two of the subagent row's five entries have been asked what the reply envelope costs them
 
-**Status:** open, actionable
+**Status:** landed 2026-08-28
 **Area:** subagents
 **Origin:** [ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md)
 
@@ -42,3 +42,49 @@ Worth folding in if it is cheap when this runs: the `-ngl 99` substitution every
 measurements rests on is argued and controlled once, in the ADR-0005 answer addendum, on the default
 pick. It has never been re-controlled on a Qwen entry, and a CPU arm of one shape at a couple of
 draws would say whether offload is still only throughput on the other family.
+
+## Trail
+
+- 2026-08-28: opened by the close of
+  [R-481](481-the-sentence-is-measured-on-one-pick.md), which measured the two picks a real
+  deployment runs and stopped there against a clock.
+- 2026-08-28: Landed. The last two entries of the subagent row were asked the same question through
+  the same committed harness, the same four bodies, the same three subtask shapes, the same eight
+  draws and the same `-ngl 99` substitution: **Qwen3.5-0.8B Q8_0** and **Qwen3.5-4B Q4_K_M**, 288
+  runs each, **576 in all**, on llama.cpp `b10644-d7a207411`. The row is now measured whole at 1440
+  runs. The reading is the
+  [ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md) row addendum, with the selection
+  consequence at [ADR-0004](../../adr/ADR-0004-model-lineup.md), the engine half at
+  [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)'s lineup section and the operator half in the
+  subagent runbook.
+  **The prediction this entry wrote down held, on both picks and on every cell.** Both entries write
+  into the reasoning channel on **0 draws of 288**, on all three arms and all three shapes, and
+  neither loses a shape to it. That is 0 of 864 across the Qwen entries of this row against 22 of 192
+  across the two gemma-4-E entries, and the ADR-0005 template column has now predicted the residue on
+  five entries out of five, every time before a token was decoded.
+  **The half the entry said the prediction could not reach is where the result is.** The two picks
+  sit in the same cell of that column and are 28 draws apart on the shipped constrained path.
+  Qwen3.5-4B answers **94 of 96**, and its bare envelope costs it nothing measurable against its own
+  unconstrained arm, 91 against 92, the first entry measured where the envelope is free.
+  Qwen3.5-0.8B answers **66 of 96 against the bare envelope's 70**, so the sentence is a cost on a
+  second entry, and its extraction cell is **12 of 32**, the worst measured anywhere in this arc.
+  The failure kind is a family property and not a pick's, which is the trap this entry was told to
+  watch for and which fired again in the other direction: **26 of the 0.8B's 30 constrained
+  non-deliveries come back `ok=True`**, and every cap refusal on both picks is the numeric runaway
+  the roster alternate showed, never a lost trace. The 4B's two constrained non-deliveries split one
+  and one, too few to read as a rate. Of the three entries whose failures are numerous enough to
+  characterise, the two that fail mostly silently are both Qwen entries.
+  **One reading is about the instrument.** The `raw` control arm, 96 of 96 on all three earlier
+  picks, answered 93 and 92 of 96 here, both times because the entry failed the subtask rather than
+  because the envelope took an answer away. Nothing in the harness holds it to anything.
+  The `-ngl 99` substitution this whole arc rests on was also re-controlled on this family for the
+  first time, the fold-in this entry asked for if it was cheap: 24 more runs of the 0.8B at `-ngl 0`
+  on the summarization shape deliver 8 of 8, 7 of 8 and 8 of 8 against the card's 32 of 32, 26 of 32
+  and 28 of 32, with no trace on either placement, at 10.4 to 17.3 tok/s against 91 to 350. Recorded
+  in the ADR-0005 answer addendum's CPU control.
+  Opened by it: [R-484](484-the-control-arm-is-held-to-no-floor.md), the control arm held to no
+  floor, and
+  [R-485](485-a-roster-description-never-says-whether-the-entry-answers.md), the description the
+  cortex picks a roster entry by. [R-482](482-the-sentence-is-one-wording-for-every-entry.md) is
+  amended rather than reopened: the sentence now costs two entries of five rather than one, and the
+  two sit on opposite sides of the template column.

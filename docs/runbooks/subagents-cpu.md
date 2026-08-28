@@ -22,12 +22,22 @@ GPU-placed spawn really executes on the GPU and both of the placer's verdicts ar
   not `D:`. Override the file with `CORTEX_MODEL_FILE_SUBAGENT` (default
   `google/gemma-4-E4B-it-qat-q4_0-gguf/gemma-4-E4B_q4_0-it.gguf`; the cheaper/faster
   `unsloth/Qwen3.5-2B-GGUF/Qwen3.5-2B-Q4_K_M.gguf` when robustness matters less).
-  **The override changes what a tool-less subagent answers, not only how fast.** Three entries have
-  been measured through the constrained reply path at 288 runs each (ADR-0028 lineup addendum): the
-  default answers 90 of 96 and the Qwen override 83 of 96, and `gemma-4-E2B_q4_0-it.gguf`, the other
-  entry of the subagent row, answers **84 of 96 with the shipped sentence against 90 without it**,
-  losing a one-fact lookup on 8 draws of 32 to a reasoning channel a delegated run drops. Prefer
-  either of the first two; the E2B is the entry to override to last.
+  **The override changes what a tool-less subagent answers, not only how fast.** All five entries of
+  the subagent row have been measured through the constrained reply path at 288 runs each, 1440 in
+  all (ADR-0028 lineup and row addenda), and they answer the same narrow work between **66 and 94 of
+  96**:
+
+  | override | answers, shipped constrained path | the thing to know |
+  | --- | --- | --- |
+  | `gemma-4-E4B_q4_0-it.gguf` (default) | 90 of 96 | the pick every sentence and flag here was tuned on |
+  | `unsloth/Qwen3.5-4B-GGUF/Qwen3.5-4B-Q4_K_M.gguf` | 94 of 96 | the envelope costs it nothing measurable, but it is the row's largest weights |
+  | `unsloth/Qwen3.5-2B-GGUF/Qwen3.5-2B-Q4_K_M.gguf` (roster alternate) | 83 of 96 | the cheap override, weaker against injection |
+  | `gemma-4-E2B_q4_0-it.gguf` | 84 of 96, against 90 without the shipped sentence | loses a one-fact lookup on 8 draws of 32 to a reasoning channel a delegated run drops |
+  | `unsloth/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q8_0.gguf` | 66 of 96, against 70 without it | answers an extraction on 12 draws of 32, the worst cell measured anywhere in this tier |
+
+  Prefer the default. The E2B and the 0.8B are the two entries to override to last, for different
+  reasons: the E2B loses answers to a channel nobody reads, and the 0.8B mostly hands the
+  instruction back.
 
 ## 1. Bring up the subagent server
 
@@ -163,6 +173,11 @@ delegation time (ADR-0012 admission-wall addendum).
 > went away, 8 of its 13 constrained non-deliveries still arriving `ok=True`, so on that pick the
 > short successful delegated answer is still the thing to look at; and it writes nothing to the
 > reasoning channel at all, so a cap refusal there is the flags or a runaway and never this.
+> **Both halves of that generalise to the family** (ADR-0028 row addendum): every Qwen entry of the
+> row writes nothing to that channel, 0 draws of 864, and every one of their cap refusals is a
+> numeric runaway inside `reply`, so on any Qwen override the quiet answer is the symptom and the
+> reasoning channel is not. On `Qwen3.5-0.8B` it is the usual case rather than the exception, 26 of
+> its 30 constrained non-deliveries arriving `ok=True`.
 > What they cut is a model that is talking rather than one that is slow: the sixth shape, an
 > open-ended essay no narrow subtask should ask for, was cut at 577 tokens and 1958 s still writing.
 > **Every number here is an idle-box number**, and a saturated host runs the same subtask five to

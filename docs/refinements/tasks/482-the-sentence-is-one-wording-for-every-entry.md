@@ -54,3 +54,15 @@ Three things worth deciding at the same time, because each changes what the fiel
   on two of three measured entries and a net loss on one, so the shipped default stays; but the
   argument for it is now "it helps the picks we ship" and not "it helps this tier", and the ADR
   should say the narrower thing.
+
+**Amended 2026-08-28 by the close of
+[R-483](483-the-rest-of-the-subagent-tier-is-unasked.md)**, which measured the row's last two
+entries. The count above is now three gains and two losses out of five: Qwen3.5-4B goes 91 of 96 to
+94 and **Qwen3.5-0.8B goes 70 of 96 to 66**, so the failing side of this entry is two picks rather
+than one, and they are on opposite sides of the template column, which means a per-entry wording
+cannot be derived from that column alone. The 0.8B's loss also has a different mechanism from the
+E2B's: it writes nothing to the reasoning channel at all, and what it does instead is hand the
+instruction back, once as a paraphrase of `REPLY_INSTRUCTION` itself offered as the answer. A milder
+wording is a plausible remedy on the E2B and is not obviously one here. Worth designing together
+with [R-485](485-a-roster-description-never-says-whether-the-entry-answers.md), which wants the same
+per-entry seam for a different value.
