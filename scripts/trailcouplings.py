@@ -1,24 +1,49 @@
-"""The couplings around the recall trail: the three words one of its lines is found by.
+"""The couplings around the brain's two per-line trails: the words one of their lines is found by.
 
 One of the data files `crosscheck.py` reads as a single registry, split off `logcouplings.py` when
-the trail's logger brought that file to the 300-line cap, along the seam its docstring had drawn
-from the day the first two of these landed. Five of the entries there are the name one work
-identity rides under, wherever in the brain a line names it; these three are about a single line on
-a single stream, and they are ordered the way that line renders: the logger it is written through,
-the message it opens with, and the field whose width is the subject of everything that reads it.
+the recall trail's logger brought that file to the 300-line cap, along the seam its docstring had
+drawn from the day the first two of these landed. Five of the entries there are the name one work
+identity rides under, wherever in the brain a line names it; these four are about a single line on
+a single stream. The recall trail's three come first, ordered the way one of its lines renders: the
+logger it is written through, the message it opens with, and the field whose width is the subject
+of everything that reads it. The tool audit's logger follows, one word rather than three: that
+trail has no reader outside the brain to declare a message or a field, the identities its line
+carries are next door under the log vocabulary, and its own message is restated by one runbook and
+held by nothing, which is a deferred entry rather than a claim this file makes.
 
 **Why a logger name needs the gate, and why it has a declaration to be held to.** The name is what
 an operator selects this trail by on a stream carrying every other line the brain writes, and it is
 restated by three documents that between them turn the trail on, name it among the loggers a
 deployment can raise or lower, and state what the sink writes. A rename in the sink would leave all
 three instructing a reader about a logger nothing writes through, with every gate green, which is
-the same silence the two entries below were registered against. The sink names it in a constant
-rather than inside the `getLogger` call so there is a declaration here at all; that is the one place
-in this registry where a far side gained a line to be tied by, and it is argued at the ADR rather
-than assumed here. What keeps it from being the gate editing the code it watches is that the name
+the same silence the two recall entries below were registered against. The sink names it in a
+constant rather than inside the `getLogger` call so there is a declaration here at all; that was
+the first of the two places in this registry where a far side gained a line to be tied by, the tool
+audit's sink being the second, and both are argued at their ADRs rather than assumed here. What
+keeps it from being the gate editing the code it watches is that the name
 now sits where the rest of this brain's log vocabulary already sits, `cortex_core.log_fields`
 declaring the field names for the same reason, and that `logcalls.py` learned the spelling in the
 same slice, so `samplecheck.py` goes on resolving a documented sample of this trail against it.
+
+**The tool audit's logger is the same shape one trail over, and two of its four restatements are a
+different kind of claim.** Two are instructions, the tools runbook saying one such line is written
+per dispatched call and the local-dev runbook naming it among the two per-line trails. The others
+are `config_logging.py`'s docstring, which names this logger to argue that the shipped level is not
+a knob since a deployment that turned INFO down would silently empty a record it is obliged to
+keep, and that module's own suite, which proves the argument by writing a line under the name and
+asserting the rendered result. Neither is an instruction, and both are registered anyway, because
+what a rename does to them is identical: the argument would be about a logger nothing writes
+through, and the proof would demonstrate it on a name the brain abandoned, in the module and the
+suite a reader goes to when asking why the level is fixed. The registry is indifferent to the kind
+of claim a far side makes, holding places that restate a value, and it already ties a docstring
+restating a number and a live suite spelling an address for the same reason. The suite's two
+spellings are two needles rather than one counted twice, the call it writes and the line it
+asserts having different shapes and a rename having to move both.
+
+**The half this entry cannot hold** is worth stating beside it: that same docstring sentence names
+the recall trail in prose rather than by its logger, so it is tied to one of the two loggers it is
+about, and nothing here would notice the other's rename in it, there being no name in the file to
+notice.
 
 **The other two run the other way round, and the reader that declares them gates nothing.**
 `scripts/trailwidth.py` reads how wide the trail's widest field renders off captured container
@@ -47,14 +72,18 @@ reads the runbooks and declares the decision records evidence.
 
 from couplings import Constant, Mention, Site
 
+AUDIT_SINK = "brain/packages/tools/src/cortex_tools/audit.py"
 RECALL_SINK = "brain/packages/memory/src/cortex_memory/audit.py"
 
+CONFIG_LOGGING = "brain/packages/orchestrator/src/cortex_orchestrator/config_logging.py"
+CONFIG_LOGGING_SUITE = "brain/packages/orchestrator/tests/test_config_logging.py"
 TRAIL_READER = "scripts/trailwidth.py"
 
 GATES_MODULE = "docs/modules/repo-gates.md"
 LOCAL_DEV_RUNBOOK = "docs/runbooks/local-dev-wsl.md"
 MEMORY_MODULE = "docs/modules/brain-memory.md"
 MEMORY_RUNBOOK = "docs/runbooks/memory-pgvector.md"
+TOOLS_RUNBOOK = "docs/runbooks/tools-mcp.md"
 
 # How the sink writes the field a line carries: a string key opening an ``extra=`` dict. The same
 # shape the work identities are spelled in next door, written out again rather than imported,
@@ -119,6 +148,30 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
             Mention(RECALL_SINK, FIELD_KEY),
             Mention(MEMORY_RUNBOOK, "`{value}` names every"),
             Mention(GATES_MODULE, "the recall trail's `{value}` field"),
+        ),
+    ),
+    Constant(
+        label="the logger one tool-audit line is written through",
+        why=(
+            "this is the name an operator selects the audit trail by on a stream carrying every "
+            "other line the brain writes, and four places restate it while none of them can "
+            "import it: the tools runbook says one such line is written per dispatched call, the "
+            "local-dev runbook names it among the two per-line trails a deployment can raise or "
+            "lower, the process entry's logging module names it to argue that the shipped level "
+            "is not a knob, and that module's own suite writes a line under the name and asserts "
+            "the rendered result to prove the argument; a rename in the sink alone leaves two "
+            "runbooks telling an operator to select a trail nothing writes, one module arguing "
+            "about the level of a logger that no longer exists, and one suite demonstrating the "
+            "argument on a name the brain abandoned, all four green (ADR-0009 audit-logger "
+            "addendum)"
+        ),
+        sites=(Site(AUDIT_SINK, "_LOGGER_NAME"),),
+        mentions=(
+            Mention(TOOLS_RUNBOOK, "(one `{value}` line per call)"),
+            Mention(LOCAL_DEV_RUNBOOK, "the tool audit (`{value}`, always on"),
+            Mention(CONFIG_LOGGING, "audit trail (``{value}``,"),
+            Mention(CONFIG_LOGGING_SUITE, 'getLogger("{value}").info'),
+            Mention(CONFIG_LOGGING_SUITE, '== "INFO:{value}:tool.invocation'),
         ),
     ),
 )

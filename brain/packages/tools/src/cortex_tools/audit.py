@@ -21,7 +21,15 @@ from cortex_core.log_fields import (
     TURN_FIELD,
 )
 
-_logger = logging.getLogger("cortex.tools.audit")
+# The name this trail is selected by, on a stream carrying every other line the brain writes. It
+# is written here rather than inside the call because four places restate it and none of them can
+# import it, two runbooks telling an operator what to select, a sibling module's docstring arguing
+# from it that the shipped level is not a knob, and that module's suite proving the argument, so it
+# is a declaration the constant registry ties them to (ADR-0009 audit-logger addendum). The recall
+# trail's sink names its own logger the same way, and for the same reason.
+_LOGGER_NAME = "cortex.tools.audit"
+
+_logger = logging.getLogger(_LOGGER_NAME)
 
 
 class LoggingAuditSink:

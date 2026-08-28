@@ -3097,3 +3097,153 @@ The new doc reader is also the third module in `scripts/` to spell the markdown 
 beside the backlog's heading reader and the commit-message linter, and this repo already holds
 that a question several gates ask should be answered once
 ([R-445](../refinements/tasks/445-three-gates-each-spell-the-markdown-fence-for-themselves.md)).
+
+## Audit-logger addendum (2026-08-28): the name this trail is selected by, held to what restates it
+
+The recall trail's logger gained a declaration and a registry entry the day before this
+([ADR-0038 named-logger addendum](ADR-0038-ranked-recall.md)), and that close said in as many words
+that it left its sibling asymmetric: `cortex.tools.audit` was written once, as an argument of a
+`getLogger` call, and restated by places that could not import it. This addendum is the other half,
+built on the mechanism that one built.
+
+### Re-derived first, and the count was one low
+
+The entry named four places and the tree holds five. The four it named are the sink itself, the
+tools runbook saying the dispatch is audited with one such line per call, the local-dev runbook
+naming it among the two per-line trails worth knowing about, and the docstring of
+`config_logging.py`, which names it to argue that INFO is not a knob here. The fifth is that
+docstring's own suite: `test_config_logging.py` writes a record under the literal name and asserts
+the rendered line back, because the claim being tested is what a line looks like once it leaves the
+process. That is a restatement like the others and silent in the same way. The suite renames with
+itself, both of its spellings moving together, so nothing in it goes red; what it would then prove
+is that the shipped level carries a logger the brain no longer writes.
+
+The entry's other claim, that a rename is green everywhere, is false for this trail in the same
+loud way it was false for the recall trail, and the entry itself said as much: thirteen of the
+tools package's fifty three checks read a line back through `caplog` under this name. The mutation table
+below measures both halves rather than asserting them. The asymmetry that makes leaving the
+documents plausible is the same one the sibling recorded: the suite goes green the moment its own
+tests move onto the new name, and nothing then says the five documents and one sibling suite did
+not.
+
+### Decision 1: the sink declares the name it writes under
+
+`cortex_tools/audit.py` binds `_LOGGER_NAME` and hands it to `getLogger`, which is what gives the
+constant registry a declaration to compare the restatements against. The argument is the one the
+recall trail's sink already made and is not re-argued here: a module-private constant asks nothing
+of any importer, it puts the name where the rest of this brain's log vocabulary already lives, and
+`scripts/logcalls.py` reads that spelling, so `samplecheck.py` goes on resolving a documented
+sample of this trail against the call that writes it.
+
+One consequence of doing it the second time is worth recording. Both self-named sinks now bind
+their name above the call, so the literal spelling inside `getLogger` is a spelling this brain no
+longer writes anywhere. `logcalls.py` keeps reading it, because such a call is legal Python that a
+module may write tomorrow and a reader that stopped matching one would drop that logger out of its
+answer in silence, but the guard test that used to assert the brain writes all three spellings now
+says what is true: two spellings, one of them twice.
+
+### Decision 2: the docstring and the suite are mentions, and the entry asked why
+
+The entry asked one question before anything was built. Three of the places are the trail's own
+instructions, and the others are a sibling module's argument about log levels and the test that
+proves it, which is a different kind of claim: not an instruction to select a stream by this name.
+Register them or leave them, it said, but say which.
+
+They are registered, and the reason is that the registry holds places that restate a value rather
+than claims of one kind. What a rename does to an argument is exactly what it does to an
+instruction: the docstring would be arguing that the shipped level protects a durable record
+written through a logger nothing writes, in the module a reader goes to when asking why the level
+is fixed, and its suite would be demonstrating that argument on an abandoned name. The precedent is
+already in the registry next door, where a docstring restating a subagent budget is tied for the
+same reason, and the suite's two spellings are two needles rather than one counted twice, the call
+it writes and the line it asserts having different shapes and a rename having to move both.
+
+The half this cannot hold is stated in the part's own docstring rather than left for a reader to
+find: that same docstring sentence names the recall trail in prose and not by its logger, so it is
+tied to one of the two loggers it is about, and no rename of the other could be noticed in a file
+that does not spell it.
+
+### What did not change, deliberately
+
+The module contract for the tools package gained a sentence about the declaration and did **not**
+gain the name. `docs/modules/brain-tools.md` describes this line in full without ever naming the
+logger, which the recall trail's contract does name; adding the name there would have been a fifth
+restatement written in order to be gated, which is the gate choosing its own subject rather than
+holding one it found. The contract points at `_LOGGER_NAME` instead, so a reader is one hop from
+the name and the registry is holding what the repo already said.
+
+No new part, either. The entry offered `trailcouplings.py` or a part beside it, and the logger
+belongs in that file by its own docstring's test: it is one word of one line on one stream, which
+is the seam that file was split on. It is now the couplings around both per-line trails, four
+entries rather than three, and it stands at 177 lines.
+
+### Distrust green, over three suites at once
+
+Nine mutations, each applied alone to the committed tree with three suites re-run: the **1,426
+checks of the gate suite** (`scripts/tests/`), the **53 of the tools package's**
+(`brain/packages/tools/tests/`), which is the tree that pins this name from the other side, and the
+**451 of the orchestrator package's** (`brain/packages/orchestrator/tests/`), which holds the
+docstring's claim and is where the fifth restatement lives.
+
+| Mutation | scripts | tools | orch |
+| --- | --- | --- | --- |
+| the sink renames the logger it writes through | **8** | **13** | 0 |
+| the sink drops the declaration and spells the name inside the call again | **10** | 0 | 0 |
+| the tools runbook keeps the name and loses the sentence around it | **7** | 0 | 0 |
+| the local-dev runbook stops naming the logger among the two trails | **7** | 0 | 0 |
+| the process entry's docstring stops naming the logger it argues from | **7** | 0 | 0 |
+| its suite moves both its spellings onto another name at once | **7** | 0 | 0 |
+| GATE: the entry drops the suite, and the suite renames with itself | 0 | 0 | 0 |
+| GATE: the four document needles render the name alone | 0 | 0 | 0 |
+| GATE: that, and the tools runbook loses its sentence | 0 | 0 | 0 |
+| GATE: the sink keeps the declaration and spells the literal in the call too | 0 | 0 | 0 |
+
+Row one is the entry in one line: thirteen reds where the trail is written, none at all in the
+package that argues about its level, and now eight in the gate. Row two is why the declaration is
+the thing being compared: take it away and the registry reports a site it cannot find rather than
+going quiet.
+
+Rows three to six are the restatements, one each. Row six is the place the entry did not count, and
+its zero in the third column is the whole reason it needed holding: the suite renames with itself,
+both spellings moving together, so it passes while proving the shipped level protects a trail
+nothing writes. Row seven is what registering it buys, since without those two needles row six is
+green everywhere.
+
+Rows eight and nine are the same honest non-claim the recall trail's close recorded. A needle
+rendering the name alone holds a rename exactly as well, each of these places spelling the name
+once, so the sentence in each template buys nothing against the mutation this entry was filed for.
+What it buys is row nine against row three: with bare needles, a document that keeps the name and
+loses the instruction around it is green, where the templates redden seven.
+
+Row ten is the one thing this addendum does not hold, found by a mutation that was meant to be row
+two and measured zero instead. The registry compares the declaration against the places restating
+it and never asks that the call passes it, so a sink keeping `_LOGGER_NAME` while spelling the
+literal in `getLogger` again is green with two names to keep in step, and the day one of them moves
+the documents are held to the wrong one. That is
+[R-488](../refinements/tasks/488-a-declared-logger-name-is-never-held-to-the-call-that-passes-it.md).
+
+
+### Consequences
+
+- A rename of the tool audit's logger reddens `just check` on the day it is made, and the two
+  runbooks, the docstring and the suite move with it or the gate names the ones that did not.
+- Both of the brain's per-line trails are now held by name, which is what closes the asymmetry the
+  recall trail's close opened rather than leaving it as a standing exception.
+- The constant registry stands at 77 entries over 87 declaring sites and 257 mentions, in twelve
+  parts, with the second per-line trail joining the first rather than arriving as a thirteenth.
+- The literal `getLogger("name")` spelling is now supported and unwritten, which is recorded in
+  `logcalls.py` and in the guard test rather than left for the next reader to discover.
+- What the registry holds is the declaration, not that the sink's own call passes it, which the
+  mutation table measures rather than assumes.
+
+### Deferred by this addendum
+
+The message stays where the logger was. `tool.invocation` is spelled in the sink, restated by the
+tools runbook in prose and written by the orchestrator suite that proves the shipped level, and
+held by nothing: the runbook describes the message instead of printing a rendered line, so
+`samplecheck.py` never sees this trail at all
+([R-487](../refinements/tasks/487-the-tool-audits-message-is-spelled-in-three-places-and-held-in-none.md)).
+
+And the gate compares a declared name against what restates it without asking that the sink's own
+call passes it, which the last row of the table above is: green, with two names to keep in step
+([R-488](../refinements/tasks/488-a-declared-logger-name-is-never-held-to-the-call-that-passes-it.md)).

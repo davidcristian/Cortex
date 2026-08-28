@@ -17,12 +17,14 @@ brain's usual spelling, and its answer is the module's own dotted path, which is
 sample prints between the level and the message. Two sinks name themselves instead, the recall
 trail and the tool audit, because their lines are read as a trail rather than as one module's
 account of itself. Every spelling is collected, so a sample naming any of them resolves, and a
-logger name claimed by two files is a fault rather than a coin toss.
+logger name claimed by two files is a fault rather than a coin toss. A literal written inside the
+call is read too, and is the one spelling no module here writes any more: it stays because such a
+call is legal Python and a reader that stopped matching one would lose that logger in silence.
 
 **A sink may bind its name above the call, and that is the third spelling.** A self-named logger
 restated by documents is declared as a module constant so the constant registry can tie those
-documents to it, which the recall trail's is, and a reader that only knew a literal would drop
-such a logger out of this answer the day it was named: the sample quoting it would then fail as
+documents to it, which both of these sinks now are, and a reader that only knew a literal would
+drop such a logger out of this answer the day it was named: the sample quoting it would then fail as
 a logger no module declares, which is loud and points at the document rather than at the reader.
 So a bare identifier is resolved against that module's own top level, by ``moduleconstants.py``,
 which is the same reading `hostedtiers.py` makes of the sidecar's declarations. Nothing wider is

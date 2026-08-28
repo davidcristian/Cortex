@@ -1,6 +1,6 @@
 # The tool audit's logger name is spelled in four places and held in none
 
-**Status:** open, actionable
+**Status:** landed 2026-08-28
 **Area:** repo-gates
 **Origin:** [ADR-0038](../../adr/ADR-0038-ranked-recall.md)
 
@@ -39,3 +39,26 @@ Register it as a mention like the rest, or leave it and say why, but say which.
   [R-469](469-the-trails-logger-name-is-spelled-in-three-places-and-held-in-none.md), whose
   addendum names this as the asymmetry that close creates: the recall trail's logger is held to
   the three documents that restate it and its sibling's is held by nothing.
+- 2026-08-28: **landed**, as the [ADR-0009 audit-logger
+  addendum](../../adr/ADR-0009-tools-mcp.md) and a fourth entry in `scripts/trailcouplings.py`,
+  which is now the couplings around both per-line trails rather than the recall trail's alone. The
+  sink declares `_LOGGER_NAME` and the four restatements are mentions. **This entry undercounted by
+  one**: `brain/packages/orchestrator/tests/test_config_logging.py` is a fifth place, writing a
+  record under the literal name and asserting the rendered line back, because what it tests is what
+  a line looks like once it leaves the process. It renames with itself, both spellings moving
+  together, so it is silent for exactly the mutation this entry was filed for, and it is registered
+  as two needles rather than one counted twice. **The question this entry asked was settled by
+  registering.** The docstring's claim is an argument about levels and its suite is the proof of
+  that argument, and neither is an instruction to select a stream, but the registry holds places
+  that restate a value rather than claims of one kind, and a rename leaves the argument about a
+  logger nothing writes and the proof demonstrating it on an abandoned name. What the registry
+  cannot hold is recorded beside the entry: that same sentence names the recall trail in prose
+  rather than by its logger, so it is tied to one of the two loggers it is about. The module
+  contract for the tools package gained a sentence about the declaration and deliberately not the
+  name, a fifth restatement written in order to be gated being the gate choosing its own subject.
+  Opened by this close:
+  [R-487](487-the-tool-audits-message-is-spelled-in-three-places-and-held-in-none.md) for the
+  message beside this name on the same line, and
+  [R-488](488-a-declared-logger-name-is-never-held-to-the-call-that-passes-it.md), which a mutation
+  written to be a red row found by measuring zero: the registry holds the declaration and never
+  asks that the sink's own call passes it.

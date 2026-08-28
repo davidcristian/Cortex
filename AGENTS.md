@@ -289,9 +289,9 @@ scripts/          repo gates, plus the two modules here that gate nothing, contr
                   sidecar's shipped answers, a measurement fixture against the suite that
                   measures it, the overlay's own
                   stylesheet, the name each work identity rides
-                  under, and the three words one recall-trail line is found by, the logger
-                  it is written through, the message it opens with and the field it is
-                  measured on) + values.py (what a value
+                  under, and the words one line of either per-line trail is found by, the recall
+                  trail's logger, the message it opens with, the field it is
+                  measured on and the tool audit's own logger) + values.py (what a value
                   reduces to and the spelling a mention writes one in) + readings.py (how a
                   constant's readings must then stand) + needles.py (how a rendered needle is
                   looked for, and which of its literals a file that lacks one is told stopped
