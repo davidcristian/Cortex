@@ -20,7 +20,7 @@ by the CI
 workflow, `commitlint.py` by the commit-msg pre-commit stage, `contrast.py` by `just turn-cost`
 and `trailwidth.py` by `just recall-width`;
 each also exposes a pure, unit-tested core function).
-**The rest have no CLI of their own**, forty two modules,
+**The rest have no CLI of their own**, forty three modules,
 most split out under the line cap and each named for what it holds: `couplings.py` is the
 vocabulary `crosscheck.py`'s registry is written in, `registry.py` names the parts that registry is
 written in, and `seamcouplings.py`, `endpointcouplings.py`, `shippedcouplings.py`,
@@ -38,7 +38,9 @@ with and what environment it is given, and `subagentservers.py` derives from tho
 servers a composed stack starts as subagents, one of the two sets `flagcheck.py` holds to its
 tier's flags, `hostedtiers.py` is the other, the tier the model host starts itself, read off the
 sidecar's own declaration with `moduleconstants.py` answering underneath it for what a Python
-module's top level binds, `imagevolumes.py` is the recorded
+module's top level binds, `artifactnames.py` is what both of those sets rest on, every model
+artifact this tree names and the variable each one is named under, so the same gate can hold a
+spelling those two readings would otherwise have to assume, `imagevolumes.py` is the recorded
 answer that gate reads and the drift report over it, `dockerfilevolumes.py` is what a Dockerfile
 in this tree declares against the row for the image built from it, with `dockerfilebases.py`
 answering the other half of that row, the image the file's last stage stands on and whose own
@@ -776,7 +778,13 @@ that last question to have an answer.
   reddens, the sidecar's own spelling being compared against this one rather than trusted.
   `REQUIREMENTS` is the rule
   and it is production code here: each entry carries a label, the sentence saying why every server
-  must meet it, and the flags it is made of. Two entries today. The reasoning-off pair is **one**
+  must meet it, and the flags it is made of. Two entries today. **The membership both readers
+  decide is held too**, by a second rule in the same scan: every model artifact the tree names
+  must be named under a `CORTEX_MODEL_FILE_` variable, since that spelling is the whole of what
+  makes a server or a tier classifiable, and one named another way would leave both sets in
+  silence. Its domain is deliberately not the family, which would be a rule about the convention
+  it checks and could not fail for the fault it exists to catch, but every artifact
+  `artifactnames.py` finds structurally. The reasoning-off pair is **one**
   requirement rather than two, because two flags that must travel together are one claim about a
   deployment and a fault should print the reason whichever half went missing; the tool-capable
   chat template is the other, a server without `--jinja` coming up healthy with no tools at all.
@@ -795,7 +803,8 @@ that last question to have an answer.
   `CORTEX_SUBAGENTS_GPU_ENDPOINT` or a `CORTEX_SUBAGENTS_ROSTER__<name>` object writing an address
   whose host is a service name; or the argv says so, the command naming its model file under a
   `CORTEX_MODEL_FILE_SUBAGENT*` variable, `MODEL_PREFIX` being the single place that prefix is
-  written. The image is deliberately not part of the answer, the
+  written and `FAMILY_PREFIX` beside it the string it is built from, which is what the naming rule
+  holds every artifact to. The image is deliberately not part of the answer, the
   CPU embedder running the very same llama.cpp image, and a service declaring no command of its
   own is not one, its argv belonging to an entrypoint or to the model host's supervisor, which the
   other half of the set reads directly.
@@ -812,7 +821,24 @@ that last question to have an answer.
   answered emptily: an absent or unparseable module, a builder that does not splat a tier's tail
   exactly once, a settings class naming no environment variable, a tree declaring no tier at all,
   a tier whose artifact path names no field it can resolve, and a subagent tier whose own tail is
-  a call rather than literals.
+  a call rather than literals. `tier_artifacts(call, named)` is the same walk with that subagent
+  filter off, which is how one declaration serves both the membership reading and the naming rule
+  above instead of being read twice.
+- `artifactnames.py` is what those two readings rest on and has no CLI. `named(root)` returns every
+  model artifact the tree names, with the file, the service or settings field, the line and the
+  variable, and `flagcheck.py` holds each to the family prefix. **The artifacts are found
+  structurally, in both languages**: a compose one is the item after llama.cpp's own `--model`,
+  and a hosted one is the settings field a tier reads its `model_path` from. Reading only the
+  variables that already begin `CORTEX_MODEL_FILE_` would have been a rule whose domain is the
+  convention it checks, unable to fail for the misspelling it exists to catch. Three exclusions
+  are deliberate and each is what a fault would otherwise be wrong about: the **short** spelling
+  of the model flag is not read, this tree starting an MCP sidecar with `python -m <module>` and a
+  reader of `-m` calling that module an artifact; an item spending **no variable** carries no name
+  to misspell, and the wiring is what finds such a server; and an argv declaring `--embeddings`
+  serves no chat, so the CPU embedder's own `CORTEX_EMBED_MODEL_FILE` is outside the rule, which
+  is the exclusion `subagentservers.py` already makes on the image and for the same reason. No
+  floor is asserted here because `hostedtiers.py` asserts one underneath, refusing a sidecar with
+  no tier and a tier with no artifact.
 - `moduleconstants.py` is that reader's syntax side and has no CLI. `constants(module)` returns
   every top-level string and run of strings a parsed module binds, `parse`, `text`, `items` and
   `bound` being the pieces it is built from. Parsed with `ast` and never imported, for the reason
@@ -1358,7 +1384,11 @@ that last question to have an answer.
   server was already catchable by naming that file, and this is the half that was not. Its twin on
   the other placement is `test_a_fourth_tier_for_a_second_pick_is_held_the_day_it_is_declared`,
   which adds a tier to the sidecar's own tuple with the setting that makes it one and the tail its
-  author forgot. `subagentservers.py`, `hostedtiers.py` and `composestarts.py` each carry the same
+  author forgot. The naming rule's own is
+  `test_a_hosted_tiers_artifact_spelled_another_way_is_reported_rather_than_dropped`, which
+  respells the alias and asserts both halves of the fault: the tier leaves the set, and the scan
+  says so instead of passing over the two servers left behind.
+  `subagentservers.py`, `hostedtiers.py` and `composestarts.py` each carry the same
   guard on the guard, asserting respectively that the committed tree really starts the servers it
   ships, that the committed sidecar really declares the tier it hosts, and that every
   committed compose file is a shape the reader can read, since a reader agreeing with its own

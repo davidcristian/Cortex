@@ -517,8 +517,10 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
     holds and the `scanrecipes` reading of which scans this repo actually runs),
     `flagcheck.py` (with the `subagentservers` derivation of which servers a composed stack
     starts as subagents, the `composestarts` reading of what each service is started with, the
-    `hostedtiers` reading of the one tier the model host starts itself and the `moduleconstants`
-    reading of what a Python module's top level binds underneath it)
+    `hostedtiers` reading of the one tier the model host starts itself, the `moduleconstants`
+    reading of what a Python module's top level binds underneath it and the `artifactnames`
+    reading of every model artifact this tree names, which is what the membership of both sets
+    is decided from)
     and `backlogcheck.py` (with the `backlog` grammar, the `backlogindex` renderer, the
     `backloganchors` pointer reader and the `headingshapes` refusals under it). **Beside them**
     sit the coverage gate, the CI path classifier, the commit-message CLI, and the contrast

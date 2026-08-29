@@ -50,7 +50,7 @@ class Tier(NamedTuple):
     command: tuple[str, ...]
 
 
-def _parse(root: Path, name: str) -> ast.Module:
+def parse_module(root: Path, name: str) -> ast.Module:
     """One of the sidecar's modules, with the syntax reader's refusal carried out this door."""
     try:
         return parse(root / MODEL_MANAGER / name, (MODEL_MANAGER / name).as_posix())
@@ -124,8 +124,8 @@ def aliases(module: ast.Module) -> dict[str, str]:
     return named
 
 
-def _serves(call: ast.Call, named: Mapping[str, str]) -> str | None:
-    """The variable naming this tier's artifact, when it is a subagent tier's, else None."""
+def tier_artifacts(call: ast.Call, named: Mapping[str, str]) -> tuple[tuple[str, str], ...]:
+    """Every settings field one tier reads its artifact path from, and the variable each names."""
     fields = [
         node.attr
         for keyword in call.keywords
@@ -142,7 +142,14 @@ def _serves(call: ast.Call, named: Mapping[str, str]) -> str | None:
             f"{TIER_PATH}, so this reader cannot say whether it serves subagents"
         )
         raise HostedTierError(msg)
-    serving = [named[field] for field in fields if named[field].startswith(MODEL_PREFIX)]
+    return tuple((field, named[field]) for field in fields)
+
+
+def _serves(call: ast.Call, named: Mapping[str, str]) -> str | None:
+    """The variable naming this tier's artifact, when it is a subagent tier's, else None."""
+    serving = [
+        variable for _, variable in tier_artifacts(call, named) if variable.startswith(MODEL_PREFIX)
+    ]
     return serving[0] if serving else None
 
 
@@ -164,7 +171,7 @@ def _tail(
     return tuple(item for item in tail if item is not None)
 
 
-def _declared(module: ast.Module) -> list[ast.Call]:
+def declared(module: ast.Module) -> list[ast.Call]:
     """Every tier the settings module constructs, in the order it writes them."""
     found = [
         node
@@ -181,12 +188,12 @@ def _declared(module: ast.Module) -> list[ast.Call]:
 
 def hosted(root: Path) -> tuple[Tier, ...]:
     """Every tier the model host under ``root`` starts as a subagent, in declaration order."""
-    head, tail = shared(_parse(root, ARGV_MODULE))
-    module = _parse(root, TIER_MODULE)
+    head, tail = shared(parse_module(root, ARGV_MODULE))
+    module = parse_module(root, TIER_MODULE)
     named = aliases(module)
     strings, tuples = constants(module)
     found: list[Tier] = []
-    for call in _declared(module):
+    for call in declared(module):
         serves = _serves(call, named)
         if serves is None:
             continue

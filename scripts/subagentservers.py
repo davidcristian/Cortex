@@ -8,14 +8,12 @@ from composedefaults import SubstitutionReadError, read_line
 from composefiles import compose_files
 from composestarts import ComposeStartError, Started, read_starts
 
-# The environment keys the brain's subagent wiring dials a server through: two flat ones, and one
-# JSON object per alternate roster entry, whose own `endpoint` and `gpu_endpoint` are servers too.
 ENDPOINT_KEYS = frozenset({"CORTEX_SUBAGENTS_ENDPOINT", "CORTEX_SUBAGENTS_GPU_ENDPOINT"})
 ROSTER_PREFIX = "CORTEX_SUBAGENTS_ROSTER__"
 
-MODEL_PREFIX = "CORTEX_MODEL_FILE_SUBAGENT"
+FAMILY_PREFIX = "CORTEX_MODEL_FILE_"
+MODEL_PREFIX = f"{FAMILY_PREFIX}SUBAGENT"
 
-# The host half of an address, which on a compose network is a service name.
 _ADDRESS = re.compile(r"https?://(?P<host>[A-Za-z0-9._-]+)")
 
 
