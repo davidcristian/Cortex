@@ -116,6 +116,14 @@ UNBOUNDED_ATTEMPT = AttemptBounds()
 # per-slot context is the looser: the run deadline below admits about 425 decoded tokens on a
 # saturated host and about 3200 on an idle one, so on a busy box it is the deadline that fires
 # first and this cap is out of reach.
+#
+# Which of the two binds is therefore not fixed, and this cap is deliberately ordered against
+# nothing (ADR-0005 independence addendum). Two facts decide it and neither is visible to a
+# validator: what else the host is doing, worth a factor of seven on this tier's measured decode
+# rate, and whether the deployment gives its subagents tools, since this bound is spent per
+# completion where the deadline is armed once around the whole attempt, so a tools-enabled run may
+# spend this one every round. The conversion between a count and a time is the operator's, and the
+# table for it is in that addendum.
 DEFAULT_SUBAGENT_MAX_TOKENS = 1024
 # The deadline is four times the longest whole subtask measured on that tier, the extra doubling
 # covering a tool-using run whose loop spends that on several rounds where the measurement spent it
@@ -131,6 +139,13 @@ DEFAULT_SUBAGENT_MAX_TOKENS = 1024
 # refusals are what hold this ordering, here and in the repo's own numbers: every bare
 # construction of that class reads these three declarations, so a retune inverting either
 # relation fails the orchestrator suite on the commit that types it.
+#
+# The cap above is the one neighbour this deadline is not ordered against, by decision rather than
+# by oversight (ADR-0005 independence addendum). A time and a count are commensurable only through
+# the tier's decode rate, which is measured rather than configured and moves by a factor of seven
+# on one machine with nothing but the host's load changing, so a boot check would have to hold a
+# hardware fact this process has no way to know. Both bounds refuse honestly whichever fires; what
+# the ordering would buy is which diagnosis a reader gets, since nothing downstream branches on it.
 DEFAULT_SUBAGENT_RUN_TIMEOUT_S = 2400.0
 
 # How many attempts at one task fit inside one ``scheduler.admit``, which is what makes the queue

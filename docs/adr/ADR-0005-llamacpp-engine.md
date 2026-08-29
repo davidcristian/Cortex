@@ -2208,3 +2208,134 @@ on the default pick. On the roster alternate all 10 are the opposite: no trace a
 degenerate repetition inside `reply` itself, nine of them on the extraction shape, on both envelope
 arms alike. So on a pick whose template holds, a cap refusal on narrow work is a runaway and never
 the reasoning channel. The full reading is the ADR-0028 lineup addendum.
+
+## Independence addendum (2026-08-29): the two ceilings on one run stay independent, and nothing can order them
+
+**Status:** Accepted. Closes
+[docs/refinements/tasks/478-two-ceilings-on-one-run-and-no-ordering.md](../refinements/tasks/478-two-ceilings-on-one-run-and-no-ordering.md),
+which the ceilings addendum above opened. Opens
+[R-494](../refinements/tasks/494-one-pair-of-run-bounds-for-a-roster-of-tiers.md). It records a
+decision and moves no number, and it is the first of the entry's two named resolutions: the cap and
+the deadline are declared **independent on purpose**, the conversion between them stays the
+operator's, and the second resolution, deriving one from the other off a configured decode rate, is
+refused with an argument rather than deferred.
+
+### Re-derived first, since an entry's account of a mechanism is not evidence
+
+The three orderings this repo refuses at boot, read off the code:
+
+- `SubagentsConfig._the_run_deadline_must_outlast_the_stall_ceiling`
+  (`cortex_orchestrator/config_subagents.py`) refuses `run_timeout_s <= stall_timeout_s`.
+- `SubagentsConfig._the_run_deadline_must_fit_inside_the_queue_for_it` refuses a hold,
+  `ATTEMPTS_PER_ADMISSION` whole deadlines, at or above `admission_wait_s`, a wait of zero exempt.
+- `check_tool_call_deadline` (`cortex_orchestrator/bounds.py`) refuses a deployment where
+  `delegated_call_bounds(tools) * call_timeout_s` reaches `run_timeout_s`, and only when both
+  capabilities are on.
+
+All three exist and all three compare seconds with seconds. `DEFAULT_SUBAGENT_MAX_TOKENS` is still
+1024 and `DEFAULT_SUBAGENT_RUN_TIMEOUT_S` still 2400.0 in `cortex_core/subagents.py`, and the
+0.18 to 1.35 tok/s the entry quotes is the batch addendum's control arm, the same box, the same
+container, the same image and the same subtask shape on an idle host and on a saturated one. Two
+readings sit beside it that the entry did not carry, and both sharpen rather than soften what
+follows: the saturated arm's 0.18 tok/s is its **overall** rate and its **sustained mid-run** rate
+is 0.07, and the recovery reading says the whole factor is host contention, since the same slot on
+the same task went from 0.06 to 1.39 tok/s within seconds of the load being killed.
+
+### The pricing question, answered from the code before the decision was taken
+
+The entry asks whether the two refusals are distinguishable enough at the cortex for the inversion
+to matter at all. They are distinguishable **as text and nowhere else**, and the code is
+unambiguous about it:
+
+- Exactly one branch in the tree tells one failure kind from another, `SubagentRunner._placed`,
+  which re-places only `AttemptFailure.INFERENCE` from a GPU placement. (`AttemptOutcome.ok` reads
+  the kind too and asks only whether there was a failure at all.) Both truncations are
+  `AttemptFailure.TRUNCATED`, so both are treated identically there: not re-placed, for the same
+  reason.
+- The kind does not survive the runner. `SubagentResult` carries `ok: bool` and `detail: str` and
+  no failure kind at all, so nothing downstream could branch on it even if it wanted to.
+- `SpawnSubagentsTool._format` renders every failed result as `FAILED: {detail}` and **drops the
+  fragment**, so what reaches the cortex is one sentence and never the partial text.
+- Those two sentences (`GENERATION_DEADLINE_MSG` and `GENERATION_CAP_MSG`, both in
+  `cortex_core/subagent_outcome.py`) differ in their diagnosis and end in the **same instruction**:
+  treat the subtask as unanswered and narrow it before delegating it again.
+
+So the inversion cannot cause a wrong action. It can only cause a wrong **diagnosis**, read by an
+operator or by the cortex as prose, and the diagnosis it produces is the deadline's rather than the
+cap's. The harm is bounded at a reader being pointed at the clock knob when the token knob is what
+the run really strained, which is a documentation-shaped harm, and that is what decides the shape of
+the answer below. It is not the same harm as
+[R-430](../refinements/tasks/430-the-bounds-are-sized-on-an-idle-box.md), which is a legitimate slow
+subtask cut at the deadline and told it was talking rather than working; that one is a false
+diagnosis and stays open on its own trigger.
+
+### The two bounds are not in one unit, and not even in one scope
+
+The ceilings addendum's table puts them in decoded tokens and reads the cap as flat. The cap is
+flat per **completion**: `PlacedAttempt` turns `bounds.max_tokens` into the `GenerationBounds` every
+completion of the loop carries, while `bounds.timeout_s` is armed once around the whole attempt,
+tool dispatches included. The two are the same scope only where an attempt is one completion, which
+is exactly the shipped tool-less shape (`stream_tool_loop` ends after one inference step when it
+holds no dispatcher). With tools the loop runs up to `MAX_TOOL_STEPS` (8) rounds and each carries
+the cap again, so the attempt's own decoding ceiling is 8192 tokens against a deadline that admits
+425 saturated and 3222 quiet.
+
+That is a third regime the entry does not have, and it is the one that settles this:
+
+| shape | what the cap admits per attempt | what the deadline admits | which binds |
+| --- | --- | --- | --- |
+| tool-less, saturated host | 1024 | about 425 | the deadline |
+| tool-less, quiet host | 1024 | about 3222 | the cap |
+| tools-enabled, either host | up to 8192 | 425 to 3222 | the deadline, at both ends |
+
+### So there is no ordering to check, and a check that claimed one would be lying
+
+Which of the two binds is a function of two things a boot check cannot see. **What else the host is
+doing**, worth a factor of seven on the overall rate and nineteen on the sustained one, measured on
+one machine with nothing about the deployment changed. And **whether this deployment gives its
+subagents tools**, which multiplies one of the two bounds by the rounds cap and not the other.
+A validator comparing two numbers has neither fact.
+
+Deriving one from the other needs the exchange rate as configuration, and the same control says what
+that number would be worth. Both directions are wrong at one end of the measured range:
+
+- **Deadline derived from the cap.** At the quiet end, `1024 / 1.35` plus this prompt's eval is
+  about 772 s, which would cut the 1736.6 s a legitimate narrow subtask was measured taking on a
+  saturated box. At the saturated end it is about 5730 s, and `ATTEMPTS_PER_ADMISSION` of those is a
+  hold of 11460 s against a 7200 s admission wait, so the deployment is refused at boot by the
+  second of the three checks above. A derivation whose slow end is refused by a check that already
+  exists is not a derivation.
+- **Cap derived from the deadline.** That is the ceilings table read the other way: 425 tokens
+  saturated, which is below the 429-token longest answer this tier was measured writing on the
+  shipped shape and far below the 912-token answer it writes under the instruction that recovers
+  one. A cap sized there cuts answers.
+
+A configured rate would also be a hardware fact in a settings class that holds none, which is the
+entry's own argument and which stands, but it is the weaker half: even a per-tier rate typed
+correctly is wrong by up to an order of magnitude by the time the host gets busy.
+
+### The decision
+
+**The cap and the deadline are two independent bounds on one run, and this repo does not order
+them.** They answer the same question in the two units a runaway is measurable in, neither replaces
+the other, and which one binds is a property of the machine and the wiring rather than of the pair.
+The conversion between them stays the operator's, the ceilings addendum's table is where it is
+written down, and both declarations now carry a sentence saying so, so a reader who finds three
+orderings refused at boot and no fourth learns that the fourth is absent by decision rather than by
+oversight.
+
+### What moves
+
+Nothing executable. The sentence lands beside both declarations in `cortex_core/subagents.py`, in
+the `SubagentsConfig` bullet of [docs/modules/brain-orchestrator.md](../modules/brain-orchestrator.md)
+where a future agent reads what that class refuses, in the `AttemptBounds` bullet of
+[docs/modules/brain-core.md](../modules/brain-core.md) (whose decode rate is corrected to the
+interval the code carries while it is open), and in
+[docs/runbooks/subagents-cpu.md](../runbooks/subagents-cpu.md) beside the knobs an operator retunes.
+
+### What this does not do
+
+It does not measure anything. It also does not give the roster a way to say the conversion per
+entry, which is what the decision leaves undone: one `AttemptBounds` reaches every entry of a roster
+whose entries decode at different rates, and that is
+[R-494](../refinements/tasks/494-one-pair-of-run-bounds-for-a-roster-of-tiers.md).
