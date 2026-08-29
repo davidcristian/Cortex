@@ -2767,3 +2767,175 @@ Three readings, and the third is the one that decides.
   half.
 - **No lineup entry was re-measured except the two here.** The other nine rows stand on the reading
   the lineup section took, on the build it names, and this addendum does not refresh them.
+
+## Firm-prompt addendum (2026-08-29): the reasoning-off pair is conditional on the prompt, and the request key is not a repair for it
+
+**Status:** Accepted. Closes
+[docs/refinements/tasks/479-the-reasoning-budget-held-until-the-prompt-pushed.md](../refinements/tasks/479-the-reasoning-budget-held-until-the-prompt-pushed.md),
+and opens
+[R-500](../refinements/tasks/500-the-garbled-channel-marker-has-no-attributed-cause.md).
+
+It stands **beside** the request-lever addendum above rather than under it, and saying why is the
+whole reason this entry is not declined the way its sibling was. That addendum measured a **request
+key holding on a server carrying no flag**. This entry is about **a server flag failing on a server
+carrying both**. The second does not follow from the first, and on the delegated path the key the
+sibling was declined in favour of is the same sampler zero said a second time. So the question here
+is not whether a repair exists somewhere in the engine. It is whether the repair works on the shape
+that ships, and it was measured rather than reasoned about.
+
+### Re-derived first, because an entry's account of its own subject is not evidence
+
+Read off the tree before any server was started, and two of the entry's three load bearing
+sentences had already stopped being true.
+
+- **The probe it names cannot take the cell it describes.** The entry says
+  `brain/packages/inference/tests/test_thinking_switch_live.py` "already draws each cell several
+  times against a server whose flags the operator chooses". That file's own docstring says the
+  opposite, "the server must be started with **no** `--reasoning-budget` and **no**
+  `--chat-template-kwargs`", and it is not a preference: each shape's no-switch arm is **asserted**
+  to have deliberated, which is the control the file exists to carry, so a run of it against a
+  server carrying the pair goes red on that control before it reports a rate. The cell the entry
+  wants belongs where the entry's own rate was taken,
+  `brain/packages/orchestrator/tests/test_envelope_cost_live.py`, which runs the shipped
+  `SubagentRunner`.
+- **One of the three documents it says owes a sentence already carries one.**
+  [docs/runbooks/subagents-cpu.md](../runbooks/subagents-cpu.md) names this entry, gives 8 draws in
+  96 against 1 in 96 with the sentence stripped, and orders the causes of a cap refusal on narrow
+  work: the flags first, this second, a runaway third. What is unqualified is the other two, the
+  compose command block's "the budget is the flag that reaches that shape" and
+  [ADR-0010](ADR-0010-subagents.md)'s "on a current image `--reasoning-budget 0` does work and is
+  what reaches that shape".
+- **The request lever does not reach this path, and that is a decision rather than an omission.**
+  `PlacedAttempt` builds `GenerationBounds(max_tokens=...)` and names no count, and the
+  request-lever addendum's decision 7 argues it: every subagent server this repo starts already
+  carries `--reasoning-budget 0`, so a request here would be asking for the zero the tier already
+  set. That is what makes this entry unlike its sibling. There the repair was present and the
+  proposal was a detector for it; here the proposal **is** the repair, and the repair is the flag
+  that is failing.
+
+### What a real server said
+
+Measured 2026-08-29 by the agent, the shipped subagent pick (gemma-4-E4B QAT q4_0) on
+`ghcr.io/ggml-org/llama.cpp:server-cuda` reporting `b10666-4e97ac86e`, `-ngl 99 -c 8192 --jinja
+--parallel 1`, started **the way `docker/docker-compose.subagents.yml` starts one**, with both
+`--chat-template-kwargs '{"enable_thinking": false}'` and `--reasoning-budget 0` on its argv. The
+request is the shipped delegated one, built by the tree's own `task_messages` and `build_payload`:
+the four report bodies of the envelope harness, the appended `REPLY_INSTRUCTION`, `REPLY_ENVELOPE`
+as the `response_format`, `max_tokens` at the shipped 1024, and no other key. The unflagged rows
+below are the same request against a second server of the same image and model started with
+neither flag.
+
+| server | request | draws | wrote to the channel | empty reply |
+| --- | --- | --- | --- | --- |
+| both flags | the shipped delegated request | 76 | **13** | **8**, every one cut at the cap |
+| both flags | the same, plus `reasoning_budget_tokens: 0` | 20 | **1** | 1 |
+| neither flag | the shipped delegated request | 8 | **8/8**, 1782 to 2799 chars | 0 |
+| neither flag | the same, plus `reasoning_budget_tokens: 0` | 8 | **0/8** | 0 |
+
+Four readings, and the third is the one nobody had.
+
+1. **The entry is right, at eight times its sample and on a GPU rather than a CPU.** The pair is
+   not absolute on this pick: 13 draws in 76 of the exact request a delegated run sends wrote 1582
+   to 4078 characters into a channel that run drops unread, and 8 of those came back with an empty
+   `reply` cut at 1024. The traces fall on **two of the four bodies**, warehouse and clinic, with
+   fleet and network clean throughout, which is the same concentration the 288 run measurement
+   reported and is the shape of a prompt effect rather than a body's quirk. The 76 draws are two
+   at each of 38 seeds and are therefore not 76 independent samples: the pair at one seed agreed on
+   whether the channel was used on 37 of 38 and was alike to the character on 33, so read the rate
+   as 7 of 38 seeds rather than as a precision.
+2. **The request key is not the repair, on the server this is about.** Twenty draws carrying
+   `reasoning_budget_tokens: 0` on top of both flags still produced one, and it is the same
+   phenomenon rather than a milder one: a garbled marker, then the answer written in prose into the
+   channel, then the cap. One in 20 against 13 in 76 does not separate at these sizes and this
+   addendum does not claim it does. What one occurrence does settle is the only question that was
+   open, whether adding the key **closes** the door on a tier whose flag already set the same
+   sampler. It does not.
+3. **The key does work on this prompt where nothing else is set**, which is what stops reading 2 as
+   a doubt about the key itself. On the unflagged twin of the same server, the same firm request
+   deliberated on 8 draws of 8, on all four bodies, and on 0 of 8 with the key added. So the
+   failure is not "this prompt defeats every lever", and the prompt invites a thought from every
+   body rather than from the two that leak. It is specific to the tier that already carries the
+   flag.
+4. **The two servers write different traces, and the difference is the finding.** Every trace on
+   the unflagged server opens as ordinary deliberation and reads like it: "Here's a thinking process
+   that leads to the summary", "Thinking Process:", "*   **Analyze the Request:**". On the flagged
+   server 11 of the 13 open with a **fragment of a channel marker** instead, the literal
+   `</channels>`, `t</channell>`, `</chaann>`, `h</cha>`, `h</c>`, or a bare `>`, and then write the
+   answer itself into the channel in plain prose. That is the same malformed opening the ADR-0028
+   instruction addendum recorded on 6 of its 8, read here beside its own control.
+
+### What the traces say about the mechanism, which reverses the entry's hypothesis
+
+The entry supposed that a firm instruction makes prose inadmissible inside `reply`, so the prose
+goes through the door the gemma-4 handler holds open under a grammar, and "a budget of zero would be
+one more thing the grammar outranks". The traces do not read that way, and the control is what says
+so. A budget being outranked would leave the model deliberating the way an unbudgeted one does, and
+that is exactly what the unflagged rows show and the flagged rows do not.
+
+What the flagged rows show is the request-lever addendum's own leak, at a severity that addendum did
+not reach. That addendum found that forcing the end of a thought "lands **after** its start
+sequence", so what the model had already written of the tag survives, and recorded one draw in 58
+whose whole reply was the leaked word `thought`. The fragments above are the other side of the same
+event: a forced close emitted where no thought was open, mangled, and then read by the server's own
+parser as a channel switch, after which every token of the answer is classified as reasoning. On
+that reading the budget is not being overridden at all. It is firing, and its forcing is the thing
+that goes wrong.
+
+This is the best explanation of four readings and it is not an attribution. Nothing here read the
+handler, and one build was measured. It is
+[R-500](../refinements/tasks/500-the-garbled-channel-marker-has-no-attributed-cause.md).
+
+### Decision
+
+1. **The reasoning-off pair is conditional on the prompt, and the two documents that state it
+   without a qualifier gain one.** The compose command block and ADR-0010 both say the budget
+   reaches the constrained shape, which is true and is not the whole of it. Both now say what it
+   costs when it does not, with the rate and the symptom, so an operator reading either meets the
+   failure where the claim is made rather than only in the runbook.
+2. **The delegated path still names no count, and decision 7 of the request-lever addendum
+   stands, on a better argument than it had.** It rested on the key being the zero the tier already
+   set. That is now measured rather than assumed, and measured in the direction that matters: the
+   key on top of the flag left the phenomenon reachable. Routing `trace_tokens=0` into
+   `PlacedAttempt` would therefore add a key to every delegated request in the repo and buy nothing
+   that was asked for, which is the knob that lies with extra steps.
+3. **No repair ships, and the reason is that no repair here is this port's to make.** The three
+   shapes a fix could take are all refused for reasons already written down. Stripping a garbled
+   marker out of a reply needs the core to know a per pick template token, which the leak reading
+   refused one addendum ago and the template-probe addendum refused again. A shape rule over the
+   answer cannot tell a one word answer from a defect. And the pick itself is the real lever, the
+   ADR-0028 row addendum having measured every Qwen entry writing nothing to that channel across
+   864 draws, which is a lineup decision and not an engine one.
+4. **What ships is the rate, the control and the symptom**, so the next reader meets a measured
+   conditional claim rather than an absolute one, and so a build that raises or removes the rate is
+   recognisable when somebody re-runs the same request.
+
+### What this does not do, and where that is recorded
+
+- **The garbled marker has no attributed cause.** The forced close is the best explanation of the
+  contrast between the two servers, and it is a reading of traces rather than of the handler that
+  writes them.
+  [R-500](../refinements/tasks/500-the-garbled-channel-marker-has-no-attributed-cause.md).
+- **The key arm is 20 draws and each unflagged arm is 8**, sized to the session rather than to the
+  question. What they establish is existence on one side and effect on the other, and neither is a
+  rate. The flagged arm is the only row here anybody should quote as one, and it is 38
+  seeds drawn twice rather than 76 independent draws.
+- **No committed probe reproduces this cell.** The harness that can take it,
+  `test_envelope_cost_live.py`, runs the shipped runner and therefore sends what `PlacedAttempt`
+  sends, so the key arm above was drawn by hand off `build_payload`. That is the half of R-479's
+  own closing condition this addendum does not meet, and it is named in
+  [R-500](../refinements/tasks/500-the-garbled-channel-marker-has-no-attributed-cause.md).
+- **One pick, one build, one prompt shape.** Every number is gemma-4-E4B on
+  `b10666-4e97ac86e` at the summarization shape, which is the shape the residue was already
+  concentrated on. The lineup's own reading, that no Qwen entry writes to that channel at all,
+  is untouched and unre-measured here.
+
+### Distrust green
+
+No rule, gate or branch is added, so there is no mutation table and this section says instead what
+the measurement's own controls were. Two of them carry it. The **unflagged twin** is what separates
+"this prompt defeats the lever" from "this tier's flag garbles its own close", and without it every
+flagged reading here would have had two explanations and no way to choose. The **paired seed** is
+what says the flagged rate is a property of the request rather than of the draw order: 38 seeds
+drawn twice agreed on the channel 37 times, which is also the reason the rate is quoted over seeds
+and not over draws. What no control here reaches is the handler itself, and that is why decision 3
+ships an explanation labelled as one.

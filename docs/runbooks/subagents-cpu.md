@@ -174,6 +174,16 @@ delegation time (ADR-0012 admission-wall addendum).
 > channel a delegated run drops, at 8 draws in 96 against 1 in 96 without the sentence
 > ([R-479](../refinements/tasks/479-the-reasoning-budget-held-until-the-prompt-pushed.md)). So on a
 > current stack a cap refusal on narrow work is the flags first, this second, and a runaway third.
+> **That second cause is now measured on a correctly flagged server and it is not rare**
+> (ADR-0005 firm-prompt addendum): at the request a delegated run really sends, 13 draws in 76 wrote
+> 1582 to 4078 characters into the reasoning channel and 8 came back with an empty reply cut at the
+> cap, on two of the four report bodies. So a tier whose argv reads right can still lose a narrow
+> summarization this way, and **checking the argv does not rule it out**. Two things separate it
+> from the missing flag above: 11 of the 13 traces open with a fragment of a channel marker
+> (`</channels>`, `h</cha>`, a bare `>`) rather than with deliberation, which is what to grep a
+> trace for, and adding the engine's per-request `reasoning_budget_tokens: 0` on top of the flags
+> does not close it, so there is no knob here to reach for. What does close it is the pick: no Qwen
+> entry of the lineup writes to that channel at all.
 > A plan arriving in `reply` as an `ok=True` answer is rarer but still possible and still silent,
 > which is [R-480](../refinements/tasks/480-a-narrated-reply-arrives-as-an-answer.md).
 > **Every number in this note is the default pick's**, and the pick is one env var away from being a

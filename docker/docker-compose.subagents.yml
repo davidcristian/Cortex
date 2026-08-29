@@ -146,6 +146,17 @@ services:
       # with no trace at all. Zero rather than a count, because a narrow subtask wants no thought
       # and not a short one; the cortex tier's own count is CORTEX_REASONING_BUDGET, which
       # deliberately does not reach here.
+      #
+      # NEITHER FLAG IS ABSOLUTE, and what they leave is worth knowing before a cap is retuned
+      # (ADR-0005 firm-prompt addendum). Measured on the E4B pick on a server carrying both, at
+      # the shipped delegated request over the envelope harness's four report bodies, 13 draws in
+      # 76 still wrote 1582 to 4078 characters into the reasoning channel and 8 of those came back
+      # with an EMPTY reply cut at the cap. The traces fall on two of the four bodies and 11 of the
+      # 13 open with a fragment of a channel marker rather than with deliberation, which the same
+      # measurement's unflagged control never produced. Adding the engine's per-request key on top
+      # of these flags does not close it either, so a cap refusal on narrow work is these flags
+      # first and this second, and the lever that does hold on this shape is the pick: no Qwen
+      # entry of the lineup writes to that channel at all (ADR-0028 row addendum).
       - "--chat-template-kwargs"
       - '{"enable_thinking": false}'
       - "--reasoning-budget"

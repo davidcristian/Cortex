@@ -184,6 +184,17 @@ budget for the engine. The same image also prints a deprecation warning for the 
 boot, which is
 [R-461](../refinements/tasks/461-the-tiers-thinking-flag-is-deprecated.md).
 
+**And "does work" is a majority and not a guarantee (2026-08-29, ADR-0005 firm-prompt addendum).**
+Re-measured on the E4B pick against a server carrying **both** flags, at the request a delegated run
+really sends and on a subtask firm enough to forbid prose in the reply, **13 draws in 76** wrote 1582
+to 4078 characters into the reasoning channel and **8** of those returned an empty `reply` cut at the
+cap, on two of the four report bodies. The same request on an unflagged twin of that server
+deliberated on 8 draws of 8 and on 0 of 8 once the engine's own per-request
+`reasoning_budget_tokens: 0` was added, so the lever is real; adding that key **on top of** the flags
+left the failure reachable, which is why the delegated path still names no count. The sentence above
+is therefore the right default rather than a floor, and the lever that holds on this shape is the
+pick rather than a flag.
+
 **And the Qwen half of that sentence is measured 2026-08-28** (ADR-0005 switch-is-advisory
 addendum, lineup section), where before it rested on the same `17 + 25` this addendum's own reading
 above used. Asked on a prompt that does invite deliberation, at five draws a cell, against a server
