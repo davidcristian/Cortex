@@ -1,6 +1,6 @@
 # The tier's reasoning-off flag held on every run until a firmer prompt pushed on it
 
-**Status:** open, actionable
+**Status:** landed 2026-08-29
 **Area:** inference
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
 
@@ -68,3 +68,21 @@ would be the obvious repair if the flag really is conditional.
   budget did not hold" and points the committed probe at a cell it can actually distinguish: the
   same prompt against a build whose gemma-4 handler treats an unopened thought differently. Read in
   full in the ADR-0005 instruction addendum.
+- 2026-08-29: **landed** by the ADR-0005 firm-prompt addendum, which re-measured the cell on a
+  server carrying both flags and wrote the sentence into the two documents that were still stating
+  the claim without one. Three things it found. **The entry is right, at eight times its own
+  sample**: 13 draws in 76 of the exact request a delegated run sends wrote 1582 to 4078 characters
+  into the reasoning channel and 8 returned an empty reply cut at the cap, on two of the four
+  bodies. **The per-request lever shipped that day is not the repair here**, which is why this
+  entry is not declined the way [R-475](475-a-tier-can-be-asked-what-its-template-answers.md) was:
+  it is declined for the delegated path by decision, it would be the same sampler zero the flag
+  already set, and 20 draws carrying it on top of both flags still produced one. **And the
+  mechanism is the opposite of this entry's hypothesis**: an unflagged twin of the same server
+  deliberated on 8 draws of 8 in ordinary, well formed prose and on 0 of 8 with the key, where 11
+  of the flagged server's 13 traces open with a garbled channel marker, so the budget is not being
+  outranked by a grammar but firing and having its forced close mis-parsed. Two corrections to this
+  entry's own text on the way past: `test_thinking_switch_live.py` cannot take the cell it names,
+  its control asserting that the no-switch arm deliberated, and the runbook already carried the
+  sentence this entry says all three documents owe. What the close leaves is the attribution and a
+  probe that reproduces it,
+  [R-500](500-the-garbled-channel-marker-has-no-attributed-cause.md).
