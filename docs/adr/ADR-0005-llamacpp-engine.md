@@ -2634,3 +2634,136 @@ reported at once, naming the file, the line and both field lists. The other muta
 recording because it stayed **green when red was expected**, and correctly: reordering the fields
 in the call's own `extra` changes nothing, the formatter rendering them in name order, which is
 what that gate has always said it holds. The expectation was wrong rather than the gate.
+
+## Template-probe addendum (2026-08-29): the rendering is a prediction, and it stops being load bearing
+
+**Status:** Accepted. Declines
+[docs/refinements/tasks/475-a-tier-can-be-asked-what-its-template-answers.md](../refinements/tasks/475-a-tier-can-be-asked-what-its-template-answers.md),
+which proposed shipping the lineup section's rendering column as a boot time probe, and opens
+[R-499](../refinements/tasks/499-the-rendering-predictor-is-asserted-nowhere.md).
+
+It **completes the scope sentence** the request lever addendum above wrote for the switch is
+advisory addendum's decision 5. That decision said "no adapter side repair, and no capability
+probe", the request lever addendum carved the engine's own key out of it, and this one says the
+remaining half stands: asking a server what a **pick** does with a grammar in front of it is still
+not a question any endpoint answers, and the rendering that predicts it is a prediction rather than
+an answer. Nothing else in that decision moves, and no code changes here.
+
+### Re-derived first, because this entry's account of its own subject is where it fails
+
+Read off the tree before any server was started, and the entry's central sentence had already
+stopped being true.
+
+- The entry says the third of its three template states is the only one where "a bound pairing a
+  cap with `thinking=False` **and a schema** returns a short answer rather than no answer, and
+  `rank_bounds` with `ORDER_ENVELOPE` is exactly that pairing". `rank_bounds(k)` now carries
+  `trace_tokens=0` (`cortex_core.rerank_judge`), as do `TITLE_BOUNDS` (`cortex_core.session_title`)
+  and `RECAP_BOUNDS` (`cortex_core.recap_prompt`). On a deployment whose engine reads that key, the
+  template's answer decides nothing about any shipped bound, because the sampler has already closed
+  the thought whatever the prompt left open.
+- The hazard therefore survives in exactly one place, and it is worth naming precisely rather than
+  waving at. `JudgeRecallPolicy` is built against the **cortex** model
+  (`cortex_orchestrator.memory_builders`), and the cortex is one of the two tiers the model host
+  starts with **no** fixed zero: `cortex_reasoning_budget` and `brain_reasoning_budget` both default
+  to unrestricted and emit no flag, where the subagent tier alone carries `_REASONING_OFF`
+  unconditionally (`cortex_model_manager.config`). So the only shipped schema carrying bound runs
+  against a tier with no sampler floor, and its safety rests on the cortex pick's template or on the
+  lever. That is a real and narrow question, and it is the strongest thing this entry has.
+- `CORTEX_INFERENCE_TRACE_LEVER` is resolved once at `build_backend`, on the cortex endpoint, with
+  the cortex model (`cortex_orchestrator.builders.resolve_trace_lever`). The composition root
+  therefore already holds the answer that decides whether the template question matters, in the
+  same function, at the same moment.
+
+The entry's claim that the ground "has moved twice" is upheld on both moves. `POST /apply-template`
+does render the prompt a request would really get, and the lineup section's eleven rows do read the
+constrained verdict off it. What moved a third time is the ground under the entry itself.
+
+### What a real server said
+
+Measured 2026-08-29 by the agent on `ghcr.io/ggml-org/llama.cpp:server` reporting
+`b10666-4e97ac86e`, both picks `-ngl 0 -c 8192 --jinja --parallel 1`, started with **neither**
+reasoning flag, at a cap of 256, on the deliberation inviting prompt the committed switch probe
+uses, the constrained cells carrying `REPLY_ENVELOPE`. Two entries were chosen because the lineup
+table puts them on opposite sides of the column that splits.
+
+| tier | cell | draws | deliberated | reply |
+| --- | --- | --- | --- | --- |
+| gemma-4-E4B QAT q4_0 (drops the block) | envelope, switch, no budget | 5 | **5/5** | empty, `length`, every draw |
+| gemma-4-E4B QAT q4_0 | envelope, switch, `reasoning_budget_tokens: 0` | 5 | **0/5** | the envelope, every draw |
+| Qwen3.5-2B Q4_K_M (closes an empty think) | envelope, switch, no budget | 5 | **0/5** | the envelope, every draw |
+| Qwen3.5-2B Q4_K_M | envelope, switch, `reasoning_budget_tokens: 0` | 5 | **0/5** | the envelope, every draw |
+
+The first two rows are the whole decision. The failing tier fails the way the column predicts, and
+the key that already ships closes it on the same server in the same minute. The prediction is
+correct and it is no longer about anything.
+
+### And the probe the entry describes cannot be written the way it describes it
+
+The entry says the answer is "one HTTP call and two string comparisons". Both renderings were read
+rather than assumed, full prompts and not tails, and the comparison it names sorts nothing.
+
+```
+E4B,  no switch  194 chars  …<|turn>system\n<|think|>\n<turn|>\n<|turn>user\n…pay?<turn|>\n<|turn>model\n
+E4B,  switch     162 chars  …<|turn>user\n…pay?<turn|>\n<|turn>model\n
+2B,   no switch  187 chars  …<|im_end|>\n<|im_start|>assistant\n<think>\n
+2B,   switch     198 chars  …<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n
+```
+
+Three readings, and the third is the one that decides.
+
+1. **The renderings differ on both picks**, so "are these two strings equal" answers "the template
+   read the key" for the failing tier as loudly as for the holding one. The entry's first state,
+   a template that ignores the key entirely, is not what the failing tier is in and was not
+   observed anywhere in the lineup.
+2. **The E4B's two prompts have byte identical tails**, both ending `<|turn>model\n` with the door
+   open, and the difference is a whole system turn dropped at the **front**. The mechanism section
+   above says exactly this and says it correctly, "dropping the `<|think|>` marker and adding
+   nothing", and the two lines it quotes are tails, so the drop it describes is not visible in
+   them. That is a presentational gap in this ADR rather than a wrong sentence, and it is repaired
+   by the block above.
+3. **So the predictor turns on the tail closing a thought, and recognising a closed thought means
+   knowing a per pick template token.** `</think>` on the native family, `<channel|>` on gemma-4,
+   and neither is on any endpoint. This ADR refused that exact knowledge one addendum ago, on the
+   leak: "a repair would have to strip a template's start sequence out of a reply, which means the
+   core knowing a per-pick token, and that is the one thing the port exists to not know." A probe
+   that classifies a rendering needs the same vocabulary for a weaker purpose.
+
+### Decision
+
+1. **No template probe ships, and the rendering column stays a reading rather than a rule.** It is
+   eleven readings of one engine build's handlers, correct on all eleven and on both picks
+   re-measured here, and it is a **proxy** for the constrained verdict. The request lever addendum
+   refused `build_info` on that ground while choosing a range check that is the capability itself,
+   and the template rendering is the weaker of the two kinds: the engine is not asserting anything
+   about it, so a handler that gated its reasoning rule on `enable_thinking`, which sibling
+   handlers in the same file already do, would leave a shipped probe confidently wrong with nothing
+   noticing. The tags float, which is the argument that refused a constant floor, and it lands on a
+   carried prediction harder than on a constant.
+2. **The hazard is repaired rather than reported, and the repair is the one that shipped.** The
+   three side calls name `trace_tokens=0`, the lever decides whether it reaches the engine, and on
+   the tier the entry is about that pairing was measured here at 0 of 5 where the unbudgeted cell
+   is 5 of 5. A detector for a hazard that has a repair present is worth less than the repair, and
+   on a deployment where the repair is absent the detector's only advice is to obtain the repair.
+3. **What the entry wanted said at boot is already filed, in a form that needs no template
+   vocabulary.** [R-497](../refinements/tasks/497-nothing-reports-a-trace-budget-that-went-unread.md)
+   names the honest half as a line from the composition root, which knows the lever and the
+   deployment's own count. That root can say "this engine reads no per request trace budget" from
+   what it already has, and that sentence is true of every tier without asking any of them anything.
+4. **The one thing the decline loses is that the reading is asserted nowhere.** The committed switch
+   probe prints both renderings ahead of its cells and reads neither, so the rule that ties them to
+   the verdicts is carried in prose across two documents and re-derived by hand. That is
+   [R-499](../refinements/tasks/499-the-rendering-predictor-is-asserted-nowhere.md), and it is an
+   integration probe's assertion rather than anything that runs in a deployment, which is the
+   difference between it and what was declined.
+
+### What this does not do, and where that is recorded
+
+- **The cortex tier still has no sampler floor and one schema carrying bound**, so a deployment that
+  swaps the cortex pick for a template on the failing side and runs an engine whose lever is off
+  loses every rank to an empty reply, silently. `drain_text`'s warning fires on that completion, so
+  it is reported after the fact and not before, which is the standing shape of this and is
+  [R-466](../refinements/tasks/466-nothing-holds-a-cap-to-a-bounded-trace.md) for the gate half and
+  [R-497](../refinements/tasks/497-nothing-reports-a-trace-budget-that-went-unread.md) for the boot
+  half.
+- **No lineup entry was re-measured except the two here.** The other nine rows stand on the reading
+  the lineup section took, on the build it names, and this addendum does not refresh them.
