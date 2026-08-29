@@ -21,6 +21,12 @@ the settings field holding the tier's model path carries one as its `validation_
 `MODEL_PREFIX` is the single place that prefix is written. The tier's logical id is deliberately
 not the test: an id is what a deployment renames, and this question must keep its answer under one.
 
+**That reading rests on a naming convention, so the same declaration is read a second way.**
+`tier_artifacts` returns every tier's artifact variable with no filter at all, which is what
+`artifactnames.py` joins to the compose side and `flagcheck.py` holds to the family prefix: a
+tier whose artifact is spelled outside it would otherwise leave this set in silence. The two
+readings share one walk of the declaration rather than being two readers of it.
+
 **The flags are read out of the argv builder rather than restated here.** Every tier's command is
 the fixed run of items that builder returns with the tier's own `extra` splatted into it, so this
 reads that return tuple, resolves what it can, and splices the tail in at the splat. Nothing about
@@ -96,7 +102,7 @@ class Tier(NamedTuple):
     command: tuple[str, ...]
 
 
-def _parse(root: Path, name: str) -> ast.Module:
+def parse_module(root: Path, name: str) -> ast.Module:
     """One of the sidecar's modules, with the syntax reader's refusal carried out this door."""
     try:
         return parse(root / MODEL_MANAGER / name, (MODEL_MANAGER / name).as_posix())
@@ -180,8 +186,14 @@ def aliases(module: ast.Module) -> dict[str, str]:
     return named
 
 
-def _serves(call: ast.Call, named: Mapping[str, str]) -> str | None:
-    """The variable naming this tier's artifact, when it is a subagent tier's, else None."""
+def tier_artifacts(call: ast.Call, named: Mapping[str, str]) -> tuple[tuple[str, str], ...]:
+    """Every settings field one tier reads its artifact path from, and the variable each names.
+
+    Unfiltered, because the question above this one is whether every artifact this tree names is
+    named so that a reader can classify it at all, and an artifact spelled outside the family is
+    exactly the one a subagent filter here would drop. `_serves` applies that filter; the naming
+    rule in `flagcheck.py` reads this.
+    """
     fields = [
         node.attr
         for keyword in call.keywords
@@ -198,7 +210,14 @@ def _serves(call: ast.Call, named: Mapping[str, str]) -> str | None:
             f"{TIER_PATH}, so this reader cannot say whether it serves subagents"
         )
         raise HostedTierError(msg)
-    serving = [named[field] for field in fields if named[field].startswith(MODEL_PREFIX)]
+    return tuple((field, named[field]) for field in fields)
+
+
+def _serves(call: ast.Call, named: Mapping[str, str]) -> str | None:
+    """The variable naming this tier's artifact, when it is a subagent tier's, else None."""
+    serving = [
+        variable for _, variable in tier_artifacts(call, named) if variable.startswith(MODEL_PREFIX)
+    ]
     return serving[0] if serving else None
 
 
@@ -220,7 +239,7 @@ def _tail(
     return tuple(item for item in tail if item is not None)
 
 
-def _declared(module: ast.Module) -> list[ast.Call]:
+def declared(module: ast.Module) -> list[ast.Call]:
     """Every tier the settings module constructs, in the order it writes them."""
     found = [
         node
@@ -237,12 +256,12 @@ def _declared(module: ast.Module) -> list[ast.Call]:
 
 def hosted(root: Path) -> tuple[Tier, ...]:
     """Every tier the model host under ``root`` starts as a subagent, in declaration order."""
-    head, tail = shared(_parse(root, ARGV_MODULE))
-    module = _parse(root, TIER_MODULE)
+    head, tail = shared(parse_module(root, ARGV_MODULE))
+    module = parse_module(root, TIER_MODULE)
     named = aliases(module)
     strings, tuples = constants(module)
     found: list[Tier] = []
-    for call in _declared(module):
+    for call in declared(module):
         serves = _serves(call, named)
         if serves is None:
             continue

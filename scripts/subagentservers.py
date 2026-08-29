@@ -49,11 +49,16 @@ from composestarts import ComposeStartError, Started, read_starts
 ENDPOINT_KEYS = frozenset({"CORTEX_SUBAGENTS_ENDPOINT", "CORTEX_SUBAGENTS_GPU_ENDPOINT"})
 ROSTER_PREFIX = "CORTEX_SUBAGENTS_ROSTER__"
 
-# What a subagent server's own argv names its model file under. The shipped pick, the roster
-# alternate and the sidecar's opt-in tier are `CORTEX_MODEL_FILE_SUBAGENT` and that name with
-# `_QWEN` and `_GPU` after it; the embedder and the cortex name theirs under words this cannot
-# reach.
-MODEL_PREFIX = "CORTEX_MODEL_FILE_SUBAGENT"
+# How this tree names a model artifact at all, whichever tier serves it, and then what a subagent
+# server's own argv names its model file under. The shipped pick, the roster alternate and the
+# sidecar's opt-in tier are `CORTEX_MODEL_FILE_SUBAGENT` and that name with `_QWEN` and `_GPU`
+# after it; the cortex and the deep tier are the same family under other words. The two prefixes
+# are written as one string because the second is the first plus what it serves, and because the
+# naming rule `flagcheck.py` runs is what keeps this reading from being a convention nothing
+# holds: `artifactnames.py` finds every artifact structurally, and the family is what each is
+# held to.
+FAMILY_PREFIX = "CORTEX_MODEL_FILE_"
+MODEL_PREFIX = f"{FAMILY_PREFIX}SUBAGENT"
 
 # The host half of an address, which on a compose network is a service name.
 _ADDRESS = re.compile(r"https?://(?P<host>[A-Za-z0-9._-]+)")

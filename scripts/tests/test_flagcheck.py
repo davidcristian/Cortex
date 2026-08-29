@@ -17,6 +17,7 @@ from pathlib import Path
 import pytest
 
 import flagcheck
+from artifactnames import Artifact
 from flagcheck import (
     REQUIREMENTS,
     Flag,
@@ -27,6 +28,7 @@ from flagcheck import (
     check_one,
     main,
     missing,
+    unclassifiable,
 )
 from hostedtiers import MODEL_MANAGER
 
@@ -50,6 +52,13 @@ JINJA_ITEM = '      - "--jinja"\n'
 # placements one rule's business rather than two.
 HOSTED_PAIR = "                extra=_REASONING_OFF,\n"
 HOSTED_JINJA = '_JINJA = "--jinja"'
+
+# The two names the membership of that set is decided from, each where its own placement writes
+# it: the alias the sidecar's subagent tier reads its artifact path under, and the item a compose
+# command names its model file in. Either respelled is a member nothing would have missed.
+HOSTED_ALIAS = '"CORTEX_MODEL_FILE_SUBAGENT_GPU"'
+ARTIFACT_ITEM = '"/models/${CORTEX_MODEL_FILE_SUBAGENT:-'
+MISSPELLED_ITEM = '"/models/${CORTEX_SUBAGENT_MODEL_FILE:-'
 
 # A tier nobody registered: a fourth entry for a second subagent pick, with its own artifact
 # setting and a tail its author forgot to copy.
@@ -276,6 +285,79 @@ def test_a_server_no_registry_names_is_held_the_day_its_override_is_written(tmp_
     assert len(faults) == sum(len(requirement.flags) for requirement in REQUIREMENTS)
 
 
+# ── the names the set itself is decided from ───────────────────────────────────
+
+
+def test_an_artifact_named_in_the_family_is_one_a_membership_reader_can_classify() -> None:
+    named = Artifact(file="f", where="w", line=1, variable="CORTEX_MODEL_FILE_ANYTHING")
+    assert unclassifiable(named) is None
+
+
+def test_an_artifact_named_outside_the_family_names_itself_and_says_what_it_costs() -> None:
+    """A gate reporting only that a name differs would leave the reader to rediscover why the
+    spelling is anything but cosmetic."""
+    fault = unclassifiable(Artifact(file="f", where="w", line=1, variable="CORTEX_SUB_FILE"))
+    assert fault is not None
+    assert fault.detail.startswith("the artifact naming rule: ")
+    assert "CORTEX_SUB_FILE" in fault.detail
+    assert "leaves the set in silence" in fault.detail
+
+
+def test_a_hosted_tiers_artifact_spelled_another_way_is_reported_rather_than_dropped(
+    tmp_path: Path,
+) -> None:
+    """The whole reason this rule exists, on the placement that had no second reading at all.
+    Before it, renaming the alias out of the family took the tier out of both sets and the gate
+    went on passing over the two servers that were left, tail or no tail."""
+    edits = [
+        (TIER_MODULE, HOSTED_ALIAS, '"CORTEX_SUBAGENT_MODEL_FILE_GPU"'),
+        (TIER_MODULE, HOSTED_PAIR, "                extra=(),\n"),
+    ]
+    scanned = check(copied(tmp_path, edits))
+    assert scanned.servers == 2, "the tier really did leave the set, which is what is reported"
+    assert [(fault.file, fault.service) for fault in scanned.faults] == [
+        ((MODEL_MANAGER / TIER_MODULE).as_posix(), "subagent_gpu_file")
+    ]
+
+
+def test_a_compose_servers_artifact_spelled_another_way_is_reported_too(tmp_path: Path) -> None:
+    """The compose side keeps its safety net, the wiring that dials the server, so this fault is
+    the naming one alone; the net is what an override leaving the address to the host environment
+    does not have, and the name is held either way."""
+    faults = check(copied(tmp_path, [(SUBAGENTS, ARTIFACT_ITEM, MISSPELLED_ITEM)])).faults
+    assert [(fault.file, fault.service) for fault in faults] == [
+        (f"docker/{SUBAGENTS}", "llama-subagent")
+    ]
+    assert "CORTEX_SUBAGENT_MODEL_FILE" in faults[0].detail
+
+
+def test_a_fourth_tier_arriving_under_a_name_no_reader_looks_at_is_held_the_day_it_lands(
+    tmp_path: Path,
+) -> None:
+    """The two halves together. A fourth tier spelled inside the family reddens for the tail its
+    author forgot; spelled outside it, the tail is nobody's business because the tier is in no
+    set, and the name is what reports it."""
+    field = FOURTH_FIELD + (
+        '    subagent_cpu_file: str = Field(\n        default="", '
+        'validation_alias="CORTEX_SUBAGENT_MODEL_FILE_CPU"\n    )\n'
+    )
+    scanned = check(
+        copied(
+            tmp_path,
+            [(TIER_MODULE, FOURTH_FIELD, field), (TIER_MODULE, FOURTH_TIER, FOURTH)],
+        )
+    )
+    assert scanned.servers == 3, "the fourth tier is in no set, which is the fault"
+    assert [fault.detail.split(":")[0] for fault in scanned.faults] == ["the artifact naming rule"]
+    assert "CORTEX_SUBAGENT_MODEL_FILE_CPU" in scanned.faults[0].detail
+
+
+def test_the_rule_runs_over_every_artifact_the_committed_tree_names(tmp_path: Path) -> None:
+    """A count over one placement would be a rule the other could walk under, so the scan reports
+    what it held: the two compose servers' artifacts and the sidecar's three tiers."""
+    assert check(copied(tmp_path)).artifacts >= 5
+
+
 # ── the floors, since a scan over nothing would be green forever ───────────────
 
 
@@ -325,7 +407,9 @@ def test_a_tree_with_no_compose_file_at_all_is_an_input_failure(tmp_path: Path) 
 
 def test_the_cli_passes_over_the_committed_tree(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["--root", str(REPO_ROOT)]) == 0
-    assert "flagcheck OK:" in capsys.readouterr().out
+    printed = capsys.readouterr().out
+    assert "flagcheck OK:" in printed
+    assert "model artifact(s) this tree names" in printed, "both halves are reported, not one"
 
 
 def test_the_cli_prints_every_fault_and_fails(
@@ -335,7 +419,7 @@ def test_the_cli_prints_every_fault_and_fails(
     assert main(["--root", str(root)]) == 1
     printed = capsys.readouterr()
     assert "llama-subagent: the tier's reasoning-off pair" in printed.out
-    assert "1 server problem(s)" in printed.err
+    assert "1 problem(s)" in printed.err
 
 
 def test_the_cli_reports_an_unreadable_tree_as_an_input_failure(

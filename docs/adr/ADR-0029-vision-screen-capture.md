@@ -6376,3 +6376,157 @@ syntax under it, `scripts/flagcheck.py`, which runs one rule over both sets,
 sidecar are corrected, [AGENTS.md](../../AGENTS.md), [docs/index.md](../index.md) and
 [modules/repo-gates.md](../modules/repo-gates.md), whose listings name the two modules, and this
 addendum.
+
+## Addendum (2026-08-29): the naming a derived set is read out of is held, and structurally
+
+The flag rule runs over a set two readers derive, and both of them decide membership from one
+string: a compose service is a subagent server when its argv spends a `CORTEX_MODEL_FILE_SUBAGENT*`
+variable, and a hosted tier is one when the settings field carrying its `model_path` is aliased to
+one. Three settings obeyed that convention and the readers were right about all three. Nothing
+held a fourth to it, so the gate's promise, that a server added tomorrow is held the day it is
+written, rested on tomorrow's author spelling one variable the way three earlier ones were
+spelled. This closes that, by holding every model artifact this tree names to being named under a
+`CORTEX_MODEL_FILE_` variable, and by finding those artifacts structurally rather than by the
+prefix they are being held to.
+
+### Re-derived first, and the hole is real on one placement and half real on the other
+
+The entry was a day old and reasoned from the readers alone, so both placements were mutated
+against the committed gate before anything was written. Renaming the sidecar's own alias to
+`CORTEX_SUBAGENT_MODEL_FILE_GPU` **and** deleting that tier's reasoning-off tail printed
+`flagcheck OK: the 2 subagent server(s) started` and exited 0: the tier left the set in silence,
+took its missing flags with it, and the count dropping from three to two was the only trace.
+The compose side behaved as the entry described. Respelling `CORTEX_MODEL_FILE_SUBAGENT` and
+taking `--jinja` off that server still reddened, because the wiring that dials it is a second
+reading; respelling it in an override that also leaves the server's address to the host
+environment printed OK over a server carrying none of the flags.
+
+What already holds the three written down is worth recording, because it is not nothing and it is
+not this. The model_manager suite pins all three aliases through the environment it sets, so
+**renaming** one of today's settings reddens the brain: the same respelling of the subagent tier's
+alias reddens 2 of the 136 checks that suite runs, both in `test_model_roster.py`. No suite and no
+scan says anything about a **fourth** artifact arriving under a name no reader looks at, which is
+the whole of what was open.
+
+### The entry's own preferred shape is circular, and that is what changed the design
+
+The entry proposed holding the `CORTEX_MODEL_FILE_*` family closed: every variable in it that this
+tree spells is classified by one of the readers, and one no reader claims is reported. Read
+literally, the domain of that rule is the prefix whose observance it checks. The misspelling it
+exists to catch, `CORTEX_SUBAGENT_MODEL_FILE_CPU`, is not in the family, so it is outside the
+domain by construction and the rule could not fail for the fault it was built for. A gate that
+cannot fail for its own motivating case is the defect this repo names, not the fix for it.
+
+So the domain is the artifacts, found structurally, in the two languages that name one:
+
+- **compose**, the item after llama.cpp's own `--model`, read for the variables it spends;
+- **the sidecar's settings**, the field a `TierArgs` reads its `model_path` from, which
+  `hostedtiers.py` already resolves to a `validation_alias`. `tier_artifacts` is that same walk
+  with the subagent filter off, so one declaration serves the membership reading and the naming
+  rule rather than being read twice by two readers that could disagree.
+
+The cost the entry named, enumerating the artifact settings this tree writes and deciding for each
+whether it names a subagent's model, is paid by not making that judgement at all. The structural
+reading enumerates; the prefix still judges. What is added is that a variable which cannot be
+judged is now reported instead of passed over.
+
+The alternative the entry offered, registering the prefix in the constant registry as a value the
+settings must spell, was declined on the evidence: it holds the spelling of the three already
+written down, which the brain suite already holds, and says nothing about the fourth, which was
+the open half.
+
+### Three exclusions, each one a fault a reader would otherwise be wrong about
+
+**The short spelling of the model flag is not read.** llama.cpp accepts `-m`, and this tree starts
+an MCP sidecar with `python -m cortex_email`: a reader taking the item after every `-m` as a model
+artifact would call a module name one, and redden a correct service whose only honest remedy would
+be to teach the gate. Every server started here spells the flag in full, and a server that did not
+would still be found by the wiring that dials it.
+
+**An item spending no variable names nothing this rule can hold.** A model path written out in
+full carries no name to misspell.
+
+**An argv declaring `--embeddings` serves no chat.** The CPU embedder runs from the same llama.cpp
+image as the subagent servers and spells its artifact `CORTEX_EMBED_MODEL_FILE`, outside the
+family, which is the same exclusion `subagentservers.py` already makes on the image and for the
+same reason. It cannot be walked through by the fault it sits beside, since a chat server carrying
+that flag serves no chat either.
+
+That last one is a live counterexample to the convention this rule enforces: the tree still spells
+one artifact outside the family, and an author copying that block copies the wrong shape. Renaming
+it into the family was considered and declined here, because it changes an operator-facing
+variable to satisfy a gate and a deployment's own `.env` would fall back to the shipped pick in
+silence. The record is
+[R-492](../refinements/tasks/492-the-embedder-names-its-artifact-outside-the-family.md).
+
+### No twelfth scan, because this is the flag rule's own precondition
+
+The rule lives in `flagcheck.py` beside `REQUIREMENTS` rather than in a scan of its own. What it
+claims is not a separate property of the tree; it is what makes that gate's set complete, and a
+fault about it belongs where a reader is already looking when they ask whether every subagent
+server is held. A scan of its own would have bought a recipe, a CI job and four listings for one
+`if`, and it would have reported the membership of another gate's set from a file nobody reads
+for that. The single gate still runs eleven scans.
+
+It needs no floor of its own either. `hostedtiers.py` refuses a sidecar declaring no tier and a
+tier naming no artifact, so a tree this reader can read at all names at least one artifact, and a
+reading that answered emptily forever is already impossible.
+
+### Proved able to fail, twelve mutants over the scripts suite
+
+Each mutation was applied alone and `cd scripts && uv run pytest -q --no-cov` re-run over the
+**1453 checks of that suite**. The first four mutate the tree the gate reads; the rest mutate the
+gate, which is production code here. Rows over the committed tree redden every check that copies
+it, by design, those checks copying the real files so an artifact that moves house leaves the
+suite failing rather than quietly checking a stack nobody runs.
+
+| mutation | reddens |
+| --- | --- |
+| the hosted subagent tier's artifact is respelled out of the family | 20 |
+| a shipped compose server's artifact is respelled out of the family | 17 |
+| A FOURTH TIER arrives named under a variable no reader looks at | 18 |
+| the CPU embedder stops declaring itself an embedding server | 17 |
+| GATE: the naming rule is left out of the scan's faults | 3 |
+| GATE: the domain is the family itself rather than every artifact | 3 |
+| GATE: the hosted half is left out of the join | 4 |
+| GATE: the compose half is left out of the join | 3 |
+| GATE: the hosted reading keeps its subagent filter | 5 |
+| GATE: the short spelling of the model flag is read as well | 1 |
+| GATE: the embedding exclusion is dropped | 18 |
+| INTERACTION: the family prefix moves, which the subagent prefix is built from | 22 |
+
+Row three is the deliverable and the row that measures the close: the same fourth tier the
+previous addendum added, arriving under a name outside the family, is now a fault instead of a
+tier in no set. Row six is the circularity argued above, made a number: narrowing the domain to
+the family leaves every other check green and reddens exactly the three that respell a name, which
+are exactly the faults the entry's literal shape would have missed. Row eleven reddens one check
+and that check is the point of it, since no service in this tree writes `-m ${VAR}`; the row is
+what pins a deliberate exclusion to a decision rather than to an oversight. The last row is the
+interaction: `MODEL_PREFIX` is now built from `FAMILY_PREFIX`, so moving the family moves
+membership too, and 22 checks say the two are one string rather than two that agree.
+
+### What is still not held
+
+The rule holds that an artifact is named in the family; it does not hold that a family member
+naming a subagent says so. `CORTEX_MODEL_FILE_HELPER` on a chat server nothing dials would still
+pass, and deciding otherwise needs a hand-written set of the members that serve no subagent, which
+is the register-by-hand shape this gate's set was built to leave behind. The judgement stays with
+the prefix, and what changed is that a variable no judgement can reach is now reported.
+
+The settings half reads the model host's own module, which is the one place in this tree where a
+Python declaration names a model artifact. A second module that named one would be found by
+nothing, exactly as a server started outside compose and outside the sidecar is still held only by
+the constant registry's value,
+[R-468](../refinements/tasks/468-a-subagent-server-started-outside-compose-is-held-by-a-value.md).
+
+### Records
+
+The record is the task file
+[R-472](../refinements/tasks/472-the-membership-prefix-is-a-convention-nothing-enforces.md), which
+closes as landed, [docs/refinements/index.md](../refinements/index.md), which is regenerated from
+it, `scripts/artifactnames.py`, which is the new reader, `scripts/flagcheck.py`, which runs the
+naming rule beside the flag rule, `scripts/hostedtiers.py`, whose tier walk now serves both
+questions, `scripts/subagentservers.py`, where the family and the subagent prefix are one string,
+[AGENTS.md](../../AGENTS.md), [docs/index.md](../index.md) and
+[modules/repo-gates.md](../modules/repo-gates.md), whose listings name the new module, and this
+addendum.

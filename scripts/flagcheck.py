@@ -41,8 +41,21 @@ host's `_NO_REASONING_BUDGET`, and `crosscheck.py` holds them together. So the s
 hosted subagent tier and the compose servers here cannot drift into disagreeing about what
 "no thought" is, which matters because a narrow subtask wants none rather than a short one.
 
+**The set both readers derive rests on a naming convention, so the convention is held here too.**
+Each of them decides membership from the variable an artifact is named under, which made the whole
+promise, that a server added tomorrow is held the day it is written, rest on tomorrow's author
+spelling one variable the way three earlier ones were spelled. `artifactnames.py` finds every
+model artifact this tree names structurally, by llama.cpp's own `--model` and by the settings
+field a tier reads its path from, and the rule below holds each to beginning `FAMILY_PREFIX`. So
+an artifact spelled another way is a fault printed at the moment the variable is written, rather
+than a server or tier that leaves the set in silence and reddens nothing. The domain is
+deliberately not the family itself: a rule that only looked at the variables already spelled that
+way could not fail for the one fault it exists to catch.
+
 **Both floors are asserted**: a rule requiring no flag and a tree starting no subagent server are
-each reported rather than passed, since a scan over nothing would report success forever.
+each reported rather than passed, since a scan over nothing would report success forever. The
+naming rule needs no third floor, `hostedtiers.py` already refusing a sidecar that declares no
+tier and a tier that names no artifact.
 """
 
 import argparse
@@ -50,10 +63,11 @@ import sys
 from pathlib import Path
 from typing import NamedTuple
 
+from artifactnames import Artifact, named
 from composefiles import ComposeSearchError
 from composestarts import ComposeStartError
 from hostedtiers import HostedTierError, hosted
-from subagentservers import Server, servers
+from subagentservers import FAMILY_PREFIX, Server, servers
 
 # A gate over no server, or over no requirement, would be green forever, which is the one thing
 # every scan here refuses.
@@ -116,6 +130,15 @@ REQUIREMENTS: tuple[Requirement, ...] = (
 )
 
 
+# Why an artifact's own name is this gate's business, printed with any naming fault exactly as a
+# requirement prints why every server must meet it.
+WHY_NAMED = (
+    "both readers of this gate's set decide whether a server or a tier serves subagents from that "
+    "spelling alone, so an artifact named another way leaves the set in silence and this scan "
+    "reports success over the server or tier it belongs to"
+)
+
+
 class Fault(NamedTuple):
     """One server started without something its tier requires, and what is wrong with it."""
 
@@ -130,6 +153,7 @@ class Scan(NamedTuple):
     servers: int
     files: int
     flags: int
+    artifacts: int
     faults: list[Fault]
 
 
@@ -161,6 +185,18 @@ def check_one(server: Server, requirements: tuple[Requirement, ...] | None = Non
     ]
 
 
+def unclassifiable(artifact: Artifact) -> Fault | None:
+    """What is wrong with one artifact's name, or None when a membership reader can classify it."""
+    if artifact.variable.startswith(FAMILY_PREFIX):
+        return None
+    return Fault(
+        artifact.file,
+        artifact.where,
+        f"the artifact naming rule: its model artifact is named under {artifact.variable}, which "
+        f"does not begin {FAMILY_PREFIX}; {WHY_NAMED}",
+    )
+
+
 def check(root: Path, requirements: tuple[Requirement, ...] | None = None) -> Scan:
     """Hold every subagent server the tree under ``root`` starts, either way, to every requirement.
 
@@ -175,6 +211,7 @@ def check(root: Path, requirements: tuple[Requirement, ...] | None = None) -> Sc
     try:
         composed = servers(root)
         tiers = hosted(root)
+        artifacts = named(root)
     except (ComposeStartError, ComposeSearchError, HostedTierError) as err:
         raise FlagCheckError(str(err)) from err
     found = (
@@ -191,7 +228,11 @@ def check(root: Path, requirements: tuple[Requirement, ...] | None = None) -> Sc
         servers=len(found),
         files=len({server.file for server in found}),
         flags=flags,
-        faults=[fault for server in found for fault in check_one(server, required)],
+        artifacts=len(artifacts),
+        faults=[
+            *(fault for server in found for fault in check_one(server, required)),
+            *(fault for artifact in artifacts if (fault := unclassifiable(artifact)) is not None),
+        ],
     )
 
 
@@ -220,16 +261,19 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{fault.file}: {fault.service}: {fault.detail}")
     if scanned.faults:
         print(
-            f"\nflagcheck: {len(scanned.faults)} server problem(s). Every subagent server this "
-            "repo starts is started by an argv written in this tree, a compose command or the "
-            "model host's own tier, so add the flag to that argv rather than to the deployment "
-            "that remembers it.",
+            f"\nflagcheck: {len(scanned.faults)} problem(s). Every subagent server this repo "
+            "starts is started by an argv written in this tree, a compose command or the model "
+            "host's own tier, and every model artifact one of them serves is named under a "
+            f"{FAMILY_PREFIX} variable, so add the flag to that argv or spell the name that way "
+            "rather than leaving either to the deployment that remembers it.",
             file=sys.stderr,
         )
         return 1
     print(
         f"flagcheck OK: the {scanned.servers} subagent server(s) started under {given} by "
-        f"{scanned.files} file(s) each carry all {scanned.flags} required flag(s)"
+        f"{scanned.files} file(s) each carry all {scanned.flags} required flag(s), and the "
+        f"{scanned.artifacts} model artifact(s) this tree names are each named so a reader can "
+        "say which tier they serve"
     )
     return 0
 

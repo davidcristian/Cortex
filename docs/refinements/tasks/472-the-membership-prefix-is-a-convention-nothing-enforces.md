@@ -1,6 +1,6 @@
 # The set a subagent server joins is a naming convention nothing enforces
 
-**Status:** open, actionable
+**Status:** landed 2026-08-29
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -44,3 +44,26 @@ spelling of the ones already written down and not the arrival of one that is not
   [R-467](467-the-hosted-subagent-tier-meets-the-flag-rule-by-hand.md), which gave the hosted
   tier the same membership reading the compose side already used and left the reading itself
   resting on a convention.
+- 2026-08-29: landed as the
+  [ADR-0029 addendum on holding the naming a derived set is read out of](../../adr/ADR-0029-vision-screen-capture.md#addendum-2026-08-29-the-naming-a-derived-set-is-read-out-of-is-held-and-structurally),
+  a second rule in the same scan: `scripts/artifactnames.py` returns every model artifact this
+  tree names and `scripts/flagcheck.py` holds each to beginning `CORTEX_MODEL_FILE_`.
+  **Re-derivation mutated both placements against the committed gate first**, and the entry was
+  right where it mattered and generous nowhere: respelling the sidecar's alias out of the family
+  and deleting that tier's reasoning-off tail printed `flagcheck OK: the 2 subagent server(s)`
+  and exited 0. What already holds the three settings written down was found and is not this: the
+  model_manager suite pins all three aliases through the environment it sets, so renaming one
+  reddens the brain, while nothing at all says anything about a fourth arriving.
+  **The entry's own preferred shape was refused as circular.** Holding the `CORTEX_MODEL_FILE_*`
+  family closed makes the rule's domain the prefix whose observance it checks, so
+  `CORTEX_SUBAGENT_MODEL_FILE_CPU` is outside it by construction and the gate could not fail for
+  the fault it was built for; the mutation narrowing the domain that way reddens exactly the three
+  checks that respell a name. So the artifacts are found structurally instead, the item after
+  llama.cpp's own `--model` and the settings field a tier reads its `model_path` from, which pays
+  the cost this entry named by not making the judgement at all: the structural reading enumerates
+  and the prefix still judges. **The registry alternative was declined on the evidence**, since it
+  holds the spelling of the three the brain suite already holds and says nothing about the fourth.
+  Three exclusions are deliberate and argued: the short spelling of the model flag, an item
+  spending no variable, and an argv declaring `--embeddings`. That last one leaves a live
+  counterexample in the tree, which is what the close opened,
+  [R-492](492-the-embedder-names-its-artifact-outside-the-family.md).

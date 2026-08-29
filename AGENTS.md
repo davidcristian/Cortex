@@ -149,8 +149,12 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    these servers when the brain's subagent config dials its address or when its own command names
    a subagent model file, and the model host's own hosted tier being one when the setting naming
    its artifact says so, so a server or a tier added anywhere in this tree is held the day it is
-   written and not the day somebody remembers to register it (ADR-0029 addenda on deriving the set
-   a rule runs over and on covering both placements of one tier with one rule);
+   written and not the day somebody remembers to register it, and which holds the naming that
+   membership is read out of, every model artifact this tree names being named under a
+   `CORTEX_MODEL_FILE_` variable, found structurally rather than by that prefix, since a rule whose
+   domain was the family could not fail for the misspelling it exists to catch (ADR-0029 addenda on
+   deriving the set a rule runs over, on covering both placements of one tier with one rule, and on
+   holding the convention a derived set is read out of);
    and `backlogcheck.py`, which holds each backlog index to the task files it describes and
    every link in them to resolving, so a status can be written in exactly one place, and holds
    every `#fragment` written anywhere in the repo to naming a heading the document it aims at
@@ -339,7 +343,11 @@ scripts/          repo gates, plus the two modules here that gate nothing, contr
                   reader steps over) + hostedtiers.py (the placement no compose file holds, the
                   model host's own subagent tier, read off the sidecar's declaration so one rule
                   covers both) + moduleconstants.py (what a Python module's own top level binds,
-                  read without importing it, that reader's syntax side),
+                  read without importing it, that reader's syntax side) + artifactnames.py (what
+                  both those sets rest on, every model artifact this tree names and the variable
+                  each is named under, found by llama.cpp's own flag and by the settings field a
+                  tier reads its path from, so the family the membership is decided from is held
+                  rather than assumed),
                   composefiles.py (which files all four compose gates walk, answered once so
                   they cannot drift apart), backlogcheck.py (each backlog index still matches
                   its task files,
