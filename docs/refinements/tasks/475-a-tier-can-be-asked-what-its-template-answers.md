@@ -1,6 +1,6 @@
 # A tier can be asked at boot which of its own bounds are safe, and nothing asks
 
-**Status:** open, actionable
+**Status:** declined 2026-08-29
 **Area:** inference
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
 
@@ -49,3 +49,21 @@ boot which of its own side calls its pick cannot support.
   every shape and would make the prediction moot wherever the engine is new enough. That entry names
   its own floor problem, an older build that ignores the key silently, and a probe is one honest
   answer to it. Whichever lands first should be read against the other.
+
+## Trail
+
+- 2026-08-29: declined by the ADR-0005 template-probe addendum, which re-derived this entry against
+  the tree the request lever left and found its own hazard sentence out of date. `rank_bounds(k)`,
+  `TITLE_BOUNDS` and `RECAP_BOUNDS` each carry `trace_tokens=0` now, so on a deployment whose
+  engine reads that key the template's answer decides nothing about any shipped bound. Measured on
+  the failing tier of the pair, gemma-4-E4B on `b10666-4e97ac86e`, the constrained cell with the
+  switch deliberated on 5 draws of 5 and returned an empty reply on every one, and the same cell
+  carrying `reasoning_budget_tokens: 0` deliberated on 0 of 5 and returned the envelope every time.
+  The probe this entry describes also cannot be written the way it describes it: both renderings
+  were read in full, the failing tier's two prompts **differ** (194 against 162 characters) while
+  their tails are byte identical, so "two string comparisons" sorts nothing and the predictor really
+  turns on the tail closing a thought, which needs a per pick template token this port exists not to
+  know. What the entry wanted said at boot is
+  [R-497](497-nothing-reports-a-trace-budget-that-went-unread.md), from a composition root that
+  already holds the lever. What the decline loses is
+  [R-499](499-the-rendering-predictor-is-asserted-nowhere.md).

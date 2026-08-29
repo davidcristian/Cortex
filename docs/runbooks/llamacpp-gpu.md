@@ -338,6 +338,19 @@ nothing does not, which puts the two gemma-4-E entries alone on the failing side
 entries and the dense gemma-4 entries together on the other. Ask a candidate's own server before
 naming it in a `.env`; a loaded server answers in one call.
 
+**Read that answer on the prompt's tail, not by comparing the two renderings for difference.** Both
+picks change their prompt when the switch is sent, and only one of them changes it where it counts:
+asked on `b10666-4e97ac86e`, the E4B's two prompts are 194 and 162 characters and drop a whole
+`<|think|>` system turn at the **front** while ending byte identically at `<|turn>model\n`, and the
+Qwen3.5-2B's grow from `<think>\n` to `<think>\n\n</think>\n\n` at the end. It is the tail that
+decides, so a pick whose prompt merely differs has told you nothing. And the reading is **advisory
+now rather than load bearing**: the title, the recap and the recall rank each send
+`reasoning_budget_tokens: 0` where this deployment's engine reads one, which closes the thought at
+the sampler whatever the template rendered. On the same failing pick, the constrained cell with the
+switch alone deliberated on 5 draws of 5 and returned an empty reply on every one, and the same
+cell carrying that key deliberated on 0 of 5 (ADR-0005 template-probe addendum). What the rendering
+still tells you is what a deployment whose `CORTEX_INFERENCE_TRACE_LEVER` answered no is in for.
+
 That matters here because `CORTEX_REPLY_MAX_TOKENS` paired with `CORTEX_REPLY_THINKING=false` is
 exactly such a pairing, and so are the bounds the title, the recap and the recall rank send, the
 last of those carrying a schema of its own. On a pick that ignores the switch, each of them returns
