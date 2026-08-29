@@ -1885,7 +1885,12 @@ Use-case:
   tool dispatches included. One value because a deployment that set one and not the other would
   have bounded half the failure: the cap is what binds a fast tier, where a deadline's worth of
   decoding is an essay, and the deadline is what binds a slow one, where the pool's measured
-  0.35 tok/s makes a small token budget minutes of held admission. `max_tokens` below 1 and
+  0.18 to 1.35 tok/s makes a small token budget minutes of held admission. The two are
+  deliberately **not** ordered against each other (ADR-0005 independence addendum), unlike every
+  other pair of bounds around a delegated run: the cap rides each completion where the deadline is
+  armed once around the whole attempt, and the decode rate that would convert a count into a time
+  moves by a factor of seven on one box with nothing but the host's load changing, so which of them
+  binds is a property of the machine and the wiring rather than of the pair. `max_tokens` below 1 and
   `timeout_s` at or below 0 raise `ValueError` (strictly positive, unlike the admission wait's
   legal zero, because a zero deadline is "never run" rather than a policy). Both `None`
   (`UNBOUNDED_ATTEMPT`, the runner's own default) is the behaviour this repo shipped before the

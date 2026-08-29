@@ -92,6 +92,14 @@ delegation time (ADR-0012 admission-wall addendum).
 > the looser of them.** In decoded tokens the run deadline admits about 425 on a saturated host and
 > about 3200 on an idle one, against the context's 4096 less your prompt, so on a busy box the
 > deadline fires before the cap can and raising `CORTEX_SUBAGENTS_MAX_TOKENS` there buys nothing.
+> **Nothing refuses a deployment whose cap and deadline disagree, and that is a decision rather
+> than a gap** (ADR-0005 independence addendum). The three orderings the brain does refuse at boot
+> all compare seconds with seconds; this pair compares a count with a time, the exchange rate is
+> your own tier's decode rate on the day, and it moved by a factor of seven here between an idle
+> host and a busy one. So the conversion is yours: read the ceilings addendum's table before
+> retuning either, and expect the cap to bind on a quiet box, the deadline on a loaded one, and the
+> deadline on both once your subagents hold tools, since the cap is spent per completion and a
+> tool-using run has several.
 > The cap
 > is about five times the longest narrow reply (199 tokens, a summarization) and the deadline four
 > times the longest whole subtask (623.8 s, the same one), the extra doubling covering a tool-using

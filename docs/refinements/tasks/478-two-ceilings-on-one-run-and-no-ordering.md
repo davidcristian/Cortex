@@ -1,6 +1,6 @@
 # Two ceilings bound one delegated run and nothing puts them in the same unit
 
-**Status:** open, actionable
+**Status:** satisfied 2026-08-29
 **Area:** subagents
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
 
@@ -41,3 +41,38 @@ a configured number rather than a measured one. Worth pricing before either: whe
 capped run returns and the refusal a deadline returns are distinguishable enough at the cortex for
 the inversion to matter at all, since if the cortex narrows the subtask on both then the two bounds
 differ only in what a human reads afterwards.
+
+## Trail
+
+- 2026-08-28: opened by the close of
+  [R-457](457-the-caps-derivation-on-the-shape-that-ships.md), whose ceilings table put the two
+  bounds in one unit and found the shipped pair inverted on a saturated host.
+- 2026-08-29: Satisfied, on the first of the two resolutions it named, and the pricing question it
+  asked is what chose between them. Answered from the code: the two refusals are distinguishable
+  as **text and nowhere else**. One branch in the tree tells one failure kind from another
+  (`SubagentRunner._placed`, which re-places only `INFERENCE` from a GPU placement), both
+  truncations are the same `TRUNCATED` and neither is re-placed, the kind does not survive into
+  `SubagentResult` (which carries `ok` and a `detail` string and no kind at all), and
+  `SpawnSubagentsTool._format` renders a failed result as `FAILED: {detail}` and drops the
+  fragment. The two sentences differ in their diagnosis and end in the same instruction, to treat
+  the subtask as unanswered and narrow it. So the inversion cannot cause a wrong action, only a
+  wrong diagnosis, and a documentation-shaped harm takes a documentation-shaped answer.
+  **Two facts then made the ordering uncheckable rather than merely unchecked**, and the second is
+  new here: which bound binds depends on what else the host is doing, worth a factor of seven on
+  the overall decode rate and nineteen on the sustained one with nothing about the deployment
+  changing, and on whether subagents hold tools, since the cap is spent per completion and the
+  deadline armed once around the attempt, so a tools-enabled run may spend the cap on each of up to
+  `MAX_TOOL_STEPS` rounds and the deadline binds at both ends of the measured range there. A
+  validator has neither fact. **And deriving one from the other is wrong at one end of the same
+  measured range either way**: a deadline derived from the cap at the slow end is a hold of about
+  11460 s against a 7200 s admission wait, which the boot check that already exists refuses, and at
+  the fast end it is about 772 s, under the 1736.6 s a legitimate narrow subtask was measured
+  taking on a busy box; a cap derived from the deadline at the slow end is about 425 tokens, below
+  the 429-token longest answer this tier has been measured writing. So the pair is declared
+  independent on purpose in the ADR-0005 independence addendum, the conversion stays the operator's
+  with the ceilings table as its instrument, and the sentence saying so is beside both declarations
+  in `cortex_core/subagents.py`, in both module contracts, and in the delegation runbook.
+  The entry's "no defect today" holds: both bounds refuse and both refusals name what fired.
+  Opened by it: [R-494](494-one-pair-of-run-bounds-for-a-roster-of-tiers.md), since the decision
+  hands the operator a conversion that is per tier and the config gives them one pair of bounds for
+  the whole roster.

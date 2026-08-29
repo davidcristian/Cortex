@@ -298,7 +298,14 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   is `CORTEX_TOOLS_CALL_TIMEOUT_S` times `delegated_call_bounds`: a fourth bound on the same run
   that sits beside the stall ceiling rather than under it, and one a dispatch spends several times
   over, which `check_tool_call_deadline` enforces at boot because the numbers are declared in two
-  settings classes (ADR-0009 ordering addendum).
+  settings classes (ADR-0009 ordering addendum). The fourth relation in the same family,
+  `max_tokens` against `run_timeout_s`, is the one this class deliberately **does not** check
+  (ADR-0005 independence addendum): the other three compare seconds with seconds, and a count
+  converts into a time only through the tier's decode rate, which is measured rather than
+  configured, moves by a factor of seven with the host's load, and applies to a cap spent per
+  completion against a deadline armed once around the attempt. Both bounds refuse honestly
+  whichever fires and nothing downstream branches on which did, so what a check would buy is a
+  diagnosis rather than a behaviour.
   `attempt_bounds` (property) is the two as the core's `AttemptBounds`,
   which is what reaches the `SubagentRunner`.
   `named_roster` (property) synthesizes the ready-to-dial mapping, with the flat-field default
