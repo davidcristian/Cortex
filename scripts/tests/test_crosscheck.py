@@ -1073,6 +1073,13 @@ LEVEL_SUITE = "brain/packages/orchestrator/tests/test_config_logging.py"
 SINK_WORD = '_MESSAGE = "tool.invocation"'
 ASSERTED_LINE = "INFO:cortex.tools.audit:tool.invocation tool=read"
 
+LOGGER_GUARD = "scripts/tests/test_logcalls.py"
+AUDIT_SUITE = "brain/packages/tools/tests/test_audit.py"
+
+GUARDED_AUDIT = 'names["cortex.tools.audit"]'
+GUARDED_RECALL = 'names["cortex.memory.recall"]'
+ASSERTED_WORD = ':tool.invocation "'
+
 
 def registered(label: str) -> couplings.Constant:
     """The one registered entry a fault would print ``label`` for."""
@@ -1094,6 +1101,15 @@ def copied(root: Path, constant: couplings.Constant, edits: dict[str, tuple[str,
         target = root / place
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(text, encoding="utf-8")
+
+
+def rewritten(root: Path, place: str, was: str, now: str) -> None:
+    """Rename every occurrence of ``was`` in one file `copied` has already written."""
+    target = root / place
+    assert target.exists(), f"the entry under test names no {place}, so there is nothing to edit"
+    text = target.read_text(encoding="utf-8")
+    assert was in text, f"{place} no longer spells {was!r}, so this mutation edits nothing"
+    target.write_text(text.replace(was, now), encoding="utf-8")
 
 
 def test_the_reasoning_off_budget_holds_over_the_files_it_names(tmp_path: Path) -> None:
@@ -1280,6 +1296,47 @@ def test_the_suites_asserted_line_is_reported_against_the_word_that_moved(
     faults = crosscheck.check(tmp_path, (message,))
     assert [fault.label for fault in faults] == [AUDIT_MESSAGE]
     assert LEVEL_SUITE in faults[0].detail
+
+
+def test_the_audit_loggers_needles_hold_over_the_files_they_name(tmp_path: Path) -> None:
+    """The copy with nothing edited is green, so every red below is the edit and not the copy."""
+    constant = registered(AUDIT_LOGGER)
+    copied(tmp_path, constant, {})
+    assert crosscheck.check_constant(tmp_path, constant) == []
+
+
+def test_a_guard_that_stops_naming_the_audit_logger_is_a_fault(tmp_path: Path) -> None:
+    """What registering the guard buys, and it is the whole of what this needle is for."""
+    constant = registered(AUDIT_LOGGER)
+    copied(tmp_path, constant, {LOGGER_GUARD: (GUARDED_AUDIT, 'names["cortex.tools.other"]')})
+    faults = crosscheck.check_constant(tmp_path, constant)
+    assert [fault.label for fault in faults] == [AUDIT_LOGGER]
+    assert LOGGER_GUARD in faults[0].detail
+
+
+def test_a_guard_that_stops_naming_the_recall_logger_is_a_fault(tmp_path: Path) -> None:
+    """The same needle on the trail next door, whose sink declares and passes its name alike."""
+    constant = registered(TRAIL_LOGGER)
+    copied(tmp_path, constant, {LOGGER_GUARD: (GUARDED_RECALL, 'names["cortex.memory.other"]')})
+    faults = crosscheck.check_constant(tmp_path, constant)
+    assert [fault.label for fault in faults] == [TRAIL_LOGGER]
+    assert LOGGER_GUARD in faults[0].detail
+
+
+def test_an_audit_suite_asserting_another_word_before_its_fields_is_a_fault(
+    tmp_path: Path,
+) -> None:
+    """The message half, whose guard is the sink's own suite rather than the reader's."""
+    message, logger = registered(AUDIT_MESSAGE), registered(AUDIT_LOGGER)
+    copied(tmp_path, message, {})
+    copied(tmp_path, logger, {})
+    rewritten(tmp_path, AUDIT_SUITE, ASSERTED_WORD, ':tool.dispatch "')
+    doctored = (tmp_path / AUDIT_SUITE).read_text(encoding="utf-8")
+    assert "tool.invocation ok=True" in doctored, "the forged payload keeps the word it spells"
+    faults = crosscheck.check_constant(tmp_path, message)
+    assert [fault.label for fault in faults] == [AUDIT_MESSAGE]
+    assert AUDIT_SUITE in faults[0].detail
+    assert crosscheck.check_constant(tmp_path, logger) == []
 
 
 def _parts_on_disk() -> list[str]:

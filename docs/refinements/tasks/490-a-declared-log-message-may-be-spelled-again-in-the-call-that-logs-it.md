@@ -41,3 +41,14 @@ logger name and what one call under it puts on its line.
 - 2026-08-29: opened by the close of
   [R-487](487-the-tool-audits-message-is-spelled-in-three-places-and-held-in-none.md), whose
   mutation table holds the sink's own declaration and never asks that the call passes it.
+- 2026-08-29: weighed by the close of
+  [R-489](489-a-declared-logger-name-and-a-different-name-in-the-call.md) and **left open**, being
+  a different question answered by a different mechanism. That close is about a declaration and the
+  call handed it, which is held by places outside the module and was closed by registering them;
+  this one is about one module spelling the same word twice, which no far side can see and which
+  only a rule in `logcalls.py` reaches. Two facts from that close are worth having here. The
+  harm named above is now narrower on this sink: `brain/packages/tools/tests/test_audit.py` asserts
+  four whole rendered lines, so a literal that moved alone is four reds in that package, and the
+  close registered the word those assertions spell, so they can no longer be deleted quietly. And
+  the floor this entry named is unchanged: `logcalls.py` still stands at exactly 300 lines, so the
+  rule still arrives with the split its own docstring draws.

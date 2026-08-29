@@ -6,9 +6,12 @@ from couplings import Constant, Mention, Site
 AUDIT_SINK = "brain/packages/tools/src/cortex_tools/audit.py"
 RECALL_SINK = "brain/packages/memory/src/cortex_memory/audit.py"
 
+AUDIT_SUITE = "brain/packages/tools/tests/test_audit.py"
+
 CONFIG_LOGGING = "brain/packages/orchestrator/src/cortex_orchestrator/config_logging.py"
 CONFIG_LOGGING_SUITE = "brain/packages/orchestrator/tests/test_config_logging.py"
 TRAIL_READER = "scripts/trailwidth.py"
+LOGGER_GUARD = "scripts/tests/test_logcalls.py"
 
 GATES_MODULE = "docs/modules/repo-gates.md"
 LOCAL_DEV_RUNBOOK = "docs/runbooks/local-dev-wsl.md"
@@ -23,6 +26,10 @@ FIELD_KEY = '"{value}":'
 # through, so a bare needle would go on being found there after the message it names had moved.
 TRAIL_CALL = '_logger.info("{value}"'
 
+DECLARED_LOGGER = 'names["{value}"]'
+
+ASSERTED_MESSAGE = ':{value} "'
+
 TRAIL_COUPLINGS: tuple[Constant, ...] = (
     Constant(
         label="the logger one recall-trail line is written through",
@@ -33,13 +40,18 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
             "runbook names it among the two per-line trails a deployment can raise or lower on "
             "its own, and the module contract states what the sink writes; a rename in the sink "
             "alone leaves all three instructing a reader about a logger nothing writes through "
-            "(ADR-0038 named-logger addendum)"
+            "(ADR-0038 named-logger addendum); the fourth place restates nothing and is the one "
+            "holding this declaration to the call handed it, the gate suite's guard asserting "
+            "that the brain declares this logger in this sink, which a call passing another "
+            "literal fails and which nothing said was load bearing (ADR-0009 declared-name "
+            "addendum)"
         ),
         sites=(Site(RECALL_SINK, "_LOGGER_NAME"),),
         mentions=(
             Mention(MEMORY_RUNBOOK, "one `{value}` line per"),
             Mention(LOCAL_DEV_RUNBOOK, "the recall trail (`{value}`, behind"),
             Mention(MEMORY_MODULE, "`{value}` line per recall,"),
+            Mention(LOGGER_GUARD, DECLARED_LOGGER),
         ),
     ),
     Constant(
@@ -90,7 +102,10 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
             "runbooks telling an operator to select a trail nothing writes, one module arguing "
             "about the level of a logger that no longer exists, and one suite demonstrating the "
             "argument on a name the brain abandoned, all four green (ADR-0009 audit-logger "
-            "addendum)"
+            "addendum); the fifth place restates nothing and is the one holding this declaration "
+            "to the call handed it, the gate suite's guard asserting that the brain declares this "
+            "logger in this sink, which a call passing another literal fails and which nothing "
+            "said was load bearing (ADR-0009 declared-name addendum)"
         ),
         sites=(Site(AUDIT_SINK, "_LOGGER_NAME"),),
         mentions=(
@@ -99,6 +114,7 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
             Mention(CONFIG_LOGGING, "audit trail (``{value}``,"),
             Mention(CONFIG_LOGGING_SUITE, 'getLogger("{value}").info'),
             Mention(CONFIG_LOGGING_SUITE, '== "INFO:{value}:'),
+            Mention(LOGGER_GUARD, DECLARED_LOGGER),
         ),
     ),
     Constant(
@@ -112,13 +128,17 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
             "message nothing writes and the suite passing on both its spellings at once, having "
             "renamed with itself (ADR-0009 audit-message addendum); the sample gate cannot stand "
             "in for this one, a line whose fields are built by condition being one no runbook may "
-            "print as a rendered sample"
+            "print as a rendered sample; the fourth place is the sink's own suite, which restates "
+            "nothing and asserts the rendered line this sink emits, and so is the only thing "
+            "holding this declaration to the call handed it, the guard next door reaching a "
+            "logger name and no further (ADR-0009 declared-name addendum)"
         ),
         sites=(Site(AUDIT_SINK, "_MESSAGE"),),
         mentions=(
             Mention(TOOLS_RUNBOOK, "a bare `{value}` message followed by"),
             Mention(CONFIG_LOGGING_SUITE, '.info("{value}", extra='),
             Mention(CONFIG_LOGGING_SUITE, ':{value} tool=read"'),
+            Mention(AUDIT_SUITE, ASSERTED_MESSAGE),
         ),
     ),
 )

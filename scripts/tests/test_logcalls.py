@@ -310,7 +310,7 @@ def test_a_spread_into_extra_is_a_fault_rather_than_a_short_answer() -> None:
 
 
 def test_the_committed_brain_declares_both_spellings_a_logger_is_claimed_in() -> None:
-    """A guard on the fixtures: the two spellings the brain has left, one of them twice."""
+    """A guard on the fixtures, and the one place a sink's declaration meets the call handed it."""
     names = logcalls.loggers(REPO_ROOT)
     assert names["cortex_core.swap_settle"].endswith("cortex_core/swap_settle.py")
     assert names["cortex.tools.audit"].endswith("cortex_tools/audit.py")
