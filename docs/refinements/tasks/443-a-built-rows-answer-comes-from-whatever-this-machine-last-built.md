@@ -67,3 +67,11 @@ a row, so that reasoning is what would have to be revised rather than merely ext
   beside it. One residue filed: the base rows are recorded where a built row could instead be
   derived from them
   ([R-473](473-a-built-row-is-recorded-where-it-could-be-derived.md)).
+- 2026-08-29: one sentence above is retired by the close of that residue. The two measurements
+  named here are still right, but they do not make the union exact: a base carrying
+  `ONBUILD VOLUME` declares no volume of its own and still adds one to every image built `FROM` it,
+  so what the tree can read is a floor under a built row and never the whole of it. The base rows
+  and the rule over them are unaffected, being one-directional; what changed is that the three
+  built rows are now recorded on purpose rather than pending derivation. See the [ADR-0011
+  addendum on why the built rows stay recorded](../../adr/ADR-0011-body-v1.md) and
+  [R-493](493-a-base-may-declare-a-volume-through-onbuild.md).
