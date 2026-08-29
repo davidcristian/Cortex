@@ -1069,3 +1069,119 @@ recorded measurement rather than something the built row is computed from. Deriv
 entirely, as the union of its Dockerfile's declarations and its base's row, would leave the record
 holding only what a registry can answer for, and would make the three built rows unnecessary
 ([R-473](../refinements/tasks/473-a-built-row-is-recorded-where-it-could-be-derived.md)).
+
+## Addendum (2026-08-29): the three built rows stay recorded, because the union is a floor
+
+The addendum above closed the base question and named what it left: with a row for each base, what
+a built image declares looked computable, and
+[R-473](../refinements/tasks/473-a-built-row-is-recorded-where-it-could-be-derived.md) asked
+whether `cortex-brain`, `cortex-mcp-email` and `cortex-model-host` should be derived from their two
+readable sources rather than recorded. Deriving them would leave the record holding only what a
+registry can answer for, would give `just image-volumes` nothing to ask about a built image, and
+would retire the last reason a built row can be wrong.
+
+The whole of it rests on one claim, which the addendum above stated as a measurement: *what a built
+image declares is exactly the union of what its Dockerfile declares and what the image its last
+stage stands on declares*. The entry said that claim had to be measured rather than assumed before
+any row was removed, since deriving makes it load-bearing in a direction it is not load-bearing
+today. It was measured. **It is false**, and the decision follows from how it fails.
+
+### The falsifying reading
+
+Taken on this host against docker 29.7.2 on 2026-08-29, with `Config.Volumes` read through the
+same `INSPECT_FORMAT` the record is measured with, and `Config.OnBuild` beside it. A base whose
+only instruction is `ONBUILD VOLUME /probe/onbuild` declares no volume of its own, so the row
+`imagevolumes.py` would hold for it is the empty tuple, the same row both real bases have today. An
+image built `FROM` that base by a Dockerfile carrying no `VOLUME` instruction at all declares
+`/probe/onbuild`:
+
+```
+$ docker image inspect --format '{{json .Config.OnBuild}}' cortex-probe-onbuild-base
+["VOLUME /probe/onbuild"]
+$ docker image inspect --format "$INSPECT_FORMAT" cortex-probe-onbuild-base
+$ cat Dockerfile.onbuildchild
+FROM cortex-probe-onbuild-base
+$ docker image inspect --format "$INSPECT_FORMAT" cortex-probe-onbuild-child
+/probe/onbuild
+```
+
+Both halves the derivation reads say nothing: the base's row is empty and the Dockerfile declares
+nothing, while the built image really does declare a path and every container of it really does
+take an anonymous volume there. The same build under `DOCKER_BUILDKIT=0` answers `/probe/onbuild`
+too, so this is the builder's behaviour rather than one frontend's. The child's own `Config.OnBuild`
+is `null`, so the instruction fires once and clears, which is what makes it invisible one level
+down: nothing in the built image records that it was ever there.
+
+Three readings taken in the same session say the rest of the mechanism is as the addendum above
+described it. A base declaring `/probe/base` and a child declaring `/probe/own` produce a built
+image declaring both, so the union really is inherited and really does merge. A
+`FROM ... AS builder` stage declaring a path contributes nothing to an image whose last stage
+stands elsewhere. And `VOLUME []` is refused by the builder rather than un-declaring an inherited
+path, so no Dockerfile can shrink what it inherits.
+
+Put together: the union of the two readable sources is a **floor** under what a built image
+declares, never a ceiling. `ONBUILD` is one way past it and is the one that was found; a claim
+already falsified once is not worth re-stating with an exception bolted on, since what the record
+has to survive is a base gaining a mechanism nobody here enumerated.
+
+### Decision: the three built rows stay recorded, and the one-directional rules are required
+
+The record goes on holding a measured row for each of the three images this repo builds. The two
+rules over them stay one-directional, and the reading above upgrades that from a cheapness
+concession to a correctness requirement: a built row legitimately carries paths neither the
+Dockerfile nor the base's row declares, so a rule demanding equality would redden a correct record.
+The addendum above justified one-directionality by saying a recorded path neither half declares is
+nobody's fault. It is better than nobody's fault. It is the only place a third source can appear.
+
+What derivation would cost is the point. A derived row is computed from two sources that both say
+nothing in the case above, so the gate would report a clean pass on an image that declares a path
+no compose file mounts, which is the exact leak `volumecheck.py` exists to catch, arriving through
+the gate rather than past it. A recorded row is read off a real built image and therefore carries
+whatever produced the declaration, enumerated or not. That is the whole argument for recording an
+out-of-reach fact instead of modelling it, and it is the argument this ADR already made when it
+chose to record what an image declares rather than to reason about it.
+
+The entry's own suggestion, that `--rederive` compare the derivation against a real built image and
+that this is stronger than the row it replaces, does not survive either. It is the same single
+reading, with the tree's side now computed from a claim measured false, and it moves the only check
+of that claim onto a hand-run recipe. Today the record and the derivation are two independent
+readings of one image, and the gate holds the second under the first on every commit. Deriving
+collapses them into one.
+
+Two consequences are worth stating plainly rather than leaving to be re-derived.
+
+- **`imagevolumes.py` says so beside the paragraph explaining the base rows**, because that
+  paragraph is exactly the reasoning a reader follows to arrive at this question, and it should not
+  have to be re-measured to be answered.
+- **Three places asserted the retired claim** in the present tense and are corrected: the
+  `volumecheck.py` docstring, the `check-volumecheck` comment in the justfile, and the
+  `volumecheck.py` entry in `docs/modules/repo-gates.md`. Each said the two halves account for the
+  whole of what a built image declares. They account for a floor under it.
+
+### Alternatives considered
+
+- **Derive the three rows** is the entry's own proposal and is what the reading above rules out. It
+  is not merely unproven; it is unsound in a case a moving base tag can produce, and both bases here
+  are moving tags by design.
+- **Derive, and add `ONBUILD` as a third readable source.** This is the honest version of deriving,
+  and it does close the case that was found. It loses on what it assumes rather than on cost: it
+  keeps the shape of the false claim, an enumeration of sources believed complete, and buys safety
+  only against the mechanism that happened to be measured on the day it was written. The record has
+  no such enumeration to be wrong about.
+- **Record, and hold the record two-directionally against the derivation.** Rejected for the reason
+  in the decision: with a third source real, the record is *supposed* to be able to carry more, and
+  the rule would fail on a correct record the first time a base carried an `ONBUILD VOLUME`.
+- **Record `ONBUILD` alongside each base row so the gate sees the third source too.** Not rejected,
+  filed. It is a real gap and it is a slice rather than a sentence: it needs a second dimension on
+  every row, a second thing for the inspector to ask, and the rule that spends it
+  ([R-493](../refinements/tasks/493-a-base-may-declare-a-volume-through-onbuild.md)).
+
+### No mutation table, and what stands in for one
+
+No rule was wired or changed by this close, so there is nothing new to prove able to fail; the
+twelve mutants in the addendum above still name the suite they were counted over and still cover
+every rule that runs. The evidence here is the measurement instead, four readings against a real
+docker rather than four claims about one, and the arrangement it endorses was exercised the same
+day: `just image-volumes` was run against a real daemon and agreed with all ten rows, and
+`volumecheck.py --root ..` exits 0 over the same tree with no docker involved at all, which is the
+property the whole recorded-answer arrangement exists to keep.

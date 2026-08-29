@@ -57,6 +57,20 @@ republished with a new `VOLUME` then reddens the gate on the next re-derivation 
 for somebody to rebuild. The bases of the *builder* stages get no row for the reason the old
 paragraph gave about all of them: a builder stage's declarations were measured not to reach the
 built image at all, so no container ever runs them.
+
+**The three built rows are recorded and not derived**, which is the step a reader takes straight
+out of the paragraph above and is answered on a measurement rather than on taste. With a base row
+beside each Dockerfile, what a built image declares looks computable: the union of what the file
+declares and what its base's row carries. That union is a floor under the answer and never a
+ceiling. A base whose only instruction is `ONBUILD VOLUME /probe/onbuild` declares no volume of its
+own, so its row here would be the empty tuple both real bases carry today, and an image built
+`FROM` it by a Dockerfile with no `VOLUME` instruction at all declares `/probe/onbuild` (measured
+against docker 29.7.2 on 2026-08-29, under both builders, and the instruction clears in the child
+so nothing there records that it was ever present). A derived row would be empty while every
+container of that image takes an anonymous volume, which is the leak this file exists to prevent,
+arriving through the gate rather than past it. A row read off a real built image carries whatever
+produced the declaration, enumerated here or not. That is also why the two rules over these rows
+are one-directional: a built row is *supposed* to be able to carry more than the tree can read.
 """
 
 import subprocess

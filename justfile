@@ -83,7 +83,9 @@ check-defaultcheck:
 # built here, and for those the same scan reads the Dockerfile each build stanza points at
 # and fails when it declares, or inherits from the image its last stage stands on, a path
 # its row does not carry. That is the half of the question the tree can answer with no
-# daemon at all, and it is the whole of what a built image declares.
+# daemon at all, and it is a floor under what a built image declares rather than the whole
+# of it: a base carrying an ONBUILD VOLUME adds a path neither half can see, which is why
+# those three rows are recorded and not derived from the two.
 check-volumecheck:
     cd scripts && uv sync --locked
     cd scripts && uv run python volumecheck.py --root ..

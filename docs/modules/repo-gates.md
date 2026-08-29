@@ -500,9 +500,14 @@ that last question to have an answer.
   so must every path declared by the image that file's last stage stands `FROM`
   (`dockerfilebases.py`), the record carrying a row for each of those two bases and pulling it on
   every re-derivation because a built row can never be pulled at all. Between them the two halves
-  account for the whole of what a built image declares, which was measured rather than assumed:
-  a declaration is inherited through `FROM`, and a builder stage's reaches no built image. Both
-  are one-directional, so a recorded path neither half declares is nobody's fault. Eleven things
+  are a **floor** under what a built image declares rather than the whole of it, which was measured
+  rather than assumed: a declaration is inherited through `FROM`, a builder stage's reaches no
+  built image, a Dockerfile cannot un-declare what it inherits, and a base carrying an
+  `ONBUILD VOLUME` adds a path to the image built from it that neither half can see. That last one
+  is why the three built rows are recorded and not derived from the other two, and why both rules
+  are one-directional: a recorded path neither half declares is not merely nobody's fault, it is
+  the only place a third source can appear (ADR-0011 addendum on why the built rows stay
+  recorded). Eleven things
   fail it: a declared path no service
   covers, an image the record
   has no row for, a base the record has no row for, a base declaring a path the built row does not

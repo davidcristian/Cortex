@@ -27,9 +27,13 @@ built from it, which is `dockerfilevolumes.py`'s question and runs on the mappin
 reads from each service's `build:`. Its other half is what the built image **inherits**: the record
 carries a row for the image each of those files stands `FROM`, `dockerfilebases.py` resolves that
 base through the file's stages, and every path the base's row carries must appear in the built row
-too. Both rules are one-directional, so a recorded path neither side declares is nobody's fault.
-Between them they account for the whole of what a built image declares, which is what lets a built
-row asked without a pull still be held to a base that is pulled on every re-derivation.
+too. Both rules are one-directional, and that is a requirement rather than a concession. The two
+halves are a **floor** under what a built image declares, never the whole of it, since a base
+carrying `ONBUILD VOLUME` adds a path to the image built from it that neither half can see, which
+was measured rather than assumed (the ADR-0011 addendum on why the three built rows stay recorded).
+So a recorded path neither side declares is not merely nobody's fault: it is the only place a third
+source can appear. What the floor buys is what the built rows cannot buy themselves, a row asked
+without a pull still being held to a base that is pulled on every re-derivation.
 
 **Where the answer comes from.** Docker's, recorded in `imagevolumes.py`, because `just check` runs
 on a clean dev box and in CI where there is neither daemon nor image. `--rederive` is the other
