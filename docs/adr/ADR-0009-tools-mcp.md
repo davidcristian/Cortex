@@ -3330,3 +3330,140 @@ them the call passed unless a document happens to quote a sample of that trail. 
 either naming the declaration convention or teaching the registry what a logger is, both of which
 this addendum declined
 ([R-489](../refinements/tasks/489-a-declared-logger-name-and-a-different-name-in-the-call.md)).
+
+
+## Audit-message addendum (2026-08-29): the word every audited line opens with
+
+The addendum above ends by naming what it left, and this is that: the message sitting beside the
+logger on the same rendered line. `tool.invocation` is what an operator looks for once the logger
+has selected the stream. It is written in `cortex_tools/audit.py`, restated by
+[tools-mcp.md](../runbooks/tools-mcp.md), which says the line carries this and nothing else before
+its fields, and written twice more by `test_config_logging.py`, which logs it under the trail's name
+to prove the shipped level is not a knob. Nothing tied the three. A rename in the sink left the
+runbook describing a message nothing writes and that suite passing on both its spellings at once,
+having renamed with itself.
+
+### Re-derived first, and the option worth having ruled out by measurement
+
+The entry named three options and asked for an argument before anything was built. The one worth
+having was a rendered sample in the runbook, which would have brought the whole sample gate to bear
+on the level, the logger, the message and the fields at once and made a second constant unnecessary.
+So it was tried on the committed tree rather than reasoned about. A fenced line of this trail was
+added to the runbook and `just check-samplecheck` refused it:
+
+```
+docs/runbooks/tools-mcp.md:221: the sample brain/packages/tools/src/cortex_tools/audit.py:93: extra= is not a mapping written out at the call
+```
+
+That is a defect in neither gate. `LoggingAuditSink` builds its fields across statements and by
+condition: a success carries a size where a failure carries an error, and four of the five
+identities ride only when the dispatch had them. `logcalls.py` reads a field list off an `extra=`
+written out at the call and refuses anything else, deliberately, and this line has no single field
+list to be held to in the first place. **The sample gate cannot reach this trail at all**, which is
+a harder answer than the entry's own, that a rendered sample would cost a captured line that has to
+stay honest, and it is recorded on
+[R-444](../refinements/tasks/444-nothing-says-which-log-lines-a-runbook-should-print.md), whose
+question about which lines a runbook owes an operator now has a second half: which lines the
+mechanism can hold at all.
+
+Doing nothing was the third option, and it fails on what the runbook says. "That line is a bare
+`tool.invocation` message followed by its fields" is how a reader knows what to look for, in the
+present tense, in a document opened while something is broken. That is an instruction and not prose
+about the trail.
+
+The entry's account of the code was otherwise accurate: three places, four spellings, and no
+declaration to tie them to. One file it leaves out is right to be left out.
+`brain/packages/tools/tests/test_audit.py` spells the word five times and asserts the rendered line
+rather than writing the message, so a rename in the sink reddens it instead of moving with it, which
+is the difference between it and the level suite and is what row one measures.
+
+### Decision: a second constant in the sink, handed to the call that writes the line
+
+`_MESSAGE` sits beside `_LOGGER_NAME` and is passed to `_logger.info`, which is the shape the
+logger's own close took and the shape `cortex_orchestrator/abandon.py` already had, for the reason
+its comment gives: a suite asserts the line an operator greps for. It is passed rather than left
+beside a literal of itself because the one-name addendum made that rule for logger names, and a
+module spelling one word twice has two of them to keep in step. The registry entry is the fifth in
+`trailcouplings.py` and holds the runbook sentence and the suite's two spellings, which are two
+needles rather than one counted twice: the call the suite makes and the line it asserts have
+different shapes, and a rename has to move both.
+
+A constant added for a gate's benefit is a cost this repo pays only with an argument. The recall
+trail needed none, its declaration already sitting in a reader outside the brain; this one has no
+reader, and the paragraph above is why it has no sample either.
+
+### The two entries meet on one asserted line, and each renders its own half
+
+`INFO:cortex.tools.audit:tool.invocation tool=read` spends both of this trail's registered words at
+once. The logger's needle used to spell the message as fixed text, which made registry data a place
+restating a value it does not declare: a message renamed everywhere would have been reported against
+the logger, sending a reader to the constant that did not move, and the repair would have been an
+edit to the registry rather than to the tree. Each needle now renders its own value and anchors on
+the punctuation the format puts around it, the logger on the colon that closes it and the message on
+the colon that opens it together with the field that follows.
+
+### Distrust green, over three suites at once
+
+Seven mutations and a control, each applied alone to the committed tree with three suites re-run and
+the gate itself run beside them: the **1,432 checks of the gate suite** (`scripts/tests/`), the
+**53 of the tools package's** (`brain/packages/tools/tests/`), which pins this word from the other
+side by asserting rendered lines, and the **451 of the orchestrator package's**
+(`brain/packages/orchestrator/tests/`), which holds the level argument and writes the word twice.
+
+| Mutation | scripts | tools | orch | `check-crosscheck` |
+| --- | --- | --- | --- | --- |
+| CONTROL: nothing edited | 0 | 0 | 0 | passes |
+| the sink renames the word it opens every audited line with | **10** | **5** | 0 | **fails** |
+| the tools runbook keeps the word and loses its sentence | **9** | 0 | 0 | **fails** |
+| the level suite moves both its spellings at once | **10** | 0 | 0 | **fails** |
+| GATE: the three needles render the word alone | **1** | 0 | 0 | passes |
+| GATE: that, and the tools runbook loses its sentence | **1** | 0 | 0 | passes |
+| GATE: the logger's needle spells the message as fixed text again | **1** | 0 | 0 | passes |
+| GATE: the sink keeps the declaration and spells the literal too | 0 | 0 | 0 | passes |
+
+Row one is the entry in one line, and its shape is the argument for the whole change: loud where the
+word is written and in the package that asserts the rendered result, silent in the runbook and in
+the suite that proves the level, both of which go on describing a message the brain stopped writing.
+Rows two and three are the restatements one each, and row three is the one the entry called out,
+since the level suite spells the word twice and moves both together.
+
+Rows four to six are all the same single red, the test holding the suite's asserted line to the
+word that moved on it, and the gate itself passes in each: what these three measure is which entry
+a fault lands on rather than whether a rename is noticed at all. Rows four and five are the honest
+non-claim the two closes before this one recorded, restated for a case where it does not quite
+hold. A needle rendering the word alone holds a full rename exactly as well, and the sentence in
+each template buys row five against row two, a document that keeps the word and loses the
+instruction around it, nine reds against one. What a bare needle does lose is the suite's
+half-applied rename: two occurrences in one file collapse into a single presence check, so the
+asserted line may move while the call above it goes on satisfying the needle. Row six is the
+relaxation from the other side, putting the message back into the logger's needle as fixed text.
+
+Row seven measured zero and is a finding rather than a proof, exactly as the last row of the
+addendum above was. A sink that binds `_MESSAGE` and spells the literal in the call as well is green
+everywhere, the one-name rule reaching a logger's call and stopping one word short of a message's.
+That is
+[R-490](../refinements/tasks/490-a-declared-log-message-may-be-spelled-again-in-the-call-that-logs-it.md).
+
+### Consequences
+
+- A rename of the word the tool audit's lines open with reddens `just check` on the day it is made,
+  and the runbook and the level suite move with it or the gate names the one that did not.
+- Both words on this trail's rendered line are held now, as all three of the recall trail's are,
+  which closes the last of the asymmetries the two closes before this one opened.
+- The constant registry stands at 78 entries over 88 declaring sites and 260 mentions, in twelve
+  parts, the second per-line trail carrying two of them rather than one.
+- Registry data no longer spells a value another entry declares, which is a rule this addendum
+  states and a test holds rather than a tidiness anyone has to remember.
+- A line whose fields are built by condition cannot be documented as a rendered sample. That is a
+  property of the sink rather than of this trail, and it is written down now where a runbook author
+  meets it rather than discovered at the gate.
+
+### Deferred by this addendum
+
+The declaration is compared against the places restating it and nothing asks that the sink's own
+call passes it, the one-name rule reaching `getLogger` and no other call
+([R-490](../refinements/tasks/490-a-declared-log-message-may-be-spelled-again-in-the-call-that-logs-it.md)).
+
+And the fault a writer meets on trying to sample one of these lines names the sink rather than
+saying the line is unsampleable, which is recorded against the coverage question already open
+([R-444](../refinements/tasks/444-nothing-says-which-log-lines-a-runbook-should-print.md)).

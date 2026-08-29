@@ -29,6 +29,13 @@ from cortex_core.log_fields import (
 # trail's sink names its own logger the same way, and for the same reason.
 _LOGGER_NAME = "cortex.tools.audit"
 
+# The word every audited line opens with, declared here for the reason the name above is: the tools
+# runbook tells an operator that the line carries this and nothing else before its fields, so it is
+# how a reader knows what to look for, and the process entry's own suite writes it to prove the
+# shipped level, and neither can import it (ADR-0009 audit-message addendum). It is handed to the
+# call below rather than spelled there as well, so this module writes the word once.
+_MESSAGE = "tool.invocation"
+
 _logger = logging.getLogger(_LOGGER_NAME)
 
 
@@ -90,4 +97,4 @@ class LoggingAuditSink:
             fields["result_chars"] = len(invocation.detail)
         else:
             fields["error"] = invocation.detail
-        _logger.info("tool.invocation", extra=fields)
+        _logger.info(_MESSAGE, extra=fields)

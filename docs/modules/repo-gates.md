@@ -149,7 +149,12 @@ that last question to have an answer.
   held to the tools runbook, the local-dev runbook, the docstring that argues from it that the
   shipped level is not a knob, and that module's suite, which writes a line under the name to
   prove the argument and would go on proving it about an abandoned logger (ADR-0009 audit-logger
-  addendum). Some arrived as
+  addendum). Its message is the fifth, held to the runbook sentence that tells a reader what to
+  look for and to that same suite, which spells the word twice and so renames with itself; the
+  sample gate is no substitute, that sink's fields being built by condition, so no runbook may
+  print one of its lines as a rendered sample at all (ADR-0009 audit-message addendum). The
+  suite's asserted line is where the two entries meet, each rendering its own half of
+  `LEVEL:logger:message` rather than spelling the other's as fixed text. Some arrived as
   splits under the cap and some as subjects added beside them, which is the one-line claim being
   paid from both directions rather than argued.
   `couplings.py` is the vocabulary every part is written in, left behind when each moved out

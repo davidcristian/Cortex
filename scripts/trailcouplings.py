@@ -3,13 +3,12 @@
 One of the data files `crosscheck.py` reads as a single registry, split off `logcouplings.py` when
 the recall trail's logger brought that file to the 300-line cap, along the seam its docstring had
 drawn from the day the first two of these landed. Five of the entries there are the name one work
-identity rides under, wherever in the brain a line names it; these four are about a single line on
+identity rides under, wherever in the brain a line names it; these five are about a single line on
 a single stream. The recall trail's three come first, ordered the way one of its lines renders: the
 logger it is written through, the message it opens with, and the field whose width is the subject
-of everything that reads it. The tool audit's logger follows, one word rather than three: that
-trail has no reader outside the brain to declare a message or a field, the identities its line
-carries are next door under the log vocabulary, and its own message is restated by one runbook and
-held by nothing, which is a deferred entry rather than a claim this file makes.
+of everything that reads it. The tool audit's logger and message follow, two words rather than
+three: that trail has no reader outside the brain and no field of its own to measure, and the
+identities its line carries are next door under the log vocabulary.
 
 **Why a logger name needs the gate, and why it has a declaration to be held to.** The name is what
 an operator selects this trail by on a stream carrying every other line the brain writes, and it is
@@ -44,6 +43,27 @@ asserts having different shapes and a rename having to move both.
 the recall trail in prose rather than by its logger, so it is tied to one of the two loggers it is
 about, and nothing here would notice the other's rename in it, there being no name in the file to
 notice.
+
+**Its message is held here rather than by the sample gate, which cannot reach this line at all.**
+`samplecheck.py` holds a documented log line to the call writing it, message included, but only
+where a runbook prints a RENDERED line, and this one may not be printed: the sink builds its
+`extra=` across statements and by condition, a success carrying a size where a failure carries an
+error and four identities riding only when the dispatch had them, so `logcalls.py` refuses to read
+a field list off it and any fenced sample of this trail fails as a call it cannot account for.
+There is also no single field list to print. So the message is registered exactly like the logger
+beside it, on the runbook sentence that tells a reader what to look for and on the two spellings in
+the suite that proves the shipped level. The declaration is a second constant in the sink, the one
+kind of far side this part has now added twice, and it is handed to the emitting call rather than
+sat beside a literal of itself, so the module writes the word once.
+
+**Two entries share the suite's asserted line, and each renders its own half of it.** That line
+prints `LEVEL:logger:message` and so spends both values at once. The logger's needle used to spell
+the message as fixed text, which made this data file a place restating a word it does not declare:
+a rename of the message everywhere would have reddened the logger's entry, sending a reader to the
+wrong constant, and the fix would have been an edit to registry data rather than to the tree. Each
+needle now renders its own value and anchors on the punctuation the format puts around it, the
+logger on the colon that closes it and the message on the colon that opens it and the field that
+follows.
 
 **The other two run the other way round, and the reader that declares them gates nothing.**
 `scripts/trailwidth.py` reads how wide the trail's widest field renders off captured container
@@ -171,7 +191,27 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
             Mention(LOCAL_DEV_RUNBOOK, "the tool audit (`{value}`, always on"),
             Mention(CONFIG_LOGGING, "audit trail (``{value}``,"),
             Mention(CONFIG_LOGGING_SUITE, 'getLogger("{value}").info'),
-            Mention(CONFIG_LOGGING_SUITE, '== "INFO:{value}:tool.invocation'),
+            Mention(CONFIG_LOGGING_SUITE, '== "INFO:{value}:'),
+        ),
+    ),
+    Constant(
+        label="the message one tool-audit line is found by",
+        why=(
+            "this is the word an operator looks for once the logger has selected the trail, and "
+            "three places restate it while none of them can import it: the tools runbook says the "
+            "line carries this and nothing else before its fields, and the process entry's own "
+            "suite writes it under the trail's name and asserts the rendered result back to prove "
+            "the shipped level; a rename in the sink alone leaves the runbook describing a "
+            "message nothing writes and the suite passing on both its spellings at once, having "
+            "renamed with itself (ADR-0009 audit-message addendum); the sample gate cannot stand "
+            "in for this one, a line whose fields are built by condition being one no runbook may "
+            "print as a rendered sample"
+        ),
+        sites=(Site(AUDIT_SINK, "_MESSAGE"),),
+        mentions=(
+            Mention(TOOLS_RUNBOOK, "a bare `{value}` message followed by"),
+            Mention(CONFIG_LOGGING_SUITE, '.info("{value}", extra='),
+            Mention(CONFIG_LOGGING_SUITE, ':{value} tool=read"'),
         ),
     ),
 )

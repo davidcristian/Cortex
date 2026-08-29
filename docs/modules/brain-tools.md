@@ -62,7 +62,12 @@ source of audited, model-callable tools.
   the declaration, so a rename here reddens the gate rather than leaving them describing a trail
   nothing writes (ADR-0009 audit-logger addendum). This contract names the declaration rather than
   the name, deliberately: a fifth restatement written to be gated would be the gate choosing its
-  own subject. A line also names the work it was for, `session_id`, `turn_id`,
+  own subject. The word the line opens with is declared beside it as `_MESSAGE` and handed to the
+  emitting call, for the same reason and against the same three restatements, the runbook sentence
+  that tells a reader what to look for and that suite's two spellings (ADR-0009 audit-message
+  addendum). The sample gate cannot stand in for either: this sink builds its `extra=` by
+  condition, so no runbook may print one of these lines as a rendered sample and have it hold.
+  A line also names the work it was for, `session_id`, `turn_id`,
   `task_id` and `item_id` off the dispatch's stamp, under the field names the rest of the brain's
   log lines
   spell them with, and this is the one sink that takes those five names from

@@ -1125,6 +1125,17 @@ SINK_LOGGER = '_LOGGER_NAME = "cortex.memory.recall"'
 SINK_MESSAGE = '_logger.info("memory.recall"'
 SINK_FIELD = '"dropped": ['
 
+# The trail one part over, whose message is the entry this pair of names was added for. It is
+# doctored the same way and for a sharper reason: the sample gate, which would otherwise hold a
+# message, cannot read this sink's fields at all, so nothing but this scan is watching the word.
+AUDIT_LOGGER = "the logger one tool-audit line is written through"
+AUDIT_MESSAGE = "the message one tool-audit line is found by"
+AUDIT_SINK = "brain/packages/tools/src/cortex_tools/audit.py"
+LEVEL_SUITE = "brain/packages/orchestrator/tests/test_config_logging.py"
+
+SINK_WORD = '_MESSAGE = "tool.invocation"'
+ASSERTED_LINE = "INFO:cortex.tools.audit:tool.invocation tool=read"
+
 
 def registered(label: str) -> couplings.Constant:
     """The one registered entry a fault would print ``label`` for."""
@@ -1308,6 +1319,49 @@ def test_the_trails_logger_is_held_by_this_entry_and_not_by_a_neighbour(tmp_path
     alone = crosscheck.check(tmp_path, (logger,))
     assert {fault.label for fault in alone} == {TRAIL_LOGGER}
     assert len(alone) == len(logger.mentions), alone
+
+
+def test_the_audit_messages_needles_hold_over_the_files_they_name(tmp_path: Path) -> None:
+    """The copy with nothing edited is green, so every red below is the edit and not the copy."""
+    copied(tmp_path, registered(AUDIT_MESSAGE), {})
+    assert crosscheck.check_constant(tmp_path, registered(AUDIT_MESSAGE)) == []
+
+
+def test_renaming_the_audit_message_in_the_sink_alone_reddens_every_place_restating_it(
+    tmp_path: Path,
+) -> None:
+    """The defect this entry was filed for, and the one the sample gate cannot cover.
+
+    A rendered sample would have held the message, the level, the logger and the fields at once,
+    but this sink builds its `extra=` by condition and `logcalls.py` refuses to read a field list
+    off such a call, so no runbook may print one of these lines. That leaves the word restated by
+    the runbook sentence telling a reader what to look for and by the suite that proves the
+    shipped level, with nothing holding either to the sink.
+    """
+    constant = registered(AUDIT_MESSAGE)
+    copied(tmp_path, constant, {AUDIT_SINK: (SINK_WORD, '_MESSAGE = "tool.dispatch"')})
+    faults = crosscheck.check_constant(tmp_path, constant)
+    assert {fault.label for fault in faults} == {AUDIT_MESSAGE}
+    assert {fault.detail.split()[0] for fault in faults} == {
+        mention.path for mention in constant.mentions
+    }
+
+
+def test_the_suites_asserted_line_is_reported_against_the_word_that_moved(
+    tmp_path: Path,
+) -> None:
+    """The interaction check: one line spends both of this trail's words, so each entry has to
+    render its own half of it. The logger's needle used to spell the message as fixed text, which
+    made a message renamed everywhere a fault reported against the logger, sending a reader to the
+    constant that did not move and asking for an edit to registry data rather than to the tree."""
+    logger, message = registered(AUDIT_LOGGER), registered(AUDIT_MESSAGE)
+    moved = {LEVEL_SUITE: (ASSERTED_LINE, ASSERTED_LINE.replace("invocation", "dispatch"))}
+    copied(tmp_path, logger, moved)
+    copied(tmp_path, message, moved)
+    assert crosscheck.check(tmp_path, (logger,)) == []
+    faults = crosscheck.check(tmp_path, (message,))
+    assert [fault.label for fault in faults] == [AUDIT_MESSAGE]
+    assert LEVEL_SUITE in faults[0].detail
 
 
 def _parts_on_disk() -> list[str]:
