@@ -1,4 +1,4 @@
-"""Building one llama-server chat-completion request out of core values (ADR-0005)."""
+"""Build one llama-server chat-completion request out of core values."""
 
 import json
 from collections.abc import Sequence
@@ -6,7 +6,17 @@ from collections.abc import Sequence
 from cortex_core import Message, Role, ToolSpec, data_uri
 from cortex_core.inference import GenerationBounds, JsonSchema
 
-__all__ = ["build_payload", "to_openai_message", "to_openai_tools", "tool_content"]
+__all__ = [
+    "TRACE_BUDGET_KEY",
+    "build_payload",
+    "to_openai_message",
+    "to_openai_tools",
+    "tool_content",
+]
+
+# What llama.cpp calls a per-request trace budget on the wire. ``lever.py`` asks a server whether
+# it parses this key, so the probe and the request must name the same thing.
+TRACE_BUDGET_KEY = "reasoning_budget_tokens"
 
 
 def tool_content(message: Message) -> object:
@@ -65,10 +75,13 @@ def build_payload(
     tools: Sequence[ToolSpec],
     schema: JsonSchema | None,
     bounds: GenerationBounds | None,
+    *,
+    trace_lever: bool = False,
 ) -> dict[str, object]:
-    """The streaming chat-completion request body: messages always, tools, a constrained
-    ``response_format`` and the request's ``bounds`` only when present (ADR-0009/0028, ADR-0038
-    cheap-fold addendum), so an unbounded unconstrained tool-less turn is byte-for-byte the
+    """The streaming chat-completion request body.
+
+    Messages always; tools, a constrained ``response_format`` and ``bounds`` only when present, so
+    a turn with none of them sends byte for byte the request this repo sent before they existed.
     """
     payload: dict[str, object] = {
         "model": model,
@@ -87,4 +100,9 @@ def build_payload(
             payload["max_tokens"] = bounds.max_tokens
         if not bounds.thinking:
             payload["chat_template_kwargs"] = {"enable_thinking": False}
+        # The key is sent only where the deployment declared or the boot probe measured that the
+        # engine parses ``reasoning_budget_tokens``, since a build that does not parse it drops
+        # the value without reporting anything.
+        if trace_lever and bounds.trace_tokens is not None:
+            payload[TRACE_BUDGET_KEY] = bounds.trace_tokens
     return payload

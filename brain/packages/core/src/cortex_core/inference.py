@@ -73,8 +73,12 @@ class GenerationBounds:
 
     max_tokens: int | None = None
     thinking: bool = True
+    trace_tokens: int | None = None
 
     def __post_init__(self) -> None:
         if self.max_tokens is not None and self.max_tokens < 1:
             msg = "max_tokens must be at least 1"
+            raise ValueError(msg)
+        if self.trace_tokens is not None and self.trace_tokens < 0:
+            msg = "trace_tokens must not be negative"
             raise ValueError(msg)

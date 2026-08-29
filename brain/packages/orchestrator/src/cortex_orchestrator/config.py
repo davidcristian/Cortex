@@ -11,6 +11,7 @@ from cortex_session import DEFAULT_REDIS_URL
 
 InferenceBackendName = Literal["echo", "llamacpp"]
 VisionMode = Literal["auto", "on", "off"]
+TraceLeverMode = Literal["auto", "on", "off"]
 MemoryBackendName = Literal["none", "pgvector"]
 MemoryScopeName = Literal["global", "session"]
 MemoryRecallName = Literal["raw", "reranked", "mmr", "recency_mmr", "judge"]
@@ -85,6 +86,7 @@ class InferenceConfig(BaseSettings):
     backend: InferenceBackendName = "echo"
     endpoint: str = ""
     vision: VisionMode = Field(default=DEFAULT_VISION_MODE, validation_alias="CORTEX_VISION")
+    trace_lever: TraceLeverMode = "auto"
     stall_timeout_s: float = Field(default=120.0, gt=0)
 
     @model_validator(mode="after")

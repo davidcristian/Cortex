@@ -99,6 +99,17 @@ async def check_a_deliberation_the_request_asked_against_still_crosses(
     assert _text(events) == CONTRACT_REPLY, f"the reply did not survive the switch: {events!r}"
 
 
+async def check_a_trace_the_request_budgeted_away_still_crosses(
+    subject: BackendUnderTest,
+) -> None:
+    """Asked for a trace of zero tokens and answered with one anyway, an implementation hands
+    it over.
+    """
+    events = await events_of(subject.deliberating(), bounds=GenerationBounds(trace_tokens=0))
+    assert _thinking(events) == CONTRACT_THINKING, f"the budget hid the trace: {events!r}"
+    assert _text(events) == CONTRACT_REPLY, f"the reply did not survive the budget: {events!r}"
+
+
 async def check_a_tool_call_crosses_the_port_assembled(subject: BackendUnderTest) -> None:
     """A completion that asks for a tool yields that call once, whole."""
     events = await events_of(subject.calling())
@@ -179,6 +190,7 @@ STREAM_CHECKS: tuple[StreamCheck, ...] = (
     check_the_reply_is_its_text_deltas_joined_in_order,
     check_thinking_arrives_apart_and_before_the_reply,
     check_a_deliberation_the_request_asked_against_still_crosses,
+    check_a_trace_the_request_budgeted_away_still_crosses,
     check_a_tool_call_crosses_the_port_assembled,
     check_a_tool_call_never_precedes_the_words_beside_it,
     check_the_closing_events_arrive_once_each_and_in_one_order,

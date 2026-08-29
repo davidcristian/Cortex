@@ -208,6 +208,10 @@ async def test_the_model_a_turn_asks_for_is_the_one_its_deployment_hosts(
     monkeypatch.setenv("CORTEX_INFERENCE_BACKEND", "llamacpp")
     # TEST-NET port 1 on loopback: connection refused immediately, no retry loop.
     monkeypatch.setenv("CORTEX_INFERENCE_ENDPOINT", "http://127.0.0.1:1")
+    # The lever is asked at wiring, and this endpoint answers nothing, so leaving it on `auto`
+    # would spend the probe's whole leash here on a question this test is not about (ADR-0005
+    # request-lever addendum). `off` is also what a deployment pointed at a dead tier should set.
+    monkeypatch.setenv("CORTEX_INFERENCE_TRACE_LEVER", "off")
     store = RecordingStore()
     task = asyncio.create_task(run_from_env(store_factory=lambda _url: store))
     try:
@@ -226,17 +230,70 @@ async def test_the_model_a_turn_asks_for_is_the_one_its_deployment_hosts(
 
 async def test_build_inference_backend_defaults_to_echo() -> None:
     """The GPU-less default: Echo, with a closer that is a clean no-op."""
-    backend, close = build_inference_backend(InferenceConfig(backend="echo", endpoint=""), "cortex")
+    backend, close = await build_inference_backend(
+        InferenceConfig(backend="echo", endpoint=""), "cortex"
+    )
     assert isinstance(backend, EchoInferenceBackend)
     await close()  # no resources to release; must not raise
 
 
 async def test_build_inference_backend_selects_llamacpp_and_returns_a_closer() -> None:
     """The opt-in GPU path: the real adapter, with the HTTP client's aclose as the closer."""
-    config = InferenceConfig(backend="llamacpp", endpoint="http://llama-cortex:8080")
-    backend, close = build_inference_backend(config, "cortex")
+    config = InferenceConfig(
+        backend="llamacpp", endpoint="http://llama-cortex:8080", trace_lever="off"
+    )
+    backend, close = await build_inference_backend(config, "cortex")
     assert isinstance(backend, LlamaCppBackend)
     await close()  # releases the httpx client
+
+
+@asynccontextmanager
+async def _canned_llama_server(status: int, body: str) -> AsyncGenerator[str]:
+    """A loopback server answering one canned HTTP response to whatever is posted at it."""
+    payload = body.encode()
+
+    async def serve(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        while await reader.readline() not in (b"\r\n", b""):
+            pass  # drain the request line and headers; the body follows and is never read
+        writer.write(
+            f"HTTP/1.1 {status} x\r\nContent-Type: application/json\r\n"
+            f"Content-Length: {len(payload)}\r\nConnection: close\r\n\r\n".encode()
+            + payload
+        )
+        await writer.drain()
+        writer.close()
+
+    server = await asyncio.start_server(serve, "127.0.0.1", 0)
+    port = cast("int", server.sockets[0].getsockname()[1])
+    try:
+        yield f"http://127.0.0.1:{port}"
+    finally:
+        server.close()
+        await server.wait_closed()
+
+
+async def test_the_trace_lever_is_measured_when_the_deployment_left_it_on_auto() -> None:
+    """``auto`` believes the engine, over a real exchange (ADR-0005 request-lever addendum)."""
+    refusal = '{"error":{"message":"Field \'reasoning_budget_tokens\': out of range"}}'
+    async with _canned_llama_server(400, refusal) as endpoint:
+        config = InferenceConfig(backend="llamacpp", endpoint=endpoint)
+        assert await builders_module.resolve_trace_lever(config, "cortex") is True
+
+
+async def test_an_engine_that_answers_the_probe_leaves_the_lever_down() -> None:
+    """A build that ignores the field answers the completion, and the request carries no key."""
+    async with _canned_llama_server(200, '{"choices":[]}') as endpoint:
+        config = InferenceConfig(backend="llamacpp", endpoint=endpoint)
+        assert await builders_module.resolve_trace_lever(config, "cortex") is False
+
+
+async def test_the_two_fixed_modes_answer_without_asking_anything() -> None:
+    """``on`` and ``off`` open no socket at all, which is what makes them usable with no server."""
+    dead = "http://127.0.0.1:1"
+    on = InferenceConfig(backend="llamacpp", endpoint=dead, trace_lever="on")
+    off = InferenceConfig(backend="llamacpp", endpoint=dead, trace_lever="off")
+    assert await builders_module.resolve_trace_lever(on, "cortex") is True
+    assert await builders_module.resolve_trace_lever(off, "cortex") is False
 
 
 async def test_the_generation_client_bounds_every_phase_including_the_read() -> None:
@@ -273,8 +330,10 @@ async def _wedged_llama_server() -> AsyncGenerator[str]:
 async def test_a_wedged_llama_server_fails_the_stream_instead_of_waiting_forever() -> None:
     """End to end over a real socket: the configured ceiling reaches the wire and fires there."""
     async with _wedged_llama_server() as endpoint:
-        config = InferenceConfig(backend="llamacpp", endpoint=endpoint, stall_timeout_s=0.25)
-        backend, close = build_inference_backend(config, "cortex")
+        config = InferenceConfig(
+            backend="llamacpp", endpoint=endpoint, stall_timeout_s=0.25, trace_lever="off"
+        )
+        backend, close = await build_inference_backend(config, "cortex")
         try:
             turn = Message(role=Role.USER, text="hello", at=datetime.now(UTC), turn_id="t-1")
             async with asyncio.timeout(10.0):

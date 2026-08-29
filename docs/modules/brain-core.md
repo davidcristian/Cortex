@@ -131,8 +131,9 @@ Session listing (Slice 8.7, ADR-0021; `sessions.py`):
   `generate_title(backend, model, messages)` runs one tool-less completion and returns the
   cleaned title, keeping only `TextChunk` (a reasoning model's `ReasoningChunk` and any
   `ToolCall` are ignored) and letting `InferenceError` propagate for the caller to absorb. The
-  request carries `TITLE_BOUNDS` (`max_tokens=TITLE_MAX_TOKENS` of 32, `thinking=False`, ADR-0038
-  bounded-side-calls addendum), because the deliberation the line above discards is the whole cost
+  request carries `TITLE_BOUNDS` (`max_tokens=TITLE_MAX_TOKENS` of 32, `thinking=False`,
+  `trace_tokens=0`, ADR-0038 bounded-side-calls addendum and ADR-0005 request-lever addendum),
+  because the deliberation the line above discards is the whole cost
   of this pass: measured, 235 to 303 decoded tokens at 7.9 s to 10.4 s against 4 tokens at 0.2 s to
   0.3 s for the same title. The cap is `TITLE_MAX` in the request's own unit with room to spare, so
   reaching it cuts past the 48 characters `clean_title` keeps and cannot change a stored title;
@@ -889,17 +890,27 @@ unchanged):
   decoding to that JSON Schema (ADR-0028); `None` (every caller but a constrained tool-less
   subagent) leaves output unconstrained. `bounds` (a `GenerationBounds`, ADR-0038 cheap-fold
   addendum) is how far this one request lets the model go: `max_tokens` caps what the server will
-  decode, and `thinking=False` asks the chat template to skip deliberation. They are one value
+  decode, `thinking=False` asks the chat template to skip deliberation, and `trace_tokens` says
+  how many tokens a deliberation that happens anyway may spend. They are one value
   because they only work together, a cap against a thinking model returning an empty reply
-  (measured); `max_tokens` below 1 raises `ValueError`. **`thinking` is a request and not a
+  (measured); `max_tokens` below 1 and a negative `trace_tokens` both raise `ValueError`.
+  **`thinking` is a request and not a
   guarantee** (ADR-0005 switch-is-advisory addendum): what it asks for is honoured or ignored
   behind the endpoint, measured per pick AND per request shape, so an implementation passes it on,
   never enforces it, and lets a trace that arrived anyway cross as `ReasoningChunk` rather than
   filtering it into the silence the caller asked for. That stream is a caller's only evidence that
-  the switch did not hold; the dependable bound is the tier's own `--reasoning-budget`.
+  the switch did not hold. **`trace_tokens` is the half that holds where the engine reads it**
+  (ADR-0005 request-lever addendum): `0` ends the thought at once, a positive count lets it run
+  that far, and `None` says nothing and leaves the tier's own `--reasoning-budget` deciding, the
+  port having no word for "unrestricted" because `None` already is one. It is a sampler at the
+  engine rather than a hint to a template, so it reaches every request shape, and an
+  implementation owes it the same evidence obligation: a trace that arrived despite a budget of
+  zero still crosses. **The two are independent and neither implies the other**: deriving a zero
+  from the switch would blank the thinking status a user's own turn renders (ADR-0020), so every
+  producer that wants a bounded trace names the count.
   `None` (the default, and every user-facing
-  reply) leaves both to the deployment's server flags, so that request is byte-identical to the
-  one this port always described. Per request rather than per server because one resident cortex
+  reply) leaves all three to the deployment's server flags, so that request is byte-identical to
+  the one this port always described. Per request rather than per server because one resident cortex
   both answers the user, where deliberation earns its wait, and folds a history recap, where it is
   discarded unread. A completion **closes with one `DecodeStop` when the engine says why it ended
   and one `DecodeCadence` when it reports how fast it decoded**, in that order and both after the
@@ -1553,8 +1564,9 @@ Use-case:
   `recap_prompt.py` holds the text on both sides of the call: `build_recap_messages(previous,
   dropped, *, at, turn_id)` returns the two-message prompt, `fence_recap(text)` the fenced,
   self-explaining body of the prepended message, `RECAP_BOUNDS` how far the request may go
-  (512 tokens, thinking off, which only work as a pair since a cap against a thinking model
-  returns an empty reply), `collapse_recap(raw)` the one-paragraph normalization every recap rule
+  (512 tokens, thinking off and a trace budget of zero, which only work together since a cap
+  against a thinking model returns an empty reply; the switch is what a template reads and the
+  zero is what the engine's own sampler does, ADR-0005 request-lever addendum), `collapse_recap(raw)` the one-paragraph normalization every recap rule
   is written against (its own function so the number a rejection is logged with is the number it
   was decided on), and `clean_recap(raw)` the reply cleanup (the `session_title.py`
   shape), collapsing to one paragraph and answering `""` for a reply with nothing in it, one that
@@ -1725,7 +1737,9 @@ Use-case:
   similarity floor was calibrated on the real embedder and declined (ADR-0038 relevance-floor
   addendum), because a question memory cannot answer scores in the same cosine band as one whose
   answer is worded unlike it, so a floor that silences the first silences the second. Its request carries `rank_bounds(k)`
-  (`max_tokens=24 + 8k`, `thinking=False`, ADR-0038 bounded-side-calls addendum), computed from `k`
+  (`max_tokens=24 + 8k`, `thinking=False`, `trace_tokens=0`, ADR-0038 bounded-side-calls addendum
+  and ADR-0005 request-lever addendum, this being the one shipped bound that carries a schema too
+  and so the shape the switch alone was measured losing), computed from `k`
   rather than fixed because `ORDER_ENVELOPE` admits an array of numbers and nothing else, so the
   reply's length is known before it is asked for; a truncated constrained reply is not JSON, so
   running into the cap degrades to that same fallback rather than to a shortened order. **A

@@ -47,9 +47,11 @@ RANK_TOKENS_PER_CANDIDATE = 8
 
 
 def rank_bounds(k: int) -> GenerationBounds:
-    """The bounds one rank request carries: no thinking, and room for ``k`` numbered picks."""
+    """The bounds one rank request carries: no thinking, no trace, and room for ``k`` picks."""
     return GenerationBounds(
-        max_tokens=RANK_ENVELOPE_TOKENS + RANK_TOKENS_PER_CANDIDATE * k, thinking=False
+        max_tokens=RANK_ENVELOPE_TOKENS + RANK_TOKENS_PER_CANDIDATE * k,
+        thinking=False,
+        trace_tokens=0,
     )
 
 

@@ -1,4 +1,4 @@
-"""Brain-generated session titles: build the prompt, run the model, clean the reply (ADR-0021)."""
+"""Brain-generated session titles: build the prompt, run the model, clean the reply."""
 
 from collections.abc import Sequence
 from datetime import datetime
@@ -9,11 +9,12 @@ from cortex_core.inference import GenerationBounds
 from cortex_core.ports import InferenceBackend
 from cortex_core.sessions import TITLE_MAX
 
+# Eight times the four tokens a title costs. Thinking is off for this pass, and the two go
+# together: the same prompt capped with thinking on came back empty three times in three,
+# because the deliberation before a four-token title is hundreds of tokens.
 TITLE_MAX_TOKENS = 32
-TITLE_BOUNDS = GenerationBounds(max_tokens=TITLE_MAX_TOKENS, thinking=False)
+TITLE_BOUNDS = GenerationBounds(max_tokens=TITLE_MAX_TOKENS, thinking=False, trace_tokens=0)
 
-# The opening exchange follows this instruction as the model's only context. Kept short and
-# deterministic; the reply is cleaned to one bounded line regardless of how the model answers.
 _INSTRUCTION = (
     "Give this conversation a short title of a few words. Reply with only the title, "
     "with no quotation marks and no closing punctuation."
@@ -29,8 +30,7 @@ def build_title_messages(
 
 
 def clean_title(raw: str) -> str:
-    """Collapse the model's reply to one line, strip wrapping quotes, and bound it to ``TITLE_MAX``.
-    """
+    """One line, wrapping quotes stripped, cut to ``TITLE_MAX``."""
     collapsed = " ".join(raw.split())
     return collapsed.strip("\"'")[:TITLE_MAX]
 

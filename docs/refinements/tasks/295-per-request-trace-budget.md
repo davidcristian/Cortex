@@ -1,11 +1,8 @@
 # One tier still has one thinking budget
 
-**Status:** open, fix when it bites
+**Status:** landed 2026-08-29
 **Area:** inference-model-manager
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
-**Trigger:** a llama.cpp build that reads a thinking budget off the request body, or a second
-caller on one tier whose right budget is a different positive count from the first's.
-
 Opened 2026-08-17 by the trace-budget landing
 ([ADR-0005](../../adr/ADR-0005-llamacpp-engine.md) trace-budget addendum), which gave the thinking
 dial its middle and could only fit it per server.
@@ -36,3 +33,32 @@ open here is the second half of the trigger, two callers on one tier wanting dif
 counts, and the engine no longer holds it shut. [R-474](474-the-switch-could-be-rendered-as-a-lever-that-holds.md)
 is the other use of the same key, a zero rather than a count, and carries the questions a payload
 key raises for both.
+
+**Landed with it, as the [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md) request-lever
+addendum.** The shape this entry predicted is the shape that shipped, unchanged: `GenerationBounds`
+gained a third number, `build_payload` renders it, and the tier flag became the deployment's
+default rather than its only setting, since the engine falls back to `--reasoning-budget` exactly
+where a request names no count. The second half of the trigger, two callers on one tier wanting
+different positive counts, is now expressible: the fold, the title and the recall rank each send a
+zero and a user's reply sends whatever `CORTEX_REPLY_TRACE_TOKENS` names, all on the one resident
+cortex.
+
+Measured per request on one unbudgeted server, so the dial is the engine's rather than a claim
+about it: unbounded spent 591 to 854 characters of trace and returned **nothing** inside a cap of
+256, `reasoning_budget_tokens: 128` spent 310 to 516 and returned an answer, and `32` spent 0 to 92
+and returned a longer one. What the addendum adds beyond this entry's own design is the floor under
+the key, since a build that does not know it ignores it in silence
+([R-474](474-the-switch-could-be-rendered-as-a-lever-that-holds.md) is where those questions were
+recorded).
+
+## Trail
+
+- 2026-08-29: landed as the ADR-0005 request-lever addendum, carried by the close of
+  [R-474](474-the-switch-could-be-rendered-as-a-lever-that-holds.md), the two being one key on one
+  payload read twice. The engine half of the trigger had fired the day before; the shape shipped is
+  the one this entry described, with a probe of the running engine added under it because a build
+  that does not read the key says nothing. The residue is on that entry's own trail:
+  [R-495](495-the-forced-thought-can-leak-its-own-start-tag.md),
+  [R-496](496-the-trace-lever-is-answered-once-per-boot.md),
+  [R-497](497-nothing-reports-a-trace-budget-that-went-unread.md) and
+  [R-498](498-one-reply-trace-budget-for-two-tiers.md).

@@ -25,7 +25,11 @@ from cortex_core import (
     ToolRegistry,
     UrlRedactingGuardrail,
 )
-from cortex_inference import LlamaCppBackend
+from cortex_inference import (
+    TRACE_LEVER_PROBE_TIMEOUT_S,
+    LlamaCppBackend,
+    reads_a_trace_budget,
+)
 from cortex_orchestrator.config import InferenceConfig, OutputGuardrailName
 from cortex_orchestrator.config_body import BodyConfig
 from cortex_orchestrator.config_tools import ToolsConfig
@@ -42,6 +46,7 @@ __all__ = [
     "build_output_guardrail",
     "build_tool_registry",
     "noop_aclose",
+    "resolve_trace_lever",
 ]
 
 # Connect/write/pool time out fast on a dead server, one knob for every tier: a dead server is
@@ -72,7 +77,17 @@ async def noop_aclose() -> None:
     return
 
 
-def build_inference_backend(
+async def resolve_trace_lever(config: InferenceConfig, cortex_model: str) -> bool:
+    """Whether a request to this deployment may carry its own trace budget (ADR-0005)."""
+    if config.trace_lever == "off":
+        return False
+    if config.trace_lever == "on":
+        return True
+    async with httpx.AsyncClient(timeout=TRACE_LEVER_PROBE_TIMEOUT_S) as client:
+        return await reads_a_trace_budget(config.endpoint, cortex_model, client)
+
+
+async def build_inference_backend(
     config: InferenceConfig, cortex_model: str, *, manager: ModelManager | None = None
 ) -> tuple[InferenceBackend, Callable[[], Awaitable[None]]]:
     """Pick the backend from config; return it with the coroutine that releases it."""
@@ -83,7 +98,8 @@ def build_inference_backend(
             if manager is not None
             else SingleResidentModelManager(cortex_model, config.endpoint)
         )
-        return LlamaCppBackend(leases, client), client.aclose
+        lever = await resolve_trace_lever(config, cortex_model)
+        return LlamaCppBackend(leases, client, trace_lever=lever), client.aclose
     return EchoInferenceBackend(), noop_aclose
 
 

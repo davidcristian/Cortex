@@ -50,9 +50,16 @@ def _chunk_events(chunk: ChunkRead) -> Iterator[InferenceEvent]:
 class LlamaCppBackend:
     """InferenceBackend over a llama-server OpenAI-compatible endpoint (ADR-0005)."""
 
-    def __init__(self, model_manager: ModelManager, http_client: httpx.AsyncClient) -> None:
+    def __init__(
+        self,
+        model_manager: ModelManager,
+        http_client: httpx.AsyncClient,
+        *,
+        trace_lever: bool = False,
+    ) -> None:
         self._manager = model_manager
         self._client = http_client
+        self._trace_lever = trace_lever
 
     async def stream(
         self,
@@ -64,7 +71,9 @@ class LlamaCppBackend:
         bounds: GenerationBounds | None = None,
     ) -> AsyncIterator[InferenceEvent]:
         """Stream text deltas from the leased llama-server, then any assembled tool calls."""
-        payload = build_payload(model, messages, tools, schema, bounds)
+        payload = build_payload(
+            model, messages, tools, schema, bounds, trace_lever=self._trace_lever
+        )
         pending: dict[int, PendingCall] = {}
         try:
             async with self._manager.acquire(model) as lease:

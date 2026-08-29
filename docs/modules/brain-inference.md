@@ -13,14 +13,16 @@ No orchestration, no session state (the one hard rule). The core keeps talking o
 **Three modules, split by the direction a value travels.** `request.py` maps core values onto
 the wire, `decode.py` maps the wire back, and `backend.py` keeps what neither can own: the lease,
 the HTTP call, and the order events leave in. The split happened when the cadence arm took
-`backend.py` to the 300-line cap. The two halves are package-internal (nothing but
-`LlamaCppBackend` is exported) but not underscored, a leading underscore being exactly the thing
-that would forbid the adapter from importing them.
+`backend.py` to the 300-line cap. A fourth module, `lever.py`, is not on that axis at all: it
+asks a server one question before any request is built (below). The three mapping modules are
+package-internal but not underscored, a leading underscore being exactly the thing that would
+forbid the adapter from importing them.
 
 **Public contract** (everything importable from `cortex_inference`; `__all__` is the API):
 
-- `LlamaCppBackend(model_manager: ModelManager, http_client: httpx.AsyncClient)` is an
-  `InferenceBackend`. `stream(model, messages, *, tools=(), schema=None)`:
+- `LlamaCppBackend(model_manager: ModelManager, http_client: httpx.AsyncClient, *,
+  trace_lever: bool = False)` is an `InferenceBackend`. `stream(model, messages, *, tools=(),
+  schema=None, bounds=None)`:
   1. `async with model_manager.acquire(model) as lease` queues for the GPU, gets the
      resident model's endpoint (or the manager raises for a non-resident model).
   2. POSTs `{model, messages, stream: true}` (plus `tools` when any are offered, plus a
@@ -74,6 +76,31 @@ that would forbid the adapter from importing them.
     (`CORTEX_INFERENCE_STALL_TIMEOUT_S` 120 s for the resident and deep models,
     `CORTEX_SUBAGENTS_STALL_TIMEOUT_S` 600 s for the CPU pool), and it has to clear the worst
     legitimate **time to first token**, which is the longest silence a healthy server produces.
+
+**The trace lever, and why it is a constructor argument rather than a rendering rule**
+(ADR-0005 request-lever addendum). `GenerationBounds.trace_tokens` renders as llama.cpp's
+`reasoning_budget_tokens`, a sampler the engine reads off the body and falls back to the tier's
+`--reasoning-budget` for where the request names nothing. It is the half of the thinking lever a
+request shape cannot overrule, where the `chat_template_kwargs` half can. But a build that does
+not know the key **ignores it in silence**, so the adapter carries it only when `trace_lever` is
+true, which the composition root decides once from `CORTEX_INFERENCE_TRACE_LEVER`
+(`auto`/`on`/`off`). Two rules hold it in place, both pinned by tests:
+
+- a bound naming no count carries no key, whatever `thinking` says, so the switch can never
+  silently budget a user's visible trace;
+- a count of zero is carried verbatim rather than treated as "nothing asked", zero being the
+  setting three shipped bounds depend on.
+
+**`reads_a_trace_budget(endpoint, model, client)` is that capability read**, and the package
+exports it beside the adapter, along with `TRACE_LEVER_PROBE_TIMEOUT_S`, the leash the composition
+root gives the client it hands in. One POST carrying an out-of-range budget: a build that parses the key
+range-checks it and refuses by name (HTTP 400), and a build that does not know it answers the
+completion (HTTP 200). Measured 2026-08-29 against two real builds one minute apart,
+`b10666-4e97ac86e` refusing and `b9870-2d973636e` answering, and each build's behaviour under the
+key matching its own verdict on the one cell that separates them. Every failure is a no: unreachable, another status, or a 400 that does not name
+the key all leave the request carrying no budget, which is the request this repo sent before the
+key existed. It is asked **once**, at wiring, because the answer is a property of a binary, where
+the vision probe beside it re-asks forever because its answer is a property of an argv.
 
 **A non-2xx quotes the server.** `raise_for_status` alone would report a bare status, because
 the response is streamed and its body is never read, which makes the most likely
@@ -167,13 +194,29 @@ with the cause chained:
   **predictor**, an entry whose template answers the switch with a thought already closed holding
   under a schema where one that drops the block and adds nothing does not, on every entry measured
   (ADR-0005 switch-is-advisory addendum, mechanism and lineup sections).
-- **What the streaming list holds is what a stream owes, said without saying when.** Ten checks
+- **`tests/test_trace_budget_live.py` is its sibling for the lever that holds**
+  (`integration`-marked, ADR-0005 request-lever addendum). It asks the endpoint whether the engine
+  parses a per-request trace budget, then draws the one cell the switch loses, a constrained reply
+  into the fixed envelope, with the budget and without it. It wants a server started with neither
+  reasoning flag for the switch probe's reason, and it **asserts the same control**: the arm that
+  sends no budget must deliberate, or the tier already bounds its trace and the run says nothing.
+  `CORTEX_TRACE_REPEATS` sets the draws, 1 by default. Measured on the shipped subagent pick at
+  `-ngl 0` on `b10666-4e97ac86e`: the switch alone deliberated on **17 of 20** and returned an
+  empty capped reply on every one of them, and `trace_tokens=0` held on **20 of 20**. The leak the
+  earlier build showed did reproduce, once, and inside the payload rather than in front of it
+  (`{"reply": "thought"}`, 1 of 58 budgeted draws, and 0 of 20 against a tier carrying the same
+  sampler as a flag), so the file prints a leak count rather than asserting on one and the count
+  reads two shapes.
+- **What the streaming list holds is what a stream owes, said without saying when.** Eleven checks
   over four worlds a fixture arranges (a reasoning model answering, a completion that asks for a
   tool, a completion with nothing to say, a backend that cannot answer): the reply is its deltas
   joined in arrival order; the thinking crosses as its own kind and is over before the reply
   starts; a deliberation that arrived despite a request asking for none crosses all the same, an
   implementation reporting what its deployment did rather than filtering it into the silence the
-  caller asked for (ADR-0005 switch-is-advisory addendum); a tool call crosses whole; a tool call
+  caller asked for (ADR-0005 switch-is-advisory addendum); a trace that arrived despite a request
+  budgeting it to zero tokens crosses the same way, which is a separate obligation because a count
+  reads like an order where a switch reads like a request (ADR-0005 request-lever addendum); a
+  tool call crosses whole; a tool call
   never precedes the words beside it; the two
   closing events arrive at most once each with the stop first and both after what they describe; a
   completion with nothing to say owes no event at all; an abandoned completion costs the backend

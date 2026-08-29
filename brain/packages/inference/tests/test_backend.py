@@ -58,10 +58,12 @@ def _content_handler(_request: httpx.Request) -> httpx.Response:
     return httpx.Response(200, content=_sse('{"choices":[{"delta":{"content":"solo"}}]}'))
 
 
-def _backend(handler: _Handler, *, resident: str = "cortex") -> LlamaCppBackend:
+def _backend(
+    handler: _Handler, *, resident: str = "cortex", trace_lever: bool = False
+) -> LlamaCppBackend:
     manager = SingleResidentModelManager(resident, _ENDPOINT)
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
-    return LlamaCppBackend(manager, client)
+    return LlamaCppBackend(manager, client, trace_lever=trace_lever)
 
 
 async def _drain_into(stream: AsyncIterator[InferenceEvent], seen: list[InferenceEvent]) -> None:
@@ -363,19 +365,75 @@ async def test_bounds_that_ask_for_nothing_leave_the_request_as_the_server_confi
     assert "max_tokens" not in unthinking
 
 
-async def test_no_bounds_omits_both_keys() -> None:
+async def test_no_bounds_omits_every_key() -> None:
     # The unbounded request is byte-for-byte the original, which is what every reply still sends.
+    # Asked with the trace lever ON, so the budget key is absent because nothing asked for one
+    # rather than because the deployment could not carry it.
     captured: dict[str, object] = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
         captured["body"] = json.loads(request.content)
         return httpx.Response(200, content=_sse(_chunk({"content": "ok"})))
 
-    _ = [event async for event in _backend(handler).stream("cortex", _messages())]
+    backend = _backend(handler, trace_lever=True)
+    _ = [event async for event in backend.stream("cortex", _messages())]
     body = captured["body"]
     assert isinstance(body, dict)
     assert "max_tokens" not in body
     assert "chat_template_kwargs" not in body
+    assert "reasoning_budget_tokens" not in body
+
+
+async def test_a_trace_budget_rides_the_request_where_the_engine_reads_one() -> None:
+    """ADR-0005 request-lever addendum: the count crosses verbatim, a zero included."""
+    captured: list[dict[str, object]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured.append(json.loads(request.content))
+        return httpx.Response(200, content=_sse(_chunk({"content": "ok"})))
+
+    backend = _backend(handler, trace_lever=True)
+    for bounds in (GenerationBounds(trace_tokens=0), GenerationBounds(trace_tokens=128)):
+        _ = [event async for event in backend.stream("cortex", _messages(), bounds=bounds)]
+    ended, budgeted = captured
+    assert ended["reasoning_budget_tokens"] == 0
+    assert budgeted["reasoning_budget_tokens"] == 128
+
+
+async def test_a_trace_budget_is_withheld_where_the_engine_does_not_read_one() -> None:
+    """The floor: an engine that ignores the key is sent no key at all (ADR-0005)."""
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(200, content=_sse(_chunk({"content": "ok"})))
+
+    bounds = GenerationBounds(max_tokens=32, thinking=False, trace_tokens=0)
+    _ = [event async for event in _backend(handler).stream("cortex", _messages(), bounds=bounds)]
+    body = captured["body"]
+    assert isinstance(body, dict)
+    assert "reasoning_budget_tokens" not in body
+    # The other two keys still ride it, so this is the budget being withheld and not the bounds
+    # being dropped.
+    assert body["max_tokens"] == 32
+    assert body["chat_template_kwargs"] == {"enable_thinking": False}
+
+
+async def test_the_thinking_switch_alone_never_budgets_the_trace() -> None:
+    """A bound that asks for no thinking and names no count carries no budget (ADR-0005)."""
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(200, content=_sse(_chunk({"content": "ok"})))
+
+    backend = _backend(handler, trace_lever=True)
+    bounds = GenerationBounds(max_tokens=256, thinking=False)
+    _ = [event async for event in backend.stream("cortex", _messages(), bounds=bounds)]
+    body = captured["body"]
+    assert isinstance(body, dict)
+    assert body["chat_template_kwargs"] == {"enable_thinking": False}
+    assert "reasoning_budget_tokens" not in body
 
 
 async def test_reassembles_a_streamed_tool_call_and_final_text() -> None:
