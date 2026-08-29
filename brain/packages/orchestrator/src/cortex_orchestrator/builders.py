@@ -6,7 +6,10 @@ releases it, so the root's shutdown path is uniform whatever was picked:
 
 - InferenceBackend -> `EchoInferenceBackend` by default (GPU-less), or the real
   `LlamaCppBackend` over a `SingleResidentModelManager` when CORTEX_INFERENCE_BACKEND
-  is `llamacpp` (ADR-0007). The GPU path is opt-in so CI stays inference-free.
+  is `llamacpp` (ADR-0007). The GPU path is opt-in so CI stays inference-free. It is the one
+  builder here that asks a question before it builds: whether this deployment's engine reads a
+  per-request trace budget (CORTEX_INFERENCE_TRACE_LEVER, ADR-0005 request-lever addendum), which
+  is a property of a binary and so is settled once and handed to the adapter as a bool.
 - Memory -> `memory_builders.py` (split for the 300-line cap when the recall reranking policy
   arrived): a `MemoryRecaller` over the `PgVectorMemoryStore` + `LlamaCppEmbedder`, with its scope
   and recall-rerank policies, when CORTEX_MEMORY_BACKEND is `pgvector` (ADR-0008). Opt-in so CI and
@@ -59,7 +62,11 @@ from cortex_core import (
     ToolRegistry,
     UrlRedactingGuardrail,
 )
-from cortex_inference import LlamaCppBackend
+from cortex_inference import (
+    TRACE_LEVER_PROBE_TIMEOUT_S,
+    LlamaCppBackend,
+    reads_a_trace_budget,
+)
 from cortex_orchestrator.config import InferenceConfig, OutputGuardrailName
 from cortex_orchestrator.config_body import BodyConfig
 from cortex_orchestrator.config_tools import ToolsConfig
@@ -76,6 +83,7 @@ __all__ = [
     "build_output_guardrail",
     "build_tool_registry",
     "noop_aclose",
+    "resolve_trace_lever",
 ]
 
 # Connect/write/pool time out fast on a dead server, one knob for every tier: a dead server is
@@ -118,7 +126,30 @@ async def noop_aclose() -> None:
     return
 
 
-def build_inference_backend(
+async def resolve_trace_lever(config: InferenceConfig, cortex_model: str) -> bool:
+    """Whether a request to this deployment may carry its own trace budget (ADR-0005).
+
+    Three answers, one per mode, and only one of them touches the network:
+
+    - ``off``: no, and nothing is asked. The request this repo sent before the key existed, and
+      the answer for a deployment whose endpoint is a proxy a probe would ask the wrong question.
+    - ``on``: yes, on the deployment's word. What an owner who knows their build sets, and what
+      a test fixes the answer with.
+    - ``auto`` (the default): yes exactly when the engine behind the endpoint says so, asked once
+      here rather than per call because the answer is a property of a binary (``lever.py``).
+
+    It is resolved before the backend is built, so the adapter holds a decided ``bool`` and never
+    a question: nothing about the lever is asked while a user waits for a turn.
+    """
+    if config.trace_lever == "off":
+        return False
+    if config.trace_lever == "on":
+        return True
+    async with httpx.AsyncClient(timeout=TRACE_LEVER_PROBE_TIMEOUT_S) as client:
+        return await reads_a_trace_budget(config.endpoint, cortex_model, client)
+
+
+async def build_inference_backend(
     config: InferenceConfig, cortex_model: str, *, manager: ModelManager | None = None
 ) -> tuple[InferenceBackend, Callable[[], Awaitable[None]]]:
     """Pick the backend from config; return it with the coroutine that releases it.
@@ -130,6 +161,11 @@ def build_inference_backend(
     swaps under, or a swap could preempt a live round. That is also why one client carries the
     deep tier's stall ceiling as well as the cortex's: after a handoff the brain phase streams
     through this very backend object, at a different endpoint.
+
+    It is a coroutine for the one thing on this path that has to ask something outside the
+    process: whether this deployment's engine reads a per-request trace budget (ADR-0005
+    request-lever addendum). Only the llama.cpp arm asks, and only in ``auto``, so the Echo
+    deployment CI runs still opens nothing at all.
     """
     if config.backend == "llamacpp":
         client = build_generation_client(config.stall_timeout_s)
@@ -138,7 +174,8 @@ def build_inference_backend(
             if manager is not None
             else SingleResidentModelManager(cortex_model, config.endpoint)
         )
-        return LlamaCppBackend(leases, client), client.aclose
+        lever = await resolve_trace_lever(config, cortex_model)
+        return LlamaCppBackend(leases, client, trace_lever=lever), client.aclose
     return EchoInferenceBackend(), noop_aclose
 
 

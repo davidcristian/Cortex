@@ -16,6 +16,11 @@ from cortex_session import DEFAULT_REDIS_URL
 
 InferenceBackendName = Literal["echo", "llamacpp"]
 VisionMode = Literal["auto", "on", "off"]
+# Whether a request may carry its own trace budget on this deployment's engine (ADR-0005
+# request-lever addendum). Same three words as the vision mode above and for the same reason: an
+# answer this repo can measure, plus the two a deployment gives when it would rather say than be
+# asked.
+TraceLeverMode = Literal["auto", "on", "off"]
 MemoryBackendName = Literal["none", "pgvector"]
 MemoryScopeName = Literal["global", "session"]
 MemoryRecallName = Literal["raw", "reranked", "mmr", "recency_mmr", "judge"]
@@ -163,6 +168,16 @@ class InferenceConfig(BaseSettings):
     ``on`` and ``off`` fix the answer for CI, for a deterministic test, and for a user who wants
     capture off without editing compose.
 
+    ``trace_lever`` (``CORTEX_INFERENCE_TRACE_LEVER``) decides whether a request may carry
+    ``GenerationBounds.trace_tokens`` as llama.cpp's ``reasoning_budget_tokens`` (ADR-0005
+    request-lever addendum). ``auto``, the default, asks the endpoint once at wiring, an engine
+    that parses the key rejecting an out-of-range value by name where one that does not know it
+    answers the completion; ``on`` and ``off`` fix the answer for a deployment that would rather
+    say than be asked, and ``off`` is also how a stack behind a proxy that cannot be probed keeps
+    the request this repo sent before the key existed. Unlike ``vision`` the answer is taken once,
+    because it is a property of the **binary** behind the endpoint rather than of the argv a model
+    host last started a child with.
+
     ``stall_timeout_s`` (``CORTEX_INFERENCE_STALL_TIMEOUT_S``) is how long a resident-tier
     generation may send nothing before the adapter gives up on it (ADR-0005 stall-ceiling
     addendum). It bounds the gap between chunks and never the generation, so it must clear the
@@ -176,6 +191,7 @@ class InferenceConfig(BaseSettings):
     backend: InferenceBackendName = "echo"
     endpoint: str = ""
     vision: VisionMode = Field(default=DEFAULT_VISION_MODE, validation_alias="CORTEX_VISION")
+    trace_lever: TraceLeverMode = "auto"
     stall_timeout_s: float = Field(default=120.0, gt=0)
 
     @model_validator(mode="after")

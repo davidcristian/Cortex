@@ -97,7 +97,15 @@ RANK_TOKENS_PER_CANDIDATE = 8
 
 
 def rank_bounds(k: int) -> GenerationBounds:
-    """The bounds one rank request carries: no thinking, and room for ``k`` numbered picks.
+    """The bounds one rank request carries: no thinking, no trace, and room for ``k`` picks.
+
+    **This is the shipped bound that carries a schema too**, and so the one the thinking switch
+    was measured failing on: a ``response_format`` makes llama.cpp build a grammar that re-offers
+    the model's thought whatever the template was told (ADR-0005 switch-is-advisory addendum). The
+    trace budget is the lever that reaches that shape, being a sampler rather than a prompt or a
+    grammar, so this bound carries a zero as well as the switch (ADR-0005 request-lever addendum).
+    Both, not one: the switch is what a template reads, and every deployment whose engine does not
+    read the count still has it.
 
     **Running into the cap degrades to the fallback policy, never to a mangled order.** A cut
     reply is not JSON (measured: a rank capped below its answer came back ``{"order":``), so
@@ -108,7 +116,9 @@ def rank_bounds(k: int) -> GenerationBounds:
     the refusal is a complete ``{"order": []}`` and a truncation is not JSON at all.
     """
     return GenerationBounds(
-        max_tokens=RANK_ENVELOPE_TOKENS + RANK_TOKENS_PER_CANDIDATE * k, thinking=False
+        max_tokens=RANK_ENVELOPE_TOKENS + RANK_TOKENS_PER_CANDIDATE * k,
+        thinking=False,
+        trace_tokens=0,
     )
 
 

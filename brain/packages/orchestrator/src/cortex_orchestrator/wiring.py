@@ -112,7 +112,7 @@ async def run_from_env(
     swap = await check_control_deadline(
         build_swap_runtime(swap_config, runtime, inference, clock, AsyncioSleeper(), placer=placer)
     )
-    backend, close_backend = build_inference_backend(
+    backend, close_backend = await build_inference_backend(
         inference, runtime.cortex_model, manager=None if swap is None else swap.manager
     )
     memory, memory_cascade, close_memory = await build_memory(

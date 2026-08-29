@@ -644,6 +644,10 @@ async def test_the_fold_asks_for_no_thinking_and_a_bounded_reply() -> None:
 
     assert backend.bounds == [RECAP_BOUNDS]
     assert RECAP_BOUNDS.thinking is False
+    # The fold's trace is discarded by construction, so it names a count as well as the switch
+    # (ADR-0005 request-lever addendum): the switch reaches a chat template and the count reaches
+    # the engine's own sampler.
+    assert RECAP_BOUNDS.trace_tokens == 0
     assert RECAP_BOUNDS.max_tokens is not None
 
 

@@ -155,6 +155,19 @@ def test_bounds_default_to_the_deployments_own_settings() -> None:
     unbounded = GenerationBounds()
     assert unbounded.max_tokens is None
     assert unbounded.thinking is True
+    assert unbounded.trace_tokens is None
+
+
+def test_a_negative_trace_budget_is_refused_because_the_port_has_no_word_for_unrestricted() -> None:
+    """``None`` already says "leave it to the tier", so no negative can mean it too.
+
+    llama.cpp spells unrestricted `-1` on its own flag, and letting that sentinel through here
+    would give the port two ways to say one thing and a caller two things to get right (ADR-0005
+    request-lever addendum). Zero stays a real setting, which is why it is not refused beside it.
+    """
+    assert GenerationBounds(trace_tokens=0).trace_tokens == 0
+    with pytest.raises(ValueError, match="trace_tokens must not be negative"):
+        GenerationBounds(trace_tokens=-1)
 
 
 def test_a_cap_of_no_tokens_is_a_configuration_mistake_not_a_silent_empty_reply() -> None:

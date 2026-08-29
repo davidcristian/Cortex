@@ -18,7 +18,8 @@ or an order:
   has begun;
 - a deliberation that arrived despite a request asking for none crosses all the same, an
   implementation reporting what its deployment did rather than filtering it into the silence the
-  caller asked for;
+  caller asked for, and the same holds of one that arrived despite a request budgeting it to zero
+  tokens;
 - a tool call crosses whole, its id, name and arguments one value, never the fragments a wire
   splits it into;
 - a tool call never precedes the words beside it, which is the promise the port's own word
@@ -55,7 +56,9 @@ same, so asking any of them for ``UNSERVED_MODEL`` is already the world the chec
 ignored-switch check needs none either, for the same reason read the other way: ``deliberating`` is
 a deployment that thought, and asking *it* for no thinking is exactly the world where a switch went
 unhonoured, which is a real deployment and not a hypothetical (ADR-0005 switch-is-advisory
-addendum).
+addendum). The budgeted-trace check beside it stands in that same world for the same reason: an
+engine that does not read a per-request count ignores it in silence, so a deployment that
+deliberated through a budget of zero is what most of them are (ADR-0005 request-lever addendum).
 """
 
 import asyncio
@@ -194,6 +197,29 @@ async def check_a_deliberation_the_request_asked_against_still_crosses(
     assert _text(events) == CONTRACT_REPLY, f"the reply did not survive the switch: {events!r}"
 
 
+async def check_a_trace_the_request_budgeted_away_still_crosses(
+    subject: BackendUnderTest,
+) -> None:
+    """Asked for a trace of zero tokens and answered with one anyway, an implementation hands
+    it over.
+
+    The sibling of the check above, and a separate obligation rather than a restatement of it,
+    because the temptation is not the same. ``thinking=False`` is a request to a template and
+    reads like one; ``trace_tokens=0`` reads like an order, so an implementation is far more
+    likely to think it may make the count true by dropping what came back. It may not. The count
+    is carried to an engine that reads it or is not carried at all (ADR-0005 request-lever
+    addendum), and on a deployment where it was not carried, or was carried to a build that
+    ignores it, the trace that arrives is the only evidence the caller has that its budget bought
+    nothing.
+
+    The reply is asserted beside it for the reason it is asserted above: the obligation is to
+    report and not to react, so the completion a budgeted request gets back is the completion.
+    """
+    events = await events_of(subject.deliberating(), bounds=GenerationBounds(trace_tokens=0))
+    assert _thinking(events) == CONTRACT_THINKING, f"the budget hid the trace: {events!r}"
+    assert _text(events) == CONTRACT_REPLY, f"the reply did not survive the budget: {events!r}"
+
+
 async def check_a_tool_call_crosses_the_port_assembled(subject: BackendUnderTest) -> None:
     """A completion that asks for a tool yields that call once, whole.
 
@@ -322,6 +348,7 @@ STREAM_CHECKS: tuple[StreamCheck, ...] = (
     check_the_reply_is_its_text_deltas_joined_in_order,
     check_thinking_arrives_apart_and_before_the_reply,
     check_a_deliberation_the_request_asked_against_still_crosses,
+    check_a_trace_the_request_budgeted_away_still_crosses,
     check_a_tool_call_crosses_the_port_assembled,
     check_a_tool_call_never_precedes_the_words_beside_it,
     check_the_closing_events_arrive_once_each_and_in_one_order,

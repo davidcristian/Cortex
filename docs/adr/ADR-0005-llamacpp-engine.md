@@ -2339,3 +2339,298 @@ It does not measure anything. It also does not give the roster a way to say the 
 entry, which is what the decision leaves undone: one `AttemptBounds` reaches every entry of a roster
 whose entries decode at different rates, and that is
 [R-494](../refinements/tasks/494-one-pair-of-run-bounds-for-a-roster-of-tiers.md).
+
+## Request-lever addendum (2026-08-29): the trace budget a request can carry, and the floor under it
+
+**Status:** Accepted. Closes
+[docs/refinements/tasks/474-the-switch-could-be-rendered-as-a-lever-that-holds.md](../refinements/tasks/474-the-switch-could-be-rendered-as-a-lever-that-holds.md)
+and
+[docs/refinements/tasks/295-per-request-trace-budget.md](../refinements/tasks/295-per-request-trace-budget.md),
+which are one key on one payload read twice, a zero and a count.
+
+It **supersedes two decisions of the trace-budget addendum above**, and both for the same reason:
+their shared premise was that the engine will not read a budget off a request, and that premise has
+moved. Decision 1 ("the budget is tier configuration, not a port field... inventing a field the
+adapter drops would be a knob that lies") and decision 2 ("`GenerationBounds` does not grow") are
+replaced by the decisions below. The rest of that addendum stands unchanged, including its reading
+that the spelling it tried, `reasoning_budget`, is ignored on a request body: re-measured here on
+the newest build at 5 draws of 5, it still is.
+
+It **amends the switch-is-advisory addendum above** in one place and leaves the rest standing. Its
+decision 1 is untouched: `thinking` stays a request and not a promise. Its decision 5 says "no
+adapter-side repair, and no capability probe", and this addendum ships a capability probe, so the
+sentence needs its scope said out loud rather than quietly widened. That decision was about asking
+a server **what a pick does with a grammar in front of it**, which is a question about a model and
+is still not on any endpoint. The probe below asks a different question, about the **engine**:
+whether this binary parses a key. That one has an answer, it is free of the model, and it is one
+call.
+
+### Re-derived first, because an entry's account of the tree is not evidence
+
+Read off the code before any server was started, and one thing the entry did not know had already
+changed.
+
+- `GenerationBounds(max_tokens, thinking)` was still the whole per-request vocabulary, rendering as
+  `max_tokens` and `chat_template_kwargs: {"enable_thinking": false}` and nothing else.
+- **Five** producers, not the four the switch-is-advisory addendum counted, because the fifth
+  names no switch: `TITLE_BOUNDS` (32, off), `RECAP_BOUNDS` (512, off), `rank_bounds(k)` (24 + 8k,
+  off, and the only one carrying a schema), the reply bounds a deployment builds from
+  `CORTEX_REPLY_MAX_TOKENS`, and `PlacedAttempt`'s, which carries a cap alone and leans on the
+  subagent tier's own `--reasoning-budget 0`.
+- `drain_text` is the only consumer of the first three, and it drops every `ReasoningChunk` before
+  its caller sees one, so their deliberation is discarded by construction.
+- `LlamaCppBackend` is constructed at **three** sites, one for the cortex and two inside the
+  profile a roster builds per entry, so a roster of `N` entries holds `1 + 2N` of them, which is
+  what makes "probe the endpoint" a decision with a cost rather than a free one.
+- The compose stack names llama.cpp by **mutable tags** (`ghcr.io/ggml-org/llama.cpp:server`, and
+  `:server-cuda` as the model host's build base), so which build answers is decided by whoever last
+  pulled.
+
+That last point is not a detail, and it decided the floor. Both images on the host machine reported
+`b10666-4e97ac86e` on 2026-08-29, where the reading this entry rests on was taken the day before on
+`b10644-d7a207411`. Nothing in this tree pins either.
+
+### What a real server said
+
+Measured 2026-08-29 by the agent, the shipped subagent pick (gemma-4-E4B QAT q4_0) on
+`ghcr.io/ggml-org/llama.cpp:server` reporting `b10666-4e97ac86e`, `-ngl 0 -c 8192 --jinja
+--parallel 1`, started with **neither** reasoning flag, at a cap of 256, on the deliberation
+inviting prompt the committed switch probe already uses. The constrained cells carry
+`REPLY_ENVELOPE`, which is the shape a tool-less delegated reply really has.
+
+| cell | draws | deliberated | reply |
+| --- | --- | --- | --- |
+| envelope, switch, no budget (the failing cell) | 30 | **26/30** | empty, `length`, every deliberating draw |
+| envelope, switch, `reasoning_budget_tokens: 0` | 58 | **0/58** | the envelope |
+| envelope, switch, `thinking_budget_tokens: 0` | 3 | 0/3 | the envelope |
+| envelope, **no** switch, `reasoning_budget_tokens: 0` | 3 | 0/3 | the envelope |
+| envelope, switch, `reasoning_budget: 0` (the old spelling) | 5 | **5/5** | empty, `length` |
+| plain, no switch, no key | 3 | 3/3, 591 to 854 chars | empty, `length` |
+| plain, no switch, `reasoning_budget_tokens: 128` | 5 | 4/5, 310 to 516 chars | 347 to 717 chars |
+| plain, no switch, `reasoning_budget_tokens: 32` | 3 | 2/3, 72 and 92 chars | 530 to 585 chars |
+
+Five readings decide everything below.
+
+1. **The entry was right about the key and right about the rate, and this session very nearly
+   was not.** The first five draws of the failing cell deliberated 5 of 5, which reads as a defect
+   that always reproduces, and that reading was written down here before a larger one existed.
+   Drawn twenty more times it is 17 of 20, and five more after that 4 of 5, for **26 of 30**: the
+   entry's own 4 in 5, a coin toss rather than a certainty. The small sample was wrong in the
+   flattering direction, which is this ADR's own standing lesson landing on the person applying
+   it. What does not move is the cost: every deliberating draw spent the whole cap and returned an
+   empty reply. The budgeted cell is the repair, 0 of 58.
+2. **It is the key and not the switch.** The budget holds with the switch sent and with it left
+   alone, which is what says the two are independent levers rather than one lever with two names.
+3. **The old spelling is still dead**, on the newest build, in the same minute, 5 draws of 5. So
+   the trace-budget addendum's sentence about `reasoning_budget` is right and stays.
+4. **It is a dial and not a third switch**, which is the half [R-295](../refinements/tasks/295-per-request-trace-budget.md)
+   was waiting for. Per request, on one server with no flag: unbounded spends 591 to 854 characters
+   of trace and returns **nothing** inside the cap, 128 spends 310 to 516 and returns an answer,
+   32 spends 0 to 92 and returns a longer one. Two callers on one tier can now hold two different
+   positive counts, which is the whole of what that entry could not express.
+5. **`thinking_budget_tokens` is a working alias**, and this repo sends one name. A second key on
+   every request buys nothing on a build that reads either and is a second thing to keep true.
+
+### The capability read, which is what makes the floor honest
+
+A build that does not know the key ignores it in silence. That is the failure this repo dislikes
+most, and the tier flag of the same name does better by failing a server at boot. So the request
+half needs a floor, and the entry was right that a constant is not one. The measurement above says
+why more sharply than taste does: the tags float, and the build under this repo had already moved.
+
+`GET /props` does not answer it. Read off the running server: `default_generation_settings.params`
+carries no reasoning budget of any kind, and `chat_template_caps` is about the template rather than
+the sampler. What it does carry is `build_info`, which is a **proxy** for the capability and not the
+capability, and would have this repo comparing version strings against an upstream it does not pin.
+
+The engine answers it directly, in the one place a server must be honest about a key it parses: it
+**range-checks it**. Measured against two builds, one model, one prompt, a minute apart:
+
+| build | `reasoning_budget_tokens: -2` | the same cell with the key at zero |
+| --- | --- | --- |
+| `b10666-4e97ac86e` | **400** `Field 'reasoning_budget_tokens': Value must be between -1 <= value <= 2147483647, but got -2` | the thought ends, 0 of 58 deliberated |
+| `b9870-2d973636e` | **200**, a completion, the field ignored | unchanged, 3 of 3 deliberated |
+
+The verdict and the behaviour agree on both, which is what makes this a capability read rather than
+a guess dressed as one. Two smaller findings shape the request it sends. Only a **well typed**
+out-of-range integer trips the check: `"abc"`, `{}`, `true` and `[1]` all answer 200, the engine's
+own reader swallowing a type error and taking its default, so a probe built on a malformed value
+would have called every build ignorant. And validation runs **before** decoding, so the probe costs
+one token on a build that says no and none at all on a build that says yes.
+
+### Decision
+
+1. **`GenerationBounds` grows a third number, `trace_tokens`.** `0` ends the deliberation at once,
+   a positive count lets it run that far and then closes it, and `None` says nothing and leaves the
+   tier's own `--reasoning-budget` deciding. There is no port-level word for "unrestricted" because
+   `None` already is one, and a negative count raises rather than smuggling an engine's `-1`
+   sentinel through a port. It renders as `reasoning_budget_tokens`, verbatim, a zero included.
+2. **The switch and the count are independent, and nothing derives one from the other.** This is a
+   rule rather than an omission, and it is the answer to the second thing the entry said had to be
+   decided. `thinking=False` is what a caller says when it will not read the trace; `trace_tokens=0`
+   is what it says when the trace must not be spent. A cortex turn renders its trace as the thinking
+   status the overlay shows (ADR-0020), so a zero inferred from the switch would silently blank the
+   one surface in this repo where a bounded trace is a loss rather than a saving. Two tests hold it,
+   one at the payload and one at the deployment's own producer.
+3. **The three side calls name a zero; a user's own reply names nothing.** `TITLE_BOUNDS`,
+   `RECAP_BOUNDS` and `rank_bounds(k)` each carry `trace_tokens=0` beside the switch they already
+   carried, because `drain_text` destroys their trace before a caller sees a character of it, so
+   there is nothing there to lose and a whole cap to win back. The reply bounds gain
+   `CORTEX_REPLY_TRACE_TOKENS`, **unset by default**, so the deployment names its own count or the
+   tier keeps deciding. Zero is a real setting there, so the sentinel for "unset" is not the falsy
+   value, which is the same trap the model host's own budget already names.
+4. **The floor is a probe of the running server, with the deployment able to answer for it.**
+   `CORTEX_INFERENCE_TRACE_LEVER` takes `auto` (the default), `on` or `off`, the same three words
+   and the same shape as `CORTEX_VISION` (ADR-0029 live-probe addendum). `auto` asks the endpoint
+   once and believes it; `on` and `off` fix the answer and open no socket, which is what a
+   deployment behind a proxy or with no server at wiring time wants. Every failure is a no, so an
+   unreachable server, another status, or a 400 that does not name the key all leave the request
+   carrying no budget, which is the request this repo sent before the key existed. A deployment
+   setting alone was the alternative and is refused for the reason the re-derivation found: the
+   right value changes under an operator who did nothing, because the tag they pull is mutable.
+5. **The answer is taken once, where the vision probe beside it is taken forever.** That difference
+   is the whole argument for caching this one: vision is a property of an **argv**, which a model
+   host can change under a running brain by recreating a child without a projector, and this is a
+   property of a **binary**, which changes only when an image does. One answer therefore covers the
+   deep tier too, that tier being another child of the same image. The cost is a boot-time question
+   bounded by `TRACE_LEVER_PROBE_TIMEOUT_S` (5 s, sized from the measured 235 to 310 ms of prompt
+   evaluation and 111 ms a token on the slowest tier this repo ships), and the compose stack already
+   gates the brain on the model host being healthy.
+6. **The port owes the same evidence for the count that it owes for the switch.** A trace that
+   arrived despite a budget of zero still crosses as `ReasoningChunk`. It is a shared contract check
+   over both implementations rather than a note, and a separate one from the switch's rather than a
+   restatement of it: a count reads like an order where a switch reads like a request, so an
+   implementation is more likely, not less, to think it may make the number true by dropping what
+   came back. It may not. On a deployment where the key was withheld or ignored, that trace is the
+   only evidence the caller has that its budget bought nothing.
+7. **The delegated path gains nothing, and that is a decision.** `PlacedAttempt` still names no
+   count. Every subagent server this repo starts already carries `--reasoning-budget 0`, and
+   `scripts/flagcheck.py` derives that set from the stack's own wiring rather than from a list, so
+   no shipped tier there is missing the sampler a zero would ask for. Every request that path sends
+   wants the same zero, which is exactly what a per-server flag says best, and the trace-budget
+   addendum's decision 7 already says a positive count there is a knob no env can make matter. The
+   cost of the alternative is concrete: the lever is a boot-time question per endpoint, and a roster
+   answers on two endpoints an entry, several of which a stock deployment never starts.
+
+### The leak, which is the third thing the entry said had to be decided
+
+Forcing the end of a thought lands **after** its start sequence, so what the model had already
+written of the tag can survive into the answer: the entry recorded one draw in five whose reply
+began with the leaked word `thought`, on `b10644-d7a207411`. Since the envelope's `reply` is what a
+delegated run reports, a repair that ships has to say what happens to it.
+
+**Measured, and it reproduced once in fifty eight.** The exact cell was drawn twenty eight times
+through the raw wire and thirty more through the shipped adapter, and one of those thirty came
+back as this:
+
+```
+{"reply": "thought"}
+```
+
+A whole, valid envelope whose entire answer is the channel name the forcing lands inside of. Across
+every draw of the session carrying `reasoning_budget_tokens: 0`, that is **1 of 58**.
+
+**The same sampler on the tier flag was drawn twenty times and did not do it.** A server started
+the way every subagent server this repo ships is started, `--chat-template-kwargs` and
+`--reasoning-budget 0` on its argv, answered the identical constrained request twenty times with no
+trace, no leak and an answer every time. The flag and the key set the same sampler, and 1 of 58
+against 0 of 20 does not separate at these sizes, so the honest reading is **one rare phenomenon
+that the request key inherits rather than introduces**. It is already reachable in the shipped
+stack, which is worth knowing before anybody decides this addendum added it.
+
+**What it costs is worse than the entry supposed, and worse than this addendum's first draft said.**
+The leak does not land in front of the payload where the envelope's grammar would reject it. It
+lands **inside** the payload, so the reply parses, `unwrap_envelope` returns it, and a delegated
+run reports `thought` as the subtask's answer. Nothing downstream can tell that from a real answer.
+
+**Both attempts to count it were confidently wrong, in opposite directions**, and that is the part
+worth carrying forward. The first detector asked whether the reply parsed and called a reply cut at
+`max_tokens` a leak, reporting 2 of 5 where nothing had leaked. The second asked only about
+position, and reported **0 of 20** on the very run whose fifth budgeted draw is quoted above. The
+committed probe now reads both shapes, and the second of them is sound only for its own prompt: a
+bill split three ways cannot be answered in one word, so a one-word answer there is a defect
+whatever produced it. A file that asked the same of an arbitrary subtask would be wrong, which is
+said on the property that asks it.
+
+**So no repair ships, and the reason is not that it is rare.** A repair would have to strip a
+template's start sequence out of a reply, which means the core knowing a per-pick token
+(`<|channel>thought` on this family, `<think>` on the other), and that is the one thing the port
+exists to not know. Nor can a shape rule stand in for it: a one-word answer is a defect on the
+probe's own prompt and a perfectly good answer to a subtask that asked for a number. What ships is
+the account, the counts, and a probe that will see it again on a build that raises the rate. It is
+[R-495](../refinements/tasks/495-the-forced-thought-can-leak-its-own-start-tag.md).
+
+### What this does not do, and where that is recorded
+
+- **The lever is asked once and never again.** A llama.cpp image upgraded under a running brain
+  changes the honest answer and the brain keeps the one it booted with. The direction is safe (an
+  older answer withholds a key rather than sending one nothing reads), and a restart or
+  `CORTEX_INFERENCE_TRACE_LEVER=on` fixes it, but nothing notices.
+  [R-496](../refinements/tasks/496-the-trace-lever-is-answered-once-per-boot.md).
+- **Nothing holds a producer's count to the lever being on.** A bound naming a count on a
+  deployment whose engine ignores the key is silently the bound it always was, which is the same
+  gap the switch has and the same reason: the core deliberately does not know a tier's argv or a
+  deployment's build. `drain_text`'s warning is still the only runtime report, and it fires on the
+  switch rather than on the count.
+  [R-497](../refinements/tasks/497-nothing-reports-a-trace-budget-that-went-unread.md).
+- **One reply count reaches both phases of a turn.** `CORTEX_REPLY_TRACE_TOKENS` rides the bounds
+  the cortex turn and the deep phase already share, which the capped-reply addendum argues for on
+  the cap ("a handoff is one turn continued"). The same setting at the **server** is deliberately
+  two knobs, on the argument that the two tiers are read on opposite ones, so the inheritance is
+  less obviously right here than it is for a cap. Nothing ships set, so nobody is in that position
+  yet. [R-498](../refinements/tasks/498-one-reply-trace-budget-for-two-tiers.md).
+- **What a bounded trace costs the answer is still not measured**, which the trace-budget addendum
+  said of the tier flag and is now true of three shipped requests that name a zero.
+  [R-296](../refinements/tasks/296-trace-budget-quality-floor.md) is where that has always lived,
+  and this addendum does not close it: the side calls' zeros are safe on the argument that their
+  trace was already discarded unread, not on a measurement of what they are worth.
+
+### Distrust green
+
+Thirteen mutations, each applied to production code alone with the named suite re-run, then
+reverted. Six are over the **100 checks of the inference package suite**
+(`brain/packages/inference/tests/`), four over the **1632 of the core suite**
+(`brain/packages/core/tests/`), and three over the **458 of the orchestrator suite**
+(`brain/packages/orchestrator/tests/`).
+
+| mutation | suite | reddens |
+| --- | --- | --- |
+| the payload derives the budget from the thinking switch | inference | **2** |
+| the payload reads a budget of zero as nothing asked | inference | **1** |
+| the payload carries the budget whatever the engine reads | inference | **1** |
+| the adapter filters a trace the request budgeted away | inference | **1** |
+| the probe reads any refusal as a build that knows the key | inference | **1** |
+| the probe asks with a value a knowing build accepts | inference | **1** |
+| a negative trace budget is accepted at the port | core | **1** |
+| the session title drops its count and keeps the switch | core | **1** |
+| the history fold drops its count and keeps the switch | core | **1** |
+| the recall rank drops its count and keeps the switch | core | **1** |
+| a fixed lever mode probes the endpoint anyway | orchestrator | **1** |
+| the reply bounds fold a budget of zero into unset | orchestrator | **1** |
+| the reply bounds derive the count from the thinking switch | orchestrator | **3** |
+
+Three of them are worth reading rather than counting.
+
+**The adapter filter is the repair decision 6 forbids, and it reddens exactly one check**, the new
+`check_a_trace_the_request_budgeted_away_still_crosses` on the adapter's leg and nothing else. That
+is the same reading the switch's own filter gave when the switch-is-advisory addendum ran it, and
+it is what says the eleventh check covers something the ten before it do not: written as a targeted
+drop of a trace whose budget was zero, it slips past every other check in the tree. Dropping every
+reasoning delta instead reddens four, which is the contrast that makes the targeted number mean
+something.
+
+**Rows one and thirteen are the same defect written at two layers**, and both are the one this
+addendum's decision 2 exists to stop: a derivation from the switch to a zero, once in the payload
+and once in the deployment's own producer. Neither is a strange thing for somebody to write, which
+is why both are pinned rather than argued about in a comment.
+
+**Row three is the floor itself.** With the lever ignored, the key rides every request on every
+deployment, which is precisely the knob that lies, and one check says so.
+
+**And the runbook's own sample was tested against its gate**, which is not one of the thirteen
+because its unit is a scan and not a suite. The probe's verdict is documented as a fenced line, so
+`scripts/samplecheck.py` holds it to the call site: dropping the `lever` field from the sample is
+reported at once, naming the file, the line and both field lists. The other mutation of it is worth
+recording because it stayed **green when red was expected**, and correctly: reordering the fields
+in the call's own `extra` changes nothing, the formatter rendering them in name order, which is
+what that gate has always said it holds. The expectation was wrong rather than the gate.

@@ -85,7 +85,13 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   than the
   prefix, ADR-0029) decides whether `capture_screen` is advertised: `auto` probes the running
   server, `on`/`off` fix the answer for CI, for a deterministic test, and for a user who
-  wants capture off without editing compose. `stall_timeout_s: float = 120.0`
+  wants capture off without editing compose. `trace_lever: TraceLeverMode = "auto"`
+  (`CORTEX_INFERENCE_TRACE_LEVER`, ADR-0005 request-lever addendum) decides whether a request may
+  carry `GenerationBounds.trace_tokens` as llama.cpp's `reasoning_budget_tokens`: `auto` asks the
+  endpoint once at wiring, `on` and `off` fix the answer for a deployment that would rather say
+  than be asked. Unlike `vision` it is settled **once**, the answer being a property of the binary
+  behind the endpoint rather than of the argv a model host last started a child with.
+  `stall_timeout_s: float = 120.0`
   (`CORTEX_INFERENCE_STALL_TIMEOUT_S`, positive, ADR-0005 stall-ceiling addendum) is how long
   this tier's stream may send **nothing** before the adapter gives up: a gap between chunks, not
   a cap on the generation, so it is sized from the worst measured time to first token (17.5 s
@@ -178,11 +184,19 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   `gate_reason_map`) into the one
   `DispatchPolicy` value every dispatcher in the process is built with.
 - `ReplyBoundsConfig` uses env prefix `CORTEX_REPLY_` (`config_reply.py`, ADR-0005 capped-reply
-  addendum): `CORTEX_REPLY_MAX_TOKENS` (0, meaning no cap) and `CORTEX_REPLY_THINKING` (true) are
-  the two bounds a user-facing reply may carry, and `bounds()` reduces the unset pair to `None` so
+  addendum): `CORTEX_REPLY_MAX_TOKENS` (0, meaning no cap), `CORTEX_REPLY_THINKING` (true) and
+  `CORTEX_REPLY_TRACE_TOKENS` (unset, meaning the tier's own `--reasoning-budget` decides,
+  ADR-0005 request-lever addendum) are
+  the bounds a user-facing reply may carry, and `bounds()` reduces the unset set to `None` so
   the request stays byte-identical. The composition root reads it once and hands the value to both
-  `TurnEngine` and `BrainPhase`, one turn keeping one bound across a handoff. The two are set
-  together or not at all: a cap with thinking left on empties the reply rather than shortening it.
+  `TurnEngine` and `BrainPhase`, one turn keeping one bound across a handoff. A cap is set with a
+  bounded trace or not at all: a cap with an unbounded trace empties the reply rather than
+  shortening it, and either the switch or the count bounds one. **The count is not derived from
+  the switch**, deliberately and uniquely on this path: a user's reply renders its trace as the
+  thinking status the overlay shows (ADR-0020), so a zero inferred here would blank a surface
+  somebody is reading, where the three side calls that name a zero are throwing their trace away
+  regardless. Zero is a real setting here and the sentinel for "unset" is therefore not the falsy
+  value, the same trap the model host's own budget names.
 - `LoggingConfig` uses env prefix `CORTEX_LOG_` (`config_logging.py`, ADR-0038 rendered-fields
   addendum): `CORTEX_LOG_FORMAT` (`plain`) picks how a line is written, `packed` being one JSON
   object per line for a deployment that collects rather than reads. `configure_from_env()` is what
@@ -581,11 +595,19 @@ The service:
   are installed on the running loop for the server's lifetime (removed on exit) and
   trigger the same graceful stop as cancellation: in-flight RPCs drain for up to the 5 s
   grace before the listener closes. SIGTERM is what `docker compose down` delivers.
-- `build_inference_backend(config: InferenceConfig, cortex_model: str) -> tuple[InferenceBackend, Callable[[], Awaitable[None]]]`
+- `async build_inference_backend(config: InferenceConfig, cortex_model: str) -> tuple[InferenceBackend, Callable[[], Awaitable[None]]]`
   picks the backend from config and returns it with the coroutine that releases it:
   `EchoInferenceBackend` + a no-op closer, or `LlamaCppBackend` over a
   `SingleResidentModelManager(cortex_model, endpoint)` + the httpx client's `aclose`. The uniform
-  closer keeps `run_from_env`'s shutdown path backend-agnostic.
+  closer keeps `run_from_env`'s shutdown path backend-agnostic. It is a coroutine for the one
+  question this path asks outside the process, `resolve_trace_lever` below, and only the llama.cpp
+  arm asks it, so an Echo deployment still opens nothing at all.
+- `async resolve_trace_lever(config: InferenceConfig, cortex_model: str) -> bool` maps
+  `CORTEX_INFERENCE_TRACE_LEVER` onto the bool the adapter holds (ADR-0005 request-lever addendum):
+  `off` and `on` answer without touching the network, and `auto` opens a client with the probe's
+  own short leash (`TRACE_LEVER_PROBE_TIMEOUT_S`, 5 s) and believes `reads_a_trace_budget`. A
+  server that cannot be reached answers no, so a deployment pointed at nothing loses a moment of
+  boot and the request it always sent, rather than a boot.
 - `build_generation_client(stall_timeout_s: float) -> httpx.AsyncClient` is the one place a
   llama-server generation client is built, shared by `build_inference_backend` and
   `build_subagents` (ADR-0005 stall-ceiling addendum). Connect, write and pool answer to

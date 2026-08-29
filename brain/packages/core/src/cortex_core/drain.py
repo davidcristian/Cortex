@@ -45,9 +45,12 @@ async def drain_text(
     never the private thinking. A side call's decode rate is dropped rather than watched because
     it runs on whichever tier the turn is already on, so it says nothing about a swap. ``schema``
     constrains decoding when the caller needs a fixed shape (ADR-0028), and ``bounds`` caps how far
-    the model may go and whether it thinks first (ADR-0038 cheap-fold addendum). Every caller here
-    is an in-turn side call whose thinking is discarded by the line above, which is exactly the
-    case ``GenerationBounds(thinking=False)`` exists for. ``InferenceError`` propagates for the
+    the model may go, whether it thinks first, and how far a thought that happens may run
+    (ADR-0038 cheap-fold addendum, ADR-0005 request-lever addendum). Every caller here is an
+    in-turn side call whose thinking is discarded by the line above, which is exactly the case
+    ``GenerationBounds(thinking=False, trace_tokens=0)`` exists for, and all three of them pass
+    both: the switch is what a chat template reads and the zero is what the engine's own sampler
+    does, and neither is derived from the other. ``InferenceError`` propagates for the
     caller to decide about, and the stream is closed on that path too, which is the whole reason
     this exists.
 
@@ -59,9 +62,15 @@ async def drain_text(
     both halves of that, the request that asked and the trace that came back, and it is the place
     the trace is destroyed, so the line is written here and says how many characters went unread.
     Nothing else changes: the text is returned exactly as before, because a deployment that ignores
-    the switch is something an operator fixes at the tier (``--reasoning-budget 0``) and not
-    something a side call can react to. A completion that fails part way says nothing, there being
-    no completion to describe, which is the stance the rank's own two warnings take.
+    the switch is something an operator fixes at the deployment and not something a side call can
+    react to. There are two such fixes now, and this line is how a deployment learns it needs one:
+    the tier's own ``--reasoning-budget 0``, and the per-request budget every caller here already
+    asks for, which reaches the engine only where that engine reads it
+    (``CORTEX_INFERENCE_TRACE_LEVER``, ADR-0005 request-lever addendum). So a line here on a
+    deployment whose engine does read one says the count was carried and something else went
+    wrong; on one whose engine does not, it says exactly what it always said. A completion that
+    fails part way says nothing, there being no completion to describe, which is the stance the
+    rank's own two warnings take.
 
     ``stops`` is the optional collaborator that receives the closing ``DecodeStop``, threaded the
     way ``ToolLoopContext`` threads one into ``stream_tool_loop`` and for the same reason: why a

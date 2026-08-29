@@ -297,6 +297,10 @@ async def test_the_rank_request_asks_for_no_thinking_and_room_for_k_picks() -> N
 
     assert backend.bounds == [rank_bounds(3)]
     assert rank_bounds(3).thinking is False
+    # The one shipped bound that carries a schema too, so the one the switch alone was measured
+    # losing: a grammar re-offers the thought whatever the template was told, and only the count
+    # reaches that shape (ADR-0005 request-lever addendum).
+    assert rank_bounds(3).trace_tokens == 0
     assert rank_bounds(3).max_tokens == RANK_ENVELOPE_TOKENS + 3 * RANK_TOKENS_PER_CANDIDATE
 
 

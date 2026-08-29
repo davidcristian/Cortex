@@ -127,11 +127,12 @@ type InferenceEvent = TextChunk | ReasoningChunk | ToolCall | DecodeCadence | De
 class GenerationBounds:
     """How far one request lets the model go before it must answer (ADR-0020's deferred levers).
 
-    Two knobs that only make sense together, which is why they are one value rather than two
+    Three knobs that only make sense together, which is why they are one value rather than three
     keywords. ``max_tokens`` caps what the server will decode for this request; ``thinking``
-    ``False`` asks the deployment's chat template to skip the model's deliberation. A reasoning
-    model spends its budget on thinking *first*, so a cap without the switch does not shorten the
-    reply, it deletes it: measured against the shipped cortex on a summarization prompt,
+    ``False`` asks the deployment's chat template to skip the model's deliberation; and
+    ``trace_tokens`` says how many tokens a deliberation that happens anyway may spend. A reasoning
+    model spends its budget on thinking *first*, so a cap without a bounded trace does not shorten
+    the reply, it deletes it: measured against the shipped cortex on a summarization prompt,
     ``max_tokens`` 160 and 256 with thinking on both came back ``finish_reason: "length"`` carrying
     624 and 988 characters of ``reasoning_content`` and an **empty** ``content``.
 
@@ -139,32 +140,62 @@ class GenerationBounds:
     renders as ``chat_template_kwargs: {"enable_thinking": false}``, which reaches a template this
     value knows nothing about, and whether the model then skips its trace was measured to depend on
     the shape of the request carrying it: on the shipped cortex pick the switch holds plain and
-    constrained alike, and on the shipped subagent pick it holds on a plain request and is a coin
-    toss on one carrying a ``response_format``, where the model deliberates through it on 4 draws
-    in 5 and spends the whole cap doing so. The cause is a template this value cannot see: a
+    constrained alike, and on the shipped subagent pick it holds on a plain request and does
+    nothing on one carrying a ``response_format``, where the model deliberates through it and
+    spends the whole cap doing so (4 draws in 5 on one engine build, 17 of 20 on a later one). The
+    cause is a template this value cannot see: a
     ``response_format`` makes llama.cpp build a grammar that leaves the model's thought open, and
     what decides a pick is whether its own template has already closed it, measured over every entry
     of the lineup and splitting one family down its middle. So a cap sized from the wanted
-    answer is made safe by neither this value nor the pick, but by a
-    **bounded trace**, of which this switch is the cheapest source and not a dependable one. The
-    dependable one is the tier's own ``--reasoning-budget`` (ADR-0005 trace-budget addendum), which
-    ends the thought at the engine whatever the model wants, and which every subagent server this
-    repo ships now carries at zero for exactly this reason.
+    answer is made safe by neither this value nor the pick, but by a **bounded trace**, of which
+    this switch is the cheapest source and not a dependable one.
 
-    Nothing here can tell a caller which side its deployment is on, so two things say it instead:
-    ``brain/packages/inference/tests/test_thinking_switch_live.py`` is the probe that answers it
-    per request shape, and ``drain_text`` logs it when a request that asked for no thinking is
-    answered with a trace anyway.
+    **``trace_tokens`` is the dependable one, where the engine reads it** (ADR-0005 request-lever
+    addendum). It is a count of tokens rather than a switch: ``0`` ends the deliberation at once,
+    a positive count lets it run that far and then closes it, and ``None`` says nothing at all and
+    leaves the tier's own ``--reasoning-budget`` (ADR-0005 trace-budget addendum) to decide. The
+    engine implements it as a sampler rather than as a prompt or a grammar, watching for the
+    thought's start sequence and forcing its end tag, so unlike the switch it reaches every request
+    shape by construction: measured on the exact cell the switch loses, the subagent pick's
+    constrained request, a zero held on 58 draws of 58 where the switch held on 4 of 30. There is no
+    port-level word for "unrestricted" because ``None`` already is one: a bound that names no count
+    is a request that carries no count, and a negative one raises rather than smuggling an engine's
+    sentinel through a port.
 
-    The defaults are the deployment's own: no cap (llama-server's ``n_predict: -1``) and whatever
-    the server's chat template does about thinking. So a caller that passes nothing gets the
-    request this repo has always sent, byte for byte.
+    **The two are independent and neither implies the other**, which is a rule and not an
+    accident. ``thinking=False`` is what a caller says when it will not read the trace;
+    ``trace_tokens=0`` is what it says when the trace must not be *spent*. Deriving the second
+    from the first would silently blank the thinking status the overlay renders on a user's own
+    turn (ADR-0020), so nothing in this repo does: every producer that wants a bounded trace names
+    the count itself.
+
+    Whether the engine reads the count is the deployment's, not this value's: an engine that does
+    not know the key ignores it in silence, so the request carries it only where the adapter was
+    told or found that this deployment's engine reads one
+    (``CORTEX_INFERENCE_TRACE_LEVER``). Where it is not carried, a bound naming a count is the
+    same request an unbounded trace always got, which is why ``drain_text`` still logs a
+    deliberation that arrived against the switch.
+
+    Nothing here can tell a caller which side its deployment is on, so three things say it instead:
+    ``brain/packages/inference/tests/test_thinking_switch_live.py`` answers per request shape which
+    shapes a deployment's switch survives, ``test_trace_budget_live.py`` beside it answers whether
+    the count reaches the shape the switch loses, and ``drain_text`` logs it when a request that
+    asked for no thinking is answered with a trace anyway.
+
+    The defaults are the deployment's own: no cap (llama-server's ``n_predict: -1``), whatever
+    the server's chat template does about thinking, and whatever budget the tier was started
+    with. So a caller that passes nothing gets the request this repo has always sent, byte for
+    byte.
     """
 
     max_tokens: int | None = None
     thinking: bool = True
+    trace_tokens: int | None = None
 
     def __post_init__(self) -> None:
         if self.max_tokens is not None and self.max_tokens < 1:
             msg = "max_tokens must be at least 1"
+            raise ValueError(msg)
+        if self.trace_tokens is not None and self.trace_tokens < 0:
+            msg = "trace_tokens must not be negative"
             raise ValueError(msg)

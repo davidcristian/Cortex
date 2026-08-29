@@ -191,6 +191,10 @@ async def test_the_title_request_asks_for_no_thinking_and_a_bounded_reply() -> N
 
     assert backend.bounds == [TITLE_BOUNDS]
     assert TITLE_BOUNDS.thinking is False
+    # The count beside the switch, which is the half that holds where the engine reads it: this
+    # pass's trace is dropped before a caller sees it, so a zero costs nothing (ADR-0005
+    # request-lever addendum).
+    assert TITLE_BOUNDS.trace_tokens == 0
     assert TITLE_BOUNDS.max_tokens == TITLE_MAX_TOKENS
 
 

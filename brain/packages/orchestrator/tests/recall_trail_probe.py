@@ -146,7 +146,7 @@ async def _main() -> int:
     if unfit is not None:
         _say(f"probe: {unfit}")
         return 2
-    backend, close_backend = build_inference_backend(InferenceConfig(), runtime.cortex_model)
+    backend, close_backend = await build_inference_backend(InferenceConfig(), runtime.cortex_model)
     recaller, cascade, close_memory = await build_memory(
         memory_config, SystemClock(), backend, runtime.cortex_model
     )

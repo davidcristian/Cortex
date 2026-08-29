@@ -121,6 +121,10 @@ class PlacedAttempt:
         # doing nothing on that shape (ADR-0005 switch-is-advisory addendum), so sending it here
         # would buy nothing while changing the request for a deployment whose template spells the
         # flag differently.
+        # ``trace_tokens`` is left unnamed too, though the engine now reads one off the request and
+        # it does reach this shape: every subagent server this repo starts already carries
+        # ``--reasoning-budget 0``, and every request here wants that same zero, which is what a
+        # per-server flag says best (ADR-0005 request-lever addendum, decision 7).
         self._generation = (
             None if bounds.max_tokens is None else GenerationBounds(max_tokens=bounds.max_tokens)
         )

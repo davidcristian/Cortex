@@ -30,6 +30,8 @@ design, AGENTS.md gate 3).
 | `CORTEX_REPLY_MAX_TOKENS` | caps how far each completion of a user's turn decodes. `0` sends no cap and leaves the real bound at the context window. **Never set this against an unbounded trace:** a reasoning model spends its budget on thinking first, and `max_tokens: 512` with thinking left on returned an empty reply 3 of 3 on this cortex. Pair it with a `CORTEX_REASONING_BUDGET` that leaves the cap room to answer in, or, once you have checked that your pick honours it, with `CORTEX_REPLY_THINKING=false` (at a budget of 128, the same 512-token cap returned 1488 and 1561 characters of reply). Whatever cuts a reply, this or the context window, the turn now says so under the text | `0` |
 | `CORTEX_REASONING_BUDGET` | how many tokens the **cortex tier** may spend thinking before the engine closes the thought and makes it answer. The middle of the dial the two knobs above are the ends of: they say whether to think, this says how long. `-1` (the default) emits no flag and leaves the trace unbounded; `0` ends every think immediately, for every request the tier serves; `N > 0` is a token budget. Measured on the cortex pick, one open question per arm: unrestricted spends 2323 to 2996 chars of trace and 10.1 to 12.6 s before the first word, `512` about 2000 chars and 8.4 to 9.2 s, `128` about 500 chars and 1.7 to 2.6 s, `0` none and 0.2 s, and the reply is the same size in all four. See the thinking-budget section below | `-1` |
 | `CORTEX_REASONING_BUDGET_BRAIN` | the same knob for the **deep tier**, separate because the two are read on opposite arguments: the cortex answers while somebody watches, and the deep model was picked for reaching an answer inside its trace at all (ADR-0004) | `-1` |
+| `CORTEX_REPLY_TRACE_TOKENS` | how many tokens a **user's own reply** may spend thinking, sent on the request rather than baked into the tier (ADR-0005 request-lever addendum). Unset (the default) names no count and leaves `CORTEX_REASONING_BUDGET` deciding, which is the request this repo has always sent; `0` ends the think at once and a positive count bounds it. Deliberately not implied by `CORTEX_REPLY_THINKING`: this is the one trace a user actually reads, as the overlay's thinking status. Needs an engine that reads the key, which `CORTEX_INFERENCE_TRACE_LEVER` decides | unset |
+| `CORTEX_INFERENCE_TRACE_LEVER` | whether a request may carry its own trace budget at all. `auto` asks your endpoint one model-free question at boot and believes the answer; `on` and `off` answer for it, `off` being the request this repo sent before the key existed. A build that does not know the key ignores it in silence, which is why this exists rather than sending it always. See "A budget per request, where the engine reads one" | `auto` |
 | `CORTEX_NGL` | GPU layers to offload: `99` = all, `0` = CPU-only, partial = hybrid (ADR-0004 addendum) | `99` |
 | `CORTEX_INFERENCE_STALL_TIMEOUT_S` | **on the brain**: how long a resident or deep tier stream may send nothing before the turn fails. It bounds the gap between chunks, **never** the length of a generation, so a long answer is never cut off; size it above the worst legitimate time to first token, not above the longest reply. The default clears the 17.5 s a contended cortex took to its first token here with room for the deep tier, which streams through the same client after a handoff (ADR-0005 stall-ceiling addendum) | `120` |
 
@@ -261,11 +263,12 @@ engine's own, so the model is not cut off mid answer but told to stop thinking a
 llama.cpp reads `--reasoning-budget N` as a token budget for the trace, injects the end of thought
 at the count, and lets the completion finish normally.
 
-The knob is **per tier, not per request**: a request can still turn thinking off entirely
-(`CORTEX_REPLY_THINKING=false`, and the bounds the recap fold, the session title and the recall
-rank already send), and this bounds every think the tier does do. A request cannot raise or lower
-it, which was measured both ways: a body carrying `reasoning_budget` was ignored on an unbudgeted
-server, and one carrying `reasoning_budget: -1` did not lift a budgeted server's own count.
+The knob was **per tier and is now a tier default**, because the engine has since learned to read
+one off the request. Where it does, `CORTEX_REASONING_BUDGET` is what a request that names no
+count falls back to, and each of the brain's own callers may name its own; where it does not, this
+flag is still the only lever there is. What has not changed is the spelling this repo first tried:
+a body carrying `reasoning_budget` is ignored on every build tested, the newest included. See
+"A budget per request, where the engine reads one" below.
 
 Reproduce it against the cortex tier directly, one open question per arm, watching the stream:
 
@@ -353,8 +356,68 @@ cell that carries this finding splits 4 to 1 on the subagent pick, so a single d
 either thing. If either verdict says the switch does nothing, the repair is this
 section's own knob rather than the switch: set `CORTEX_REASONING_BUDGET=0` (or a count) so the
 engine ends the thought whatever the template was told, which is what every subagent server here
-already carries. The brain also says so at runtime now, one `WARNING` per side call from
+already carries, or leave the per-request lever below on `auto`, which reaches the same sampler
+without touching the tier. The brain also says so at runtime now, one `WARNING` per side call from
 `cortex_core.drain` naming the `model` and the `chars` of trace it dropped unread.
+
+## A budget per request, where the engine reads one (ADR-0005 request-lever addendum, agent-runnable)
+
+The section above is the tier's count. A recent llama.cpp reads a count off the **request** too, as
+`reasoning_budget_tokens`, falling back to the tier's flag only where the request names none. That
+is what turns the switch's failure above into something the brain can fix by itself: the budget is
+a sampler, watching for the thought's start sequence and forcing its end tag, so it reaches a
+constrained request where `enable_thinking` does not.
+
+Three of the brain's four bounds now name a count: the recap fold, the session title and the recall
+rank each send `0`, their deliberation being thrown away unread. **A user's own reply does not**,
+and that is deliberate: its trace is the thinking status the overlay renders, so the count there is
+yours to set with `CORTEX_REPLY_TRACE_TOKENS`, and leaving it unset keeps the tier's own flag
+deciding.
+
+**The key is only sent where the engine reads it**, since a build that does not know it ignores it
+in silence. `CORTEX_INFERENCE_TRACE_LEVER` decides: `auto` (the default) asks your endpoint one
+question at boot, `on` and `off` answer for it. The question is free of the model, and you can ask
+it yourself:
+
+```
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8080/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"cortex","messages":[{"role":"user","content":"."}],"max_tokens":1,"reasoning_budget_tokens":-2}'
+```
+
+`400` is a build that parses the key and range-checked the value; `200` is a build that never
+heard of it and answered the completion. Measured 2026-08-29 by the agent, same model and prompt
+one minute apart: `b10666-4e97ac86e` answered `400` naming the field, `b9870-2d973636e` answered
+`200`. Each build then behaved the way its own answer predicted, the newer one ending the thought
+on every budgeted draw and the older one deliberating through the identical request. The brain logs its own verdict once at boot, so a stack that came up without the lever says
+so where an operator is already looking:
+
+```
+INFO:cortex_inference.lever:trace lever probe answered endpoint=<the endpoint asked> lever=<true or false>
+```
+
+A server that could not be reached at all logs `trace lever probe failed` instead, at `WARNING`,
+and the request goes on carrying no budget.
+
+Then check that the count holds on the shape the switch loses, against a server started with
+**neither** reasoning flag:
+
+```
+cd brain && CORTEX_TRACE_ENDPOINT=http://127.0.0.1:8082 CORTEX_TRACE_REPEATS=5 \
+  uv run pytest -m integration --no-cov -s \
+  packages/inference/tests/test_trace_budget_live.py
+```
+
+Measured on the shipped subagent pick at `-ngl 0` on `b10666-4e97ac86e`, a cap of 256 and a
+constrained reply: the switch alone deliberated on **17 of 20** draws and returned an **empty**
+capped reply on every one of them; with `trace_tokens=0` the trace stopped on **20 of 20**. One
+caution worth knowing before you see it: forcing the end of a thought lands after its start tag, so
+a fragment of that tag can survive into the answer, and it does. One draw in 53 came back as
+`{"reply": "thought"}`, a well formed envelope whose whole answer is the tag. Nothing downstream
+rejects that, so a delegated run reports it as the subtask's answer. The same sampler as a tier
+flag (`--reasoning-budget 0`, which every subagent server here already carries) did not do it in 20
+draws, and at those sizes the two do not separate: this is a rare engine behaviour the per-request
+key inherits rather than one it adds.
 
 ## Framing-efficacy probe (Slice 6.5 / ADR-0013, agent-runnable)
 

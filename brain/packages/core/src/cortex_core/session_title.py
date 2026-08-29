@@ -45,8 +45,15 @@ from cortex_core.sessions import TITLE_MAX
 # four tokens and the deliberation before it is hundreds. An empty reply is the fallback this
 # feature was built with (the engine persists nothing and the first-message derivation stands),
 # so even that failure is the safe one; it is simply not a title.
+#
+# **And the trace budget beside the switch**, which is the half that holds (ADR-0005
+# request-lever addendum). The switch is a request to a template and was measured to do nothing on
+# some picks under some request shapes; a budget of zero is a sampler that ends the thought
+# wherever it starts. It is spelled here rather than derived from ``thinking`` anywhere, because
+# what makes it right here is the discard above and nothing about the switch: the trace this pass
+# would spend is one nobody will read.
 TITLE_MAX_TOKENS = 32
-TITLE_BOUNDS = GenerationBounds(max_tokens=TITLE_MAX_TOKENS, thinking=False)
+TITLE_BOUNDS = GenerationBounds(max_tokens=TITLE_MAX_TOKENS, thinking=False, trace_tokens=0)
 
 # The opening exchange follows this instruction as the model's only context. Kept short and
 # deterministic; the reply is cleaned to one bounded line regardless of how the model answers.

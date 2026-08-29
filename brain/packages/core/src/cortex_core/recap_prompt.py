@@ -38,8 +38,15 @@ from cortex_core.untrusted import new_nonce, security_preamble_message, wrap_unt
 # avoid: a reasoning model spends its budget thinking FIRST, so the identical prompt at
 # ``max_tokens`` 160 and 256 with thinking on came back ``finish_reason: "length"`` carrying 624
 # and 988 characters of reasoning and an EMPTY reply, three folds out of three.
+#
+# **The trace budget is the third**, and it is what makes the pairing hold rather than hope
+# (ADR-0005 request-lever addendum): the switch reaches a chat template and can be overruled by
+# the grammar a constrained request builds, where a budget of zero is a sampler that ends the
+# thought whatever the request looks like. Zero is right here for the discard above, and it is
+# written out rather than inferred from ``thinking`` so that no producer anywhere gets a bounded
+# trace it did not ask for.
 RECAP_MAX_TOKENS = 512
-RECAP_BOUNDS = GenerationBounds(max_tokens=RECAP_MAX_TOKENS, thinking=False)
+RECAP_BOUNDS = GenerationBounds(max_tokens=RECAP_MAX_TOKENS, thinking=False, trace_tokens=0)
 
 # The instruction the recap pass runs under. It asks for the facts a follow-up question would
 # need rather than a description of the conversation, because "the user asked about their flight"

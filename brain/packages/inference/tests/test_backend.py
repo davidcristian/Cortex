@@ -63,10 +63,12 @@ def _content_handler(_request: httpx.Request) -> httpx.Response:
     return httpx.Response(200, content=_sse('{"choices":[{"delta":{"content":"solo"}}]}'))
 
 
-def _backend(handler: _Handler, *, resident: str = "cortex") -> LlamaCppBackend:
+def _backend(
+    handler: _Handler, *, resident: str = "cortex", trace_lever: bool = False
+) -> LlamaCppBackend:
     manager = SingleResidentModelManager(resident, _ENDPOINT)
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
-    return LlamaCppBackend(manager, client)
+    return LlamaCppBackend(manager, client, trace_lever=trace_lever)
 
 
 async def _drain_into(stream: AsyncIterator[InferenceEvent], seen: list[InferenceEvent]) -> None:
@@ -343,11 +345,10 @@ async def test_bounds_render_as_a_token_cap_and_a_no_thinking_template_kwarg() -
 
     ``max_tokens`` overrides llama-server's own ``n_predict: -1`` for this call, and
     ``chat_template_kwargs`` is the per-request twin of the ``--chat-template-kwargs`` the
-    subagent tier bakes into its compose command. It is the only thinking lever a request has:
-    ``--reasoning-budget`` is read off a server's argv and ignored on a request body, measured in
-    both directions (ADR-0005 trace-budget addendum), so what this pins is that the one key a
-    request can carry is carried, and whether the deployment then honours it is not the adapter's
-    to promise (ADR-0005 switch-is-advisory addendum).
+    subagent tier bakes into its compose command. It is the advisory half of the thinking lever,
+    and whether the deployment then honours it is not the adapter's to promise (ADR-0005
+    switch-is-advisory addendum); the half that holds is the trace budget below, which rides a
+    different key and only where the deployment's engine was found to read one.
     """
     captured: dict[str, object] = {}
 
@@ -387,19 +388,93 @@ async def test_bounds_that_ask_for_nothing_leave_the_request_as_the_server_confi
     assert "max_tokens" not in unthinking
 
 
-async def test_no_bounds_omits_both_keys() -> None:
+async def test_no_bounds_omits_every_key() -> None:
     # The unbounded request is byte-for-byte the original, which is what every reply still sends.
+    # Asked with the trace lever ON, so the budget key is absent because nothing asked for one
+    # rather than because the deployment could not carry it.
     captured: dict[str, object] = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
         captured["body"] = json.loads(request.content)
         return httpx.Response(200, content=_sse(_chunk({"content": "ok"})))
 
-    _ = [event async for event in _backend(handler).stream("cortex", _messages())]
+    backend = _backend(handler, trace_lever=True)
+    _ = [event async for event in backend.stream("cortex", _messages())]
     body = captured["body"]
     assert isinstance(body, dict)
     assert "max_tokens" not in body
     assert "chat_template_kwargs" not in body
+    assert "reasoning_budget_tokens" not in body
+
+
+async def test_a_trace_budget_rides_the_request_where_the_engine_reads_one() -> None:
+    """ADR-0005 request-lever addendum: the count crosses verbatim, a zero included.
+
+    Two bounds through one backend, because the pair is the point. A zero is a real setting
+    (end the thought at once) and a positive count is the dial's middle, so a rendering that
+    treated the zero as "nothing asked" would pass a test written only with the count and lose
+    the setting three shipped bounds depend on.
+    """
+    captured: list[dict[str, object]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured.append(json.loads(request.content))
+        return httpx.Response(200, content=_sse(_chunk({"content": "ok"})))
+
+    backend = _backend(handler, trace_lever=True)
+    for bounds in (GenerationBounds(trace_tokens=0), GenerationBounds(trace_tokens=128)):
+        _ = [event async for event in backend.stream("cortex", _messages(), bounds=bounds)]
+    ended, budgeted = captured
+    assert ended["reasoning_budget_tokens"] == 0
+    assert budgeted["reasoning_budget_tokens"] == 128
+
+
+async def test_a_trace_budget_is_withheld_where_the_engine_does_not_read_one() -> None:
+    """The floor: an engine that ignores the key is sent no key at all (ADR-0005).
+
+    A build that does not know it ignores it in silence, which would make the port's count a knob
+    that lies, so the adapter carries it only where the composition root declared or measured that
+    this engine reads one. The lever defaults off, which is what this backend is built with, so
+    what is pinned is also the request every deployment got before the key existed.
+    """
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(200, content=_sse(_chunk({"content": "ok"})))
+
+    bounds = GenerationBounds(max_tokens=32, thinking=False, trace_tokens=0)
+    _ = [event async for event in _backend(handler).stream("cortex", _messages(), bounds=bounds)]
+    body = captured["body"]
+    assert isinstance(body, dict)
+    assert "reasoning_budget_tokens" not in body
+    # The other two keys still ride it, so this is the budget being withheld and not the bounds
+    # being dropped.
+    assert body["max_tokens"] == 32
+    assert body["chat_template_kwargs"] == {"enable_thinking": False}
+
+
+async def test_the_thinking_switch_alone_never_budgets_the_trace() -> None:
+    """A bound that asks for no thinking and names no count carries no budget (ADR-0005).
+
+    The rule that keeps a user's visible trace safe, pinned where it could be broken by one line.
+    Deriving a zero from ``thinking=False`` would look like an improvement and would silently
+    blank the thinking status the overlay renders on the one path whose trace is read (ADR-0020),
+    so the lever is on here and the key must still be absent.
+    """
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(200, content=_sse(_chunk({"content": "ok"})))
+
+    backend = _backend(handler, trace_lever=True)
+    bounds = GenerationBounds(max_tokens=256, thinking=False)
+    _ = [event async for event in backend.stream("cortex", _messages(), bounds=bounds)]
+    body = captured["body"]
+    assert isinstance(body, dict)
+    assert body["chat_template_kwargs"] == {"enable_thinking": False}
+    assert "reasoning_budget_tokens" not in body
 
 
 async def test_reassembles_a_streamed_tool_call_and_final_text() -> None:

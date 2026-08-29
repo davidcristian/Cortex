@@ -89,9 +89,22 @@ class LlamaCppBackend:
     ``InferenceError`` instead of parking the caller's lease forever.
     """
 
-    def __init__(self, model_manager: ModelManager, http_client: httpx.AsyncClient) -> None:
+    def __init__(
+        self,
+        model_manager: ModelManager,
+        http_client: httpx.AsyncClient,
+        *,
+        trace_lever: bool = False,
+    ) -> None:
         self._manager = model_manager
         self._client = http_client
+        # Whether a request built here may carry ``GenerationBounds.trace_tokens`` as
+        # llama.cpp's ``reasoning_budget_tokens`` (ADR-0005 request-lever addendum). Decided by
+        # the composition root, once, from a declaration or from ``lever.py``'s probe of this
+        # deployment's own engine, and held rather than re-asked because it is a property of a
+        # binary. Off by default, which is the request this adapter has always sent: a bound
+        # naming a count against an engine that ignores the key would be a knob that lies.
+        self._trace_lever = trace_lever
 
     async def stream(
         self,
@@ -108,8 +121,10 @@ class LlamaCppBackend:
         ``json_schema`` so llama-server constrains every token to that shape; the subagent
         runner uses it to force a tool-less weak model's reply into a fixed envelope, killing
         format-laundering. ``None`` leaves the request unconstrained, byte-for-byte as before.
-        With ``bounds`` set (ADR-0038 cheap-fold addendum) the request carries a ``max_tokens``
-        and/or asks the chat template for no thinking; ``None`` leaves both to the server.
+        With ``bounds`` set (ADR-0038 cheap-fold addendum) the request carries a ``max_tokens``,
+        asks the chat template for no thinking, and, where this deployment's engine was found to
+        read one, budgets the trace (ADR-0005 request-lever addendum); ``None`` leaves all three
+        to the server.
 
         The ``DecodeStop`` and the ``DecodeCadence`` are emitted where the server reports them, on
         the final chunk, so both arrive after the text they describe and before the tool calls that
@@ -118,7 +133,9 @@ class LlamaCppBackend:
         silence a build reporting no timings or no finish reason gives, and it means "nothing was
         said" rather than "the tier was healthy" or "the model finished".
         """
-        payload = build_payload(model, messages, tools, schema, bounds)
+        payload = build_payload(
+            model, messages, tools, schema, bounds, trace_lever=self._trace_lever
+        )
         pending: dict[int, PendingCall] = {}
         try:
             async with self._manager.acquire(model) as lease:

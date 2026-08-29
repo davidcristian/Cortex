@@ -2,15 +2,21 @@
 addendum).
 
 Its own module for the reason ``config_tools.py`` and ``config_subagents.py`` are: ``config.py``
-sits at its line cap, and these two knobs are one decision with one paragraph of argument rather
-than two loose fields. They are the deployment's producer of ``GenerationBounds`` on the two
+sits at its line cap, and these knobs are one decision with one paragraph of argument rather
+than three loose fields. They are the deployment's producer of ``GenerationBounds`` on the two
 paths a user reads, the cortex turn and the deep phase that continues it; the delegated path has
 its own pair in ``config_subagents.py``, deliberately separate because a subtask nobody reads and
 an answer somebody is watching are not bounded on the same argument.
 
-Both defaults are today's request, byte for byte: no cap and whatever the tier's chat template
-does about thinking. So a deployment that sets neither sends what this repo has always sent, and
-the whole module reduces to ``None``.
+Every default is today's request, byte for byte: no cap, whatever the tier's chat template does
+about thinking, and whatever budget the tier was started with. So a deployment that sets none of
+them sends what this repo has always sent, and the whole module reduces to ``None``.
+
+This is the one producer of a trace budget in the repo that ships **unset**, and that is the
+decision rather than an omission (ADR-0005 request-lever addendum). The three side calls whose
+deliberation is thrown away unread name a zero, because nobody loses anything they were reading;
+here the trace IS what a user is reading while the reply is written, so the count is the
+deployment's to name and nothing derives one from the switch beside it.
 """
 
 from pydantic import Field
@@ -19,6 +25,14 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from cortex_core import GenerationBounds
 
 __all__ = ["ReplyBoundsConfig"]
+
+# What ``CORTEX_REPLY_TRACE_TOKENS`` says when the deployment has not set it: leave the trace to
+# whatever the tier was started with. It cannot be the falsy value, for the reason the model host's
+# own sentinel cannot: ``0`` is a real setting here, meaning the thought ends at once, so folding
+# it into "nobody asked" would cost a deployment the very knob it chose. It is a separate constant
+# from that sidecar's ``-1`` on purpose and not a shared one, the two being an env field's "unset"
+# and llama.cpp's own word for unrestricted, free to move apart.
+_TRACE_FROM_TIER = -1
 
 
 class ReplyBoundsConfig(BaseSettings):
@@ -50,14 +64,35 @@ class ReplyBoundsConfig(BaseSettings):
     # (ADR-0004). It also empties the thinking status the overlay renders, there being no trace
     # to show.
     thinking: bool = True
+    # env CORTEX_REPLY_TRACE_TOKENS is how far a user's reply may deliberate before the engine
+    # closes the thought and makes it answer (ADR-0005 request-lever addendum). Unset by default,
+    # which leaves the count where it has always been, on the tier's own --reasoning-budget, so a
+    # deployment that names nothing sends the request it always sent. It is the middle of the dial
+    # the two knobs above are the ends of, and it is the knob a deployment reaches for when it
+    # wants the wait shorter without giving the answer up: measured on the shipped cortex, an
+    # unrestricted trace spends 2323 to 2996 characters and 10.1 to 12.6 s before the first word,
+    # 128 spends 483 to 536 and 1.7 to 2.6 s, and the reply is the same size in both.
+    #
+    # **It is deliberately not derived from `thinking`**, and that is the whole of why it is a
+    # separate field rather than a zero the adapter could infer. A user's reply renders its trace
+    # as the thinking status the overlay shows (ADR-0020), so a deployment that turned the switch
+    # off on a tier that ignores it is currently looking at the evidence that it did; making the
+    # switch also spend a zero here would blank that surface silently, which is the one place in
+    # this repo where a bounded trace is a loss rather than a saving.
+    trace_tokens: int = Field(default=_TRACE_FROM_TIER, ge=_TRACE_FROM_TIER)
 
     def bounds(self) -> GenerationBounds | None:
-        """The port's value for this deployment, or ``None`` when it asked for neither knob.
+        """The port's value for this deployment, or ``None`` when it asked for none of the knobs.
 
         ``None`` rather than an all-default ``GenerationBounds`` so the unbounded deployment
         takes the same path a caller that passes nothing takes, which is the one the adapter
         renders as the original request.
         """
-        if not self.max_tokens and self.thinking:
+        traced = self.trace_tokens != _TRACE_FROM_TIER
+        if not self.max_tokens and self.thinking and not traced:
             return None
-        return GenerationBounds(max_tokens=self.max_tokens or None, thinking=self.thinking)
+        return GenerationBounds(
+            max_tokens=self.max_tokens or None,
+            thinking=self.thinking,
+            trace_tokens=self.trace_tokens if traced else None,
+        )
