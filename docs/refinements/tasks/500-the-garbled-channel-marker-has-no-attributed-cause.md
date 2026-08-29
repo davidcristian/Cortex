@@ -59,3 +59,7 @@ that the engine range checks its own key.
   [R-479](479-the-reasoning-budget-held-until-the-prompt-pushed.md), whose ADR-0005 firm-prompt
   addendum measured the contrast between a flagged server and its unflagged twin, ships the forced
   close as the best explanation of it, and labels that explanation as one.
+- 2026-08-29: [R-495](495-the-forced-thought-can-leak-its-own-start-tag.md) records the seam this
+  entry's explanation is drawn from, the same forced close delivering a start tag as a whole valid
+  answer. Its committed probe already prints a leak count, so the reading of the fragment this
+  entry asks for and the rate that entry asks for are one instrument.

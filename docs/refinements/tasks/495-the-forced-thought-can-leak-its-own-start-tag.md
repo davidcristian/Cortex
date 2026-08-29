@@ -58,3 +58,7 @@ since a sampler that emits half a tag into content is a bug wherever it is fixed
   [R-474](474-the-switch-could-be-rendered-as-a-lever-that-holds.md), which shipped the count that
   forces the end of a thought, reproduced the leak once in 58 budgeted draws, and found it lands
   inside the payload rather than in front of it, where no existing defence sees it.
+- 2026-08-29: [R-500](500-the-garbled-channel-marker-has-no-attributed-cause.md) records the other
+  seam the same forced close reaches, a mangled marker read as a channel switch on a flagged server,
+  where this entry records the tag arriving in the reply. One mechanism seen at two seams, filed
+  the same day by two sittings that could not see each other; pick them up together.
