@@ -3467,3 +3467,136 @@ call passes it, the one-name rule reaching `getLogger` and no other call
 And the fault a writer meets on trying to sample one of these lines names the sink rather than
 saying the line is unsampleable, which is recorded against the coverage question already open
 ([R-444](../refinements/tasks/444-nothing-says-which-log-lines-a-runbook-should-print.md)).
+
+
+## Declared-name addendum (2026-08-29): what already held a declaration to its call
+
+The two addenda above each end by naming what they left, and both name the same thing: the registry
+compares a sink's declaration against the places restating it and never asks that the sink's own
+call passes it. `getLogger(_LOGGER_NAME)` and `_logger.info(_MESSAGE, ...)` carry an identifier, and
+an identifier says nothing about the string inside it, so a module binding one name and passing a
+different literal is two names rather than one spelled twice, which is exactly the shape the
+one-name rule sees and lets through. The entry asking for this asked for an argument before a rule
+was built. The argument turned out to be about the entry's own premise.
+
+### Re-derived first, and the premise did not survive
+
+The entry says that state is green "unless some document happens to quote a rendered sample of that
+trail". It is not green. The mutation was applied alone to the committed tree on each sink in turn,
+and `just check` is red for both, in two places neither of which was written for this:
+
+- **`scripts/tests/test_logcalls.py`** carries a guard on that reader's own fixtures, asserting that
+  the brain declares `cortex.tools.audit` in the tool audit's sink and `cortex.memory.recall` in the
+  recall trail's. `logcalls.loggers` answers with the name the **call** carries, so a call passing
+  another literal fails those lookups with a `KeyError`. Holding a declaration to its call is a
+  second job that guard has always done and that nothing said it was doing.
+- **Each sink's own package suite** asserts a whole rendered line, `LEVEL:logger:message` followed
+  by the fields. The same mutation is 13 reds in the tools package and 9 in the memory package, and
+  the message half of the same question is 5 in the tools package.
+
+The scans stay green under all three, which is the half the entry saw: `check-crosscheck` compares
+each declaration against the documents restating it, and `check-samplecheck` cannot reach either of
+these trails at all, one sink's fields being built by condition and the other's line being one no
+runbook prints.
+
+### Decision: no rule, because the rule exists in effect
+
+The entry's own criterion was whether the gap is worth a rule at all, and the answer is that the gap
+is not there. A second mechanism asserting what an existing one asserts cannot catch a fault the
+first misses, and it doubles what an honest rename has to move, which is a cost paid for nothing.
+The shape the entry proposed as cheapest, marking a registry site as a logger name so the sample
+gate could read that one fact, is declined for that reason and for the one the one-name addendum
+already gave: it puts a subject inside data whose every other entry is a value and the places that
+spell it.
+
+### What did ship: the accident, said out loud
+
+Two accidents holding one property is still two accidents, and neither file said so. A guard
+rewritten to assert about the sinks rather than about these names, or four assertions folded into a
+helper taking the logger as a parameter, would each take the property away in silence, and the next
+renamed call would land in a tree that reads as though it were covered.
+
+So the places already holding it are registered. The two logger entries in `trailcouplings.py` gain
+a mention on that guard, rendered as `names["{value}"]`, which is the lookup a call passing another
+literal fails. The audit message entry gains one on that sink's own suite, rendered as `:{value} "`,
+which is the message half and is held by that suite alone, the guard reading loggers and asking
+nothing about a message. The recall trail's message needs none: its sink spells the word inside the
+call, and that call has been a registered mention since the trail was tied. The guard's docstring
+now names the second job it does, so the two spellings a reader might otherwise tidy away are
+labelled load bearing.
+
+Nothing was written in order to be gated. Both assertions predate every entry in that part, which is
+the line the audit-logger addendum drew when it declined to add a fifth restatement to a module
+contract for the gate's benefit.
+
+### The closing quote in the message needle
+
+`brain/packages/tools/tests/test_audit.py` proves that a hostile call id cannot forge a second line
+by sending one through a field, so a whole rendered head of this trail sits in that file inside a
+longer string no assertion is about. A needle ending at the word would go on being found there after
+all four real assertions had moved, which is a needle that cannot fail. It ends at the quote closing
+the literal instead, and the last row below holds that.
+
+### Distrust green, over four suites at once
+
+Eight mutations and a control, each applied alone to the committed tree, with four suites re-run and
+the gate run beside them: the **1,436 checks of the gate suite** (`scripts/tests/`), and the **544
+of the three brain packages** that write or assert one of these lines, the tools package's 53, the
+memory package's 40 and the orchestrator package's 451
+(`brain/packages/{tools,memory,orchestrator}/tests/`), counted together in one column since a row
+reddening two of them at once is what half the table is about.
+
+| Mutation | scripts | brain | `check-crosscheck` |
+| --- | --- | --- | --- |
+| CONTROL: nothing edited | 0 | 0 | passes |
+| the audit sink passes a logger literal beside its declaration | **1** | **13** | passes |
+| the recall sink passes a logger literal beside its declaration | **1** | **9** | passes |
+| the audit sink passes a message literal beside its declaration | 0 | **5** | passes |
+| the guard stops naming the audit logger | **12** | 0 | **fails** |
+| the audit suite stops asserting the word before its fields | **11** | **4** | **fails** |
+| GATE: the guard mention is dropped from both logger entries | **2** | 0 | passes |
+| GATE: the asserted message mention is dropped | **1** | 0 | passes |
+| GATE: the message needle stops at the word rather than the quote | **1** | 0 | passes |
+
+Rows two to four are the entry in three lines, and they are a finding rather than a proof of
+anything built here: the state the entry calls green is red in the gate suite for either logger and
+in the sink's own package for either logger and for the message, and nothing in this change moves
+them. They also say the faults land where a reader can act: the guard names the logger it could not
+find, and a package suite prints the line it expected beside the line it got.
+
+Rows five and six are what registering buys, and neither had a scan behind it before. A guard
+retargeted onto another name and a suite that stops asserting the word are each a green tree with
+the property gone, and each is now a `check-crosscheck` failure naming the entry whose declaration
+lost its holder. Their scripts counts are large for a reason worth reading rather than counting:
+both mutate a real file that many registry entries name, so every control test that copies the tree
+unedited and both tests running the scan over the repo itself redden beside the two written for this.
+
+Rows seven to nine are the needles themselves. Seven and eight are the mentions removed, which turns
+rows five and six back into the silence they were, and their counts are exactly the tests written
+for them. Nine is the anchor: with the needle ending at the word, the forged line that suite feeds
+through a field satisfies it, so a suite whose four real assertions had all moved would go on
+counting as holding the message.
+
+### Consequences
+
+- The property the entry asked for is held, was held before this change, and is now named in the two
+  files holding it rather than being a coincidence of how two tests happen to be written.
+- The constant registry stands at 78 entries over 88 declaring sites and 263 mentions, in twelve
+  parts. Three of those mentions are a kind of far side this part had not carried: a place that
+  restates nothing and asserts what the code did.
+- A gate suite's own fixture guard can be load bearing for something outside itself. This one is,
+  for two trails, and the way that is recorded is a coupling plus a sentence in its docstring rather
+  than a rule somewhere else.
+- A backlog entry's account of the tree is a claim with a date on it. This one was accurate when it
+  was written about a registry and wrong about `just check`, because the entry was reasoning from
+  the scans and the reds were in two suites nobody had connected to the question.
+
+### Deferred by this addendum
+
+The guard names its two sinks by hand, so a third self-named sink is held by nothing until somebody
+remembers to add a line, where `flagcheck.py` next door derives its set from the tree
+([R-491](../refinements/tasks/491-the-guard-holding-a-declared-logger-to-its-call-names-two-sinks-by-hand.md)).
+
+The one-name rule still reaches a logger's call and stops one word short of a message's, which is
+untouched here and stays its own question about a module's own text
+([R-490](../refinements/tasks/490-a-declared-log-message-may-be-spelled-again-in-the-call-that-logs-it.md)).

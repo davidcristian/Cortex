@@ -84,6 +84,20 @@ logger's tail and once as the message. A needle rendering the word alone would f
 half in the sink too and hold nothing. The entry above is why that resemblance is now stated in one
 place instead of being a coincidence two needles had to step around.
 
+**Three of these values are handed to their call as an identifier, and the place holding that
+is registered rather than left to be noticed.** `getLogger(_LOGGER_NAME)` and
+`_logger.info(_MESSAGE, ...)` say nothing about the string they carry, so a sink binding one name
+and passing a different literal is two names rather than one spelled twice, which is the shape the
+one-name rule in `logcalls.py` sees and lets through. That state is not green, which was measured
+rather than assumed: the gate suite's own guard on this reader's fixtures asserts that the brain
+declares each of these two loggers in the file that declares it, so a renamed call is a `KeyError`
+there, and each sink's package suite asserts a whole rendered line, so a renamed call or a renamed
+message is a dozen reds beside it. Both were holding it by accident, neither saying so. So the two
+loggers carry a mention on that guard and the audit message one on the assertion its own suite
+makes, which turns a property held by two accidents into one the scan names, and makes deleting
+either loud rather than silent. What that does not reach is written down beside it: the guard names
+these two sinks by hand (ADR-0009 declared-name addendum).
+
 **What is deliberately not here** is the ADR that argued all three. Its pages quote whole rendered
 lines as evidence of a run on a day, and this repo holds that a dated transcript is a record of the
 past rather than a claim about today's code, which is the same line `samplecheck.py` draws when it
@@ -95,9 +109,12 @@ from couplings import Constant, Mention, Site
 AUDIT_SINK = "brain/packages/tools/src/cortex_tools/audit.py"
 RECALL_SINK = "brain/packages/memory/src/cortex_memory/audit.py"
 
+AUDIT_SUITE = "brain/packages/tools/tests/test_audit.py"
+
 CONFIG_LOGGING = "brain/packages/orchestrator/src/cortex_orchestrator/config_logging.py"
 CONFIG_LOGGING_SUITE = "brain/packages/orchestrator/tests/test_config_logging.py"
 TRAIL_READER = "scripts/trailwidth.py"
+LOGGER_GUARD = "scripts/tests/test_logcalls.py"
 
 GATES_MODULE = "docs/modules/repo-gates.md"
 LOCAL_DEV_RUNBOOK = "docs/runbooks/local-dev-wsl.md"
@@ -116,6 +133,19 @@ FIELD_KEY = '"{value}":'
 # through, so a bare needle would go on being found there after the message it names had moved.
 TRAIL_CALL = '_logger.info("{value}"'
 
+# How the gate suite's guard says the brain declares one of these loggers: by looking the name up
+# among the ones `logcalls.py` reads off the tree. That lookup is what a sink passing a different
+# literal fails, since the reader answers with the name the CALL carries, so this needle is the one
+# far side that holds a declaration to the call handed it.
+DECLARED_LOGGER = 'names["{value}"]'
+
+# How a sink's own suite spells the message its call really passed: the colon the stdlib's format
+# puts in front of it and the quote closing the literal, the fields following on the line below.
+# Its own half of that rendered line and never the logger's, for the reason the paragraph on the
+# pair sharing one asserted line gives, and the closing quote is what keeps this off the forged
+# line that suite feeds through a field, which spells the same words inside a longer string.
+ASSERTED_MESSAGE = ':{value} "'
+
 TRAIL_COUPLINGS: tuple[Constant, ...] = (
     Constant(
         label="the logger one recall-trail line is written through",
@@ -126,13 +156,18 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
             "runbook names it among the two per-line trails a deployment can raise or lower on "
             "its own, and the module contract states what the sink writes; a rename in the sink "
             "alone leaves all three instructing a reader about a logger nothing writes through "
-            "(ADR-0038 named-logger addendum)"
+            "(ADR-0038 named-logger addendum); the fourth place restates nothing and is the one "
+            "holding this declaration to the call handed it, the gate suite's guard asserting "
+            "that the brain declares this logger in this sink, which a call passing another "
+            "literal fails and which nothing said was load bearing (ADR-0009 declared-name "
+            "addendum)"
         ),
         sites=(Site(RECALL_SINK, "_LOGGER_NAME"),),
         mentions=(
             Mention(MEMORY_RUNBOOK, "one `{value}` line per"),
             Mention(LOCAL_DEV_RUNBOOK, "the recall trail (`{value}`, behind"),
             Mention(MEMORY_MODULE, "`{value}` line per recall,"),
+            Mention(LOGGER_GUARD, DECLARED_LOGGER),
         ),
     ),
     Constant(
@@ -183,7 +218,10 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
             "runbooks telling an operator to select a trail nothing writes, one module arguing "
             "about the level of a logger that no longer exists, and one suite demonstrating the "
             "argument on a name the brain abandoned, all four green (ADR-0009 audit-logger "
-            "addendum)"
+            "addendum); the fifth place restates nothing and is the one holding this declaration "
+            "to the call handed it, the gate suite's guard asserting that the brain declares this "
+            "logger in this sink, which a call passing another literal fails and which nothing "
+            "said was load bearing (ADR-0009 declared-name addendum)"
         ),
         sites=(Site(AUDIT_SINK, "_LOGGER_NAME"),),
         mentions=(
@@ -192,6 +230,7 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
             Mention(CONFIG_LOGGING, "audit trail (``{value}``,"),
             Mention(CONFIG_LOGGING_SUITE, 'getLogger("{value}").info'),
             Mention(CONFIG_LOGGING_SUITE, '== "INFO:{value}:'),
+            Mention(LOGGER_GUARD, DECLARED_LOGGER),
         ),
     ),
     Constant(
@@ -205,13 +244,17 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
             "message nothing writes and the suite passing on both its spellings at once, having "
             "renamed with itself (ADR-0009 audit-message addendum); the sample gate cannot stand "
             "in for this one, a line whose fields are built by condition being one no runbook may "
-            "print as a rendered sample"
+            "print as a rendered sample; the fourth place is the sink's own suite, which restates "
+            "nothing and asserts the rendered line this sink emits, and so is the only thing "
+            "holding this declaration to the call handed it, the guard next door reaching a "
+            "logger name and no further (ADR-0009 declared-name addendum)"
         ),
         sites=(Site(AUDIT_SINK, "_MESSAGE"),),
         mentions=(
             Mention(TOOLS_RUNBOOK, "a bare `{value}` message followed by"),
             Mention(CONFIG_LOGGING_SUITE, '.info("{value}", extra='),
             Mention(CONFIG_LOGGING_SUITE, ':{value} tool=read"'),
+            Mention(AUDIT_SUITE, ASSERTED_MESSAGE),
         ),
     ),
 )

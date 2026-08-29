@@ -1136,6 +1136,17 @@ LEVEL_SUITE = "brain/packages/orchestrator/tests/test_config_logging.py"
 SINK_WORD = '_MESSAGE = "tool.invocation"'
 ASSERTED_LINE = "INFO:cortex.tools.audit:tool.invocation tool=read"
 
+# The two far sides that restate nothing: the gate suite's guard, which asserts that the brain
+# declares each self-named logger in the sink that declares it, and the audit sink's own suite,
+# which asserts the whole rendered line. Three of these entries are handed to their call as an
+# identifier, and these two files are where the value the call really passed is written down.
+LOGGER_GUARD = "scripts/tests/test_logcalls.py"
+AUDIT_SUITE = "brain/packages/tools/tests/test_audit.py"
+
+GUARDED_AUDIT = 'names["cortex.tools.audit"]'
+GUARDED_RECALL = 'names["cortex.memory.recall"]'
+ASSERTED_WORD = ':tool.invocation "'
+
 
 def registered(label: str) -> couplings.Constant:
     """The one registered entry a fault would print ``label`` for."""
@@ -1162,6 +1173,21 @@ def copied(root: Path, constant: couplings.Constant, edits: dict[str, tuple[str,
         target = root / place
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(text, encoding="utf-8")
+
+
+def rewritten(root: Path, place: str, was: str, now: str) -> None:
+    """Rename every occurrence of ``was`` in one file `copied` has already written.
+
+    `copied` edits the first occurrence, which is what a mutation of a declaration or of one
+    sentence wants. A needle a suite spells on several assertions needs the other shape: a
+    presence check is satisfied by any one of them, so a rename leaving three behind would be
+    green for a reason that has nothing to do with the rule under test.
+    """
+    target = root / place
+    assert target.exists(), f"the entry under test names no {place}, so there is nothing to edit"
+    text = target.read_text(encoding="utf-8")
+    assert was in text, f"{place} no longer spells {was!r}, so this mutation edits nothing"
+    target.write_text(text.replace(was, now), encoding="utf-8")
 
 
 def test_the_reasoning_off_budget_holds_over_the_files_it_names(tmp_path: Path) -> None:
@@ -1362,6 +1388,72 @@ def test_the_suites_asserted_line_is_reported_against_the_word_that_moved(
     faults = crosscheck.check(tmp_path, (message,))
     assert [fault.label for fault in faults] == [AUDIT_MESSAGE]
     assert LEVEL_SUITE in faults[0].detail
+
+
+def test_the_audit_loggers_needles_hold_over_the_files_they_name(tmp_path: Path) -> None:
+    """The copy with nothing edited is green, so every red below is the edit and not the copy."""
+    constant = registered(AUDIT_LOGGER)
+    copied(tmp_path, constant, {})
+    assert crosscheck.check_constant(tmp_path, constant) == []
+
+
+def test_a_guard_that_stops_naming_the_audit_logger_is_a_fault(tmp_path: Path) -> None:
+    """What registering the guard buys, and it is the whole of what this needle is for.
+
+    The sink hands `_LOGGER_NAME` to `getLogger`, and an identifier says nothing about the string
+    it carries, so a call passing a different literal is two names rather than one spelled twice
+    and the one-name rule lets it through. What refuses it is this guard, which looks the declared
+    name up among the ones the reader finds on the tree and gets a `KeyError` when the call
+    carries another: that is a property nothing said the guard held, and a guard rewritten to
+    assert about the sinks rather than about these names would have taken it away in silence.
+    """
+    constant = registered(AUDIT_LOGGER)
+    copied(tmp_path, constant, {LOGGER_GUARD: (GUARDED_AUDIT, 'names["cortex.tools.other"]')})
+    faults = crosscheck.check_constant(tmp_path, constant)
+    assert [fault.label for fault in faults] == [AUDIT_LOGGER]
+    assert LOGGER_GUARD in faults[0].detail
+
+
+def test_a_guard_that_stops_naming_the_recall_logger_is_a_fault(tmp_path: Path) -> None:
+    """The same needle on the trail next door, whose sink declares and passes its name alike.
+
+    It is worth its own test rather than being read off the entry above: this guard names both
+    self-named sinks in one assertion each, and a rule holding one of the two would leave the
+    other exactly as unheld as before while the tree read as if it were covered.
+    """
+    constant = registered(TRAIL_LOGGER)
+    copied(tmp_path, constant, {LOGGER_GUARD: (GUARDED_RECALL, 'names["cortex.memory.other"]')})
+    faults = crosscheck.check_constant(tmp_path, constant)
+    assert [fault.label for fault in faults] == [TRAIL_LOGGER]
+    assert LOGGER_GUARD in faults[0].detail
+
+
+def test_an_audit_suite_asserting_another_word_before_its_fields_is_a_fault(
+    tmp_path: Path,
+) -> None:
+    """The message half, whose guard is the sink's own suite rather than the reader's.
+
+    `logcalls.py` holds a logger name against the call that claims it and asks nothing about a
+    message, so the four rendered lines this suite asserts are the only thing standing between
+    `_MESSAGE` and a call passing some other word.
+
+    Two things ride along with the one mutation. One rendered line carries both of this trail's
+    registered words, so the message moving has to land on the message's entry and leave the
+    logger's needle found. And the closing quote in the needle earns itself here: the same suite
+    proves a hostile id cannot forge a second line by sending one through a field, so this word
+    also sits inside a longer string that no assertion is about, and a needle matching that would
+    go on being found in a file whose four real assertions had all moved.
+    """
+    message, logger = registered(AUDIT_MESSAGE), registered(AUDIT_LOGGER)
+    copied(tmp_path, message, {})
+    copied(tmp_path, logger, {})
+    rewritten(tmp_path, AUDIT_SUITE, ASSERTED_WORD, ':tool.dispatch "')
+    doctored = (tmp_path / AUDIT_SUITE).read_text(encoding="utf-8")
+    assert "tool.invocation ok=True" in doctored, "the forged payload keeps the word it spells"
+    faults = crosscheck.check_constant(tmp_path, message)
+    assert [fault.label for fault in faults] == [AUDIT_MESSAGE]
+    assert AUDIT_SUITE in faults[0].detail
+    assert crosscheck.check_constant(tmp_path, logger) == []
 
 
 def _parts_on_disk() -> list[str]:

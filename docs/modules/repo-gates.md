@@ -154,7 +154,15 @@ that last question to have an answer.
   sample gate is no substitute, that sink's fields being built by condition, so no runbook may
   print one of its lines as a rendered sample at all (ADR-0009 audit-message addendum). The
   suite's asserted line is where the two entries meet, each rendering its own half of
-  `LEVEL:logger:message` rather than spelling the other's as fixed text. Some arrived as
+  `LEVEL:logger:message` rather than spelling the other's as fixed text. Three of those values are
+  declared in a sink and handed to their call as an identifier, which carries no string a scan can
+  read, so each also names a far side that restates nothing: the two loggers name `logcalls.py`'s
+  own fixture guard, which asserts that the brain declares each of them in the sink declaring it,
+  and the audit message names that sink's package suite, which asserts four whole rendered lines
+  and is the only thing holding this trail's message to the call handed it, the guard reading
+  loggers and asking nothing about a message. Both were already holding those declarations and
+  neither said so, which is what registering them buys: a guard retargeted or an assertion deleted
+  is a fault rather than a silence (ADR-0009 declared-name addendum). Some arrived as
   splits under the cap and some as subjects added beside them, which is the one-line claim being
   paid from both directions rather than argued.
   `couplings.py` is the vocabulary every part is written in, left behind when each moved out
@@ -676,7 +684,12 @@ that last question to have an answer.
   declaration is what the registry ties documents to and two spellings of one name are one edit away
   from documents tied to a name nothing writes (ADR-0009 one-name addendum). A module binding a
   logger name it does not pass is not reached by that rule, which sees two names rather than one
-  spelled twice. The third spelling is resolved against that
+  spelled twice; what refuses it is this reader's own guard in `tests/test_logcalls.py`, which
+  asserts that the brain declares each self-named logger in the sink declaring it, and `loggers`
+  answers with the name the **call** carries, so a call passing another literal is a `KeyError`
+  there. That was a second job nothing said the guard was doing, and both its spellings are
+  registered couplings now, so it cannot be retargeted or deleted in silence; it names those two
+  sinks by hand (ADR-0009 declared-name addendum). The third spelling is resolved against that
   module's own top level, by `moduleconstants.py`, and nothing wider: a name imported from
   elsewhere is refused with the name in the fault rather than chased, chasing one being the import
   this tree may not make. A name two files claim is a fault. Only each package's `src/` is walked,

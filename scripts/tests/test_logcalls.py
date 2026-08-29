@@ -321,12 +321,21 @@ def test_a_spread_into_extra_is_a_fault_rather_than_a_short_answer() -> None:
 
 
 def test_the_committed_brain_declares_both_spellings_a_logger_is_claimed_in() -> None:
-    """A guard on the fixtures: the two spellings the brain has left, one of them twice.
+    """A guard on the fixtures, and the one place a sink's declaration meets the call handed it.
 
     Every module but two names its logger ``__name__``, and both self-named sinks now bind the
     name above the call so that the constant registry has a declaration to tie the documents
     restating it to. The literal a sink used to spell inside the call is the spelling this brain
     no longer writes, kept read for the reason the fixture for it states.
+
+    The second job is why the two names below are registered couplings rather than fixture text.
+    ``loggers`` answers with the name the CALL carries, so a sink that binds one name and passes
+    a different literal, which the one-name rule sees as two names rather than one spelled twice,
+    fails these lookups with a ``KeyError``. That is the whole of what holds a declaration to its
+    call, and it held it silently until the constant registry tied each of these spellings to the
+    ``_LOGGER_NAME`` it is asserting about (ADR-0009 declared-name addendum). Both names are
+    written out by hand here, so a third sink named this way is guarded by nothing until it is
+    added.
     """
     names = logcalls.loggers(REPO_ROOT)
     assert names["cortex_core.swap_settle"].endswith("cortex_core/swap_settle.py")
