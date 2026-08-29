@@ -294,7 +294,8 @@ scripts/          repo gates, plus the two modules here that gate nothing, contr
                   stylesheet, the name each work identity rides
                   under, and the words one line of either per-line trail is found by, the recall
                   trail's logger, the message it opens with, the field it is
-                  measured on and the tool audit's own logger) + values.py (what a value
+                  measured on and the tool audit's own logger and message) +
+                  values.py (what a value
                   reduces to and the spelling a mention writes one in) + readings.py (how a
                   constant's readings must then stand) + needles.py (how a rendered needle is
                   looked for, and which of its literals a file that lacks one is told stopped

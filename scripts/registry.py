@@ -41,9 +41,9 @@ directory beside it and to the order the tuple reads them in by
 - `logcouplings` ties the brain's log vocabulary, the one name each work identity is written
   under, to every line that spells it and every runbook that tells an operator to grep it.
 - `trailcouplings` ties the words one line of either per-line trail is found by, the recall
-  trail's logger, the message it opens with, the field it is measured on and the tool audit's own
-  logger, to the sinks that write them, the reader outside the brain that measures them, and the
-  documents and the one suite that state them.
+  trail's logger, the message it opens with, the field it is measured on, and the tool audit's own
+  logger and message, to the sinks that write them, the reader outside the brain that measures
+  them, and the documents and the one suite that state them.
 
 Counting the registry lives here too, beside the tuple the parts are joined into, because the size
 of a collection is a fact about the collection rather than about any scan over it. `shape` is what

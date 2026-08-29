@@ -13,6 +13,8 @@ from cortex_core.log_fields import (
 
 _LOGGER_NAME = "cortex.tools.audit"
 
+_MESSAGE = "tool.invocation"
+
 _logger = logging.getLogger(_LOGGER_NAME)
 
 
@@ -45,4 +47,4 @@ class LoggingAuditSink:
             fields["result_chars"] = len(invocation.detail)
         else:
             fields["error"] = invocation.detail
-        _logger.info("tool.invocation", extra=fields)
+        _logger.info(_MESSAGE, extra=fields)

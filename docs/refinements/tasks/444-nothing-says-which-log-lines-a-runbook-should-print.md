@@ -44,3 +44,12 @@ question rather than a gated one.
   [R-438](438-a-documented-log-sample-can-still-print-the-wrong-fields.md), which built the
   agreement half of the question. Recorded under what the ADR-0009 sample-membership addendum
   defers.
+- 2026-08-29: sharpened by the close of
+  [R-487](487-the-tool-audits-message-is-spelled-in-three-places-and-held-in-none.md), which tried
+  a rendered sample of the tool audit trail on the committed tree and had it refused. Some of the
+  brain's lines cannot be documented as held samples at all: `LoggingAuditSink` builds its `extra=`
+  across statements and by condition, so `logcalls.py` reports a call it cannot read a field list
+  off, and there is no single field list such a line could print. So a criterion for which lines a
+  runbook owes an operator has a second half nobody had noticed, which lines the mechanism can
+  hold, and the fault a writer meets today names the sink rather than saying the line is
+  unsampleable.

@@ -98,7 +98,27 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
             Mention(LOCAL_DEV_RUNBOOK, "the tool audit (`{value}`, always on"),
             Mention(CONFIG_LOGGING, "audit trail (``{value}``,"),
             Mention(CONFIG_LOGGING_SUITE, 'getLogger("{value}").info'),
-            Mention(CONFIG_LOGGING_SUITE, '== "INFO:{value}:tool.invocation'),
+            Mention(CONFIG_LOGGING_SUITE, '== "INFO:{value}:'),
+        ),
+    ),
+    Constant(
+        label="the message one tool-audit line is found by",
+        why=(
+            "this is the word an operator looks for once the logger has selected the trail, and "
+            "three places restate it while none of them can import it: the tools runbook says the "
+            "line carries this and nothing else before its fields, and the process entry's own "
+            "suite writes it under the trail's name and asserts the rendered result back to prove "
+            "the shipped level; a rename in the sink alone leaves the runbook describing a "
+            "message nothing writes and the suite passing on both its spellings at once, having "
+            "renamed with itself (ADR-0009 audit-message addendum); the sample gate cannot stand "
+            "in for this one, a line whose fields are built by condition being one no runbook may "
+            "print as a rendered sample"
+        ),
+        sites=(Site(AUDIT_SINK, "_MESSAGE"),),
+        mentions=(
+            Mention(TOOLS_RUNBOOK, "a bare `{value}` message followed by"),
+            Mention(CONFIG_LOGGING_SUITE, '.info("{value}", extra='),
+            Mention(CONFIG_LOGGING_SUITE, ':{value} tool=read"'),
         ),
     ),
 )
