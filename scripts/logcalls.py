@@ -1,11 +1,11 @@
 """What a brain log call really attaches, read out of the module that writes it."""
 
 import ast
-import re
+from collections.abc import Iterator, Mapping
 from pathlib import Path
 from typing import NamedTuple
 
-from moduleconstants import constants
+from moduleconstants import constants, text
 from skippeddirs import SKIPPED_DIRS
 
 # Where the brain's importable source lives, and the directory each package puts it under. Only
@@ -14,16 +14,8 @@ from skippeddirs import SKIPPED_DIRS
 BRAIN_PACKAGES = Path("brain/packages")
 SOURCE_DIR = "src"
 
-GET_LOGGER = re.compile(
-    r"getLogger\(\s*(?:__name__|\"(?P<named>[^\"]+)\"|(?P<bound>[A-Za-z_]\w*))\s*\)"
-)
-
 # The keyword a call attaches its fields under, which is the stdlib's own name for them.
 EXTRA = "extra"
-
-# The module name that is a package rather than a module: `cortex_core/__init__.py` is the logger
-# `cortex_core` and not `cortex_core.__init__`.
-PACKAGE_MODULE = "__init__"
 
 DYNAMIC_LEVEL = "log"
 DYNAMIC_MESSAGE = 1
@@ -56,7 +48,7 @@ class LogCall(NamedTuple):
     fields: tuple[str, ...]
 
 
-def _read(path: Path, shown: str) -> str:
+def read(path: Path, shown: str) -> str:
     """Read one brain source file, refusing one that is absent or is not text."""
     try:
         return path.read_text(encoding="utf-8")
@@ -65,84 +57,34 @@ def _read(path: Path, shown: str) -> str:
         raise LogCallError(msg) from err
 
 
-def _source_roots(root: Path) -> list[Path]:
-    """Every package's `src` directory, in a fixed order so a fault reads the same twice."""
+def modules(root: Path) -> Iterator[tuple[Path, Path, str]]:
+    """Every brain source module: the file, its path inside its source root, and how to name it.
+
+    One walk for both halves of this reader, in a fixed order so a fault reads the same twice.
+    """
     packages = root / BRAIN_PACKAGES
     try:
         candidates = sorted(packages.iterdir())
     except OSError as err:
         msg = f"cannot read {BRAIN_PACKAGES.as_posix()}: {err}"
         raise LogCallError(msg) from err
-    return [package / SOURCE_DIR for package in candidates if (package / SOURCE_DIR).is_dir()]
+    for package in candidates:
+        source = package / SOURCE_DIR
+        if not source.is_dir():
+            continue
+        for module in sorted(source.rglob("*.py")):
+            inside = module.relative_to(source)
+            if not SKIPPED_DIRS & set(inside.parts):
+                yield module, inside, module.relative_to(root).as_posix()
 
 
-def dotted(relative: Path) -> str:
-    """The dotted name `__name__` holds for a module at ``relative`` inside its source root."""
-    parts = relative.with_suffix("").parts
-    if parts[-1] == PACKAGE_MODULE:
-        parts = parts[:-1]
-    return ".".join(parts)
-
-
-def _parsed(text: str, shown: str) -> ast.Module:
+def parsed(source: str, shown: str) -> ast.Module:
     """Parse one brain module, naming it when what it holds is not Python at all."""
     try:
-        return ast.parse(text)
+        return ast.parse(source)
     except SyntaxError as err:
         msg = f"cannot parse {shown}: {err}"
         raise LogCallError(msg) from err
-
-
-def _literal(named: str, text: str, shown: str) -> str:
-    """The name a literal call claims, refused when the same module also binds it.
-
-    Only the binding is what the constant registry ties documents to, so a module holding both
-    spellings can move the literal alone and leave them restating a name nothing writes through.
-    """
-    strings, _ = constants(_parsed(text, shown))
-    declared = sorted(name for name, value in strings.items() if value == named)
-    if declared:
-        msg = (
-            f"{shown} writes the logger {named!r} inside the call and binds it above as "
-            f"{', '.join(declared)}; pass the binding, so the name is written once"
-        )
-        raise LogCallError(msg)
-    return named
-
-
-def claimed(claim: re.Match[str], text: str, inside: Path, shown: str) -> str:
-    """The logger name one ``getLogger`` call claims, in whichever spelling it claims it."""
-    named = claim["named"]
-    if named is not None:
-        return _literal(named, text, shown)
-    bound = claim["bound"]
-    if bound is None:
-        return dotted(inside)
-    strings, _ = constants(_parsed(text, shown))
-    resolved = strings.get(bound)
-    if resolved is None:
-        msg = f"{shown} names its logger {bound}, which its own top level binds to no string"
-        raise LogCallError(msg)
-    return resolved
-
-
-def loggers(root: Path) -> dict[str, str]:
-    """Every logger name the brain declares, against the repo-relative file that declares it."""
-    found: dict[str, str] = {}
-    for source in _source_roots(root):
-        for module in sorted(source.rglob("*.py")):
-            inside = module.relative_to(source)
-            if SKIPPED_DIRS & set(inside.parts):
-                continue
-            shown = module.relative_to(root).as_posix()
-            text = _read(module, shown)
-            for claim in GET_LOGGER.finditer(text):
-                name = claimed(claim, text, inside, shown)
-                if name in found:
-                    msg = f"{shown} and {found[name]} both declare the logger {name!r}"
-                    raise LogCallError(msg)
-                found[name] = shown
-    return found
 
 
 def _keys(call: ast.Call, shown: str) -> tuple[str, ...]:
@@ -163,21 +105,42 @@ def _keys(call: ast.Call, shown: str) -> tuple[str, ...]:
     return ()
 
 
-def _message_call(node: ast.AST, message: str) -> tuple[ast.Call, str] | None:
-    """``node`` and the level it prints, when it is a logging call carrying exactly ``message``.
+def _written(first: ast.expr, strings: Mapping[str, str], shown: str, at: int) -> str | None:
+    """The message one call carries, in either spelling, or None where this reader cannot say."""
+    message = text(first, strings)
+    if message is None or isinstance(first, ast.Name):
+        return message
+    declared = sorted(name for name, value in strings.items() if value == message)
+    if declared:
+        msg = (
+            f"{shown}:{at} writes the message {message!r} inside the call and binds it above as "
+            f"{', '.join(declared)}; pass the binding, so the word is written once"
+        )
+        raise LogCallError(msg)
+    return message
 
-    The level is read here rather than by the caller so that the one place which knows the node
-    is an attribute call is the one place that spends that knowledge.
-    """
+
+def _levelled(node: ast.AST) -> tuple[ast.Call, str] | None:
+    """``node`` and the level it prints, when it is a logging call at a level of its own name."""
     if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
         return None
     level = LEVELS.get(node.func.attr)
-    if level is None or not node.args:
-        return None
-    first = node.args[0]
-    if not isinstance(first, ast.Constant) or not isinstance(first.value, str):
-        return None
-    return (node, level) if first.value == message else None
+    return (node, level) if level is not None and node.args else None
+
+
+def carried(tree: ast.Module, shown: str) -> list[tuple[ast.Call, str, str]]:
+    """Every logging call in one module, with the level it prints and the message it carries."""
+    strings, _ = constants(tree)
+    found: list[tuple[ast.Call, str, str]] = []
+    for node in ast.walk(tree):
+        levelled = _levelled(node)
+        if levelled is None:
+            continue
+        call, level = levelled
+        message = _written(call.args[0], strings, shown, call.lineno)
+        if message is not None:
+            found.append((call, level, message))
+    return found
 
 
 def _dynamic_call(node: ast.AST, message: str) -> ast.Call | None:
@@ -204,16 +167,26 @@ def _absent(tree: ast.Module, message: str, shown: str) -> str:
     return f"{shown} logs no message {message!r}"
 
 
-def logged(text: str, message: str, shown: str) -> LogCall:
-    """The one call in ``text`` that logs ``message``, or a fault naming what was found instead."""
-    tree = _parsed(text, shown)
-    found = [call for node in ast.walk(tree) if (call := _message_call(node, message)) is not None]
+def logged(source: str, message: str, shown: str) -> LogCall:
+    """The one call in ``source`` that logs ``message``, or a fault naming what was found."""
+    tree = parsed(source, shown)
+    found = [(call, level) for call, level, written in carried(tree, shown) if written == message]
     if not found:
         raise LogCallError(_absent(tree, message, shown))
     if len(found) > 1:
-        calls = sorted(found, key=lambda pair: pair[0].lineno)
-        lines = ", ".join(str(call.lineno) for call, _ in calls)
+        lines = ", ".join(str(call.lineno) for call, _ in sorted(found, key=lambda p: p[0].lineno))
         msg = f"{shown} logs {message!r} in {len(found)} places (lines {lines})"
         raise LogCallError(msg)
     call, level = found[0]
     return LogCall(line=call.lineno, level=level, fields=_keys(call, shown))
+
+
+def messages(root: Path) -> dict[str, tuple[str, ...]]:
+    """Every message the brain logs, against the repo-relative file whose calls carry it."""
+    found: dict[str, tuple[str, ...]] = {}
+    for module, _, shown in modules(root):
+        tree = parsed(read(module, shown), shown)
+        written = {message for _, _, message in carried(tree, shown)}
+        if written:
+            found[shown] = tuple(sorted(written))
+    return found

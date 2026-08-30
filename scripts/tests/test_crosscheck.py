@@ -1081,7 +1081,7 @@ AUDIT_SUITE = "brain/packages/tools/tests/test_audit.py"
 ASSERTED_WORD = ':tool.invocation "'
 
 DECLARED_UNDER = "the name a sink that named itself declares that name under"
-LOGGER_GUARD = "scripts/tests/test_logcalls.py"
+LOGGER_GUARD = "scripts/tests/test_loggernames.py"
 TOOLS_MODULE = "docs/modules/brain-tools.md"
 
 GUARD_ASK = 'DECLARATION = "_LOGGER_NAME"'

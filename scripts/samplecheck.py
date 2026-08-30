@@ -5,7 +5,8 @@ import sys
 from pathlib import Path
 from typing import NamedTuple
 
-from logcalls import LogCallError, logged, loggers
+from logcalls import LogCallError, logged, messages
+from loggernames import loggers
 from logsamples import Sample, samples
 from skippeddirs import SKIPPED_DIRS
 
@@ -17,6 +18,7 @@ RUNBOOKS = Path("docs/runbooks")
 # side that came back empty has read nothing, and a comparison over nothing cannot fail.
 MIN_SAMPLES = 1
 MIN_LOGGERS = 1
+MIN_MESSAGES = 1
 
 # What a fault says in place of a field list that is empty, a bare pair of quotes being the one
 # rendering a reader cannot tell from a formatting slip.
@@ -41,6 +43,7 @@ class Scan(NamedTuple):
     docs: int
     samples: int
     loggers: int
+    messages: int
     misses: list[Miss]
 
 
@@ -95,10 +98,15 @@ def check(root: Path) -> Scan:
     """Compare every log sample the runbooks print against the call that would print it."""
     try:
         names = loggers(root)
+        written = messages(root)
     except LogCallError as err:
         raise SampleCheckError(str(err)) from err
     if len(names) < MIN_LOGGERS:
         msg = "the brain declares no logger; a comparison over nothing cannot fail"
+        raise SampleCheckError(msg)
+    lines = sum(len(found) for found in written.values())
+    if lines < MIN_MESSAGES:
+        msg = "the brain logs no message; a comparison over nothing cannot fail"
         raise SampleCheckError(msg)
     docs = runbooks(root)
     misses: list[Miss] = []
@@ -113,7 +121,7 @@ def check(root: Path) -> Scan:
     if counted < MIN_SAMPLES:
         msg = f"no log sample under {RUNBOOKS.as_posix()}; a comparison over nothing cannot fail"
         raise SampleCheckError(msg)
-    return Scan(docs=len(docs), samples=counted, loggers=len(names), misses=misses)
+    return Scan(docs=len(docs), samples=counted, loggers=len(names), messages=lines, misses=misses)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -150,7 +158,8 @@ def main(argv: list[str] | None = None) -> int:
     print(
         f"samplecheck OK: {scanned.samples} log sample(s) under {given} in {scanned.docs} "
         f"runbook(s) print the level, logger, message and fields their call sites write, "
-        f"resolved against {scanned.loggers} logger(s) the brain declares"
+        f"resolved against {scanned.loggers} logger(s) the brain declares and the "
+        f"{scanned.messages} message(s) it logs"
     )
     return 0
 

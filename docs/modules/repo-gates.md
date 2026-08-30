@@ -47,7 +47,8 @@ answering the other half of that row, the image the file's last stage stands on 
 row is pulled because a built row never is, and carrying the line joining both readers work
 over, `protocomments.py` is what a proto comment is and how it normalizes into
 the Rust stub's spelling, `logsamples.py` is what a documented log line claims to print and
-`logcalls.py` is what the call writing it really attaches, the two sides `samplecheck.py` holds
+`logcalls.py` is what the call writing it really attaches, with `loggernames.py` answering which
+module owns the logger that line is written under, the two sides `samplecheck.py` holds
 together, `rosters.py` is every roster this repo has written down with `rosternames.py` reading
 what a page's roster names and `rostermembers.py` reading the set it describes, the two sides
 `rostercheck.py` holds together, `scanrecipes.py` is the one of those sets that is not a listing
@@ -679,23 +680,58 @@ that last question to have an answer.
   with the continuation's own comment marker dropped, because that marker would otherwise sit
   between the message and the first field; the fold stops at a fence so a backslash on a block's
   last line cannot swallow the marker that closes it.
-- `logcalls.py` is `samplecheck.py`'s code side and has no CLI. It answers which module owns a
-  logger name and what one call under it puts on its line. It is the one reader here that
+- `logcalls.py` is `samplecheck.py`'s code side and has no CLI. It answers what one call puts on
+  its line, and holds the reading of the brain's source that `loggernames.py` answers the other
+  half over. It is the one reader here that
   **parses** Python rather than matching it: an `extra=` dict spans five lines at the failed
   settle, and a brace counter written to follow that is a Python parser with the corners missing.
   `ast` executes nothing, so the seam ADR-0009 declined to open, an import of the brain from
-  `scripts/`, stays shut. Logger names are collected from every spelling the brain uses,
+  `scripts/`, stays shut. A **message** is read in either spelling a module writes it in, written
+  out at the call or handed to it by name, since the formatter renders the string and never the
+  expression that carried it, so a page quoting the line cannot tell which the module wrote. A
+  reader knowing only a literal said that the tool audit and the deep tier's spill watch log no
+  such message, which is a fault about the document where the code is the thing that moved, and it
+  fell on exactly the sinks a runbook has most reason to quote (ADR-0009 handed-message addendum).
+  A bare name is resolved against that module's own top level, by `moduleconstants.py`, and nothing
+  wider: a name from an import stays unmatched rather than chased, chasing one being the import
+  this tree may not make, and a message assembled at the call is not one a page could quote at all.
+  A module that binds a string **and** writes it again as the message of a log call is refused, the
+  fault naming every binding of it, for the reason the one-name rule beside it gives: only the
+  declaration is what the constant registry ties documents to, so the day the literal moves alone
+  those documents restate a word the brain no longer writes (ADR-0009 one-message addendum). The
+  domain is a log call's message rather than a name, which is what keeps the rule off a module
+  that binds a sentence for a model to read and happens to log the same words. That rule runs over
+  the whole tree rather than over the modules a sample names: `messages` walks every package's
+  `src/` and `samplecheck.py` calls it beside the loggers, so a doubled spelling is refused the day
+  it is written rather than the day a runbook quotes that line. Only each package's `src/` is
+  walked, a package's tests sitting beside it. Fields come back sorted, which is not this reader
+  rearranging an answer but restating `render_fields`, whose sort is what makes the printed order
+  a function of the key set. A message no call logs, a message logged twice, an `extra=` that is
+  not a literal mapping and a key that is not a plain string are each reported rather than shrugged
+  at, a shrug being how a gate hands itself an empty answer and calls the document right. One shape
+  is refused **by name**: `logger.log(level, message, ...)` takes its level from a variable, which
+  the model host's request failure does, so there is no level a sample could be held to, and saying
+  that beats reporting a message the module visibly writes as one it does not.
+- `loggernames.py` is the other half of that reader and has no CLI. It answers which module owns a
+  logger name, standing on `logcalls.py`'s walk of the brain's source, and it split off that
+  module when teaching the message side its second spelling brought the file to the line cap, along
+  the seam its own docstring had drawn from the day it landed. Logger names are collected from every
+  spelling the brain uses,
   `getLogger(__name__)` resolving to the module's own dotted path (a package barrel claiming the
   package name), a literal being the name itself, which is the spelling no module here writes any
   more and which stays read because such a call is legal Python, and a bare identifier being a name
   the same module bound above the call, which is how both self-named sinks name themselves now that
   documents restate those names and the constant registry ties them to the declarations (ADR-0038
-  named-logger and ADR-0009 audit-logger addenda). A module that binds a name **and** writes the
+  named-logger and ADR-0009 audit-logger addenda). The third spelling is resolved against that
+  module's own top level, by `moduleconstants.py`, and nothing wider: a name imported from
+  elsewhere is refused with the name in the fault rather than chased, chasing one being the import
+  this tree may not make. A name two files claim is a fault.
+  A module that binds a name **and** writes the
   same string inside the call is refused, the fault naming every binding of it, because only the
   declaration is what the registry ties documents to and two spellings of one name are one edit away
   from documents tied to a name nothing writes (ADR-0009 one-name addendum). A module binding a
   logger name it does not pass is not reached by that rule, which sees two names rather than one
-  spelled twice; what refuses it is this reader's own guard in `tests/test_logcalls.py`, which
+  spelled twice; what refuses it is this reader's own guard in `tests/test_loggernames.py`, which
   reads the self-named sinks off the tree, a logger that is not its module's dotted path being one
   by construction, and holds that set equal to the names brain modules bind under `_LOGGER_NAME`.
   Comparing two readings as sets holds every direction at once: a call passing another name, a
@@ -707,19 +743,7 @@ that last question to have an answer.
   derived-sink addendum). That rule is a claim about this brain rather than about reading Python,
   which is why it sits in the suite and not in this reader: a reader refusing a bare literal would
   legislate over every fixture tree it walks, where what its own paragraph on that spelling is
-  against is losing a logger in silence rather than reading one written legally. The third
-  spelling is resolved against that
-  module's own top level, by `moduleconstants.py`, and nothing wider: a name imported from
-  elsewhere is refused with the name in the fault rather than chased, chasing one being the import
-  this tree may not make. A name two files claim is a fault. Only each package's `src/` is walked,
-  a package's tests sitting beside it. Fields come back sorted, which is not this reader
-  rearranging an answer but restating `render_fields`, whose sort is what makes the printed order
-  a function of the key set. A message no call logs, a message logged twice, an `extra=` that is
-  not a literal mapping and a key that is not a plain string are each reported rather than shrugged
-  at, a shrug being how a gate hands itself an empty answer and calls the document right. One shape
-  is refused **by name**: `logger.log(level, message, ...)` takes its level from a variable, which
-  the model host's request failure does, so there is no level a sample could be held to, and saying
-  that beats reporting a message the module visibly writes as one it does not.
+  against is losing a logger in silence rather than reading one written legally.
 - `rostercheck.py [--root DIR]` holds every roster a document keeps to the set it describes
   (ADR-0003 live-roster addendum and ADR-0029 roster-membership addendum). A **roster** is a list
   of names a page keeps for something the tree really holds: the `#[ignore]`d checks in the body's

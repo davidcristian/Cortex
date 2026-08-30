@@ -11,7 +11,7 @@ AUDIT_SUITE = "brain/packages/tools/tests/test_audit.py"
 CONFIG_LOGGING = "brain/packages/orchestrator/src/cortex_orchestrator/config_logging.py"
 CONFIG_LOGGING_SUITE = "brain/packages/orchestrator/tests/test_config_logging.py"
 TRAIL_READER = "scripts/trailwidth.py"
-LOGGER_GUARD = "scripts/tests/test_logcalls.py"
+LOGGER_GUARD = "scripts/tests/test_loggernames.py"
 
 GATES_MODULE = "docs/modules/repo-gates.md"
 LOCAL_DEV_RUNBOOK = "docs/runbooks/local-dev-wsl.md"
