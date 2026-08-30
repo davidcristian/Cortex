@@ -26,6 +26,11 @@ def tail(prompt: str, ask: str) -> str | None:
     return rest if found else None
 
 
+def marked(rendered: str) -> bool:
+    """Whether ``rendered`` carries a thought marker of either family this reader knows."""
+    return any(marker in rendered for pair in MARKERS for marker in pair)
+
+
 def closes(rendered: str) -> bool:
     """Whether the last thought marker in ``rendered`` is a closing one."""
     opened = max(rendered.rfind(opener) for opener, _ in MARKERS)
@@ -34,11 +39,7 @@ def closes(rendered: str) -> bool:
 
 
 def _tails(probe: Probe, lines: list[str]) -> bool | None:
-    """Report both renderings, and answer whether the switched one closes the thought.
-
-    ``None`` is a rendering this reader cannot place: one that does not carry the ask the same
-    sample says was sent, and whose tail therefore cannot be found.
-    """
+    """Report both renderings, and answer whether the switched one closes the thought."""
     lines.append("  the rendering, taken after the ask itself:")
     found: dict[bool, str] = {}
     for switch in (False, True):
@@ -55,6 +56,13 @@ def _tails(probe: Probe, lines: list[str]) -> bool | None:
     plain, switched = probe.prompt(switch=False), probe.prompt(switch=True)
     reads = "reads" if plain != switched else "IGNORES"
     lines.append(f"    the template {reads} the key ({len(plain)} chars against {len(switched)})")
+    if not marked(found[True]) and found[True] != found[False]:
+        lines.append(
+            "  refused: the switched tail carries no marker of either family here and is not the"
+            " tail this template renders with the key left alone, so it answered in a third"
+            " spelling and whether that thought is closed is a word this reader does not have"
+        )
+        return None
     return closes(found[True])
 
 
