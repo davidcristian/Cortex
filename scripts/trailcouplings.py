@@ -3,12 +3,14 @@
 One of the data files `crosscheck.py` reads as a single registry, split off `logcouplings.py` when
 the recall trail's logger brought that file to the 300-line cap, along the seam its docstring had
 drawn from the day the first two of these landed. Five of the entries there are the name one work
-identity rides under, wherever in the brain a line names it; these five are about a single line on
-a single stream. The recall trail's three come first, ordered the way one of its lines renders: the
-logger it is written through, the message it opens with, and the field whose width is the subject
-of everything that reads it. The tool audit's logger and message follow, two words rather than
-three: that trail has no reader outside the brain and no field of its own to measure, and the
-identities its line carries are next door under the log vocabulary.
+identity rides under, wherever in the brain a line names it; the first five here are about a single
+line on a single stream. The recall trail's three come first, ordered the way one of its lines
+renders: the logger it is written through, the message it opens with, and the field whose width is
+the subject of everything that reads it. The tool audit's logger and message follow, two words
+rather than three: that trail has no reader outside the brain and no field of its own to measure,
+and the identities its line carries are next door under the log vocabulary. The sixth is a word of
+another kind, an identifier rather than anything a line prints, and the paragraph on the derived
+guard below says why it belongs beside these rather than in a part of its own.
 
 **Why a logger name needs the gate, and why it has a declaration to be held to.** The name is what
 an operator selects this trail by on a stream carrying every other line the brain writes, and it is
@@ -89,14 +91,22 @@ is registered rather than left to be noticed.** `getLogger(_LOGGER_NAME)` and
 `_logger.info(_MESSAGE, ...)` say nothing about the string they carry, so a sink binding one name
 and passing a different literal is two names rather than one spelled twice, which is the shape the
 one-name rule in `logcalls.py` sees and lets through. That state is not green, which was measured
-rather than assumed: the gate suite's own guard on this reader's fixtures asserts that the brain
-declares each of these two loggers in the file that declares it, so a renamed call is a `KeyError`
-there, and each sink's package suite asserts a whole rendered line, so a renamed call or a renamed
-message is a dozen reds beside it. Both were holding it by accident, neither saying so. So the two
-loggers carry a mention on that guard and the audit message one on the assertion its own suite
-makes, which turns a property held by two accidents into one the scan names, and makes deleting
-either loud rather than silent. What that does not reach is written down beside it: the guard names
-these two sinks by hand (ADR-0009 declared-name addendum).
+rather than assumed: the gate suite carries a guard on the sinks' own declarations, and each sink's
+package suite asserts a whole rendered line, so a renamed call or a renamed message is a dozen reds
+beside it. All of them were holding it by accident, none saying so. So the audit message carries a
+mention on the assertion its own suite makes, which turns a property held by an accident into one
+the scan names (ADR-0009 declared-name addendum).
+
+**The sixth entry is what the two loggers carry instead, and it is one entry rather than one
+apiece.** That guard used to look each of these two names up by hand, so each logger was tied to
+the spelling of its own lookup and a third self-named sink was held by nothing at all. It now reads
+the self-named sinks out of the tree, a logger that is not its module's dotted path being one by
+construction, and asks each of those modules for the name it binds its logger under. So there is no
+logger name in the guard left to tie, and what is worth tying is the naming the derivation is read
+by, which is one word for every sink there will ever be (ADR-0009 derived-sink addendum). It sits
+in this part because the sinks it is about are the two this part is about, and because what it
+guards is the same sentence the two logger entries above make: that the name the documents restate
+is the name the brain writes through.
 
 **What is deliberately not here** is the ADR that argued all three. Its pages quote whole rendered
 lines as evidence of a run on a day, and this repo holds that a dated transcript is a record of the
@@ -120,6 +130,7 @@ GATES_MODULE = "docs/modules/repo-gates.md"
 LOCAL_DEV_RUNBOOK = "docs/runbooks/local-dev-wsl.md"
 MEMORY_MODULE = "docs/modules/brain-memory.md"
 MEMORY_RUNBOOK = "docs/runbooks/memory-pgvector.md"
+TOOLS_MODULE = "docs/modules/brain-tools.md"
 TOOLS_RUNBOOK = "docs/runbooks/tools-mcp.md"
 
 # How the sink writes the field a line carries: a string key opening an ``extra=`` dict. The same
@@ -133,11 +144,16 @@ FIELD_KEY = '"{value}":'
 # through, so a bare needle would go on being found there after the message it names had moved.
 TRAIL_CALL = '_logger.info("{value}"'
 
-# How the gate suite's guard says the brain declares one of these loggers: by looking the name up
-# among the ones `logcalls.py` reads off the tree. That lookup is what a sink passing a different
-# literal fails, since the reader answers with the name the CALL carries, so this needle is the one
-# far side that holds a declaration to the call handed it.
-DECLARED_LOGGER = 'names["{value}"]'
+# How a sink writes the declaration the guard next door goes looking for: the assignment itself,
+# which is where the identifier a `getLogger` call is handed is spelled the second time. The needle
+# carries the quote that opens the value, so a module spending the same word in prose is not one of
+# these places.
+DECLARED_NAME = '{value} = "'
+
+# How a module contract names that same identifier: in the sentence saying the sink declares its
+# logger there rather than inside the call. Both contracts write it, each having to explain why its
+# sink is spelled the way it is, and neither could reach the identifier by any import.
+CONTRACT_NAME = "the module as `{value}`"
 
 # How a sink's own suite spells the message its call really passed: the colon the stdlib's format
 # puts in front of it and the quote closing the literal, the fields following on the line below.
@@ -156,18 +172,15 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
             "runbook names it among the two per-line trails a deployment can raise or lower on "
             "its own, and the module contract states what the sink writes; a rename in the sink "
             "alone leaves all three instructing a reader about a logger nothing writes through "
-            "(ADR-0038 named-logger addendum); the fourth place restates nothing and is the one "
-            "holding this declaration to the call handed it, the gate suite's guard asserting "
-            "that the brain declares this logger in this sink, which a call passing another "
-            "literal fails and which nothing said was load bearing (ADR-0009 declared-name "
-            "addendum)"
+            "(ADR-0038 named-logger addendum); what holds this declaration to the call handed it "
+            "is the guard the sixth entry below is about, which names no sink and so restates "
+            "nothing here (ADR-0009 derived-sink addendum)"
         ),
         sites=(Site(RECALL_SINK, "_LOGGER_NAME"),),
         mentions=(
             Mention(MEMORY_RUNBOOK, "one `{value}` line per"),
             Mention(LOCAL_DEV_RUNBOOK, "the recall trail (`{value}`, behind"),
             Mention(MEMORY_MODULE, "`{value}` line per recall,"),
-            Mention(LOGGER_GUARD, DECLARED_LOGGER),
         ),
     ),
     Constant(
@@ -218,10 +231,9 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
             "runbooks telling an operator to select a trail nothing writes, one module arguing "
             "about the level of a logger that no longer exists, and one suite demonstrating the "
             "argument on a name the brain abandoned, all four green (ADR-0009 audit-logger "
-            "addendum); the fifth place restates nothing and is the one holding this declaration "
-            "to the call handed it, the gate suite's guard asserting that the brain declares this "
-            "logger in this sink, which a call passing another literal fails and which nothing "
-            "said was load bearing (ADR-0009 declared-name addendum)"
+            "addendum); what holds this declaration to the call handed it is the guard the sixth "
+            "entry below is about, which names no sink and so restates nothing here (ADR-0009 "
+            "derived-sink addendum)"
         ),
         sites=(Site(AUDIT_SINK, "_LOGGER_NAME"),),
         mentions=(
@@ -230,7 +242,6 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
             Mention(CONFIG_LOGGING, "audit trail (``{value}``,"),
             Mention(CONFIG_LOGGING_SUITE, 'getLogger("{value}").info'),
             Mention(CONFIG_LOGGING_SUITE, '== "INFO:{value}:'),
-            Mention(LOGGER_GUARD, DECLARED_LOGGER),
         ),
     ),
     Constant(
@@ -255,6 +266,30 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
             Mention(CONFIG_LOGGING_SUITE, '.info("{value}", extra='),
             Mention(CONFIG_LOGGING_SUITE, ':{value} tool=read"'),
             Mention(AUDIT_SUITE, ASSERTED_MESSAGE),
+        ),
+    ),
+    Constant(
+        label="the name a sink that named itself declares that name under",
+        why=(
+            "the guard holding these declarations to the calls handed them reads WHICH sinks are "
+            "self-named out of the tree, a logger that is not its module's dotted path being one "
+            "by construction, and then asks each of those modules for this one name, so the "
+            "naming is what the derivation is read by and the guard, both sinks and any third "
+            "have to keep spelling it alike (ADR-0009 derived-sink addendum); a sink that renames "
+            "it reddens the guard as well as this entry, and what nothing else would notice is "
+            "the guard itself going away, which takes the whole derivation with it and leaves the "
+            "two declarations above tied to the documents restating them and to nothing at all "
+            "saying the brain still writes through them; both module contracts name the "
+            "identifier too, each explaining why its sink is spelled this way, and a rename that "
+            "moved only the sinks would leave the pair of them pointing at a binding neither "
+            "module makes"
+        ),
+        sites=(Site(LOGGER_GUARD, "DECLARATION"),),
+        mentions=(
+            Mention(AUDIT_SINK, DECLARED_NAME),
+            Mention(RECALL_SINK, DECLARED_NAME),
+            Mention(TOOLS_MODULE, CONTRACT_NAME),
+            Mention(MEMORY_MODULE, CONTRACT_NAME),
         ),
     ),
 )

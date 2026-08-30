@@ -12,8 +12,16 @@ from pathlib import Path
 import pytest
 
 import logcalls
+from moduleconstants import constants, parse
+from skippeddirs import SKIPPED_DIRS
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+
+# The name a self-named sink binds its logger under, and the one thing the guard at the end of
+# this file spells: WHICH sinks are self-named is read out of the tree rather than listed. The
+# constant registry ties this to the sinks that write it, so the guard cannot be deleted in
+# silence and a sink cannot rename its declaration away from the guard asking for it.
+DECLARATION = "_LOGGER_NAME"
 
 SETTLE = '''\
 """A miniature of the settler."""
@@ -320,27 +328,73 @@ def test_a_spread_into_extra_is_a_fault_rather_than_a_short_answer() -> None:
 # ── the brain this reader is written for ───────────────────────────────────────
 
 
-def test_the_committed_brain_declares_both_spellings_a_logger_is_claimed_in() -> None:
-    """A guard on the fixtures, and the one place a sink's declaration meets the call handed it.
+def declarations(root: Path) -> dict[str, str]:
+    """Every logger name a brain module binds under ``DECLARATION``, against the file binding it.
 
-    Every module but two names its logger ``__name__``, and both self-named sinks now bind the
-    name above the call so that the constant registry has a declaration to tie the documents
-    restating it to. The literal a sink used to spell inside the call is the spelling this brain
-    no longer writes, kept read for the reason the fixture for it states.
-
-    The second job is why the two names below are registered couplings rather than fixture text.
-    ``loggers`` answers with the name the CALL carries, so a sink that binds one name and passes
-    a different literal, which the one-name rule sees as two names rather than one spelled twice,
-    fails these lookups with a ``KeyError``. That is the whole of what holds a declaration to its
-    call, and it held it silently until the constant registry tied each of these spellings to the
-    ``_LOGGER_NAME`` it is asserting about (ADR-0009 declared-name addendum). Both names are
-    written out by hand here, so a third sink named this way is guarded by nothing until it is
-    added.
+    A second walk of the tree ``loggers`` already walks, deliberately: the guard below compares
+    the two answers, so a walk here that stopped finding modules comes back empty against a set
+    that is not, rather than agreeing with itself about a tree neither of them read.
     """
-    names = logcalls.loggers(REPO_ROOT)
-    assert names["cortex_core.swap_settle"].endswith("cortex_core/swap_settle.py")
-    assert names["cortex.tools.audit"].endswith("cortex_tools/audit.py")
-    assert names["cortex.memory.recall"].endswith("cortex_memory/audit.py")
+    found: dict[str, str] = {}
+    for package in sorted((root / logcalls.BRAIN_PACKAGES).iterdir()):
+        source = package / logcalls.SOURCE_DIR
+        if not source.is_dir():
+            continue
+        for module in sorted(source.rglob("*.py")):
+            if SKIPPED_DIRS & set(module.relative_to(source).parts):
+                continue
+            shown = module.relative_to(root).as_posix()
+            strings, _ = constants(parse(module, shown))
+            if (name := strings.get(DECLARATION)) is not None:
+                found[name] = shown
+    return found
+
+
+def self_named(root: Path) -> dict[str, str]:
+    """Every logger the brain writes through under a name that is not its module's own.
+
+    Read off the call rather than off any declaration: ``loggers`` answers with the name the CALL
+    carries, whichever of the three spellings it carries it in, so a name that is not the dotted
+    path of the module writing it is a sink that chose its own, however it chose it.
+    """
+    found: dict[str, str] = {}
+    for name, shown in logcalls.loggers(root).items():
+        inside = shown.split(f"/{logcalls.SOURCE_DIR}/", 1)[1]
+        if name != logcalls.dotted(Path(inside)):
+            found[name] = shown
+    return found
+
+
+def test_every_self_named_sink_binds_the_name_its_own_call_is_handed() -> None:
+    """The one place a sink's declaration meets the call handed it, over whatever the tree holds.
+
+    Every module but a couple names its logger ``__name__``. A sink that names itself does so
+    because its lines are read as a trail, which is why documents restate that name, which is why
+    the name is a declaration for the constant registry to tie them to. Neither half of that says
+    the sink passes what it declares: ``getLogger(_LOGGER_NAME)`` carries an identifier, so a
+    module binding one name and passing another is two names rather than one spelled twice, which
+    is the shape the one-name rule sees and lets through (ADR-0009 declared-name addendum).
+
+    Comparing the two readings as SETS is what holds every direction of that at once, and holds
+    them for a sink written tomorrow rather than for the two written down. A sink that passes
+    another name is a self-named logger this brain declares nowhere; one that declares a name it
+    stops passing is a declaration the documents are still tied to and nothing writes; one that
+    names itself with a bare literal has no declaration to tie them to at all; and one that binds
+    its name under some other identifier is outside the naming the left-hand set is read by, which
+    is the shape a derived rule has to hold rather than assume (ADR-0029 addendum on the naming a
+    derived set is read out of). Each is one set carrying a pair the other does not.
+
+    The non-emptiness beside it is what keeps the comparison from passing on two empty answers,
+    and it is also the guard on the fixtures above: a brain where no sink named itself would make
+    both of the spellings they exercise fiction.
+    """
+    sinks = self_named(REPO_ROOT)
+    assert sinks, "no sink in this brain names its own logger, so the fixtures above are fiction"
+    assert declarations(REPO_ROOT) == sinks, (
+        f"a sink that names its own logger binds that name as {DECLARATION} and hands the binding "
+        f"to its own getLogger call; on the left is what the brain declares that way and on the "
+        f"right what its calls really pass"
+    )
 
 
 def test_the_real_settler_attaches_the_three_fields_its_runbook_prints() -> None:

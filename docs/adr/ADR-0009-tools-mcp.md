@@ -3600,3 +3600,131 @@ remembers to add a line, where `flagcheck.py` next door derives its set from the
 The one-name rule still reaches a logger's call and stops one word short of a message's, which is
 untouched here and stays its own question about a module's own text
 ([R-490](../refinements/tasks/490-a-declared-log-message-may-be-spelled-again-in-the-call-that-logs-it.md)).
+
+## Derived-sink addendum (2026-08-30): the guard reads its sinks off the tree
+
+The addendum above ends by naming what it left: the guard holding a sink's declaration to the call
+handed it looked up two logger names by hand, so a third self-named sink was held by nothing until
+somebody remembered to add a line. That is the shape the ADR-0029 addendum on deriving the set a
+rule runs over is against, and the shape `flagcheck.py` next door already answers by deriving its
+servers from the stack's own wiring. The entry asking for this asked for three things to be weighed
+before anything was built, and all three are decided below on what the tree does.
+
+### Re-derived first, and the premise held in both directions
+
+A third self-named sink was written into the committed brain, a module binding `_LOGGER_NAME` and
+handing `getLogger` a different literal, which is the exact fault the two hand-written lookups
+exist to catch on the sinks they name. The gate suite passed, `check-crosscheck` passed, and
+`check-samplecheck` passed, reporting one more logger than before and asking nothing about it. The
+same probe written the other way, binding the name under `_TRAIL_NAME` and passing that, is equally
+green. So the entry is right about its own subject: what holds two sinks holds two sinks.
+
+### Decision 1: two readings compared as sets, which holds every direction at once
+
+`logcalls.loggers` already answers with the name the **call** carries, against the file carrying it.
+A sink that named itself is therefore a logger that is not its own module's dotted path, which is a
+reading of the tree rather than a list. The other reading is what the modules themselves bind under
+`_LOGGER_NAME`, walked out of the same packages. The guard holds the two dictionaries equal.
+
+That single comparison is what covers the four shapes a hand-written lookup could not:
+
+- A call passing another name is a self-named logger the brain declares nowhere.
+- A declaration the call stopped passing, `getLogger(__name__)` beside a live `_LOGGER_NAME`, is a
+  declaration the documents are still tied to and nothing writes through. The hand pair caught this
+  one; a guard deriving only the first direction would not, which is why the comparison is an
+  equality and not a containment.
+- A sink naming itself with a bare literal has no declaration for the registry to tie documents to,
+  and is now told so on the day it is written rather than when a document quotes it.
+- A sink binding its name under some other identifier falls outside the naming the first set is
+  read by, which is the circularity the ADR-0029 addendum on that question warns about: a rule
+  whose domain is the convention it checks cannot fail for the misspelling it exists to catch. The
+  domain here is structural, "a logger that is not its module's path", and the convention is what
+  the rule then asks for, so the misspelling is a red.
+
+### Decision 2: it belongs in the suite, and not in `logcalls.py`
+
+The entry asked this first, since a rule in the reader would arrive with the split its docstring
+draws, that file standing at exactly the line cap. The split is not what decides it. `logcalls.py`
+is a reader of any tree, and its one existing rule, that a module may not spell one logger name
+twice, is about an ambiguity in the reading itself: two spellings leave the registry no single
+declaration to tie documents to. Nothing about `getLogger("cortex.x")` is ambiguous, so refusing it
+would not be the reader answering better. It would be the reader legislating this brain's naming
+over every fixture tree it walks, and the fixture it would break first is the one written a slice
+ago to keep a bare literal readable, whose argument is that losing a logger in silence is worse
+than a spelling nothing exercises. Refusing loudly answers that argument, which is why the rule is
+worth having somewhere; it does not answer why a reader should carry it. The claim is about the
+committed brain, so it sits with the other claims about the committed brain, in the section of
+`scripts/tests/test_logcalls.py` written for them, where the guard it replaces already lived.
+
+### Decision 3: what the registry ties is the naming, not a sink
+
+The entry's third question was whether a derived guard leaves the registry a spelling to tie the
+documents to. It does, and it was never the guard's: the documents are tied to `_LOGGER_NAME` in
+each sink, which has not moved. What the guard's two literals gave the registry was a different
+thing, a far side that made deleting or retargeting the guard loud, and a derived guard spells no
+logger name for such a needle to hold.
+
+So the two logger entries drop their mention of the guard and a sixth entry is added beside them
+whose value is the identifier `_LOGGER_NAME` itself: declared by the guard, which is the file that
+has to spell the naming it reads its set by, and spent by both sinks and by both module contracts,
+each of which already explains why its sink declares the name rather than writing it in the call.
+One entry now covers every self-named sink there will ever be, where the old pair covered exactly
+the two it named. The registry refuses an entry whose places are all one language, and the two
+contracts are what make this one a coupling rather than a Python file agreeing with itself; both
+sentences predate this change, so nothing here was written in order to be gated.
+
+### What this does not reach, deliberately
+
+A module that declared its own dotted path as `_LOGGER_NAME` and passed it would be read as
+module-named by the first set and as a declaration by the second, and would go red. That is the
+right answer rather than a false one: a module whose logger is its own path writes `__name__`, and
+a brain that started restating paths would be spelling in a constant what the language already
+says.
+
+### Distrust green
+
+Eight mutations and a control, each applied alone to the committed tree, measured over the **gate
+suite** (`scripts/tests/`), 1,453 checks before this change and 1,455 after, with
+`check-crosscheck` run beside it. The two count columns are the whole argument: the first four rows
+are what the property was worth before and after, and the last three are what the new needle holds.
+
+| Mutation | before | after | `check-crosscheck` |
+| --- | --- | --- | --- |
+| CONTROL: nothing edited | 0 | 0 | passes |
+| the audit sink passes a logger literal beside its declaration | **1** | **1** | passes |
+| the recall sink stops passing the name it declares | **1** | **1** | passes |
+| a third self-named sink names itself in the call | 0 | **1** | passes |
+| a third self-named sink binds its name under another identifier | 0 | **1** | passes |
+| GATE: the guard stops asking for the declaration | n/a | **12** | **fails** |
+| GATE: the two sink mentions are dropped from that entry | n/a | **1** | passes |
+| GATE: the two contract mentions are dropped from that entry | n/a | **2** | passes |
+
+Rows two and three are the property the old pair held, held identically by the new guard, which is
+the floor a replacement has to clear before anything else counts. Rows four and five are what the
+entry was about, and they are the whole of what this change buys: zero to one, on a sink nobody has
+written yet, in both of the shapes such a sink can be written wrong.
+
+Row six is the naming, and its count is large for a reason worth reading rather than counting: the
+guard's own assertion reddens, and so does every test that copies or scans the real tree, the entry
+having lost all four of its needles at once. Rows seven and eight are those needles measured
+apart, and eight carries a second red beside its own test, the registry's rule that an entry's
+places may not all be one language, which is what the module contracts are doing in this entry.
+
+### Consequences
+
+- A self-named sink written tomorrow is held to declaring its logger and passing that declaration,
+  the day it is written, with no line to remember to add.
+- The constant registry stands at 79 entries over 89 declaring sites and 265 mentions, in twelve
+  parts. One of them ties an identifier rather than a value a line carries, which is new: what a
+  derived rule reads its set by is a spelling several places have to share like any other.
+- A gate suite's guard can be the right home for a rule about the tree. The reader it sits beside
+  answers questions about any tree, and the difference between the two is what decided where this
+  went.
+
+### Deferred by this addendum
+
+The sink's declared message is where the logger was: `_MESSAGE` is held to the call handed it by
+one registered assertion in one package suite, named by hand, and a second sink declaring a message
+would be held by nothing. The derivation that closed the logger half has no reader behind it there,
+`logcalls.logged` matching a call whose first argument is a literal
+([R-503](../refinements/tasks/503-a-declared-log-message-is-held-to-its-call-by-one-hand-named-assertion.md)).

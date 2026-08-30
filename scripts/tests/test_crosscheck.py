@@ -1136,16 +1136,25 @@ LEVEL_SUITE = "brain/packages/orchestrator/tests/test_config_logging.py"
 SINK_WORD = '_MESSAGE = "tool.invocation"'
 ASSERTED_LINE = "INFO:cortex.tools.audit:tool.invocation tool=read"
 
-# The two far sides that restate nothing: the gate suite's guard, which asserts that the brain
-# declares each self-named logger in the sink that declares it, and the audit sink's own suite,
-# which asserts the whole rendered line. Three of these entries are handed to their call as an
-# identifier, and these two files are where the value the call really passed is written down.
-LOGGER_GUARD = "scripts/tests/test_logcalls.py"
+# The far side that restates nothing: the audit sink's own suite, which asserts the whole rendered
+# line. Three of these entries are handed to their call as an identifier, which says nothing about
+# the string it carries, and this file is where the value the call really passed is written down.
 AUDIT_SUITE = "brain/packages/tools/tests/test_audit.py"
 
-GUARDED_AUDIT = 'names["cortex.tools.audit"]'
-GUARDED_RECALL = 'names["cortex.memory.recall"]'
 ASSERTED_WORD = ':tool.invocation "'
+
+# The sixth entry in that part, whose subject is an identifier rather than a word a line prints.
+# The gate suite's guard holds every self-named sink's declaration to the call handed it, reading
+# WHICH sinks those are off the tree, so the one thing it spells is the naming that derivation is
+# read by. Both sinks bind it and both module contracts name it, each explaining why its sink is
+# spelled that way.
+DECLARED_UNDER = "the name a sink that named itself declares that name under"
+LOGGER_GUARD = "scripts/tests/test_logcalls.py"
+TOOLS_MODULE = "docs/modules/brain-tools.md"
+
+GUARD_ASK = 'DECLARATION = "_LOGGER_NAME"'
+SINK_DECLARATION = '_LOGGER_NAME = "'
+CONTRACT_DECLARATION = "the module as `_LOGGER_NAME`"
 
 
 def registered(label: str) -> couplings.Constant:
@@ -1397,35 +1406,60 @@ def test_the_audit_loggers_needles_hold_over_the_files_they_name(tmp_path: Path)
     assert crosscheck.check_constant(tmp_path, constant) == []
 
 
-def test_a_guard_that_stops_naming_the_audit_logger_is_a_fault(tmp_path: Path) -> None:
-    """What registering the guard buys, and it is the whole of what this needle is for.
+def test_the_declarations_needles_hold_over_the_files_they_name(tmp_path: Path) -> None:
+    """The copy with nothing edited is green, so every red below is the edit and not the copy."""
+    constant = registered(DECLARED_UNDER)
+    copied(tmp_path, constant, {})
+    assert crosscheck.check_constant(tmp_path, constant) == []
 
-    The sink hands `_LOGGER_NAME` to `getLogger`, and an identifier says nothing about the string
+
+def test_a_guard_that_stops_asking_for_the_declaration_is_a_fault(tmp_path: Path) -> None:
+    """What registering the derived guard buys, and why it is one entry rather than one per sink.
+
+    Each sink hands `_LOGGER_NAME` to `getLogger`, and an identifier says nothing about the string
     it carries, so a call passing a different literal is two names rather than one spelled twice
-    and the one-name rule lets it through. What refuses it is this guard, which looks the declared
-    name up among the ones the reader finds on the tree and gets a `KeyError` when the call
-    carries another: that is a property nothing said the guard held, and a guard rewritten to
-    assert about the sinks rather than about these names would have taken it away in silence.
+    and the one-name rule lets it through. What refuses it is a guard that reads which sinks named
+    themselves off the tree and asks each of those modules for this one binding, which spells no
+    logger name at all: what a needle can hold is the naming the derivation is read by, and a
+    guard that stopped asking for it, or went away taking the whole derivation with it, leaves
+    both loggers tied to the documents restating them and to nothing saying the brain still
+    writes through them.
     """
-    constant = registered(AUDIT_LOGGER)
-    copied(tmp_path, constant, {LOGGER_GUARD: (GUARDED_AUDIT, 'names["cortex.tools.other"]')})
+    constant = registered(DECLARED_UNDER)
+    copied(tmp_path, constant, {LOGGER_GUARD: (GUARD_ASK, 'DECLARATION = "_TRAIL_NAME"')})
     faults = crosscheck.check_constant(tmp_path, constant)
-    assert [fault.label for fault in faults] == [AUDIT_LOGGER]
-    assert LOGGER_GUARD in faults[0].detail
+    assert {fault.label for fault in faults} == {DECLARED_UNDER}
+    assert {fault.detail.split()[0] for fault in faults} == {
+        mention.path for mention in constant.mentions
+    }
 
 
-def test_a_guard_that_stops_naming_the_recall_logger_is_a_fault(tmp_path: Path) -> None:
-    """The same needle on the trail next door, whose sink declares and passes its name alike.
+def test_a_sink_that_renames_its_declaration_alone_is_a_fault(tmp_path: Path) -> None:
+    """The half a rename really moves: a sink binding its logger under some other identifier.
 
-    It is worth its own test rather than being read off the entry above: this guard names both
-    self-named sinks in one assertion each, and a rule holding one of the two would leave the
-    other exactly as unheld as before while the tree read as if it were covered.
+    The guard reddens on that too, the sink falling out of the naming it reads its set by, and
+    this needle is what says the two module contracts explaining the spelling moved with it.
     """
-    constant = registered(TRAIL_LOGGER)
-    copied(tmp_path, constant, {LOGGER_GUARD: (GUARDED_RECALL, 'names["cortex.memory.other"]')})
+    constant = registered(DECLARED_UNDER)
+    copied(tmp_path, constant, {AUDIT_SINK: (SINK_DECLARATION, '_TRAIL_NAME = "')})
     faults = crosscheck.check_constant(tmp_path, constant)
-    assert [fault.label for fault in faults] == [TRAIL_LOGGER]
-    assert LOGGER_GUARD in faults[0].detail
+    assert [fault.label for fault in faults] == [DECLARED_UNDER]
+    assert AUDIT_SINK in faults[0].detail
+
+
+def test_a_contract_naming_a_binding_its_sink_does_not_make_is_a_fault(tmp_path: Path) -> None:
+    """The other needle shape, and the far side no import could reach at all.
+
+    Each contract explains why its sink declares the name rather than spelling it in the call,
+    which is a sentence that stops being true of the module it is about the moment the identifier
+    moves, and is exactly the kind of place nothing but this scan reads.
+    """
+    constant = registered(DECLARED_UNDER)
+    moved = (CONTRACT_DECLARATION, "the module as `_TRAIL_NAME`")
+    copied(tmp_path, constant, {MEMORY_MODULE: moved})
+    faults = crosscheck.check_constant(tmp_path, constant)
+    assert [fault.label for fault in faults] == [DECLARED_UNDER]
+    assert MEMORY_MODULE in faults[0].detail
 
 
 def test_an_audit_suite_asserting_another_word_before_its_fields_is_a_fault(
