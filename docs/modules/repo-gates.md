@@ -743,7 +743,11 @@ that last question to have an answer.
   rearranging an answer but restating `render_fields`, whose sort is what makes the printed order
   a function of the key set. A message no call logs, a message logged twice, an `extra=` that is
   not a literal mapping and a key that is not a plain string are each reported rather than shrugged
-  at, a shrug being how a gate hands itself an empty answer and calls the document right. One shape
+  at, a shrug being how a gate hands itself an empty answer and calls the document right. The
+  mapping rule is also what decides which lines a runbook may print: a call whose fields are
+  composed above it, meaning the spill watch's two number-carrying lines and the tool audit's own
+  trail, is a line the runbooks describe in prose and cannot quote, and the code is not rewritten
+  to become quotable (ADR-0009 quotable-line addendum). One shape
   is refused **by name**: `logger.log(level, message, ...)` takes its level from a variable, which
   the model host's request failure does, so there is no level a sample could be held to, and saying
   that beats reporting a message the module visibly writes as one it does not.
