@@ -1,9 +1,7 @@
 # The garbled channel marker that eats a delegated answer has no attributed cause
 
-**Status:** open, actionable
+**Status:** landed 2026-08-30
 **Area:** inference
-**Trigger:** a llama.cpp image upgrade under this stack, or any change to how the subagent tier's
-reasoning flags are set, either of which could move a rate nothing currently re-derives.
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
 
 Opened 2026-08-29 by the close of
@@ -63,3 +61,20 @@ that the engine range checks its own key.
   entry's explanation is drawn from, the same forced close delivering a start tag as a whole valid
   answer. Its committed probe already prints a leak count, so the reading of the fragment this
   entry asks for and the rate that entry asks for are one instrument.
+- 2026-08-30: **landed** by the ADR-0005 marker addendum, which split the shipped pair into its two
+  flags and attributed the marker to one of them. `POST /apply-template` on both builds says the two
+  flags are not one lever: the kwarg drops the `<|think|>` the template injects and the budget leaves
+  the prompt byte identical to an unflagged server's. Split into single flag arms, `--reasoning-budget
+  0` alone wrote no reasoning character on 30 draws over two builds, while the kwarg alone reproduced
+  the trace, the fragments and the empty reply and was **identical to the shipped pair on 20 of 20
+  matched seeds**, so on the pair the budget is inert. The fragments are this template's own closing
+  marker `<channel|>` written with a slash in it. That excludes the forced close, which this entry's
+  explanation rested on, since the kwarg alone arm sets no budget anywhere; it excludes the build,
+  the same interaction appearing on the build the origin measured; and it excludes the cap by
+  position, the fragment being at character zero of the trace. What it leaves is the parser step,
+  why an unmatched close carries the whole answer into the channel, which is inference from the
+  marker's shape and is recorded in that addendum rather than as its own entry, no repair depending
+  on it. The two halves this close opens are the repair,
+  [R-511](511-the-shipped-reasoning-off-pair-disarms-its-own-sampler.md), and the probe half this
+  entry asked for and this close also drew by hand,
+  [R-512](512-no-committed-probe-splits-the-reasoning-off-pair.md).

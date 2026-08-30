@@ -62,3 +62,10 @@ since a sampler that emits half a tag into content is a bug wherever it is fixed
   seam the same forced close reaches, a mangled marker read as a channel switch on a flagged server,
   where this entry records the tag arriving in the reply. One mechanism seen at two seams, filed
   the same day by two sittings that could not see each other; pick them up together.
+- 2026-08-30: the link above is **half withdrawn** by the close of
+  [R-500](500-the-garbled-channel-marker-has-no-attributed-cause.md), whose ADR-0005 marker addendum
+  measured that seam's marker on a server setting no reasoning budget anywhere and got it anyway. So
+  the two are not one mechanism: that one is a model closing a thought the template never opened,
+  and this one, the tag arriving inside the reply, is still the forced close and is still this
+  entry's own. What survives of the link is the reading instrument, since a probe that counts leaks
+  and one that reads what a trace opens with want the same column.
