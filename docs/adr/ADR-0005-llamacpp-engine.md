@@ -2939,3 +2939,162 @@ what says the flagged rate is a property of the request rather than of the draw 
 drawn twice agreed on the channel 37 times, which is also the reason the rate is quoted over seeds
 and not over draws. What no control here reaches is the handler itself, and that is why decision 3
 ships an explanation labelled as one.
+
+## Rendered-tail addendum (2026-08-30): the prediction is read back, by something that runs
+
+**Status:** Accepted. Closes
+[docs/refinements/tasks/499-the-rendering-predictor-is-asserted-nowhere.md](../refinements/tasks/499-the-rendering-predictor-is-asserted-nowhere.md),
+which the template-probe addendum above opened as the one thing its decline lost. Opens
+[R-509](../refinements/tasks/509-a-third-familys-closed-thought-reads-as-an-open-one.md) and
+[R-510](../refinements/tasks/510-nine-rows-of-the-rendering-column-are-hand-read.md). It adds two
+covered modules and one recipe, changes no shipped code and no pick.
+
+### Re-derived first, and the entry is wrong about the page it is describing
+
+The entry says the committed probe "asks each server `POST /apply-template` and prints both
+renderings ahead of its four cells, and reads neither". Decision 4 of the addendum above says the
+same thing in the same words. Read the file and neither half is quite true, and the correction
+matters both ways.
+
+- **It printed no rendering.** What it printed was two lengths and a verdict,
+  `template reads the switch (194 chars against 162)`. So the reading a careful operator was
+  supposed to be able to do by eye was not on the page at all: the tails the rule turns on were
+  fetched, compared for length, and dropped. That is worse than the entry claims, and it is why
+  this addendum records the renderings rather than only asserting over them.
+- **It did read them, for one thing.** The two request shapes carrying one switch must render the
+  same prompt, and that is asserted, because a tier where it fails is a tier whose four cells are
+  comparing two prompts. What nothing read them for is the rule this entry is about.
+- **The rule really is written twice**, as the entry says: the mechanism section above for two
+  picks, and the lineup section's own column for eleven. Both are hand readings, and the second is
+  where "it predicts the constrained verdict on every entry here" is claimed.
+
+### Where the assertion goes, which is the whole decision
+
+Inside the probe was the obvious place and is the wrong one, for two reasons that also decided the
+envelope harness's control arm one addendum ago in [ADR-0028](ADR-0028-grammar-constrained-subagents.md).
+An `integration`-marked file is code no gate runs, so a rule asserted there is a rule nothing
+red-greens and no mutation table can be written over. And this repo has now three times put the
+arithmetic behind a published claim in a covered module rather than in the driver that measured it
+(`scripts/contrast.py`, `scripts/trailwidth.py`, `scripts/envelopefloor.py`), for the same reason
+each time. There is a third reason particular to this rule: the probe is pointed at whatever server
+an operator has, so a tier that breaks the prediction is **news to publish**, not a reason to red
+the run that found it. A hard assertion would have made the discovery of a new handler look like a
+broken test.
+
+So the probe records and the reader judges. `test_thinking_switch_live.py` writes one sample per
+tier (`CORTEX_THINKING_OUT`, `CORTEX_THINKING_TAG`) carrying what it was pointed at, the ask it
+really sent, both renderings, and each cell's draws and deliberations; `scripts/switchtail.py`,
+with `scripts/switchsamples.py` answering for that format, publishes the comparison. `just
+switch-tail` runs it, and the probe prints the line to paste.
+
+**Read on the tail, after the ask.** The trap the entry named is real and is the reason a plain
+comparison of the two renderings sorts nothing: on the failing pick they differ by a whole
+`<|think|>` system turn at the **front** and end byte identically. The tail here is whatever the
+template appended after the last of the ask the driver recorded sending, which is the generation
+prompt without this reader knowing one per pick turn marker, and a thought is closed when the last
+marker in that tail is a closing one.
+
+**The two sides are not equally strong and the report says which it is on.** A closing tail
+predicts the switch holds on **every** draw, so one deliberating draw refutes it, and that is the
+direction with something at stake: `rank_bounds` with `ORDER_ENVELOPE` is built against the cortex,
+which is on the closing side and is one of the two tiers the model host starts with no sampler
+floor. An open tail predicts the switch fails on **at least one** draw, which five draws that never
+deliberated are evidence against rather than proof.
+
+**Two refusals rather than verdicts.** A constrained cell drawn fewer than five times publishes
+nothing, which is the probe's own rule made enforceable (that cell splits 4 to 1 on a shipped pick,
+so the default one-draw run says either thing); and a shape whose control arm did not deliberate on
+every draw publishes nothing either, a control that never fired leaving nothing for the switch to
+have stopped. The probe asserts that control too, and the duplication is deliberate: the sample is
+written before the assertions, so a red run still leaves a sample, and a reader that trusted it
+would publish a verdict off a run that measured nothing.
+
+### What a real server said
+
+Measured 2026-08-30 by the agent on `ghcr.io/ggml-org/llama.cpp:server`
+(`@sha256:db057ec90de0a423255a218b9612420993237ff33db68b3155dc3bba9b994a20`) reporting
+`b10680-d7bd3bfca`, both picks `-ngl 0 -c 8192 --jinja --parallel 1` with **neither** reasoning
+flag, at a cap of 256, five draws a cell, through the committed probe and published through the new
+reader. The two picks are the pair the lineup table puts on opposite sides of the column that
+splits.
+
+| tier | switched tail, after the ask | reading | plain | envelope | published |
+| --- | --- | --- | --- | --- | --- |
+| Qwen3.5-0.8B Q8_0 | `<\|im_end\|>\n<\|im_start\|>assistant\n<think>\n\n</think>\n\n` | closes | 0/5 | 0/5 | agreed, exit 0 |
+| gemma-4-E4B QAT q4_0 | `<turn\|>\n<\|turn>model\n` | leaves open | 0/5 | **5/5** | agreed, exit 0 |
+
+Both templates read the key (187 against 198 characters, and 194 against 162), both controls
+deliberated on 5 of 5, and the prediction held on both. One number moved and it is the split cell:
+the E4B's constrained arm deliberated on **5 draws of 5** here where the lineup section recorded
+4 of 5 on `b10644-d7a207411`, which is the same reading the template-probe addendum took on
+`b10666-4e97ac86e`. The rule's verdict for that row is unchanged, since "does nothing" is what an
+open tail predicts and one deliberating draw is enough for it.
+
+### Decision
+
+1. **The probe records; the reader judges.** The rendering the rule turns on is now written down
+   beside the cells it predicts, and the comparison is a covered module with a mutation table
+   rather than a sentence in two documents.
+2. **A broken prediction is a refusal to publish, exit 1, and it is news about the record rather
+   than about the deployment.** Nothing shipped depends on the rendering any more: the title, the
+   recap and the recall rank each carry `trace_tokens=0`, and `CORTEX_INFERENCE_TRACE_LEVER`
+   decides whether that reaches the engine. What a red says is that this ADR's rendering column has
+   met a handler it does not describe, which is exactly the failure the template-probe addendum
+   predicted and could not detect.
+3. **The vocabulary stays in the probe's tree and out of the port.** `</think>` and `<channel|>`
+   are per pick template tokens, and the leak reading refused to let the core know one. A file
+   pointed at a server by hand may know them; `InferenceBackend` still may not, and decision 5 of
+   the switch-is-advisory addendum, no capability probe, is untouched.
+4. **The naming.** `switchtail.py` names the artefact the rule reads and the trap it exists to
+   hold, in the family `contrast.py`, `trailwidth.py` and `envelopefloor.py` already speak: a
+   compound of the subject and the thing measured on it. The alternates were `tailverdict.py`,
+   which names the comparison but hides where it is read, and `thoughtdoor.py`, which borrows this
+   ADR's own metaphor of a door the grammar re-opens and would send a reader of the gate tree
+   nowhere. `switchsamples.py` is the format half, named as `logsamples.py` is.
+
+### What this does not do, and where that is recorded
+
+- **A closed thought spelled a third way reads as an open one.** The reader knows two families and
+  treats an unmarked tail as open, which is the failing pick's real answer, so a third family's
+  closing marker would be read as an open door and refused as a broken prediction.
+  [R-509](../refinements/tasks/509-a-third-familys-closed-thought-reads-as-an-open-one.md).
+- **Nine of the lineup's eleven rows are still hand readings.** Two were published through the
+  reader here; the rest stand on the sweep the lineup section took, on the build it names.
+  [R-510](../refinements/tasks/510-nine-rows-of-the-rendering-column-are-hand-read.md).
+- **The driver's own half is ungated**, as the envelope harness's is: nothing red-greens an
+  `integration`-marked file, so a field it stopped writing is caught by the reader's refusals and
+  by nothing else. Those refusals are two of the mutations below.
+- **Nothing runs any of this on a schedule.** The rule is checked when somebody points the probe at
+  a server, which is the same standing shape as every live reading in this ADR.
+
+### Distrust green
+
+The rule is new, so it was made to fail before it was trusted. Mutations of the two modules, each
+run against **`scripts/tests/test_switchtail.py` and `scripts/tests/test_switchsamples.py`
+together, the 43-test suite that covers them** (`cd scripts && uv run pytest
+tests/test_switchtail.py tests/test_switchsamples.py`):
+
+| mutation | result |
+| --- | --- |
+| a tail with no marker read as a closed thought | 3 failed, 40 passed |
+| the tail dropped, the whole rendering read for a marker | 2 failed, 41 passed |
+| the closing side loosened, a cell holding unless every draw deliberated | 2 failed, 41 passed |
+| the draw floor removed (`DRAWS = 1`) | 1 failed, 42 passed |
+| the control arm no longer required to have deliberated | 1 failed, 42 passed |
+| gemma-4's marker pair dropped, one family known | 2 failed, 41 passed |
+| a rendering missing the ask published as if it had a tail | 2 failed, 41 passed |
+| two cells claiming one placement, the first taken instead of refused | 1 failed, 42 passed |
+| a sample carrying one rendering accepted | 2 failed, 41 passed |
+| an empty list of cells accepted | 1 failed, 42 passed |
+| a boolean accepted as a draw count | 1 failed, 42 passed |
+| the control's own line reporting a switch verdict about a request that sent none | 1 failed, 42 passed |
+| none, restored | 43 passed |
+
+**And the instrument was run against real servers before it was believed**, which is what the
+table above cannot do. Both agreeing runs are the readings in this addendum. Both refusals were
+made to fire too: the default one-draw run of the same probe against the same Qwen server refuses
+for its cell being drawn once, and the E4B's own sample with its constrained cell edited by hand to
+0 deliberations of 5, which is the run a handler gating its reasoning rule on `enable_thinking`
+would produce, prints the tail that left the thought open beside the cell that held and refuses to
+publish. That edited sample is the trigger this entry recorded, and it is the only way to draw it
+without a handler that does not exist yet.

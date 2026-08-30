@@ -360,13 +360,30 @@ Ask your own tier rather than assuming, with a server started with **neither** r
 
 ```
 cd brain && CORTEX_THINKING_ENDPOINT=http://127.0.0.1:8080 \
+  CORTEX_THINKING_REPEATS=5 CORTEX_THINKING_OUT=../measurements \
   uv run pytest -m integration --no-cov -s \
   packages/inference/tests/test_thinking_switch_live.py
 ```
 
-It prints a verdict per request shape. Add `CORTEX_THINKING_REPEATS=5` before believing one: the
+It prints a verdict per request shape. Keep `CORTEX_THINKING_REPEATS=5` before believing one: the
 cell that carries this finding splits 4 to 1 on the subagent pick, so a single draw of it can say
-either thing. If either verdict says the switch does nothing, the repair is this
+either thing, and the reader below publishes nothing from a cell drawn fewer than five times.
+
+**Then publish the reading rather than eyeballing it.** The run writes one sample per tier and
+prints the line to paste:
+
+```
+just switch-tail measurements/switch-<model>.json
+```
+
+That reads the rendered prompt back against the cells the same run drew and says whether this
+tier's template still predicts its own constrained verdict, on the **tail** and not on the two
+renderings differing. Exit 0 published the agreement; exit 1 is either a refusal to publish (a
+control arm that never deliberated, a cell drawn too few times) or the prediction breaking on this
+tier, which is news about the record above rather than about your deployment: the rule is a set of
+readings of one engine build's handlers, and a handler that started gating its reasoning rule on
+`enable_thinking` would break it. Nothing in the stack reads the answer, so a red here is a
+document to fix, not a deployment to stop. If either verdict says the switch does nothing, the repair is this
 section's own knob rather than the switch: set `CORTEX_REASONING_BUDGET=0` (or a count) so the
 engine ends the thought whatever the template was told, which is what every subagent server here
 already carries, or leave the per-request lever below on `auto`, which reaches the same sampler

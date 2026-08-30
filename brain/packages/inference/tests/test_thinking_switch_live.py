@@ -14,8 +14,15 @@ own shapes are safe, and it is the reading the ADR-0005 switch-is-advisory adden
 Point it at any llama-server:
 
     cd brain && CORTEX_THINKING_ENDPOINT=http://127.0.0.1:8080 \\
+      CORTEX_THINKING_REPEATS=5 CORTEX_THINKING_OUT=../measurements \\
       uv run pytest -m integration --no-cov -s \\
       packages/inference/tests/test_thinking_switch_live.py
+
+It writes one sample per tier (`CORTEX_THINKING_OUT`, `CORTEX_THINKING_TAG`) and judges nothing
+about the rendering it took. `just switch-tail <sample>` is what reads the rendered prompt back
+against the cells, and the run prints the line to paste; the split is `scripts/switchtail.py`'s
+docstring and it is the envelope harness's, a claim's arithmetic belonging in a covered file rather
+than in an integration-marked driver no gate runs.
 
 The server must be started with **no** `--reasoning-budget` and **no** `--chat-template-kwargs`,
 because both of those are the deployment answering the question for the model: a tier that ends
@@ -71,12 +78,20 @@ answers "do not think" by opening and closing an empty thought in the prompt, an
 dropping a marker and adding nothing. The full account is in the ADR-0005 switch-is-advisory
 addendum's mechanism section; the grammar itself is not on any endpoint, and is read by starting
 the server with `--verbose` and grepping its log for `Grammar` and `chat format:`.
+
+That last rule is a **prediction over one engine build's handlers** rather than a theorem, and a
+handler that gated its reasoning rule on `enable_thinking`, which sibling handlers in the same file
+already do, would break it. This run therefore records the rendering it took beside the cells it
+drew, and `just switch-tail` says whether the two still agree, so a tier that breaks the rule is
+named and measured rather than left contradicting a wall of prose two documents carry.
 """
 
+import json
 import os
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from pathlib import Path
 
 import httpx
 import pytest
@@ -114,6 +129,11 @@ _HEAD = int(os.environ.get("CORTEX_THINKING_HEAD", "160"))
 # 1 so the runbook's one-command form still answers in a coffee break, and anything reported as a
 # tier's behaviour is run at 5 or more.
 _REPEATS = int(os.environ.get("CORTEX_THINKING_REPEATS", "1"))
+# Where this run's sample lands, read relative to `brain/` like every other driver's, and the
+# suffix that keeps one tier's runs apart: a probe at another cap or another repeat count is a
+# different reading and must not overwrite the one it was run beside.
+_OUT = Path(os.environ.get("CORTEX_THINKING_OUT", "."))
+_TAG = os.environ.get("CORTEX_THINKING_TAG", "")
 
 # A question with a few steps in it, because the control has to fire. Short enough that a 4B model
 # on a CPU answers inside a minute, and not a lookup: a prompt whose answer is one token invites no
@@ -203,7 +223,7 @@ async def _rendered(client: httpx.AsyncClient, schema: JsonSchema | None, *, swi
     return prompt
 
 
-async def _read_prompts(client: httpx.AsyncClient) -> None:
+async def _read_prompts(client: httpx.AsyncClient) -> dict[bool, str]:
     """What the template does with each of the four request shapes, before any token is decoded.
 
     Two readings come out of it. The schema must not reach the template at all, meaning the two
@@ -212,6 +232,10 @@ async def _read_prompts(client: httpx.AsyncClient) -> None:
     would name the wrong cause. Whether the **switch** reaches the template is printed rather than
     asserted, both answers being real deployments, and it is the line to read first when a verdict
     says the switch holds: a template that never read the key cannot be why a trace stopped.
+
+    Both renderings are returned rather than only reported, because the rule that reads the
+    constrained verdict off them is held by `scripts/switchtail.py` over the sample this run
+    writes, and a rendering nothing kept is a rule nothing can check.
     """
     for switch in (False, True):
         prompts = {
@@ -230,6 +254,39 @@ async def _read_prompts(client: httpx.AsyncClient) -> None:
     reads = "reads" if plain != switched else "IGNORES"
     print(f"template  {reads} the switch ({len(plain)} chars against {len(switched)})")  # noqa: T201
     print("shapes    render one prompt per switch, so the schema never reaches the template")  # noqa: T201
+    return {False: plain, True: switched}
+
+
+def _write(prompts: dict[bool, str], draws: dict[tuple[str, bool], list[_Cell]]) -> Path:
+    """Record this run as one sample: what was rendered, and what each cell then did.
+
+    The counting stops here. Whether the rendering predicted the constrained verdict is
+    `scripts/switchtail.py`'s to say, for the reason the envelope harness leaves its rates to
+    `scripts/envelopefloor.py`: this file is integration-marked and no gate runs a line of it, so
+    a rule asserted here would be a rule nothing red-greens. Which cell carried a schema and which
+    sent the switch travel as the sample's own flags, so the reader needs no shape's name.
+    """
+    _OUT.mkdir(parents=True, exist_ok=True)
+    path = _OUT / f"switch-{_MODEL}{_TAG}.json"
+    sample = {
+        "model": _MODEL,
+        "endpoint": _ENDPOINT,
+        "cap": _CAP,
+        "ask": _ASK,
+        "renderings": [{"switch": switch, "prompt": prompt} for switch, prompt in prompts.items()],
+        "cells": [
+            {
+                "shape": shape,
+                "constrained": dict(_SHAPES)[shape] is not None,
+                "switch": switch,
+                "draws": len(cells),
+                "deliberated": sum(1 for cell in cells if cell.reasoning_chars > 0),
+            }
+            for (shape, switch), cells in draws.items()
+        ],
+    }
+    path.write_text(json.dumps(sample, indent=2) + "\n", encoding="utf-8")
+    return path
 
 
 async def test_which_request_shapes_this_tier_honours_the_thinking_switch_on() -> None:
@@ -252,12 +309,21 @@ async def test_which_request_shapes_this_tier_honours_the_thinking_switch_on() -
     )
     draws: dict[tuple[str, bool], list[_Cell]] = {}
     async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, read=None)) as client:
-        await _read_prompts(client)
+        prompts = await _read_prompts(client)
         for shape, schema in _SHAPES:
             for switch in (False, True):
                 cells = [await _run(client, shape, schema, switch=switch) for _ in range(_REPEATS)]
                 draws[shape, switch] = cells
 
+    # Written before the assertions below, so a run that trips one still leaves the sample it
+    # measured. Resolved rather than as written: `_OUT` is read relative to `brain/` and the line
+    # below is pasted into a shell that is somewhere else.
+    written = _write(prompts, draws).resolve()
+    print(  # noqa: T201 -- the report IS the measurement
+        f"\nwrote one sample: {written}\n"
+        "  the rendering above predicts the constrained cell, and nothing here checks it:\n"
+        f"  just switch-tail {written}"
+    )
     print()  # noqa: T201
     for shape, _ in _SHAPES:
         control, switched = draws[shape, False], draws[shape, True]

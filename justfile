@@ -549,6 +549,20 @@ envelope-floor +samples:
     uv sync --locked --project scripts
     uv run --project scripts python scripts/envelopefloor.py {{ samples }}
 
+# What a tier's chat template rendered for the thinking switch, held to what the same run then
+# measured (ADR-0005 rendered-tail addendum). The probe
+# (brain/packages/inference/tests/test_thinking_switch_live.py) writes one sample per tier and
+# judges nothing, for the reason the envelope driver computes no rates. This is the file that
+# judges: it reads each rendering on its TAIL, after the ask the run recorded sending, since the
+# failing pick's two prompts differ at the front and end byte identically, and it refuses to
+# publish when a tail that closes a thought met a constrained cell that deliberated anyway, or the
+# other way round. Runs the tree from where it is like the recipe above, so the sample paths are
+# the probe's own. Gates nothing and needs no GPU: the run that produced the samples needed a
+# server.
+switch-tail +samples:
+    uv sync --locked --project scripts
+    uv run --project scripts python scripts/switchtail.py {{ samples }}
+
 # The gpu stack PLUS a loopback publish of the model-host control API, which the base gpu override
 # deliberately withholds (it can start and stop GPU processes, ADR-0030 d3). For live tests only;
 # `just down-gpu` takes it down. Procedure: docs/runbooks/model-swap.md.
