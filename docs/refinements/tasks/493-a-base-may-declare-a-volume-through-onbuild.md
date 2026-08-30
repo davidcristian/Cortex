@@ -1,6 +1,6 @@
 # A base may declare a volume through ONBUILD
 
-**Status:** open, actionable
+**Status:** landed 2026-08-30
 **Area:** repo-gates
 **Origin:** [ADR-0011](../../adr/ADR-0011-body-v1.md)
 
@@ -47,3 +47,24 @@ would then be a base whose downstream nothing records.
   [R-473](473-a-built-row-is-recorded-where-it-could-be-derived.md), whose falsifying measurement
   is recorded in the [ADR-0011 addendum on why the built rows stay
   recorded](../../adr/ADR-0011-body-v1.md).
+- 2026-08-30: **landed** as the [ADR-0011 addendum on what a base declares for its
+  children](../../adr/ADR-0011-body-v1.md). The premise held on re-derivation against docker 29.7.2:
+  a base carrying `ONBUILD VOLUME` answers `null` for its own `Config.Volumes`, carries the
+  instruction verbatim in `Config.OnBuild`, and the image built `FROM` it declares the path and
+  clears the trigger, under BuildKit and under `DOCKER_BUILDKIT=0` alike; both real bases and all
+  ten rows still carry no `ONBUILD` at all, pulled first. Each row now holds two dimensions rather
+  than a parallel mapping, because which images are recorded is one fact and two tables keyed on
+  an image reference would spell it twice with nothing deriving it to compare, and because both
+  dimensions are asked in one inspect, so a row cannot half-exist; the cost the entry named was
+  paid, four modules and their tests seeing the new shape. The dimension is recorded **raw**, since
+  the record holds what docker says and a resolved path is a reading of it, one that would be taken
+  once on the recorder's machine and would leave the recipe comparing an image against a
+  derivation. `dockerfilevolumes.py` goes on refusing `ONBUILD VOLUME` in a file here, and that
+  refusal is now argued as a correctness requirement: reading one there would make the existing
+  rule demand a path in a row that correctly lacks it. The record was re-derived with `just
+  image-volumes` against a real daemon, which agrees with all ten rows in both dimensions.
+  `imagedrift.py` split off under the line cap, holding the inspect call and the drift report while
+  `imagevolumes.py` stays the record. Thirteen mutants over the `scripts/` suite, all red, and one
+  of them was green first: a trigger pasted as the path it resolves to declared nothing, which is
+  now a refusal. Opened by this close:
+  [R-506](506-a-built-row-that-became-a-base-would-spend-a-recorded-trigger.md).

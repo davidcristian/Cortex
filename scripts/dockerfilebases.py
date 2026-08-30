@@ -5,7 +5,7 @@ from collections.abc import Iterable, Mapping
 from typing import NamedTuple
 
 from composetargets import normalize
-from imagevolumes import RECORD_PATH
+from imagevolumes import RECORD_PATH, Row
 
 # The instruction a stage opens with, matched case-insensitively the way docker matches it.
 INSTRUCTION = "FROM"
@@ -52,6 +52,7 @@ class Inheritance(NamedTuple):
     """One Dockerfile's base as the gate found it: what it stands on, and what its row lacks."""
 
     bases: tuple[str, ...]
+    triggers: tuple[str, ...]
     faults: tuple[str, ...]
 
 
@@ -121,22 +122,23 @@ def inherited(
     text: str,
     reference: str,
     carried: Iterable[str],
-    records: Mapping[str, tuple[str, ...]],
+    records: Mapping[str, Row],
 ) -> Inheritance:
     """The base this file stands on, and every path its row carries that the built row lacks."""
     base = read_base(text)
     if base is None:
-        return Inheritance((), ())
+        return Inheritance((), (), ())
     row = records.get(base)
     if row is None:
         detail = _UNROWED.format(dockerfile=dockerfile, reference=reference, base=base)
-        return Inheritance((base,), (detail,))
+        return Inheritance((base,), (), (detail,))
     held = set(carried)
     return Inheritance(
         (base,),
+        row.onbuild,
         tuple(
             _UNINHERITED.format(dockerfile=dockerfile, reference=reference, base=base, path=path)
-            for path in row
+            for path in row.volumes
             if normalize(path) not in held
         ),
     )

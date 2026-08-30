@@ -2,14 +2,14 @@
 
 import json
 import os
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import NamedTuple, cast
 
 from composeservices import Build
 from composetargets import normalize
-from dockerfilebases import DockerfileError, inherited, logical
-from imagevolumes import RECORD_PATH
+from dockerfilebases import DockerfileError, Inheritance, inherited, logical
+from imagevolumes import RECORD_PATH, Row
 
 # The instruction this reader is looking for, matched case-insensitively the way docker matches it.
 INSTRUCTION = "VOLUME"
@@ -36,6 +36,19 @@ _UNRESOLVED = (
     "can resolve, so nothing here can read what that file declares. Write the path out."
 )
 _UNREADABLE = "{dockerfile} builds {reference!r} and could not be read: {detail}"
+_UNTRIGGERED = (
+    "{dockerfile} builds {reference!r} FROM {base!r}, whose ONBUILD declares VOLUME {path!r}, and "
+    "the row for {reference!r} in " + RECORD_PATH + " does not carry it; the trigger fires during "
+    "the next build from that base, so the rebuilt image declares the path and every container of "
+    "it takes an anonymous volume there while the record says the image declares nothing of the "
+    "kind. Rebuild the image, run `just image-volumes` to record what it now declares, and mount "
+    "something at the path."
+)
+_UNREADABLE_TRIGGER = (
+    "{dockerfile} builds {reference!r} FROM {base!r}, whose recorded ONBUILD this reader will not "
+    "guess at: {detail}. A trigger nobody can read is a path the next build may declare and this "
+    "tree would go on denying."
+)
 
 
 class Reading(NamedTuple):
@@ -92,6 +105,43 @@ def read_volumes(text: str) -> tuple[str, ...]:
     return tuple(found)
 
 
+def onbuild_volumes(entries: Iterable[str]) -> tuple[str, ...]:
+    """Every path a base's recorded ONBUILD triggers would declare in the image built from it."""
+    found: list[str] = []
+    for entry in entries:
+        head, _, _argument = entry.partition(" ")
+        if not head.isalpha():
+            msg = f"ONBUILD {entry!r} does not open with an instruction docker would have written"
+            raise DockerfileError(msg)
+        found.extend(read_volumes(entry))
+    return tuple(found)
+
+
+def _triggered(
+    dockerfile: str, reference: str, stands: Inheritance, carried: set[str]
+) -> list[str]:
+    """Every path this file's base would declare through a trigger that its row does not carry."""
+    faults: list[str] = []
+    for base in stands.bases:
+        try:
+            paths = onbuild_volumes(stands.triggers)
+        except DockerfileError as err:
+            faults.append(
+                _UNREADABLE_TRIGGER.format(
+                    dockerfile=dockerfile, reference=reference, base=base, detail=err
+                )
+            )
+            continue
+        faults.extend(
+            _UNTRIGGERED.format(
+                dockerfile=dockerfile, reference=reference, base=base, path=path_here
+            )
+            for path_here in paths
+            if path_here not in carried
+        )
+    return faults
+
+
 def landings(root: Path, compose: Path, build: Build) -> list[Path]:
     """Every place the Dockerfile a service builds from lands, over both project directories."""
     projects = [root] if compose.parent == root else [root, compose.parent]
@@ -109,7 +159,7 @@ def undeclared(
     build: Build,
     reference: str,
     recorded: tuple[str, ...],
-    records: Mapping[str, tuple[str, ...]],
+    records: Mapping[str, Row],
 ) -> Reading:
     """Every path the Dockerfile behind ``reference`` declares or inherits that its row lacks."""
     if "$" in build.context or "$" in build.dockerfile:
@@ -137,6 +187,7 @@ def undeclared(
             continue
         bases.extend(stands.bases)
         faults.extend(stands.faults)
+        faults.extend(_triggered(name, reference, stands, carried))
         faults.extend(
             _UNDECLARED.format(dockerfile=name, path=path_here, reference=reference)
             for path_here in paths

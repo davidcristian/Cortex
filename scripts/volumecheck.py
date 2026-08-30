@@ -9,7 +9,8 @@ from typing import NamedTuple
 from composefiles import ComposeSearchError, base_project, compose_files
 from composeservices import ComposeFile, ComposeServiceError, Service, read_services
 from dockerfilevolumes import undeclared
-from imagevolumes import IMAGE_VOLUMES, RECORD_PATH, Inspector, docker_volumes, report_drift
+from imagedrift import Inspector, docker_volumes, report_drift
+from imagevolumes import IMAGE_VOLUMES, RECORD_PATH, Row
 
 _UNCOVERED = (
     "service {service!r} runs {reference!r}, which declares VOLUME {path!r}, and mounts nothing "
@@ -88,9 +89,7 @@ def uncovered(name: str, service: Service, reference: str, declared: Iterable[st
     ]
 
 
-def check_file(
-    root: Path, read: Read, base: str | None, records: Mapping[str, tuple[str, ...]]
-) -> Scan:
+def check_file(root: Path, read: Read, base: str | None, records: Mapping[str, Row]) -> Scan:
     """Return what one compose file offered the gate, and every declaration left open in it."""
     if read.found is None:
         return Scan(1, 0, 0, (), (), (), read.faults)
@@ -130,17 +129,17 @@ def check_file(
                 )
             )
             continue
-        paths += len(row)
-        faults.extend(uncovered(read.name, service, reference, row))
+        paths += len(row.volumes)
+        faults.extend(uncovered(read.name, service, reference, row.volumes))
         if service.build is not None:
-            here = undeclared(root, read.path, service.build, reference, row, records)
+            here = undeclared(root, read.path, service.build, reference, row.volumes, records)
             dockerfiles.extend(here.dockerfiles)
             names.extend(here.bases)
             faults.extend(Fault(read.name, service.line, detail) for detail in here.faults)
     return Scan(1, definitions, paths, tuple(names), tuple(built), tuple(dockerfiles), faults)
 
 
-def check(root: Path, records: Mapping[str, tuple[str, ...]] = IMAGE_VOLUMES) -> Scan:
+def check(root: Path, records: Mapping[str, Row] = IMAGE_VOLUMES) -> Scan:
     """Check every compose file under ``root``, then every recorded row against what they named."""
     reads = [read_file(root, compose) for compose in compose_files(root)]
     base = base_project(
@@ -209,7 +208,7 @@ def main(argv: list[str] | None = None, inspect: Inspector = docker_volumes) -> 
         f"over {scanned.files} compose file(s), {scanned.definitions} service definition(s) and "
         f"{len(scanned.names)} image(s) counting the bases those builds stand on, and "
         f"{len(scanned.dockerfiles)} Dockerfile(s) here declare and inherit nothing their row "
-        "does not carry"
+        "does not carry, triggers included"
     )
     return 0
 
