@@ -157,6 +157,17 @@ services:
       # of these flags does not close it either, so a cap refusal on narrow work is these flags
       # first and this second, and the lever that does hold on this shape is the pick: no Qwen
       # entry of the lineup writes to that channel at all (ADR-0028 row addendum).
+      #
+      # AND THE TWO FLAGS INTERACT (ADR-0005 marker addendum). The kwarg is what drops the
+      # <|think|> this family's template injects, and the budget is a sampler that watches for a
+      # thought to close. Split into single flag arms on two builds, the budget ALONE wrote no
+      # reasoning character on 30 draws of the shipped delegated request, while the kwarg alone
+      # reproduced the trace, the garbled markers and the empty reply and was identical to the pair
+      # on 20 of 20 matched seeds. So the sentence above about the budget reaching that shape is
+      # true of the budget on its own: beside the kwarg it reaches nothing. Both flags stay here for
+      # now, the kwarg being what the Qwen family's template reads and scripts/flagcheck.py holding
+      # every subagent server to the pair; making it a per family flag is the entry on the disarmed
+      # sampler in docs/refinements/.
       - "--chat-template-kwargs"
       - '{"enable_thinking": false}'
       - "--reasoning-budget"

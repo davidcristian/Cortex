@@ -3098,3 +3098,172 @@ for its cell being drawn once, and the E4B's own sample with its constrained cel
 would produce, prints the tail that left the thought open beside the cell that held and refuses to
 publish. That edited sample is the trigger this entry recorded, and it is the only way to draw it
 without a handler that does not exist yet.
+
+## Marker addendum (2026-08-30): the flag that garbles the marker is the one that is not a sampler
+
+**Status:** Accepted. Closes
+[docs/refinements/tasks/500-the-garbled-channel-marker-has-no-attributed-cause.md](../refinements/tasks/500-the-garbled-channel-marker-has-no-attributed-cause.md),
+and opens
+[R-511](../refinements/tasks/511-the-shipped-reasoning-off-pair-disarms-its-own-sampler.md) and
+[R-512](../refinements/tasks/512-no-committed-probe-splits-the-reasoning-off-pair.md). It adds no
+rule, no gate and no shipped code, and it withdraws the explanation the firm-prompt addendum above
+ships.
+
+### Re-derived first, and the question the entry asks is the right one
+
+The entry lists four candidate causes for the garbled channel marker, the two shipped reasoning-off
+flags, the chat template's channel handling, the token cap cutting mid marker, and the engine build,
+and asks which of them the firm-prompt contrast above isolates. Read against that measurement before
+any server was started, the answer is **none of them**, and the reason is worth stating plainly.
+That contrast has two cells, a server carrying both flags and a server carrying neither. It varies
+two flags in one step, and one of those flags is not a sampler at all: the kwarg is an input to the
+**rendering**, so "the two flags" and "the chat template's channel handling" are one axis in that
+contrast rather than two candidates. The cap and the build are held fixed in both cells, which
+excludes them from being what the contrast *shows* and does not exclude them from being what the
+phenomenon *needs*. So the contrast isolates the pair, jointly, and separates nothing inside it.
+
+The entry's second claim, that its own explanation is a reading of traces rather than of a handler,
+also survives re-derivation and is the thing this addendum acts on. The forced close was reached for
+because it was the only mechanism in the tree that could put a mangled marker on a wire. Nothing had
+asked whether a forced close happens at all on the server that produces them.
+
+### What a real server said
+
+Measured 2026-08-30 by the agent, six servers of the shipped subagent pick (gemma-4-E4B QAT q4_0),
+each `-ngl 99 --ctx-size 8192 --jinja --parallel 1` on the 24 GB card, differing only in flags and
+in image. Four run `ghcr.io/ggml-org/llama.cpp:server-cuda` at
+`sha256:952424b09abc18668a9891041b275bf8c96afb6107d65d33ba104da9b18490c7`, which reports
+`b10680-d7bd3bfca`. Two run `ghcr.io/ggml-org/llama.cpp:server-cuda-b10666` at
+`sha256:150b59966fb5b2cb1a8fa9d226267c56ebd22c520c7b3640331cde87f3c4fb01`, which reports
+`b10666-4e97ac86e`, the build every number in the firm-prompt addendum above was taken on. The
+request is the shipped delegated one, built by this tree's own `task_messages` and `build_payload`
+at `GenerationBounds(max_tokens=1024)`, so the body carries `messages`, `stream`,
+`response_format` and `max_tokens` and nothing else, plus a `seed` so that the arms of one draw are
+paired.
+
+**The rendering is where the two flags separate, and they separate completely.** `POST
+/apply-template` with the shipped two message ask, on both builds:
+
+| flags on the server | what the prompt ends up carrying |
+| --- | --- |
+| both, the shipped pair | no `<\|think\|>` |
+| `--chat-template-kwargs '{"enable_thinking": false}'` alone | byte identical to the pair |
+| `--reasoning-budget 0` alone | carries `<\|think\|>` |
+| neither | byte identical to the budget alone |
+
+The kwarg is the half that reaches the prompt: it drops the `<\|think\|>` this template injects at
+the top of the first system turn. The budget leaves the prompt **byte identical to an unflagged
+server's**, which is the whole of what the thinking-lever addendum above says about the two, read
+here off the engine rather than off a behaviour. The chat template itself is byte identical across
+the two builds.
+
+**The draws, paired by seed over the two report bodies the firm-prompt arm's traces fell on.**
+
+| build | flags | draws | wrote to the channel | opened with a marker fragment | empty reply |
+| --- | --- | --- | --- | --- | --- |
+| b10680 | both, the shipped pair | 20 | 5 | 2 | 4 |
+| b10680 | kwarg alone | 20 | 5 | 2 | 4 |
+| b10680 | budget alone | 20 | **0** | 0 | 0 |
+| b10680 | neither | 15 | 15 | 0 | 0 |
+| b10666 | both, the shipped pair | 10 | 5 | 3 | 4 |
+| b10666 | budget alone | 10 | **0** | 0 | 0 |
+
+Five readings, and the second is the one that decides the entry.
+
+1. **The budget alone is the fix, and it is absolute over 30 draws on two builds.** Not one
+   reasoning character on any of them, at the request shape and the subtask wording that the
+   firm-prompt arm found the pair failing on. The flag this tier already carries works; it works
+   when it is the only flag there.
+2. **The kwarg alone reproduces the failure exactly, and adding the budget to it changes
+   nothing.** The two arms are identical on **20 of 20 matched seeds**, to the character, in both
+   the reply and the trace. So on the shipped pair the budget is inert: whatever the kwarg has done
+   to the request, the sampler the other flag sets never gets to act. The pair is not two levers
+   pointing the same way. It is one lever and one flag that turns the other off.
+3. **The fragments reproduce, and they are the template's own closing marker misspelled.** Three
+   spellings, `</channe|>`, `t</chaannnel>` and `h</c>`, and the older build drew all three at the
+   same three seeds the newer one drew two of. This template
+   opens a thought with `<\|channel>thought` and closes it with `<channel|>`, which has no slash in
+   it; every fragment recorded here and every one quoted in the firm-prompt and instruction addenda
+   is that closing marker written with a slash in it, or a truncation of one. The text that follows
+   is the answer, in plain prose, inside the channel, running to the cap.
+4. **The build is not the cause.** The same interaction, the same fragments and the same absolute
+   budget arm appear on `b10666-4e97ac86e`, and the template is byte identical between the two. The
+   cheap approximation the entry proposed for the attribution half was a second build, and the
+   second build says the phenomenon does not live there.
+5. **The cap is not the cause either, and the reason is a position rather than a rate.** The
+   fragment is at character zero of the trace and the cap fires at the end of the decode. A cap
+   cutting mid marker would leave a fragment at the end of what it cut, not at the start of what it
+   opened, and the arm that never wrote to the channel ran under the same 1024.
+
+### What this attributes
+
+The garbled marker is **the model's own attempt to close a thought it opened**, on a prompt that
+was rendered without the token that opens one, and the flag that produces that prompt is
+`--chat-template-kwargs '{"enable_thinking": false}'`.
+
+The forced close is excluded, and the exclusion is structural rather than statistical. In the kwarg
+alone arm there is no reasoning budget set anywhere, on the server or on the request, so no forced
+close exists to leave debris; and that arm is byte identical to the shipped pair's. Whatever writes
+the fragment is present where no sampler is running. That is the opposite of the explanation the
+firm-prompt addendum ships, which read the fragment as a forced close emitted where no thought was
+open and mangled on the way out.
+
+What the reading leaves open is one step further down, and it is a claim about llama.cpp's parser
+rather than about this repo: the answer reaches `reasoning_content` at all, which on this template
+requires the channel to have been opened and never closed, so a misspelled close is the most
+economical account of why the whole answer is classified as reasoning and the reply comes back
+empty. Nothing here read the handler, and that step is inference from the marker's shape. It is the
+one part of the entry's attribution half this addendum does not deliver, and it is smaller than the
+part it does: no repair depends on it.
+
+### Decision
+
+1. **The firm-prompt addendum's mechanism section is superseded, and this addendum says so where
+   that section stands.** It ships a labelled explanation and the label was honest; the explanation
+   is now measured to be wrong in its main clause. The reading that replaces it is above.
+2. **The claim "the budget is the flag that reaches that shape" gains its missing condition,
+   wherever it is written.** It is true and it is true only of the budget on its own. Beside the
+   kwarg, on both builds measured, it reaches nothing. The compose command block,
+   [ADR-0010](ADR-0010-subagents.md) and [docs/runbooks/subagents-cpu.md](../runbooks/subagents-cpu.md)
+   all now carry that condition.
+3. **No flag change ships here.** The repair this attribution implies is to stop sending the kwarg
+   on a tier whose template reads it this way, and that is a lineup and gate decision rather than a
+   one line edit: `scripts/flagcheck.py` requires every subagent server this repo starts to carry
+   both, the Qwen family's template is the reason the kwarg is there at all, and the E4B pick's
+   measured injection robustness was taken with thinking off. Deciding it needs the roster in front
+   of it and a gate that can express "this flag, on this family",
+   [R-511](../refinements/tasks/511-the-shipped-reasoning-off-pair-disarms-its-own-sampler.md).
+4. **No committed probe ships here either.** Every arm above was drawn by hand off `build_payload`,
+   which is exactly the gap the entry's probe half named and exactly the gap the firm-prompt
+   addendum left,
+   [R-512](../refinements/tasks/512-no-committed-probe-splits-the-reasoning-off-pair.md).
+
+### What this does not do, and where that is recorded
+
+- **The arms are sized to a sitting.** The budget arm is 30 draws over two builds and is the only
+  row here anybody should quote as a rate; the flagged and unflagged rows are 10 to 20 draws
+  each and establish reproduction rather than a rate. Every draw is the summarization shape on the warehouse
+  and clinic bodies, which are the two the firm-prompt arm's traces fell on, so the marker rate here
+  is over the bodies that produce markers and is not comparable to that addendum's 13 in 76 over
+  four.
+- **One pick and one family.** gemma-4-E4B throughout. The lineup's own reading, that no Qwen entry
+  writes to that channel at all, is untouched and unre-measured here, and it is the reason decision
+  3 is a roster question.
+- **The parser step is unread.** Above, and it is the residue of the entry's attribution half.
+
+### Distrust green
+
+No rule, gate or branch is added, so there is no mutation table and this section says instead what
+the measurement's own controls were, and what each of them buys.
+
+The **budget alone arm** is the control that turns this from a contrast into an attribution: without
+it, the kwarg alone arm reproducing the failure would still have left "both flags together" as the
+subject, and the sentence a reader needs is that one of the two works and the other stops it. The
+**seed pairing** is what makes the identity claim in reading 2 mean anything: 17 pairs agreeing to
+the character is not a rate that failed to separate, it is two configurations that the engine cannot
+tell apart. The **second build** is what stops the whole reading being about an image that moved
+under the repo between one sitting and the next, which it had: the tag `server-cuda` reports
+`b10680-d7bd3bfca` today and reported `b10666-4e97ac86e` when the firm-prompt addendum measured on
+it. And `/apply-template` **read on both builds** is what makes the rendering column evidence rather
+than a reading of the template's Jinja by eye. What no control here reaches is the handler, which is
+why the parser step above is labelled as inference and no decision rests on it.

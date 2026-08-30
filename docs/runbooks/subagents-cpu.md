@@ -198,6 +198,16 @@ delegation time (ADR-0012 admission-wall addendum).
 > trace for, and adding the engine's per-request `reasoning_budget_tokens: 0` on top of the flags
 > does not close it, so there is no knob here to reach for. What does close it is the pick: no Qwen
 > entry of the lineup writes to that channel at all.
+>
+> **And the cause is now attributed, which gives an operator a second answer** (ADR-0005 marker
+> addendum): it is the kwarg and not the budget. On two builds, a server carrying
+> `--reasoning-budget 0` and **not** the kwarg wrote no reasoning character on 30 draws of the same
+> request, and a server carrying the kwarg alone was identical to one carrying both on 20 of 20
+> matched seeds. The fragments are this family's own closing marker `<channel|>` written with a
+> slash in it. Dropping the kwarg from a gemma tier is not a supported change yet, since the gate
+> requires both flags and the Qwen half of the roster is what the kwarg is there for
+> ([R-511](../refinements/tasks/511-the-shipped-reasoning-off-pair-disarms-its-own-sampler.md)), but
+> a tier being debugged by hand can be started without it to confirm the diagnosis in one run.
 > A plan arriving in `reply` as an `ok=True` answer is rarer but still possible and still silent,
 > which is [R-480](../refinements/tasks/480-a-narrated-reply-arrives-as-an-answer.md).
 > **Every number in this note is the default pick's**, and the pick is one env var away from being a

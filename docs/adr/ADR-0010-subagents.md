@@ -195,6 +195,15 @@ left the failure reachable, which is why the delegated path still names no count
 is therefore the right default rather than a floor, and the lever that holds on this shape is the
 pick rather than a flag.
 
+**And the reason it is a majority is the other flag (2026-08-30, ADR-0005 marker addendum).** Split
+into single flag arms on two builds, `--reasoning-budget 0` **alone** wrote no reasoning character
+on 30 draws of that same request, while the kwarg alone reproduced the trace, the marker fragments
+and the empty reply and was identical to the pair on 20 of 20 matched seeds. The kwarg is what drops
+the `<|think|>` this family's template injects, and a budget with no thought to watch for never
+fires. So "the budget does work" is true of the budget on its own, the pair is one lever and one
+flag that turns it off, and what to do about that is
+[R-511](../refinements/tasks/511-the-shipped-reasoning-off-pair-disarms-its-own-sampler.md).
+
 **And the Qwen half of that sentence is measured 2026-08-28** (ADR-0005 switch-is-advisory
 addendum, lineup section), where before it rested on the same `17 + 25` this addendum's own reading
 above used. Asked on a prompt that does invite deliberation, at five draws a cell, against a server
