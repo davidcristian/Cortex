@@ -27,9 +27,18 @@ recorded sending rather than from a character count or a per pick turn marker.
 **The vocabulary is per pick, which is exactly what the port may not know.** A closed thought is
 `</think>` on the native family and `<channel|>` on gemma-4, and neither is on any endpoint; a
 probe pointed at a server by hand may hold that vocabulary where `InferenceBackend` may not, which
-is why this reading is here and no capability probe ships. A tail speaking a third family's
-vocabulary reads as an open thought, so every verdict prints the tail it was read off and a red
-says whether the rule broke or these two families are short one.
+is why this reading is here and no capability probe ships. Every verdict therefore prints the tail
+it was read off, so a red says whether the rule broke or these two families are short one.
+
+**An unmarked tail is two things, and the unswitched tail is what separates them.** The failing
+pick answers the switch by dropping the block and adding nothing, so its switched tail carries no
+marker and is the canonical open door; a third family closing its thought in a spelling not listed
+here would carry no marker either, and calling that an open door is a guess wearing a verdict's
+clothes. What tells them apart is already in hand: on the failing pick the switched tail is **byte
+identical** to the one the same template renders with the key left alone, because what the key
+moved was a system turn at the front. So an unmarked tail that the key changed is a third spelling
+and is refused rather than read, and the whole renderings cannot stand in for the two tails here
+for exactly the reason the reading is on the tail at all.
 
 **The two sides of the rule are not equally strong, and a cell drawn once is not read at all.** A
 tail that closes the thought predicts the switch holds on **every** draw, so one deliberating draw
@@ -42,8 +51,9 @@ is published at all, the probe's own rule and its own reason, the cell this turn
 deliberate on every draw, a control that never fired leaving nothing to have stopped.
 
 Reads the probe's own sample files, `just switch-tail measurements/switch-*.json`. Exit 0 published
-the comparison, 1 refused to (a rendering it cannot place, a cell too thin to read, a control that
-did not fire, or a prediction the measurement broke), 2 could not read a sample.
+the comparison, 1 refused to (a rendering it cannot place, a tail in a spelling it cannot read, a
+cell too thin to read, a control that did not fire, or a prediction the measurement broke), 2 could
+not read a sample.
 """
 
 import argparse
@@ -76,12 +86,22 @@ def tail(prompt: str, ask: str) -> str | None:
     return rest if found else None
 
 
+def marked(rendered: str) -> bool:
+    """Whether ``rendered`` carries a thought marker of either family this reader knows.
+
+    An unmarked tail is two different tiers and only one of them may be read: the failing pick,
+    which answers the switch by dropping the block and adding nothing, and a template answering in
+    a third family's spelling, whose thought this module has no word for either way.
+    """
+    return any(marker in rendered for pair in MARKERS for marker in pair)
+
+
 def closes(rendered: str) -> bool:
     """Whether the last thought marker in ``rendered`` is a closing one.
 
-    Absence is an open thought rather than an unknown: the failing pick answers the switch by
-    dropping the block and adding nothing, so a tail with no marker at all is the canonical open
-    door rather than a tier this module cannot read.
+    Absence answers "open", which is the failing pick's own answer to the switch: drop the block
+    and add nothing. That reading is only owed to a tail the key left alone, so `_tails` asks
+    `marked` and the unswitched tail first, and this answers about the tails that are left.
     """
     opened = max(rendered.rfind(opener) for opener, _ in MARKERS)
     shut = max(rendered.rfind(closer) for _, closer in MARKERS)
@@ -92,7 +112,8 @@ def _tails(probe: Probe, lines: list[str]) -> bool | None:
     """Report both renderings, and answer whether the switched one closes the thought.
 
     ``None`` is a rendering this reader cannot place: one that does not carry the ask the same
-    sample says was sent, and whose tail therefore cannot be found.
+    sample says was sent and whose tail therefore cannot be found, or one whose tail answers the
+    key in a spelling neither family here writes.
     """
     lines.append("  the rendering, taken after the ask itself:")
     found: dict[bool, str] = {}
@@ -110,6 +131,13 @@ def _tails(probe: Probe, lines: list[str]) -> bool | None:
     plain, switched = probe.prompt(switch=False), probe.prompt(switch=True)
     reads = "reads" if plain != switched else "IGNORES"
     lines.append(f"    the template {reads} the key ({len(plain)} chars against {len(switched)})")
+    if not marked(found[True]) and found[True] != found[False]:
+        lines.append(
+            "  refused: the switched tail carries no marker of either family here and is not the"
+            " tail this template renders with the key left alone, so it answered in a third"
+            " spelling and whether that thought is closed is a word this reader does not have"
+        )
+        return None
     return closes(found[True])
 
 

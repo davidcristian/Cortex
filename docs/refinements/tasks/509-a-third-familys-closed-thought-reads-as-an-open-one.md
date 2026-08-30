@@ -1,9 +1,7 @@
 # A closed thought spelled a third way reads here as an open one
 
-**Status:** open, actionable
+**Status:** landed 2026-08-30
 **Area:** inference
-**Trigger:** a pick entering the lineup whose chat template is neither the native family's nor
-gemma-4's, which is one `.env` line away and needs no code change to happen.
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
 
 Opened 2026-08-30 by the close of
@@ -44,3 +42,13 @@ template to be measured against before it is written.
   [R-499](499-the-rendering-predictor-is-asserted-nowhere.md), whose ADR-0005 rendered-tail
   addendum put the rendering rule in `scripts/switchtail.py` with the vocabulary of the two
   families the lineup holds.
+
+- 2026-08-30: closed. Re-derived first, and this entry was right about the reader and wrong about
+  what closing it would cost: the comparison it names as the missing input, the unswitched tail,
+  is already read on every run and the fact it turns on is already asserted, since the failing
+  pick moves a system turn at the **front** and leaves its tail byte identical. So no third-family
+  template had to be measured. `scripts/switchtail.py` gained `marked`, and an unmarked switched
+  tail that differs from the unswitched one is now refused as a third spelling rather than
+  published as an open door. Opened
+  [R-517](517-a-third-family-that-appends-nothing-either-way-still-reads-as-open.md), the case the
+  discriminator cannot see. Recorded as the ADR-0005 third-spelling addendum.

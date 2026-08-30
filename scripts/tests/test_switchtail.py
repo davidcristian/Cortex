@@ -5,7 +5,7 @@ import pytest
 
 import switchtail
 from switchsamples import load
-from switchtail import closes, main, publish, read, tail
+from switchtail import closes, main, marked, publish, read, tail
 
 # The ask a run records sending; the tail is whatever a template appended after the last of it.
 ASK = "What does each of them pay?"
@@ -18,6 +18,11 @@ NATIVE_SHUT = f"<|im_start|>user\n{ASK}<|im_end|>\n<|im_start|>assistant\n<think
 GEMMA_OPEN = f"<|turn>system\n<|think|>\n<turn|>\n<|turn>user\n{ASK}<turn|>\n<|turn>model\n"
 GEMMA_SWITCHED = f"<|turn>user\n{ASK}<turn|>\n<|turn>model\n"
 GEMMA_SHUT = f"<|turn>user\n{ASK}<turn|>\n<|turn>model\n<|channel>thought\n<channel|>"
+# A third family, which is invented and has to be: no pick the lineup holds renders anything like
+# it. Its closing marker is in neither pair above, so the tail carries no word this reader knows,
+# and what says it is not the failing pick's own answer is that the key changed the tail at all.
+THIRD_OPEN = f"<|turn>user\n{ASK}<turn|>\n<|turn>model\n[reasoning]\n"
+THIRD_SHUT = f"<|turn>user\n{ASK}<turn|>\n<|turn>model\n[reasoning][/reasoning]\n"
 
 
 def cell(
@@ -115,6 +120,58 @@ def test_the_front_of_a_prompt_cannot_close_a_thought(tmp_path: Path) -> None:
     )
     assert "leaves the thought OPEN" in printed
     assert "reads the key" in printed
+    assert code == 0
+
+
+@pytest.mark.parametrize(
+    ("rendered", "known"),
+    [
+        ("<|im_start|>assistant\n<think>\n", True),
+        ("<|im_start|>assistant\n<think>\n\n</think>\n\n", True),
+        ("<turn|>\n<|turn>model\n<|channel>thought\n<channel|>", True),
+        ("<turn|>\n<|turn>model\n", False),
+        ("<|turn>model\n[reasoning][/reasoning]\n", False),
+    ],
+)
+def test_a_tail_is_known_when_it_carries_either_familys_marker(
+    rendered: str, *, known: bool
+) -> None:
+    """Either member of either pair is a word this reader has. The two unmarked tails are the
+    whole question: one is the failing pick's answer to the switch and one is a third family."""
+    assert marked(rendered) is known
+
+
+@pytest.mark.parametrize("plain", [THIRD_OPEN, NATIVE_OPEN])
+def test_an_unmarked_tail_the_key_changed_publishes_nothing(tmp_path: Path, plain: str) -> None:
+    """The state this reader will not guess at. A tail with no marker of either family that is
+    also not the tail rendered with the key left alone is a template answering in a spelling not
+    listed here, and reading it as an open door would be a prediction with no reading behind it.
+    Both directions of it: a third family's own closing marker, and a template that answered by
+    deleting a marker this reader does know."""
+    printed, code = report(sample(tmp_path / "s.json", plain=plain, switched=THIRD_SHUT))
+    assert "refused: the switched tail carries no marker of either family here" in printed
+    assert "answered in a third spelling" in printed
+    assert repr(tail(THIRD_SHUT, ASK)) in printed
+    assert code == 1
+
+
+def test_the_failing_picks_unmarked_tail_is_read_rather_than_refused(tmp_path: Path) -> None:
+    """The line the refusal above is drawn against, and the reason it can be drawn at all without
+    a third family to measure: the failing pick moved a whole system turn at the front and left
+    the tail byte identical, so an unmarked tail the key never touched is the open door itself."""
+    printed, code = report(
+        sample(
+            tmp_path / "s.json",
+            plain=GEMMA_OPEN,
+            switched=GEMMA_SWITCHED,
+            cells=[
+                cell(constrained=True, switch=False, deliberated=5),
+                cell(constrained=True, switch=True, deliberated=5),
+            ],
+        )
+    )
+    assert "third spelling" not in printed
+    assert "leaves the thought OPEN" in printed
     assert code == 0
 
 

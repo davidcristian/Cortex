@@ -1196,16 +1196,22 @@ that last question to have an answer.
   because the failing pick's two prompts differ by a whole system turn at the front and end byte
   identically: comparing renderings for difference sorts nothing. A closed thought is `</think>` on
   the native family and `<channel|>` on gemma-4, a vocabulary no endpoint offers and a probe run by
-  hand may hold, and a tail speaking a third family's reads as open, so every verdict prints the
-  tail it was read off. The two sides are **not equally strong and the report says which it is
+  hand may hold, so every verdict prints the tail it was read off. **An unmarked tail is two tiers
+  and the key says which**: the failing pick answers by dropping a system turn at the front, so its
+  switched tail is byte identical to the one rendered with the key left alone and is the open door
+  itself, while an unmarked tail the key **changed** is a third family's spelling and is refused
+  rather than read as open (ADR-0005 third-spelling addendum). That comparison is on the two tails
+  and never on the two renderings, for the same reason the reading is. The two sides are **not
+  equally strong and the report says which it is
   on**: a closing tail is refuted by one deliberating draw, an open one only by a whole cell that
   never deliberated. Nothing is published from a constrained cell drawn under five times, the
   probe's own rule (that cell splits 4 to 1 on a shipped pick), nor from one whose control arm, the
   same request with no switch, failed to deliberate on every draw. Which cell is constrained and
   which sent the switch are the sample's own flags, so no shape's name has to agree across the two
   trees. Exit 0 printing the report; exit 1 printing it with a `refused:` line (a rendering it
-  cannot place, a cell too thin to read, a control that did not fire, or a prediction the
-  measurement broke); exit 2 printing one `switchtail: PROBLEM` line; argparse exit 2 on usage.
+  cannot place, a tail in a spelling it cannot read, a cell too thin to read, a control that did
+  not fire, or a prediction the measurement broke); exit 2 printing one `switchtail: PROBLEM` line;
+  argparse exit 2 on usage.
 
 **Invariants.**
 - stdlib-only modules; pure cores (`scan`, `evaluate`/`check`, `classify`, `report`) unit-tested

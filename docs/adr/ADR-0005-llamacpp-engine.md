@@ -3267,3 +3267,92 @@ under the repo between one sitting and the next, which it had: the tag `server-c
 it. And `/apply-template` **read on both builds** is what makes the rendering column evidence rather
 than a reading of the template's Jinja by eye. What no control here reaches is the handler, which is
 why the parser step above is labelled as inference and no decision rests on it.
+
+## Third-spelling addendum (2026-08-30): an unmarked tail is two tiers, and the key says which
+
+**Status:** Accepted. Closes
+[docs/refinements/tasks/509-a-third-familys-closed-thought-reads-as-an-open-one.md](../refinements/tasks/509-a-third-familys-closed-thought-reads-as-an-open-one.md),
+opened by the rendered-tail addendum above. Opens
+[R-517](../refinements/tasks/517-a-third-family-that-appends-nothing-either-way-still-reads-as-open.md).
+It changes one covered module, no shipped code and no pick.
+
+### Re-derived first, and the entry is right about the reader and wrong about what it would take
+
+The entry says `scripts/switchtail.py` knows two marker pairs and reads a tail carrying neither as
+an open thought. Both halves hold on the file: `MARKERS` is the two pairs, and `closes` compares
+`rfind` of the openers against `rfind` of the closers, so a tail with neither answers `-1 > -1`,
+which is `False`, which the report prints as `leaves the thought OPEN`. A third family's closing
+marker therefore predicts "does nothing", and the moment its constrained cell holds the module
+refuses to publish and names the record rather than the vocabulary. That is the entry's case and it
+is exactly as stated.
+
+Where the entry is wrong is its own account of the cost. It says the state "cannot be read off the
+tail alone and needs something more, most likely the unswitched tail as the comparison", and that
+this wants "a real third-family template to be measured against before it is written". The second
+sentence does not follow from the first, because **the comparison it names is already in the
+reader's hands and already measured**. `_tails` reads both renderings' tails on every run, and the
+suite already asserts the fact the rule turns on:
+`tail(GEMMA_OPEN, ASK) == tail(GEMMA_SWITCHED, ASK)`. The failing pick's answer to the key is a
+whole `<|think|>` system turn removed from the **front**, so its switched tail is byte identical to
+its unswitched one. What separates the two unmarked tiers is therefore not a third family's
+spelling, which nobody has, but the failing pick's own tail equality, which two runs on two builds
+have. The rule can be drawn from the picks the lineup already holds; only the row it would fire on
+is missing, and a rule does not need its own violation in hand to be written correctly.
+
+### Decision
+
+1. **An unmarked tail that the key changed is refused, not read.** `marked` answers whether a tail
+   carries either member of either pair. When the switched tail carries none **and** differs from
+   the tail the same template renders with the key left alone, `_tails` publishes nothing and exits
+   1: the template answered in a spelling this reader has no word for, and calling that an open
+   door is the guess the entry named. When the unmarked tail is the one the key left alone, it is
+   still read as open, which is the failing pick's real answer and the line the refusal is drawn
+   against.
+2. **The comparison is on the two tails and never on the two renderings**, for the same reason the
+   reading is on the tail at all: on the failing pick the renderings differ by a system turn at the
+   front, so comparing them would refuse the one pick this module exists to read correctly. That is
+   two of the mutations below, and they fail on the same three tests.
+3. **What an operator sees** is both tails printed with their readings, the line saying whether the
+   template read the key, and then one `refused:` line saying the switched tail carries no marker
+   of either family and is not the one rendered with the key left alone. The cells are not printed,
+   as they are not for a rendering carrying no ask: the refusal is about whether this reader may
+   speak at all, so it comes before the report of what was drawn. The recovery is the same ten
+   seconds it was, with the difference that the tail printed is now named as unreadable rather than
+   published as a verdict about a tier.
+4. **This is the fifth refusal in this family and it is the same one.** `envelopefloor.py` refuses
+   a draw floor and a missing control arm, and this module already refused a rendering it cannot
+   place, a cell too thin, a control that did not fire. A reader here publishes nothing rather than
+   guessing when its input cannot support a verdict, and an unmarked tail the key moved is exactly
+   that input.
+
+### What this does not do, and where that is recorded
+
+- **A third family whose template appends nothing either way still reads as open.** The
+  discriminator is that the key changed the tail, so a third family that renders one identical tail
+  both ways falls on the failing pick's side of the line. Its control arm would then not deliberate
+  and the run refuses one step later for that instead, which is a red in the wrong words.
+  [R-517](../refinements/tasks/517-a-third-family-that-appends-nothing-either-way-still-reads-as-open.md).
+- **No third family has been measured**, and none is in the lineup. The rule is drawn from the two
+  families that are, and its unknown side has never fired against a real server; the invented pair
+  in the suite is a fixture and is labelled as one.
+- **The vocabulary is still two pairs and still in this tree.** Nothing here moves a template token
+  toward the port, and no capability probe ships.
+
+### Distrust green
+
+Mutations of `scripts/switchtail.py`, each reverted from a file copy, run against
+**`scripts/tests/test_switchtail.py` and `scripts/tests/test_switchsamples.py` together, the
+51-test suite that covers the module and its format half** (`cd scripts && uv run pytest
+tests/test_switchtail.py tests/test_switchsamples.py`):
+
+| mutation | result |
+| --- | --- |
+| the refusal removed, a third spelling read as an open door again | 2 failed, 49 passed |
+| the tail comparison dropped, every unmarked tail refused | 3 failed, 48 passed |
+| the comparison made on the two renderings rather than the two tails | 3 failed, 48 passed |
+| an opener no longer a word this reader knows, only the closers | 1 failed, 50 passed |
+| none, restored | 51 passed |
+
+The two rows sharing 3 failed are not a revert loop: both break the failing pick, so both fail the
+same three gemma tests, the front-of-prompt trap, the tail read as open, and the open tail refused
+beside a cell that held.

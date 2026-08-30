@@ -379,7 +379,9 @@ just switch-tail measurements/switch-<model>.json
 That reads the rendered prompt back against the cells the same run drew and says whether this
 tier's template still predicts its own constrained verdict, on the **tail** and not on the two
 renderings differing. Exit 0 published the agreement; exit 1 is either a refusal to publish (a
-control arm that never deliberated, a cell drawn too few times) or the prediction breaking on this
+control arm that never deliberated, a cell drawn too few times, or a switched tail carrying no
+marker of either family this reader knows while not being the tail rendered with the key left
+alone, which is a template answering in a third spelling) or the prediction breaking on this
 tier, which is news about the record above rather than about your deployment: the rule is a set of
 readings of one engine build's handlers, and a handler that started gating its reasoning rule on
 `enable_thinking` would break it. Nothing in the stack reads the answer, so a red here is a
