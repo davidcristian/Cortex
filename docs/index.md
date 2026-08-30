@@ -507,8 +507,10 @@ New non-obvious decision → add `adr/ADR-XXXX-<slug>.md`, link it here.
     (with its `couplings` vocabulary and the two registry halves written in it), `bindcheck.py`
     (with its `composemounts` reader), `defaultcheck.py` (with its `composedefaults` reader),
     `volumecheck.py` (with the `imagevolumes` record of what each
-    pinned image declares, the `dockerfilevolumes` reading of what a Dockerfile here declares and
-    the `dockerfilebases` reading of the image its last stage stands on),
+    pinned image declares and would declare for a child, the `imagedrift` call that asks a real
+    docker for both, the `dockerfilevolumes` reading of what a Dockerfile here declares and of the
+    triggers a base's row carries, and the `dockerfilebases` reading of the image its last stage
+    stands on),
     `stubcheck.py` (with its `protocomments` reader), `samplecheck.py` (with the `logsamples`
     reading of
     what a runbook's log line claims and the `logcalls` reading of what the call really

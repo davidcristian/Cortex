@@ -123,7 +123,9 @@ Interfaces are designed around this rule from day one. Retrofitting it is a rewr
    out-of-reach-evidence addendum, and `just image-volumes` re-derives that record), and which
    holds that same record to every `VOLUME` a Dockerfile here declares, following each build to
    its file through the compose stanza that names it, so the record cannot move under the gate
-   from inside the tree either;
+   from inside the tree either, and to every `ONBUILD VOLUME` a base's row carries, which is the
+   declaration a base makes in its children rather than in itself and which its own
+   `Config.Volumes` never shows (ADR-0011 addendum on what a base declares for its children);
    `stubcheck.py`, which holds the committed Rust seam stub to the comments
    [proto/body.proto](proto/body.proto) carries, the one half of a skipped regeneration no
    compiler would notice, as a text comparison running no codegen (ADR-0003 stub-fidelity
@@ -315,10 +317,13 @@ scripts/          repo gates, plus the two modules here that gate nothing, contr
                   appears in the row for the image built from it) + composeservices.py (its reader
                   of what a service runs, covers and is built from) + composetargets.py (the
                   container path one mount entry names, in all four spellings) +
-                  imagevolumes.py (the recorded answer it reads,
-                  because a running docker is what the gate cannot have, re-derived by
-                  `just image-volumes`) + dockerfilevolumes.py (the tree's own side of that
-                  record, read from the Dockerfile each build stanza points at) +
+                  imagevolumes.py (the recorded answer it reads, in the two dimensions one row
+                  has, because a running docker is what the gate cannot have) +
+                  imagedrift.py (the call that asks a real docker for both and the report of
+                  every row that has since moved, run by `just image-volumes`) +
+                  dockerfilevolumes.py (the tree's own side of that
+                  record, read from the Dockerfile each build stanza points at, and the reader of
+                  the triggers a base's row carries) +
                   dockerfilebases.py (the other side of a built row, the image that file's last
                   stage stands on, whose own row is pulled because a built row never is, and the
                   line joining both readers work over),

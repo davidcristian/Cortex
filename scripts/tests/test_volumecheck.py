@@ -13,12 +13,17 @@ from pathlib import Path
 import pytest
 
 import volumecheck
-from imagevolumes import IMAGE_VOLUMES, InspectError, Inspector
+from imagedrift import InspectError, Inspector
+from imagevolumes import IMAGE_VOLUMES, Row
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 # A fake record: one image declaring a path, one measured silent, one built here by compose.
-RECORDS: dict[str, tuple[str, ...]] = {"cache:1": (), "db:1": ("/var/lib/db",), "tree-brain": ()}
+RECORDS: dict[str, Row] = {
+    "cache:1": Row((), ()),
+    "db:1": Row(("/var/lib/db",), ()),
+    "tree-brain": Row((), ()),
+}
 
 BASE = "name: tree\nservices:\n  brain:\n    build: ./brain\n"
 
@@ -36,10 +41,10 @@ def _service(body: str, name: str = "db") -> str:
     return f"services:\n  {name}:\n{body}"
 
 
-def _answering(answers: Mapping[str, tuple[str, ...]]) -> Inspector:
+def _answering(answers: Mapping[str, Row]) -> Inspector:
     """An inspector answering from a dict and refusing anything else, the way docker does."""
 
-    def inspect(reference: str, *, pull: bool) -> tuple[str, ...]:  # noqa: ARG001
+    def inspect(reference: str, *, pull: bool) -> Row:  # noqa: ARG001
         try:
             return answers[reference]
         except KeyError as err:
@@ -177,7 +182,7 @@ def test_one_dockerfile_is_asked_once_per_row_it_builds(tree: Path) -> None:
     each of them separately: two images, two records, two containers collecting a volume."""
     _write(tree, "docker/docker-compose.email.yml", _service("    build: ./brain\n", "mail"))
     _write(tree, "brain/Dockerfile", "FROM scratch\nVOLUME /var/cache/thing\n")
-    records = {**RECORDS, "tree-mail": ()}
+    records = {**RECORDS, "tree-mail": Row((), ())}
     faults = [fault for fault in volumecheck.check(tree, records).faults if fault.line]
     assert [fault.path for fault in faults] == [
         "docker/docker-compose.email.yml",
@@ -230,7 +235,7 @@ def test_a_path_the_base_declares_and_the_built_row_lacks_is_reported(tree: Path
     from whatever the machine running the recipe last built, while the base has been republished
     and the next build there inherits a path nothing mounts."""
     _write(tree, "brain/Dockerfile", "FROM base:1\n")
-    records = {**RECORDS, "base:1": ("/inherited",)}
+    records = {**RECORDS, "base:1": Row(("/inherited",), ())}
     scanned = volumecheck.check(tree, records)
     faults = [fault for fault in scanned.faults if fault.path != volumecheck.RECORD_PATH]
     assert len(faults) == 1
@@ -251,7 +256,7 @@ def test_a_row_named_only_by_a_dockerfile_is_named_enough_to_stand(tree: Path) -
     """A base is named by a `FROM` and by no compose service, so the stale-row rule has to count
     that as naming it; a rule that did not would make the rows the other rule needs impossible."""
     _write(tree, "brain/Dockerfile", "FROM base:1\n")
-    scanned = volumecheck.check(tree, {**RECORDS, "base:1": ()})
+    scanned = volumecheck.check(tree, {**RECORDS, "base:1": Row((), ())})
     assert "base:1" in scanned.names
     assert [fault for fault in scanned.faults if "'base:1'" in fault.detail] == []
 
@@ -359,6 +364,7 @@ def test_main_states_what_it_read_beside_the_verdict(capsys: pytest.CaptureFixtu
     assert "service definition(s) and " in out
     assert "image(s) counting the bases those builds stand on, " in out
     assert "2 Dockerfile(s) here declare and inherit nothing their row does not carry" in out
+    assert "does not carry, triggers included" in out
 
 
 def test_main_reports_each_fault_and_exits_one(
@@ -410,7 +416,7 @@ def test_main_rederiving_asks_the_registry_for_everything_it_did_not_build(
     """The count in the success line is the reading that says which half was refreshed."""
     asked: dict[str, bool] = {}
 
-    def inspect(reference: str, *, pull: bool) -> tuple[str, ...]:
+    def inspect(reference: str, *, pull: bool) -> Row:
         asked[reference] = pull
         return IMAGE_VOLUMES[reference]
 
@@ -435,9 +441,9 @@ def test_main_rederiving_against_a_docker_that_has_moved_reports_the_row(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """What `just image-volumes` is for: the image changed under the answer this repo recorded."""
-    moved = {**IMAGE_VOLUMES, "redis:8-alpine": ("/data",)}
+    moved = {**IMAGE_VOLUMES, "redis:8-alpine": Row(("/data",), ())}
     argv = ["--root", str(REPO_ROOT), "--rederive"]
     assert volumecheck.main(argv, _answering(moved)) == 1
     captured = capsys.readouterr()
     assert "redis:8-alpine: recorded nothing, docker says /data" in captured.out
-    assert "1 recorded row(s) disagree with docker" in captured.err
+    assert "1 recorded reading(s) disagree with docker" in captured.err

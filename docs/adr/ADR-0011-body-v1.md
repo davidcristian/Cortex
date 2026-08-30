@@ -1185,3 +1185,128 @@ docker rather than four claims about one, and the arrangement it endorses was ex
 day: `just image-volumes` was run against a real daemon and agreed with all ten rows, and
 `volumecheck.py --root ..` exits 0 over the same tree with no docker involved at all, which is the
 property the whole recorded-answer arrangement exists to keep.
+
+## Addendum (2026-08-30): a base declares for its children too, and the record holds that now
+
+The addendum above closed the derivation question and filed what it found while closing it. The
+falsifying reading was `ONBUILD VOLUME` in a base: the base's own `Config.Volumes` stays empty, the
+build of anything standing `FROM` it declares the path, and the instruction clears in the child, so
+neither of the two things this tree reads about a built row can see it. That reading was recorded
+as a reason to keep the built rows recorded, and it left a gap of its own, filed as
+[R-493](../refinements/tasks/493-a-base-may-declare-a-volume-through-onbuild.md): nothing here
+would notice a base gaining such a trigger until somebody rebuilt, and then it would surface as an
+uncovered path rather than as the base change it is. This addendum closes that entry.
+
+### The reading, taken again
+
+Docker 29.7.2 on this host, 2026-08-30, both bases pulled first. A base whose triggers are
+`ONBUILD VOLUME /probe/onbuild`, `ONBUILD VOLUME ["/probe/array-one", "/probe/array two"]` and
+`ONBUILD RUN true` answers `null` for its own `Config.Volumes` and carries the three instructions
+verbatim in `Config.OnBuild`. An image built `FROM` it by a Dockerfile whose only line is that
+`FROM` declares all three paths and answers `null` for its own `Config.OnBuild`. The same build
+under `DOCKER_BUILDKIT=0` declares the same three, so this is the builder rather than one frontend.
+Two further readings decided how the entries have to be read: docker keeps the instruction **as the
+file wrote it**, so a lowercase `onbuild volume /probe/lower` is stored lowercase and fires, and it
+**joins a continuation before storing**, so `ONBUILD VOLUME /a \` over two lines is stored as one
+entry. All ten rows in the record answer `null` for `Config.OnBuild` today, which is the same
+reading the entry took the day before and is a dated reading rather than a property: both bases are
+moving tags.
+
+### Decision: one row, two dimensions, and the trigger recorded raw
+
+`imagevolumes.IMAGE_VOLUMES` now maps each image to a `Row`, which carries `volumes` as before and
+`onbuild` beside it, and `dockerfilevolumes.py` holds every path those triggers name to the row for
+the image built from that base, exactly as the base's own paths are held. The entry named three
+things to weigh first, and each is answered on what it costs rather than on taste.
+
+**The row's shape changes; a parallel mapping keyed the same way was rejected.** Two tables keyed on
+an image reference spell one fact twice, which images are recorded, with nothing deriving it to
+compare, and that is the defect `dockerfilevolumes.py` refuses one level down when it declines to
+record which Dockerfile builds which row. A row could then half-exist, present in one table and
+missing from the other, and the re-derivation would have to walk three sets to notice. With one row
+both dimensions are measured in one `docker image inspect`, so an image is measured or it is not.
+The cost the entry worried about is real and was paid: every consumer of `IMAGE_VOLUMES` sees the
+new shape. It came to four modules and their tests, and it is the kind of change a type checker
+finds all of.
+
+**The record holds the raw `ONBUILD` list, not the paths it resolves to.** What docker says is the
+fact this record exists to hold; a path is a reading of it. A resolved row would be read once, on
+the machine that ran the recipe, by code the gate never runs, and it would leave `just
+image-volumes` comparing a real image against a derivation instead of against a second reading of
+the same image, which is the collapse the addendum above rejected for the built rows. Raw entries
+also keep the refusal where everyone runs it: a trigger nobody here can read is a fault on every
+`just check` rather than a silence produced once. The cost is that a base adding a trigger this
+rule never spends, an `ONBUILD RUN`, moves its row. That is a row edit after a recipe run, and it
+is what a record of an answer costs.
+
+**`dockerfilevolumes.read_volumes` goes on refusing `ONBUILD VOLUME` in a Dockerfile here, and that
+refusal is now argued as a correctness requirement rather than a simplification.** That reader
+answers what an image declares of its own. An `ONBUILD VOLUME` in `brain/Dockerfile` declares
+nothing in `cortex-brain`, so reading it there would make the existing rule demand a path in a row
+that correctly does not carry it, reddening a correct record. The triggers are read by the same
+grammar from the other side, where they belong: `dockerfilebases.inherited` hands back the base
+row's raw entries with the base it found them under, and `dockerfilevolumes.onbuild_volumes` reads
+each as the one-line Dockerfile it is. What that leaves open is that a built row could itself become
+a base for another Dockerfile here, at which point the tree could move that row's trigger dimension
+under the gate the way it can move a `VOLUME` today. No file here stands on an image this repo
+builds, so nothing is wrong now, and the case is filed rather than built
+([R-506](../refinements/tasks/506-a-built-row-that-became-a-base-would-spend-a-recorded-trigger.md)).
+
+### What this buys, and what it deliberately does not
+
+A base republished with `ONBUILD VOLUME` now moves its row on the next `just image-volumes`, in the
+dimension it really moved in, and the gate then reddens on every commit until the image is rebuilt,
+re-recorded and the path is mounted. Before this, every gate stayed green until somebody rebuilt.
+
+It does not make the union of what the tree can read a ceiling on what a built image declares, and
+the built rows stay recorded for exactly the reason the addendum above gives. A third readable
+source is still an enumeration, and this one has already been wrong once; what the record survives
+by is being a reading of a real image rather than a model of one. Every rule over these rows stays
+one-directional for the same reason.
+
+### Consequences
+
+- **`imagedrift.py` is a new module**, holding the inspect call, the format both dimensions are
+  measured with, the reader that turns an answer back into a `Row`, and the drift report.
+  `imagevolumes.py` is the record and nothing else. The split is the line cap doing its job: the
+  two dimensions and the shape checks they need put the one file over 300 lines, and a record and
+  the daemon call that re-derives it are two jobs, one of which never runs where the other does.
+- **The format string changed** to two lines of JSON, one per dimension, and the whole record was
+  re-derived with it: `just image-volumes` against a real daemon agrees with all ten rows in both
+  dimensions, three built here and seven pulled before they were asked.
+- **The reader refuses one shape aimed at the hand rather than at docker.** A recorded entry that
+  does not open with an instruction word is a fault. This came out of the mutation table below: a
+  row whose trigger was pasted as `/x` where docker said `VOLUME /x` was read as an instruction the
+  reader passes over, and declared nothing, which every other check here would have called a
+  silence where a declaration was.
+- **Five documents said the two readable sides were what a built row answers for** and now say
+  three: the `volumecheck.py` docstring, the `check-volumecheck` and `image-volumes` comments in the
+  justfile, the `volumecheck.py`, `imagevolumes.py`, `dockerfilevolumes.py` and
+  `dockerfilebases.py` entries in `docs/modules/repo-gates.md`, the gate paragraph and repo map in
+  `AGENTS.md`, and the gate's line in `docs/index.md`. The count of things that fail the gate went
+  from eleven to thirteen.
+
+### Distrusting green: the mutation table
+
+Thirteen mutants, one at a time, each counted over **the `scripts/` suite**, which is what `just
+check-scripts` runs (`cd scripts && uv run pytest`), 1489 tests passing and 1 deselected before any
+mutation. Every one of them is red.
+
+| # | Mutation | Failing tests |
+|---|---|---|
+| 1 | the trigger rule is never asked | 2 |
+| 2 | an unreadable trigger is walked past | 1 |
+| 3 | a trigger path the row carries is reported anyway | 1 |
+| 4 | no entry is read as a `VOLUME` | 5 |
+| 5 | a recorded trigger need not open with an instruction | 2 |
+| 6 | the base's row hands over no triggers | 2 |
+| 7 | the drift report ignores the trigger dimension | 3 |
+| 8 | the trigger dimension is dropped when the answer is read | 2 |
+| 9 | an answer of any length is accepted | 2 |
+| 10 | a trigger that is not an instruction is accepted | 1 |
+| 11 | triggers are compared without their order | 1 |
+| 12 | a base's row records a trigger the tree does not answer for | 3 |
+| 13 | a recorded trigger is written as the path it resolves to | 3 |
+
+Mutant 13 is the one that mattered: on its first run it was **green**, which is how the refusal in
+mutant 5 came to exist. The table was rerun whole afterwards, and the count above is that rerun.

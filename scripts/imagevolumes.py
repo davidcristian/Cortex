@@ -16,23 +16,28 @@ it. So the out-of-reach fact is brought into the tree instead: the table below i
 docker gave, `volumecheck.py` compares it against what the compose files mount, and `just
 image-volumes` asks docker again and reports every row that has since drifted. That is the shape
 `docs/refinements/index.md` already has, a recorded artifact with a gate over it and a recipe that
-regenerates it.
+regenerates it. The asking is `imagedrift.py`, which is where the format each row was measured
+with lives, and it is a file of its own because a record and the daemon call that re-derives it
+are two jobs, one of which never runs where the other one does.
 
-**How it was measured.** Once per image this repo names, on the date beside its row, with the same
-format string `docker_volumes` below spends, which is `INSPECT_FORMAT`:
+**Each row has two dimensions, because a base declares a volume in two ways.** `Config.Volumes` is
+what an image declares about itself; `Config.OnBuild` is what it declares about whatever is built
+`FROM` it. A base carrying `ONBUILD VOLUME /x` has an empty `Config.Volumes` of its own, the build
+of anything standing on it fires the trigger and declares `/x`, and the instruction clears in the
+child, so nothing in the built image records where the path came from (measured against docker
+29.7.2 on 2026-08-30, under BuildKit and under `DOCKER_BUILDKIT=0` alike; docker writes the trigger
+down verbatim, cased as the file wrote it and with any continuation already joined). Both
+dimensions are asked in one `docker image inspect`, which is what keeps a row from half-existing:
+an image is measured or it is not, and which images are recorded is one fact spelled once.
 
-    docker image inspect --format "$INSPECT_FORMAT" <image>
-
-**A re-derivation pulls first, and that is the whole reason it can see anything.** `docker image
-inspect` answers out of the local cache and never reaches a registry, so on a machine holding a
-month-old copy of a moving tag it confirms a month-old image under a name the registry has since
-republished. Half these references are moving tags by design, `ghcr.io/ggml-org/llama.cpp:server`
-most of all, and the failure this record has to survive is exactly a publisher adding a `VOLUME`
-to a tag nobody re-pinned. An inspect of the cache cannot see that, so `rederive` refreshes every
-registry reference before asking about it, and a pull that fails is reported rather than answered
-from whatever was lying around. The three images this repo builds are the exception, having no
-registry to be refreshed from: their answer is the local build, which is the thing a container
-here really runs.
+**The trigger dimension is recorded raw**, one whole instruction per entry as docker hands it over,
+rather than the paths those entries resolve to. What docker says is the fact this file exists to
+hold, and a path is a reading of it: a reading taken once, on the machine that ran the recipe,
+could not be checked by the gate everyone runs, and it would leave `just image-volumes` comparing a
+real image against a derivation rather than against a second reading of the same image.
+`dockerfilevolumes.py` spends the entries instead, with the reader it already has for a `VOLUME`
+argument, and a trigger nobody here can read is a fault on every run rather than a silence recorded
+once.
 
 Two of the ten answer with a path. The other eight declare nothing, and a row saying so is worth
 as much as a row saying otherwise: it is what lets the gate tell an image whose silence was
@@ -52,175 +57,69 @@ the grounds that no compose file names either and that what they declare is alre
 the image a container really runs. The first half is still true and the second was the mistake:
 inherited into the image this machine last built, which is not the image the next build produces.
 Both are moving tags, so they are recorded and pulled like every other registry reference, and
-`dockerfilebases.py` holds each built row to carrying what its base's row carries. A base
-republished with a new `VOLUME` then reddens the gate on the next re-derivation instead of waiting
-for somebody to rebuild. The bases of the *builder* stages get no row for the reason the old
-paragraph gave about all of them: a builder stage's declarations were measured not to reach the
-built image at all, so no container ever runs them.
+`dockerfilebases.py` holds each built row to carrying what its base's row carries, in both
+dimensions: what the base declares, and what its triggers would declare on the next build. A base
+republished with a new `VOLUME`, or with a new `ONBUILD VOLUME`, then reddens the gate on the next
+re-derivation instead of waiting for somebody to rebuild. The bases of the *builder* stages get no
+row for the reason the old paragraph gave about all of them: a builder stage's declarations were
+measured not to reach the built image at all, so no container ever runs them.
 
 **The three built rows are recorded and not derived**, which is the step a reader takes straight
 out of the paragraph above and is answered on a measurement rather than on taste. With a base row
 beside each Dockerfile, what a built image declares looks computable: the union of what the file
 declares and what its base's row carries. That union is a floor under the answer and never a
-ceiling. A base whose only instruction is `ONBUILD VOLUME /probe/onbuild` declares no volume of its
-own, so its row here would be the empty tuple both real bases carry today, and an image built
-`FROM` it by a Dockerfile with no `VOLUME` instruction at all declares `/probe/onbuild` (measured
-against docker 29.7.2 on 2026-08-29, under both builders, and the instruction clears in the child
-so nothing there records that it was ever present). A derived row would be empty while every
-container of that image takes an anonymous volume, which is the leak this file exists to prevent,
-arriving through the gate rather than past it. A row read off a real built image carries whatever
-produced the declaration, enumerated here or not. That is also why the two rules over these rows
-are one-directional: a built row is *supposed* to be able to carry more than the tree can read.
+ceiling, which was measured rather than argued, and reading the trigger dimension raises the floor
+without turning it into a ceiling. It closes the one way past it that the measurement found; what
+the record has to survive is a base gaining a mechanism nobody here enumerated, and an enumeration
+believed complete is the shape of claim this one already falsified once. A derived row would be
+computed from sources that can all say nothing while every container of the image takes an
+anonymous volume, which is the leak this file exists to prevent, arriving through the gate rather
+than past it. A row read off a real built image carries whatever produced the declaration,
+enumerated here or not. That is also why the rules over these rows are one-directional: a built row
+is *supposed* to be able to carry more than the tree can read.
 """
 
-import subprocess
-import sys
-from collections.abc import Iterable, Mapping
-from typing import Protocol
+from typing import NamedTuple
 
-# The answer docker gave, image reference to the volume paths it declares, sorted. An empty tuple
-# is a measured answer and not a missing one. Regenerate with `just image-volumes`.
-IMAGE_VOLUMES: dict[str, tuple[str, ...]] = {
+
+class Row(NamedTuple):
+    """One image as docker answered about it: what it declares, and what it declares for a child.
+
+    ``volumes`` is `Config.Volumes`, sorted, and is what a container of this image gets an
+    anonymous volume at. ``onbuild`` is `Config.OnBuild` in docker's own order, one raw
+    instruction per entry, and is what the build of anything standing `FROM` this image would
+    declare. Both are the empty tuple for the image that carries neither, which is a measured
+    answer and not a missing one.
+    """
+
+    volumes: tuple[str, ...]
+    onbuild: tuple[str, ...]
+
+
+# The answer docker gave, image reference to what it declares of its own and what its triggers
+# would declare in a child. An empty tuple is a measured answer and not a missing one, in either
+# dimension. Regenerate with `just image-volumes`.
+IMAGE_VOLUMES: dict[str, Row] = {
     # The probe's dovecot, whose two declarations the probe file already mounts a tmpfs over.
-    "dovecot/dovecot:2.3.21": ("/etc/dovecot", "/srv/mail"),
+    "dovecot/dovecot:2.3.21": Row(("/etc/dovecot", "/srv/mail"), ()),
     # Postgres' data directory, declared by the image whether or not the service is a database:
     # the memory stack runs this image twice, once as the server and once as the pg_dump sidecar.
-    "pgvector/pgvector:pg16": ("/var/lib/postgresql/data",),
-    "ghcr.io/ggml-org/llama.cpp:server": (),
-    "node:22-bookworm-slim": (),
-    "redis:8-alpine": (),
-    "cortex-brain": (),
-    "cortex-mcp-email": (),
-    "cortex-model-host": (),
+    "pgvector/pgvector:pg16": Row(("/var/lib/postgresql/data",), ()),
+    "ghcr.io/ggml-org/llama.cpp:server": Row((), ()),
+    "node:22-bookworm-slim": Row((), ()),
+    "redis:8-alpine": Row((), ()),
+    "cortex-brain": Row((), ()),
+    "cortex-mcp-email": Row((), ()),
+    "cortex-model-host": Row((), ()),
     # The two bases the rows above are built on, named by a Dockerfile here rather than by a
-    # compose file, and pulled on every re-derivation because a built row cannot be. Measured
-    # 2026-08-28; the eight rows above were measured 2026-08-25.
-    "python:3.12-slim-trixie": (),
-    "ghcr.io/ggml-org/llama.cpp:server-cuda": (),
+    # compose file, and pulled on every re-derivation because a built row cannot be. Every row
+    # above was re-derived in both dimensions on 2026-08-30, the day the trigger dimension was
+    # added; the paths in them were first measured on 2026-08-25, and the two rows here on
+    # 2026-08-28.
+    "python:3.12-slim-trixie": Row((), ()),
+    "ghcr.io/ggml-org/llama.cpp:server-cuda": Row((), ()),
 }
 
 # Where a row is edited, named here so the gate reporting a stale or missing one can say where to
 # go. It is this module's own path from the repo root, which is the one place the table lives.
 RECORD_PATH = "scripts/imagevolumes.py"
-
-# One path per line, which is the only shape `docker_volumes` has to parse back.
-INSPECT_FORMAT = "{{range $path, $_ := .Config.Volumes}}{{$path}}\n{{end}}"
-
-
-class Inspector(Protocol):
-    """How a rederivation asks about one image, and whether to refresh it from its registry first.
-
-    The fake in the tests satisfies the same signature, which is what keeps the comparison below
-    testable without a daemon.
-    """
-
-    def __call__(self, reference: str, *, pull: bool) -> tuple[str, ...]: ...
-
-
-class InspectError(Exception):
-    """Docker could not be asked what an image declares, so no row can be compared against it."""
-
-
-def render(paths: Iterable[str]) -> str:
-    """The paths as a report should show them, an image declaring none saying so in words."""
-    written = ", ".join(paths)
-    return written or "nothing"
-
-
-def docker_volumes(  # pragma: no cover -- needs a real docker
-    reference: str, *, pull: bool
-) -> tuple[str, ...]:
-    """Ask docker what one image declares, refreshing it from its registry first when it has one.
-
-    The thin adapter, and the only part of this module a coverage gate cannot reach. Everything
-    that decides anything is in `rederive`, which takes any inspector and is tested against a fake.
-    The pull is what makes the answer a fact about the registry rather than about this machine's
-    cache; the module docstring says why that is the difference between a re-derivation and a
-    confirmation of whatever was already here.
-    """
-    try:
-        if pull:
-            fetched = subprocess.run(  # noqa: S603 -- fixed argv, no shell
-                ["docker", "pull", "--quiet", reference],  # noqa: S607
-                capture_output=True,
-                check=False,
-                text=True,
-            )
-            if fetched.returncode != 0:
-                msg = f"docker pull failed: {fetched.stderr.strip()}"
-                raise InspectError(msg)
-        result = subprocess.run(  # noqa: S603 -- fixed argv, no shell
-            ["docker", "image", "inspect", "--format", INSPECT_FORMAT, reference],  # noqa: S607
-            capture_output=True,
-            check=False,
-            text=True,
-        )
-    except OSError as err:
-        msg = f"cannot run docker: {err}"
-        raise InspectError(msg) from err
-    if result.returncode != 0:
-        msg = f"docker image inspect failed: {result.stderr.strip()}"
-        raise InspectError(msg)
-    return tuple(sorted(line.strip() for line in result.stdout.splitlines() if line.strip()))
-
-
-def rederive(
-    references: Iterable[str],
-    records: Mapping[str, tuple[str, ...]],
-    inspect: Inspector,
-    built: Iterable[str] = (),
-) -> list[str]:
-    """Ask ``inspect`` about every image, and report each row that no longer says what it says.
-
-    Both directions are asked, over the union of what the compose files name and what the record
-    holds, because a row that has gone stale and an image nobody recorded are the same drift
-    arriving from opposite sides. An image docker cannot answer about is reported rather than
-    skipped: a rederivation that quietly left a row unverified would confirm the record it was run
-    to doubt, and asking a stale cache is the same confirmation wearing a green face, which is why
-    every reference outside ``built`` is refreshed before it is asked about.
-    """
-    report: list[str] = []
-    local = set(built)
-    for reference in sorted({*references, *records}):
-        recorded = records.get(reference)
-        try:
-            found = inspect(reference, pull=reference not in local)
-        except InspectError as err:
-            report.append(f"{reference}: {err}")
-            continue
-        if recorded is None:
-            report.append(f"{reference}: docker says {render(found)}, and the record has no row")
-        elif tuple(sorted(recorded)) != found:
-            report.append(f"{reference}: recorded {render(recorded)}, docker says {render(found)}")
-    return report
-
-
-def report_drift(
-    names: Iterable[str],
-    built: Iterable[str],
-    records: Mapping[str, tuple[str, ...]],
-    inspect: Inspector,
-) -> int:
-    """Ask a real docker about the record, print every row that has drifted, and exit on it.
-
-    The re-derivation's other half, and it lives beside the record rather than beside the rule it
-    keeps honest: every name it touches is this module's, and the gate above it answers a
-    different question entirely.
-    """
-    references, local = list(names), list(built)
-    report = rederive(references, records, inspect, local)
-    for line in report:
-        print(line)
-    if report:
-        print(
-            f"\nvolumecheck: {len(report)} recorded row(s) disagree with docker. Edit the table in "
-            f"{RECORD_PATH} to what docker says, and cover any newly declared path in the compose "
-            "file whose service runs that image.",
-            file=sys.stderr,
-        )
-        return 1
-    print(
-        f"volumecheck: the record agrees with docker on all {len({*references, *records})} "
-        f"image(s), {len(local)} of them built here and the rest pulled before they were asked"
-    )
-    return 0

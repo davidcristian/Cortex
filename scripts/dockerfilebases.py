@@ -35,6 +35,13 @@ rows cannot catch themselves. Those three are asked without a pull, having no re
 answer is whatever the machine running the recipe last built, while the base rows are pulled on
 every re-derivation. A base republished with a new `VOLUME` therefore reddens `just check` on the
 next run of the recipe, rather than waiting for somebody to rebuild on the machine that runs it.
+
+**A base declares for its children too**, through `ONBUILD VOLUME`, which its own `Config.Volumes`
+never carries and the build of anything standing `FROM` it does. That is the second dimension of a
+base's row and it costs the built row the same paths, so the reading is handed straight over: this
+module says which base answers for a built row and returns the triggers that row recorded, and
+`dockerfilevolumes.py` reads them with the `VOLUME` grammar it already owns and reports what the
+built row does not carry. One rule, two sources, and the parsing where the parser lives.
 """
 
 import re
@@ -42,7 +49,7 @@ from collections.abc import Iterable, Mapping
 from typing import NamedTuple
 
 from composetargets import normalize
-from imagevolumes import RECORD_PATH
+from imagevolumes import RECORD_PATH, Row
 
 # The instruction a stage opens with, matched case-insensitively the way docker matches it.
 INSTRUCTION = "FROM"
@@ -90,10 +97,14 @@ class Inheritance(NamedTuple):
 
     ``bases`` is empty only for a file standing on `scratch`, and carries the base even when no row
     answers for it: the reference is one the record has to hold either way, so the gate counts it
-    among the images it named before deciding whether the record knows it.
+    among the images it named before deciding whether the record knows it. ``triggers`` is the raw
+    `ONBUILD` the base's row recorded, belonging to the one base in ``bases`` and handed to the
+    caller that owns the `VOLUME` grammar; it is empty for a base standing outside the record,
+    whose fault is already reported here.
     """
 
     bases: tuple[str, ...]
+    triggers: tuple[str, ...]
     faults: tuple[str, ...]
 
 
@@ -170,22 +181,23 @@ def inherited(
     text: str,
     reference: str,
     carried: Iterable[str],
-    records: Mapping[str, tuple[str, ...]],
+    records: Mapping[str, Row],
 ) -> Inheritance:
     """The base this file stands on, and every path its row carries that the built row lacks."""
     base = read_base(text)
     if base is None:
-        return Inheritance((), ())
+        return Inheritance((), (), ())
     row = records.get(base)
     if row is None:
         detail = _UNROWED.format(dockerfile=dockerfile, reference=reference, base=base)
-        return Inheritance((base,), (detail,))
+        return Inheritance((base,), (), (detail,))
     held = set(carried)
     return Inheritance(
         (base,),
+        row.onbuild,
         tuple(
             _UNINHERITED.format(dockerfile=dockerfile, reference=reference, base=base, path=path)
-            for path in row
+            for path in row.volumes
             if normalize(path) not in held
         ),
     )

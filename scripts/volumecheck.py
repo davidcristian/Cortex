@@ -24,25 +24,27 @@ nor a build is a fragment of one defined elsewhere; it asks nothing here.
 in this tree, and for those the record can move under the gate from inside the tree rather than
 from a registry. So every path such a Dockerfile declares must appear in the row for the image
 built from it, which is `dockerfilevolumes.py`'s question and runs on the mapping the walk already
-reads from each service's `build:`. Its other half is what the built image **inherits**: the record
-carries a row for the image each of those files stands `FROM`, `dockerfilebases.py` resolves that
-base through the file's stages, and every path the base's row carries must appear in the built row
-too. Both rules are one-directional, and that is a requirement rather than a concession. The two
-halves are a **floor** under what a built image declares, never the whole of it, since a base
-carrying `ONBUILD VOLUME` adds a path to the image built from it that neither half can see, which
-was measured rather than assumed (the ADR-0011 addendum on why the three built rows stay recorded).
-So a recorded path neither side declares is not merely nobody's fault: it is the only place a third
-source can appear. What the floor buys is what the built rows cannot buy themselves, a row asked
-without a pull still being held to a base that is pulled on every re-derivation.
+reads from each service's `build:`. Its other halves are what the built image takes from its base:
+the record carries a row for the image each of those files stands `FROM`, `dockerfilebases.py`
+resolves that base through the file's stages, and every path the base's row carries must appear in
+the built row too, as must every path the base's recorded `ONBUILD` would declare in a build from
+it. All are one-directional, and that is a requirement rather than a concession. Together they are
+a **floor** under what a built image declares, never the whole of it: what the record has to
+survive is a base gaining a mechanism nobody here enumerated, and the enumeration was already
+falsified once (the ADR-0011 addenda on why the three built rows stay recorded and on what a base
+declares for its children). So a recorded path no side declares is not merely nobody's fault: it
+is the only place a further source can appear. What the floor buys is what the built rows cannot
+buy themselves, a row asked without a pull still being held to a base that is pulled on every
+re-derivation.
 
 **Where the answer comes from.** Docker's, recorded in `imagevolumes.py`, because `just check` runs
 on a clean dev box and in CI where there is neither daemon nor image. `--rederive` is the other
-half, hand-run behind `just image-volumes`: it pulls every image the compose files name, asks a
-real docker what each declares, and reports each row that has drifted. The pull is not a
-convenience: most of these references are moving tags, an inspect answers out of the local cache,
-and reading the cache would confirm a month-old image under a name the registry has republished.
-The images this repo builds are asked without one, having no registry to refresh from. It answers
-that one question and not this one, so a leak found by the gate is reported by the gate.
+half, hand-run behind `just image-volumes` and living in `imagedrift.py`: it pulls every image the
+compose files name, asks a real docker what each declares, and reports each row that has drifted.
+The pull is not a convenience: most of these references are moving tags, an inspect answers out of
+the local cache, and reading the cache would confirm a month-old image under a name the registry
+has republished. The images this repo builds are asked without one, having no registry to refresh
+from. It answers that one question and not this one, so a leak the gate finds the gate reports.
 
 **Fail closed** in three more directions than the rule itself, because a recorded fact only helps
 while the record and the tree still describe each other. An image no row knows is an unasked
@@ -71,7 +73,8 @@ from typing import NamedTuple
 from composefiles import ComposeSearchError, base_project, compose_files
 from composeservices import ComposeFile, ComposeServiceError, Service, read_services
 from dockerfilevolumes import undeclared
-from imagevolumes import IMAGE_VOLUMES, RECORD_PATH, Inspector, docker_volumes, report_drift
+from imagedrift import Inspector, docker_volumes, report_drift
+from imagevolumes import IMAGE_VOLUMES, RECORD_PATH, Row
 
 _UNCOVERED = (
     "service {service!r} runs {reference!r}, which declares VOLUME {path!r}, and mounts nothing "
@@ -162,9 +165,7 @@ def uncovered(name: str, service: Service, reference: str, declared: Iterable[st
     ]
 
 
-def check_file(
-    root: Path, read: Read, base: str | None, records: Mapping[str, tuple[str, ...]]
-) -> Scan:
+def check_file(root: Path, read: Read, base: str | None, records: Mapping[str, Row]) -> Scan:
     """Return what one compose file offered the gate, and every declaration left open in it."""
     if read.found is None:
         return Scan(1, 0, 0, (), (), (), read.faults)
@@ -204,17 +205,17 @@ def check_file(
                 )
             )
             continue
-        paths += len(row)
-        faults.extend(uncovered(read.name, service, reference, row))
+        paths += len(row.volumes)
+        faults.extend(uncovered(read.name, service, reference, row.volumes))
         if service.build is not None:
-            here = undeclared(root, read.path, service.build, reference, row, records)
+            here = undeclared(root, read.path, service.build, reference, row.volumes, records)
             dockerfiles.extend(here.dockerfiles)
             names.extend(here.bases)
             faults.extend(Fault(read.name, service.line, detail) for detail in here.faults)
     return Scan(1, definitions, paths, tuple(names), tuple(built), tuple(dockerfiles), faults)
 
 
-def check(root: Path, records: Mapping[str, tuple[str, ...]] = IMAGE_VOLUMES) -> Scan:
+def check(root: Path, records: Mapping[str, Row] = IMAGE_VOLUMES) -> Scan:
     """Check every compose file under ``root``, then every recorded row against what they named."""
     reads = [read_file(root, compose) for compose in compose_files(root)]
     base = base_project(
@@ -283,7 +284,7 @@ def main(argv: list[str] | None = None, inspect: Inspector = docker_volumes) -> 
         f"over {scanned.files} compose file(s), {scanned.definitions} service definition(s) and "
         f"{len(scanned.names)} image(s) counting the bases those builds stand on, and "
         f"{len(scanned.dockerfiles)} Dockerfile(s) here declare and inherit nothing their row "
-        "does not carry"
+        "does not carry, triggers included"
     )
     return 0
 

@@ -1,12 +1,13 @@
 """Behaviour of the Dockerfile side of the image-volume record: what a file here declares.
 
-Two halves are exercised, and they fail in different directions. `read_volumes` is a reader, so
-most of what is below asserts a refusal: a shape it was not taught has to raise rather than be
-walked past, since a `VOLUME` this reader skipped is a declared path the record would go on
-denying. `undeclared` is the rule over it, and it is where both halves of a built row meet: what
-the file declares itself and what its base declares for it, asked over one read. Both halves are
-one-directional by design, so the tests that matter most are the ones asserting what is *not* a
-fault: a path the row already carries, and a row carrying a path neither side ever names.
+Two kinds of thing are exercised, and they fail in different directions. `read_volumes` and
+`onbuild_volumes` are readers, so most of what is below asserts a refusal: a shape one was not
+taught has to raise rather than be walked past, since a `VOLUME` this reader skipped is a declared
+path the record would go on denying. `undeclared` is the rule over them, and it is where every
+side of a built row meets: what the file declares itself, what its base declares for it, and what
+its base's triggers would declare into it, asked over one read. All are one-directional by design,
+so the tests that matter most are the ones asserting what is *not* a fault: a path the row already
+carries, and a row carrying a path no side ever names.
 """
 
 from pathlib import Path
@@ -15,7 +16,8 @@ import pytest
 
 from composeservices import DEFAULT_DOCKERFILE, Build
 from dockerfilebases import DockerfileError
-from dockerfilevolumes import landings, read_volumes, undeclared
+from dockerfilevolumes import landings, onbuild_volumes, read_volumes, undeclared
+from imagevolumes import Row
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -111,6 +113,46 @@ def test_an_escape_directive_below_the_first_instruction_is_an_ordinary_comment(
     assert read_volumes("FROM scratch\n# escape=`\nVOLUME /a\n") == ("/a",)
 
 
+# ── reading a base's recorded triggers ─────────────────────────────────────────
+
+
+def test_a_recorded_trigger_declares_the_path_it_names() -> None:
+    """The whole reason the dimension is recorded raw: the row says what docker said, and the
+    paths are read here, by the gate everybody runs rather than once on one machine."""
+    assert onbuild_volumes(("VOLUME /probe/onbuild",)) == ("/probe/onbuild",)
+
+
+def test_a_trigger_is_read_in_both_spellings_and_however_it_is_cased() -> None:
+    """Docker writes the instruction down as the file wrote it, lower case and array alike."""
+    assert onbuild_volumes(('volume ["/a", "/b"]', "VOLUME /c")) == ("/a", "/b", "/c")
+
+
+def test_a_trigger_that_is_not_a_volume_declares_nothing() -> None:
+    """A base may carry any instruction as a trigger, and only one of them makes a volume."""
+    assert onbuild_volumes(("RUN true", "COPY . /app")) == ()
+
+
+def test_an_image_carrying_no_trigger_declares_nothing_through_one() -> None:
+    """The answer every row in this repo's record gives today, and it is an answer."""
+    assert onbuild_volumes(()) == ()
+
+
+@pytest.mark.parametrize("entry", ["/probe/onbuild", ""], ids=["path", "empty"])
+def test_a_trigger_not_opening_with_an_instruction_is_refused(entry: str) -> None:
+    """The refusal aimed at the hand that pastes a row rather than at docker: a trigger written as
+    the path it resolves to would read as an instruction this reader passes over, and a row in the
+    wrong shape would then declare nothing while the base declares a path."""
+    with pytest.raises(DockerfileError, match="does not open with an instruction"):
+        onbuild_volumes((entry,))
+
+
+def test_a_trigger_the_reader_cannot_read_is_refused_rather_than_resolved_to_nothing() -> None:
+    """It is a path the next build may declare, so a silence here would be the gate agreeing with
+    a record that denies it."""
+    with pytest.raises(DockerfileError, match="carries an expansion"):
+        onbuild_volumes(("VOLUME ${CACHE}",))
+
+
 # ── finding the file a service builds from ─────────────────────────────────────
 
 
@@ -169,7 +211,8 @@ def test_a_recorded_path_neither_the_file_nor_its_base_declares_is_not_a_fault(
     """Both rules are one-directional, so a row carrying more than the two sides declare is not a
     drift: what is declared is held to what is recorded, and never the reverse."""
     compose = _tree(tmp_path, "FROM base:1\n")
-    reading = undeclared(tmp_path, compose, HERE, "tree-brain", ("/inherited",), {"base:1": ()})
+    records = {"base:1": Row((), ())}
+    reading = undeclared(tmp_path, compose, HERE, "tree-brain", ("/inherited",), records)
     assert reading == ((DEFAULT_DOCKERFILE,), ("base:1",), ())
 
 
@@ -177,7 +220,8 @@ def test_a_path_the_base_declares_and_the_row_lacks_is_reported(tmp_path: Path) 
     """The half a built row cannot catch itself: the base was republished with a declaration, and
     the row goes on answering from whatever the machine running the recipe last built."""
     compose = _tree(tmp_path, "FROM base:1\n")
-    reading = undeclared(tmp_path, compose, HERE, "tree-brain", (), {"base:1": ("/inherited",)})
+    records = {"base:1": Row(("/inherited",), ())}
+    reading = undeclared(tmp_path, compose, HERE, "tree-brain", (), records)
     assert reading.bases == ("base:1",)
     assert len(reading.faults) == 1
     assert "FROM 'base:1', which declares VOLUME '/inherited'" in reading.faults[0]
@@ -188,12 +232,63 @@ def test_a_path_the_base_declares_and_the_row_carries_is_the_record_in_step(
 ) -> None:
     """And the two sides are compared as paths, so one trailing slash is not a second spelling."""
     compose = _tree(tmp_path, "FROM base:1\n")
-    records = {"base:1": ("/inherited",)}
+    records = {"base:1": Row(("/inherited",), ())}
     assert undeclared(tmp_path, compose, HERE, "tree-brain", ("/inherited/",), records) == (
         (DEFAULT_DOCKERFILE,),
         ("base:1",),
         (),
     )
+
+
+def test_a_path_a_bases_trigger_would_declare_and_the_row_lacks_is_reported(tmp_path: Path) -> None:
+    """The gap the trigger dimension closes: the base declares nothing of its own, the next build
+    from it declares the path anyway, and every row the two other sides read says nothing."""
+    compose = _tree(tmp_path, "FROM base:1\n")
+    records = {"base:1": Row((), ("VOLUME /triggered",))}
+    reading = undeclared(tmp_path, compose, HERE, "tree-brain", (), records)
+    assert reading.bases == ("base:1",)
+    assert len(reading.faults) == 1
+    assert "whose ONBUILD declares VOLUME '/triggered'" in reading.faults[0]
+    assert "'tree-brain'" in reading.faults[0]
+
+
+def test_a_path_a_bases_trigger_declares_and_the_row_carries_is_the_record_in_step(
+    tmp_path: Path,
+) -> None:
+    """The rule is one-directional here too, and the two sides are compared as paths."""
+    compose = _tree(tmp_path, "FROM base:1\n")
+    records = {"base:1": Row((), ("VOLUME /triggered/",))}
+    reading = undeclared(tmp_path, compose, HERE, "tree-brain", ("/triggered",), records)
+    assert reading == ((DEFAULT_DOCKERFILE,), ("base:1",), ())
+
+
+def test_a_recorded_trigger_the_reader_refuses_is_a_fault_on_the_build_that_stands_on_it(
+    tmp_path: Path,
+) -> None:
+    """A row nobody can read is not a base declaring nothing; the fault names the file, the row
+    and what could not be read, since the fix is a hand edit at the record."""
+    compose = _tree(tmp_path, "FROM base:1\n")
+    records = {"base:1": Row((), ("VOLUME relative/path",))}
+    faults = undeclared(tmp_path, compose, HERE, "tree-brain", (), records).faults
+    assert len(faults) == 1
+    assert "whose recorded ONBUILD this reader will not guess at" in faults[0]
+    assert "is not an absolute container path" in faults[0]
+
+
+def test_a_base_with_no_row_owes_no_trigger_fault_on_top_of_the_unrecorded_one(
+    tmp_path: Path,
+) -> None:
+    """There is nothing to read, and the unrecorded base already says what to do about it."""
+    compose = _tree(tmp_path, "FROM base:1\n")
+    reading = undeclared(tmp_path, compose, HERE, "tree-brain", (), {})
+    assert len(reading.faults) == 1
+
+
+def test_a_file_standing_on_nothing_is_asked_about_no_trigger(tmp_path: Path) -> None:
+    """`FROM scratch` names no base, so there is no row whose triggers could fire into this one."""
+    compose = _tree(tmp_path, "FROM scratch\n")
+    records = {"base:1": Row((), ("VOLUME /triggered",))}
+    assert undeclared(tmp_path, compose, HERE, "tree-brain", (), records).faults == ()
 
 
 def test_a_base_the_record_has_no_row_for_is_a_fault(tmp_path: Path) -> None:

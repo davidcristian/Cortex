@@ -81,11 +81,11 @@ check-defaultcheck:
 # image-volumes` is what re-derives that record from docker and fails when it has gone
 # stale (ADR-0011 addendum on evidence out of the gate's reach). Three of those rows are
 # built here, and for those the same scan reads the Dockerfile each build stanza points at
-# and fails when it declares, or inherits from the image its last stage stands on, a path
-# its row does not carry. That is the half of the question the tree can answer with no
-# daemon at all, and it is a floor under what a built image declares rather than the whole
-# of it: a base carrying an ONBUILD VOLUME adds a path neither half can see, which is why
-# those three rows are recorded and not derived from the two.
+# and fails when it declares, or inherits from the image its last stage stands on, or would
+# be handed by that image's own ONBUILD, a path its row does not carry. That is the half of
+# the question the tree can answer with no daemon at all, and it is a floor under what a
+# built image declares rather than the whole of it, which is why those three rows are
+# recorded rather than derived from the sides.
 check-volumecheck:
     cd scripts && uv sync --locked
     cd scripts && uv run python volumecheck.py --root ..
@@ -132,7 +132,8 @@ check-flagcheck:
     cd scripts && uv run python flagcheck.py --root ..
 
 # Hand-run, needs docker and the network: pull every image this repo names, ask the daemon
-# what each actually declares, and fail when scripts/imagevolumes.py disagrees. The pull is
+# what each actually declares and what each would declare for a child through ONBUILD, and
+# fail when scripts/imagevolumes.py disagrees in either. The pull is
 # the point, since inspect answers out of the local cache and most of these references are
 # moving tags; the three images built here are asked without one, having no registry, which
 # is why the two bases they stand on have rows of their own and are pulled like the rest. A

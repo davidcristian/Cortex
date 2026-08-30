@@ -20,7 +20,7 @@ by the CI
 workflow, `commitlint.py` by the commit-msg pre-commit stage, `contrast.py` by `just turn-cost`
 and `trailwidth.py` by `just recall-width`;
 each also exposes a pure, unit-tested core function).
-**The rest have no CLI of their own**, forty three modules,
+**The rest have no CLI of their own**, forty five modules,
 most split out under the line cap and each named for what it holds: `couplings.py` is the
 vocabulary `crosscheck.py`'s registry is written in, `registry.py` names the parts that registry is
 written in, and `seamcouplings.py`, `endpointcouplings.py`, `shippedcouplings.py`,
@@ -41,8 +41,10 @@ sidecar's own declaration with `moduleconstants.py` answering underneath it for 
 module's top level binds, `artifactnames.py` is what both of those sets rest on, every model
 artifact this tree names and the variable each one is named under, so the same gate can hold a
 spelling those two readings would otherwise have to assume, `imagevolumes.py` is the recorded
-answer that gate reads and the drift report over it, `dockerfilevolumes.py` is what a Dockerfile
-in this tree declares against the row for the image built from it, with `dockerfilebases.py`
+answer that gate reads, in the two dimensions one row has, with `imagedrift.py` asking a real
+docker for both and reporting every row that has since moved, `dockerfilevolumes.py` is what a
+Dockerfile in this tree declares against the row for the image built from it and what a base's
+recorded trigger would declare into it, with `dockerfilebases.py`
 answering the other half of that row, the image the file's last stage stands on and whose own
 row is pulled because a built row never is, and carrying the line joining both readers work
 over, `protocomments.py` is what a proto comment is and how it normalizes into
@@ -504,23 +506,29 @@ that last question to have an answer.
   here declares must appear in the row for the image built from it (`dockerfilevolumes.py`), and
   so must every path declared by the image that file's last stage stands `FROM`
   (`dockerfilebases.py`), the record carrying a row for each of those two bases and pulling it on
-  every re-derivation because a built row can never be pulled at all. Between them the two halves
+  every re-derivation because a built row can never be pulled at all. **A third covers what a base
+  declares for its children**, the `ONBUILD VOLUME` its own `Config.Volumes` never shows and the
+  next build from it makes real: every path the base row's recorded triggers name must appear in
+  the built row too, read with the same `VOLUME` grammar. Between them the three sides
   are a **floor** under what a built image declares rather than the whole of it, which was measured
   rather than assumed: a declaration is inherited through `FROM`, a builder stage's reaches no
-  built image, a Dockerfile cannot un-declare what it inherits, and a base carrying an
-  `ONBUILD VOLUME` adds a path to the image built from it that neither half can see. That last one
-  is why the three built rows are recorded and not derived from the other two, and why both rules
-  are one-directional: a recorded path neither half declares is not merely nobody's fault, it is
-  the only place a third source can appear (ADR-0011 addendum on why the built rows stay
-  recorded). Eleven things
+  built image, a Dockerfile cannot un-declare what it inherits, and a base's `ONBUILD VOLUME` adds
+  a path to the image built from it while leaving that base's own row empty. That last one is why
+  the trigger dimension is recorded and why the three built rows are recorded and not derived from
+  the sides at all, and why every rule
+  is one-directional: a recorded path no side declares is not merely nobody's fault, it is
+  the only place a further source can appear (ADR-0011 addenda on why the built rows stay
+  recorded and on what a base declares for its children). Thirteen things
   fail it: a declared path no service
   covers, an image the record
   has no row for, a base the record has no row for, a base declaring a path the built row does not
-  carry, a row nothing here names, an image spelled through a substitution the record
+  carry, a base whose trigger would declare a path the built row does not carry, a recorded trigger
+  the reader will not guess at, a row nothing here names, an image spelled through a substitution
+  the record
   cannot be keyed on, a service that only builds where no base file pins the project half of its
   image name, a compose file the reader will not guess at, a Dockerfile declaring a path its row
   denies, a build stanza reaching no Dockerfile under either project directory, and a build path
-  spelled through a substitution. Under all eleven sits
+  spelled through a substitution. Under all thirteen sits
   `composefiles.py`'s floor, shared with the other two compose gates, where finding no compose
   file at all is a failure rather than an empty pass. **A build-only service's image is derived**
   as `{project}-{service}`, the project read from the file's own `name:` and otherwise from the
@@ -531,32 +539,49 @@ that last question to have an answer.
   printing `path:line: detail` per fault; exit 2 if `--root` is not a directory or the scan could
   not run.
 - `imagevolumes.py` is `volumecheck.py`'s record and has no CLI of its own. `IMAGE_VOLUMES` maps
-  each image reference a compose file names to the paths it declares, an empty tuple being a
-  measured answer rather than a missing one, which is what lets the gate tell a silence somebody
-  measured from an image nobody has asked about. Two of its rows are named by a `FROM` in this tree
+  each image reference a compose file names to a `Row`, which is what docker answered about it in
+  **two dimensions**: `volumes`, the paths it declares of its own, sorted, and `onbuild`, the raw
+  `Config.OnBuild` triggers it would fire into anything built `FROM` it, in docker's own order. An
+  empty tuple in either is a measured answer rather than a missing one, which is what lets the gate
+  tell a silence somebody measured from an image nobody has asked about; both are asked in one
+  inspect, so a row cannot half-exist. The trigger dimension is recorded raw rather than as the
+  paths it resolves to, since the record holds what docker said and a resolved path is a reading of
+  it, made once on the machine that ran the recipe rather than by the gate everyone runs. Two of
+  its rows are named by a `FROM` in this tree
   rather than by any compose file: they are the bases the three built rows stand on, recorded
   because a built row is asked without a pull and so answers from whatever the machine running the
   recipe last built, while a base row is refreshed from its registry every time. Its docstring
-  carries the measurement: the
-  `docker image inspect --format` line, the dates, and why the three built rows are spelled the way
-  compose tags them. `docker_volumes` is the only
-  part needing a real daemon and is the module's one `pragma: no cover`, and it is where the pull
-  lives; `rederive` decides everything, including which references are refreshed and which are
-  local builds, and takes any inspector, so the comparison is tested against a fake.
-  `report_drift` prints that comparison and returns the exit code behind `--rederive`, and it lives
-  here rather than beside the rule because every name it touches is this module's.
+  carries the dates each row was measured on and why the three built rows are spelled the way
+  compose tags them.
+- `imagedrift.py` is the other half of that record and has no CLI. `INSPECT_FORMAT` is the
+  `docker image inspect --format` string every row was measured with, printing two lines of JSON,
+  one per dimension; `parse(output)` reads them back into a `Row` and raises `InspectError` on any
+  shape it was not taught, which keeps the decision out of the adapter and in code the coverage
+  gate reaches, and reports an unreadable answer as a row that went unchecked rather than as an
+  image declaring nothing. `docker_volumes` is the only part needing a real daemon and is the
+  module's one `pragma: no cover`, and it is where the pull lives; `rederive` decides everything,
+  including which references are refreshed and which are local builds, and takes any inspector, so
+  the comparison is tested against a fake. It compares the paths as a set and the triggers as
+  written, since triggers fire in order, and reports each dimension that moved on its own line.
+  `report_drift` prints that comparison and returns the exit code behind `--rederive`.
 - `dockerfilevolumes.py` is the tree's own side of that record and has no CLI. `read_volumes(text)`
   returns every container path one Dockerfile declares, in both spellings docker accepts, the JSON
   array and the plain list, joined across continuation lines and matched however the instruction is
-  cased. `ONBUILD VOLUME` is deliberately not one: it declares a volume in an image built *from*
-  this one. Everything else raises `DockerfileError` rather than being walked past, since a skipped
+  cased. `ONBUILD VOLUME` is deliberately not one, and that refusal is a correctness requirement:
+  it declares a volume in an image built *from* this one, so reading it here would make the rule
+  demand a path in the row for an image that truly declares none. Where a trigger does belong is
+  `onbuild_volumes(entries)`, which reads the raw `ONBUILD` a base's row carries with the same
+  grammar, each entry being one whole instruction as docker wrote it down: an entry naming another
+  instruction declares no volume, and a `VOLUME` it cannot read is refused rather than resolved to
+  nothing. Everything else raises `DockerfileError` rather than being walked past, since a skipped
   `VOLUME` is a declared path the record would go on denying: an argument carrying a build argument
   or an environment variable, a path that is not absolute, a JSON container that is not an array of
   paths, and a `VOLUME` naming nothing. `undeclared(...)` is the rule over it and reports what no
   row carries, taking
   the Dockerfile from the compose service's `build:` rather than from a record of its own, since a
-  second spelling of that mapping is the same defect one level down. It asks the base half over
-  the same read, so a file is opened once and an unreadable one owes one fault rather than two.
+  second spelling of that mapping is the same defect one level down. It asks the base halves over
+  the same read, what the base declares and what its triggers would declare, so a file is opened
+  once and an unreadable one owes one fault rather than three.
   `landings(...)` resolves a
   relative context against **both** project directories compose can pick, exactly as `bindcheck.py`
   resolves a bind source, and an absolute one lands once rather than twice.
@@ -573,6 +598,10 @@ that last question to have an answer.
   `AS`, and a stage standing on itself or on one written after it, which no build could resolve.
   `inherited(...)` is the rule, one-directional like its sibling: every path the base's row carries
   must appear in the built row, and an unrecorded base is an unasked question rather than a pass.
+  It hands back that row's raw triggers with the base it found them under, for
+  `dockerfilevolumes.py` to read with the `VOLUME` grammar it owns and hold to the built row the
+  same way: a base declares for its children through `ONBUILD VOLUME`, which its own
+  `Config.Volumes` never carries and the next build from it makes real.
   The file's own grammar lives here too, `logical(text)` joining continuation lines and dropping
   comments and refusing an `escape=` parser directive that would change what a continuation means,
   because a stage cannot be found before the lines are joined and both readers work over the same
