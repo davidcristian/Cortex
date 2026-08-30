@@ -21,9 +21,16 @@ one fails closed on its own.
 | overlay self-exclusion | host (automatic) | required | The shell calls `SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)` on the overlay at setup. If it fails, capture stays off even with the switch on. |
 | `CORTEX_VISION` | brain | `auto` | Whether `capture_screen` is advertised to the model. `auto` probes `GET {CORTEX_INFERENCE_ENDPOINT}/props` **on every advertisement and every call**; `on`/`off` fix the answer without touching the network. |
 
-Plus the model itself: `CORTEX_MMPROJ_FILE_CORTEX` names the multimodal projector the model host
-loads beside the cortex tier. Without it the server reports no vision, the probe says no, and
+Plus the model itself: `CORTEX_MODEL_FILE_CORTEX_MMPROJ` names the multimodal projector the model
+host loads beside the cortex tier. Without it the server reports no vision, the probe says no, and
 the tool is never advertised.
+
+**That variable was `CORTEX_MMPROJ_FILE_CORTEX` until 2026-08-30.** A projector is a model file
+like every other artifact this tree names, so it is spelled in that one family now and
+`scripts/flagcheck.py` holds it (ADR-0029's projector-naming addendum). An `.env` still setting
+the old name is not an error anywhere: the model host reads no projector, the cortex tier starts
+text-only, and `capture_screen` quietly leaves the advertisement. If vision disappeared after an
+update, this is the first line to check.
 
 **Changing the projector needs no brain restart, in either direction.** Recreate the `model-host`
 service with the variable set or cleared and the next turn follows it: the capability appears when
@@ -35,14 +42,14 @@ turn, and then died on `image input is not supported - hint: ... you may need to
 mmproj`. To watch either direction happen:
 
 ```
-CORTEX_MMPROJ_FILE_CORTEX= docker compose --project-directory . -f docker/docker-compose.yml \
+CORTEX_MODEL_FILE_CORTEX_MMPROJ= docker compose --project-directory . -f docker/docker-compose.yml \
   -f docker/docker-compose.gpu.yml up -d --no-deps --force-recreate model-host
 # wait for the tier to reload, then:
 curl -s http://127.0.0.1:8080/props | jq .modalities   # {"vision": false, ...}
 ```
 
 The brain's own log then says `vision probe answered` with `vision: false` on the next turn, and
-the tool is gone from that turn's advertisement. Drop the `CORTEX_MMPROJ_FILE_CORTEX=` prefix and
+the tool is gone from that turn's advertisement. Drop the `CORTEX_MODEL_FILE_CORTEX_MMPROJ=` prefix and
 repeat to put it back.
 
 The other knobs, all optional:
@@ -115,7 +122,7 @@ should fail in.
 
 1. Name the projector beside the model, in the repo-root `.env`:
    ```
-   CORTEX_MMPROJ_FILE_CORTEX=google/gemma-4-12B-it-qat-q4_0-gguf/mmproj-gemma-4-12b-it-qat-q4_0.gguf
+   CORTEX_MODEL_FILE_CORTEX_MMPROJ=google/gemma-4-12B-it-qat-q4_0-gguf/mmproj-gemma-4-12b-it-qat-q4_0.gguf
    ```
    It ships under the same read-only models mount, so no extra bind is needed.
 2. `just up-gpu`, then confirm the server reports the capability:
@@ -250,4 +257,4 @@ Any one of these is enough, and each is honest about which layer it turns off:
 
 - `CORTEX_HOST_CAPTURE` unset: the body refuses every capture, whatever the brain thinks.
 - `CORTEX_VISION=off`: the tool is never advertised, so the model cannot ask.
-- `CORTEX_MMPROJ_FILE_CORTEX` unset: the model has no eyes, and `auto` discovers that itself.
+- `CORTEX_MODEL_FILE_CORTEX_MMPROJ` unset: the model has no eyes, and `auto` discovers that itself.

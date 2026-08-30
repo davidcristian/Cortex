@@ -1,5 +1,6 @@
 """Every model artifact this tree names, and the variable each one is named under."""
 
+import ast
 from pathlib import Path
 from typing import NamedTuple
 
@@ -8,16 +9,20 @@ from composefiles import compose_files
 from composestarts import ComposeStartError, Started, read_starts
 from hostedtiers import (
     MODEL_MANAGER,
+    SETTINGS_CLASS,
     TIER_MODULE,
     aliases,
     declared,
     parse_module,
     tier_artifacts,
 )
+from moduleconstants import bound
 
 # llama.cpp's own flag naming the artifact a server serves, in the long spelling every server
 # started here writes and the only one this reader takes.
 MODEL_FLAG = "--model"
+
+ARTIFACT_SUFFIX = "_file"
 
 
 class Artifact(NamedTuple):
@@ -68,15 +73,42 @@ def composed(root: Path) -> tuple[Artifact, ...]:
     )
 
 
+def files(module: ast.Module) -> tuple[tuple[str, str, int], ...]:
+    """Every settings field whose own name says it holds an artifact, with its line."""
+    named = aliases(module)
+    return tuple(
+        (field, named[field], statement.lineno)
+        for node in module.body
+        if isinstance(node, ast.ClassDef) and node.name == SETTINGS_CLASS
+        for statement in node.body
+        if (declaration := bound(statement)) is not None
+        and (field := declaration[0]) in named
+        and field.endswith(ARTIFACT_SUFFIX)
+    )
+
+
 def tiered(root: Path) -> tuple[Artifact, ...]:
-    """Every artifact the model host's own tiers name, the subagent tier and the rest alike."""
+    """Every artifact the model host names, by the tiers that spend one and by the fields.
+
+    The tier walk first, so an artifact a tier reads its path from is reported at the tier that
+    reads it; a field found both ways is one artifact and is not repeated.
+    """
     module = parse_module(root, TIER_MODULE)
     named = aliases(module)
     shown = (MODEL_MANAGER / TIER_MODULE).as_posix()
-    return tuple(
+    spent = tuple(
         Artifact(file=shown, where=field, line=call.lineno, variable=variable)
         for call in declared(module)
         for field, variable in tier_artifacts(call, named)
+    )
+    fields = {artifact.where for artifact in spent}
+    return (
+        *spent,
+        *(
+            Artifact(file=shown, where=field, line=line, variable=variable)
+            for field, variable, line in files(module)
+            if field not in fields
+        ),
     )
 
 

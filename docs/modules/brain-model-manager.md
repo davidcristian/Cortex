@@ -127,7 +127,7 @@ is what a composed deployment runs and the Python default is what it merely appe
 `scripts/crosscheck.py` holds the two together, so retune both or neither. The two 8192s are
 separate constants on purpose, the deep tier's context and a subagent's being sized on different
 arguments.
-`CORTEX_MMPROJ_FILE_CORTEX` (ADR-0029) adds llama.cpp's `--mmproj` pair to the **cortex** tier's
+`CORTEX_MODEL_FILE_CORTEX_MMPROJ` (ADR-0029) adds llama.cpp's `--mmproj` pair to the **cortex** tier's
 argv, which is the whole of the vision wiring on this side: the projector loads beside the model,
 and the brain then discovers the capability from the running server's `/props` rather than from a
 second flag here that could disagree with it. Empty (the default) starts the tier text-only. The

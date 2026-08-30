@@ -360,9 +360,10 @@ scripts/          repo gates, plus the four modules here that gate nothing, cont
                   covers both) + moduleconstants.py (what a Python module's own top level binds,
                   read without importing it, that reader's syntax side) + artifactnames.py (what
                   both those sets rest on, every model artifact this tree names and the variable
-                  each is named under, found by llama.cpp's own flag and by the settings field a
-                  tier reads its path from, so the family the membership is decided from is held
-                  rather than assumed),
+                  each is named under, found by llama.cpp's own flag, by the settings field a
+                  tier reads its path from and by the field whose own name says it holds a file,
+                  which is the one the projector rides, so the family the membership is decided
+                  from is held rather than assumed),
                   composefiles.py (which files all four compose gates walk, answered once so
                   they cannot drift apart), backlogcheck.py (each backlog index still matches
                   its task files,

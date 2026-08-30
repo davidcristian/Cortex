@@ -69,7 +69,7 @@ class ModelHostConfig(BaseSettings):
     cortex_file: str = Field(
         default=DEFAULT_CORTEX_FILE, validation_alias="CORTEX_MODEL_FILE_CORTEX"
     )
-    cortex_mmproj_file: str = Field(default="", validation_alias="CORTEX_MMPROJ_FILE_CORTEX")
+    cortex_mmproj_file: str = Field(default="", validation_alias="CORTEX_MODEL_FILE_CORTEX_MMPROJ")
     cortex_image_max_tokens: int = Field(
         default=DEFAULT_IMAGE_MAX_TOKENS, ge=0, validation_alias="CORTEX_IMAGE_MAX_TOKENS"
     )

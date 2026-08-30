@@ -904,7 +904,13 @@ that last question to have an answer.
   model artifact the tree names, with the file, the service or settings field, the line and the
   variable, and `flagcheck.py` holds each to the family prefix. **The artifacts are found
   structurally, in both languages**: a compose one is the item after llama.cpp's own `--model`,
-  and a hosted one is the settings field a tier reads its `model_path` from. Reading only the
+  and a hosted one is the settings field a tier reads its `model_path` from, or, since the
+  projector, any settings field whose own name ends `_file`. `files(module)` is that second
+  reading, and it exists because `model_path` is one keyword of several that carry an artifact
+  into an argv: the multimodal projector rides the cortex tier's `extra`, assembled by a call the
+  tier reader refuses to approximate, so the field's own name is what says it holds one. The
+  domain is the Python name and never the environment one, that being the spelling under test,
+  and a field found both ways is one artifact reported at the tier that spends it. Reading only the
   variables that already begin `CORTEX_MODEL_FILE_` would have been a rule whose domain is the
   convention it checks, unable to fail for the misspelling it exists to catch. Two exclusions
   are deliberate and each is what a fault would otherwise be wrong about: the **short** spelling
