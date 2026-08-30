@@ -273,7 +273,10 @@ Config (pydantic-settings; explicit constructor arguments beat the environment):
   `CORTEX_SUBAGENTS_ROSTER__<name>` adds one **alternate** model as a JSON
   `SubagentRosterEntry` (`endpoint` required; `gpu_endpoint` empty falls back to it;
   per-entry `vram_gb`/`cpus`/`memory_gb`; `description` advertised verbatim, per ADR-0018, set
-  by `docker/docker-compose.subagents-roster.yml`). A key naming the default is rejected.
+  by `docker/docker-compose.subagents-roster.yml`, and carrying trade-off text only: rendering the
+  row's measured answer rates into it is declined, since an entry names an endpoint while the
+  artifact answering there is a `command:` in a compose file, ADR-0018's addendum of 2026-08-30). A
+  key naming the default is rejected.
   `stall_timeout_s: float = 600.0` (`CORTEX_SUBAGENTS_STALL_TIMEOUT_S`, positive) is the pool's
   own version of the resident tier's ceiling and is the loose one of the two: it covers a CPU
   call's own time to first token on a tier decoding at between 0.18 and 1.35 tok/s depending on

@@ -1,6 +1,6 @@
 # A roster entry's description tells the cortex how fast it is and never whether it answers
 
-**Status:** open, actionable
+**Status:** declined 2026-08-30
 **Area:** subagents
 **Origin:** [ADR-0018](../../adr/ADR-0018-heterogeneous-subagents.md)
 
@@ -47,3 +47,14 @@ other before one is built.
 - 2026-08-28: opened by the close of
   [R-483](483-the-rest-of-the-subagent-tier-is-unasked.md), which measured the last two entries of
   the row and put the spread in delivered answers at 66 to 94 of 96 across the five.
+- 2026-08-30: declined by the ADR-0018 addendum on the description staying trade-off text. The
+  premise held: `description` is advertised verbatim by `_model_property` and is the whole of what
+  distinguishes one entry from another to a chooser. Shape 3 is chosen, and the three reasons the
+  2026-07-16 addendum could not have given are that a rate names a roster entry while an entry does
+  not fix a model (the same finding that declined
+  [R-482](482-the-sentence-is-one-wording-for-every-entry.md)), that a rate is a reading under four
+  conditions no profile can see and a fifth that is hand judged, and that the chooser was measured
+  reaching for the knob on one of fifteen recorded batches in the one wiring where it is advertised
+  at all. The rates stay in the operator's runbook, where the reader can also see the conditions and
+  change the pick, and that table now carries them. Opens
+  [R-508](508-a-roster-entry-names-an-endpoint-and-not-a-model.md).

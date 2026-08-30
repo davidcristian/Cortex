@@ -342,3 +342,88 @@ sharpened by all three findings, at
 cheap to repeat: `packages/orchestrator/tests/test_spawn_nudge_live.py` carries the armed check and
 both asks, and [runbooks/subagents-cpu.md](../runbooks/subagents-cpu.md) section 3c carries the
 bring-up and the two ways to make the run meaningless (any tool override, or a one-entry roster).
+
+## Addendum (2026-08-30): the description stays trade-off text, and a rate would name what an entry does not fix
+
+**Status:** Accepted. Declines
+[R-485](../refinements/tasks/485-a-roster-description-never-says-whether-the-entry-answers.md),
+which [ADR-0028](ADR-0028-grammar-constrained-subagents.md)'s row addendum opened by measuring the
+five entries of the subagent row between 66 and 94 of 96 on identical work while the text a cortex
+chooses by names a speed and a hazard. Opens
+[R-508](../refinements/tasks/508-a-roster-entry-names-an-endpoint-and-not-a-model.md), jointly with
+that ADR's addendum of the same date, which declines the same per-entry seam for a different value.
+This affirms the 2026-07-16 addendum above rather than extending it, and changes no code.
+
+### Re-derived first
+
+`_model_property` in `spawn_spec.py` joins every entry name with its `description` into the `model`
+property's own text, verbatim, and `build_spawn_spec` builds that property only when
+`not tools_enabled and len(roster.entries) > 1` (decision 8). The one alternate a compose file ships
+describes itself exactly as the entry quotes it. So the entry's account is accurate on both halves:
+the description is the whole of what distinguishes one entry from another to a chooser, and there is
+no field a measured rate could go in.
+
+### What is new is the number, and it does not overturn the decision above
+
+The 2026-07-16 addendum declined deriving these strings from measured latency and robustness, on the
+ground that they are deployment-specific config while safety is deterministic. The entry's case is
+that a per-entry, decision-relevant, measured number now exists and reaches no chooser. That much is
+true. It is declined for three reasons the earlier decision could not have given.
+
+**1. A rate would name a roster entry, and an entry does not fix a model.** A description is a
+string beside a name over an endpoint. `SingleResidentModelManager` matches the roster name against
+itself and dials that endpoint; the weights are named by `CORTEX_MODEL_FILE_SUBAGENT` or
+`CORTEX_MODEL_FILE_SUBAGENT_QWEN` in a `command:` the brain never reads. So "answers 83 of 96" filed
+under `qwen` describes the artifact the compose default happens to name, and the deployment that
+overrode that artifact, whose real rate is furthest from the table, is the one that would keep
+reading it. The Risks note above says a wrong description misleads the optimization only, and that is
+still true; what changes is that a wrong **number** misleads it with the authority of a measurement.
+
+**2. A rate is a reading under conditions the profile cannot see.** Four of them, each of which
+moved at least once inside the arc that produced the number: the artifact behind the endpoint, the
+engine build, which every one of these measurements names by digest, the token cap
+`CORTEX_SUBAGENTS_MAX_TOKENS`, since the strict reading counts a run cut at the cap as a
+non-delivery whatever its text held, and the appended sentence itself, whose own per-entry seam is
+declined at ADR-0028 today. The judging is a fifth: `delivered` is hand judged once per sweep, which
+is [R-507](../refinements/tasks/507-the-floor-sees-only-the-failures-a-machine-can-name.md). The
+honest rendering would therefore be a rate, four conditions and a date, inside a JSON-Schema
+description a small model reads before choosing.
+
+**3. The chooser was measured, and it barely reads this text.** The 2026-08-04 addendum above ran
+the real tool loop with `spawn_subagents` as the only advertised tool: 20 prose-only turns produced
+zero spawn calls, and invited in ordinary prose the cortex delegated on all 16 turns and spread on
+none, with exactly one of the 15 recorded batches carrying a `model` key at all. That one states its
+reason and the reason is cost and safety, which is what the text already says. Finding 3 of the same
+run is the other half: the knob and its options list reach only a tool-less multi-entry deployment,
+so every stack layering the tools or email overrides sees no descriptions at all. A rate rendered
+here would be shown to a chooser that picks explicitly about once in fifteen batches, in the wiring
+the shipped overrides remove.
+
+### The three shapes, priced against each other
+
+1. **A sentence typed into the description.** Rejected, and the entry says why: nothing holds a
+   hand-typed rate to a measurement, so it is a lie the day the wording or the engine build changes.
+2. **A field on `SubagentProfile` rendered by the spec builder.** This is the same seam ADR-0028
+   declines today for the wording, for the same reason. Both values want to be per artifact and the
+   port offers per name, so building it would file a measured property under a key that does not
+   determine it.
+3. **Nothing, deliberately, with the operator's runbook as the home.** Chosen. This is the option
+   the entry asked to have argued rather than skipped, and the argument is that the reader who can
+   act on a rate is the one who chose the artifact. That reader is at the compose file, can see the
+   four conditions, and can change the pick; the cortex is at none of the three.
+
+**What that costs, said plainly.** A cortex choosing between roster entries still chooses on speed
+and injection robustness while the entries differ more in whether an answer arrives at all. On the
+shipped two-entry roster the gap is the default's 90 of 96 against the alternate's 83, which is real,
+is smaller than the row's spread, and points the same way the advertised text already points, the
+alternate being described as the one to reach for when robustness matters less. The gap that would
+justify a field, the 66 of the smallest entry, belongs to a pick no shipped roster advertises.
+
+### What moves
+
+No code. The Risks note above, that advertised descriptions are config-authored rather than measured,
+is now twice affirmed rather than a note awaiting work: once for deriving the strings and once for
+rendering a measured rate into them. `docs/runbooks/subagents-cpu.md` keeps the row's rates where an
+operator meets the override and gains the conditions they are a reading under, so the number that
+does exist says what would make it stale. The module docs record the decision beside
+`SubagentProfile`.

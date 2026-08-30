@@ -901,3 +901,111 @@ the sentence, the unwrap or any pick moves, and no table above changes. What cha
 sweep's procedure: its numbers are published by a command rather than by hand, and a sweep whose
 control arm fell through the floor now says so instead of printing a table about the envelope that
 is really about the pick.
+
+## Per-entry wording addendum (2026-08-30): the sentence stays one wording, and what an entry is decides it
+
+**Status:** Accepted. Declines
+[R-482](../refinements/tasks/482-the-sentence-is-one-wording-for-every-entry.md), which the lineup
+addendum opened by finding the shipped sentence a net loss on one pick and the row addendum amended
+to two. Opens
+[R-508](../refinements/tasks/508-a-roster-entry-names-an-endpoint-and-not-a-model.md), jointly with
+[ADR-0018](ADR-0018-heterogeneous-subagents.md)'s addendum of the same date, which declines the same
+per-entry seam for a different value. No code, no wording and no pick moves, and no rate above is
+re-read or re-run.
+
+### Re-derived first
+
+Every claim the entry makes about the tree still holds, checked before anything was designed.
+`REPLY_INSTRUCTION` is a module constant in `cortex_core/subagent_reply.py`, `instruct_reply` is the
+only thing that appends it, `task_messages(task, *, constrain)` calls it on the constrained path and
+hands the cortex's own words through on the other, and `SubagentProfile` carries `resources` and a
+`description` and nothing that could hold a wording. So the sentence really is one wording for every
+entry, and a per-entry wording really would be the port change the entry describes.
+
+What the entry does not say, and what decides this, is what a roster entry is.
+
+### An entry is a name over an endpoint, and the picks that pay are not entries
+
+A `SubagentProfile` is keyed by roster name. The shipped roster has at most two names: `subagent`,
+built from the flat `CORTEX_SUBAGENTS_*` env, and `qwen`, added by
+`docker/docker-compose.subagents-roster.yml`. The two entries the sentence costs, gemma-4-E2B and
+Qwen3.5-0.8B, are entries of the **lineup** in [ADR-0004](ADR-0004-model-lineup.md) and are reached
+by pointing `CORTEX_MODEL_FILE_SUBAGENT` or `CORTEX_MODEL_FILE_SUBAGENT_QWEN` at another GGUF, which
+is a `command:` argument of a `llama-server` container. Nothing in the brain reads it:
+`SingleResidentModelManager(name, endpoint)` matches the logical id against itself and dials the
+endpoint, and the logical id is the roster name. The brain therefore knows which door it knocks on
+and never which weights answer.
+
+Three consequences, and the first is the whole decline.
+
+1. **A wording filed under `subagent` would describe whatever GGUF that container was started on.**
+   An operator who overrode the artifact to the E2B keeps the entry name, keeps its description, and
+   would have to type the wording in a third place, with nothing in the code able to tell that the
+   two belong together. The field cannot fire for the case it exists for unless its user already
+   knows the answer, and a user who knows it has a better lever than a sentence, which is the pick.
+2. **It would ship empty on every deployment this repo has.** Both picks a shipped stack runs gain
+   from the sentence, so the default value would be the shipped wording everywhere, and the two
+   entries the field exists for are unreachable by name.
+3. **It puts the choice on the reader least able to make it.** The entry's own sentence about
+   decision 4 says an operator has no way to know which side of the split a pick is on. That is an
+   argument against the field for the same reason it is an argument against a knob.
+
+### There is nothing measured to put in it
+
+- **gemma-4-E2B**: 90 of 96 bare against 84 constrained, the losses on extraction (32 to 28) and on
+  the one-fact lookup (31 to 24), with 14 of 96 constrained draws written into the reasoning channel
+  a delegated run drops. The mechanism is a template that answers the thinking kwarg by dropping the
+  block, so the sentence pushes on a door already open. No milder wording has been asked of it, and
+  nothing measured says one exists that recovers its summarization without costing its lookup.
+- **Qwen3.5-0.8B**: 70 bare against 66 constrained, intervals overlapping, which the row addendum
+  calls a small cost rather than a measured harm. Its failure is handing the ask back, once as a
+  paraphrase of `REPLY_INSTRUCTION` itself offered as the answer. A milder wording is a plausible
+  remedy on the E2B and is close to the opposite here, since the thing being echoed is the sentence
+  and a longer or softer one gives the echo more to copy.
+
+So the field would be filled from taste. This ADR holds exactly one measurement about wording, the
+instruction addendum's fifth arm, and it says that naming the answer rather than the genre cost
+nothing on the genre it was named for. Nothing here supports a second wording for anything.
+
+### The only value an operator could set with confidence is the one decision 4 refused
+
+An empty override means the grammar with the sentence off, which is
+`CORTEX_SUBAGENTS_CONSTRAIN_OUTPUT` split in half and made per entry. Decision 4 rejected that as a
+knob for reproducing a defect and it stands, with a sharper argument than the one it shipped with:
+the split it declines to expose is not per deployment, it is per artifact, and the artifact is the
+one thing the roster does not name. A field that refused the empty string would be left holding only
+a wording nobody has measured.
+
+### What the entry gets, which is a narrower claim rather than a field
+
+Its third bullet asks whether this ADR should say something narrower, and it should. **The scope of
+the instruction addendum's decisions is the picks this repo ships and not the tier.** The row's
+tally is three gains and two costs out of five, and only the default's gain is large: the E4B's
+summarization goes 9 of 32 to 29, the 2B and the 4B rise a little, the E2B and the 0.8B fall. Both
+entries a shipped stack runs are on the gaining side and both entries that pay are artifact
+overrides. The sentence is defended from here on as a repair for the two picks this repo ships and a
+measured cost on two it names, rather than as a property of the subagent tier.
+
+Where that cost is written does not move, and that is the entry's other candidate close: the
+operator's runbook, at the override that reaches it, beside the rate. What is added there today is
+what keeps those rates true, a rate with no conditions beside it being the failure mode the sibling
+decline at [ADR-0018](ADR-0018-heterogeneous-subagents.md) is about.
+
+### What would reopen it, so the decline is falsifiable rather than final
+
+- **A wording measured to recover a failing entry without costing another of its shapes.** One arm
+  of the committed harness is the whole cost of finding out, and until one exists the field has
+  nothing to hold.
+- **A roster entry that fixes its artifact**, which is
+  [R-508](../refinements/tasks/508-a-roster-entry-names-an-endpoint-and-not-a-model.md). If an entry
+  could say which weights answer at its endpoint, a per-entry value would be filed under the thing
+  that decides the behaviour it describes. Both this decline and ADR-0018's rest on the fact that it
+  cannot.
+- **A deployment that ships a failing pick as a roster entry** rather than as an override, which
+  would put the cost in front of a chooser instead of an operator.
+
+### What moves
+
+No code. `REPLY_INSTRUCTION`, `instruct_reply`, `task_messages` and `SubagentProfile` are untouched.
+The runbook's override table gains the conditions its numbers are a reading under, and the module
+doc's pointer at this question stops describing a port change that is coming.
