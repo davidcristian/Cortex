@@ -17,6 +17,7 @@ GATES_MODULE = "docs/modules/repo-gates.md"
 LOCAL_DEV_RUNBOOK = "docs/runbooks/local-dev-wsl.md"
 MEMORY_MODULE = "docs/modules/brain-memory.md"
 MEMORY_RUNBOOK = "docs/runbooks/memory-pgvector.md"
+TOOLS_MODULE = "docs/modules/brain-tools.md"
 TOOLS_RUNBOOK = "docs/runbooks/tools-mcp.md"
 
 FIELD_KEY = '"{value}":'
@@ -26,7 +27,12 @@ FIELD_KEY = '"{value}":'
 # through, so a bare needle would go on being found there after the message it names had moved.
 TRAIL_CALL = '_logger.info("{value}"'
 
-DECLARED_LOGGER = 'names["{value}"]'
+DECLARED_NAME = '{value} = "'
+
+# How a module contract names that same identifier: in the sentence saying the sink declares its
+# logger there rather than inside the call. Both contracts write it, each having to explain why its
+# sink is spelled the way it is, and neither could reach the identifier by any import.
+CONTRACT_NAME = "the module as `{value}`"
 
 ASSERTED_MESSAGE = ':{value} "'
 
@@ -40,18 +46,15 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
             "runbook names it among the two per-line trails a deployment can raise or lower on "
             "its own, and the module contract states what the sink writes; a rename in the sink "
             "alone leaves all three instructing a reader about a logger nothing writes through "
-            "(ADR-0038 named-logger addendum); the fourth place restates nothing and is the one "
-            "holding this declaration to the call handed it, the gate suite's guard asserting "
-            "that the brain declares this logger in this sink, which a call passing another "
-            "literal fails and which nothing said was load bearing (ADR-0009 declared-name "
-            "addendum)"
+            "(ADR-0038 named-logger addendum); what holds this declaration to the call handed it "
+            "is the guard the sixth entry below is about, which names no sink and so restates "
+            "nothing here (ADR-0009 derived-sink addendum)"
         ),
         sites=(Site(RECALL_SINK, "_LOGGER_NAME"),),
         mentions=(
             Mention(MEMORY_RUNBOOK, "one `{value}` line per"),
             Mention(LOCAL_DEV_RUNBOOK, "the recall trail (`{value}`, behind"),
             Mention(MEMORY_MODULE, "`{value}` line per recall,"),
-            Mention(LOGGER_GUARD, DECLARED_LOGGER),
         ),
     ),
     Constant(
@@ -102,10 +105,9 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
             "runbooks telling an operator to select a trail nothing writes, one module arguing "
             "about the level of a logger that no longer exists, and one suite demonstrating the "
             "argument on a name the brain abandoned, all four green (ADR-0009 audit-logger "
-            "addendum); the fifth place restates nothing and is the one holding this declaration "
-            "to the call handed it, the gate suite's guard asserting that the brain declares this "
-            "logger in this sink, which a call passing another literal fails and which nothing "
-            "said was load bearing (ADR-0009 declared-name addendum)"
+            "addendum); what holds this declaration to the call handed it is the guard the sixth "
+            "entry below is about, which names no sink and so restates nothing here (ADR-0009 "
+            "derived-sink addendum)"
         ),
         sites=(Site(AUDIT_SINK, "_LOGGER_NAME"),),
         mentions=(
@@ -114,7 +116,6 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
             Mention(CONFIG_LOGGING, "audit trail (``{value}``,"),
             Mention(CONFIG_LOGGING_SUITE, 'getLogger("{value}").info'),
             Mention(CONFIG_LOGGING_SUITE, '== "INFO:{value}:'),
-            Mention(LOGGER_GUARD, DECLARED_LOGGER),
         ),
     ),
     Constant(
@@ -139,6 +140,30 @@ TRAIL_COUPLINGS: tuple[Constant, ...] = (
             Mention(CONFIG_LOGGING_SUITE, '.info("{value}", extra='),
             Mention(CONFIG_LOGGING_SUITE, ':{value} tool=read"'),
             Mention(AUDIT_SUITE, ASSERTED_MESSAGE),
+        ),
+    ),
+    Constant(
+        label="the name a sink that named itself declares that name under",
+        why=(
+            "the guard holding these declarations to the calls handed them reads WHICH sinks are "
+            "self-named out of the tree, a logger that is not its module's dotted path being one "
+            "by construction, and then asks each of those modules for this one name, so the "
+            "naming is what the derivation is read by and the guard, both sinks and any third "
+            "have to keep spelling it alike (ADR-0009 derived-sink addendum); a sink that renames "
+            "it reddens the guard as well as this entry, and what nothing else would notice is "
+            "the guard itself going away, which takes the whole derivation with it and leaves the "
+            "two declarations above tied to the documents restating them and to nothing at all "
+            "saying the brain still writes through them; both module contracts name the "
+            "identifier too, each explaining why its sink is spelled this way, and a rename that "
+            "moved only the sinks would leave the pair of them pointing at a binding neither "
+            "module makes"
+        ),
+        sites=(Site(LOGGER_GUARD, "DECLARATION"),),
+        mentions=(
+            Mention(AUDIT_SINK, DECLARED_NAME),
+            Mention(RECALL_SINK, DECLARED_NAME),
+            Mention(TOOLS_MODULE, CONTRACT_NAME),
+            Mention(MEMORY_MODULE, CONTRACT_NAME),
         ),
     ),
 )

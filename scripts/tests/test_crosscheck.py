@@ -1073,12 +1073,20 @@ LEVEL_SUITE = "brain/packages/orchestrator/tests/test_config_logging.py"
 SINK_WORD = '_MESSAGE = "tool.invocation"'
 ASSERTED_LINE = "INFO:cortex.tools.audit:tool.invocation tool=read"
 
-LOGGER_GUARD = "scripts/tests/test_logcalls.py"
+# The far side that restates nothing: the audit sink's own suite, which asserts the whole rendered
+# line. Three of these entries are handed to their call as an identifier, which says nothing about
+# the string it carries, and this file is where the value the call really passed is written down.
 AUDIT_SUITE = "brain/packages/tools/tests/test_audit.py"
 
-GUARDED_AUDIT = 'names["cortex.tools.audit"]'
-GUARDED_RECALL = 'names["cortex.memory.recall"]'
 ASSERTED_WORD = ':tool.invocation "'
+
+DECLARED_UNDER = "the name a sink that named itself declares that name under"
+LOGGER_GUARD = "scripts/tests/test_logcalls.py"
+TOOLS_MODULE = "docs/modules/brain-tools.md"
+
+GUARD_ASK = 'DECLARATION = "_LOGGER_NAME"'
+SINK_DECLARATION = '_LOGGER_NAME = "'
+CONTRACT_DECLARATION = "the module as `_LOGGER_NAME`"
 
 
 def registered(label: str) -> couplings.Constant:
@@ -1305,22 +1313,45 @@ def test_the_audit_loggers_needles_hold_over_the_files_they_name(tmp_path: Path)
     assert crosscheck.check_constant(tmp_path, constant) == []
 
 
-def test_a_guard_that_stops_naming_the_audit_logger_is_a_fault(tmp_path: Path) -> None:
-    """What registering the guard buys, and it is the whole of what this needle is for."""
-    constant = registered(AUDIT_LOGGER)
-    copied(tmp_path, constant, {LOGGER_GUARD: (GUARDED_AUDIT, 'names["cortex.tools.other"]')})
-    faults = crosscheck.check_constant(tmp_path, constant)
-    assert [fault.label for fault in faults] == [AUDIT_LOGGER]
-    assert LOGGER_GUARD in faults[0].detail
+def test_the_declarations_needles_hold_over_the_files_they_name(tmp_path: Path) -> None:
+    """The copy with nothing edited is green, so every red below is the edit and not the copy."""
+    constant = registered(DECLARED_UNDER)
+    copied(tmp_path, constant, {})
+    assert crosscheck.check_constant(tmp_path, constant) == []
 
 
-def test_a_guard_that_stops_naming_the_recall_logger_is_a_fault(tmp_path: Path) -> None:
-    """The same needle on the trail next door, whose sink declares and passes its name alike."""
-    constant = registered(TRAIL_LOGGER)
-    copied(tmp_path, constant, {LOGGER_GUARD: (GUARDED_RECALL, 'names["cortex.memory.other"]')})
+def test_a_guard_that_stops_asking_for_the_declaration_is_a_fault(tmp_path: Path) -> None:
+    """What registering the derived guard buys, and why it is one entry rather than one per sink."""
+    constant = registered(DECLARED_UNDER)
+    copied(tmp_path, constant, {LOGGER_GUARD: (GUARD_ASK, 'DECLARATION = "_TRAIL_NAME"')})
     faults = crosscheck.check_constant(tmp_path, constant)
-    assert [fault.label for fault in faults] == [TRAIL_LOGGER]
-    assert LOGGER_GUARD in faults[0].detail
+    assert {fault.label for fault in faults} == {DECLARED_UNDER}
+    assert {fault.detail.split()[0] for fault in faults} == {
+        mention.path for mention in constant.mentions
+    }
+
+
+def test_a_sink_that_renames_its_declaration_alone_is_a_fault(tmp_path: Path) -> None:
+    """The half a rename really moves: a sink binding its logger under some other identifier.
+
+    The guard reddens on that too, the sink falling out of the naming it reads its set by, and
+    this needle is what says the two module contracts explaining the spelling moved with it.
+    """
+    constant = registered(DECLARED_UNDER)
+    copied(tmp_path, constant, {AUDIT_SINK: (SINK_DECLARATION, '_TRAIL_NAME = "')})
+    faults = crosscheck.check_constant(tmp_path, constant)
+    assert [fault.label for fault in faults] == [DECLARED_UNDER]
+    assert AUDIT_SINK in faults[0].detail
+
+
+def test_a_contract_naming_a_binding_its_sink_does_not_make_is_a_fault(tmp_path: Path) -> None:
+    """The other needle shape, and the far side no import could reach at all."""
+    constant = registered(DECLARED_UNDER)
+    moved = (CONTRACT_DECLARATION, "the module as `_TRAIL_NAME`")
+    copied(tmp_path, constant, {MEMORY_MODULE: moved})
+    faults = crosscheck.check_constant(tmp_path, constant)
+    assert [fault.label for fault in faults] == [DECLARED_UNDER]
+    assert MEMORY_MODULE in faults[0].detail
 
 
 def test_an_audit_suite_asserting_another_word_before_its_fields_is_a_fault(

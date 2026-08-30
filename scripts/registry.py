@@ -43,8 +43,10 @@ directory beside it and to the order the tuple reads them in by
 - `trailcouplings` ties the words one line of either per-line trail is found by, the recall
   trail's logger, the message it opens with, the field it is measured on, and the tool audit's own
   logger and message, to the sinks that write them, the reader outside the brain that measures
-  them, the documents that state them, and the assertions that hold a value a sink passes by
-  identifier to the call it was handed to.
+  them, the documents that state them, and the assertion that holds a value a sink passes by
+  identifier to the call it was handed to. Its last entry is a word of another kind, the
+  identifier a self-named sink declares its logger under, which is the naming the guard holding
+  all of them to their calls reads its set of sinks by.
 
 Counting the registry lives here too, beside the tuple the parts are joined into, because the size
 of a collection is a fact about the collection rather than about any scan over it. `shape` is what

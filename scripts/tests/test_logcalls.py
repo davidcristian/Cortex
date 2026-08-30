@@ -5,8 +5,12 @@ from pathlib import Path
 import pytest
 
 import logcalls
+from moduleconstants import constants, parse
+from skippeddirs import SKIPPED_DIRS
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+
+DECLARATION = "_LOGGER_NAME"
 
 SETTLE = '''\
 """A miniature of the settler."""
@@ -309,12 +313,42 @@ def test_a_spread_into_extra_is_a_fault_rather_than_a_short_answer() -> None:
 # ── the brain this reader is written for ───────────────────────────────────────
 
 
-def test_the_committed_brain_declares_both_spellings_a_logger_is_claimed_in() -> None:
-    """A guard on the fixtures, and the one place a sink's declaration meets the call handed it."""
-    names = logcalls.loggers(REPO_ROOT)
-    assert names["cortex_core.swap_settle"].endswith("cortex_core/swap_settle.py")
-    assert names["cortex.tools.audit"].endswith("cortex_tools/audit.py")
-    assert names["cortex.memory.recall"].endswith("cortex_memory/audit.py")
+def declarations(root: Path) -> dict[str, str]:
+    """Every logger name a brain module binds under ``DECLARATION``, against the file binding it."""
+    found: dict[str, str] = {}
+    for package in sorted((root / logcalls.BRAIN_PACKAGES).iterdir()):
+        source = package / logcalls.SOURCE_DIR
+        if not source.is_dir():
+            continue
+        for module in sorted(source.rglob("*.py")):
+            if SKIPPED_DIRS & set(module.relative_to(source).parts):
+                continue
+            shown = module.relative_to(root).as_posix()
+            strings, _ = constants(parse(module, shown))
+            if (name := strings.get(DECLARATION)) is not None:
+                found[name] = shown
+    return found
+
+
+def self_named(root: Path) -> dict[str, str]:
+    """Every logger the brain writes through under a name that is not its module's own."""
+    found: dict[str, str] = {}
+    for name, shown in logcalls.loggers(root).items():
+        inside = shown.split(f"/{logcalls.SOURCE_DIR}/", 1)[1]
+        if name != logcalls.dotted(Path(inside)):
+            found[name] = shown
+    return found
+
+
+def test_every_self_named_sink_binds_the_name_its_own_call_is_handed() -> None:
+    """The one place a sink's declaration meets the call handed it, over whatever the tree holds."""
+    sinks = self_named(REPO_ROOT)
+    assert sinks, "no sink in this brain names its own logger, so the fixtures above are fiction"
+    assert declarations(REPO_ROOT) == sinks, (
+        f"a sink that names its own logger binds that name as {DECLARATION} and hands the binding "
+        f"to its own getLogger call; on the left is what the brain declares that way and on the "
+        f"right what its calls really pass"
+    )
 
 
 def test_the_real_settler_attaches_the_three_fields_its_runbook_prints() -> None:
