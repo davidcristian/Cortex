@@ -1,9 +1,10 @@
 """Behaviour of the reader that says what a brain log call really puts on its line.
 
-The fixtures are miniature brain packages, laid out the way the real ones are (`<package>/src/`
-holding an importable tree), because the walk's whole job is to find a logger by the name a
-document prints and that name is a function of where the module sits. The last tests here read
-the committed brain, where every spelling of a logger claim is true or this reader is
+Most of what follows is one module's text read in isolation, which is what `samplecheck.py` hands
+this reader once `loggernames.py` has said which module a documented sample belongs to. The walk
+at the end is the other shape: every module in a miniature brain, laid out the way the real
+packages are, which is how the rule about a word spelled twice reaches a module no document quotes.
+The last test reads the committed brain, where the fields on a real line are true or this reader is
 answering about a tree nobody ships.
 """
 
@@ -12,16 +13,9 @@ from pathlib import Path
 import pytest
 
 import logcalls
-from moduleconstants import constants, parse
-from skippeddirs import SKIPPED_DIRS
+import loggernames
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-
-# The name a self-named sink binds its logger under, and the one thing the guard at the end of
-# this file spells: WHICH sinks are self-named is read out of the tree rather than listed. The
-# constant registry ties this to the sinks that write it, so the guard cannot be deleted in
-# silence and a sink cannot rename its declaration away from the guard asking for it.
-DECLARATION = "_LOGGER_NAME"
 
 SETTLE = '''\
 """A miniature of the settler."""
@@ -48,6 +42,19 @@ def wedged(record: object) -> None:
     _logger.exception("could not release the handoff", extra={"turn_id": record})
 '''
 
+# The tool audit's shape: the word the line is found by is bound above the call and handed to it,
+# so the constant registry has a declaration to tie the documents restating it to.
+AUDIT = '''\
+"""A miniature of the tool audit."""
+
+_MESSAGE = "tool.invocation"
+
+
+def note(name: str) -> None:
+    """Write one audit line."""
+    _logger.info(_MESSAGE, extra={"tool": name, "ok": True})
+'''
+
 
 def brain(root: Path, files: dict[str, str]) -> None:
     """Write a miniature brain, each path relative to `brain/packages/`."""
@@ -55,160 +62,6 @@ def brain(root: Path, files: dict[str, str]) -> None:
         path = root / "brain" / "packages" / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8")
-
-
-def settler(root: Path) -> None:
-    """The one fixture package every test about a call site starts from."""
-    brain(root, {"core/src/cortex_core/swap_settle.py": SETTLE})
-
-
-# ── which module owns a logger name ────────────────────────────────────────────
-
-
-def test_a_module_logging_under_name_is_found_by_its_dotted_path(tmp_path: Path) -> None:
-    settler(tmp_path)
-    assert logcalls.loggers(tmp_path) == {
-        "cortex_core.swap_settle": "brain/packages/core/src/cortex_core/swap_settle.py"
-    }
-
-
-def test_a_sink_that_names_itself_is_found_under_the_name_it_chose(tmp_path: Path) -> None:
-    """The spelling neither self-named sink writes any more, both binding the name above the call.
-
-    It stays read because a ``getLogger("name")`` call is legal Python that a brain module may
-    write tomorrow, and a reader that stopped matching one would drop that logger out of the
-    answer in silence, which is worse than a spelling nothing currently exercises.
-    """
-    brain(tmp_path, {"tools/src/cortex_tools/audit.py": 'getLogger("cortex.tools.audit")\n'})
-    assert set(logcalls.loggers(tmp_path)) == {"cortex.tools.audit"}
-
-
-def test_a_sink_naming_its_logger_through_a_constant_is_found_under_that_name(
-    tmp_path: Path,
-) -> None:
-    """The recall trail's spelling: its name is a declaration because three documents restate it
-    and the constant registry ties them to it, so a reader that knew only a literal would drop
-    that trail out of this answer and fail a sample of it as a logger no module declares."""
-    brain(
-        tmp_path,
-        {
-            "memory/src/cortex_memory/audit.py": (
-                '_LOGGER_NAME = "cortex.memory.recall"\n_logger = logging.getLogger(_LOGGER_NAME)\n'
-            )
-        },
-    )
-    assert logcalls.loggers(tmp_path) == {
-        "cortex.memory.recall": "brain/packages/memory/src/cortex_memory/audit.py"
-    }
-
-
-def test_a_logger_named_through_something_the_module_does_not_bind_is_a_fault(
-    tmp_path: Path,
-) -> None:
-    """A name from anywhere but this module's own top level is refused rather than chased: an
-    importer of the brain is what this tree may not become, so the fault says which name it is."""
-    brain(
-        tmp_path,
-        {
-            "memory/src/cortex_memory/audit.py": (
-                "from cortex_core.log_fields import RECALL_LOGGER\n"
-                "_logger = logging.getLogger(RECALL_LOGGER)\n"
-            )
-        },
-    )
-    with pytest.raises(logcalls.LogCallError, match="RECALL_LOGGER, which its own top level"):
-        logcalls.loggers(tmp_path)
-
-
-def test_a_module_that_binds_its_logger_name_and_writes_it_again_is_a_fault(
-    tmp_path: Path,
-) -> None:
-    """The declaration is what the constant registry ties the restating documents to, so a sink
-    holding both spellings can move the literal alone and leave them on an abandoned name. The
-    fault names the binding, that being the spelling the call is asked to pass."""
-    brain(
-        tmp_path,
-        {
-            "tools/src/cortex_tools/audit.py": (
-                '_LOGGER_NAME = "cortex.tools.audit"\n'
-                '_logger = logging.getLogger("cortex.tools.audit")\n'
-            )
-        },
-    )
-    with pytest.raises(logcalls.LogCallError, match="binds it above as _LOGGER_NAME; pass"):
-        logcalls.loggers(tmp_path)
-
-
-def test_every_binding_of_a_twice_spelled_logger_name_is_named(tmp_path: Path) -> None:
-    """A module that bound the name twice would otherwise be told to pass one of two, with the
-    reader picking whichever the dict happened to hold first."""
-    brain(
-        tmp_path,
-        {
-            "tools/src/cortex_tools/audit.py": (
-                '_TRAIL = "cortex.tools.audit"\n'
-                '_LOGGER_NAME = "cortex.tools.audit"\n'
-                '_logger = logging.getLogger("cortex.tools.audit")\n'
-            )
-        },
-    )
-    with pytest.raises(logcalls.LogCallError, match="as _LOGGER_NAME, _TRAIL;"):
-        logcalls.loggers(tmp_path)
-
-
-def test_a_literal_beside_a_binding_of_some_other_string_is_left_alone(tmp_path: Path) -> None:
-    """The rule is one name written once, not a ban on declaring anything beside a literal call."""
-    brain(
-        tmp_path,
-        {
-            "tools/src/cortex_tools/audit.py": (
-                '_MESSAGE = "tool.invocation"\ngetLogger("cortex.tools.audit")\n'
-            )
-        },
-    )
-    assert set(logcalls.loggers(tmp_path)) == {"cortex.tools.audit"}
-
-
-def test_a_package_barrel_claims_the_package_name_and_not_its_init(tmp_path: Path) -> None:
-    brain(tmp_path, {"core/src/cortex_core/__init__.py": "getLogger(__name__)\n"})
-    assert set(logcalls.loggers(tmp_path)) == {"cortex_core"}
-
-
-def test_a_pruned_directory_inside_the_source_tree_is_not_walked(tmp_path: Path) -> None:
-    """A cached copy of a module would otherwise claim the same name as the module itself."""
-    settler(tmp_path)
-    brain(tmp_path, {"core/src/cortex_core/__pycache__/stale.py": "getLogger(__name__)\n"})
-    assert set(logcalls.loggers(tmp_path)) == {"cortex_core.swap_settle"}
-
-
-def test_a_package_with_no_source_tree_is_passed_over(tmp_path: Path) -> None:
-    settler(tmp_path)
-    (tmp_path / "brain" / "packages" / "notes").mkdir()
-    assert set(logcalls.loggers(tmp_path)) == {"cortex_core.swap_settle"}
-
-
-def test_two_files_claiming_one_logger_name_is_a_fault_not_a_coin_toss(tmp_path: Path) -> None:
-    brain(
-        tmp_path,
-        {
-            "tools/src/cortex_tools/audit.py": 'getLogger("cortex.tools.audit")\n',
-            "memory/src/cortex_memory/audit.py": 'getLogger("cortex.tools.audit")\n',
-        },
-    )
-    with pytest.raises(logcalls.LogCallError, match="both declare the logger"):
-        logcalls.loggers(tmp_path)
-
-
-def test_a_brain_that_cannot_be_walked_is_a_fault(tmp_path: Path) -> None:
-    with pytest.raises(logcalls.LogCallError, match="cannot read brain/packages"):
-        logcalls.loggers(tmp_path)
-
-
-def test_a_source_file_that_is_not_text_is_a_fault(tmp_path: Path) -> None:
-    settler(tmp_path)
-    (tmp_path / "brain/packages/core/src/cortex_core/blob.py").write_bytes(b"\xff\xfe\x00")
-    with pytest.raises(logcalls.LogCallError, match=r"cannot read .*blob\.py"):
-        logcalls.loggers(tmp_path)
 
 
 # ── what one call attaches ─────────────────────────────────────────────────────
@@ -270,6 +123,63 @@ def test_a_dynamic_call_carrying_another_message_leaves_the_plain_fault_standing
         logcalls.logged(shapes, "wanted", "m.py")
 
 
+# ── the second spelling a message is written in ────────────────────────────────
+
+
+def test_a_message_handed_to_the_call_by_name_is_the_message_that_call_logs() -> None:
+    """The tool audit's shape, and the one a reader knowing only a literal called a missing line.
+
+    The formatter renders the string either way, so the page quoting the line cannot tell which
+    spelling the module wrote, and a fault about the document would be aimed at the wrong half.
+    """
+    call = logcalls.logged(AUDIT, "tool.invocation", "audit.py")
+    assert (call.level, call.fields) == ("INFO", ("ok", "tool"))
+
+
+def test_a_name_the_module_does_not_bind_is_not_a_message_this_reader_can_read() -> None:
+    """Only this module's own top level is consulted: a name from an import is not followed, an
+    importer of the brain being what this tree may not become, and a message assembled at the call
+    is not one a page could quote at all."""
+    with pytest.raises(logcalls.LogCallError, match="logs no message"):
+        logcalls.logged("_log.info(message)\n", "done", "m.py")
+
+
+def test_a_name_bound_to_something_that_is_not_a_string_is_not_a_message() -> None:
+    """A binding this reader cannot reduce to text is absent from the answer rather than a fault:
+    a module is full of them, and the caller asking for a message it does not carry is told so."""
+    with pytest.raises(logcalls.LogCallError, match="logs no message"):
+        logcalls.logged("LIMIT = 12\n_log.info(LIMIT)\n", "12", "m.py")
+
+
+def test_a_module_that_binds_its_message_and_writes_it_again_is_a_fault() -> None:
+    """The one-name rule one word over, and the same sentence: only the binding is what the
+    constant registry ties the restating documents to, so a module holding both spellings can move
+    the literal alone and leave a runbook quoting a word the brain no longer writes."""
+    text = '_MESSAGE = "tool.invocation"\n_log.info("tool.invocation", extra={"ok": True})\n'
+    with pytest.raises(logcalls.LogCallError, match="binds it above as _MESSAGE; pass"):
+        logcalls.logged(text, "tool.invocation", "audit.py")
+
+
+def test_every_binding_of_a_twice_spelled_message_is_named() -> None:
+    """A module that bound the word twice would otherwise be told to pass one of two, with the
+    reader picking whichever the dict happened to hold first."""
+    text = (
+        '_AUDIT = "tool.invocation"\n_MESSAGE = "tool.invocation"\n_log.info("tool.invocation")\n'
+    )
+    with pytest.raises(logcalls.LogCallError, match="as _AUDIT, _MESSAGE;"):
+        logcalls.logged(text, "tool.invocation", "audit.py")
+
+
+def test_a_literal_message_beside_a_binding_of_some_other_string_is_left_alone() -> None:
+    """The rule is one word written once, not a ban on declaring anything beside a literal call.
+
+    The domain is the message of a log call, which is what keeps this off a module that binds a
+    sentence for a model to read and logs something else entirely.
+    """
+    text = '_REFUSAL = "REFUSED: this turn is over budget"\n_log.info("tool.invocation")\n'
+    assert logcalls.logged(text, "tool.invocation", "audit.py").level == "INFO"
+
+
 # ── what is not a log call ─────────────────────────────────────────────────────
 
 
@@ -287,12 +197,6 @@ def test_a_method_that_is_not_a_logging_level_is_not_a_log_call() -> None:
 def test_a_level_call_with_no_arguments_is_not_a_log_call() -> None:
     with pytest.raises(logcalls.LogCallError, match="logs no message"):
         logcalls.logged("_log.info()\n", "done", "m.py")
-
-
-def test_a_message_built_at_the_call_is_not_matched() -> None:
-    """A name or an f-string is not a message this reader can compare with a page."""
-    with pytest.raises(logcalls.LogCallError, match="logs no message"):
-        logcalls.logged("_log.info(message)\n", "done", "m.py")
 
 
 def test_a_first_argument_that_is_not_a_string_is_not_matched() -> None:
@@ -325,79 +229,56 @@ def test_a_spread_into_extra_is_a_fault_rather_than_a_short_answer() -> None:
         logcalls.logged('_log.info("done", extra={**base, "ok": True})\n', "done", "m.py")
 
 
-# ── the brain this reader is written for ───────────────────────────────────────
+# ── every message the brain logs ───────────────────────────────────────────────
 
 
-def declarations(root: Path) -> dict[str, str]:
-    """Every logger name a brain module binds under ``DECLARATION``, against the file binding it.
-
-    A second walk of the tree ``loggers`` already walks, deliberately: the guard below compares
-    the two answers, so a walk here that stopped finding modules comes back empty against a set
-    that is not, rather than agreeing with itself about a tree neither of them read.
-    """
-    found: dict[str, str] = {}
-    for package in sorted((root / logcalls.BRAIN_PACKAGES).iterdir()):
-        source = package / logcalls.SOURCE_DIR
-        if not source.is_dir():
-            continue
-        for module in sorted(source.rglob("*.py")):
-            if SKIPPED_DIRS & set(module.relative_to(source).parts):
-                continue
-            shown = module.relative_to(root).as_posix()
-            strings, _ = constants(parse(module, shown))
-            if (name := strings.get(DECLARATION)) is not None:
-                found[name] = shown
-    return found
-
-
-def self_named(root: Path) -> dict[str, str]:
-    """Every logger the brain writes through under a name that is not its module's own.
-
-    Read off the call rather than off any declaration: ``loggers`` answers with the name the CALL
-    carries, whichever of the three spellings it carries it in, so a name that is not the dotted
-    path of the module writing it is a sink that chose its own, however it chose it.
-    """
-    found: dict[str, str] = {}
-    for name, shown in logcalls.loggers(root).items():
-        inside = shown.split(f"/{logcalls.SOURCE_DIR}/", 1)[1]
-        if name != logcalls.dotted(Path(inside)):
-            found[name] = shown
-    return found
-
-
-def test_every_self_named_sink_binds_the_name_its_own_call_is_handed() -> None:
-    """The one place a sink's declaration meets the call handed it, over whatever the tree holds.
-
-    Every module but a couple names its logger ``__name__``. A sink that names itself does so
-    because its lines are read as a trail, which is why documents restate that name, which is why
-    the name is a declaration for the constant registry to tie them to. Neither half of that says
-    the sink passes what it declares: ``getLogger(_LOGGER_NAME)`` carries an identifier, so a
-    module binding one name and passing another is two names rather than one spelled twice, which
-    is the shape the one-name rule sees and lets through (ADR-0009 declared-name addendum).
-
-    Comparing the two readings as SETS is what holds every direction of that at once, and holds
-    them for a sink written tomorrow rather than for the two written down. A sink that passes
-    another name is a self-named logger this brain declares nowhere; one that declares a name it
-    stops passing is a declaration the documents are still tied to and nothing writes; one that
-    names itself with a bare literal has no declaration to tie them to at all; and one that binds
-    its name under some other identifier is outside the naming the left-hand set is read by, which
-    is the shape a derived rule has to hold rather than assume (ADR-0029 addendum on the naming a
-    derived set is read out of). Each is one set carrying a pair the other does not.
-
-    The non-emptiness beside it is what keeps the comparison from passing on two empty answers,
-    and it is also the guard on the fixtures above: a brain where no sink named itself would make
-    both of the spellings they exercise fiction.
-    """
-    sinks = self_named(REPO_ROOT)
-    assert sinks, "no sink in this brain names its own logger, so the fixtures above are fiction"
-    assert declarations(REPO_ROOT) == sinks, (
-        f"a sink that names its own logger binds that name as {DECLARATION} and hands the binding "
-        f"to its own getLogger call; on the left is what the brain declares that way and on the "
-        f"right what its calls really pass"
+def test_the_walk_answers_with_each_module_and_the_messages_its_calls_carry(
+    tmp_path: Path,
+) -> None:
+    """Both spellings in one answer, sorted, because a module writes its lines in no order a
+    reader could rely on and a fault has to read the same way twice."""
+    brain(
+        tmp_path,
+        {
+            "core/src/cortex_core/swap_settle.py": SETTLE,
+            "tools/src/cortex_tools/audit.py": AUDIT,
+        },
     )
+    assert logcalls.messages(tmp_path) == {
+        "brain/packages/core/src/cortex_core/swap_settle.py": (
+            "a handoff ended failed",
+            "could not release the handoff",
+        ),
+        "brain/packages/tools/src/cortex_tools/audit.py": ("tool.invocation",),
+    }
+
+
+def test_a_module_that_logs_nothing_is_absent_rather_than_empty(tmp_path: Path) -> None:
+    """Most of the brain writes no line at all, and an entry per module would bury the ones that
+    do under a hundred empty tuples."""
+    brain(tmp_path, {"core/src/cortex_core/ports.py": "class Clock:\n    pass\n"})
+    assert logcalls.messages(tmp_path) == {}
+
+
+def test_the_walk_refuses_a_word_spelled_twice_in_a_module_no_document_quotes(
+    tmp_path: Path,
+) -> None:
+    """What running the rule over the tree buys: the sample gate only ever reaches the handful of
+    modules a runbook names, and a doubled spelling anywhere else would wait for one to."""
+    brain(
+        tmp_path,
+        {
+            "core/src/cortex_core/scheduler.py": (
+                '_DRAINING = "pool draining for a model handoff"\n'
+                '_log.warning("pool draining for a model handoff")\n'
+            )
+        },
+    )
+    with pytest.raises(logcalls.LogCallError, match="binds it above as _DRAINING; pass"):
+        logcalls.messages(tmp_path)
 
 
 def test_the_real_settler_attaches_the_three_fields_its_runbook_prints() -> None:
-    module = REPO_ROOT / logcalls.loggers(REPO_ROOT)["cortex_core.swap_settle"]
+    module = REPO_ROOT / loggernames.loggers(REPO_ROOT)["cortex_core.swap_settle"]
     call = logcalls.logged(module.read_text(encoding="utf-8"), "a handoff ended failed", "settle")
     assert call.fields == ("reason", "session_id", "turn_id")

@@ -1,6 +1,6 @@
 # A declared log message is held to its call by one hand named assertion
 
-**Status:** open, actionable
+**Status:** landed 2026-08-30
 **Area:** repo-gates
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
 
@@ -47,3 +47,24 @@ is about what the call really carries.
   [R-491](491-the-guard-holding-a-declared-logger-to-its-call-names-two-sinks-by-hand.md), whose
   mutation table measures a third self-named sink going from unheld to held for its logger and says
   nothing about a message.
+- 2026-08-30: **landed** as the reader half, worked together with
+  [R-490](490-a-declared-log-message-may-be-spelled-again-in-the-call-that-logs-it.md) (ADR-0009
+  handed-message addendum). Re-derivation moved this entry twice. The third sink it supposed is
+  already five calls in three modules, `cortex_tools/audit.py`, `cortex_orchestrator/abandon.py`
+  and `cortex_core/brain_phase.py` with three of its own, and two of the four outside the tool
+  audit are held firmly by suites that import the constant and assert the emitted record against
+  it, which no gate arranged and nothing states. And the reader's blindness was not a gap but a
+  live fault: `logged` answered `audit.py logs no message 'tool.invocation'` about the module that
+  logs it, so a runbook printing a rendered sample of any of those five lines failed
+  `check-samplecheck` as a message no module writes. That is what landed. The reader now resolves a
+  bare name against the module's own top level through `moduleconstants.py`, the reading
+  `loggernames.py` already made of a logger claimed the same way, and the question this entry
+  raised about what a sample of such a line would be has one answer: the same sample as any other,
+  since the formatter renders the string and never the expression that carried it.
+  What did **not** land is the set comparison this entry hoped for, and the reason is measured
+  rather than argued: the brain binds about twenty top-level strings whose names say `MESSAGE` or
+  `MSG` and only five are log messages, the rest being model-facing refusals, so there is no
+  `_LOGGER_NAME` for a message and a convention introduced to make one would redden every one of
+  them. That residue is [R-504](504-a-declared-message-and-a-different-word-in-the-call.md), which
+  carries the two paths worth weighing. Printing the lines this now makes printable is
+  [R-505](505-the-spill-line-a-runbook-describes-and-never-prints.md).

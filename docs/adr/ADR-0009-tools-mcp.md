@@ -3728,3 +3728,159 @@ one registered assertion in one package suite, named by hand, and a second sink 
 would be held by nothing. The derivation that closed the logger half has no reader behind it there,
 `logcalls.logged` matching a call whose first argument is a literal
 ([R-503](../refinements/tasks/503-a-declared-log-message-is-held-to-its-call-by-one-hand-named-assertion.md)).
+
+## Handed-message addendum (2026-08-30): the reader reads both spellings, and refuses a doubled one
+
+Two entries asked one question from opposite ends. One asked whether a module may spell its own log
+message twice, binding a constant and writing the same word inside the call
+([R-490](../refinements/tasks/490-a-declared-log-message-may-be-spelled-again-in-the-call-that-logs-it.md)),
+and named the question to decide first: is the rule about any log call's message, or only about a
+call whose binding some document restates? The other asked what holds a declared message to the
+call handed it, the logger half having just been derived while the message beside it stayed with one
+assertion in one package suite
+([R-503](../refinements/tasks/503-a-declared-log-message-is-held-to-its-call-by-one-hand-named-assertion.md)).
+Both are answered here, and the answer to the second is what decides the first.
+
+### Re-derived first, and both entries were understated
+
+Three facts came out of reading the tree rather than the entries.
+
+**The shape R-503 called hypothetical is already five calls.** It supposed a third sink written the
+way the tool audit is written. The brain has five such calls in three modules today:
+`cortex_tools/audit.py` binds `_MESSAGE` and hands it to `_logger.info`; `cortex_orchestrator/
+abandon.py` binds `ABANDONED_MESSAGE` and hands it to `_logger.warning`; and
+`cortex_core/brain_phase.py` binds three, the spill warning and the two readings beside it, and
+hands each to its own call. Two of the four outside the tool audit are held about as firmly as a
+thing can be, their package suites importing the constant and asserting the emitted record against
+it, which no gate arranged and nothing states. The other two are held by nothing and restated by
+nothing, which is why they cost nothing.
+
+**The reader really cannot see any of them, and that is a live fault rather than a gap.**
+`logged` matches a call whose first argument is a string literal, so it answers `audit.py logs no
+message 'tool.invocation'` about the module that visibly logs it. The consequence is not a missing
+rule, it is `check-samplecheck` failing on a correct document: a runbook that printed a rendered
+sample of any of those five lines would be told the brain writes no such message. The spill
+warning's own comment sends a reader to `docs/runbooks/model-swap.md`, so this fell on exactly the
+lines a runbook has the most reason to quote, and the gate's answer would have pushed the author
+away from quoting them.
+
+**The naming R-490 hoped to lean on does not exist.** The brain binds about twenty top-level
+strings whose names say `MESSAGE` or `MSG`, and only five of them are log messages. The rest are
+model-facing sentences: `BUDGET_EXHAUSTED_MSG`, `REDUNDANT_MSG`, `DENIED_MSG`, `TAINTED_TASK_MSG`
+and a dozen more, each a refusal a tool call is answered with. So the mechanism that closed the
+logger half is unavailable here: that guard reads a structural set off the calls and compares it
+with the names bound under `_LOGGER_NAME`, and a message has no `_LOGGER_NAME`. Inventing one would
+place a new convention one letter from a large family meaning something else, and holding it would
+redden every model-facing constant in the core.
+
+### Decision 1: the reader learns the second spelling, and the sample gate is what wanted it
+
+A message is written out at the call or handed to it by name, and the formatter renders the string
+either way, so the line on the stream is identical and the page quoting it cannot tell which the
+module wrote. That settles what a sample of such a line is: the same sample as any other. There was
+never a second question there, only a reader that could not follow the second spelling.
+
+So a bare name is resolved against the module's own top level and nothing wider, by
+`moduleconstants.py`, which is the reading `loggernames.py` already makes of a logger claimed the
+same way, and the two halves of this reader now follow a word the same distance. A name from an
+import stays unmatched rather than chased, for the reason that paragraph gives: an importer of the
+brain is what `scripts/` may not become. A message assembled at the call is still not a message a
+page could quote.
+
+### Decision 2: the rule is about any log call's message, because that domain is a call
+
+R-490 offered two domains and warned about the wider one: a message is a sentence, so a module that
+binds some string for another purpose and happens to log the same literal would be refused a
+spelling nothing is wrong with. The narrow domain, a binding some document restates, is the
+registry, and it needs the registry to say which of its sites is a message, which it does not.
+
+The wider domain turns out not to have the cost the entry feared, because it is not a domain over
+names at all. Nothing is asked about a binding: a literal has to be the message of a log call
+before the rule looks at it, and only then is the module's own top level consulted for the same
+string. A module that binds a refusal for a model to read and logs something else is never in the
+domain. What the rule then says is what the one-name rule beside it says: only the declaration is
+what the constant registry ties documents to, so a module holding both spellings can move the
+literal alone and leave those documents restating a word the brain no longer writes. The measured
+surface is the argument's other half: the brain writes 90 literal log messages today, and not one
+of them is also bound at its module's top level, so the rule refuses nothing that exists and holds
+every module written tomorrow.
+
+It runs over the tree rather than over the modules a document names. `messages` walks every
+package's `src/`, and `samplecheck.py` calls it beside the loggers it already collected, so a
+doubled spelling is refused the day it is written rather than the day a runbook happens to quote
+that line. The success line states the messages it read for the reason it already states the
+loggers, and a brain that logs none is a failure rather than a quiet pass.
+
+### Decision 3: the split R-490 predicted, along the seam its docstring had drawn
+
+`logcalls.py` stood at exactly 300 lines, which the entry named as a cost with a floor, and it was
+right. The seam is the one that module's own opening sentence drew: which module owns a logger
+name, and what one call under it puts on its line. `loggernames.py` is the first half and
+`logcalls.py` keeps the second along with the reading of the brain's source both stand on. The
+guard holding a self-named sink's declaration to its call moves with the half it is about, and the
+constant registry's entry on that guard follows it, which is one line of data and the only thing
+the move cost anything.
+
+### What this does not reach, deliberately
+
+A sink that binds `_MESSAGE` and hands its call some OTHER word is still two words rather than one
+spelled twice, and neither rule sees it. What refuses that today is what refused it this morning:
+`brain/packages/tools/tests/test_audit.py` asserts four whole rendered lines, and the registry names
+that assertion so it cannot be deleted in silence. A guard deriving that would need to know which
+declaration is a log message, which the section above shows this brain cannot say, so the residue
+is written down with the two paths worth weighing rather than guessed at
+([R-504](../refinements/tasks/504-a-declared-message-and-a-different-word-in-the-call.md)).
+
+### Distrust green
+
+Seven mutations and a control, each applied alone to the committed tree, measured over the **gate
+suite** (`scripts/tests/`), 1,455 checks before this change and 1,464 after, with
+`check-samplecheck` run beside it and reported in its own column.
+
+| Mutation | before | after | `check-samplecheck` |
+| --- | --- | --- | --- |
+| CONTROL: nothing edited | 0 | 0 | passes |
+| the tool audit writes its message as a literal beside the binding | 0 | **3** | **fails** |
+| a module no runbook quotes does the same | 0 | **3** | **fails** |
+| a runbook prints a rendered sample of a line handed its message by name | **2** | **0** | **fails before, passes after** |
+| GATE: the reader stops refusing a doubled message | n/a | **3** | passes |
+| GATE: the reader stops resolving a name | n/a | **2** | passes |
+| GATE: the sample scan stops reading the messages | n/a | **1** | passes |
+
+Rows two and three are R-490's question measured: the doubled spelling was green everywhere, and is
+now three reds and a failing scan whether or not any document quotes that line. The third row is the
+one that shows the rule reaching a module the sample gate never opens, which is what running it over
+the tree buys.
+
+Row four is the fault this slice fixes, and it runs the other way: the mutation is a correct
+document, and it is the tree BEFORE this change that reddens on it, `check-samplecheck` exiting 1
+with the miss `brain_phase.py logs no message`. After, the sample is checked like any other and
+the gate is quiet. A gate that fails on a true statement is the worst kind, because the author
+believes it.
+
+Rows five to seven are the needles. Five is the rule itself: both fixture faults and the walk over a
+miniature brain go red together. Six is the second spelling: the call handed a name stops being
+found, and the walk stops reporting it. Seven is thinner and worth saying so rather than dressing
+up: replacing the scan's reading of the tree with a stub of the same shape reddens the floor test
+alone, that floor being the only thing asserting the scan reads a brain at all.
+
+### Consequences
+
+- A runbook may print a rendered sample of any line the brain writes, including the five whose call
+  is handed its word. Before this, five lines were undocumentable by a gate that says it is found
+  rather than registered.
+- A module that spells one log message twice is refused with the same sentence a doubled logger name
+  gets, and the fault names every binding of it, so the reader never picks one of two.
+- `scripts/` gains `loggernames.py`, which is the logger half of a reader that had grown two
+  subjects. Both halves now sit under the line cap with room, and each is named for the question it
+  answers.
+- The constant registry is unchanged in shape: 79 entries over 89 declaring sites and 265 mentions.
+  One site's path moved with the guard it names.
+
+### Deferred by this addendum
+
+- A declared message and a different word in the call, held by one package's own suite
+  ([R-504](../refinements/tasks/504-a-declared-message-and-a-different-word-in-the-call.md)).
+- The spill line the swap runbook describes in prose and never prints, now that a sample of it
+  would be held
+  ([R-505](../refinements/tasks/505-the-spill-line-a-runbook-describes-and-never-prints.md)).

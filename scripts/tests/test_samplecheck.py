@@ -141,6 +141,14 @@ def test_a_brain_that_declares_no_logger_is_a_failure(tmp_path: Path) -> None:
         samplecheck.check(repo(tmp_path, module="x = 1\n"))
 
 
+def test_a_brain_that_logs_no_message_is_a_failure(tmp_path: Path) -> None:
+    """The third empty side: a module claiming a logger and writing nothing through it leaves
+    every sample's message unaccounted for, and a floor is what keeps that from reading as clean."""
+    module = "import logging\n\n_logger = logging.getLogger(__name__)\n"
+    with pytest.raises(samplecheck.SampleCheckError, match="logs no message"):
+        samplecheck.check(repo(tmp_path, module=module))
+
+
 def test_a_brain_that_cannot_be_walked_is_a_failure(tmp_path: Path) -> None:
     book = tmp_path / samplecheck.RUNBOOKS / "model-swap.md"
     book.parent.mkdir(parents=True)
@@ -167,9 +175,11 @@ def test_a_pruned_directory_under_the_runbooks_is_not_read(tmp_path: Path) -> No
 # ── what the comparison was over ───────────────────────────────────────────────
 
 
-def test_check_counts_the_samples_the_runbooks_and_the_loggers(tmp_path: Path) -> None:
+def test_check_counts_the_samples_the_runbooks_the_loggers_and_the_messages(
+    tmp_path: Path,
+) -> None:
     scanned = samplecheck.check(repo(tmp_path))
-    assert (scanned.samples, scanned.docs, scanned.loggers) == (1, 1, 1)
+    assert (scanned.samples, scanned.docs, scanned.loggers, scanned.messages) == (1, 1, 1, 1)
 
 
 def test_main_states_what_it_read_beside_the_verdict(
@@ -180,7 +190,7 @@ def test_main_states_what_it_read_beside_the_verdict(
     assert capsys.readouterr().out == (
         f"samplecheck OK: 1 log sample(s) under {tmp_path} in 1 runbook(s) print the level, "
         "logger, message and fields their call sites write, resolved against 1 logger(s) the "
-        "brain declares\n"
+        "brain declares and the 1 message(s) it logs\n"
     )
 
 

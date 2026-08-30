@@ -33,14 +33,21 @@ past a thing that must be edited to stay green, which is the opposite of what it
 is the other kind: instructions, in the present tense, opened while something is broken. So the
 walk reads `docs/runbooks/` and the ADRs are declared evidence rather than contract.
 
-**Fail closed.** An unreadable runbook tree, a brain whose loggers cannot be collected, and either
-side of the comparison coming back empty are each a failure rather than a quiet pass: a gate over
-no samples would report success forever.
+**The whole brain is read, not only the modules a sample names.** Both sides of a line are
+collected before any sample is looked at, the loggers the brain declares and the messages it logs,
+and each collection carries a rule of its own about a word spelled twice in one module, once for a
+logger name and once for a message. Those rules are about a module rather than about a document, so
+running them here is what gives them the tree: a doubled spelling is refused the day it is written
+rather than the day a runbook happens to quote that line.
 
-**The success line states what the comparison was over**, samples and runbooks and the loggers they
-were resolved against, because a verdict that would be equally true of a tree this walk never
-entered has to say which tree it is over. It is a reading and nothing asserts it; the floors under
-it are the assertion.
+**Fail closed.** An unreadable runbook tree, a brain whose loggers or messages cannot be collected,
+and either side of the comparison coming back empty are each a failure rather than a quiet pass: a
+gate over no samples would report success forever.
+
+**The success line states what the comparison was over**, samples and runbooks and the loggers and
+messages they were resolved against, because a verdict that would be equally true of a tree this
+walk never entered has to say which tree it is over. It is a reading and nothing asserts it; the
+floors under it are the assertion.
 """
 
 import argparse
@@ -48,7 +55,8 @@ import sys
 from pathlib import Path
 from typing import NamedTuple
 
-from logcalls import LogCallError, logged, loggers
+from logcalls import LogCallError, logged, messages
+from loggernames import loggers
 from logsamples import Sample, samples
 from skippeddirs import SKIPPED_DIRS
 
@@ -60,6 +68,7 @@ RUNBOOKS = Path("docs/runbooks")
 # side that came back empty has read nothing, and a comparison over nothing cannot fail.
 MIN_SAMPLES = 1
 MIN_LOGGERS = 1
+MIN_MESSAGES = 1
 
 # What a fault says in place of a field list that is empty, a bare pair of quotes being the one
 # rendering a reader cannot tell from a formatting slip.
@@ -84,6 +93,7 @@ class Scan(NamedTuple):
     docs: int
     samples: int
     loggers: int
+    messages: int
     misses: list[Miss]
 
 
@@ -142,10 +152,15 @@ def check(root: Path) -> Scan:
     """Compare every log sample the runbooks print against the call that would print it."""
     try:
         names = loggers(root)
+        written = messages(root)
     except LogCallError as err:
         raise SampleCheckError(str(err)) from err
     if len(names) < MIN_LOGGERS:
         msg = "the brain declares no logger; a comparison over nothing cannot fail"
+        raise SampleCheckError(msg)
+    lines = sum(len(found) for found in written.values())
+    if lines < MIN_MESSAGES:
+        msg = "the brain logs no message; a comparison over nothing cannot fail"
         raise SampleCheckError(msg)
     docs = runbooks(root)
     misses: list[Miss] = []
@@ -160,7 +175,7 @@ def check(root: Path) -> Scan:
     if counted < MIN_SAMPLES:
         msg = f"no log sample under {RUNBOOKS.as_posix()}; a comparison over nothing cannot fail"
         raise SampleCheckError(msg)
-    return Scan(docs=len(docs), samples=counted, loggers=len(names), misses=misses)
+    return Scan(docs=len(docs), samples=counted, loggers=len(names), messages=lines, misses=misses)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -197,7 +212,8 @@ def main(argv: list[str] | None = None) -> int:
     print(
         f"samplecheck OK: {scanned.samples} log sample(s) under {given} in {scanned.docs} "
         f"runbook(s) print the level, logger, message and fields their call sites write, "
-        f"resolved against {scanned.loggers} logger(s) the brain declares"
+        f"resolved against {scanned.loggers} logger(s) the brain declares and the "
+        f"{scanned.messages} message(s) it logs"
     )
     return 0
 

@@ -23,8 +23,8 @@ the first of the two places in this registry where a far side gained a line to b
 audit's sink being the second, and both are argued at their ADRs rather than assumed here. What
 keeps it from being the gate editing the code it watches is that the name
 now sits where the rest of this brain's log vocabulary already sits, `cortex_core.log_fields`
-declaring the field names for the same reason, and that `logcalls.py` learned the spelling in the
-same slice, so `samplecheck.py` goes on resolving a documented sample of this trail against it.
+declaring the field names for the same reason, and that `loggernames.py` learned the spelling in
+the same slice, so `samplecheck.py` goes on resolving a documented sample of this trail against it.
 
 **The tool audit's logger is the same shape one trail over, and two of its four restatements are a
 different kind of claim.** Two are instructions, the tools runbook saying one such line is written
@@ -90,7 +90,8 @@ place instead of being a coincidence two needles had to step around.
 is registered rather than left to be noticed.** `getLogger(_LOGGER_NAME)` and
 `_logger.info(_MESSAGE, ...)` say nothing about the string they carry, so a sink binding one name
 and passing a different literal is two names rather than one spelled twice, which is the shape the
-one-name rule in `logcalls.py` sees and lets through. That state is not green, which was measured
+rule against a word written twice, in `loggernames.py` for a logger and in `logcalls.py` for a
+message, sees and lets through. That state is not green, which was measured
 rather than assumed: the gate suite carries a guard on the sinks' own declarations, and each sink's
 package suite asserts a whole rendered line, so a renamed call or a renamed message is a dozen reds
 beside it. All of them were holding it by accident, none saying so. So the audit message carries a
@@ -124,7 +125,7 @@ AUDIT_SUITE = "brain/packages/tools/tests/test_audit.py"
 CONFIG_LOGGING = "brain/packages/orchestrator/src/cortex_orchestrator/config_logging.py"
 CONFIG_LOGGING_SUITE = "brain/packages/orchestrator/tests/test_config_logging.py"
 TRAIL_READER = "scripts/trailwidth.py"
-LOGGER_GUARD = "scripts/tests/test_logcalls.py"
+LOGGER_GUARD = "scripts/tests/test_loggernames.py"
 
 GATES_MODULE = "docs/modules/repo-gates.md"
 LOCAL_DEV_RUNBOOK = "docs/runbooks/local-dev-wsl.md"

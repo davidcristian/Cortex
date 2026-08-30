@@ -1149,7 +1149,7 @@ ASSERTED_WORD = ':tool.invocation "'
 # read by. Both sinks bind it and both module contracts name it, each explaining why its sink is
 # spelled that way.
 DECLARED_UNDER = "the name a sink that named itself declares that name under"
-LOGGER_GUARD = "scripts/tests/test_logcalls.py"
+LOGGER_GUARD = "scripts/tests/test_loggernames.py"
 TOOLS_MODULE = "docs/modules/brain-tools.md"
 
 GUARD_ASK = 'DECLARATION = "_LOGGER_NAME"'
@@ -1467,9 +1467,9 @@ def test_an_audit_suite_asserting_another_word_before_its_fields_is_a_fault(
 ) -> None:
     """The message half, whose guard is the sink's own suite rather than the reader's.
 
-    `logcalls.py` holds a logger name against the call that claims it and asks nothing about a
-    message, so the four rendered lines this suite asserts are the only thing standing between
-    `_MESSAGE` and a call passing some other word.
+    The readers next door refuse a word this module writes twice, once for a logger name and once
+    for a message, and neither sees a call carrying some OTHER word, so the four rendered lines
+    this suite asserts are the only thing standing between `_MESSAGE` and a call passing one.
 
     Two things ride along with the one mutation. One rendered line carries both of this trail's
     registered words, so the message moving has to land on the message's entry and leave the

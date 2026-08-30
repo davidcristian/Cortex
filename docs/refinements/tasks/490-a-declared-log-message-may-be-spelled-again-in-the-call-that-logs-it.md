@@ -1,6 +1,6 @@
 # A declared log message may be spelled again in the call that logs it
 
-**Status:** open, actionable
+**Status:** landed 2026-08-30
 **Area:** repo-gates
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
 
@@ -52,3 +52,21 @@ logger name and what one call under it puts on its line.
   close registered the word those assertions spell, so they can no longer be deleted quietly. And
   the floor this entry named is unchanged: `logcalls.py` still stands at exactly 300 lines, so the
   rule still arrives with the split its own docstring draws.
+- 2026-08-30: **landed** as a rule in `scripts/logcalls.py`, worked together with
+  [R-503](503-a-declared-log-message-is-held-to-its-call-by-one-hand-named-assertion.md), which
+  supplied the reading that made it affordable (ADR-0009 handed-message addendum). The question
+  this entry named is answered **any log call's message**, and the warning beside it turned out to
+  be about the wrong thing: the domain is a call and never a binding, so a literal has to be the
+  message of a log call before the module's own top level is consulted for the same string, and a
+  module that binds a refusal for a model to read and logs something else is never in it. Measured
+  before building: the brain writes 90 literal log messages today and not one of them is also bound
+  at its module's top level, so the rule refuses nothing that exists. The narrow domain this entry
+  offered as the alternative, a binding some document restates, was set aside for the reason it
+  suspected: it needs the registry to say which of its sites is a message, and the section of that
+  addendum on the brain's twenty message-shaped constants shows why nothing here can. The rule runs
+  over the tree rather than over the modules a sample names, `logcalls.messages` walking every
+  package's `src/` and `samplecheck.py` calling it beside the loggers. The floor this entry
+  predicted was real: `logcalls.py` stood at exactly 300 lines and the split landed with the rule,
+  along the seam its own docstring drew, `loggernames.py` taking which module owns a logger name.
+  What is still not held is a call carrying a DIFFERENT word from the one its module declares, which
+  is [R-504](504-a-declared-message-and-a-different-word-in-the-call.md).
