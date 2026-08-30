@@ -1,9 +1,11 @@
 """Integration: on which request shapes does this deployment honour the port's thinking switch?"""
 
+import json
 import os
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from pathlib import Path
 
 import httpx
 import pytest
@@ -36,6 +38,11 @@ _CAP = int(os.environ.get("CORTEX_THINKING_MAX_TOKENS", "256"))
 # writing is the difference between a model thinking and a model narrating the task.
 _HEAD = int(os.environ.get("CORTEX_THINKING_HEAD", "160"))
 _REPEATS = int(os.environ.get("CORTEX_THINKING_REPEATS", "1"))
+# Where this run's sample lands, read relative to `brain/` like every other driver's, and the
+# suffix that keeps one tier's runs apart: a probe at another cap or another repeat count is a
+# different reading and must not overwrite the one it was run beside.
+_OUT = Path(os.environ.get("CORTEX_THINKING_OUT", "."))
+_TAG = os.environ.get("CORTEX_THINKING_TAG", "")
 
 # A question with a few steps in it, because the control has to fire. Short enough that a 4B model
 # on a CPU answers inside a minute, and not a lookup: a prompt whose answer is one token invites no
@@ -118,7 +125,7 @@ async def _rendered(client: httpx.AsyncClient, schema: JsonSchema | None, *, swi
     return prompt
 
 
-async def _read_prompts(client: httpx.AsyncClient) -> None:
+async def _read_prompts(client: httpx.AsyncClient) -> dict[bool, str]:
     """What the template does with each of the four request shapes, before any token is decoded."""
     for switch in (False, True):
         prompts = {
@@ -137,6 +144,32 @@ async def _read_prompts(client: httpx.AsyncClient) -> None:
     reads = "reads" if plain != switched else "IGNORES"
     print(f"template  {reads} the switch ({len(plain)} chars against {len(switched)})")  # noqa: T201
     print("shapes    render one prompt per switch, so the schema never reaches the template")  # noqa: T201
+    return {False: plain, True: switched}
+
+
+def _write(prompts: dict[bool, str], draws: dict[tuple[str, bool], list[_Cell]]) -> Path:
+    """Record this run as one sample: what was rendered, and what each cell then did."""
+    _OUT.mkdir(parents=True, exist_ok=True)
+    path = _OUT / f"switch-{_MODEL}{_TAG}.json"
+    sample = {
+        "model": _MODEL,
+        "endpoint": _ENDPOINT,
+        "cap": _CAP,
+        "ask": _ASK,
+        "renderings": [{"switch": switch, "prompt": prompt} for switch, prompt in prompts.items()],
+        "cells": [
+            {
+                "shape": shape,
+                "constrained": dict(_SHAPES)[shape] is not None,
+                "switch": switch,
+                "draws": len(cells),
+                "deliberated": sum(1 for cell in cells if cell.reasoning_chars > 0),
+            }
+            for (shape, switch), cells in draws.items()
+        ],
+    }
+    path.write_text(json.dumps(sample, indent=2) + "\n", encoding="utf-8")
+    return path
 
 
 async def test_which_request_shapes_this_tier_honours_the_thinking_switch_on() -> None:
@@ -149,12 +182,21 @@ async def test_which_request_shapes_this_tier_honours_the_thinking_switch_on() -
     )
     draws: dict[tuple[str, bool], list[_Cell]] = {}
     async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, read=None)) as client:
-        await _read_prompts(client)
+        prompts = await _read_prompts(client)
         for shape, schema in _SHAPES:
             for switch in (False, True):
                 cells = [await _run(client, shape, schema, switch=switch) for _ in range(_REPEATS)]
                 draws[shape, switch] = cells
 
+    # Written before the assertions below, so a run that trips one still leaves the sample it
+    # measured. Resolved rather than as written: `_OUT` is read relative to `brain/` and the line
+    # below is pasted into a shell that is somewhere else.
+    written = _write(prompts, draws).resolve()
+    print(  # noqa: T201 -- the report IS the measurement
+        f"\nwrote one sample: {written}\n"
+        "  the rendering above predicts the constrained cell, and nothing here checks it:\n"
+        f"  just switch-tail {written}"
+    )
     print()  # noqa: T201
     for shape, _ in _SHAPES:
         control, switched = draws[shape, False], draws[shape, True]

@@ -7,8 +7,9 @@ documented-log-sample check, the document-roster check, the subagent-server flag
 backlog gate, the Rust coverage threshold, the CI path
 classifier, the commit-message style hook,
 and, since 2026-08-09, the modules here that gate nothing: the interval a live measurement
-reports, the width its widest logged field renders at, and the floor an envelope measurement's
-control arm is published against.
+reports, the width its widest logged field renders at, the floor an envelope measurement's
+control arm is published against, and the rendered prompt a tier's constrained verdict is
+predicted by.
 What they have in common is not that each is a gate; it is that each is pure Python that
 belongs to neither the brain nor the body and is gated exactly like both. A standalone uv project
 (not a brain workspace member, per ADR-0002).
@@ -20,9 +21,10 @@ belongs to neither the brain nor the body and is gated exactly like both. A stan
 recipes, `ci_paths.py`
 by the CI
 workflow, `commitlint.py` by the commit-msg pre-commit stage, `contrast.py` by `just turn-cost`,
-`trailwidth.py` by `just recall-width` and `envelopefloor.py` by `just envelope-floor`;
+`trailwidth.py` by `just recall-width`, `envelopefloor.py` by `just envelope-floor` and
+`switchtail.py` by `just switch-tail`;
 each also exposes a pure, unit-tested core function).
-**The rest have no CLI of their own**, forty five modules,
+**The rest have no CLI of their own**, forty six modules,
 most split out under the line cap and each named for what it holds: `couplings.py` is the
 vocabulary `crosscheck.py`'s registry is written in, `registry.py` names the parts that registry is
 written in, and `seamcouplings.py`, `endpointcouplings.py`, `shippedcouplings.py`,
@@ -61,6 +63,8 @@ which files the four compose gates walk, answered once so they cannot drift apar
 `gitenv.py` is the environment every git call in this tree runs with, held in one place because
 a caller that forgets it is wrong in silence rather than red, `skippeddirs.py` is the directory
 components no walk here enters, held in one place for the same reason, and
+`switchsamples.py` is what one run of the thinking-switch probe recorded, read off the sample it
+wrote, the format half `switchtail.py` holds its rule over, and
 `backlog.py`, `backlogindex.py`, `backloganchors.py` and `headingshapes.py` are the four
 `backlogcheck.py` reads a backlog through: the task-file grammar, the index renderer, the anchors a
 document offers with every pointer in the repo aimed at one, and what a heading may look like for
@@ -1169,6 +1173,29 @@ that last question to have an answer.
   is refused as no comparison at all. Exit 0 printing the report; exit 1 printing it with a
   `refused:` line (no control arm in the samples, or a cell proven under the floor); exit 2
   printing one `envelopefloor: PROBLEM` line; argparse exit 2 on usage.
+
+- `switchtail.py SAMPLE [SAMPLE ...]` is the fourth module here that gates nothing, and it is here
+  for the same three reasons (ADR-0005 rendered-tail addendum). It reads the per-tier samples
+  `brain/packages/inference/tests/test_thinking_switch_live.py` writes, with `switchsamples.py`
+  answering for that format, and it holds one rule two documents carry: **a tier whose chat
+  template answers the thinking switch by rendering a thought already closed holds that switch
+  under a `response_format`, and one whose answer leaves the thought open does not.** The rule is
+  eleven readings of one engine build's handlers rather than a theorem, so the report names and
+  measures a tier that breaks it instead of the live run going red on the reading that found it.
+  **The reading is on the tail**, taken after the last of the ask the driver recorded sending,
+  because the failing pick's two prompts differ by a whole system turn at the front and end byte
+  identically: comparing renderings for difference sorts nothing. A closed thought is `</think>` on
+  the native family and `<channel|>` on gemma-4, a vocabulary no endpoint offers and a probe run by
+  hand may hold, and a tail speaking a third family's reads as open, so every verdict prints the
+  tail it was read off. The two sides are **not equally strong and the report says which it is
+  on**: a closing tail is refuted by one deliberating draw, an open one only by a whole cell that
+  never deliberated. Nothing is published from a constrained cell drawn under five times, the
+  probe's own rule (that cell splits 4 to 1 on a shipped pick), nor from one whose control arm, the
+  same request with no switch, failed to deliberate on every draw. Which cell is constrained and
+  which sent the switch are the sample's own flags, so no shape's name has to agree across the two
+  trees. Exit 0 printing the report; exit 1 printing it with a `refused:` line (a rendering it
+  cannot place, a cell too thin to read, a control that did not fire, or a prediction the
+  measurement broke); exit 2 printing one `switchtail: PROBLEM` line; argparse exit 2 on usage.
 
 **Invariants.**
 - stdlib-only modules; pure cores (`scan`, `evaluate`/`check`, `classify`, `report`) unit-tested

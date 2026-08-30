@@ -340,6 +340,10 @@ envelope-floor +samples:
     uv sync --locked --project scripts
     uv run --project scripts python scripts/envelopefloor.py {{ samples }}
 
+switch-tail +samples:
+    uv sync --locked --project scripts
+    uv run --project scripts python scripts/switchtail.py {{ samples }}
+
 # The gpu stack PLUS a loopback publish of the model-host control API, which the base gpu override
 # deliberately withholds (it can start and stop GPU processes, ADR-0030 d3). For live tests only;
 # `just down-gpu` takes it down. Procedure: docs/runbooks/model-swap.md.

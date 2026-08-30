@@ -193,11 +193,15 @@ with the cause chained:
   between their cells is the schema's doing and not a difference of prompt, and it is also the
   **predictor**, an entry whose template answers the switch with a thought already closed holding
   under a schema where one that drops the block and adds nothing does not, on every entry measured
-  (ADR-0005 switch-is-advisory addendum, mechanism and lineup sections). Both renderings are
-  printed and **neither is read**: the predictor is a prose rule across two documents, which is
-  [R-499](../refinements/tasks/499-the-rendering-predictor-is-asserted-nowhere.md), and the reading
-  lives on the prompt's **tail** rather than on the two renderings differing, the failing pick's
-  pair differing at the front and ending byte identically (ADR-0005 template-probe addendum).
+  (ADR-0005 switch-is-advisory addendum, mechanism and lineup sections). Both renderings are now
+  **recorded with the cells**, in one JSON sample per tier (`CORTEX_THINKING_OUT`,
+  `CORTEX_THINKING_TAG`), and `just switch-tail` is what reads the prediction back against the
+  measurement, refusing to publish a run where the two disagree. The probe itself still judges
+  nothing about them, for the reason the envelope harness computes no rates: an integration-marked
+  file is code no gate runs, so a rule asserted in one is a rule nothing red-greens (ADR-0005
+  rendered-tail addendum). The reading lives on the prompt's **tail** rather than on the two
+  renderings differing, the failing pick's pair differing at the front and ending byte identically
+  (ADR-0005 template-probe addendum).
 - **`tests/test_trace_budget_live.py` is its sibling for the lever that holds**
   (`integration`-marked, ADR-0005 request-lever addendum). It asks the endpoint whether the engine
   parses a per-request trace budget, then draws the one cell the switch loses, a constrained reply

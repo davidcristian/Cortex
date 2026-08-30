@@ -1,9 +1,7 @@
 # The rendering that predicts a tier's constrained verdict is printed and never asserted
 
-**Status:** open, actionable
+**Status:** landed 2026-08-30
 **Area:** inference
-**Trigger:** a probe run against a tier whose rendering and whose verdict disagree, which is what a
-llama.cpp handler learning to gate its reasoning rule on `enable_thinking` would produce.
 **Origin:** [ADR-0005](../../adr/ADR-0005-llamacpp-engine.md)
 
 Opened 2026-08-29 by the decline of
@@ -42,3 +40,18 @@ the end, and the ADR's mechanism section quotes only tails, which is where that 
   [R-475](475-a-tier-can-be-asked-what-its-template-answers.md), whose ADR-0005 template-probe
   addendum re-measured the predictor on two picks on opposite sides of the split and declined to
   ship it as a probe, leaving the reading itself unchecked by anything that runs.
+- 2026-08-30: landed as `scripts/switchtail.py` and `scripts/switchsamples.py`, run by `just
+  switch-tail` over a sample the probe now writes, per the ADR-0005 rendered-tail addendum. The
+  assertion went into a covered module rather than into the integration-marked probe, on the
+  precedent the envelope harness's control arm set the same morning: a rule asserted in a file no
+  gate runs is ungated and unmutatable, and a tier that breaks this rule is news to publish rather
+  than a reason to red the run that found it. The reading is on the **tail** after the ask, the two
+  sides of the rule are held at their real strengths, and a cell drawn under five times or a
+  control arm that never deliberated publishes nothing. Re-deriving found the entry's own premise
+  half wrong in a way that made the case stronger: the probe printed the renderings' **lengths**
+  and never the renderings, so the reading was not on the page for anybody to do by eye. Published
+  live on two picks from opposite sides of the split, Qwen3.5-0.8B Q8_0 and gemma-4-E4B QAT q4_0 on
+  `b10680-d7bd3bfca`, both agreeing. What it opened is
+  [R-509](509-a-third-familys-closed-thought-reads-as-an-open-one.md), the two families the reader
+  can spell, and [R-510](510-nine-rows-of-the-rendering-column-are-hand-read.md), the nine lineup
+  rows that have still never been through it.
