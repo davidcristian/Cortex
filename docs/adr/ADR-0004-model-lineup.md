@@ -615,3 +615,21 @@ lineup section. Three readings belong here, where picks are chosen.
 exactly as they are: `--reasoning-budget 0` is what covers the gemma-4-E entries on the shape their
 template cannot, it costs nothing on an entry whose template already holds, and a tier carrying both
 does not have to know which entry it was handed.
+
+## Addendum (2026-08-30): the embedder's override variable is renamed into the artifact family
+
+The embedder pick above and decision 4 are unchanged. What changed is the name of the variable
+that overrides it: `CORTEX_EMBED_MODEL_FILE` is now **`CORTEX_MODEL_FILE_EMBED`**, so the CPU
+embedder's GGUF is spelled the way every other model artifact this tree names is, and the gate
+that holds that convention (`scripts/flagcheck.py`) holds this one too instead of excusing it for
+serving no chat. The reasoning, the alternative that was refused, and the size of the rename's own
+risk are in
+[ADR-0029](ADR-0029-vision-screen-capture.md)'s addendum on a non-chat artifact naming itself in
+the family; the operator-facing half is in
+[docs/runbooks/memory-pgvector.md](../runbooks/memory-pgvector.md).
+
+The old spelling is read by nothing now, so a host whose `.env` still sets it runs the shipped
+nomic pick rather than the override, which matters only to a deployment that had named the
+`nomic-embed-text-v2-moe` alternative this ADR ships. The sentences above and every measurement
+below them keep their own wording, this addendum being their correction, which is how a superseded
+name is handled here.

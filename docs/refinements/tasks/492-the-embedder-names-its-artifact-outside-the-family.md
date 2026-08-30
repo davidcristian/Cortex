@@ -1,6 +1,6 @@
 # The embedder names its artifact outside the family the naming rule enforces
 
-**Status:** open, actionable
+**Status:** landed 2026-08-30
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -42,3 +42,26 @@ one is a rule with an example rather than a rule.
 - 2026-08-29: opened by the close of
   [R-472](472-the-membership-prefix-is-a-convention-nothing-enforces.md), whose naming rule
   excludes this artifact by what its server serves rather than by what it is called.
+- 2026-08-30: landed as the rename, recorded in the [ADR-0029 addendum on a non-chat artifact
+  naming itself in the
+  family](../../adr/ADR-0029-vision-screen-capture.md#addendum-2026-08-30-a-non-chat-artifact-names-itself-in-the-family-and-the-exclusion-retires),
+  with a pointer addendum at [ADR-0004](../../adr/ADR-0004-model-lineup.md). The variable is
+  `CORTEX_MODEL_FILE_EMBED`, and the `--embeddings` exclusion in `scripts/artifactnames.py` is
+  gone rather than left inert. **This entry's preferred close was refused on the tree's own
+  evidence.** A separate family for non-chat artifacts is not a family of one and never was: the
+  multimodal projector is a non-chat model artifact too and is named `CORTEX_MMPROJ_FILE_CORTEX`,
+  in the family's word order with one word swapped, so the split is a word order and not a
+  category, and the embedder was simply the spelling nobody had revisited. **The exclusion was
+  also worse than this entry said**, which the mutation table measures: a second non-chat server
+  copied from that block and named `CORTEX_RERANK_MODEL_FILE` left the gate printing OK over five
+  artifacts and exiting 0, so the exclusion was a door rather than one artifact's dispensation.
+  **The shim this entry called the cheap shape was measured rather than assumed**: compose does
+  expand `${NEW:-${OLD:-pick}}` (v2.39.1), which is the opposite of what
+  `scripts/composedefaults.py` claimed and is corrected there, but that reader refuses a nested
+  form and three gates walk it over the line, so the shim was declined and the reader's question
+  filed as
+  [R-502](502-the-substitution-reader-refuses-a-nesting-compose-expands.md). The rename's risk is
+  bounded instead: no `.env` is tracked or present here, the fallback lands on the pick almost
+  every host already runs, and `docs/runbooks/memory-pgvector.md` carries the migration. The
+  projector's own unheld spelling is
+  [R-501](501-the-projector-is-named-in-a-sibling-family-nothing-holds.md).

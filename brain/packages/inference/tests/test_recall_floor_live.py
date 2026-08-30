@@ -28,7 +28,7 @@ what proves the operator is wired at all: a gate that never fires and a gate tha
 identical on a corpus of answerable questions. The finding is asserted too, so it reddens rather
 than rots: no threshold separates the populations here, and every threshold that silences all four
 `ABSENT` questions also silences answerable ones. **Point this at another `Embedder` and rerun it**
-(`CORTEX_EMBED_MODEL_FILE` in the memory override) to reopen the entry: a red finding assertion is
+(`CORTEX_MODEL_FILE_EMBED` in the memory override) to reopen the entry: a red finding assertion is
 an embedder whose populations do separate, which is the one thing that would make a floor
 calibratable.
 """

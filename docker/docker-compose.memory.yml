@@ -13,7 +13,12 @@
 #
 # Set these on the host (a .env at the repo root works):
 #   CORTEX_MODELS_DIR       host dir holding the GGUFs (default ./models, ADR-0004)
-#   CORTEX_EMBED_MODEL_FILE embedding GGUF path under that dir (default: the nomic pick)
+#   CORTEX_MODEL_FILE_EMBED embedding GGUF path under that dir (default: the nomic pick).
+#                           RENAMED from CORTEX_EMBED_MODEL_FILE on 2026-08-30 (ADR-0029
+#                           non-chat-artifact addendum): every model artifact this tree names
+#                           is now spelled CORTEX_MODEL_FILE_<tier>, and the gate holds it.
+#                           The old spelling is read by nothing, so a .env still setting it
+#                           runs the shipped nomic pick; docs/runbooks/memory-pgvector.md
 #   CORTEX_DB_DIR           host dir receiving the plug-and-play dump (default ./pgdata)
 #   CORTEX_DB_SYNC_INTERVAL_S  seconds between automated dumps (default 21600 = 6h)
 #   CORTEX_PG_PASSWORD      Postgres password (default `cortex`, a deliberate throwaway
@@ -129,10 +134,12 @@ services:
     # CPU build (no CUDA): embeddings run on CPU, off the GPU budget (ADR-0004 addendum).
     image: "ghcr.io/ggml-org/llama.cpp:server"
     # --embeddings turns on /v1/embeddings; -ngl 0 keeps it entirely on the CPU. The model
-    # is the nomic pick (ADR-0004); override the path with CORTEX_EMBED_MODEL_FILE.
+    # is the nomic pick (ADR-0004); override the path with CORTEX_MODEL_FILE_EMBED, which is
+    # the family every model artifact this tree names is spelled in, this one included since
+    # the rename (ADR-0029 non-chat-artifact addendum). scripts/flagcheck.py holds it.
     command:
       - "--model"
-      - "/models/${CORTEX_EMBED_MODEL_FILE:-nomic-ai/nomic-embed-text-v1.5-GGUF/nomic-embed-text-v1.5.Q8_0.gguf}"
+      - "/models/${CORTEX_MODEL_FILE_EMBED:-nomic-ai/nomic-embed-text-v1.5-GGUF/nomic-embed-text-v1.5.Q8_0.gguf}"
       - "--embeddings"
       - "--host"
       - "0.0.0.0"

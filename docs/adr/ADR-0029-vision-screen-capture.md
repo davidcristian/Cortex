@@ -6530,3 +6530,146 @@ questions, `scripts/subagentservers.py`, where the family and the subagent prefi
 [AGENTS.md](../../AGENTS.md), [docs/index.md](../index.md) and
 [modules/repo-gates.md](../modules/repo-gates.md), whose listings name the new module, and this
 addendum.
+
+## Addendum (2026-08-30): a non-chat artifact names itself in the family, and the exclusion retires
+
+The addendum above left one artifact outside the convention it had just made enforceable, and
+recorded it as
+[R-492](../refinements/tasks/492-the-embedder-names-its-artifact-outside-the-family.md). The CPU
+embedder in `docker/docker-compose.memory.yml` named its GGUF `CORTEX_EMBED_MODEL_FILE`, in a
+different word order from every other model artifact this tree names, and `artifactnames.py`
+excluded it by reading `--embeddings` in the argv. The entry offered two closes and preferred the
+cheap one, an argued decision that a non-chat artifact is a separate family. That decision is
+refused here on the tree's own evidence, and the rename is what landed:
+`CORTEX_MODEL_FILE_EMBED`, with the exclusion retired rather than kept inert.
+
+### Re-derived first, and the exclusion is worse than the entry said
+
+The entry was a day old and argued from the readers, so the gate was mutated before anything was
+written. Respelling the embedder's variable back reddens: `flagcheck` exits 1 naming
+`docker/docker-compose.memory.yml: llama-embed`, which is the rule doing its job now that nothing
+excuses that argv. The interesting mutation is the one the entry only predicted. A second non-chat
+server copied from the embedder's block, an `--embeddings` argv naming
+`CORTEX_RERANK_MODEL_FILE`, is reported by the shipped gate and was **invisible to the gate as it
+stood**: with the exclusion restored, the same tree printed `flagcheck OK: ... the 5 model
+artifact(s) this tree names are each named so a reader can say which tier they serve` and exited
+0, counting neither embedding server. So the exclusion was not one artifact's dispensation; it was
+a door, and the block beside it was the one an author of the next non-chat server would copy.
+
+### The separate-family answer is refused, because this tree already wrote the other example
+
+The entry's cheaper close was to declare that an artifact serving no chat is its own family whose
+spelling is `CORTEX_EMBED_MODEL_FILE`, and it asked for that to be argued against first, on the
+grounds that a family of one is a rule with an example rather than a rule. The argument against it
+is stronger than that, and it is a fact about the tree rather than a preference. **The non-chat set
+is not a family of one.** The multimodal projector this ADR added is a model artifact that serves
+no chat either, and it is named `CORTEX_MMPROJ_FILE_CORTEX`: `CORTEX_`, the kind, `_FILE`, the
+tier, which is the word order of `CORTEX_MODEL_FILE_CORTEX` with one word swapped. Nobody argued
+for it; it simply read right beside its neighbours.
+
+So the tree names artifacts in two shapes, and the shapes do not divide on chat. Five chat
+artifacts and the projector share one word order, and the embedder alone reversed it. A decision
+declaring the embedder's spelling canonical for non-chat artifacts would have had to explain why
+the only other non-chat artifact does not follow it, and the honest answer is that the embedder is
+not a category, it is a spelling nobody had a reason to revisit until a gate started reading names.
+
+### The rename's risk is bounded, and the shim its author imagined does not exist here
+
+The entry left the rename because it changes an operator-facing variable to satisfy a gate, and
+because a deployment whose own `.env` still names the old one would fall back to the shipped nomic
+pick in silence. That failure is real and it is worth being exact about its size.
+
+- **Nothing beyond this repo's own machine depends on the key.** [AGENTS.md](../../AGENTS.md)
+  freezes a key once something outside does, and says to heal a mismatch while healing is free.
+  No `.env` is tracked here and none exists at the root of this checkout; `.gitignore` has always
+  kept one out. The variable is read in exactly one place, that compose command.
+- **The blast radius is one deployment shape**, a host that had named the `v2-moe` alternative,
+  since every other host was already running the shipped default the fallback lands on. The
+  column is dimension-agnostic ([ADR-0004](ADR-0004-model-lineup.md) decision 4), so the symptom
+  would be recall quietly answering out of a different vector space rather than an insert failing.
+  `docs/runbooks/memory-pgvector.md` now carries the rename and that consequence where an operator
+  reads it.
+- **The compatibility shim the entry proposed was measured, not assumed.** Compose really does
+  expand a nested default: `${CORTEX_MODEL_FILE_EMBED:-${CORTEX_EMBED_MODEL_FILE:-<pick>}}`
+  resolves through both on compose v2.39.1, which contradicts the parenthetical
+  `scripts/composedefaults.py` carried and which is corrected there. It is still not available in
+  this tree, because that reader refuses a nested form and three gates walk it over that very
+  line, so the shim would land as a compose one-liner plus a substitution reader taught a shape
+  whose default has no value for `defaultcheck.py`, `bindcheck.py` or `volumecheck.py` to
+  compare. Teaching it is a decision about what those rules should then compare, recorded as
+  [R-502](../refinements/tasks/502-the-substitution-reader-refuses-a-nesting-compose-expands.md),
+  and buying it for a one-release shim on a key nothing off this machine reads is the wrong order
+  to do it in.
+
+The rename was verified end to end rather than reasoned about: `docker compose config` over the
+real base and memory files resolves the default, and resolves `CORTEX_MODEL_FILE_EMBED` when a
+host sets it.
+
+### The exclusion retires, and it was answering the wrong question
+
+With the artifact inside the family, keeping the exclusion would have left an inert branch that
+still opened the door measured above. It is removed, and the argument for removing it is not that
+it became unnecessary. **It was answering the membership question in the naming rule's chair.**
+Whether a server serves chat decides whether it can be a subagent, which is
+`subagentservers.py`'s question, and that reader answers it on its own here, by the variable the
+argv spends and by a wiring that never dials `llama-embed`. The naming rule asks the question
+underneath: is this artifact spelled so that such an answer is decidable at all. A flag about what
+a server serves has nothing to say about that, and using it as an exemption meant an artifact
+could buy its way out of being findable by declaring what it does. Two exclusions remain and both
+are about reading rather than about serving: the short spelling of the model flag, and an item
+spending no variable.
+
+### Proved able to fail, four mutants over the scripts suite
+
+Each mutation was applied alone, or in the one stated pair, with `cd scripts && uv run python
+flagcheck.py --root ..` run and `cd scripts && uv run pytest -q --no-cov` re-run over the **1453
+checks of that suite**.
+
+| mutation | flagcheck | reddens |
+| --- | --- | --- |
+| the embedder's artifact is respelled back out of the family | exit 1, `llama-embed` | 17 |
+| A SECOND NON-CHAT SERVER arrives named outside the family | exit 1, `llama-rerank` | 17 |
+| GATE: the retired exclusion is put back | OK over 5 artifacts | 3 |
+| PAIR: that gate mutation, with the second non-chat server present | **OK over 5, exit 0** | 3 |
+
+The last row is the deliverable and the reason the exclusion did not survive as an inert branch.
+The gate reports success over a tree carrying a model artifact no reader can classify, and the
+three checks it reddens are the three that assert the embedder is now named, none of which is the
+new server: the suite says the door is open, and only because it was told where to look. Rows one
+and two redden the same 17 because both are faults in the tree the flag checks copy, by design.
+
+### What is still not held
+
+The projector is the artifact this rule cannot reach today. `CORTEX_MMPROJ_FILE_CORTEX` rides the
+cortex tier's `extra` rather than its `model_path`, and it is named after `--mmproj` rather than
+after `--model`, so both readers walk past it in both languages. It is correctly spelled, which
+is the point: it is correct by the same convention the embedder was wrong by, and nothing checks
+it. Whether the family is one prefix or a shape with the kind word in it is the question that
+opens, recorded as
+[R-501](../refinements/tasks/501-the-projector-is-named-in-a-sibling-family-nothing-holds.md).
+
+Four records keep the old spelling on purpose, as records: this ADR's addendum above, the lineup
+row and decision in [ADR-0004](ADR-0004-model-lineup.md), the portability sweep in
+[ADR-0038](ADR-0038-ranked-recall.md), and the migration argument in
+[R-095](../refinements/tasks/095-ann-index.md). A decision record says what was decided when it
+was decided, and this repo corrects a superseded sentence with a dated addendum rather than by
+editing it ([ADR-0023](ADR-0023-body-gateway-volume.md)'s rename addendum sets that precedent).
+ADR-0004 gets a pointer of its own, being where the variable was declared; the others are found by
+the same grep that finds this. Nothing gates a doc that spells a dead variable, and no gate is
+proposed for it here.
+
+### Records
+
+The record is the task file
+[R-492](../refinements/tasks/492-the-embedder-names-its-artifact-outside-the-family.md), which
+closes as landed, its two openings
+[R-501](../refinements/tasks/501-the-projector-is-named-in-a-sibling-family-nothing-holds.md) and
+[R-502](../refinements/tasks/502-the-substitution-reader-refuses-a-nesting-compose-expands.md),
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from them,
+`docker/docker-compose.memory.yml`, which names the artifact in the family and carries the
+rename note, `scripts/artifactnames.py`, whose embedding exclusion is gone,
+`scripts/composedefaults.py`, whose refusal of a nested form now gives the true reason for it,
+[ADR-0004](ADR-0004-model-lineup.md), whose own addendum points at the new spelling,
+[docs/runbooks/memory-pgvector.md](../runbooks/memory-pgvector.md), which an operator reads,
+[modules/repo-gates.md](../modules/repo-gates.md), which counted three exclusions, and this
+addendum.

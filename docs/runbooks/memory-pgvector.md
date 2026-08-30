@@ -321,7 +321,7 @@ tests the adapter against whatever schema it finds there.
 ## Bring up the CPU embedder (for the end-to-end path)
 
 The embedder needs the nomic GGUF present under the models dir. Set `CORTEX_MODELS_DIR` (WSL:
-`/srv/models`) and `CORTEX_EMBED_MODEL_FILE` (the nomic pick's path under it), then:
+`/srv/models`) and `CORTEX_MODEL_FILE_EMBED` (the nomic pick's path under it), then:
 
 ```
 docker compose --project-directory . -f docker/docker-compose.yml -f docker/docker-compose.memory.yml up -d llama-embed
@@ -329,6 +329,15 @@ cd brain && CORTEX_EMBEDDING_ENDPOINT=http://127.0.0.1:8081 \
   uv run pytest -m integration --no-cov packages/embedding
 ```
 
+- **Renamed on 2026-08-30:** this variable was `CORTEX_EMBED_MODEL_FILE` until the CPU
+  embedder's artifact was brought into the family every model artifact this tree names is
+  spelled in, `CORTEX_MODEL_FILE_<tier>` (`scripts/flagcheck.py` now holds this one too;
+  ADR-0029's addendum on a non-chat artifact naming itself in the family). Nothing reads the
+  old spelling, so a `.env` that still sets it runs the shipped nomic pick instead of the
+  override, which matters only to a deployment that had named the `v2-moe` alternative below:
+  rename the key there and the stack loads what it did before. Recreate `llama-embed` after
+  changing it, and note that the column is dimension-agnostic, so a wrong pick is a silent
+  change in what recall returns rather than an insert that fails.
 - **Healthcheck:** if the CPU `server` image ships without `curl`, the healthcheck stays
   unhealthy though the server is up. Watch `docker compose logs llama-embed` for the
   `listening on http` line, or swap the compose test for a `python -c` poke.
@@ -339,7 +348,7 @@ cd brain && CORTEX_EMBEDDING_ENDPOINT=http://127.0.0.1:8081 \
 
 **nomic-embed-text-v1.5 Q8_0** (768-dim, ~146 MB) is the compose default and the validated
 pick. It loads in ~1.2 s on CPU with negligible RAM. `nomic-embed-text-v2-moe` (also
-768-dim, larger, multilingual) is the alternative via `CORTEX_EMBED_MODEL_FILE`. Recorded in
+768-dim, larger, multilingual) is the alternative via `CORTEX_MODEL_FILE_EMBED`. Recorded in
 the [ADR-0004 addendum](../adr/ADR-0004-model-lineup.md). The `memories.embedding` column is
 dimension-agnostic, so switching needs no migration.
 

@@ -34,12 +34,15 @@ that shape. So does a server whose artifact reaches it through its environment r
 argv: this reads what a command names, and the model host's own tiers are read from the sidecar's
 declaration rather than from the passthrough that feeds it.
 
-**An argv declaring itself an embedding server names no artifact this rule reaches.** The CPU
-embedder runs from the same llama.cpp image as the subagent servers and spells its own artifact
-`CORTEX_EMBED_MODEL_FILE`, outside the family. It serves no chat, so no subagent could ever be one
-of these, which is the exclusion `subagentservers.py` already makes on the image and for the same
-reason. The exclusion cannot be walked through by the fault it sits beside, since a chat server
-carrying `--embeddings` serves no chat either.
+**A server that serves no chat still names an artifact this rule holds.** The CPU embedder runs
+from the same llama.cpp image as the subagent servers, and what it serves is `subagentservers.py`'s
+question rather than this one: that reader keeps it out of the subagent set on its own, by the
+variable its argv spends and by a wiring that never dials it. This reader asks the question
+underneath, whether an artifact is spelled so such an answer is decidable at all, and an argv
+declaring `--embeddings` is spelled no differently from any other. So there is no embedding
+exclusion here, and the one that used to sit here excused the single artifact in this tree spelled
+outside the family, in the very block a new non-chat model server would be copied from
+(ADR-0029's addendum on a non-chat artifact naming itself in the family).
 
 **No floor of its own is asserted, because one is asserted underneath.** `hostedtiers.py` refuses
 a sidecar declaring no tier and a tier naming no artifact, so a tree this reader can read at all
@@ -65,10 +68,6 @@ from hostedtiers import (
 # started here writes and the only one this reader takes.
 MODEL_FLAG = "--model"
 
-# What an argv carrying either of these serves, which is not chat. Both spellings of the one flag,
-# so the exclusion is dodged by neither, and it is llama.cpp that accepts both.
-EMBEDDING_FLAGS = frozenset({"--embeddings", "--embedding"})
-
 
 class Artifact(NamedTuple):
     """One model artifact this tree names, and the variable a deployment names it under.
@@ -88,8 +87,6 @@ class Artifact(NamedTuple):
 def spends(started: Started) -> tuple[str, ...]:
     """Every variable one service's argv names a model artifact under, in the order written."""
     command = started.command or ()
-    if any(item in EMBEDDING_FLAGS for item in command):
-        return ()
     try:
         return tuple(
             spend.name

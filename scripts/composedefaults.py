@@ -16,9 +16,17 @@ than folded: `:-` and `-` disagree about a variable set to the empty string, so 
 called them one form would hand the rule two behaviours under one name.
 
 **Anything else is raised, never skipped.** A `$` that opens none of those forms, a brace that
-never closes, a nested expansion (which compose does not expand), and a name that is not an
-identifier are each a fault, because a reader that quietly walks past the one spend a new
-override adds is a gate that cannot fail.
+never closes, a nested expansion, and a name that is not an identifier are each a fault, because a
+reader that quietly walks past the one spend a new override adds is a gate that cannot fail.
+
+**Nesting is the one of those four compose itself accepts, and it is still refused.**
+`${A:-${B:-x}}` resolves to `B`'s value and then to `x`, measured on compose v2.39.1 (ADR-0029's
+addendum on a non-chat artifact naming itself in the family, which wanted that shape as a rename's
+compatibility shim and did not take it). It is refused here because every rule over these spends
+compares a default as a value, and a default that is itself a variable has no value until a
+deployment supplies one, so a reader that returned something for it would hand those rules a
+comparison none of them can make. Refusing is therefore the honest answer and not the ignorant one,
+and teaching this reader the form is a decision about what those rules should then compare.
 
 **A whole-line comment is not read, and a trailing one is read like any other text.** Compose
 interpolates neither, a comment not surviving the parse the interpolation runs over, so a default

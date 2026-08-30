@@ -835,15 +835,16 @@ that last question to have an answer.
   structurally, in both languages**: a compose one is the item after llama.cpp's own `--model`,
   and a hosted one is the settings field a tier reads its `model_path` from. Reading only the
   variables that already begin `CORTEX_MODEL_FILE_` would have been a rule whose domain is the
-  convention it checks, unable to fail for the misspelling it exists to catch. Three exclusions
+  convention it checks, unable to fail for the misspelling it exists to catch. Two exclusions
   are deliberate and each is what a fault would otherwise be wrong about: the **short** spelling
   of the model flag is not read, this tree starting an MCP sidecar with `python -m <module>` and a
-  reader of `-m` calling that module an artifact; an item spending **no variable** carries no name
-  to misspell, and the wiring is what finds such a server; and an argv declaring `--embeddings`
-  serves no chat, so the CPU embedder's own `CORTEX_EMBED_MODEL_FILE` is outside the rule, which
-  is the exclusion `subagentservers.py` already makes on the image and for the same reason. No
-  floor is asserted here because `hostedtiers.py` asserts one underneath, refusing a sidecar with
-  no tier and a tier with no artifact.
+  reader of `-m` calling that module an artifact; and an item spending **no variable** carries no
+  name to misspell, and the wiring is what finds such a server. A third one was retired when the
+  CPU embedder was renamed into the family: an argv declaring `--embeddings` serves no chat, which
+  is the membership reader's question and not this one, so what a server serves no longer excuses
+  an artifact from being spelled findably (ADR-0029's addendum on a non-chat artifact naming
+  itself in the family). No floor is asserted here because `hostedtiers.py` asserts one underneath,
+  refusing a sidecar with no tier and a tier with no artifact.
 - `moduleconstants.py` is that reader's syntax side and has no CLI. `constants(module)` returns
   every top-level string and run of strings a parsed module binds, `parse`, `text`, `items` and
   `bound` being the pieces it is built from. Parsed with `ast` and never imported, for the reason

@@ -354,8 +354,9 @@ def test_a_fourth_tier_arriving_under_a_name_no_reader_looks_at_is_held_the_day_
 
 def test_the_rule_runs_over_every_artifact_the_committed_tree_names(tmp_path: Path) -> None:
     """A count over one placement would be a rule the other could walk under, so the scan reports
-    what it held: the two compose servers' artifacts and the sidecar's three tiers."""
-    assert check(copied(tmp_path)).artifacts >= 5
+    what it held: the two compose servers' artifacts, the CPU embedder's, and the sidecar's three
+    tiers. The embedder joined the count when it joined the family, no argv being excused now."""
+    assert check(copied(tmp_path)).artifacts >= 6
 
 
 # ── the floors, since a scan over nothing would be green forever ───────────────

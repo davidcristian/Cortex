@@ -43,8 +43,8 @@ services:
     image: "ghcr.io/ggml-org/llama.cpp:server"
     command:
       - "--model"
-      - "/models/${CORTEX_EMBED_MODEL_FILE:-nomic/nomic-embed.gguf}"
-      - "%s"
+      - "/models/${CORTEX_MODEL_FILE_EMBED:-nomic/nomic-embed.gguf}"
+      - "--embeddings"
 """
 
 # The reason the short spelling of the model flag is not read: this tree really starts a sidecar
@@ -108,21 +108,22 @@ def test_the_short_spelling_of_the_model_flag_is_not_read() -> None:
     assert spends(_one(PYTHON_MODULE)) == ()
 
 
-@pytest.mark.parametrize("flag", ["--embeddings", "--embedding"])
-def test_an_argv_that_declares_itself_an_embedding_server_names_no_artifact_this_rule_reaches(
-    tmp_path: Path, flag: str
+def test_an_argv_that_declares_itself_an_embedding_server_names_an_artifact_like_any_other(
+    tmp_path: Path,
 ) -> None:
-    """The CPU embedder runs the same llama.cpp image and spells its artifact outside the family
-    on purpose. It serves no chat, so no subagent could ever be one of these, and a chat server
-    carrying the flag would serve no chat either, which is why the exclusion cannot be walked
-    through by the fault it sits beside. Both spellings, since llama.cpp accepts both and an
-    exclusion a spelling walks past is no exclusion."""
+    """What a server serves is the membership reader's question and not this one, so the CPU
+    embedder's own artifact is enumerated beside the subagent's and held to the same spelling.
+    The exclusion that used to sit here excused the one artifact in this tree named outside the
+    family, in the block a new non-chat model server would be copied from."""
     stack = {
-        "docker-compose.memory.yml": EMBEDDER % flag,
+        "docker-compose.memory.yml": EMBEDDER,
         "docker-compose.subagents.yml": SUBAGENT,
     }
     found = composed(_tree(tmp_path, stack))
-    assert [artifact.variable for artifact in found] == ["CORTEX_MODEL_FILE_SUBAGENT"]
+    assert [artifact.variable for artifact in found] == [
+        "CORTEX_MODEL_FILE_EMBED",
+        "CORTEX_MODEL_FILE_SUBAGENT",
+    ]
 
 
 def test_an_artifact_carries_the_file_the_service_and_the_line_it_is_named_on(
@@ -169,16 +170,16 @@ def test_the_committed_sidecar_names_every_tiers_artifact_and_not_only_the_subag
 
 
 def test_the_committed_tree_names_the_artifacts_it_ships_in_both_languages() -> None:
-    """Both halves at once, since the rule above runs over the join. The embedder is the one
-    artifact this tree names that is deliberately absent, and asserting its variable is missing
-    would be vacuous if the tree had stopped naming it, so the file that names it is read too."""
+    """Both halves at once, since the rule above runs over the join. Every artifact this tree
+    names is here, the CPU embedder's included: nothing is excluded from this reading any more,
+    which is what makes the family the rule holds them to a family rather than a convention with
+    one documented exception."""
     found = {artifact.variable for artifact in named(REPO_ROOT)}
     assert found == {
+        "CORTEX_MODEL_FILE_EMBED",
         "CORTEX_MODEL_FILE_SUBAGENT",
         "CORTEX_MODEL_FILE_SUBAGENT_QWEN",
         "CORTEX_MODEL_FILE_CORTEX",
         "CORTEX_MODEL_FILE_BRAIN",
         "CORTEX_MODEL_FILE_SUBAGENT_GPU",
     }
-    memory = (REPO_ROOT / "docker" / "docker-compose.memory.yml").read_text(encoding="utf-8")
-    assert "CORTEX_EMBED_MODEL_FILE" in memory, "the excluded artifact is still there to exclude"

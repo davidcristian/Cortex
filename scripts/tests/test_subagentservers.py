@@ -60,7 +60,7 @@ services:
     image: "ghcr.io/ggml-org/llama.cpp:server"
     command:
       - "--model"
-      - "/models/${CORTEX_EMBED_MODEL_FILE:-nomic/nomic-embed.gguf}"
+      - "/models/${CORTEX_MODEL_FILE_EMBED:-nomic/nomic-embed.gguf}"
       - "--embeddings"
 """
 
@@ -165,8 +165,11 @@ def test_an_endpoint_that_writes_no_address_dials_nothing() -> None:
 
 
 def test_a_variable_that_only_starts_like_the_subagent_prefix_is_not_a_subagent_model() -> None:
-    """`CORTEX_EMBED_MODEL_FILE` and `CORTEX_MODEL_FILE_CORTEX` are the two neighbours, and
-    neither begins with the prefix that says a server is serving this tier."""
+    """`CORTEX_MODEL_FILE_EMBED` and `CORTEX_MODEL_FILE_CORTEX` are the two neighbours, both in
+    the family every artifact here is named in and neither beginning with the longer prefix that
+    says a server is serving this tier. The embedder is the sharper of the two since the rename
+    brought it into the family: what keeps it out of this set is the variable and the wiring,
+    never the flag that says it serves no chat."""
     cortex = (
         'services:\n  c:\n    command:\n      - "/models/${CORTEX_MODEL_FILE_CORTEX:-x.gguf}"\n'
     )
