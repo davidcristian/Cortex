@@ -3884,3 +3884,114 @@ alone, that floor being the only thing asserting the scan reads a brain at all.
 - The spill line the swap runbook describes in prose and never prints, now that a sample of it
   would be held
   ([R-505](../refinements/tasks/505-the-spill-line-a-runbook-describes-and-never-prints.md)).
+
+## Quotable-line addendum (2026-08-30): what a page can print back, and the field list that decides it
+
+The addendum above ends with a consequence stated one word too wide: *a runbook may print a
+rendered sample of any line the brain writes, including the five whose call is handed its word.*
+The entry it deferred was written on that sentence and asked the next question, which of the five
+an operator is helped by seeing rendered
+([R-505](../refinements/tasks/505-the-spill-line-a-runbook-describes-and-never-prints.md)).
+Re-deriving it against the shipped reader answers an earlier one instead: three of the five cannot
+be printed at all, and the message was never the only thing standing in the way.
+
+### Re-derived: the message half was one half of two
+
+`logged` resolves all five messages now, and refuses three of the five calls anyway:
+
+```
+scripts/logcalls.logged, asked for each of the five in turn on the committed tree:
+
+brain_phase.py, the spill warning   REFUSED at 242: extra= is not a mapping written out at the call
+brain_phase.py, the decode reading  REFUSED at 244: extra= is not a mapping written out at the call
+brain_phase.py, no reading          line=222 level=INFO fields=(model, session_id, turn_id)
+abandon.py, the abandoned call      line=72 level=WARNING fields=(method, time_remaining)
+audit.py, the tool trail            REFUSED at 100: extra= is not a mapping written out at the call
+```
+
+`_report_cadence` builds one `extra` above its two number-carrying calls and hands it over, the
+warning as `extra | {"shortfall": reading.shortfall}` and the reading as `extra`. Neither is a
+mapping written out at the call, so `_keys` refuses to read a field list off either, exactly as it
+refuses the tool audit's `fields`, which the entry and the constant registry both already said of
+that one. **The line the entry is named after is the line still not quotable.** It says the
+opposite in as many words, that the abandonment warning and the spill trio each write a literal
+`extra=` at the call and would be held, and one third of that is true.
+
+What remains quotable is two lines: the no-reading INFO in `brain_phase.py`, carrying `model`,
+`session_id` and `turn_id`, and the abandonment WARNING in `abandon.py`, carrying `method` and
+`time_remaining`.
+
+### Decision 1: print the no-reading line, in the list that already describes it
+
+Of the two, the abandonment warning is described by no runbook at all. Printing it would mean
+writing the passage around it first, and a rendered line with no procedure attached is not what a
+sample is for: a sample tells an operator what to expect on a stream while somebody is waiting, and
+that presumes a page telling them what to do about it.
+
+The no-reading line has the opposite standing. `docs/runbooks/model-swap.md` describes it in the
+spill watch's own list, and it is the one of the three an operator is likeliest to misread, which
+is why that bullet already says **is not a pass** in bold. Rendered, it shows the one thing the
+prose cannot: it carries the three work identities and no numbers whatever, which is how to tell it
+at a glance from the two lines that carry the decode rate. So it is printed there, and the two
+beside it stay prose.
+
+The same reading corrected that prose. The warning's bullet named six fields, in an order it does
+not print, and omitted `model`, `session_id` and `turn_id` outright; the INFO beside it claimed
+"the same numbers" for a line that differs by one field. A sample is held to the printed field list
+and prose is held by nothing, which is what unheld prose drifts into. All nine are now named in the
+order the formatter renders them.
+
+### Decision 2: a call is not rewritten to become quotable
+
+The obvious way to print the spill warning is to write both dicts out at their calls. It is
+declined. The two lines carry the same measurement and differ by one field, which is why one dict
+is built above them; writing them out means nine keys at one call and eight at the other, the same
+eight spelled twice, and the day one moves the other does not. A gate holds a document to the code.
+Code bending to the gate's reader inverts that, and the price is paid in the module a spilled
+handoff is debugged from.
+
+So the residue is the reader's, not the brain's: teach `logcalls.py` to follow an `extra=` composed
+above its call, which is the field half of the reading the addendum above made for the message
+([R-516](../refinements/tasks/516-a-field-list-composed-above-its-call-cannot-be-quoted.md)).
+Until then, a line whose fields are assembled rather than written is a line the runbooks describe
+and do not print, which is where all three of them were this morning and where two remain.
+
+### Distrust green
+
+Four mutations and a control, each applied alone to the working tree and reverted, with
+`check-samplecheck` the column that moves. This change is documents only, so the **gate suite**
+(`scripts/tests/`, 1,564 checks, 100% covered) is unmoved by every row and is stated once rather
+than per row.
+
+| Mutation | `check-samplecheck` |
+| --- | --- |
+| CONTROL: nothing edited | passes, over 5 samples in 12 runbooks |
+| the new sample renames `session_id` to `chat_id` | **fails**: prints model, chat_id, turn_id where `brain_phase.py:222` attaches model, session_id, turn_id |
+| the new sample prints its three fields in another order | **fails**: prints turn_id, session_id, model, the same miss on order alone |
+| the new sample prints WARNING, the level an operator scanning for trouble might assume | **fails**: prints WARNING where `brain_phase.py:222` logs at INFO |
+| the spill warning is fenced as a sample beside it | **fails**: `extra= is not a mapping written out at the call` |
+
+The second row reaches further than the sample it edits: the field is spelled the same way in the
+failed-handoff sample lower down the same runbook, and both go red on one edit, which is the gate
+being over the tree rather than over a line. The third row is the one worth having on its own,
+since a hand writing a sample from a field list has the prose order in front of it and the printed
+order nowhere, and that is exactly the mistake this sample was one edit away from carrying. The
+fourth row is this addendum's finding run as a mutation: the reddening document is the correct,
+well-intentioned one, which is the same shape as the fault the addendum above fixed and a different
+cause.
+
+### Consequences
+
+- The consequence sentence above narrows: a runbook may print a rendered sample of a line whose
+  message the module binds or writes **and** whose fields are a mapping written out at the call.
+  Five of the brain's lines pass the first test and two pass both.
+- The runbooks print five rendered samples where they printed four, and the swap runbook's spill
+  watch names every field of all three of its lines in the order they render.
+- Nothing in `scripts/` changed. The gate that would hold a new sample is the one built this
+  morning, and this addendum is the first document written against it.
+
+### Deferred by this addendum
+
+- A field list composed above its call cannot be quoted, which is what keeps the spill warning and
+  the tool audit's own line out of the runbooks
+  ([R-516](../refinements/tasks/516-a-field-list-composed-above-its-call-cannot-be-quoted.md)).

@@ -1,6 +1,6 @@
 # The spill line a runbook describes and never prints
 
-**Status:** open, actionable
+**Status:** landed 2026-08-30
 **Area:** docs
 **Origin:** [ADR-0009](../../adr/ADR-0009-tools-mcp.md)
 
@@ -36,3 +36,19 @@ already in `docs/runbooks/` were written to.
   [R-503](503-a-declared-log-message-is-held-to-its-call-by-one-hand-named-assertion.md), whose
   mutation table measures a runbook sample of one of these lines failing before that close and
   passing after.
+- 2026-08-30: **landed** as one sample, and the entry was wrong about its own subject (ADR-0009
+  quotable-line addendum). It says the spill trio writes a literal `extra=` at the call and would
+  be held; two thirds of the trio do not, `_report_cadence` building one `extra` above both
+  number-carrying lines and handing it over, unioned with `{"shortfall": ...}` for the warning and
+  bare for the reading. `logcalls._keys` refuses both with `extra= is not a mapping written out at
+  the call`, exactly as it refuses the tool audit's, so the line this entry is named after is the
+  one line of the five still not quotable and three of the five are out rather than one. Of the two
+  that remain, the abandonment warning is described by no runbook, so printing it would mean
+  writing the passage around it first; the no-reading INFO is described in the swap runbook's spill
+  watch and is the one an operator is likeliest to read as a pass, so that is the one printed, and
+  it earns the space by showing what the prose cannot, three work identities and no numbers at all.
+  Correcting the bullets beside it found the drift a sample exists to prevent: six field names in
+  an order the formatter does not print, `model`, `session_id` and `turn_id` missing outright, and
+  "the same numbers" claimed for a line that differs by one field. Rewriting the calls to make them
+  quotable was weighed and declined; the residue is the reader's, and it is
+  [R-516](516-a-field-list-composed-above-its-call-cannot-be-quoted.md).
