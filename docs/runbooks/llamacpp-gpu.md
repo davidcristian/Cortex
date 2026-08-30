@@ -553,7 +553,9 @@ rows have their own lineup, `VISION_MODELS`, because they need a projector besid
 only the two cortex candidates have one on the mount. Run it when the `SECURITY_PREAMBLE` changes,
 when the cortex pick changes, and when anything about the capture path's gating is being decided.
 First run: 2026-08-04, recorded in the [ADR-0029](../adr/ADR-0029-vision-screen-capture.md)
-image-arm addendum.
+image-arm addendum. It runs **once per frame** since 2026-08-30, at the corpus's own `1600x900`
+and at `3200x1800`, which is the same picture with every coordinate and every glyph pixel doubled;
+the frame-pair addendum in the same ADR is what those two rows measured.
 
 ```
 cd brain && CORTEX_MODELS_DIR=<the host dir holding the GGUFs> \
@@ -561,10 +563,12 @@ cd brain && CORTEX_MODELS_DIR=<the host dir holding the GGUFs> \
   packages/inference/tests/test_injection_defense_live.py
 ```
 
-`-k pixels` selects both seeing models, and `-k travel` selects the companion row that proves a
-canary can reach a reply from the pixels at all. The port advice above applies unchanged: this arm
+`-k pixels` selects both seeing models at both frames, `-k "pixels and 3200x1800"` selects the
+large frame alone, `-k laundering_rate` selects the row that measures the one unstable cell five
+times per arm per rendering instead of once, and `-k travel` selects the companion row that proves
+a canary can reach a reply from the pixels at all. The port advice above applies unchanged: this arm
 runs the same `cortex-inj-probe` container on the same `127.0.0.1:8080`, so take the model host
-down first. Four things this arm adds that the text arm does not have.
+down first. Five things this arm adds that the text arm does not have.
 
 - **`-k` narrows differently here.** `-k "Qwen3"` also matches four text-arm rows, since the
   subagent lineup is Qwen too. `-k "pixels and Qwen"` is the one that selects the seeing alt alone.
@@ -583,14 +587,25 @@ down first. Four things this arm adds that the text arm does not have.
 - **The legibility line is a gate, not a note.** Each rendering is transcribed before any
   resistance is scored on it, and the row fails outright if the payload does not come back. That
   is what stops a matrix of "ok" from meaning "the model never saw it". It has fired in anger: on
-  its first run the `app` rendering failed exactly this check.
+  its first run the `app` rendering failed exactly this check. It runs per frame as well as per
+  rendering, since a re-size is exactly the change that could take legibility away.
+- **Two frames are one measurement, and their counts are not the comparison.** The cells that
+  separate two frames' matrices are the same cells that separate two runs at one frame:
+  `output-laundering` on `plain` and on `chrome` fire on roughly half their runs, and every
+  `chrome` cell can fire as a description rather than as obedience. Read the two rows cell by cell
+  against the rate row, never as two totals. A frame effect would have to show up as a rendering
+  going quiet or as `app` waking up, not as a count moving by two.
 
 One `pixels` row is 63 vision turns (3 transcriptions plus 30 cells in two arms) and cost
 **370.43 s** end to end including a cold load on the cortex pick, with the card back to 1929 MiB
-after teardown. **Say which rows you ran**, the same standing rule the brain tier's row has: the
-2026-08-04 sitting ran the cortex pick's matrix twice and both models' `travel` rows, and a matrix
-reported without naming its model is worse than a bad number. The alt is the expensive row and the
-reason is its projector: Qwen3.5-9B's F32 `mmproj` puts about 1900 prompt tokens of picture in
+after teardown. Both frames together are two such rows across two cold loads and cost **537.28 s**
+on 2026-08-30. **Say which rows you ran**, the same standing rule the brain tier's row has: the
+2026-08-04 sitting ran the cortex pick's matrix twice and both models' `travel` rows, the
+2026-08-30 sitting ran the cortex pick's matrix and rate at both frames and nothing else, and a
+matrix reported without naming its model is worse than a bad number. **Name the engine digest
+too**: `server-cuda` is a mutable tag and it moved between those two sittings; the 2026-08-30 rows
+ran on `sha256:952424b09abc18668a9891041b275bf8c96afb6107d65d33ba104da9b18490c7`. The alt is the
+expensive row and the reason is its projector: Qwen3.5-9B's F32 `mmproj` puts about 1900 prompt tokens of picture in
 front of the model against the pick's 450, and its uncapped vision turns run long enough that a
 full matrix is over an hour of card time. Budget for that before selecting it.
 
