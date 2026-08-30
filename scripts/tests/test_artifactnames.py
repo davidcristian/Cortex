@@ -10,11 +10,12 @@ The last tests read the committed tree, because a reader agreeing with its own f
 finding nothing real would leave the rule above it green over an empty set.
 """
 
+import ast
 from pathlib import Path
 
 import pytest
 
-from artifactnames import composed, named, spends, tiered
+from artifactnames import composed, files, named, spends, tiered
 from composestarts import ComposeStartError, Started, read_starts
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -155,18 +156,76 @@ def test_a_compose_file_that_cannot_be_read_is_named(tmp_path: Path) -> None:
         composed(tmp_path)
 
 
+# ── what a settings field's own name says it holds ─────────────────────────────
+
+SETTINGS = '''\
+class Elsewhere:
+    """A field of the same name outside the settings class names nothing here."""
+
+    stray_file: str = Field(default="", validation_alias="CORTEX_MODEL_FILE_STRAY")
+
+
+class ModelHostConfig(BaseSettings):
+    """A class docstring binds nothing."""
+
+    llama_bin: str = "/app/llama-server"
+    cortex_file: str = Field(default="", validation_alias="CORTEX_MODEL_FILE_CORTEX")
+    cortex_mmproj_file: str = Field(default="", validation_alias="CORTEX_MODEL_FILE_CORTEX_MMPROJ")
+    cortex_ngl: int = Field(default=99, validation_alias="CORTEX_NGL")
+
+    def tiers(self) -> tuple[str, ...]:
+        return ()
+'''
+
+
+def test_a_settings_field_naming_a_file_is_an_artifact_whichever_keyword_spends_it() -> None:
+    """The projector's shape: it reaches an argv through a tier's `extra` and never through its
+    `model_path`, so the field's own name is what says it holds one."""
+    assert files(ast.parse(SETTINGS)) == (
+        ("cortex_file", "CORTEX_MODEL_FILE_CORTEX", 11),
+        ("cortex_mmproj_file", "CORTEX_MODEL_FILE_CORTEX_MMPROJ", 12),
+    )
+
+
+def test_a_field_that_names_no_file_and_one_outside_the_settings_class_are_both_passed_over() -> (
+    None
+):
+    """Three shapes at once, and each would be a fault of its own: a knob that is no artifact
+    (`cortex_ngl`), a path that is no artifact (`llama_bin`, which names no variable), and a
+    field of the right shape in some other class, which is not this sidecar's declaration."""
+    found = [field for field, _, _ in files(ast.parse(SETTINGS))]
+    assert "cortex_ngl" not in found
+    assert "llama_bin" not in found
+    assert "stray_file" not in found
+
+
 # ── the same reader, against the tree it is written for ────────────────────────
 
 
 def test_the_committed_sidecar_names_every_tiers_artifact_and_not_only_the_subagents() -> None:
     """The half the membership reader filters away. Its three tiers name three artifacts, and the
-    two that serve no subagent are held to the family exactly as the one that does."""
+    two that serve no subagent are held to the family exactly as the one that does; the projector
+    is the fourth, found by its field rather than by a tier's `model_path`."""
     found = {artifact.where: artifact.variable for artifact in tiered(REPO_ROOT)}
     assert found == {
         "cortex_file": "CORTEX_MODEL_FILE_CORTEX",
         "brain_file": "CORTEX_MODEL_FILE_BRAIN",
         "subagent_gpu_file": "CORTEX_MODEL_FILE_SUBAGENT_GPU",
+        "cortex_mmproj_file": "CORTEX_MODEL_FILE_CORTEX_MMPROJ",
     }
+
+
+def test_an_artifact_a_tier_spends_is_reported_once_and_at_the_tier_that_spends_it() -> None:
+    """Both readings find `cortex_file`, and it is one artifact: the tier's line is what a reader
+    is sent to, and the field walk adds only what no tier's `model_path` named."""
+    walked = tiered(REPO_ROOT)
+    found = [artifact for artifact in walked if artifact.where == "cortex_file"]
+    projector = [artifact for artifact in walked if artifact.where == "cortex_mmproj_file"]
+    assert len(found) == 1, found
+    assert len(projector) == 1, projector
+    source = (REPO_ROOT / found[0].file).read_text(encoding="utf-8").splitlines()
+    assert "cortex_mmproj_file" in source[projector[0].line - 1]
+    assert "TierArgs(" in source[found[0].line - 1]
 
 
 def test_the_committed_tree_names_the_artifacts_it_ships_in_both_languages() -> None:
@@ -180,6 +239,7 @@ def test_the_committed_tree_names_the_artifacts_it_ships_in_both_languages() -> 
         "CORTEX_MODEL_FILE_SUBAGENT",
         "CORTEX_MODEL_FILE_SUBAGENT_QWEN",
         "CORTEX_MODEL_FILE_CORTEX",
+        "CORTEX_MODEL_FILE_CORTEX_MMPROJ",
         "CORTEX_MODEL_FILE_BRAIN",
         "CORTEX_MODEL_FILE_SUBAGENT_GPU",
     }

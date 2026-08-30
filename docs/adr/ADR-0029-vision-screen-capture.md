@@ -6905,3 +6905,116 @@ frame and adds the rate row, `brain/packages/inference/tests/test_image_arm.py`,
 magnified render to being the same picture,
 [docs/runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md), which an operator reads for how to
 run the pair and how not to read it, and this addendum.
+
+## Addendum (2026-08-30): the projector joins the family, and a field is read for its own name
+
+The non-chat-artifact addendum above used the projector as evidence and left it unheld, recorded
+as [R-501](../refinements/tasks/501-the-projector-is-named-in-a-sibling-family-nothing-holds.md).
+`CORTEX_MMPROJ_FILE_CORTEX` was correct by the same convention the embedder was wrong by, and no
+rule read it. Both halves close here: the variable becomes `CORTEX_MODEL_FILE_CORTEX_MMPROJ`, and
+`scripts/artifactnames.py` grows the reading that finds it.
+
+### Re-derived first, and the entry was exact
+
+Every particular held at HEAD. `artifactnames.spends` takes the item after `--model` and no
+compose command in this tree names a projector at all; `artifactnames.tiered` walks
+`hostedtiers.tier_artifacts`, which reads the `model_path` keyword alone, and the projector
+reaches the cortex tier's argv from `_vision()` through `extra`. The gate counted six artifacts
+and the projector was in neither reading. Nothing was wrong and nothing was held, which is the
+state the naming rule exists to end.
+
+### One family, and the word after the prefix stays the tier
+
+The entry offered a shape, `CORTEX_<KIND>_FILE_<TIER>`, with the rule reading the shape rather
+than a prefix. That is refused, on the membership readers rather than on taste. A shape with a
+free kind word admits `CORTEX_SUBAGENT_MODEL_FILE_CPU`, which is the exact variable
+`artifactnames.py`'s own docstring names as the fault the family exists to catch: it would pass a
+shape rule and still leave `MODEL_PREFIX` blind, so the naming rule would stop implying the thing
+it is for. A shape with a closed kind vocabulary is a two-word registry maintained by hand, which
+is the register-beside-the-rule shape these gates were built to leave behind, and its second
+member would have exactly one instance.
+
+So the projector joins the one family, and the rename's own word order is decided by the same
+reading. `CORTEX_MODEL_FILE_CORTEX_MMPROJ` keeps the tier immediately after the prefix, which is
+what `MODEL_PREFIX = FAMILY_PREFIX + "SUBAGENT"` depends on: a projector for a subagent tier is
+then `CORTEX_MODEL_FILE_SUBAGENT_MMPROJ` and stays inside the membership reading, where the
+kind-first `CORTEX_MODEL_FILE_MMPROJ_SUBAGENT` would name a subagent artifact no membership reader
+looks at. The qualifier follows what it qualifies, which is how `CORTEX_MODEL_FILE_SUBAGENT_GPU`
+and `_SUBAGENT_QWEN` are already written.
+
+The name says "model file" about the projector, and that is accurate rather than a price paid: an
+mmproj GGUF is weights in the same format under the same read-only mount, loaded by the same
+engine. The addendum above already called it a model artifact while arguing from it.
+
+### The rename's blast radius, measured the way the embedder's was
+
+No `.env` is tracked here and none exists at the root of this checkout. The variable is read in
+one place, the model host's settings field, and passed through in one compose block. A host whose
+own `.env` still sets the old name gets a cortex tier started text-only, so `GET /props` reports
+no vision, `CORTEX_VISION=auto` answers no, and `capture_screen` leaves the advertisement. That
+failure is visible in the tool list rather than silent in a vector space, which makes it a smaller
+version of the embedder's, and [docs/runbooks/vision.md](../runbooks/vision.md) now names it as
+the first line to check when vision disappears after an update.
+
+### The reader grows on the side the artifact is actually declared
+
+Finding the projector was the harder half, and the entry's own suggestion is what landed. The
+hosted side is read a second way, `artifactnames.files(module)`: every settings field whose own
+name ends `_file`, joined to the variable `hostedtiers.aliases` already resolves for it. The
+`model_path` reading stays, because it is the one that ties an artifact to a tier, and a field
+found both ways is one artifact reported at the tier that spends it.
+
+**The domain is the Python field name and never the environment variable**, which is the same
+non-circularity the compose side has: the spelling under test is the alias, so a field misspelled
+in the environment is still inside the domain and still reported. Reading a tier's `extra` for
+artifact-shaped items was the alternative and is refused for the reason `hostedtiers.py` refuses
+that tail generally: it is assembled by a call, and a reader approximating it would be guessing at
+the flags it exists to be exact about.
+
+### Proved able to fail, five mutants over the scripts suite
+
+Each mutation was applied alone, or in the one stated pair, with `cd scripts && uv run python
+flagcheck.py --root ..` run and `cd scripts && uv run pytest -q --no-cov` re-run over the **1564
+checks of that suite**.
+
+| mutation | flagcheck | reddens |
+| --- | --- | --- |
+| the projector is respelled back into the sibling shape | exit 1, `cortex_mmproj_file` | 18 |
+| A SECOND PROJECTOR arrives on another tier in that shape | exit 1, `brain_mmproj_file` | 18 |
+| GATE: the field reading is dropped, tiers only | OK over 6 | 3 |
+| PAIR: that gate mutation, with the second projector present | **OK over 6, exit 0** | 3 |
+| GATE: the domain is every settings field, not the ones named `_file` | exit 1 over `CORTEX_NGL` | 20 |
+
+Row two is the deliverable: a projector added tomorrow to another tier, spelled the way this one
+was spelled yesterday, is a fault at the moment the field is written. The pair row is why the
+reading had to grow rather than the name alone move: with the field walk dropped, the same tree
+carrying that second projector prints OK over six artifacts and exits 0, which is the state this
+entry was opened to describe. The last row is the suffix filter earning its place: without it the
+domain swallows every knob the settings class declares and the rule reddens over `CORTEX_NGL`,
+which is a rule about something else.
+
+### What is still not held
+
+The reading now rests on a convention of its own, one file down from the one it holds. A future
+artifact field named `cortex_mmproj_path` is outside the domain and would be found by nothing,
+exactly as the projector was, and the compose side still reads `--model` alone, so a compose
+service spending a projector variable after `--mmproj` names an artifact this reader walks past.
+Neither is a fault in the tree today, and both are the same question one level down, recorded as
+[R-515](../refinements/tasks/515-the-artifact-domain-rests-on-a-field-name-convention.md).
+
+### Records
+
+The record is the task file
+[R-501](../refinements/tasks/501-the-projector-is-named-in-a-sibling-family-nothing-holds.md),
+which closes as landed, its opening
+[R-515](../refinements/tasks/515-the-artifact-domain-rests-on-a-field-name-convention.md),
+[docs/refinements/index.md](../refinements/index.md), which is regenerated from them,
+`scripts/artifactnames.py`, which carries the new reading and the argument for its domain,
+`brain/packages/model_manager/src/cortex_model_manager/config.py` and
+`docker/docker-compose.gpu.yml`, which name the projector in the family and carry the rename note,
+[docs/runbooks/vision.md](../runbooks/vision.md) and
+[docs/runbooks/llamacpp-gpu.md](../runbooks/llamacpp-gpu.md), which an operator reads,
+[modules/brain-model-manager.md](../modules/brain-model-manager.md),
+[modules/brain-inference.md](../modules/brain-inference.md),
+[modules/repo-gates.md](../modules/repo-gates.md) and [AGENTS.md](../../AGENTS.md), whose
+descriptions of the reader now name its third reading, and this addendum.

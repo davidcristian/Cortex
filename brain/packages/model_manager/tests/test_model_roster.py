@@ -160,7 +160,7 @@ def test_naming_a_projector_gives_the_cortex_tier_eyes(monkeypatch: pytest.Monke
     block: the model host has owned llama-server's flags since it replaced the always-on
     service. The brain then discovers the capability from the running server's /props rather
     than from a second flag here that could disagree with it."""
-    monkeypatch.setenv("CORTEX_MMPROJ_FILE_CORTEX", "google/gemma-4-12B/mmproj.gguf")
+    monkeypatch.setenv("CORTEX_MODEL_FILE_CORTEX_MMPROJ", "google/gemma-4-12B/mmproj.gguf")
     argv = ModelHostConfig().roster()["cortex"].argv
     assert argv[-6:-4] == ("--mmproj", "/models/google/gemma-4-12B/mmproj.gguf")
 
@@ -168,7 +168,7 @@ def test_naming_a_projector_gives_the_cortex_tier_eyes(monkeypatch: pytest.Monke
 def test_a_deployment_that_names_no_projector_stays_text_only(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("CORTEX_MMPROJ_FILE_CORTEX", raising=False)
+    monkeypatch.delenv("CORTEX_MODEL_FILE_CORTEX_MMPROJ", raising=False)
     assert "--mmproj" not in ModelHostConfig().roster()["cortex"].argv
 
 
@@ -176,7 +176,7 @@ def test_the_projector_is_resolved_under_the_read_only_models_mount(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("CORTEX_MODELHOST_MODELS_ROOT", "/srv/models")
-    monkeypatch.setenv("CORTEX_MMPROJ_FILE_CORTEX", "mmproj.gguf")
+    monkeypatch.setenv("CORTEX_MODEL_FILE_CORTEX_MMPROJ", "mmproj.gguf")
     argv = ModelHostConfig().roster()["cortex"].argv
     assert "/srv/models/mmproj.gguf" in argv
 
@@ -191,7 +191,7 @@ def test_a_raised_image_budget_carries_the_micro_batch_up_with_it(
     ``--ubatch-size`` aborts the process on the first oversized picture. Emitting them together
     is what makes this knob unable to be set into that crash.
     """
-    monkeypatch.setenv("CORTEX_MMPROJ_FILE_CORTEX", "mmproj.gguf")
+    monkeypatch.setenv("CORTEX_MODEL_FILE_CORTEX_MMPROJ", "mmproj.gguf")
     monkeypatch.setenv("CORTEX_IMAGE_MAX_TOKENS", "1024")
     argv = ModelHostConfig().roster()["cortex"].argv
     assert argv[-4:] == ("--image-max-tokens", "1024", "--ubatch-size", "1024")
@@ -201,7 +201,7 @@ def test_a_budget_under_the_engine_default_leaves_the_micro_batch_alone(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Lowering the budget must not lower the micro-batch, which every text turn also uses."""
-    monkeypatch.setenv("CORTEX_MMPROJ_FILE_CORTEX", "mmproj.gguf")
+    monkeypatch.setenv("CORTEX_MODEL_FILE_CORTEX_MMPROJ", "mmproj.gguf")
     monkeypatch.setenv("CORTEX_IMAGE_MAX_TOKENS", "128")
     argv = ModelHostConfig().roster()["cortex"].argv
     assert argv[-4:] == ("--image-max-tokens", "128", "--ubatch-size", "512")
@@ -216,7 +216,7 @@ def test_the_shipped_default_buys_the_measured_resolution_back(
     off a 4K desktop; 1024 here, with the brain asking for a 2048 px capture, reads 36 to 38.
     The maintainer took that trade, so it is what an unconfigured stack comes up with.
     """
-    monkeypatch.setenv("CORTEX_MMPROJ_FILE_CORTEX", "mmproj.gguf")
+    monkeypatch.setenv("CORTEX_MODEL_FILE_CORTEX_MMPROJ", "mmproj.gguf")
     monkeypatch.delenv("CORTEX_IMAGE_MAX_TOKENS", raising=False)
     argv = ModelHostConfig().roster()["cortex"].argv
     assert argv[-4:] == ("--image-max-tokens", "1024", "--ubatch-size", "1024")
@@ -227,7 +227,7 @@ def test_a_deployment_can_still_hand_the_budget_back_to_the_model(
 ) -> None:
     """Zero is off, and off means an argv naming neither flag rather than one naming the
     engine's own defaults back at it: the VRAM and the latency the default buys are refundable."""
-    monkeypatch.setenv("CORTEX_MMPROJ_FILE_CORTEX", "mmproj.gguf")
+    monkeypatch.setenv("CORTEX_MODEL_FILE_CORTEX_MMPROJ", "mmproj.gguf")
     monkeypatch.setenv("CORTEX_IMAGE_MAX_TOKENS", "0")
     argv = ModelHostConfig().roster()["cortex"].argv
     assert "--image-max-tokens" not in argv
@@ -239,7 +239,7 @@ def test_an_image_budget_without_a_projector_costs_nothing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A text-only tier has no pictures, so the budget must not raise its micro-batch or VRAM."""
-    monkeypatch.delenv("CORTEX_MMPROJ_FILE_CORTEX", raising=False)
+    monkeypatch.delenv("CORTEX_MODEL_FILE_CORTEX_MMPROJ", raising=False)
     monkeypatch.setenv("CORTEX_IMAGE_MAX_TOKENS", "1024")
     argv = ModelHostConfig().roster()["cortex"].argv
     assert "--image-max-tokens" not in argv
@@ -294,7 +294,7 @@ def test_the_deep_tier_carries_its_own_budget(monkeypatch: pytest.MonkeyPatch) -
 
 def test_a_budgeted_seeing_cortex_keeps_both_tails(monkeypatch: pytest.MonkeyPatch) -> None:
     """The vision tail and the budget are independent knobs on one tier, so both must survive."""
-    monkeypatch.setenv("CORTEX_MMPROJ_FILE_CORTEX", "mmproj.gguf")
+    monkeypatch.setenv("CORTEX_MODEL_FILE_CORTEX_MMPROJ", "mmproj.gguf")
     monkeypatch.setenv("CORTEX_IMAGE_MAX_TOKENS", "1024")
     monkeypatch.setenv("CORTEX_REASONING_BUDGET", "256")
     argv = ModelHostConfig().roster()["cortex"].argv

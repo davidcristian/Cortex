@@ -23,7 +23,7 @@ design, AGENTS.md gate 3).
 |---|---|---|
 | `CORTEX_MODELS_DIR` | host dir holding the GGUFs, mounted read-only | `./models` |
 | `CORTEX_MODEL_FILE_CORTEX` | cortex GGUF path **relative to that dir** (LM Studio nests it under `publisher/repo/`); default is the gemma-4-12B pick | `google/gemma-4-12B-it-qat-q4_0-gguf/gemma-4-12b-it-qat-q4_0.gguf` |
-| `CORTEX_MMPROJ_FILE_CORTEX` | the multimodal projector, relative to the same dir. Setting it adds llama.cpp's `--mmproj` pair to the cortex tier's argv, which is what makes `GET /props` report `modalities.vision` and therefore what makes the brain advertise `capture_screen` (ADR-0029). Empty (the default) starts text-only. See `docs/runbooks/vision.md` | `google/gemma-4-12B-it-qat-q4_0-gguf/mmproj-gemma-4-12b-it-qat-q4_0.gguf` |
+| `CORTEX_MODEL_FILE_CORTEX_MMPROJ` | the multimodal projector, relative to the same dir. Setting it adds llama.cpp's `--mmproj` pair to the cortex tier's argv, which is what makes `GET /props` report `modalities.vision` and therefore what makes the brain advertise `capture_screen` (ADR-0029). Empty (the default) starts text-only. See `docs/runbooks/vision.md` | `google/gemma-4-12B-it-qat-q4_0-gguf/mmproj-gemma-4-12b-it-qat-q4_0.gguf` |
 | `CORTEX_IMAGE_MAX_TOKENS` | how many tokens one picture may occupy, and with it how much of a 4K screen the cortex can read. `1024` is the default, paired with `CORTEX_BODY_CAPTURE_MAX_EDGE=2048` on the brain; `0` hands the budget back to the model, which is the 266-token view that reads 13% of a 4K screen. See the legibility section below before changing it, and never set llama.cpp's `--image-max-tokens` by hand instead | `1024` |
 | `CORTEX_CTX_SIZE` | context window (KV size); **set it**. The model default (262144) alone eats ~8 GB | `16384` |
 | `CORTEX_REPLY_THINKING` | keeps the model's deliberation on for a user's own reply. `false` skips it, which is the lever for the wait rather than for the length: measured on the shipped cortex the whole of 11.8 to 18.1 s before the first word is the trace, against 0.4 s with it off for an answer of the same size. It costs the answer's quality on hard questions and empties the thinking status the overlay renders. `false` is a **request** to the pick's chat template and not a guarantee about the model, so check yours before pairing it with a cap ("Whether your own pick honours the switch at all", below) | `true` |
@@ -767,7 +767,7 @@ safety default.
 - **The cortex reservation, re-measured 2026-08-07** and lowered from 11.3 GB to **8.6 GiB**, which
   is the number the placer subtracts from the soft cap on every spawn. Procedure, so a later sitting
   can reproduce it: bring the stack up with the projector named
-  (`CORTEX_MMPROJ_FILE_CORTEX=google/gemma-4-12B-it-qat-q4_0-gguf/mmproj-gemma-4-12b-it-qat-q4_0.gguf`)
+  (`CORTEX_MODEL_FILE_CORTEX_MMPROJ=google/gemma-4-12B-it-qat-q4_0-gguf/mmproj-gemma-4-12b-it-qat-q4_0.gguf`)
   and the control API published (`just up-modelhost-loopback`); read the child's real argv out of
   `/proc` rather than trusting the compose file; sample `nvidia-smi --query-gpu=memory.used` every
   0.2 to 0.3 s throughout; then stop the tier, read the floor, start it, and read idle, a long

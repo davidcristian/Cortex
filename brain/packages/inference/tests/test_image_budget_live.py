@@ -117,7 +117,7 @@ def _argv_tail(budget: int, monkeypatch: pytest.MonkeyPatch) -> list[str]:
     """The cortex tier's own argv, minus the binary, exactly as the sidecar would spawn it."""
     monkeypatch.setenv("CORTEX_MODELHOST_MODELS_ROOT", "/models")
     monkeypatch.setenv("CORTEX_MODEL_FILE_CORTEX", _CORTEX)
-    monkeypatch.setenv("CORTEX_MMPROJ_FILE_CORTEX", _MMPROJ)
+    monkeypatch.setenv("CORTEX_MODEL_FILE_CORTEX_MMPROJ", _MMPROJ)
     monkeypatch.setenv("CORTEX_IMAGE_MAX_TOKENS", str(budget))
     monkeypatch.setenv("CORTEX_CTX_SIZE", "16384")
     return list(ModelHostConfig().roster()["cortex"].argv[1:])

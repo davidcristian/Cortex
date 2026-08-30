@@ -127,7 +127,12 @@ class ModelHostConfig(BaseSettings):
     # starts the tier text-only, which is what a deployment without vision wants and what CI
     # runs; naming a file adds llama.cpp's --mmproj pair, and the brain then discovers the
     # capability from the running server's /props rather than from a second flag here.
-    cortex_mmproj_file: str = Field(default="", validation_alias="CORTEX_MMPROJ_FILE_CORTEX")
+    # Renamed from CORTEX_MMPROJ_FILE_CORTEX on 2026-08-30 (ADR-0029 projector-naming addendum):
+    # a projector is a model file, so it is spelled in the one family every model artifact this
+    # tree names is spelled in, with the tier still the word after the prefix. The field name
+    # ending `_file` is what `scripts/artifactnames.py` finds it by, this being the artifact
+    # that reaches an argv through `extra` rather than through a tier's model_path.
+    cortex_mmproj_file: str = Field(default="", validation_alias="CORTEX_MODEL_FILE_CORTEX_MMPROJ")
     # How many tokens one picture may occupy, and with it how much of a 4K screen survives the
     # downscale. Zero hands the budget back to the model, which declares 266 tokens on the cortex
     # pick and reads 6 to 8 of 47 ground-truth strings off a 4K desktop, inventing most of the

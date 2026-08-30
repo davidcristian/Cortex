@@ -1,6 +1,6 @@
 # The projector is named in a sibling family nothing holds
 
-**Status:** open, actionable
+**Status:** landed 2026-08-30
 **Area:** repo-gates
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -53,3 +53,21 @@ carries it into the argv, and would need its own answer for what makes a field a
   family](../../adr/ADR-0029-vision-screen-capture.md#addendum-2026-08-30-a-non-chat-artifact-names-itself-in-the-family-and-the-exclusion-retires),
   whose argument uses this artifact as the evidence that the split between the tree's two spellings
   is a word order rather than a category.
+- 2026-08-30: landed as the rename plus the reading that finds it, recorded in the [ADR-0029
+  addendum on the projector joining the
+  family](../../adr/ADR-0029-vision-screen-capture.md#addendum-2026-08-30-the-projector-joins-the-family-and-a-field-is-read-for-its-own-name).
+  The variable is `CORTEX_MODEL_FILE_CORTEX_MMPROJ`, and `artifactnames.files(module)` reads every
+  settings field whose own name ends `_file`, so the artifact that rides `extra` is found without
+  the tier reader approximating a tail it refuses to. **The shape reading this entry offered was
+  refused on the membership readers rather than on taste**: a free kind word admits
+  `CORTEX_SUBAGENT_MODEL_FILE_CPU`, the exact variable the naming rule exists to catch, and a
+  closed kind vocabulary is a hand-maintained two-word registry whose second member has one
+  instance. The word order was decided the same way, the tier staying immediately after the prefix
+  because `MODEL_PREFIX` is the family prefix plus what it serves, so a subagent tier's projector
+  stays inside the membership reading. The rename's cost is one operator-facing variable whose
+  stale spelling starts the cortex text-only and drops `capture_screen` from the advertisement, a
+  visible failure rather than a silent one, named in `docs/runbooks/vision.md`; no `.env` is
+  tracked or present here. What this close opened is one level down and is
+  [R-515](515-the-artifact-domain-rests-on-a-field-name-convention.md): the domain is now a field
+  name convention nothing holds, and a compose argv naming a projector after `--mmproj` is still
+  unread.

@@ -42,7 +42,7 @@ forbid the adapter from importing them.
      the byte-identical plain string it always did, so a text-only deployment pays nothing.
      Native tool calling needs the server started with `--jinja` and a tool-capable chat
      template (gemma-4 ships one); vision additionally needs `--mmproj`, which the model host
-     adds when `CORTEX_MMPROJ_FILE_CORTEX` names a projector.
+     adds when `CORTEX_MODEL_FILE_CORTEX_MMPROJ` names a projector.
   3. Parses the SSE `data:` lines: yields each `choices[0].delta.content` as a `TextChunk`,
      reassembles streamed `delta.tool_calls` fragments (id/name/arguments accumulated by
      index) and yields them as `ToolCall`s once the stream ends, and stops at

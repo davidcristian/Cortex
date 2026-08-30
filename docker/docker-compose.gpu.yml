@@ -91,13 +91,18 @@ services:
       # The resident cortex model: gemma-4-12B (QAT Q4, ADR-0004 addendum pick). -ngl 99 = all
       # on GPU, and an explicit --ctx-size because llama.cpp's own default (262144)
       # pre-allocates a KV cache that blows the VRAM envelope.
-      # CORTEX_MMPROJ_FILE_CORTEX names the multimodal projector that gives the cortex eyes
+      # CORTEX_MODEL_FILE_CORTEX_MMPROJ names the multimodal projector that gives the cortex eyes
       # (ADR-0029): setting it adds llama.cpp's --mmproj pair to this tier's argv, and the brain
       # then discovers vision from the running server's /props rather than from a second flag it
       # could disagree with. Empty starts the tier text-only. The projector ships beside the
       # model under the same read-only mount, so no extra bind is needed.
+      # RENAMED from CORTEX_MMPROJ_FILE_CORTEX on 2026-08-30 (ADR-0029 projector-naming
+      # addendum): it is a model file like every other artifact this tree names, so it is
+      # spelled in that family with the tier still first after the prefix, and
+      # scripts/flagcheck.py now holds it. A host whose .env still sets the old name starts the
+      # cortex text-only and loses capture_screen from the tool advertisement.
       CORTEX_MODEL_FILE_CORTEX: "${CORTEX_MODEL_FILE_CORTEX:-google/gemma-4-12B-it-qat-q4_0-gguf/gemma-4-12b-it-qat-q4_0.gguf}"
-      CORTEX_MMPROJ_FILE_CORTEX: "${CORTEX_MMPROJ_FILE_CORTEX:-}"
+      CORTEX_MODEL_FILE_CORTEX_MMPROJ: "${CORTEX_MODEL_FILE_CORTEX_MMPROJ:-}"
       # How many tokens one picture may occupy, and with it how much of a 4K screen survives the
       # downscale. 1024 is the default, together with CORTEX_BODY_CAPTURE_MAX_EDGE=2048 on the
       # brain: the pair took a 4K corpus from 13% of ground-truth strings read to 79%, and it is
