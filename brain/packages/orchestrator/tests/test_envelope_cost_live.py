@@ -75,6 +75,17 @@ What it found the same night once the sentence shipped, over three subtask shape
 how another shape is asked. That knob replaces the subtask; the runner still appends the shipped
 sentence to whatever it is on the constrained path, so the way to measure a candidate wording is to
 change the constant and re-run rather than to type a longer instruction here.
+
+**Every rate this produces is read against `raw`, and that arm is held to a floor elsewhere**
+(ADR-0028 control-arm addendum). It returned 96 of 96 on three picks and then 93 and 92 on two
+more, both times because the pick failed the subtask rather than because the envelope took an
+answer away, so the arm every number here is divided by is a reading and not a constant. This file
+records what each run did, including the instruction the arm really sent and whether the arm is
+the control, and `scripts/envelopefloor.py` turns those records into rates with the interval the
+addenda publish and refuses to publish a comparison at all when a control cell is proven below
+nine tenths of its own runs. The arithmetic is over there rather than here for the reason
+`contrast.py` holds the turn-cost interval: a published number's arithmetic belongs in a file the
+gate covers, and nothing covers this one.
 """
 
 import json
@@ -105,6 +116,7 @@ from cortex_core import (
     PlacementTarget,
     ReasoningChunk,
     ResourceBudgetScheduler,
+    Role,
     SingleResidentModelManager,
     SubagentProfile,
     SubagentResources,
@@ -140,6 +152,9 @@ _TAG = os.environ.get("CORTEX_ENVELOPE_TAG", "")
 # How much of each half is kept verbatim. A count says the tokens went somewhere other than
 # the reply and cannot say where, and where is the whole of what a retune would rest on.
 _HEAD = int(os.environ.get("CORTEX_ENVELOPE_HEAD", "400"))
+# The fields the sample keeps whole and the per-run line drops: both are long and one of them is
+# the same string on every run of an arm, so printing either buries the numbers a reader watches.
+_UNPRINTED = frozenset({"instruction", "output"})
 
 # The shipped envelope with one sentence added, and the only difference between the `constrained`
 # arm and the `described` one. It says what the field is for and nothing about how to fill it: a
@@ -307,6 +322,12 @@ class _Recording:
         self.cadence: DecodeCadence | None = None
         self.stop: DecodeStop | None = None
         self.ttft_s: float | None = None
+        # The instruction this arm really put on the wire, observed rather than reconstructed: the
+        # runner appends its own sentence on the constrained path and the stripping arm takes it
+        # back off here, so what a reader would have to re-derive from two rules is instead read
+        # off the messages. It is what `scripts/envelopefloor.py` judges an echoed reply against,
+        # and it is the field that says which subtask shape a run belongs to.
+        self.instruction = ""
         # Both halves of what the model wrote, kept apart. A delegated run drops a reasoning
         # delta unread, so a tier that reasons spends its cap on text the cortex never sees and
         # a reading that counted only the reply would call that a short answer.
@@ -325,6 +346,9 @@ class _Recording:
         started = time.monotonic()
         asked = self._substitute if schema is not None and self._substitute is not None else schema
         sent = self._without_instruction(messages) if self._strip_instruction else messages
+        asks = [message.text for message in sent if message.role is Role.USER]
+        assert len(asks) == 1, f"one user message is the subtask, got {len(asks)}"
+        self.instruction = asks[0]
         events = self._inner.stream(model, sent, tools=tools, schema=asked, bounds=bounds)
         async for event in events:
             if isinstance(event, TextChunk):
@@ -406,14 +430,17 @@ async def _one(
         "output_chars": len(result.output),
         "stream_text_chars": len(recorder.text),
         "reasoning_chars": len(recorder.reasoning),
-        # Kept whole, and the only field here that is. A length says a reply happened; whether it
-        # answered the instruction or described answering it is in the words, and that reading is
-        # what this harness was extended to support.
+        # The two fields the sample keeps whole and the printed line drops, being long and being
+        # the same on every run of an arm. A length says a reply happened; whether it answered the
+        # instruction or described answering it is in the words, and that reading is what this
+        # harness was extended to support. The instruction beside it is what the floor reader
+        # groups a shape by and judges an echoed reply against.
+        "instruction": recorder.instruction,
         "output": result.output,
         "stream_head": recorder.text[:_HEAD],
         "reasoning_head": recorder.reasoning[:_HEAD],
     }
-    printed = {key: value for key, value in turn.items() if key != "output"}
+    printed = {key: value for key, value in turn.items() if key not in _UNPRINTED}
     print(f"  {task_id}: {json.dumps(printed)}", flush=True)  # noqa: T201 -- the report is the point
     return turn
 
@@ -422,7 +449,8 @@ def _write(arm: str, turns: list[dict[str, Any]]) -> None:
     """Rewrite one arm's sample, so a run cut short still leaves the draws it finished."""
     _OUT.mkdir(parents=True, exist_ok=True)
     path = _OUT / f"envelope-{arm}{_TAG}.json"
-    path.write_text(json.dumps({"arm": arm, "turns": turns}, indent=2) + "\n", encoding="utf-8")
+    sample = {"arm": arm, "control": _SCHEMAS[arm] is None, "turns": turns}
+    path.write_text(json.dumps(sample, indent=2) + "\n", encoding="utf-8")
 
 
 @pytest.mark.integration
@@ -439,6 +467,19 @@ async def test_the_envelope_against_the_raw_shape_over_the_same_bodies() -> None
                 for arm in _ARMS:
                     turns[arm].append(await _one(client, name, body, arm=arm, draw=draw))
                     _write(arm, turns[arm])
+    # Said before the assertions below, so a run that trips one still names what it left behind.
+    # The rates are not computed here: an arm's delivered rate is a published number and the
+    # arithmetic behind one belongs in a gated tool, which is also what holds the control arm to
+    # its floor and refuses to publish a comparison read against a control that fell through it.
+    # Resolved rather than as written: `_OUT` is read relative to `brain/`, and the line below is
+    # pasted into a shell that is somewhere else.
+    written = " ".join(str((_OUT / f"envelope-{arm}{_TAG}.json").resolve()) for arm in _ARMS)
+    print(  # noqa: T201 -- the report is the point
+        f"\nwrote {len(_ARMS)} arm sample(s): {written}\n"
+        "  none of this is a comparison until the control arm is published:\n"
+        f"  just envelope-floor {written}",
+        flush=True,
+    )
     # The measurement is the numbers printed and written above; what must hold whatever the model
     # decides is that every arm answered over the same bodies, which is what makes them pairable.
     asked = [[(turn["question"], turn["draw"]) for turn in seen] for seen in turns.values()]

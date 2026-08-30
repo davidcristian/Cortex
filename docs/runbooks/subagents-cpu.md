@@ -196,6 +196,15 @@ delegation time (ADR-0012 admission-wall addendum).
 > numeric runaway inside `reply`, so on any Qwen override the quiet answer is the symptom and the
 > reasoning channel is not. On `Qwen3.5-0.8B` it is the usual case rather than the exception, 26 of
 > its 30 constrained non-deliveries arriving `ok=True`.
+> **Every rate above is read against the same pick answering the same bodies with no envelope at
+> all, and that arm is now published rather than assumed** (ADR-0028 control-arm addendum). It
+> returned 96 of 96 on three picks and then 93 and 92 on two more, both times because the pick
+> failed the subtask, so it is a reading and not a constant. If you re-measure any of this, the
+> driver writes one sample per arm and `just envelope-floor <those files>` is what turns them into
+> rates: it reports that control arm per subtask shape and **refuses to print the comparison at
+> all** when a cell of it is proven below nine tenths of its own runs, since a difference read
+> against a control that failed the subtask prices the pick and not the envelope. A refusal is not
+> a broken run: the samples are still on disk, and what they price is the override you chose.
 > What they cut is a model that is talking rather than one that is slow: the sixth shape, an
 > open-ended essay no narrow subtask should ask for, was cut at 577 tokens and 1958 s still writing.
 > **Every number here is an idle-box number**, and a saturated host runs the same subtask five to

@@ -533,6 +533,22 @@ recall-width blocks="2" passes="3" turns="8":
     cd scripts && uv sync --locked
     uv run python trailwidth.py "${captures[@]}"
 
+# What an envelope measurement's arms did, published only while its control arm still stands
+# (ADR-0028 control-arm addendum). The driver
+# (brain/packages/orchestrator/tests/test_envelope_cost_live.py) writes one sample per arm and
+# computes nothing, for the reason the turn-cost driver computes nothing: a published number's
+# arithmetic belongs in a covered file. This is that file, and it also holds the arm every rate is
+# read against to nine tenths of its own runs, refusing to print a comparison when a control cell
+# is proven below it, since a difference read against a control that failed the subtask prices the
+# pick and not the envelope. Unlike every other recipe here it runs the tree from where it is
+# rather than from inside it, `--project` instead of a `cd`, so the sample paths are the driver's
+# own: that run writes them relative to `brain/` and prints them resolved, and a reader pasting
+# either that line or a path of their own gets the file they named. Gates nothing and needs no
+# GPU: the run that produced the samples needed one.
+envelope-floor +samples:
+    uv sync --locked --project scripts
+    uv run --project scripts python scripts/envelopefloor.py {{ samples }}
+
 # The gpu stack PLUS a loopback publish of the model-host control API, which the base gpu override
 # deliberately withholds (it can start and stop GPU processes, ADR-0030 d3). For live tests only;
 # `just down-gpu` takes it down. Procedure: docs/runbooks/model-swap.md.

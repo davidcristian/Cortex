@@ -751,3 +751,153 @@ holds to a floor, and
 [R-485](../refinements/tasks/485-a-roster-description-never-says-whether-the-entry-answers.md), the
 description the cortex picks a roster entry by, which says how fast an entry is and how robust and
 never whether it answers.
+
+## Control-arm addendum (2026-08-30): the arm every rate is divided by, held to a floor
+
+**Status:** Accepted. Closes
+[R-484](../refinements/tasks/484-the-control-arm-is-held-to-no-floor.md), which the row addendum
+above opened by finding the instrument's own control arm at 93 and 92 of 96 after three picks at
+96. Opens
+[R-507](../refinements/tasks/507-the-floor-sees-only-the-failures-a-machine-can-name.md). It adds
+one covered module and one recipe, changes no shipped code and no pick.
+
+### Re-derived first
+
+The entry's claim was checked against the file before anything was built, and all of it held.
+`test_envelope_cost_live.py` asserts exactly two things after a run: that every arm saw the same
+bodies in the same order, and that every run reported timings. Neither reads `ok`, the stop reason
+or a word of any reply, so a control arm that answered 40 of 96 would have left the same tidy
+sample behind as one that answered 96. The delivered rates in the tables above are judged by hand
+afterwards, by number recall against each body and by a regex over the body's own reporting period,
+in a scratchpad, and so is the Wilson interval printed beside every one of them. The row addendum's
+own reading was confirmed too: the two losses that ended the control arm's perfect record are the
+pick failing the subtask, a numeric runaway on an extraction and a lookup answered `Fortnite 18`,
+rather than the envelope taking an answer away.
+
+### What was decided, and what was rejected on the way
+
+**The floor is a refusal to publish, and it lives where the comparison is published.** The driver
+now records what each run did, including the instruction the arm really put on the wire and whether
+the arm is the control, and `scripts/envelopefloor.py` turns those records into rates. It reports
+the control arm per subtask shape and prints the comparison between the arms **only** while that
+control still stands. The alternative was an assertion at the end of the live run, which is louder
+and was rejected for two reasons that outweigh loudness: an integration-marked file is code no gate
+ever runs, so the rule itself would have been ungated and unmutated, and this tree has twice
+written down that the arithmetic behind a published number belongs in a covered file rather than in
+a driver (`contrast.py`'s docstring, and the recall-trail probe's). The interval was already being
+computed in a scratchpad; it now has a home, and ten of the intervals the tables above publish are
+reproduced by the suite that covers it.
+
+**What a run "stood" is deliberately weaker than what a reply "delivered".** A delivered reply is
+judged against a subtask, and the driver's subtask is a knob. What the reader holds instead is the
+property every delivered reply also has: the runner accepted the run, the reply is not empty, and
+the reply is not the instruction handed back. Two of those are structural and the third compares
+the reply against the ask the driver recorded sending, so all three are readable without knowing
+what was asked. `stood` therefore bounds `delivered` from above, which is the direction that makes
+a red honest: a cell refused here is under the floor there too, while a cell that clears the floor
+has cleared only what a machine can see. A narration, a plan, and an answer that is simply wrong
+are all invisible to it, which is [R-507](../refinements/tasks/507-the-floor-sees-only-the-failures-a-machine-can-name.md)
+and is why decision 5's reading about what a detector over prose can do is untouched.
+
+**The floor is nine tenths of a cell's own runs, and it is argued rather than measured.** A rate is
+attributable to the envelope only while the unconstrained arm is near its ceiling. Nine tenths is
+where that stops being true of this row: its envelope arms have measured as low as 66 and 70 of 96,
+so a control arm under nine tenths is doing no better than the arms it exists to explain, and a
+difference read between two such arms is noise in a table's clothes. It sits well clear of every
+honest control cell this arc has produced, the worst being the 4B's extraction at 28 of 32, and
+well above the collapse it exists to catch. An exact figure read off one sweep would have been a
+dated reading rather than a property, which is the reason the shape is a floor with an interval
+under it rather than a number to hit.
+
+**The rule is one-sided: a point estimate under the floor is not enough.** A cell is refused only
+when its whole Wilson 95% interval lies under it. On a swept cell of 32 that is 25 or worse and 26
+passes; pooled at 96 it is 80; at the default knobs, where an arm is four runs, a cell is refused
+only once half of it has failed, one loss in four being evidence of nothing. The alternative,
+redding whenever the observed rate is under the floor, would have made a 40-minute measurement fail
+on sampling noise, which is the way an instrument gets switched off. Where this interval parts from
+an exact binomial test it parts at small n and toward refusing, and that is the harmless direction:
+a refusal withholds a comparison from a run that measured almost nothing, where publishing hands a
+reader a rate about the pick wearing the envelope's name.
+
+**The floor is held per subtask shape**, a shape being the instruction a run was given, because a
+pick that answers a summarization and cannot do an extraction has one cell at ceiling and one on
+the floor and their average describes neither. The 0.8B's own extraction cell, 12 of 32 under the
+shipped path, is what that looks like from the other side.
+
+**Rejected: "the control arm must lead."** The tempting rule, that no envelope arm may deliver more
+than the arm with no envelope, is refuted by the row above: the 4B's constrained arm delivers 94 of
+96 against its own raw arm's 92. A rule this row already falsifies would have been a gate that
+fires on the truth.
+
+**Rejected: a `--floor` knob.** A floor with a knob beside it is a suggestion, and the one reader
+who would reach for it is the one whose control arm just failed.
+
+**Which arm is the control is a fact the sample carries, not a name two trees agree on.** The
+driver writes `control` per sample, true for the arm whose request carries no schema, which is also
+the arm the runner appends no sentence to. So the reader finds the control without knowing that any
+arm is called `raw`, and a run configured with no control arm at all, which `CORTEX_ENVELOPE_ARMS`
+allows and a probe legitimately wants, is refused as no comparison rather than published as a
+weaker one.
+
+### Distrust green
+
+The rule is new, so it was made to fail before it was trusted. Mutations of
+`scripts/envelopefloor.py`, each run against **`scripts/tests/test_envelopefloor.py`, the 29-test
+suite that covers it** (`cd scripts && uv run pytest tests/test_envelopefloor.py`):
+
+| mutation | result |
+| --- | --- |
+| the floor set to nothing (`FLOOR = 0.0`) | 4 failed, 25 passed |
+| the rule made two-sided (refuse on the interval's low end) | 5 failed, 24 passed |
+| the echo lapse dropped, so the ask handed back counts as an answer | 7 failed, 22 passed |
+| the echo lapse widened from equality to containment | 1 failed, 28 passed |
+| the empty lapse dropped | 2 failed, 27 passed |
+| the refused lapse dropped | 2 failed, 27 passed |
+| a run with no control arm published as if it had one | 1 failed, 28 passed |
+| every arm read as the control | 1 failed, 28 passed |
+| the shapes pooled into one cell | 2 failed, 27 passed |
+| the interval's quantile moved (`Z = 1.0`) | 2 failed, 27 passed |
+| a sample with no `control` field accepted | 2 failed, 27 passed |
+| a turn with no `instruction` field accepted | 2 failed, 27 passed |
+| none, restored | 29 passed |
+
+**The half that no suite can hold is named rather than left implied.** The driver's own change,
+recording the instruction and the control flag, is in an integration-marked file that neither CI
+nor the coverage gate runs, so nothing red-greens it. What stands in for that is the reader's
+refusal: a driver that stopped writing either field is refused by name, and one that marked no arm
+as the control is refused as no comparison, which are exactly the two mutations tabled above.
+
+**The arithmetic could have been a new arithmetic wearing the old numbers.** It is not: ten rates
+drawn from the tables above, spanning 9 of 32 to 96 of 96, are asserted against this module's own
+interval, and all ten reproduce to the two decimals the tables print.
+
+**The instrument was run before it was believed.** Against synthetic samples in the sample format,
+a control arm at 31 of 32 with a refusal publishes the comparison and exits 0; the same arms with
+the control at 20 of 32 print the control's own line, refuse the comparison and exit 1; a run
+carrying only an envelope arm refuses for want of a control and exits 1.
+
+**It was then run twice against a live server, small enough to be honest about.** Qwen3.5-0.8B Q8_0
+on CPU under the subagent compose file's own flags, driven by the committed harness: one run of one
+body at a deliberately starved 192-token cap, whose control arm was cut at the cap and refused at 0
+of 1, and one of the lookup shape over two bodies at two draws at 256 tokens, whose control arm
+stood 4 of 4 and published. **Neither is a reading about the pick and no rate from them is quoted
+above**, a four-run probe at a starved cap being neither the sweep's cap nor its draws. What they
+establish is that the driver writes a sample this reader can read and that both verdicts fire on
+real replies. The second run also handed this addendum its own limit, unasked: three of those four
+standing control replies name a reporting period the body never states (`week ending Wednesday,
+July 29, 2024`, `the month of April`, `the second half of the month`, against bodies reading `week
+34` and `month ending`), so its judged rate is 1 of 4 where the machine-read rate is 4 of 4. That
+is [R-507](../refinements/tasks/507-the-floor-sees-only-the-failures-a-machine-can-name.md)
+demonstrated rather than predicted, and it is why nothing here claims the floor measures delivery.
+
+**No sweep was re-run for this addendum**, which is why no rate in the tables above is new: every
+one of them is the row addendum's, re-read.
+
+### What moves
+
+`scripts/envelopefloor.py` and its suite arrive, `just envelope-floor` runs it, and the driver
+gains two recorded facts and a closing line naming the publishing step. Nothing about the grammar,
+the sentence, the unwrap or any pick moves, and no table above changes. What changes is the next
+sweep's procedure: its numbers are published by a command rather than by hand, and a sweep whose
+control arm fell through the floor now says so instead of printing a table about the envelope that
+is really about the pick.

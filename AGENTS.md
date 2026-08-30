@@ -279,10 +279,12 @@ body/             Rust/Tauri workspace, host-native
   app/            React+Vite overlay (gated 100%) + its host-native Tauri src-tauri
                   shell (fmt- and clippy-checked in CI, running it is host-only) named
                   cortex-body, own workspace
-scripts/          repo gates, plus the two modules here that gate nothing, contrast.py (the
+scripts/          repo gates, plus the three modules here that gate nothing, contrast.py (the
                   interval a live measurement reports) and trailwidth.py (the width the recall
                   trail's widest field really renders at, read off captured lines, both
-                  ADR-0038): linecap.py (300-line cap), dashcheck.py (no dash as
+                  ADR-0038) and envelopefloor.py (what an envelope measurement's arms did, and the
+                  floor its control arm is published against, ADR-0028):
+                  linecap.py (300-line cap), dashcheck.py (no dash as
                   punctuation), crosscheck.py (one value, spelled in several places, still
                   agreeing) + couplings.py (the vocabulary its registry is written in) +
                   registry.py (the only module naming the parts that registry is written in) +
@@ -375,12 +377,15 @@ scripts/          repo gates, plus the two modules here that gate nothing, contr
 .github/          GPU-less CI running the same `just` recipes as local dev: ci.yml is the gate
                   mirror, shuffle.yml the weekly test-order sweep that gates nothing (ADR-0002)
 justfile          `just check` + check-*; proto, up/down, brain-serve, seam-health, turn-cost,
+                  envelope-floor,
                   backlog (regenerate each backlog index from its task files), shuffle (every
                   suite at one chosen seed, the sweep the gate's own fixed seed never draws,
                   ADR-0002)
                   (`just check` runs the eleven cross-tree scans before the per-tree ones;
                   `turn-cost` is the A/B/A live measurement, where the container restarts
-                  between arms live, ADR-0038; `image-volumes` is the hand-run docker
+                  between arms live, ADR-0038; `envelope-floor` publishes an envelope
+                  measurement's arms and refuses when its control arm fell through the floor,
+                  ADR-0028; `image-volumes` is the hand-run docker
                   re-derivation of the record `check-volumecheck` reads, ADR-0011)
 docker/           Compose stack (run via `just up`/`up-gpu`, or `docker compose --project-directory .
                   -f docker/docker-compose.yml …`): docker-compose.yml (brain + redis, loopback-only)
