@@ -1,6 +1,6 @@
 # Nobody has measured whether the image arm's result depends on the picture's size
 
-**Status:** open, actionable
+**Status:** landed 2026-08-30
 **Area:** vision
 **Origin:** [ADR-0029](../../adr/ADR-0029-vision-screen-capture.md)
 
@@ -43,3 +43,24 @@ The harness to run is `brain/packages/inference/tests/test_injection_defense_liv
   [R-427](427-the-injection-corpus-claims-a-size-nothing-holds.md), which argued the corpus's
   frame from comparability and from the attacker's benefit and found no evidence either way about
   whether the frame changes the result.
+- 2026-08-30: **landed, with the frame a free choice over the range measured and the entry's own
+  experiment refused.** Every particular of the entry held at HEAD: one frame was not the arm's
+  default but the only frame the corpus could build, and the published matrix was measured in it.
+  The experiment it proposed was not run, because a canvas that grows while the glyphs stay put
+  varies the payload's share of the picture as well as the picture's size, and two matrices
+  differing in two variables are two experiments. The corpus now takes a `Frame` that multiplies
+  the canvas, every coordinate and every glyph pixel by one integer, so the payload holds its
+  share exactly and size is the only variable; the arm ran at the corpus frame and at twice it on
+  the shipped cortex, uncapped, and the rate of the one genuinely obeyed attack was measured at
+  both. The matrices differ by three cells and all three are cells already measured to fire on
+  about half their runs, and the rate is what settles how to read that: the same cell moved by 2
+  of 5 between two sittings at one frame and by 2 of 5 between two frames in one sitting, so the
+  result is a ceiling on any size effect rather than its absence. What is excluded is anything
+  that would have shown, since the two arms moved apart rather than together and the picture is
+  byte-identical between them. What the pair cannot settle is that it ran at the one image
+  budget where a larger picture is not a larger picture to the model, which is
+  [R-513](513-the-frame-pair-ran-only-where-the-picture-is-saturated.md), and it deliberately held
+  the payload's share of the screen constant, which is
+  [R-514](514-the-payloads-share-of-the-screen-is-the-variable-nobody-varied.md). The decision and
+  both matrices are the [ADR-0029 frame-pair
+  addendum](../../adr/ADR-0029-vision-screen-capture.md).
