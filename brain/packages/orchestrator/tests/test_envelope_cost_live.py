@@ -28,6 +28,7 @@ from cortex_core import (
     PlacementTarget,
     ReasoningChunk,
     ResourceBudgetScheduler,
+    Role,
     SingleResidentModelManager,
     SubagentProfile,
     SubagentResources,
@@ -58,6 +59,9 @@ _TAG = os.environ.get("CORTEX_ENVELOPE_TAG", "")
 # How much of each half is kept verbatim. A count says the tokens went somewhere other than
 # the reply and cannot say where, and where is the whole of what a retune would rest on.
 _HEAD = int(os.environ.get("CORTEX_ENVELOPE_HEAD", "400"))
+# The fields the sample keeps whole and the per-run line drops: both are long and one of them is
+# the same string on every run of an arm, so printing either buries the numbers a reader watches.
+_UNPRINTED = frozenset({"instruction", "output"})
 
 _REPLY_DESCRIPTION = "The answer to the instruction, written out in full as plain text."
 _DESCRIBED_ENVELOPE: JsonSchema = {
@@ -170,6 +174,7 @@ class _Recording:
         self.cadence: DecodeCadence | None = None
         self.stop: DecodeStop | None = None
         self.ttft_s: float | None = None
+        self.instruction = ""
         # Both halves of what the model wrote, kept apart. A delegated run drops a reasoning
         # delta unread, so a tier that reasons spends its cap on text the cortex never sees and
         # a reading that counted only the reply would call that a short answer.
@@ -188,6 +193,9 @@ class _Recording:
         started = time.monotonic()
         asked = self._substitute if schema is not None and self._substitute is not None else schema
         sent = self._without_instruction(messages) if self._strip_instruction else messages
+        asks = [message.text for message in sent if message.role is Role.USER]
+        assert len(asks) == 1, f"one user message is the subtask, got {len(asks)}"
+        self.instruction = asks[0]
         events = self._inner.stream(model, sent, tools=tools, schema=asked, bounds=bounds)
         async for event in events:
             if isinstance(event, TextChunk):
@@ -269,14 +277,12 @@ async def _one(
         "output_chars": len(result.output),
         "stream_text_chars": len(recorder.text),
         "reasoning_chars": len(recorder.reasoning),
-        # Kept whole, and the only field here that is. A length says a reply happened; whether it
-        # answered the instruction or described answering it is in the words, and that reading is
-        # what this harness was extended to support.
+        "instruction": recorder.instruction,
         "output": result.output,
         "stream_head": recorder.text[:_HEAD],
         "reasoning_head": recorder.reasoning[:_HEAD],
     }
-    printed = {key: value for key, value in turn.items() if key != "output"}
+    printed = {key: value for key, value in turn.items() if key not in _UNPRINTED}
     print(f"  {task_id}: {json.dumps(printed)}", flush=True)  # noqa: T201 -- the report is the point
     return turn
 
@@ -285,7 +291,8 @@ def _write(arm: str, turns: list[dict[str, Any]]) -> None:
     """Rewrite one arm's sample, so a run cut short still leaves the draws it finished."""
     _OUT.mkdir(parents=True, exist_ok=True)
     path = _OUT / f"envelope-{arm}{_TAG}.json"
-    path.write_text(json.dumps({"arm": arm, "turns": turns}, indent=2) + "\n", encoding="utf-8")
+    sample = {"arm": arm, "control": _SCHEMAS[arm] is None, "turns": turns}
+    path.write_text(json.dumps(sample, indent=2) + "\n", encoding="utf-8")
 
 
 @pytest.mark.integration
@@ -302,6 +309,13 @@ async def test_the_envelope_against_the_raw_shape_over_the_same_bodies() -> None
                 for arm in _ARMS:
                     turns[arm].append(await _one(client, name, body, arm=arm, draw=draw))
                     _write(arm, turns[arm])
+    written = " ".join(str((_OUT / f"envelope-{arm}{_TAG}.json").resolve()) for arm in _ARMS)
+    print(  # noqa: T201 -- the report is the point
+        f"\nwrote {len(_ARMS)} arm sample(s): {written}\n"
+        "  none of this is a comparison until the control arm is published:\n"
+        f"  just envelope-floor {written}",
+        flush=True,
+    )
     # The measurement is the numbers printed and written above; what must hold whatever the model
     # decides is that every arm answered over the same bodies, which is what makes them pairable.
     asked = [[(turn["question"], turn["draw"]) for turn in seen] for seen in turns.values()]

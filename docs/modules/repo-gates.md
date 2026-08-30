@@ -6,8 +6,10 @@ check, the compose defaults check, the image-volume check, the seam-stub comment
 documented-log-sample check, the document-roster check, the subagent-server flag check, the
 backlog gate, the Rust coverage threshold, the CI path
 classifier, the commit-message style hook,
-and, since 2026-08-09, the one module here that gates nothing, the interval a live measurement
-reports. What they have in common is not that each is a gate; it is that each is pure Python that
+and, since 2026-08-09, the modules here that gate nothing: the interval a live measurement
+reports, the width its widest logged field renders at, and the floor an envelope measurement's
+control arm is published against.
+What they have in common is not that each is a gate; it is that each is pure Python that
 belongs to neither the brain nor the body and is gated exactly like both. A standalone uv project
 (not a brain workspace member, per ADR-0002).
 
@@ -17,8 +19,8 @@ belongs to neither the brain nor the body and is gated exactly like both. A stan
 `coverage_gate.py` invoked by `just`
 recipes, `ci_paths.py`
 by the CI
-workflow, `commitlint.py` by the commit-msg pre-commit stage, `contrast.py` by `just turn-cost`
-and `trailwidth.py` by `just recall-width`;
+workflow, `commitlint.py` by the commit-msg pre-commit stage, `contrast.py` by `just turn-cost`,
+`trailwidth.py` by `just recall-width` and `envelopefloor.py` by `just envelope-floor`;
 each also exposes a pure, unit-tested core function).
 **The rest have no CLI of their own**, forty five modules,
 most split out under the line cap and each named for what it holds: `couplings.py` is the
@@ -1137,6 +1139,36 @@ that last question to have an answer.
   on a capture it cannot read, one holding no trail line at all, and a non-positive resample count.
   Exit 0 printing the report; exit 2 printing one `trailwidth: PROBLEM` line; argparse exit 2 on
   usage.
+
+- `envelopefloor.py SAMPLE [SAMPLE ...]` is the third module here that gates nothing, and it is
+  here for the same three reasons (ADR-0028 control-arm addendum). It reads the per-arm samples
+  `brain/packages/orchestrator/tests/test_envelope_cost_live.py` writes and publishes what each arm
+  did, but only while the arm every rate is read against still stands: **the control arm is the one
+  carrying no grammar and no appended sentence, and a comparison read against a control that failed
+  the subtask prices the pick and not the envelope.** That arm answered 96 of 96 on three picks of
+  the subagent row and then 93 and 92 on two more, so it is a reading and not the constant the
+  record had begun quoting. What a run **stood** means here is deliberately weaker than the
+  `delivered` the addenda judge by hand: the runner accepted it, the reply is not empty, and it is
+  not the instruction handed back, which are the three failures visible without knowing the
+  subtask. `stood` therefore bounds `delivered` from above, so a cell refused here is under the
+  floor there too, while a cell that clears the floor has cleared only what a machine can see; a
+  narration and a wrong answer are invisible and stay a reading. The floor is **nine tenths of a
+  cell's own runs**, argued rather than measured (this row's envelope arms have gone as low as 66
+  of 96, so a control under nine tenths is doing no better than the arms it exists to explain), and
+  it is held **per subtask shape**, a shape being the instruction a run was given, since a pick
+  that answers a summarization and cannot do an extraction has one cell at ceiling and one on the
+  floor. The rule is **one-sided so that a red is a proof**: a cell is refused only when its Wilson
+  95% interval lies wholly under the floor, which is 25 of 32 or worse on a swept cell, 80 of 96
+  pooled, and a four-run probe only once half of it has failed. That interval is the same arithmetic the ADR-0028 tables
+  publish beside every rate, and ten of those published intervals are reproduced by the suite here.
+  There is deliberately **no `--floor`**: a floor with a knob beside it is a suggestion, and the
+  one reader who would reach for it is the one whose control arm just failed. Which arm is the
+  control is read off the sample's own `control` field rather than off an arm's name, so no name
+  has to agree across the two trees, and every other drift in that format is loud: a renamed or
+  dropped key is a refusal naming the key, and a run whose arms all say they are not the control
+  is refused as no comparison at all. Exit 0 printing the report; exit 1 printing it with a
+  `refused:` line (no control arm in the samples, or a cell proven under the floor); exit 2
+  printing one `envelopefloor: PROBLEM` line; argparse exit 2 on usage.
 
 **Invariants.**
 - stdlib-only modules; pure cores (`scan`, `evaluate`/`check`, `classify`, `report`) unit-tested
