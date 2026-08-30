@@ -1,6 +1,6 @@
 # One sentence is appended for every roster entry and the entries do not agree about it
 
-**Status:** open, actionable
+**Status:** declined 2026-08-30
 **Area:** subagents
 **Origin:** [ADR-0028](../../adr/ADR-0028-grammar-constrained-subagents.md)
 
@@ -66,3 +66,29 @@ instruction back, once as a paraphrase of `REPLY_INSTRUCTION` itself offered as 
 wording is a plausible remedy on the E2B and is not obviously one here. Worth designing together
 with [R-485](485-a-roster-description-never-says-whether-the-entry-answers.md), which wants the same
 per-entry seam for a different value.
+
+## Trail
+
+- 2026-08-28: opened by the close of
+  [R-481](481-the-sentence-is-measured-on-one-pick.md), which asked two more picks whether the
+  shipped sentence helps them and found one it hurts.
+- 2026-08-28: amended by the close of
+  [R-483](483-the-rest-of-the-subagent-tier-is-unasked.md), which measured the row's last two
+  entries and put the failing side at two picks rather than one, on opposite sides of the template
+  column and with different mechanisms.
+- 2026-08-30: declined by the ADR-0028 per-entry wording addendum. Every claim it makes about the
+  tree held, and the thing that decides it is one the entry never states: a `SubagentProfile` is
+  keyed by roster **name**, and the two picks the sentence costs are lineup entries reached by
+  pointing `CORTEX_MODEL_FILE_SUBAGENT` at another GGUF in a compose `command:` the brain never
+  reads. `SingleResidentModelManager` matches that name against itself and dials an endpoint, so a
+  wording filed under `subagent` would describe whatever weights the container happened to load. The
+  field would also ship empty everywhere, both picks a stack ships being on the gaining side, and
+  the only value an operator could set with confidence is the empty one, which is the instruction
+  addendum's decision 4 knob rebuilt per entry. Nothing measured supports a second wording either:
+  no milder sentence has been asked of the E2B, and on the 0.8B the failure is the ask handed back,
+  once as a paraphrase of `REPLY_INSTRUCTION` itself, which a softer sentence gives more to copy.
+  What the entry's third bullet asked for did land: the ADR now scopes the sentence to the picks
+  this repo ships rather than to the tier, and the runbook's override table gains the four
+  conditions its rates are a reading under. What the decline hands forward is
+  [R-508](508-a-roster-entry-names-an-endpoint-and-not-a-model.md), the identity a per-entry value
+  would need to be filed under.

@@ -39,6 +39,20 @@ GPU-placed spawn really executes on the GPU and both of the placer's verdicts ar
   reasons: the E2B loses answers to a channel nobody reads, and the 0.8B mostly hands the
   instruction back.
 
+  **What keeps those numbers true, since nothing holds them.** Each is a dated reading of one
+  artifact on one engine build at one cap under one appended sentence, judged by hand once per
+  sweep, and four things move it: the GGUF the variable above names, the llama.cpp build serving it
+  (each measurement names its image by digest), `CORTEX_SUBAGENTS_MAX_TOKENS`, since a run cut at
+  the cap counts as a non-delivery whatever its text held, and `REPLY_INSTRUCTION` itself. Re-measure
+  with `brain/packages/orchestrator/tests/test_envelope_cost_live.py` and publish with
+  `just envelope-floor`, whose own metric is deliberately weaker than the rates tabled here
+  ([R-507](../refinements/tasks/507-the-floor-sees-only-the-failures-a-machine-can-name.md)). **This
+  table is on purpose the only place those rates live.** The description the cortex picks a roster
+  entry by carries a speed and a hazard and no rate, because a rate advertised there would be read
+  by a chooser that can see none of the four conditions above and cannot check which artifact the
+  entry is serving (ADR-0018 addendum of 2026-08-30, and ADR-0028's of the same date for the sibling
+  decline about the sentence).
+
 ## 1. Bring up the subagent server
 
 ```bash

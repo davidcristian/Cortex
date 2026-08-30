@@ -515,7 +515,12 @@ Roster domain (Slice 8.6, ADR-0018; in `roster.py`):
   ledger); only `backends`/`request` differ.
 - `SubagentProfile` is a frozen dataclass: `resources: SubagentResources`, `description: str = ""`.
   One roster entry; the description is the trade-off text the spawn spec advertises (informs
-  optimization only, never safety).
+  optimization only, never safety). It carries **no measured rate and no per-entry wording**, both
+  declined on 2026-08-30 for one reason (ADR-0018's description addendum and ADR-0028's per-entry
+  wording addendum): an entry is a name over an endpoint, the artifact answering there is a compose
+  `command:` the brain never reads, so a measured per-entry value would be filed under a key that
+  does not determine it. The identity that would change this is
+  [R-508](../refinements/tasks/508-a-roster-entry-names-an-endpoint-and-not-a-model.md).
 - `SubagentRoster` is a frozen dataclass: `entries: Mapping[str, SubagentProfile]`, `default: str`
   (must be an entry; empty rosters rejected with `ValueError` at construction). `resolve(requested,
   *, tainted, tools_enabled) -> str | None` is where ADR-0017 executes: `tainted or tools_enabled`
@@ -2016,8 +2021,13 @@ Use-case:
   narration it repairs is the default pick's, the roster alternate barely narrates without it, and
   two of the five entries of that row answer less often with it than without. Nothing in
   `SubagentProfile`
-  carries a wording, so a per-entry sentence would be a port change and is
-  [R-482](../refinements/tasks/482-the-sentence-is-one-wording-for-every-entry.md). **The sentence is not a detector**: a
+  carries a wording, and the per-entry wording that would need one is **declined** (ADR-0028
+  per-entry wording addendum, closing
+  [R-482](../refinements/tasks/482-the-sentence-is-one-wording-for-every-entry.md)): a profile is
+  keyed by roster name, both picks the sentence costs are artifact overrides rather than roster
+  entries, and no better wording has been measured for either. What the decision is scoped to is
+  therefore the picks this repo ships and not the tier, and the two picks that pay are priced in
+  `docs/runbooks/subagents-cpu.md` where the override is documented. **The sentence is not a detector**: a
   plan that still arrives in `reply` is `ok=True`, because nothing in the core can tell a plan from
   an answer without judging prose, and a judge that misfires costs an answer the cortex had
   ([R-480](../refinements/tasks/480-a-narrated-reply-arrives-as-an-answer.md)).
