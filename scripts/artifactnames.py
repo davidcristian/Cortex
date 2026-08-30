@@ -19,10 +19,6 @@ from hostedtiers import (
 # started here writes and the only one this reader takes.
 MODEL_FLAG = "--model"
 
-# What an argv carrying either of these serves, which is not chat. Both spellings of the one flag,
-# so the exclusion is dodged by neither, and it is llama.cpp that accepts both.
-EMBEDDING_FLAGS = frozenset({"--embeddings", "--embedding"})
-
 
 class Artifact(NamedTuple):
     """One model artifact this tree names, and the variable a deployment names it under."""
@@ -36,8 +32,6 @@ class Artifact(NamedTuple):
 def spends(started: Started) -> tuple[str, ...]:
     """Every variable one service's argv names a model artifact under, in the order written."""
     command = started.command or ()
-    if any(item in EMBEDDING_FLAGS for item in command):
-        return ()
     try:
         return tuple(
             spend.name
